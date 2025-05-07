@@ -192,9 +192,11 @@ fun unzipEslintBridgeBundle(destinationDir: File, pluginName: String) {
 
 tasks.register("preparePlugins") {
 	val destinationDir = file(layout.buildDirectory)
-	val pluginName = "sonar-mcp-server"
+	description = "Prepare Sonar plugins"
+	group = "build"
 
 	doLast {
+		val pluginName = "sonar-mcp-server"
 		copyPlugins(destinationDir, pluginName)
 		renameCsharpPlugins(destinationDir, pluginName)
 		copyOmnisharp(destinationDir, pluginName)
@@ -204,6 +206,8 @@ tasks.register("preparePlugins") {
 
 tasks.register<Copy>("copyPluginResources") {
 	dependsOn("preparePlugins")
+	description = "Copy Sonar plugins"
+	group = "build"
 
 	val pluginName = "sonar-mcp-server"
 	val fromDir = layout.buildDirectory.dir(pluginName)
@@ -236,8 +240,46 @@ application {
 	mainClass = "org.sonar.mcp.SonarMcpServer"
 }
 
+artifactory {
+	clientConfig.info.buildName = "sonar-mcp-server"
+	clientConfig.info.buildNumber = System.getenv("BUILD_ID")
+	clientConfig.isIncludeEnvVars = true
+	clientConfig.envVarsExcludePatterns = "*password*,*PASSWORD*,*secret*,*MAVEN_CMD_LINE_ARGS*,sun.java.command,*token*,*TOKEN*,*LOGIN*,*login*,*key*,*KEY*,*PASSPHRASE*,*signing*"
+	clientConfig.info.addEnvironmentProperty(
+		"ARTIFACTS_TO_DOWNLOAD",
+		"org.sonarsource.sonar.mcp.server:sonar-mcp-server:jar,org.sonarsource.sonar.mcp.server:sonar-mcp-server:json:cyclonedx"
+	)
+	setContextUrl(System.getenv("ARTIFACTORY_URL"))
+	publish {
+		repository {
+			setProperty("repoKey", System.getenv("ARTIFACTORY_DEPLOY_REPO"))
+			setProperty("username", System.getenv("ARTIFACTORY_DEPLOY_USERNAME"))
+			setProperty("password", System.getenv("ARTIFACTORY_DEPLOY_PASSWORD"))
+		}
+		defaults {
+			setProperties(
+				mapOf(
+					"vcs.revision" to System.getenv("CIRRUS_CHANGE_IN_REPO"),
+					"vcs.branch" to (System.getenv("CIRRUS_BASE_BRANCH")
+						?: System.getenv("CIRRUS_BRANCH")),
+					"build.name" to "sonar-mcp-server",
+					"build.number" to System.getenv("BUILD_ID")
+				)
+			)
+			setPublishPom(true)
+			setPublishIvy(false)
+		}
+	}
+}
+
 sonar {
 	properties {
+		property("sonar.organization", "sonarsource")
+		property("sonar.projectKey", "SonarSource_sonar-mcp-server")
 		property("sonar.projectName", "Sonar MCP Server")
+		property("sonar.links.ci", "https://cirrus-ci.com/github/SonarSource/sonar-mcp-server")
+		property("sonar.links.scm", "https://github.com/SonarSource/sonar-mcp-server")
+		property("sonar.links.issue", "https://jira.sonarsource.com/browse/SLCORE")
+		property("sonar.exclusions", "**/build/**/*")
 	}
 }

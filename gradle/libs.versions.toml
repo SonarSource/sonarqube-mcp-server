@@ -16,7 +16,7 @@ sonar-iac = "1.45.0.14930"
 sonar-cpp = "6.66.0.83483"
 sonar-dotnet = "10.8.0.113526"
 
-sonarqube = "4.4.1.3373"
+sonarqube = "6.1.0.5360"
 
 license-plugin = "0.16.1"
 artifactory-plugin = "4.33.1"
