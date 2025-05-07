@@ -30,12 +30,7 @@ public class SonarMcpServer {
 	public static void main(String[] args) {
 		var transportProvider = new StdioServerTransportProvider();
 
-		var backendService = new BackendService(
-			"to-define",
-			"to-define",
-			"to-define",
-			"to-define"
-		);
+		var backendService = new BackendService();
 
 		var mcpService = new McpService(backendService);
 

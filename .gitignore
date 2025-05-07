@@ -35,5 +35,3 @@ out/
 
 ### VS Code ###
 .vscode/
-
-.env.properties

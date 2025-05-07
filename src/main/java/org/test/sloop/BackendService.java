@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nullable;
-import javax.annotation.PostConstruct;
 import org.sonarsource.sonarlint.core.rpc.client.Sloop;
 import org.sonarsource.sonarlint.core.rpc.client.SloopLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
@@ -57,20 +56,19 @@ import static org.test.analysis.AnalysisUtils.getSupportedLanguages;
 
 public class BackendService {
 
-  private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture();
+  private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
+  private final String workDir;
+  private final String sloopPath;
+  private final String homePath;
+  private final String pluginPath;
   private Sloop sloop = null;
   private SloopLauncher defaultSloopLauncher = null;
 
-  private String workDir;
-  private String sloopPath;
-  private String homePath;
-  private String pluginPath;
-
-  public BackendService(String workDir, String sloopPath, String homePath, String pluginPath) {
-    this.workDir = workDir;
-    this.sloopPath = sloopPath;
-    this.homePath = homePath;
-    this.pluginPath = pluginPath;
+  public BackendService() {
+    this.workDir = System.getProperty("WORKDIR_PATH");
+    this.sloopPath = System.getProperty("SLOOP_PATH");
+    this.homePath = System.getProperty("MCP_HOME_PATH");
+    this.pluginPath = System.getProperty("PLUGIN_PATH");
 
     createServiceStartingTask();
   }
@@ -118,9 +116,9 @@ public class BackendService {
 
   private Sloop startSloopProcess() {
     var lsp4jLogger = Logger.getLogger("org.eclipse.lsp4j.jsonrpc.RemoteEndpoint");
-    lsp4jLogger.setFilter(record -> {
-      if (record.getLevel() == Level.SEVERE) {
-        record.setLevel(Level.OFF);
+    lsp4jLogger.setFilter(logRecord -> {
+      if (logRecord.getLevel() == Level.SEVERE) {
+        logRecord.setLevel(Level.OFF);
         return false;
       } else {
         return true;
@@ -128,9 +126,9 @@ public class BackendService {
     });
     var sloopLauncher = this.defaultSloopLauncher != null ? this.defaultSloopLauncher : new SloopLauncher(new SloopRpcClient());
     var jreHomePath = getPathProperty("java.home");
-    var sloopPath = getSloopPath();
-    System.out.println("Starting Sloop process from " + sloopPath + " with JRE from " + jreHomePath);
-    return sloopLauncher.start(sloopPath, jreHomePath);
+    var pathToSloop = getSloopPath();
+    System.out.println("Starting Sloop process from " + pathToSloop + " with JRE from " + jreHomePath);
+    return sloopLauncher.start(pathToSloop, jreHomePath);
   }
 
   private CompletableFuture<Void> initRpcServer(SonarLintRpcServer rpcServer) {
