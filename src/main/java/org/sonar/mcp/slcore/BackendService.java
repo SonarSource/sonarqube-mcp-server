@@ -17,8 +17,10 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
  */
-package org.test.sloop;
+package org.sonar.mcp.slcore;
 
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,11 +31,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nullable;
-import org.sonarsource.sonarlint.core.rpc.client.Sloop;
-import org.sonarsource.sonarlint.core.rpc.client.SloopLauncher;
+import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
+import org.sonarsource.sonarlint.core.rpc.impl.BackendJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesAndTrackParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
@@ -52,21 +52,19 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
-import static org.test.analysis.AnalysisUtils.getSupportedLanguages;
+import static org.sonar.mcp.analysis.LanguageUtils.getSupportedLanguages;
 
 public class BackendService {
 
   private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
   private final String workDir;
-  private final String sloopPath;
   private final String homePath;
   private final String pluginPath;
-  private Sloop sloop = null;
-  private SloopLauncher defaultSloopLauncher = null;
+  private ClientJsonRpcLauncher clientLauncher;
+  private SonarLintRpcServer backend;
 
   public BackendService() {
     this.workDir = System.getProperty("WORKDIR_PATH");
-    this.sloopPath = System.getProperty("SLOOP_PATH");
     this.homePath = System.getProperty("MCP_HOME_PATH");
     this.pluginPath = System.getProperty("PLUGIN_PATH");
 
@@ -105,30 +103,20 @@ public class BackendService {
 
   private void createServiceStartingTask() {
     try {
-      this.sloop = startSloopProcess();
-      initRpcServer(sloop.getRpcServer()).get(1, TimeUnit.MINUTES);
-      backendFuture.complete(sloop.getRpcServer());
-      System.out.println("Sloop process started");
+      System.out.println("Starting backend service");
+      var clientToServerOutputStream = new PipedOutputStream();
+      var clientToServerInputStream = new PipedInputStream(clientToServerOutputStream);
+      var serverToClientOutputStream = new PipedOutputStream();
+      var serverToClientInputStream = new PipedInputStream(serverToClientOutputStream);
+      new BackendJsonRpcLauncher(clientToServerInputStream, serverToClientOutputStream);
+      clientLauncher = new ClientJsonRpcLauncher(serverToClientInputStream, clientToServerOutputStream, new McpSonarLintRpcClient());
+      backend = clientLauncher.getServerProxy();
+      initRpcServer(backend).get(1, TimeUnit.MINUTES);
+      backendFuture.complete(backend);
+      System.out.println("Backend service initialized");
     } catch (Exception e) {
       backendFuture.cancel(true);
     }
-  }
-
-  private Sloop startSloopProcess() {
-    var lsp4jLogger = Logger.getLogger("org.eclipse.lsp4j.jsonrpc.RemoteEndpoint");
-    lsp4jLogger.setFilter(logRecord -> {
-      if (logRecord.getLevel() == Level.SEVERE) {
-        logRecord.setLevel(Level.OFF);
-        return false;
-      } else {
-        return true;
-      }
-    });
-    var sloopLauncher = this.defaultSloopLauncher != null ? this.defaultSloopLauncher : new SloopLauncher(new SloopRpcClient());
-    var jreHomePath = getPathProperty("java.home");
-    var pathToSloop = getSloopPath();
-    System.out.println("Starting Sloop process from " + pathToSloop + " with JRE from " + jreHomePath);
-    return sloopLauncher.start(pathToSloop, jreHomePath);
   }
 
   private CompletableFuture<Void> initRpcServer(SonarLintRpcServer rpcServer) {
@@ -181,10 +169,6 @@ public class BackendService {
 
   public Path getWorkDir() {
     return Paths.get(workDir);
-  }
-
-  public Path getSloopPath() {
-    return Paths.get(sloopPath);
   }
 
   private Path getHomePath() {

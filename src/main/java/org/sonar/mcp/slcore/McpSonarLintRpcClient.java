@@ -17,7 +17,7 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
  */
-package org.test.sloop;
+package org.sonar.mcp.slcore;
 
 import java.net.URI;
 import java.net.URL;
@@ -56,7 +56,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.Either;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.TokenDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.UsernamePasswordDto;
 
-public class SloopRpcClient implements SonarLintRpcClientDelegate {
+public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public void suggestBinding(Map<String, List<BindingSuggestionDto>> suggestionsByConfigScope) {
@@ -174,7 +174,8 @@ public class SloopRpcClient implements SonarLintRpcClientDelegate {
   }
 
   @Override
-  public void didChangeTaintVulnerabilities(String configurationScopeId, Set<UUID> closedTaintVulnerabilityIds, List<TaintVulnerabilityDto> addedTaintVulnerabilities, List<TaintVulnerabilityDto> updatedTaintVulnerabilities) {
+  public void didChangeTaintVulnerabilities(String configurationScopeId, Set<UUID> closedTaintVulnerabilityIds, List<TaintVulnerabilityDto> addedTaintVulnerabilities,
+    List<TaintVulnerabilityDto> updatedTaintVulnerabilities) {
 
   }
 

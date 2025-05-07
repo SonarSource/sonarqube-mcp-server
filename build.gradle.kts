@@ -8,7 +8,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 
 plugins {
-	java
+	application
 	jacoco
 	signing
 	alias(libs.plugins.sonarqube)
@@ -74,7 +74,6 @@ configurations {
 		isTransitive = true
 	}
 	create("omnisharp")
-	create("sloop")
 }
 
 dependencies {
@@ -95,7 +94,6 @@ dependencies {
 		"omnisharp"("org.sonarsource.sonarlint.omnisharp:omnisharp-roslyn:$omnisharpVersion:net472@zip")
 		"omnisharp"("org.sonarsource.sonarlint.omnisharp:omnisharp-roslyn:$omnisharpVersion:net6@zip")
 	}
-	"sloop"("org.sonarsource.sonarlint.core:sonarlint-backend-cli:${libs.versions.sonarlint.core.get()}:no-arch@zip")
 }
 
 tasks.test {
@@ -144,15 +142,6 @@ fun copyOmnisharp(destinationDir: File, pluginName: String) {
 		copy {
 			from(zipTree(artifact.file))
 			into(file("$destinationDir/$pluginName/omnisharp/${artifact.classifier}"))
-		}
-	}
-}
-
-fun copySloop(destinationDir: File, pluginName: String) {
-	configurations["sloop"].resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
-		copy {
-			from(zipTree(artifact.file))
-			into(file("$destinationDir/$pluginName/sloop/"))
 		}
 	}
 }
@@ -209,7 +198,6 @@ tasks.register("preparePlugins") {
 		copyPlugins(destinationDir, pluginName)
 		renameCsharpPlugins(destinationDir, pluginName)
 		copyOmnisharp(destinationDir, pluginName)
-		copySloop(destinationDir, pluginName)
 		unzipEslintBridgeBundle(destinationDir, pluginName)
 	}
 }
@@ -221,7 +209,7 @@ tasks.register<Copy>("copyPluginResources") {
 	val fromDir = layout.buildDirectory.dir(pluginName)
 
 	from(fromDir) {
-		include("**/plugins/**", "**/omnisharp/**", "**/sloop/**")
+		include("**/plugins/**", "**/omnisharp/**")
 		eachFile {
 			path = path.removePrefix("$pluginName/")
 		}
@@ -232,7 +220,7 @@ tasks.register<Copy>("copyPluginResources") {
 
 tasks.jar {
 	manifest {
-		attributes["Main-Class"] = "org.test.SonarMcpServer"
+		attributes["Main-Class"] = "org.sonar.mcp.SonarMcpServer"
 	}
 
 	from({
@@ -242,6 +230,10 @@ tasks.jar {
 	}
 
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+application {
+	mainClass = "org.sonar.mcp.SonarMcpServer"
 }
 
 sonar {

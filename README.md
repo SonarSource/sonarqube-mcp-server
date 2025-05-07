@@ -2,7 +2,7 @@
 
 ## Building
 
-The task `preparePlugins` will generate directories for sloop/plugins/omnisharp in `build/sonar-mcp-server`.
+The task `preparePlugins` will generate directories for plugins/omnisharp in `build/sonar-mcp-server`.
 
 `build` will generate the Jar file in `build/libs`.
 
@@ -17,7 +17,6 @@ Once the JAR is built, you can run it using the following command:
 ```bash
 java                     
 -DWORKDIR_PATH=PATH_TO_REPLACE
--DSLOOP_PATH=PATH_TO_REPLACE
 -DMCP_HOME_PATH=PATH_TO_REPLACE
 -DPLUGIN_PATH=PATH_TO_REPLACE
 -jar build/libs/sonar-mcp-server-<version>.jar

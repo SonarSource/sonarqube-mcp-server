@@ -17,34 +17,30 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
  */
-package org.test;
+package org.sonar.mcp;
 
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.test.mcp.McpService;
-import org.test.sloop.BackendService;
+import org.sonar.mcp.slcore.BackendService;
+import org.sonar.mcp.tools.FindIssuesTool;
 
 public class SonarMcpServer {
 
-	public static void main(String[] args) {
-		var transportProvider = new StdioServerTransportProvider();
-
+  public static void main(String[] args) {
 		var backendService = new BackendService();
+    var findIssuesTool = new FindIssuesTool(backendService);
 
-		var mcpService = new McpService(backendService);
+    var syncServer = McpServer
+      .sync(new StdioServerTransportProvider())
+      .serverInfo(new McpSchema.Implementation("sonar-mcp-server", "0.0.1"))
+      .capabilities(McpSchema.ServerCapabilities.builder()
+        .tools(true)
+        .logging()
+        .build())
+      .tools(findIssuesTool.spec())
+      .build();
 
-		var syncServer = McpServer
-			.sync(transportProvider)
-			.serverInfo(new McpSchema.Implementation("sonar-mcp-server", "0.0.1"))
-			.capabilities(McpSchema.ServerCapabilities.builder()
-				.tools(true)
-				.logging()
-				.build())
-			.tools(mcpService.registration())
-			.build();
-
-		Runtime.getRuntime().addShutdownHook(new Thread(syncServer::closeGracefully));
-	}
-
+    Runtime.getRuntime().addShutdownHook(new Thread(syncServer::closeGracefully));
+  }
 }
