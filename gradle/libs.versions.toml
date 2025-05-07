@@ -22,8 +22,7 @@ license-plugin = "0.16.1"
 artifactory-plugin = "4.33.1"
 cyclonedx-plugin = "1.10.0"
 
-springboot = "3.4.5"
-spring-ai = "1.0.0-M7"
+mcp-server = "0.9.0"
 commons-lang3 = "3.17.0"
 commons-text = "1.13.0"
 junit-bom = "5.11.3"
@@ -52,7 +51,7 @@ sonar-cfamily = { module = "com.sonarsource.cpp:sonar-cfamily-plugin", version.r
 sonar-dotnet = { module = "org.sonarsource.dotnet:sonar-csharp-plugin", version.ref = "sonar-dotnet" }
 sonar-dotnet-enterprise = { module = "com.sonarsource.dotnet:sonar-csharp-enterprise-plugin", version.ref = "sonar-dotnet" }
 
-spring-mcp-server = { module = "org.springframework.ai:spring-ai-starter-mcp-server", version.ref = "spring-ai" }
+mcp-server = { module = "io.modelcontextprotocol.sdk:mcp", version.ref = "mcp-server" }
 commons-langs3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit-bom" }
@@ -64,7 +63,6 @@ awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" 
 sonar-analyzers = ["sonar-java", "sonar-java-symbolic-execution", "sonar-javascript", "sonar-php", "sonar-python", "sonar-kotlin", "sonar-ruby", "sonar-html", "sonar-xml", "sonar-omnisharp", "sonar-text", "sonar-go", "sonar-iac", "sonar-dotnet"]
 
 [plugins]
-springboot = { id = "org.springframework.boot", version.ref = "springboot" }
 license = { id = "com.github.hierynomus.license", version.ref = "license-plugin" }
 artifactory = { id = "com.jfrog.artifactory", version.ref = "artifactory-plugin" }
 cyclonedx = { id = "org.cyclonedx.bom", version.ref = "cyclonedx-plugin" }

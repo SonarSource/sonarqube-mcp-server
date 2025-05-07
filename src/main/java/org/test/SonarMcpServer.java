@@ -19,24 +19,37 @@
  */
 package org.test;
 
-import java.util.List;
-import org.springframework.ai.tool.ToolCallbackProvider;
+import io.modelcontextprotocol.server.McpServer;
+import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.test.mcp.McpService;
-import org.springframework.ai.tool.ToolCallbacks;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
+import org.test.sloop.BackendService;
 
-@SpringBootApplication
 public class SonarMcpServer {
 
 	public static void main(String[] args) {
-		SpringApplication.run(SonarMcpServer.class, args);
-	}
+		var transportProvider = new StdioServerTransportProvider();
 
-	@Bean
-	public ToolCallbackProvider mcpServer(McpService mcpService) {
-		return ToolCallbackProvider.from(List.of(ToolCallbacks.from(mcpService)));
+		var backendService = new BackendService(
+			"to-define",
+			"to-define",
+			"to-define",
+			"to-define"
+		);
+
+		var mcpService = new McpService(backendService);
+
+		var syncServer = McpServer
+			.sync(transportProvider)
+			.serverInfo(new McpSchema.Implementation("sonar-mcp-server", "0.0.1"))
+			.capabilities(McpSchema.ServerCapabilities.builder()
+				.tools(true)
+				.logging()
+				.build())
+			.tools(mcpService.registration())
+			.build();
+
+		Runtime.getRuntime().addShutdownHook(new Thread(syncServer::closeGracefully));
 	}
 
 }

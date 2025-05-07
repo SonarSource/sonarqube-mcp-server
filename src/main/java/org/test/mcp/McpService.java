@@ -19,29 +19,26 @@
  */
 package org.test.mcp;
 
+import io.modelcontextprotocol.server.McpServerFeatures;
+import io.modelcontextprotocol.server.McpSyncServerExchange;
+import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.test.analysis.AnalysisUtils;
 import org.test.sloop.BackendService;
-import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.GetStandaloneRuleDescriptionParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.stereotype.Service;
 
 import static org.test.analysis.AnalysisUtils.buildResponseFromAnalysisResults;
 import static org.test.analysis.AnalysisUtils.getSonarLanguageFromInput;
 import static org.test.analysis.AnalysisUtils.mapSonarLanguageToLanguage;
 import static org.test.analysis.AnalysisUtils.removeTmpFileForAnalysis;
 
-@Service
 public class McpService {
 
   private static final String PROJECT_ID = "sonar-mcp-server";
@@ -52,30 +49,14 @@ public class McpService {
     backendService.projectOpened(PROJECT_ID);
   }
 
-  @Tool(description = "Get rule details (name, language, content) in standalone mode")
-  public String getStandaloneRuleDetails(@ToolParam(description = "The sonar rule key in format repositoryId:ruleId, for example squid:S109") String ruleKey) throws ExecutionException, InterruptedException {
-    var ruleDetails = backendService.getStandaloneRuleDetails(new GetStandaloneRuleDescriptionParams(ruleKey)).get();
-    var stringBuilder = new StringBuilder();
-    stringBuilder.append("Rule name: ").append(ruleDetails.getRuleDefinition().getName());
-    stringBuilder.append("\n");
-    stringBuilder.append("Language: ").append(ruleDetails.getRuleDefinition().getLanguage().toString());
-    stringBuilder.append("\n");
-    if (ruleDetails.getDescription().isLeft()) {
-      stringBuilder.append("Rule content (HTML format): ").append(ruleDetails.getDescription().getLeft().getHtmlContent());
-    } else {
-      stringBuilder.append("Rule introduction content (HTML format): ").append(ruleDetails.getDescription().getRight().getIntroductionHtmlContent());
-    }
-    return stringBuilder.toString();
-  }
+  private McpSchema.CallToolResult findSonarIssuesInCodeSnippet(Map<String, Object> args) {
+    var text = new StringBuilder();
 
-  @Tool(description = """
-    Find Sonar issues in a code snippet. If possible, the language of the code snippet should be known, but it can be null otherwise.
-    """)
-  public String findSonarIssuesInCodeSnippet(String codeSnippet, @Nullable String language) {
-    System.out.println("Starting analysis of the code snippet");
+    var codeSnippet = ((String) args.get("codeSnippet"));
+    var language = ((String) args.get("language"));
+
     var sonarLanguage = getSonarLanguageFromInput(language);
     if (sonarLanguage == null) {
-      System.out.println("Language determined as SECRETS by default");
       sonarLanguage = SonarLanguage.SECRETS;
     }
 
@@ -89,9 +70,9 @@ public class McpService {
       var startTime = System.currentTimeMillis();
       var response = backendService.analyzeFilesAndTrack(PROJECT_ID, analysisId, List.of(tmpFile.toUri()), startTime).get(20,
         TimeUnit.SECONDS);
-      return buildResponseFromAnalysisResults(response);
+      text.append(buildResponseFromAnalysisResults(response));
     } catch (Exception e) {
-      return "Analysis failed: " + e.getMessage();
+      text.append("Analysis failed: " + e.getMessage());
     } finally {
       if (tmpFile != null) {
         backendService.removeFile(tmpFile.toUri());
@@ -102,6 +83,33 @@ public class McpService {
         }
       }
     }
+
+    return McpSchema.CallToolResult.builder()
+      .addTextContent(text.toString())
+      .build();
+  }
+
+  public McpSchema.Tool definition() {
+    return new McpSchema.Tool(
+      "findSonarIssuesInCodeSnippet",
+      "Find Sonar issues in a code snippet. If possible, the language of the code snippet should be known, but it can be null otherwise.",
+      new McpSchema.JsonSchema(
+        "object",
+        Map.of(
+          "codeSnippet", Map.of("type", "string", "description", ""),
+          "language", Map.of("type", "string", "description", "")
+        ),
+        List.of("codeSnippet", "language"),
+        false
+      )
+    );
+  }
+
+  public McpServerFeatures.SyncToolSpecification registration() {
+    return new McpServerFeatures.SyncToolSpecification(
+      definition(),
+      (McpSyncServerExchange exchange, Map<String, Object> argMap) -> findSonarIssuesInCodeSnippet(argMap)
+    );
   }
 
 }

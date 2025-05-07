@@ -9,7 +9,6 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 
 plugins {
 	java
-	alias(libs.plugins.springboot)
 	jacoco
 	signing
 	alias(libs.plugins.sonarqube)
@@ -79,7 +78,7 @@ configurations {
 }
 
 dependencies {
-	implementation(libs.spring.mcp.server)
+	implementation(libs.mcp.server)
 	implementation(libs.sonarlint.java.client.utils)
 	implementation(libs.sonarlint.rpc.java.client)
 	implementation(libs.sonarlint.rpc.impl)
@@ -231,15 +230,18 @@ tasks.register<Copy>("copyPluginResources") {
 	into("$buildDir/generated-resources/plugins")
 }
 
-tasks.named("bootJar") {
-	dependsOn("preparePlugins")
-}
-
-tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
-	dependsOn("copyPluginResources")
-	from("$buildDir/generated-resources/plugins") {
-		into("")
+tasks.jar {
+	manifest {
+		attributes["Main-Class"] = "org.test.SonarMcpServer"
 	}
+
+	from({
+		configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }
+	}) {
+		exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+	}
+
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 sonar {

@@ -50,34 +50,28 @@ import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.TelemetryC
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.GetStandaloneRuleDescriptionParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.GetStandaloneRuleDescriptionResponse;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static org.test.analysis.AnalysisUtils.getSupportedLanguages;
 
-@Service
 public class BackendService {
 
   private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture();
   private Sloop sloop = null;
   private SloopLauncher defaultSloopLauncher = null;
 
-  @Value("${backend.workdir}")
   private String workDir;
-
-  @Value("${backend.sloop.path}")
   private String sloopPath;
-
-  @Value("${backend.mcp.home.path}")
   private String homePath;
-
-  @Value("${backend.plugin.path}")
   private String pluginPath;
 
-  @PostConstruct
-  public void initBackend() {
+  public BackendService(String workDir, String sloopPath, String homePath, String pluginPath) {
+    this.workDir = workDir;
+    this.sloopPath = sloopPath;
+    this.homePath = homePath;
+    this.pluginPath = pluginPath;
+
     createServiceStartingTask();
   }
 
