@@ -24,7 +24,9 @@ import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.slcore.BackendService;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.connection.projects.SonarProjectDto;
 
@@ -67,6 +69,12 @@ public class FindAllProjectsTool {
         .isError(true)
         .build();
     }
+    if (!backendService.isSonarQubeCloudOrgAndTokenSet()) {
+      return McpSchema.CallToolResult.builder()
+        .addTextContent("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'")
+        .isError(true)
+        .build();
+    }
     var prefix = ((String) args.get(PREFIX_PROPERTY));
 
     try {
@@ -77,14 +85,17 @@ public class FindAllProjectsTool {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
+      var exception = e instanceof ExecutionException ? e.getCause() : e;
+      var message = exception instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : exception.getMessage();
       return McpSchema.CallToolResult.builder()
-        .addTextContent("Failed to fetch all projects: " + e.getMessage())
+        .addTextContent("Failed to fetch all projects: " + message)
         .isError(true)
         .build();
     }
 
     return McpSchema.CallToolResult.builder()
       .addTextContent(text.toString())
+      .isError(false)
       .build();
   }
 

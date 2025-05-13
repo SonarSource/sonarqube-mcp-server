@@ -31,6 +31,7 @@ junit-launcher = "1.12.2"
 mockito = "5.17.0"
 assertj = "3.10.0"
 awaitility = "4.3.0"
+wiremock = "3.13.0"
 
 [libraries]
 sonarlint-java-client-utils = { module = "org.sonarsource.sonarlint.core:sonarlint-java-client-utils", version.ref = "sonarlint-core" }
@@ -63,6 +64,7 @@ junit-launcher = { module = "org.junit.platform:junit-platform-launcher", versio
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
+wiremock = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
 
 [bundles]
 # Does not include cfamily and dotnet-enterprise

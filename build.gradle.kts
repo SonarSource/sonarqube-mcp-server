@@ -88,6 +88,7 @@ dependencies {
 	testImplementation(libs.mockito.core)
 	testImplementation(libs.assertj)
 	testImplementation(libs.awaitility)
+	testImplementation(libs.wiremock)
 	testRuntimeOnly(libs.junit.launcher)
 	"sqplugins"(libs.bundles.sonar.analyzers)
 	if (artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
@@ -100,6 +101,7 @@ dependencies {
 }
 
 tasks.test {
+	dependsOn("preparePlugins")
 	useJUnitPlatform()
 	systemProperty("sonarlint.telemetry.disabled", "true")
 	systemProperty("sonarlint.monitoring.disabled", "true")

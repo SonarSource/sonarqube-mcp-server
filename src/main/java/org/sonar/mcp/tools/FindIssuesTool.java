@@ -122,6 +122,7 @@ public class FindIssuesTool {
 
     return McpSchema.CallToolResult.builder()
       .addTextContent(text.toString())
+      .isError(false)
       .build();
   }
 
@@ -166,7 +167,8 @@ public class FindIssuesTool {
   }
 
   private static Path createTemporaryFileForLanguage(String analysisId, Path workDir, String fileContent, SonarLanguage language) throws IOException {
-    var extension = language.getDefaultFileSuffixes()[0];
+    var defaultFileSuffixes = language.getDefaultFileSuffixes();
+    var extension = defaultFileSuffixes.length > 0 ? defaultFileSuffixes[0] : "";
     if (extension.isBlank()) {
       extension = "txt";
     }

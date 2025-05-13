@@ -55,6 +55,8 @@ import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.ClientCons
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.HttpConfigurationDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.InitializeParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.LanguageSpecificRequirements;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.SonarCloudAlternativeEnvironmentDto;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.SonarQubeCloudRegionDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.SslConfigurationDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.TelemetryClientConstantAttributesDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
@@ -75,6 +77,7 @@ public class BackendService {
   private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
   private String storagePath;
   private String pluginPath;
+  private URI sonarqubeCloudUri;
   @Nullable
   private String sonarqubeCloudToken;
   @Nullable
@@ -84,24 +87,30 @@ public class BackendService {
   private boolean isConnectedToSonarQubeCloud = false;
   private ClientJsonRpcLauncher clientLauncher;
 
-  public BackendService() {
-    initBackendService();
+  public BackendService(Map<String, String> environment) {
+    initBackendService(environment);
   }
 
   // For tests
-  public BackendService(ClientJsonRpcLauncher launcher) {
+  BackendService(ClientJsonRpcLauncher launcher) {
     this.clientLauncher = launcher;
-    initBackendService();
+    initBackendService(System.getenv());
   }
 
-  private void initBackendService() {
-    this.storagePath = getValueViaEnvOrProperty("STORAGE_PATH");
+  public boolean isSonarQubeCloudOrgAndTokenSet() {
+    return sonarqubeCloudToken != null && sonarqubeCloudOrg != null;
+  }
+
+  private void initBackendService(Map<String, String> environment) {
+    this.storagePath = getValueViaEnvOrProperty(environment, "STORAGE_PATH");
     Objects.requireNonNull(this.storagePath, "STORAGE_PATH environment variable or property must be set");
-    this.pluginPath = getValueViaEnvOrProperty("PLUGIN_PATH");
+    this.pluginPath = getValueViaEnvOrProperty(environment, "PLUGIN_PATH");
     Objects.requireNonNull(this.pluginPath, "PLUGIN_PATH environment variable or property must be set");
-    this.sonarqubeCloudToken = getValueViaEnvOrProperty("SONARQUBE_CLOUD_TOKEN");
-    this.sonarqubeCloudOrg = getValueViaEnvOrProperty("SONARQUBE_CLOUD_ORG");
-    this.sonarqubeCloudProjectKey = getValueViaEnvOrProperty("SONARQUBE_CLOUD_PROJECT_KEY");
+    var sonarqubeCloudUrl = getValueViaEnvOrProperty(environment, "SONARQUBE_CLOUD_URL");
+    this.sonarqubeCloudUri = sonarqubeCloudUrl == null ? null : URI.create(sonarqubeCloudUrl);
+    this.sonarqubeCloudToken = getValueViaEnvOrProperty(environment, "SONARQUBE_CLOUD_TOKEN");
+    this.sonarqubeCloudOrg = getValueViaEnvOrProperty(environment, "SONARQUBE_CLOUD_ORG");
+    this.sonarqubeCloudProjectKey = getValueViaEnvOrProperty(environment, "SONARQUBE_CLOUD_PROJECT_KEY");
 
     if (sonarqubeCloudToken != null && sonarqubeCloudOrg != null && sonarqubeCloudProjectKey != null) {
       isConnectedToSonarQubeCloud = true;
@@ -190,7 +199,8 @@ public class BackendService {
             System.getProperty("sonarlint.ssl.keyStoreType")),
           getTimeoutProperty("sonarlint.http.connectTimeout"), getTimeoutProperty("sonarlint.http.socketTimeout"), getTimeoutProperty("sonarlint.http.connectionRequestTimeout"),
           getTimeoutProperty("sonarlint.http.responseTimeout")),
-        null,
+        this.sonarqubeCloudUri == null ? null : new SonarCloudAlternativeEnvironmentDto(Map.of(SonarCloudRegion.EU, new SonarQubeCloudRegionDto(this.sonarqubeCloudUri,
+          this.sonarqubeCloudUri, this.sonarqubeCloudUri))),
         Set.of(BackendCapability.FULL_SYNCHRONIZATION, BackendCapability.PROJECT_SYNCHRONIZATION),
         getStoragePath(),
         getWorkDir(),
@@ -231,8 +241,8 @@ public class BackendService {
   }
 
   @CheckForNull
-  private static String getValueViaEnvOrProperty(String propertyName) {
-    var property = System.getenv(propertyName);
+  private static String getValueViaEnvOrProperty(Map<String, String> environment, String propertyName) {
+    var property = environment.get(propertyName);
     if (property == null) {
       property = System.getProperty(propertyName);
     }
