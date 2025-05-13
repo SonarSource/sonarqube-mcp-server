@@ -84,8 +84,11 @@ dependencies {
 	implementation(libs.commons.langs3)
 	implementation(libs.commons.text)
 	testImplementation(platform(libs.junit.bom))
+	testImplementation(libs.junit.jupiter)
+	testImplementation(libs.mockito.core)
 	testImplementation(libs.assertj)
 	testImplementation(libs.awaitility)
+	testRuntimeOnly(libs.junit.launcher)
 	"sqplugins"(libs.bundles.sonar.analyzers)
 	if (artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
 		"sqplugins"(libs.sonar.cfamily)
@@ -101,22 +104,6 @@ tasks.test {
 	systemProperty("sonarlint.telemetry.disabled", "true")
 	systemProperty("sonarlint.monitoring.disabled", "true")
 	doNotTrackState("Tests should always run")
-}
-
-tasks {
-	withType<Test> {
-		configure<JacocoTaskExtension> {
-			isIncludeNoLocationClasses = true
-			excludes = listOf("jdk.internal.*")
-		}
-	}
-
-	jacocoTestReport {
-		classDirectories.setFrom(files("build/instrumented/instrumentCode"))
-		reports {
-			xml.required.set(true)
-		}
-	}
 }
 
 fun copyPlugins(destinationDir: File, pluginName: String) {
@@ -201,6 +188,14 @@ tasks.register("preparePlugins") {
 		renameCsharpPlugins(destinationDir, pluginName)
 		copyOmnisharp(destinationDir, pluginName)
 		unzipEslintBridgeBundle(destinationDir, pluginName)
+	}
+}
+
+tasks {
+	jacocoTestReport {
+		reports {
+			xml.required.set(true)
+		}
 	}
 }
 

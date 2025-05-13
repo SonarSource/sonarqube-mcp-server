@@ -30,7 +30,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
 public class LanguageUtils {
 
-  public static final List<SonarLanguage> languageToExtensionMap = List.of(
+  private static final List<SonarLanguage> supportedSonarLanguages = List.of(
     SonarLanguage.JAVA,
     SonarLanguage.PHP,
     SonarLanguage.CSS,
@@ -54,8 +54,8 @@ public class LanguageUtils {
     SonarLanguage.ANSIBLE
   );
 
-  public static Set<Language> getSupportedLanguages() {
-    return languageToExtensionMap.stream()
+  public static Set<Language> getSupportedSonarLanguages() {
+    return supportedSonarLanguages.stream()
       .map(LanguageUtils::mapSonarLanguageToLanguage)
       .filter(Objects::nonNull)
       .collect(Collectors.toSet());
@@ -63,7 +63,7 @@ public class LanguageUtils {
 
   @CheckForNull
   public static SonarLanguage getSonarLanguageFromInput(@Nullable String languageInput) {
-    for (var sonarLanguage : languageToExtensionMap) {
+    for (var sonarLanguage : supportedSonarLanguages) {
       if (sonarLanguage.getSonarLanguageKey().equalsIgnoreCase(languageInput)) {
         return sonarLanguage;
       }

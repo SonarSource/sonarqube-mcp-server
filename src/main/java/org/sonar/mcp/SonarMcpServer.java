@@ -23,22 +23,20 @@ import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.sonar.mcp.slcore.BackendService;
+import org.sonar.mcp.tools.FindAllProjectsTool;
 import org.sonar.mcp.tools.FindIssuesTool;
 
 public class SonarMcpServer {
 
   public static void main(String[] args) {
-		var backendService = new BackendService();
+    var backendService = new BackendService();
     var findIssuesTool = new FindIssuesTool(backendService);
+    var findAllProjectsTool = new FindAllProjectsTool(backendService);
 
-    var syncServer = McpServer
-      .sync(new StdioServerTransportProvider())
-      .serverInfo(new McpSchema.Implementation("sonar-mcp-server", "0.0.1"))
-      .capabilities(McpSchema.ServerCapabilities.builder()
-        .tools(true)
-        .logging()
-        .build())
-      .tools(findIssuesTool.spec())
+    var syncServer = McpServer.sync(new StdioServerTransportProvider())
+      .serverInfo(new McpSchema.Implementation("sonar-mcp-server", "0.0" + ".1"))
+      .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
+      .tools(findIssuesTool.spec(), findAllProjectsTool.spec())
       .build();
 
     Runtime.getRuntime().addShutdownHook(new Thread(syncServer::closeGracefully));

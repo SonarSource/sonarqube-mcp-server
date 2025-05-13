@@ -60,22 +60,22 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public void suggestBinding(Map<String, List<BindingSuggestionDto>> suggestionsByConfigScope) {
-
+    //
   }
 
   @Override
   public void suggestConnection(Map<String, List<ConnectionSuggestionDto>> suggestionsByConfigScope) {
-
+    //
   }
 
   @Override
   public void openUrlInBrowser(URL url) {
-
+    //
   }
 
   @Override
   public void showMessage(MessageType type, String text) {
-
+    //
   }
 
   @Override
@@ -85,12 +85,12 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public void showSoonUnsupportedMessage(ShowSoonUnsupportedMessageParams params) {
-
+    //
   }
 
   @Override
   public void showSmartNotification(ShowSmartNotificationParams params) {
-
+    //
   }
 
   @Override
@@ -100,12 +100,12 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public void showHotspot(String configurationScopeId, HotspotDetailsDto hotspotDetails) {
-
+    //
   }
 
   @Override
   public void showIssue(String configurationScopeId, IssueDetailsDto issueDetails) {
-
+    //
   }
 
   @Override
@@ -121,16 +121,19 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
   @Override
   public void startProgress(StartProgressParams params) throws UnsupportedOperationException {
 
+    //
   }
 
   @Override
   public void reportProgress(ReportProgressParams params) {
 
+    //
   }
 
   @Override
   public void didSynchronizeConfigurationScopes(Set<String> configurationScopeIds) {
 
+    //
   }
 
   @Override
@@ -154,8 +157,9 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
   }
 
   @Override
-  public @Nullable String matchSonarProjectBranch(String configurationScopeId, String mainBranchName, Set<String> allBranchesNames, SonarLintCancelChecker cancelChecker) throws ConfigScopeNotFoundException {
-    return "";
+  public @Nullable String matchSonarProjectBranch(String configurationScopeId, String mainBranchName,
+    Set<String> allBranchesNames, SonarLintCancelChecker cancelChecker) {
+    return null;
   }
 
   @Override
@@ -165,7 +169,7 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public void didChangeMatchedSonarProjectBranch(String configScopeId, String newMatchedBranchName) {
-
+    //
   }
 
   @Override
@@ -176,7 +180,7 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
   @Override
   public void didChangeTaintVulnerabilities(String configurationScopeId, Set<UUID> closedTaintVulnerabilityIds, List<TaintVulnerabilityDto> addedTaintVulnerabilities,
     List<TaintVulnerabilityDto> updatedTaintVulnerabilities) {
-
+    //
   }
 
   @Override
@@ -186,12 +190,12 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public void noBindingSuggestionFound(NoBindingSuggestionFoundParams params) {
-
+    //
   }
 
   @Override
   public void didChangeAnalysisReadiness(Set<String> configurationScopeIds, boolean areReadyForAnalysis) {
-
+    //
   }
 
 }

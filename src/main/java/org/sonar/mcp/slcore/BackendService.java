@@ -22,98 +22,143 @@ package org.sonar.mcp.slcore;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.impl.BackendJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesAndTrackParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.config.binding.BindingConfigurationDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.config.scope.ConfigurationScopeDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.config.scope.DidAddConfigurationScopesParams;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.connection.common.TransientSonarCloudConnectionDto;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.connection.config.SonarCloudConnectionConfigurationDto;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.connection.projects.GetAllProjectsParams;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.connection.projects.GetAllProjectsResponse;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.file.DidUpdateFileSystemParams;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.BackendCapability;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.ClientConstantInfoDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.HttpConfigurationDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.InitializeParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.LanguageSpecificRequirements;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.SslConfigurationDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.TelemetryClientConstantAttributesDto;
-import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.GetStandaloneRuleDescriptionParams;
-import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.GetStandaloneRuleDescriptionResponse;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
+import org.sonarsource.sonarlint.core.rpc.protocol.common.Either;
+import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
+import org.sonarsource.sonarlint.core.rpc.protocol.common.SonarCloudRegion;
+import org.sonarsource.sonarlint.core.rpc.protocol.common.TokenDto;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
-import static org.sonar.mcp.analysis.LanguageUtils.getSupportedLanguages;
+import static org.sonar.mcp.analysis.LanguageUtils.getSupportedSonarLanguages;
 
 public class BackendService {
 
+  public static final String PROJECT_ID = "sonar-mcp-server";
+  private static final String CONNECTION_ID = PROJECT_ID + "-connection";
   private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
-  private final String workDir;
-  private final String homePath;
-  private final String pluginPath;
+  private String storagePath;
+  private String pluginPath;
+  @Nullable
+  private String sonarqubeCloudToken;
+  @Nullable
+  private String sonarqubeCloudOrg;
+  @Nullable
+  private String sonarqubeCloudProjectKey;
+  private boolean isConnectedToSonarQubeCloud = false;
   private ClientJsonRpcLauncher clientLauncher;
-  private SonarLintRpcServer backend;
 
   public BackendService() {
-    this.workDir = System.getProperty("WORKDIR_PATH");
-    this.homePath = System.getProperty("MCP_HOME_PATH");
-    this.pluginPath = System.getProperty("PLUGIN_PATH");
+    initBackendService();
+  }
+
+  // For tests
+  public BackendService(ClientJsonRpcLauncher launcher) {
+    this.clientLauncher = launcher;
+    initBackendService();
+  }
+
+  private void initBackendService() {
+    this.storagePath = getValueViaEnvOrProperty("STORAGE_PATH");
+    Objects.requireNonNull(this.storagePath, "STORAGE_PATH environment variable or property must be set");
+    this.pluginPath = getValueViaEnvOrProperty("PLUGIN_PATH");
+    Objects.requireNonNull(this.pluginPath, "PLUGIN_PATH environment variable or property must be set");
+    this.sonarqubeCloudToken = getValueViaEnvOrProperty("SONARQUBE_CLOUD_TOKEN");
+    this.sonarqubeCloudOrg = getValueViaEnvOrProperty("SONARQUBE_CLOUD_ORG");
+    this.sonarqubeCloudProjectKey = getValueViaEnvOrProperty("SONARQUBE_CLOUD_PROJECT_KEY");
+
+    if (sonarqubeCloudToken != null && sonarqubeCloudOrg != null && sonarqubeCloudProjectKey != null) {
+      isConnectedToSonarQubeCloud = true;
+      System.out.println("Connected to SonarQube Cloud");
+    }
 
     createServiceStartingTask();
   }
 
-  public void projectOpened(String projectId) {
-    backendFuture.thenAcceptAsync(server ->
-      server.getConfigurationService().didAddConfigurationScopes(
-        new DidAddConfigurationScopesParams(
-          List.of(new ConfigurationScopeDto(projectId, null, true, "sonar-mcp-server", null))
-        )
-      )
-    );
-  }
-
-  public CompletableFuture<GetStandaloneRuleDescriptionResponse> getStandaloneRuleDetails(GetStandaloneRuleDescriptionParams params) {
-    return backendFuture.thenComposeAsync(server -> server.getRulesService().getStandaloneRuleDetails(params));
-  }
-
-  public CompletableFuture<AnalyzeFilesResponse> analyzeFilesAndTrack(String moduleId, UUID analysisId, List<URI> filesToAnalyze,
+  public CompletableFuture<AnalyzeFilesResponse> analyzeFilesAndTrack(UUID analysisId, List<URI> filesToAnalyze,
     Long startTime) {
     return backendFuture.thenComposeAsync(server ->
       server.getAnalysisService().analyzeFilesAndTrack(
-        new AnalyzeFilesAndTrackParams(moduleId, analysisId, filesToAnalyze, Map.of(), false, startTime)
+        new AnalyzeFilesAndTrackParams(PROJECT_ID, analysisId, filesToAnalyze, Map.of(), false, startTime)
       ));
   }
 
+  public CompletableFuture<GetAllProjectsResponse> findAllProjects() {
+    return backendFuture.thenComposeAsync(server ->
+      server.getConnectionService().getAllProjects(new GetAllProjectsParams(
+        new TransientSonarCloudConnectionDto(sonarqubeCloudOrg, Either.forLeft(new TokenDto(sonarqubeCloudToken)), SonarCloudRegion.EU)
+      )));
+  }
+
   public void addFile(ClientFileDto clientFileDto) {
+    System.out.println("Adding file " + clientFileDto.getUri());
     backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(clientFileDto), List.of(), List.of())));
   }
 
+  public ClientFileDto toClientFileDto(Path filePath, String content, @Nullable Language language) {
+    return new ClientFileDto(filePath.toUri(), filePath, PROJECT_ID, false, Charset.defaultCharset().toString(), filePath,
+      content, language, true);
+  }
+
   public void removeFile(URI file) {
+    System.out.println("Removing file " + file);
     backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(), List.of(), List.of(file))));
+  }
+
+  public Path getWorkDir() {
+    return Paths.get(System.getProperty("user.home")).resolve(".sonarlint");
   }
 
   private void createServiceStartingTask() {
     try {
       System.out.println("Starting backend service");
-      var clientToServerOutputStream = new PipedOutputStream();
-      var clientToServerInputStream = new PipedInputStream(clientToServerOutputStream);
-      var serverToClientOutputStream = new PipedOutputStream();
-      var serverToClientInputStream = new PipedInputStream(serverToClientOutputStream);
-      new BackendJsonRpcLauncher(clientToServerInputStream, serverToClientOutputStream);
-      clientLauncher = new ClientJsonRpcLauncher(serverToClientInputStream, clientToServerOutputStream, new McpSonarLintRpcClient());
-      backend = clientLauncher.getServerProxy();
+      if (clientLauncher == null) {
+        var clientToServerOutputStream = new PipedOutputStream();
+        var clientToServerInputStream = new PipedInputStream(clientToServerOutputStream);
+        var serverToClientOutputStream = new PipedOutputStream();
+        var serverToClientInputStream = new PipedInputStream(serverToClientOutputStream);
+        new BackendJsonRpcLauncher(clientToServerInputStream, serverToClientOutputStream);
+        clientLauncher = new ClientJsonRpcLauncher(serverToClientInputStream, clientToServerOutputStream, new McpSonarLintRpcClient());
+      }
+      var backend = clientLauncher.getServerProxy();
       initRpcServer(backend).get(1, TimeUnit.MINUTES);
       backendFuture.complete(backend);
       System.out.println("Backend service initialized");
+      projectOpened();
     } catch (Exception e) {
       backendFuture.cancel(true);
     }
@@ -121,6 +166,12 @@ public class BackendService {
 
   private CompletableFuture<Void> initRpcServer(SonarLintRpcServer rpcServer) {
     var pluginResolvedPath = getPluginPath();
+
+    var sonarqubeCloudConnections = new ArrayList<SonarCloudConnectionConfigurationDto>();
+    if (sonarqubeCloudToken != null && sonarqubeCloudOrg != null) {
+      sonarqubeCloudConnections.add(new SonarCloudConnectionConfigurationDto(CONNECTION_ID, sonarqubeCloudOrg, SonarCloudRegion.EU, true));
+      System.out.println("Connection to SonarQube Cloud configured");
+    }
 
     return rpcServer.initialize(
       new InitializeParams(
@@ -136,8 +187,8 @@ public class BackendService {
           getTimeoutProperty("sonarlint.http.connectTimeout"), getTimeoutProperty("sonarlint.http.socketTimeout"), getTimeoutProperty("sonarlint.http.connectionRequestTimeout"),
           getTimeoutProperty("sonarlint.http.responseTimeout")),
         null,
-        Set.of(),
-        getHomePath(),
+        Set.of(BackendCapability.FULL_SYNCHRONIZATION, BackendCapability.PROJECT_SYNCHRONIZATION),
+        getStoragePath(),
         getWorkDir(),
         Set.of(pluginResolvedPath.resolve("sonar-go-plugin-1.21.1.1670.jar"),
           pluginResolvedPath.resolve("sonar-html-plugin-3.19.0.5695.jar"),
@@ -152,11 +203,11 @@ public class BackendService {
           pluginResolvedPath.resolve("sonar-text-plugin-2.22.0.5855.jar"),
           pluginResolvedPath.resolve("sonar-xml-plugin-2.13.0.5938.jar")),
         Map.of(),
-        getSupportedLanguages(),
+        getSupportedSonarLanguages(),
         Set.of(),
         emptySet(),
         null,
-        null,
+        sonarqubeCloudConnections,
         null,
         null,
         false,
@@ -167,20 +218,41 @@ public class BackendService {
     );
   }
 
-  public Path getWorkDir() {
-    return Paths.get(workDir);
-  }
-
-  private Path getHomePath() {
-    return Paths.get(homePath);
+  private Path getStoragePath() {
+    return Paths.get(storagePath);
   }
 
   private Path getPluginPath() {
     return Paths.get(pluginPath);
   }
 
+  @CheckForNull
+  private static String getValueViaEnvOrProperty(String propertyName) {
+    var property = System.getenv(propertyName);
+    if (property == null) {
+      property = System.getProperty(propertyName);
+    }
+    return property;
+  }
+
+  private void projectOpened() {
+    backendFuture.thenAcceptAsync(server -> {
+      if (!isConnectedToSonarQubeCloud) {
+        server.getConfigurationService().didAddConfigurationScopes(new DidAddConfigurationScopesParams(
+          List.of(new ConfigurationScopeDto(PROJECT_ID, null, true, PROJECT_ID,
+            new BindingConfigurationDto(CONNECTION_ID, sonarqubeCloudProjectKey, true))
+          )
+        ));
+      } else {
+        server.getConfigurationService().didAddConfigurationScopes(new DidAddConfigurationScopesParams(
+          List.of(new ConfigurationScopeDto(PROJECT_ID, null, false, PROJECT_ID, null))
+        ));
+      }
+    });
+  }
+
   @Nullable
-  private Path getPathProperty(String propertyName) {
+  private static Path getPathProperty(String propertyName) {
     var property = System.getProperty(propertyName);
     if (property != null) {
       return Paths.get(property);
@@ -189,7 +261,7 @@ public class BackendService {
   }
 
   @Nullable
-  private Duration getTimeoutProperty(String propertyName) {
+  private static Duration getTimeoutProperty(String propertyName) {
     var property = System.getProperty(propertyName);
     if (property != null) {
       return Duration.ofMinutes(Long.parseLong(property));

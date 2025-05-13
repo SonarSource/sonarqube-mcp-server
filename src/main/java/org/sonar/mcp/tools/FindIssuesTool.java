@@ -23,7 +23,6 @@ import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -33,34 +32,32 @@ import java.util.concurrent.TimeUnit;
 import org.sonar.mcp.slcore.BackendService;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
-import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
-import org.springframework.stereotype.Service;
 
 import static org.sonar.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
 import static org.sonar.mcp.analysis.LanguageUtils.mapSonarLanguageToLanguage;
 
-@Service
 public class FindIssuesTool {
 
-  private static final String PROJECT_ID = "sonar-mcp-server";
+  private static final String TOOL_NAME = "find_sonar_issues_in_code_snippet";
+  private static final String SNIPPET_PROPERTY = "codeSnippet";
+  private static final String LANGUAGE_PROPERTY = "language";
   private final BackendService backendService;
 
   public FindIssuesTool(BackendService backendService) {
     this.backendService = backendService;
-    backendService.projectOpened(PROJECT_ID);
   }
 
   public McpSchema.Tool definition() {
     return new McpSchema.Tool(
-      "findSonarIssuesInCodeSnippet",
-      "Find Sonar issues in a code snippet. If possible, the language of the code snippet should be known, but it can be null otherwise.",
+      TOOL_NAME,
+      "Find Sonar issues in a code snippet. If possible, the language of the code snippet should be known.",
       new McpSchema.JsonSchema(
         "object",
         Map.of(
-          "codeSnippet", Map.of("type", "string", "description", ""),
-          "language", Map.of("type", "string", "description", "")
+          SNIPPET_PROPERTY, Map.of("type", "string", "description", "Code snippet or full file content"),
+          LANGUAGE_PROPERTY, Map.of("type", "string", "description", "Language of the code snippet")
         ),
-        List.of("codeSnippet", "language"),
+        List.of(SNIPPET_PROPERTY),
         false
       )
     );
@@ -76,8 +73,18 @@ public class FindIssuesTool {
   private McpSchema.CallToolResult findSonarIssuesInCodeSnippet(Map<String, Object> args) {
     var text = new StringBuilder();
 
-    var codeSnippet = ((String) args.get("codeSnippet"));
-    var language = ((String) args.get("language"));
+    if (!args.containsKey(SNIPPET_PROPERTY)) {
+      return McpSchema.CallToolResult.builder()
+        .addTextContent("Missing required argument: " + SNIPPET_PROPERTY)
+        .isError(true)
+        .build();
+    }
+    var codeSnippet = ((String) args.get(SNIPPET_PROPERTY));
+
+    String language = null;
+    if (args.containsKey(LANGUAGE_PROPERTY)) {
+      language = ((String) args.get(LANGUAGE_PROPERTY));
+    }
 
     var sonarLanguage = getSonarLanguageFromInput(language);
     if (sonarLanguage == null) {
@@ -89,14 +96,17 @@ public class FindIssuesTool {
     try {
       tmpFile = createTemporaryFileForLanguage(analysisId.toString(), backendService.getWorkDir(), codeSnippet,
         sonarLanguage);
-      backendService.addFile(new ClientFileDto(tmpFile.toUri(), tmpFile, PROJECT_ID, false, Charset.defaultCharset().toString(), tmpFile,
-        codeSnippet, mapSonarLanguageToLanguage(sonarLanguage), true));
+      var clientFileDto = backendService.toClientFileDto(tmpFile, codeSnippet, mapSonarLanguageToLanguage(sonarLanguage));
+      backendService.addFile(clientFileDto);
       var startTime = System.currentTimeMillis();
-      var response = backendService.analyzeFilesAndTrack(PROJECT_ID, analysisId, List.of(tmpFile.toUri()), startTime).get(20,
+      var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri()), startTime).get(20,
         TimeUnit.SECONDS);
       text.append(buildResponseFromAnalysisResults(response));
     } catch (Exception e) {
-      text.append("Analysis failed: ").append(e.getMessage());
+      return McpSchema.CallToolResult.builder()
+        .addTextContent("Analysis failed: " + e.getMessage())
+        .isError(true)
+        .build();
     } finally {
       if (tmpFile != null) {
         backendService.removeFile(tmpFile.toUri());
