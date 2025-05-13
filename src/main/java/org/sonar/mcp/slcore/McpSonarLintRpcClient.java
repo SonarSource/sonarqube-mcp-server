@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import org.jetbrains.annotations.Nullable;
+import org.sonar.mcp.log.McpLogger;
 import org.sonarsource.sonarlint.core.rpc.client.ConfigScopeNotFoundException;
 import org.sonarsource.sonarlint.core.rpc.client.ConnectionNotFoundException;
 import org.sonarsource.sonarlint.core.rpc.client.SonarLintCancelChecker;
@@ -57,6 +58,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.TokenDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.UsernamePasswordDto;
 
 public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
+  private static final McpLogger LOG = McpLogger.getInstance();
 
   @Override
   public void suggestBinding(Map<String, List<BindingSuggestionDto>> suggestionsByConfigScope) {
@@ -80,7 +82,7 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public void log(LogParams params) {
-    System.out.println(params.getMessage());
+    LOG.log(params);
   }
 
   @Override

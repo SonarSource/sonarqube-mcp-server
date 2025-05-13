@@ -74,6 +74,8 @@ public class FindAllProjectsTool {
       var filteredProjects = projects.getSonarProjects().stream().filter(p -> p.getName().startsWith(prefix)).toList();
 
       text.append(buildResponseFromAllProjectsResponse(filteredProjects, prefix));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     } catch (Exception e) {
       return McpSchema.CallToolResult.builder()
         .addTextContent("Failed to fetch all projects: " + e.getMessage())

@@ -23,13 +23,16 @@ import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.sonar.mcp.log.McpLogger;
 import org.sonar.mcp.slcore.BackendService;
 import org.sonar.mcp.tools.FindAllProjectsTool;
 import org.sonar.mcp.tools.FindIssuesTool;
 
 public class SonarMcpServer {
+  private static final McpLogger LOG = McpLogger.getInstance();
 
   public static void main(String[] args) {
+
     var backendService = new BackendService();
     var findIssuesTool = new FindIssuesTool(backendService);
     var findAllProjectsTool = new FindAllProjectsTool(backendService);
@@ -47,12 +50,12 @@ public class SonarMcpServer {
     try {
       syncServer.closeGracefully();
     } catch (Exception e) {
-      System.out.println();
+      LOG.error("Error shutting down MCP server", e);
     }
     try {
       backendService.shutdown();
     } catch (Exception e) {
-      System.out.println();
+      LOG.error("Error shutting down MCP backend", e);
     }
   }
 }

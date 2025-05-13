@@ -102,6 +102,8 @@ public class FindIssuesTool {
       var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri()), startTime).get(20,
         TimeUnit.SECONDS);
       text.append(buildResponseFromAnalysisResults(response));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     } catch (Exception e) {
       return McpSchema.CallToolResult.builder()
         .addTextContent("Analysis failed: " + e.getMessage())

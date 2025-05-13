@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.sonar.mcp.log.McpLogger;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.impl.BackendJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
@@ -67,6 +68,7 @@ import static java.util.Collections.emptySet;
 import static org.sonar.mcp.analysis.LanguageUtils.getSupportedSonarLanguages;
 
 public class BackendService {
+  private static final McpLogger LOG = McpLogger.getInstance();
 
   public static final String PROJECT_ID = "sonar-mcp-server";
   private static final String CONNECTION_ID = PROJECT_ID + "-connection";
@@ -103,7 +105,7 @@ public class BackendService {
 
     if (sonarqubeCloudToken != null && sonarqubeCloudOrg != null && sonarqubeCloudProjectKey != null) {
       isConnectedToSonarQubeCloud = true;
-      System.out.println("Connected to SonarQube Cloud");
+      LOG.info("Connected to SonarQube Cloud");
     }
 
     createServiceStartingTask();
@@ -125,7 +127,7 @@ public class BackendService {
   }
 
   public void addFile(ClientFileDto clientFileDto) {
-    System.out.println("Adding file " + clientFileDto.getUri());
+    LOG.info("Adding file " + clientFileDto.getUri());
     backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(clientFileDto), List.of(), List.of())));
   }
 
@@ -135,7 +137,7 @@ public class BackendService {
   }
 
   public void removeFile(URI file) {
-    System.out.println("Removing file " + file);
+    LOG.info("Removing file " + file);
     backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(), List.of(), List.of(file))));
   }
 
@@ -145,7 +147,7 @@ public class BackendService {
 
   private void createServiceStartingTask() {
     try {
-      System.out.println("Starting backend service");
+      LOG.info("Starting backend service");
       if (clientLauncher == null) {
         var clientToServerOutputStream = new PipedOutputStream();
         var clientToServerInputStream = new PipedInputStream(clientToServerOutputStream);
@@ -157,8 +159,10 @@ public class BackendService {
       var backend = clientLauncher.getServerProxy();
       initRpcServer(backend).get(1, TimeUnit.MINUTES);
       backendFuture.complete(backend);
-      System.out.println("Backend service initialized");
+      LOG.info("Backend service initialized");
       projectOpened();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     } catch (Exception e) {
       backendFuture.cancel(true);
     }
@@ -170,7 +174,7 @@ public class BackendService {
     var sonarqubeCloudConnections = new ArrayList<SonarCloudConnectionConfigurationDto>();
     if (sonarqubeCloudToken != null && sonarqubeCloudOrg != null) {
       sonarqubeCloudConnections.add(new SonarCloudConnectionConfigurationDto(CONNECTION_ID, sonarqubeCloudOrg, SonarCloudRegion.EU, true));
-      System.out.println("Connection to SonarQube Cloud configured");
+      LOG.info("Connection to SonarQube Cloud configured");
     }
 
     return rpcServer.initialize(
@@ -276,15 +280,15 @@ public class BackendService {
       if (aliveBackend != null) {
         aliveBackend.shutdown().get(10, TimeUnit.SECONDS);
       }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     } catch (Exception e) {
-      System.out.println("Unable to shutdown the MCP backend");
-      e.printStackTrace();
+      LOG.error("Unable to shutdown the MCP backend", e);
     } finally {
       try {
         clientLauncher.close();
       } catch (Exception e) {
-        System.out.println("Unable to stop the MCP backend launcher");
-        e.printStackTrace();
+        LOG.error("Unable to stop the MCP backend launcher", e);
       }
     }
   }
