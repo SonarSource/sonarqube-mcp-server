@@ -20,6 +20,7 @@
 package org.sonar.mcp;
 
 import io.modelcontextprotocol.server.McpServer;
+import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.sonar.mcp.slcore.BackendService;
@@ -34,11 +35,24 @@ public class SonarMcpServer {
     var findAllProjectsTool = new FindAllProjectsTool(backendService);
 
     var syncServer = McpServer.sync(new StdioServerTransportProvider())
-      .serverInfo(new McpSchema.Implementation("sonar-mcp-server", "0.0" + ".1"))
+      .serverInfo(new McpSchema.Implementation("sonar-mcp-server", "0.0.1"))
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
       .tools(findIssuesTool.spec(), findAllProjectsTool.spec())
       .build();
 
-    Runtime.getRuntime().addShutdownHook(new Thread(syncServer::closeGracefully));
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(syncServer, backendService)));
+  }
+
+  private static void shutdown(McpSyncServer syncServer, BackendService backendService) {
+    try {
+      syncServer.closeGracefully();
+    } catch (Exception e) {
+      System.out.println();
+    }
+    try {
+      backendService.shutdown();
+    } catch (Exception e) {
+      System.out.println();
+    }
   }
 }

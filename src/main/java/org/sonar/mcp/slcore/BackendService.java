@@ -270,4 +270,22 @@ public class BackendService {
     }
   }
 
+  public void shutdown() {
+    try {
+      var aliveBackend = backendFuture.getNow(null);
+      if (aliveBackend != null) {
+        aliveBackend.shutdown().get(10, TimeUnit.SECONDS);
+      }
+    } catch (Exception e) {
+      System.out.println("Unable to shutdown the MCP backend");
+      e.printStackTrace();
+    } finally {
+      try {
+        clientLauncher.close();
+      } catch (Exception e) {
+        System.out.println("Unable to stop the MCP backend launcher");
+        e.printStackTrace();
+      }
+    }
+  }
 }
