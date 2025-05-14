@@ -66,7 +66,7 @@ mend_scan_task:
   eks_container:
     <<: *CONTAINER_DEFINITION
     cpu: 1
-    memory: 1G
+    memory: 2G
   env:
     WS_APIKEY: VAULT[development/kv/data/mend data.apikey]
   <<: *SETUP_GRADLE_CACHE
