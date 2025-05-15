@@ -17,7 +17,7 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
  */
-package org.sonar.mcp.tools;
+package org.sonar.mcp.tools.issues;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
@@ -36,21 +36,22 @@ import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFiles
 import static org.sonar.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
 import static org.sonar.mcp.analysis.LanguageUtils.mapSonarLanguageToLanguage;
 
-public class FindIssuesTool {
+public class AnalyzeIssuesTool {
 
-  private static final String TOOL_NAME = "find_sonar_issues_in_code_snippet";
-  private static final String SNIPPET_PROPERTY = "codeSnippet";
-  private static final String LANGUAGE_PROPERTY = "language";
+  public static final String TOOL_NAME = "analyze_sonar_issues_in_code_snippet";
+  public static final String SNIPPET_PROPERTY = "codeSnippet";
+  public static final String LANGUAGE_PROPERTY = "language";
+
   private final BackendService backendService;
 
-  public FindIssuesTool(BackendService backendService) {
+  public AnalyzeIssuesTool(BackendService backendService) {
     this.backendService = backendService;
   }
 
   public McpSchema.Tool definition() {
     return new McpSchema.Tool(
       TOOL_NAME,
-      "Find Sonar issues in a code snippet. If possible, the language of the code snippet should be known.",
+      "Analyze a code snippet with Sonar analyzers, and find Sonar issues in it. If possible, the language of the code snippet should be known.",
       new McpSchema.JsonSchema(
         "object",
         Map.of(
@@ -66,11 +67,11 @@ public class FindIssuesTool {
   public McpServerFeatures.SyncToolSpecification spec() {
     return new McpServerFeatures.SyncToolSpecification(
       definition(),
-      (McpSyncServerExchange exchange, Map<String, Object> argMap) -> findSonarIssuesInCodeSnippet(argMap)
+      (McpSyncServerExchange exchange, Map<String, Object> argMap) -> analyzeCodeSnippetAndFindIssues(argMap)
     );
   }
 
-  private McpSchema.CallToolResult findSonarIssuesInCodeSnippet(Map<String, Object> args) {
+  private McpSchema.CallToolResult analyzeCodeSnippetAndFindIssues(Map<String, Object> args) {
     var text = new StringBuilder();
 
     if (!args.containsKey(SNIPPET_PROPERTY)) {
@@ -130,14 +131,14 @@ public class FindIssuesTool {
     var stringBuilder = new StringBuilder();
 
     if (!response.getFailedAnalysisFiles().isEmpty()) {
-      stringBuilder.append("Failed to analyze the following files: ");
-      response.getFailedAnalysisFiles().forEach(file -> stringBuilder.append(file.toString()).append(", "));
+      stringBuilder.append("Failed to analyze the code snippet.");
+      return stringBuilder.toString();
     }
 
     if (response.getRawIssues().isEmpty()) {
-      stringBuilder.append("No Sonar issues found in the files.");
+      stringBuilder.append("No Sonar issues found in the code snippet.");
     } else {
-      stringBuilder.append("Found ").append(response.getRawIssues().size()).append(" Sonar issues in the file");
+      stringBuilder.append("Found ").append(response.getRawIssues().size()).append(" Sonar issues in the code snippet");
 
       for (var issue : response.getRawIssues()) {
         stringBuilder.append("\n");

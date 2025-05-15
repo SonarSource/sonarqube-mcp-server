@@ -17,52 +17,41 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
  */
-package org.sonar.mcp.tools;
+package org.sonar.mcp.tools.projects;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.http.Body;
 import com.github.tomakehurst.wiremock.http.HttpHeader;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.sonar.mcp.harness.SonarMcpServerTest;
 import org.sonar.mcp.harness.SonarMcpServerTestHarness;
-import org.sonarsource.sonarlint.core.serverapi.proto.sonarqube.ws.Common;
-import org.sonarsource.sonarlint.core.serverapi.proto.sonarqube.ws.Components;
+import org.sonar.mcp.serverapi.projects.ProjectsApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.mcp.harness.ProtobufUtils.protobufBody;
 
-class FindAllProjectsToolTests {
+class SearchMyProjectsToolTests {
 
   @Nested
   class MissingPrerequisite {
-
-    @SonarMcpServerTest
-    void it_should_return_an_error_if_prefix_is_missing(SonarMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient();
-
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        "find_all_sonarqube_cloud_projects_starting_by",
-        Map.of()));
-
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Missing required argument: prefix", true));
-    }
 
     @SonarMcpServerTest
     void it_should_return_an_error_if_sonarqube_cloud_token_is_missing(SonarMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of("SONARQUBE_CLOUD_ORG", "org"));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        "find_all_sonarqube_cloud_projects_starting_by",
-        Map.of("prefix", "proj")));
+        SearchMyProjectsTool.TOOL_NAME,
+        Map.of()));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'", true));
@@ -73,7 +62,7 @@ class FindAllProjectsToolTests {
       var mcpClient = harness.newClient(Map.of("SONARQUBE_CLOUD_TOKEN", "token"));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        "find_all_sonarqube_cloud_projects_starting_by",
+        SearchMyProjectsTool.TOOL_NAME,
         Map.of("prefix", "proj")));
 
       assertThat(result)
@@ -97,7 +86,7 @@ class FindAllProjectsToolTests {
     }
 
     @SonarMcpServerTest
-    void it_should_return_an_error_if_the_request_fails(SonarMcpServerTestHarness harness) {
+    void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
         "SONARQUBE_CLOUD_TOKEN", "token",
@@ -105,19 +94,16 @@ class FindAllProjectsToolTests {
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        "find_all_sonarqube_cloud_projects_starting_by",
-        Map.of("prefix", "proj")));
+        SearchMyProjectsTool.TOOL_NAME,
+        Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to fetch all projects: Internal error.", true));
+        .isEqualTo(new McpSchema.CallToolResult("Failed to fetch all projects: Make sure your token is valid.", true));
     }
 
     @SonarMcpServerTest
-    void it_should_return_no_project_if_prefix_does_not_match(SonarMcpServerTestHarness harness) {
-      mockServer.stubFor(get("/api/components/search.protobuf?qualifiers=TRK&organization=org&ps=500&p=1")
-        .willReturn(aResponse().withResponseBody(protobufBody(Components.SearchWsResponse.newBuilder()
-          .setPaging(Common.Paging.newBuilder().setTotal(0).build())
-          .build()))));
+    void it_should_show_error_when_failing(SonarMcpServerTestHarness harness) {
+      mockServer.stubFor(get(ProjectsApi.SEARCH_MY_PROJECTS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
         "SONARQUBE_CLOUD_TOKEN", "token",
@@ -125,20 +111,50 @@ class FindAllProjectsToolTests {
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        "find_all_sonarqube_cloud_projects_starting_by",
-        Map.of("prefix", "proj")));
+        SearchMyProjectsTool.TOOL_NAME,
+        Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No projects were found starting by prefix 'proj'.", false));
+        .isEqualTo(new McpSchema.CallToolResult("Failed to fetch all projects: Error 500 on " + mockServer.baseUrl() + "/api/projects/search_my_projects", true));
     }
 
     @SonarMcpServerTest
-    void it_should_return_the_project_list_if_prefix_matches(SonarMcpServerTestHarness harness) {
-      mockServer.stubFor(get("/api/components/search.protobuf?qualifiers=TRK&organization=org&ps=500&p=1")
-        .willReturn(aResponse().withResponseBody(protobufBody(Components.SearchWsResponse.newBuilder()
-          .addComponents(Components.Component.newBuilder().setKey("projectKey").setName("projectName").build())
-          .setPaging(Common.Paging.newBuilder().setTotal(1).build())
-          .build()))));
+    void it_should_return_the_project_list(SonarMcpServerTestHarness harness) {
+      mockServer.stubFor(get(ProjectsApi.SEARCH_MY_PROJECTS_PATH)
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+              "paging": {
+                "pageIndex": 1,
+                "pageSize": 100,
+                "total": 2
+              },
+              "projects": [
+                {
+                  "key": "clang",
+                  "name": "Clang",
+                  "lastAnalysisDate": "2016-06-11T14:25:53+0000",
+                  "qualityGate": "OK",
+                  "links": []
+                },
+                {
+                  "key": "net.java.openjdk:jdk7",
+                  "name": "JDK 7",
+                  "description": "JDK",
+                  "lastAnalysisDate": "2016-06-10T13:17:53+0000",
+                  "qualityGate": "ERROR",
+                  "links": [
+                    {
+                      "name": "Sources",
+                      "type": "scm",
+                      "href": "http://download.java.net/openjdk/jdk8/"
+                    }
+                  ]
+                }
+              ]
+            }
+            """.getBytes(StandardCharsets.UTF_8))
+        )));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
         "SONARQUBE_CLOUD_TOKEN", "token",
@@ -146,13 +162,14 @@ class FindAllProjectsToolTests {
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        "find_all_sonarqube_cloud_projects_starting_by",
-        Map.of("prefix", "proj")));
+        SearchMyProjectsTool.TOOL_NAME,
+        Map.of()));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 Sonar projects in your organization starting by prefix 'proj'.
-          Project key: projectKey | Project name: projectName
+          Found 2 Sonar projects in your organization.
+          Project key: clang | Project name: Clang
+          Project key: net.java.openjdk:jdk7 | Project name: JDK 7
           """, false));
       assertThat(mockServer.getServeEvents().getRequests())
         .extracting(ServeEvent::getRequest)

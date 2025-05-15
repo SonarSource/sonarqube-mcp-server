@@ -20,7 +20,6 @@ java
 -DPLUGIN_PATH=PATH_TO_REPLACE
 -DSONARQUBE_CLOUD_TOKEN=TOKEN
 -DSONARQUBE_CLOUD_ORG=ORG
--DSONARQUBE_CLOUD_PROJECT_KEY=PKEY
 -jar build/libs/sonar-mcp-server-<version>.jar
 ```
 
@@ -40,8 +39,7 @@ Replace `<version>` with the actual version of the JAR file.
                   "STORAGE_PATH": "<path_to_your_mcp_storage>",
                   "PLUGIN_PATH": "<path_to_the_sonar_plugins>",
                   "SONARQUBE_CLOUD_TOKEN": "<sonarqube_cloud_user_token>",
-                  "SONARQUBE_CLOUD_ORG": "<sonarqube_cloud_organization>",
-                  "SONARQUBE_CLOUD_PROJECT_KEY": "<sonarqube_cloud_project_key>"
+                  "SONARQUBE_CLOUD_ORG": "<sonarqube_cloud_organization>"
                 }
             }
         }

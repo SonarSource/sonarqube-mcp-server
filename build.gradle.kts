@@ -83,6 +83,7 @@ dependencies {
 	implementation(libs.sonarlint.rpc.impl)
 	implementation(libs.commons.langs3)
 	implementation(libs.commons.text)
+	implementation(libs.sslcontext.kickstart)
 	testImplementation(platform(libs.junit.bom))
 	testImplementation(libs.junit.jupiter)
 	testImplementation(libs.mockito.core)

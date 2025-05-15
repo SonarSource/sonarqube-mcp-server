@@ -17,7 +17,7 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
  */
-package org.sonar.mcp.tools;
+package org.sonar.mcp.tools.issues;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
@@ -27,21 +27,37 @@ import org.sonar.mcp.harness.SonarMcpServerTestHarness;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class FindIssuesToolTests {
+class AnalyzeIssuesToolTests {
+
   @Nested
-  class MissingPrerequisite {
+  class Failure {
     @SonarMcpServerTest
     void it_should_return_an_error_if_codeSnippet_is_missing(SonarMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        "find_sonar_issues_in_code_snippet",
+        AnalyzeIssuesTool.TOOL_NAME,
         Map.of(
-          "language", ""
+          AnalyzeIssuesTool.LANGUAGE_PROPERTY, ""
         )));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Missing required argument: codeSnippet", true));
+    }
+
+    @SonarMcpServerTest
+    void it_should_fail_to_analyze_incorrect_file(SonarMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        AnalyzeIssuesTool.TOOL_NAME,
+        Map.of(
+          AnalyzeIssuesTool.SNIPPET_PROPERTY, "<? wrong\ncode",
+          AnalyzeIssuesTool.LANGUAGE_PROPERTY, "java"
+        )));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("Failed to analyze the code snippet.", false));
     }
   }
 
@@ -52,14 +68,14 @@ class FindIssuesToolTests {
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        "find_sonar_issues_in_code_snippet",
+        AnalyzeIssuesTool.TOOL_NAME,
         Map.of(
-          "codeSnippet", "",
-          "language", ""
+          AnalyzeIssuesTool.SNIPPET_PROPERTY, "",
+          AnalyzeIssuesTool.LANGUAGE_PROPERTY, ""
         )));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No Sonar issues found in the files.", false));
+        .isEqualTo(new McpSchema.CallToolResult("No Sonar issues found in the code snippet.", false));
     }
 
     @SonarMcpServerTest
@@ -67,17 +83,17 @@ class FindIssuesToolTests {
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        "find_sonar_issues_in_code_snippet",
+        AnalyzeIssuesTool.TOOL_NAME,
         Map.of(
-          "codeSnippet", """
+          AnalyzeIssuesTool.SNIPPET_PROPERTY, """
             // TODO just do it
             """,
-          "language", "php"
+          AnalyzeIssuesTool.LANGUAGE_PROPERTY, "php"
         )));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 Sonar issues in the file
+          Found 1 Sonar issues in the code snippet
           Complete the task associated to this "TODO" comment.
           Rule key: php:S1135
           Severity: INFO

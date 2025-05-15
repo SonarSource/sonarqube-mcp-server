@@ -24,29 +24,56 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
+import org.sonar.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonar.mcp.log.McpLogger;
+import org.sonar.mcp.http.HttpClientProvider;
+import org.sonar.mcp.serverapi.ServerApi;
+import org.sonar.mcp.serverapi.ServerApiHelper;
 import org.sonar.mcp.slcore.BackendService;
-import org.sonar.mcp.tools.FindAllProjectsTool;
-import org.sonar.mcp.tools.FindIssuesTool;
+import org.sonar.mcp.tools.issues.SearchIssuesTool;
+import org.sonar.mcp.tools.projects.SearchMyProjectsTool;
+import org.sonar.mcp.tools.issues.AnalyzeIssuesTool;
+import org.sonarsource.sonarlint.core.serverapi.EndpointParams;
 
 public class SonarMcpServer {
+
   private static final McpLogger LOG = McpLogger.getInstance();
+  private static final String USER_AGENT = "Sonar MCP Server";
 
   public static void main(String[] args) {
     new SonarMcpServer().start(new StdioServerTransportProvider(), System.getenv());
   }
 
   public void start(StdioServerTransportProvider transportProvider, Map<String, String> environment) {
-    var backendService = new BackendService(environment);
-    var findIssuesTool = new FindIssuesTool(backendService);
-    var findAllProjectsTool = new FindAllProjectsTool(backendService);
+    var mcpConfiguration = new McpServerLaunchConfiguration(environment);
+
+    var serverApi = initializeServerApi(mcpConfiguration);
+    var backendService = new BackendService(mcpConfiguration.getStoragePath(), mcpConfiguration.getPluginPath());
+
+    var findIssuesTool = new AnalyzeIssuesTool(backendService);
+    var searchMyProjectsTool = new SearchMyProjectsTool(serverApi);
+    var searchIssuesTool = new SearchIssuesTool(serverApi);
 
     var syncServer = McpServer.sync(transportProvider)
       .serverInfo(new McpSchema.Implementation("sonar-mcp-server", "0.0.1"))
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
-      .tools(findIssuesTool.spec(), findAllProjectsTool.spec())
+      .tools(findIssuesTool.spec(), searchMyProjectsTool.spec(), searchIssuesTool.spec())
       .build();
+
     Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(syncServer, backendService)));
+  }
+
+  private static ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
+    var organization = mcpConfiguration.getSonarqubeCloudOrg();
+    var token = mcpConfiguration.getSonarqubeCloudToken();
+
+    var httpClientProvider = new HttpClientProvider(USER_AGENT);
+    var httpClient = httpClientProvider.getHttpClient(token);
+
+    var serverApiHelper = new ServerApiHelper(new EndpointParams(
+      mcpConfiguration.getSonarqubeCloudUrl(), mcpConfiguration.getSonarqubeCloudApiUrl(), organization != null,
+      organization), httpClient);
+    return new ServerApi(serverApiHelper, token, organization);
   }
 
   private static void shutdown(McpSyncServer syncServer, BackendService backendService) {
@@ -61,4 +88,5 @@ public class SonarMcpServer {
       LOG.error("Error shutting down MCP backend", e);
     }
   }
+
 }

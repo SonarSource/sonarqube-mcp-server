@@ -1,0 +1,101 @@
+/*
+ * Sonar MCP Server
+ * Copyright (C) 2025 SonarSource
+ * sonarlint@sonarsource.com
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
+ */
+package org.sonar.mcp.serverapi;
+
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import org.apache.hc.core5.http.HttpStatus;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.sonar.mcp.http.HttpClientProvider;
+import org.sonarsource.sonarlint.core.serverapi.EndpointParams;
+import org.sonarsource.sonarlint.core.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarlint.core.serverapi.exception.NotFoundException;
+import org.sonarsource.sonarlint.core.serverapi.exception.ServerErrorException;
+import org.sonarsource.sonarlint.core.serverapi.exception.UnauthorizedException;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class ServerApiTests {
+
+  private static final String USER_AGENT = "Sonar MCP tests";
+  private ServerApiHelper serverApiHelper;
+
+  @RegisterExtension
+  static WireMockExtension sonarqubeMock = WireMockExtension.newInstance()
+    .options(wireMockConfig().dynamicPort())
+    .build();
+
+  @BeforeAll
+  void init() {
+    var httpClientProvider = new HttpClientProvider(USER_AGENT);
+    var httpClient = httpClientProvider.getHttpClient("token");
+
+    serverApiHelper = new ServerApiHelper(new EndpointParams(
+      sonarqubeMock.baseUrl(), sonarqubeMock.baseUrl(), true, "org"), httpClient);
+  }
+
+  @Test
+  void it_should_throw_on_unauthorized_response() {
+    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_UNAUTHORIZED)));
+
+    var exception = assertThrows(UnauthorizedException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("Not authorized. Please check server credentials.");
+  }
+
+  @Test
+  void it_should_throw_on_forbidden_response() {
+    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+
+    var exception = assertThrows(ForbiddenException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("Forbidden");
+  }
+
+  @Test
+  void it_should_throw_on_not_found_response() {
+    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
+
+    var exception = assertThrows(NotFoundException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("Error 404 on " + sonarqubeMock.baseUrl() + "/test");
+  }
+
+  @Test
+  void it_should_throw_on_internal_error_response() {
+    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+
+    var exception = assertThrows(ServerErrorException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("Error 500 on " + sonarqubeMock.baseUrl() + "/test");
+  }
+
+  @Test
+  void it_should_throw_on_any_other_error_response() {
+    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_BAD_REQUEST)));
+
+    var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test");
+  }
+
+}
