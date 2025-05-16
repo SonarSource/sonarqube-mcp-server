@@ -19,8 +19,6 @@
  */
 package org.sonar.mcp.tools.issues;
 
-import io.modelcontextprotocol.server.McpServerFeatures;
-import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
@@ -28,8 +26,9 @@ import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.exception.NotFoundException;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
+import org.sonar.mcp.tools.Tool;
 
-public class SearchIssuesTool {
+public class SearchIssuesTool extends Tool {
 
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
   public static final String PROJECTS_PROPERTY = "projects";
@@ -37,11 +36,7 @@ public class SearchIssuesTool {
   private final ServerApi serverApi;
 
   public SearchIssuesTool(ServerApi serverApi) {
-    this.serverApi = serverApi;
-  }
-
-  public McpSchema.Tool definition() {
-    return new McpSchema.Tool(
+    super(new McpSchema.Tool(
       TOOL_NAME,
       "Search for Sonar issues in my organization's projects.",
       new McpSchema.JsonSchema(
@@ -54,20 +49,15 @@ public class SearchIssuesTool {
         List.of(),
         false
       )
-    );
+    ));
+    this.serverApi = serverApi;
   }
 
-  public McpServerFeatures.SyncToolSpecification spec() {
-    return new McpServerFeatures.SyncToolSpecification(
-      definition(),
-      (McpSyncServerExchange exchange, Map<String, Object> argMap) -> searchSonarIssuesInProjects(argMap)
-    );
-  }
-
-  private McpSchema.CallToolResult searchSonarIssuesInProjects(Map<String, Object> args) {
+  @Override
+  public McpSchema.CallToolResult execute(Map<String, Object> arguments) {
     String[] projects = null;
-    if (args.containsKey(PROJECTS_PROPERTY)) {
-      projects = ((String) args.get(PROJECTS_PROPERTY)).split(",");
+    if (arguments.containsKey(PROJECTS_PROPERTY)) {
+      projects = ((String) arguments.get(PROJECTS_PROPERTY)).split(",");
     }
 
     var text = new StringBuilder();

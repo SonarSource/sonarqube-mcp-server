@@ -89,7 +89,7 @@ public class SonarMcpServerTestHarness extends TypeBasedParameterResolver<SonarM
       var serverToClientInputStream = new PipedInputStream(serverToClientOutputStream);
       var environment = new HashMap<>(DEFAULT_ENV);
       environment.putAll(overriddenEnv);
-      new SonarMcpServer().start(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream), environment);
+      new SonarMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream), environment).start();
       client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream)).build();
       client.initialize();
     } catch (IOException e) {

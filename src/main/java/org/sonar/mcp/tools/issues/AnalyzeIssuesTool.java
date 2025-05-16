@@ -19,8 +19,6 @@
  */
 package org.sonar.mcp.tools.issues;
 
-import io.modelcontextprotocol.server.McpServerFeatures;
-import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,13 +28,14 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.sonar.mcp.slcore.BackendService;
+import org.sonar.mcp.tools.Tool;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
 
 import static org.sonar.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
 import static org.sonar.mcp.analysis.LanguageUtils.mapSonarLanguageToLanguage;
 
-public class AnalyzeIssuesTool {
+public class AnalyzeIssuesTool extends Tool {
 
   public static final String TOOL_NAME = "analyze_sonar_issues_in_code_snippet";
   public static final String SNIPPET_PROPERTY = "codeSnippet";
@@ -45,11 +44,7 @@ public class AnalyzeIssuesTool {
   private final BackendService backendService;
 
   public AnalyzeIssuesTool(BackendService backendService) {
-    this.backendService = backendService;
-  }
-
-  public McpSchema.Tool definition() {
-    return new McpSchema.Tool(
+    super(new McpSchema.Tool(
       TOOL_NAME,
       "Analyze a code snippet with Sonar analyzers, and find Sonar issues in it. If possible, the language of the code snippet should be known.",
       new McpSchema.JsonSchema(
@@ -61,30 +56,25 @@ public class AnalyzeIssuesTool {
         List.of(SNIPPET_PROPERTY),
         false
       )
-    );
+    ));
+    this.backendService = backendService;
   }
 
-  public McpServerFeatures.SyncToolSpecification spec() {
-    return new McpServerFeatures.SyncToolSpecification(
-      definition(),
-      (McpSyncServerExchange exchange, Map<String, Object> argMap) -> analyzeCodeSnippetAndFindIssues(argMap)
-    );
-  }
-
-  private McpSchema.CallToolResult analyzeCodeSnippetAndFindIssues(Map<String, Object> args) {
+  @Override
+  public McpSchema.CallToolResult execute(Map<String, Object> arguments) {
     var text = new StringBuilder();
 
-    if (!args.containsKey(SNIPPET_PROPERTY)) {
+    if (!arguments.containsKey(SNIPPET_PROPERTY)) {
       return McpSchema.CallToolResult.builder()
         .addTextContent("Missing required argument: " + SNIPPET_PROPERTY)
         .isError(true)
         .build();
     }
-    var codeSnippet = ((String) args.get(SNIPPET_PROPERTY));
+    var codeSnippet = ((String) arguments.get(SNIPPET_PROPERTY));
 
     String language = null;
-    if (args.containsKey(LANGUAGE_PROPERTY)) {
-      language = ((String) args.get(LANGUAGE_PROPERTY));
+    if (arguments.containsKey(LANGUAGE_PROPERTY)) {
+      language = ((String) arguments.get(LANGUAGE_PROPERTY));
     }
 
     var sonarLanguage = getSonarLanguageFromInput(language);

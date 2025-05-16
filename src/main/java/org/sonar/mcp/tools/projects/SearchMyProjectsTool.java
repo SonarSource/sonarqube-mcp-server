@@ -19,8 +19,6 @@
  */
 package org.sonar.mcp.tools.projects;
 
-import io.modelcontextprotocol.server.McpServerFeatures;
-import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
@@ -28,19 +26,16 @@ import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.exception.NotFoundException;
 import org.sonar.mcp.serverapi.projects.ProjectsApi;
+import org.sonar.mcp.tools.Tool;
 
-public class SearchMyProjectsTool {
+public class SearchMyProjectsTool extends Tool {
 
   public static final String TOOL_NAME = "search_my_sonarqube_cloud_projects";
 
   private final ServerApi serverApi;
 
   public SearchMyProjectsTool(ServerApi serverApi) {
-    this.serverApi = serverApi;
-  }
-
-  public McpSchema.Tool definition() {
-    return new McpSchema.Tool(
+    super(new McpSchema.Tool(
       TOOL_NAME,
       "Find all my SonarQube Cloud projects.",
       new McpSchema.JsonSchema(
@@ -49,17 +44,12 @@ public class SearchMyProjectsTool {
         List.of(),
         false
       )
-    );
+    ));
+    this.serverApi = serverApi;
   }
 
-  public McpServerFeatures.SyncToolSpecification spec() {
-    return new McpServerFeatures.SyncToolSpecification(
-      definition(),
-      (McpSyncServerExchange exchange, Map<String, Object> argMap) -> findAllSonarQubeCloudProjects()
-    );
-  }
-
-  private McpSchema.CallToolResult findAllSonarQubeCloudProjects() {
+  @Override
+  public McpSchema.CallToolResult execute(Map<String, Object> arguments) {
     if (!serverApi.isAuthenticationSet()) {
       return McpSchema.CallToolResult.builder()
         .addTextContent("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'")
@@ -107,5 +97,4 @@ public class SearchMyProjectsTool {
 
     return stringBuilder.toString();
   }
-
 }

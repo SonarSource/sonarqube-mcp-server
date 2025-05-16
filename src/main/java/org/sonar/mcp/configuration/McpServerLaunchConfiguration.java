@@ -37,6 +37,7 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_CLOUD_URL = "SONARQUBE_CLOUD_URL";
   private static final String SONARQUBE_CLOUD_ORG = "SONARQUBE_CLOUD_ORG";
   private static final String SONARQUBE_CLOUD_TOKEN = "SONARQUBE_CLOUD_TOKEN";
+  private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
 
   private final String storagePath;
   private final String pluginPath;
@@ -45,6 +46,7 @@ public class McpServerLaunchConfiguration {
   private final String sonarqubeCloudToken;
   private final String appVersion;
   private final String userAgent;
+  private final boolean isTelemetryEnabled;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     this.storagePath = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -56,6 +58,7 @@ public class McpServerLaunchConfiguration {
     this.sonarqubeCloudToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_TOKEN, null);
     this.appVersion = fetchAppVersion();
     this.userAgent = APP_NAME + appVersion;
+    this.isTelemetryEnabled = !Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, TELEMETRY_DISABLED, "false"));
   }
 
   @NotNull
@@ -91,6 +94,10 @@ public class McpServerLaunchConfiguration {
 
   public String getAppName() {
     return APP_NAME;
+  }
+
+  public boolean isTelemetryEnabled() {
+    return isTelemetryEnabled;
   }
 
   @CheckForNull

@@ -20,47 +20,66 @@
 package org.sonar.mcp;
 
 import io.modelcontextprotocol.server.McpServer;
+import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.List;
 import java.util.Map;
 import org.sonar.mcp.configuration.McpServerLaunchConfiguration;
-import org.sonar.mcp.log.McpLogger;
 import org.sonar.mcp.http.HttpClientProvider;
+import org.sonar.mcp.log.McpLogger;
 import org.sonar.mcp.serverapi.EndpointParams;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.ServerApiHelper;
 import org.sonar.mcp.slcore.BackendService;
+import org.sonar.mcp.tools.Tool;
+import org.sonar.mcp.tools.ToolExecutor;
+import org.sonar.mcp.tools.issues.AnalyzeIssuesTool;
 import org.sonar.mcp.tools.issues.SearchIssuesTool;
 import org.sonar.mcp.tools.projects.SearchMyProjectsTool;
-import org.sonar.mcp.tools.issues.AnalyzeIssuesTool;
 
 public class SonarMcpServer {
 
   private static final McpLogger LOG = McpLogger.getInstance();
-
+  private final BackendService backendService;
+  private final ToolExecutor toolExecutor;
+  private final StdioServerTransportProvider transportProvider;
+  private final List<Tool> supportedTools;
+  private final McpServerLaunchConfiguration mcpConfiguration;
 
   public static void main(String[] args) {
-    new SonarMcpServer().start(new StdioServerTransportProvider(), System.getenv());
+    new SonarMcpServer(new StdioServerTransportProvider(), System.getenv()).start();
   }
 
-  public void start(StdioServerTransportProvider transportProvider, Map<String, String> environment) {
-    var mcpConfiguration = new McpServerLaunchConfiguration(environment);
-
+  public SonarMcpServer(StdioServerTransportProvider transportProvider, Map<String, String> environment) {
+    this.transportProvider = transportProvider;
+    this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
+    this.backendService = new BackendService(mcpConfiguration);
     var serverApi = initializeServerApi(mcpConfiguration);
-    var backendService = new BackendService(mcpConfiguration);
+    this.toolExecutor = new ToolExecutor(backendService);
+    this.supportedTools = List.of(
+      new AnalyzeIssuesTool(backendService),
+      new SearchMyProjectsTool(serverApi),
+      new SearchIssuesTool(serverApi));
+  }
 
-    var findIssuesTool = new AnalyzeIssuesTool(backendService);
-    var searchMyProjectsTool = new SearchMyProjectsTool(serverApi);
-    var searchIssuesTool = new SearchIssuesTool(serverApi);
-
+  public void start() {
     var syncServer = McpServer.sync(transportProvider)
       .serverInfo(new McpSchema.Implementation("sonar-mcp-server", mcpConfiguration.getAppVersion()))
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
-      .tools(findIssuesTool.spec(), searchMyProjectsTool.spec(), searchIssuesTool.spec())
+      .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
       .build();
 
     Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(syncServer, backendService)));
+  }
+
+  private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
+    return new McpServerFeatures.SyncToolSpecification(
+      tool.definition(),
+      (McpSyncServerExchange exchange, Map<String, Object> argMap) -> toolExecutor.execute(tool, argMap)
+    );
   }
 
   private static ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {

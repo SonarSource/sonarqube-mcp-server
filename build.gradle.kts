@@ -176,8 +176,7 @@ tasks {
 	test {
 		dependsOn("preparePlugins")
 		useJUnitPlatform()
-		systemProperty("sonarlint.telemetry.disabled", "true")
-		systemProperty("sonarlint.monitoring.disabled", "true")
+		systemProperty("TELEMETRY_DISABLED", "true")
 		systemProperty("sonar.mcp.server.version", project.version)
 		doNotTrackState("Tests should always run")
 	}

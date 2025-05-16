@@ -25,6 +25,7 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +50,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.Initialize
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.LanguageSpecificRequirements;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.SslConfigurationDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.TelemetryClientConstantAttributesDto;
+import org.sonarsource.sonarlint.core.rpc.protocol.client.telemetry.ToolCalledParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
@@ -67,6 +69,7 @@ public class BackendService {
   private final String appVersion;
   private final String userAgent;
   private final String appName;
+  private boolean isTelemetryEnabled;
   private ClientJsonRpcLauncher clientLauncher;
 
   public BackendService(McpServerLaunchConfiguration mcpConfiguration) {
@@ -75,6 +78,7 @@ public class BackendService {
     this.appVersion = mcpConfiguration.getAppVersion();
     this.userAgent = mcpConfiguration.getUserAgent();
     this.appName = mcpConfiguration.getAppName();
+    this.isTelemetryEnabled = mcpConfiguration.isTelemetryEnabled();
     initBackendService();
   }
 
@@ -115,6 +119,10 @@ public class BackendService {
     backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(), List.of(), List.of(file))));
   }
 
+  public void notifyToolCalled(String toolName, boolean succeeded) {
+    backendFuture.thenAcceptAsync(server -> server.getTelemetryService().toolCalled(new ToolCalledParams(toolName, succeeded)));
+  }
+
   public Path getWorkDir() {
     return Paths.get(System.getProperty("user.home")).resolve(".sonarlint");
   }
@@ -145,6 +153,10 @@ public class BackendService {
   private CompletableFuture<Void> initRpcServer(SonarLintRpcServer rpcServer) {
     var pluginResolvedPath = getPluginPath();
 
+    var capabilities = EnumSet.of(BackendCapability.FULL_SYNCHRONIZATION, BackendCapability.PROJECT_SYNCHRONIZATION);
+    if (isTelemetryEnabled) {
+      capabilities.add(BackendCapability.TELEMETRY);
+    }
     return rpcServer.initialize(
       new InitializeParams(
         new ClientConstantInfoDto(
@@ -156,7 +168,7 @@ public class BackendService {
           new SslConfigurationDto(null, null, null, null, null, null),
           null, null, null, null),
         null,
-        Set.of(BackendCapability.FULL_SYNCHRONIZATION, BackendCapability.PROJECT_SYNCHRONIZATION),
+        capabilities,
         getStoragePath(),
         getWorkDir(),
         Set.of(pluginResolvedPath.resolve("sonar-go-plugin-1.21.1.1670.jar"),
@@ -221,5 +233,4 @@ public class BackendService {
       }
     }
   }
-
 }
