@@ -24,6 +24,7 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
+import java.util.Objects;
 import org.sonar.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonar.mcp.log.McpLogger;
 import org.sonar.mcp.http.HttpClientProvider;
@@ -38,7 +39,7 @@ import org.sonarsource.sonarlint.core.serverapi.EndpointParams;
 public class SonarMcpServer {
 
   private static final McpLogger LOG = McpLogger.getInstance();
-  private static final String USER_AGENT = "Sonar MCP Server";
+
 
   public static void main(String[] args) {
     new SonarMcpServer().start(new StdioServerTransportProvider(), System.getenv());
@@ -48,14 +49,14 @@ public class SonarMcpServer {
     var mcpConfiguration = new McpServerLaunchConfiguration(environment);
 
     var serverApi = initializeServerApi(mcpConfiguration);
-    var backendService = new BackendService(mcpConfiguration.getStoragePath(), mcpConfiguration.getPluginPath());
+    var backendService = new BackendService(mcpConfiguration);
 
     var findIssuesTool = new AnalyzeIssuesTool(backendService);
     var searchMyProjectsTool = new SearchMyProjectsTool(serverApi);
     var searchIssuesTool = new SearchIssuesTool(serverApi);
 
     var syncServer = McpServer.sync(transportProvider)
-      .serverInfo(new McpSchema.Implementation("sonar-mcp-server", "0.0.1"))
+      .serverInfo(new McpSchema.Implementation("sonar-mcp-server", mcpConfiguration.getAppVersion()))
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
       .tools(findIssuesTool.spec(), searchMyProjectsTool.spec(), searchIssuesTool.spec())
       .build();
@@ -67,7 +68,7 @@ public class SonarMcpServer {
     var organization = mcpConfiguration.getSonarqubeCloudOrg();
     var token = mcpConfiguration.getSonarqubeCloudToken();
 
-    var httpClientProvider = new HttpClientProvider(USER_AGENT);
+    var httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     var httpClient = httpClientProvider.getHttpClient(token);
 
     var serverApiHelper = new ServerApiHelper(new EndpointParams(

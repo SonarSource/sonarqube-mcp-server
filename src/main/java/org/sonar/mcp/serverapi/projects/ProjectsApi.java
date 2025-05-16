@@ -34,14 +34,10 @@ public class ProjectsApi {
   }
 
   public SearchResponse searchMyProjects() {
-    try (var response = helper.get(buildPath())) {
+    try (var response = helper.get(SEARCH_MY_PROJECTS_PATH)) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }
-  }
-
-  private static String buildPath() {
-    return SEARCH_MY_PROJECTS_PATH;
   }
 
   public record SearchResponse(Paging paging, List<ProjectResponse> projects) {

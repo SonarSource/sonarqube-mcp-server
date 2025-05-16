@@ -101,14 +101,6 @@ dependencies {
 	}
 }
 
-tasks.test {
-	dependsOn("preparePlugins")
-	useJUnitPlatform()
-	systemProperty("sonarlint.telemetry.disabled", "true")
-	systemProperty("sonarlint.monitoring.disabled", "true")
-	doNotTrackState("Tests should always run")
-}
-
 fun copyPlugins(destinationDir: File, pluginName: String) {
 	copy {
 		from(project.configurations["sqplugins"])
@@ -180,58 +172,68 @@ fun unzipEslintBridgeBundle(destinationDir: File, pluginName: String) {
 	Files.delete(outputFilePath)
 }
 
-tasks.register("preparePlugins") {
-	val destinationDir = file(layout.buildDirectory)
-	description = "Prepare Sonar plugins"
-	group = "build"
-
-	doLast {
-		val pluginName = "sonar-mcp-server"
-		copyPlugins(destinationDir, pluginName)
-		renameCsharpPlugins(destinationDir, pluginName)
-		copyOmnisharp(destinationDir, pluginName)
-		unzipEslintBridgeBundle(destinationDir, pluginName)
-	}
-}
-
 tasks {
+	test {
+		dependsOn("preparePlugins")
+		useJUnitPlatform()
+		systemProperty("sonarlint.telemetry.disabled", "true")
+		systemProperty("sonarlint.monitoring.disabled", "true")
+		systemProperty("sonar.mcp.server.version", project.version)
+		doNotTrackState("Tests should always run")
+	}
+
+	register("preparePlugins") {
+		val destinationDir = file(layout.buildDirectory)
+		description = "Prepare Sonar plugins"
+		group = "build"
+
+		doLast {
+			val pluginName = "sonar-mcp-server"
+			copyPlugins(destinationDir, pluginName)
+			renameCsharpPlugins(destinationDir, pluginName)
+			copyOmnisharp(destinationDir, pluginName)
+			unzipEslintBridgeBundle(destinationDir, pluginName)
+		}
+	}
+
+	register<Copy>("copyPluginResources") {
+		dependsOn("preparePlugins")
+		description = "Copy Sonar plugins"
+		group = "build"
+
+		val pluginName = "sonar-mcp-server"
+		val fromDir = layout.buildDirectory.dir(pluginName)
+
+		from(fromDir) {
+			include("**/plugins/**", "**/omnisharp/**")
+			eachFile {
+				path = path.removePrefix("$pluginName/")
+			}
+		}
+
+		into("$buildDir/generated-resources/plugins")
+	}
+
+	jar {
+		manifest {
+			attributes["Main-Class"] = "org.sonar.mcp.SonarMcpServer"
+			attributes["Implementation-Version"] = project.version
+		}
+
+		from({
+			configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }
+		}) {
+			exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+		}
+
+		duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	}
+
 	jacocoTestReport {
 		reports {
 			xml.required.set(true)
 		}
 	}
-}
-
-tasks.register<Copy>("copyPluginResources") {
-	dependsOn("preparePlugins")
-	description = "Copy Sonar plugins"
-	group = "build"
-
-	val pluginName = "sonar-mcp-server"
-	val fromDir = layout.buildDirectory.dir(pluginName)
-
-	from(fromDir) {
-		include("**/plugins/**", "**/omnisharp/**")
-		eachFile {
-			path = path.removePrefix("$pluginName/")
-		}
-	}
-
-	into("$buildDir/generated-resources/plugins")
-}
-
-tasks.jar {
-	manifest {
-		attributes["Main-Class"] = "org.sonar.mcp.SonarMcpServer"
-	}
-
-	from({
-		configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }
-	}) {
-		exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
-	}
-
-	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 application {

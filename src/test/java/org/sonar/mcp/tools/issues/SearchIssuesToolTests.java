@@ -32,6 +32,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.sonar.mcp.harness.SonarMcpServerTest;
 import org.sonar.mcp.harness.SonarMcpServerTestHarness;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
+import org.sonarsource.sonarlint.core.serverapi.UrlUtils;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -106,7 +107,7 @@ class SearchIssuesToolTests {
     var issueKey = "issueKey1";
     var ruleName = "ruleName1";
     var projectName = "projectName1";
-    mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org&projects=project1,project2")
+    mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org&projects=" + UrlUtils.urlEncode("project1,project2"))
       .willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
           {

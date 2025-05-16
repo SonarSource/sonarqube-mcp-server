@@ -32,6 +32,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.sonar.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonar.mcp.log.McpLogger;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.impl.BackendJsonRpcLauncher;
@@ -63,19 +64,28 @@ public class BackendService {
   private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
   private final String storagePath;
   private final String pluginPath;
+  private final String appVersion;
+  private final String userAgent;
+  private final String appName;
   private ClientJsonRpcLauncher clientLauncher;
 
-  public BackendService(String storagePath, String pluginPath) {
-    this.storagePath = storagePath;
-    this.pluginPath = pluginPath;
+  public BackendService(McpServerLaunchConfiguration mcpConfiguration) {
+    this.storagePath = mcpConfiguration.getStoragePath();
+    this.pluginPath = mcpConfiguration.getPluginPath();
+    this.appVersion = mcpConfiguration.getAppVersion();
+    this.userAgent = mcpConfiguration.getUserAgent();
+    this.appName = mcpConfiguration.getAppName();
     initBackendService();
   }
 
   // For tests
-  BackendService(ClientJsonRpcLauncher launcher, String storagePath, String pluginPath) {
+  BackendService(ClientJsonRpcLauncher launcher, String storagePath, String pluginPath, String appVersion, String appName) {
     this.clientLauncher = launcher;
     this.storagePath = storagePath;
     this.pluginPath = pluginPath;
+    this.appVersion = appVersion;
+    this.userAgent = appName + " " + appVersion;
+    this.appName = appName;
     initBackendService();
   }
 
@@ -138,10 +148,10 @@ public class BackendService {
     return rpcServer.initialize(
       new InitializeParams(
         new ClientConstantInfoDto(
-          "Sonar MCP Server",
-          "Sonar MCP Server 0.0.1"
+          appName,
+          userAgent
         ),
-        new TelemetryClientConstantAttributesDto("mcpserver", "Sonar MCP Server", "0.0.1", "0.0.1", emptyMap()),
+        new TelemetryClientConstantAttributesDto("mcpserver", appName, appVersion, "MCP", emptyMap()),
         new HttpConfigurationDto(
           new SslConfigurationDto(null, null, null, null, null, null),
           null, null, null, null),

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.sonar.mcp.serverapi.ServerApiHelper;
+import org.sonarsource.sonarlint.core.serverapi.UrlUtils;
 
 public class IssuesApi {
 
@@ -49,11 +50,11 @@ public class IssuesApi {
     boolean hasQueryParams = false;
 
     if (organization != null) {
-      path.append("?organization=").append(organization);
+      path.append("?organization=").append(UrlUtils.urlEncode(organization));
       hasQueryParams = true;
     }
     if (projects != null && projects.length > 0) {
-      path.append(hasQueryParams ? "&" : "?").append("projects=").append(String.join(",", projects));
+      path.append(hasQueryParams ? "&" : "?").append("projects=").append(UrlUtils.urlEncode(String.join(",", projects)));
     }
 
     return path.toString();

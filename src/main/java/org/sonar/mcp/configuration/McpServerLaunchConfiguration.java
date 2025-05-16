@@ -24,8 +24,11 @@ import java.util.Objects;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
+import org.sonar.mcp.SonarMcpServer;
 
 public class McpServerLaunchConfiguration {
+
+  private static final String APP_NAME = "Sonar MCP Server";
 
   private static final String SONARCLOUD_URL = "https://sonarcloud.io";
   private static final String SONARCLOUD_API_URL = "https://api.sonarcloud.io";
@@ -43,6 +46,8 @@ public class McpServerLaunchConfiguration {
   private final String sonarqubeCloudApiUrl;
   private final String sonarqubeCloudOrg;
   private final String sonarqubeCloudToken;
+  private final String appVersion;
+  private final String userAgent;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     this.storagePath = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -53,6 +58,8 @@ public class McpServerLaunchConfiguration {
     this.sonarqubeCloudApiUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_API_URL, SONARCLOUD_API_URL);
     this.sonarqubeCloudOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_ORG, null);
     this.sonarqubeCloudToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_TOKEN, null);
+    this.appVersion = fetchAppVersion();
+    this.userAgent = APP_NAME + appVersion;
   }
 
   @NotNull
@@ -83,6 +90,18 @@ public class McpServerLaunchConfiguration {
     return sonarqubeCloudToken;
   }
 
+  public String getAppVersion() {
+    return appVersion;
+  }
+
+  public String getUserAgent() {
+    return userAgent;
+  }
+
+  public String getAppName() {
+    return APP_NAME;
+  }
+
   @CheckForNull
   private static String getValueViaEnvOrPropertyOrDefault(Map<String, String> environment, String propertyName, @Nullable String defaultValue) {
     var property = environment.get(propertyName);
@@ -93,6 +112,15 @@ public class McpServerLaunchConfiguration {
       property = defaultValue;
     }
     return property;
+  }
+
+  private static String fetchAppVersion() {
+    var implementationVersion = SonarMcpServer.class.getPackage().getImplementationVersion();
+    if (implementationVersion == null) {
+      implementationVersion = System.getProperty("sonar.mcp.server.version");
+    }
+    Objects.requireNonNull(implementationVersion, "Sonar MPC Server version not found");
+    return implementationVersion;
   }
 
 }
