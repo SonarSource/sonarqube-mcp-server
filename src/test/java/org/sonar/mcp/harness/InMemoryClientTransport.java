@@ -220,9 +220,6 @@ public class InMemoryClientTransport implements McpClientTransport {
   }
 
   private static void log(String message, @Nullable Throwable e) {
-    System.out.println(message);
-    if (e != null) {
-      e.printStackTrace();
-    }
+    // no log for now
   }
 }

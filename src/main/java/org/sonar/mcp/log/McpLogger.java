@@ -19,6 +19,11 @@
  */
 package org.sonar.mcp.log;
 
+import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Nullable;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import org.sonarsource.sonarlint.core.rpc.protocol.client.log.LogLevel;
 import org.sonarsource.sonarlint.core.rpc.protocol.client.log.LogParams;
 
@@ -29,7 +34,17 @@ public class McpLogger {
     return INSTANCE;
   }
 
+  private McpSyncServer syncServer;
+
+  public void setOutput(@Nullable McpSyncServer syncServer) {
+    this.syncServer = syncServer;
+  }
+
   public void log(LogParams params) {
+    var message = params.getMessage();
+    if (message != null) {
+      log(message, params.getLevel());
+    }
     var stackTrace = params.getStackTrace();
     if (stackTrace != null) {
       log(stackTrace, params.getLevel());
@@ -42,11 +57,32 @@ public class McpLogger {
 
   public void error(String message, Throwable throwable) {
     log(message, LogLevel.ERROR);
-    throwable.printStackTrace();
+    log(stackTraceToString(throwable), LogLevel.ERROR);
   }
 
-  private static void log(String message, LogLevel level) {
-    // will be properly implemented in SLCORE-1345
-    System.out.println("[" + level.name() + "] " + message);
+  private void log(String message, LogLevel level) {
+    if (syncServer != null) {
+      // We rely on a deprecated API for now, I opened a discussion in https://github.com/modelcontextprotocol/java-sdk/issues/131
+      try {
+        syncServer.loggingNotification(new McpSchema.LoggingMessageNotification(toMcpLevel(level), "sonar-mcp-server", message));
+      } catch (Exception e) {
+        // we can't do much
+      }
+    }
+  }
+
+  static McpSchema.LoggingLevel toMcpLevel(LogLevel level) {
+    return switch (level) {
+      case ERROR -> McpSchema.LoggingLevel.ERROR;
+      case WARN -> McpSchema.LoggingLevel.WARNING;
+      case INFO -> McpSchema.LoggingLevel.INFO;
+      case DEBUG, TRACE -> McpSchema.LoggingLevel.DEBUG;
+    };
+  }
+
+  static String stackTraceToString(Throwable t) {
+    var stringWriter = new StringWriter();
+    t.printStackTrace(new PrintWriter(stringWriter));
+    return stringWriter.toString();
   }
 }

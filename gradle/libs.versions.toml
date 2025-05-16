@@ -26,6 +26,7 @@ mcp-server = "0.9.0"
 commons-lang3 = "3.17.0"
 commons-text = "1.13.0"
 sslcontext-kickstart = "9.1.0"
+logback = "1.5.17"
 
 junit = "5.12.2"
 junit-launcher = "1.12.2"
@@ -60,6 +61,8 @@ mcp-server = { module = "io.modelcontextprotocol.sdk:mcp", version.ref = "mcp-se
 commons-langs3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
 sslcontext-kickstart = { module = "io.github.hakky54:sslcontext-kickstart", version.ref = "sslcontext-kickstart" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-launcher" }

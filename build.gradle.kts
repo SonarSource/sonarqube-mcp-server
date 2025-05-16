@@ -62,7 +62,7 @@ license {
 		)
 	)
 	excludes(
-		listOf("**/*.jar", "**/*.png", "**/README")
+		listOf("**/*.jar", "**/*.png", "**/README", "**/logback.xml")
 	)
 	strictCheck = true
 }
@@ -76,6 +76,8 @@ configurations {
 	create("omnisharp")
 }
 
+val mockitoAgent = configurations.create("mockitoAgent")
+
 dependencies {
 	implementation(libs.mcp.server)
 	implementation(libs.sonarlint.java.client.utils)
@@ -84,6 +86,7 @@ dependencies {
 	implementation(libs.commons.langs3)
 	implementation(libs.commons.text)
 	implementation(libs.sslcontext.kickstart)
+	runtimeOnly(libs.logback.classic)
 	testImplementation(platform(libs.junit.bom))
 	testImplementation(libs.junit.jupiter)
 	testImplementation(libs.mockito.core)
@@ -91,6 +94,7 @@ dependencies {
 	testImplementation(libs.awaitility)
 	testImplementation(libs.wiremock)
 	testRuntimeOnly(libs.junit.launcher)
+	mockitoAgent(libs.mockito.core) { isTransitive = false }
 	"sqplugins"(libs.bundles.sonar.analyzers)
 	if (artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
 		"sqplugins"(libs.sonar.cfamily)
@@ -179,6 +183,7 @@ tasks {
 		systemProperty("TELEMETRY_DISABLED", "true")
 		systemProperty("sonar.mcp.server.version", project.version)
 		doNotTrackState("Tests should always run")
+		jvmArgs("-javaagent:${mockitoAgent.asPath}")
 	}
 
 	register("preparePlugins") {

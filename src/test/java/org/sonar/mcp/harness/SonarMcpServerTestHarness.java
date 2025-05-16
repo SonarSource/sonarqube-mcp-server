@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
+import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
@@ -90,8 +91,10 @@ public class SonarMcpServerTestHarness extends TypeBasedParameterResolver<SonarM
       var environment = new HashMap<>(DEFAULT_ENV);
       environment.putAll(overriddenEnv);
       new SonarMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream), environment).start();
-      client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream)).build();
+      client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream))
+        .loggingConsumer(System.out::println).build();
       client.initialize();
+      client.setLoggingLevel(McpSchema.LoggingLevel.CRITICAL);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

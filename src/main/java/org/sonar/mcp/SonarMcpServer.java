@@ -71,7 +71,7 @@ public class SonarMcpServer {
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
       .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
       .build();
-
+    LOG.setOutput(syncServer);
     Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(syncServer, backendService)));
   }
 
@@ -104,6 +104,7 @@ public class SonarMcpServer {
     } catch (Exception e) {
       LOG.error("Error shutting down MCP backend", e);
     }
+    McpLogger.getInstance().setOutput(null);
   }
 
 }

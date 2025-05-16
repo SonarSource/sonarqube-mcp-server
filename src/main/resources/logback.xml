@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration>
+
+<configuration>
+  <root level="warn"/>
+  <logger name="org.springframework" level="warn"/>
+  <logger name="org.sonarsource.sonarlint.core.plugin.commons.container.PriorityBeanFactory" level="warn"/>
+  <logger name="nl.altindag.ssl" level="warn"/>
+  <logger name="jetbrains.exodus" level="warn"/>
+  <logger name="org.apache.hc" level="warn"/>
+  <logger name="org.eclipse.lsp4j.jsonrpc" level="error"/>
+  <logger name="org.eclipse.jgit" level="info"/>
+  <logger name="org.sonar.scm.git.blame" level="info"/>
+  <!-- Disable to avoid logs being printed in loop -->
+  <logger name="io.modelcontextprotocol.spec.McpSchema" level="off" />
+  <logger name="io.modelcontextprotocol.client.McpAsyncClient" level="off" />
+  <logger name="io.modelcontextprotocol.spec.McpClientSession" level="off" />
+  <!-- Disable logback's own logs -->
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+</configuration>
