@@ -24,17 +24,16 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
-import java.util.Objects;
 import org.sonar.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonar.mcp.log.McpLogger;
 import org.sonar.mcp.http.HttpClientProvider;
+import org.sonar.mcp.serverapi.EndpointParams;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.ServerApiHelper;
 import org.sonar.mcp.slcore.BackendService;
 import org.sonar.mcp.tools.issues.SearchIssuesTool;
 import org.sonar.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonar.mcp.tools.issues.AnalyzeIssuesTool;
-import org.sonarsource.sonarlint.core.serverapi.EndpointParams;
 
 public class SonarMcpServer {
 
@@ -71,10 +70,8 @@ public class SonarMcpServer {
     var httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     var httpClient = httpClientProvider.getHttpClient(token);
 
-    var serverApiHelper = new ServerApiHelper(new EndpointParams(
-      mcpConfiguration.getSonarqubeCloudUrl(), mcpConfiguration.getSonarqubeCloudApiUrl(), organization != null,
-      organization), httpClient);
-    return new ServerApi(serverApiHelper, token, organization);
+    var serverApiHelper = new ServerApiHelper(new EndpointParams(mcpConfiguration.getSonarqubeCloudUrl(), organization), httpClient);
+    return new ServerApi(serverApiHelper, token);
   }
 
   private static void shutdown(McpSyncServer syncServer, BackendService backendService) {

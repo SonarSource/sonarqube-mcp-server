@@ -26,11 +26,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.sonar.mcp.http.HttpClientProvider;
-import org.sonarsource.sonarlint.core.serverapi.EndpointParams;
-import org.sonarsource.sonarlint.core.serverapi.exception.ForbiddenException;
-import org.sonarsource.sonarlint.core.serverapi.exception.NotFoundException;
-import org.sonarsource.sonarlint.core.serverapi.exception.ServerErrorException;
-import org.sonarsource.sonarlint.core.serverapi.exception.UnauthorizedException;
+import org.sonar.mcp.serverapi.exception.ForbiddenException;
+import org.sonar.mcp.serverapi.exception.NotFoundException;
+import org.sonar.mcp.serverapi.exception.ServerErrorException;
+import org.sonar.mcp.serverapi.exception.UnauthorizedException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -54,8 +53,7 @@ class ServerApiTests {
     var httpClientProvider = new HttpClientProvider(USER_AGENT);
     var httpClient = httpClientProvider.getHttpClient("token");
 
-    serverApiHelper = new ServerApiHelper(new EndpointParams(
-      sonarqubeMock.baseUrl(), sonarqubeMock.baseUrl(), true, "org"), httpClient);
+    serverApiHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "org"), httpClient);
   }
 
   @Test

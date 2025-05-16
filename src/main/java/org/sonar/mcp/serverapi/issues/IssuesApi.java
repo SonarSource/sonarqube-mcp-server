@@ -20,11 +20,12 @@
 package org.sonar.mcp.serverapi.issues;
 
 import com.google.gson.Gson;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.sonar.mcp.serverapi.ServerApiHelper;
-import org.sonarsource.sonarlint.core.serverapi.UrlUtils;
 
 public class IssuesApi {
 
@@ -50,11 +51,11 @@ public class IssuesApi {
     boolean hasQueryParams = false;
 
     if (organization != null) {
-      path.append("?organization=").append(UrlUtils.urlEncode(organization));
+      path.append("?organization=").append(URLEncoder.encode(organization, StandardCharsets.UTF_8));
       hasQueryParams = true;
     }
     if (projects != null && projects.length > 0) {
-      path.append(hasQueryParams ? "&" : "?").append("projects=").append(UrlUtils.urlEncode(String.join(",", projects)));
+      path.append(hasQueryParams ? "&" : "?").append("projects=").append(URLEncoder.encode(String.join(",", projects), StandardCharsets.UTF_8));
     }
 
     return path.toString();

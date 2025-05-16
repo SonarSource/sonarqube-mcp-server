@@ -27,12 +27,10 @@ public class ServerApi {
 
   private final ServerApiHelper helper;
   private final boolean isAuthenticationSet;
-  private final String organization;
 
-  public ServerApi(ServerApiHelper helper, @Nullable String token, @Nullable String organization) {
+  public ServerApi(ServerApiHelper helper, @Nullable String token) {
     this.helper = helper;
-    this.isAuthenticationSet = token != null && organization != null;
-    this.organization = organization;
+    this.isAuthenticationSet = token != null && helper.getOrganization() != null;
   }
 
   public ProjectsApi projectsApi() {
@@ -40,7 +38,7 @@ public class ServerApi {
   }
 
   public IssuesApi issuesApi() {
-    return new IssuesApi(helper, organization);
+    return new IssuesApi(helper, helper.getOrganization());
   }
 
   public boolean isAuthenticationSet() {

@@ -42,8 +42,7 @@ public class SonarMcpServerTestHarness extends TypeBasedParameterResolver<SonarM
   private static final Map<String, String> DEFAULT_ENV = Map.of(
     "STORAGE_PATH", "",
     "PLUGIN_PATH", "build/sonar-mcp-server/plugins",
-    "SONARQUBE_CLOUD_URL", "fake.url",
-    "SONARQUBE_CLOUD_API_URL", "api.fake.url"
+    "SONARQUBE_CLOUD_URL", "fake.url"
   );
   private boolean isStatic;
   private final List<McpSyncClient> clients = new ArrayList<>();

@@ -31,19 +31,16 @@ public class McpServerLaunchConfiguration {
   private static final String APP_NAME = "Sonar MCP Server";
 
   private static final String SONARCLOUD_URL = "https://sonarcloud.io";
-  private static final String SONARCLOUD_API_URL = "https://api.sonarcloud.io";
 
   private static final String STORAGE_PATH = "STORAGE_PATH";
   private static final String PLUGIN_PATH = "PLUGIN_PATH";
   private static final String SONARQUBE_CLOUD_URL = "SONARQUBE_CLOUD_URL";
-  private static final String SONARQUBE_CLOUD_API_URL = "SONARQUBE_CLOUD_API_URL";
   private static final String SONARQUBE_CLOUD_ORG = "SONARQUBE_CLOUD_ORG";
   private static final String SONARQUBE_CLOUD_TOKEN = "SONARQUBE_CLOUD_TOKEN";
 
   private final String storagePath;
   private final String pluginPath;
   private final String sonarqubeCloudUrl;
-  private final String sonarqubeCloudApiUrl;
   private final String sonarqubeCloudOrg;
   private final String sonarqubeCloudToken;
   private final String appVersion;
@@ -55,7 +52,6 @@ public class McpServerLaunchConfiguration {
     this.pluginPath = getValueViaEnvOrPropertyOrDefault(environment, PLUGIN_PATH, null);
     Objects.requireNonNull(pluginPath, "PLUGIN_PATH environment variable or property must be set");
     this.sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, SONARCLOUD_URL);
-    this.sonarqubeCloudApiUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_API_URL, SONARCLOUD_API_URL);
     this.sonarqubeCloudOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_ORG, null);
     this.sonarqubeCloudToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_TOKEN, null);
     this.appVersion = fetchAppVersion();
@@ -75,11 +71,6 @@ public class McpServerLaunchConfiguration {
   @NotNull
   public String getSonarqubeCloudUrl() {
     return sonarqubeCloudUrl;
-  }
-
-  @NotNull
-  public String getSonarqubeCloudApiUrl() {
-    return sonarqubeCloudApiUrl;
   }
 
   public String getSonarqubeCloudOrg() {

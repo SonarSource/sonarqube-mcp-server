@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.deleteRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -41,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class HttpClientProviderTests {
 
-  private static final String USER_AGENT = "Sonar MCP tests";
+  private static final String USER_AGENT = "Sonar MCP Server Tests";
 
   @RegisterExtension
   static WireMockExtension sonarqubeMock = WireMockExtension.newInstance()
@@ -127,33 +126,6 @@ class HttpClientProviderTests {
     underTest.getHttpClient().postAsync(sonarqubeMock.url("/test"), "text/html", "").get(2, TimeUnit.SECONDS);
 
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/test")));
-  }
-
-  @Test
-  void it_should_support_anonymous_async_get() throws ExecutionException, InterruptedException, TimeoutException {
-    var underTest = new HttpClientProvider(USER_AGENT);
-
-    underTest.getHttpClient().getAsyncAnonymous(sonarqubeMock.url("/test")).get(2, TimeUnit.SECONDS);
-
-    sonarqubeMock.verify(getRequestedFor(urlEqualTo("/test")));
-  }
-
-  @Test
-  void it_should_support_async_delete() throws ExecutionException, InterruptedException, TimeoutException {
-    var underTest = new HttpClientProvider(USER_AGENT);
-
-    underTest.getHttpClient().deleteAsync(sonarqubeMock.url("/test"), "text/html", "").get(2, TimeUnit.SECONDS);
-
-    sonarqubeMock.verify(deleteRequestedFor(urlEqualTo("/test")));
-  }
-
-  @Test
-  void it_should_throw_error_unsupported_for_event_stream() {
-    var underTest = new HttpClientProvider(USER_AGENT);
-    var httpClient = underTest.getHttpClient();
-    var url = sonarqubeMock.url("/test");
-
-    assertThrows(UnsupportedOperationException.class, () -> httpClient.getEventStream(url, null, null));
   }
 
 }

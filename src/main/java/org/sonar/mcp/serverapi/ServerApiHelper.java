@@ -27,12 +27,11 @@ import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
-import org.sonarsource.sonarlint.core.http.HttpClient;
-import org.sonarsource.sonarlint.core.serverapi.EndpointParams;
-import org.sonarsource.sonarlint.core.serverapi.exception.ForbiddenException;
-import org.sonarsource.sonarlint.core.serverapi.exception.NotFoundException;
-import org.sonarsource.sonarlint.core.serverapi.exception.ServerErrorException;
-import org.sonarsource.sonarlint.core.serverapi.exception.UnauthorizedException;
+import org.sonar.mcp.http.HttpClient;
+import org.sonar.mcp.serverapi.exception.ForbiddenException;
+import org.sonar.mcp.serverapi.exception.NotFoundException;
+import org.sonar.mcp.serverapi.exception.ServerErrorException;
+import org.sonar.mcp.serverapi.exception.UnauthorizedException;
 
 public class ServerApiHelper {
 
@@ -42,6 +41,11 @@ public class ServerApiHelper {
   public ServerApiHelper(EndpointParams endpointParams, HttpClient client) {
     this.endpointParams = endpointParams;
     this.client = client;
+  }
+
+  @CheckForNull
+  public String getOrganization() {
+    return endpointParams.organization();
   }
 
   public HttpClient.Response get(String path) {
@@ -64,7 +68,7 @@ public class ServerApiHelper {
   }
 
   private String buildEndpointUrl(String relativePath) {
-    return concat(endpointParams.getBaseUrl(), relativePath);
+    return concat(endpointParams.baseUrl(), relativePath);
   }
 
   public static String concat(String baseUrl, String relativePath) {

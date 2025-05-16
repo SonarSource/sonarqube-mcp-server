@@ -22,7 +22,6 @@ package org.sonar.mcp.http;
 import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
@@ -30,8 +29,6 @@ import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ContentType;
-import org.sonarsource.sonarlint.core.http.HttpClient;
-import org.sonarsource.sonarlint.core.http.HttpConnectionListener;
 
 class HttpClientAdapter implements HttpClient {
 
@@ -68,27 +65,8 @@ class HttpClientAdapter implements HttpClient {
     return executeAsync(SimpleRequestBuilder.get(url).build());
   }
 
-  @Override
-  public CompletableFuture<Response> getAsyncAnonymous(String url) {
-    return executeAsyncAnonymous(SimpleRequestBuilder.get(url).build());
-  }
-
-  @Override
-  public CompletableFuture<Response> deleteAsync(String url, String contentType, String body) {
-    var httpRequest = SimpleRequestBuilder
-      .delete(url)
-      .setBody(body, ContentType.parse(contentType))
-      .build();
-    return executeAsync(httpRequest);
-  }
-
   private static Response waitFor(CompletableFuture<Response> f) {
     return f.join();
-  }
-
-  @Override
-  public AsyncRequest getEventStream(String url, HttpConnectionListener connectionListener, Consumer<String> messageConsumer) {
-    throw new UnsupportedOperationException("Event streams are not supported");
   }
 
   private class CompletableFutureWrappingFuture extends CompletableFuture<Response> {
@@ -136,14 +114,6 @@ class HttpClientAdapter implements HttpClient {
       if (token != null) {
         httpRequest.setHeader(AUTHORIZATION_HEADER, bearer(token));
       }
-      return new CompletableFutureWrappingFuture(httpRequest);
-    } catch (Exception e) {
-      throw new IllegalStateException("Unable to execute request: " + e.getMessage(), e);
-    }
-  }
-
-  private CompletableFuture<Response> executeAsyncAnonymous(SimpleHttpRequest httpRequest) {
-    try {
       return new CompletableFutureWrappingFuture(httpRequest);
     } catch (Exception e) {
       throw new IllegalStateException("Unable to execute request: " + e.getMessage(), e);

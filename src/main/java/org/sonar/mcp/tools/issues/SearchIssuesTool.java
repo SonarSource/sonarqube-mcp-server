@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.Map;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
+import org.sonar.mcp.serverapi.exception.NotFoundException;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
-import org.sonarsource.sonarlint.core.serverapi.exception.NotFoundException;
 
 public class SearchIssuesTool {
 

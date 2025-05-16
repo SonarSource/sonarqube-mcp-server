@@ -25,6 +25,7 @@ import com.github.tomakehurst.wiremock.http.HttpHeader;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -32,7 +33,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.sonar.mcp.harness.SonarMcpServerTest;
 import org.sonar.mcp.harness.SonarMcpServerTestHarness;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
-import org.sonarsource.sonarlint.core.serverapi.UrlUtils;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -107,7 +107,7 @@ class SearchIssuesToolTests {
     var issueKey = "issueKey1";
     var ruleName = "ruleName1";
     var projectName = "projectName1";
-    mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org&projects=" + UrlUtils.urlEncode("project1,project2"))
+    mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org&projects=" + URLEncoder.encode("project1,project2", StandardCharsets.UTF_8))
       .willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
           {

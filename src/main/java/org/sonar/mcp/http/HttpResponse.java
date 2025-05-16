@@ -22,7 +22,6 @@ package org.sonar.mcp.http;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
-import org.sonarsource.sonarlint.core.http.HttpClient;
 
 class HttpResponse implements HttpClient.Response {
 
