@@ -33,6 +33,7 @@ import org.sonar.mcp.serverapi.exception.UnauthorizedException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -94,6 +95,14 @@ class ServerApiTests {
 
     var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
     assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test");
+  }
+
+  @Test
+  void it_should_parse_the_message_in_the_body_when_there_is_an_error() {
+    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"errors\": [{\"msg\": \"Kaboom\"}]}", HttpStatus.SC_BAD_REQUEST)));
+
+    var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test: Kaboom");
   }
 
 }

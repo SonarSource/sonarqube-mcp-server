@@ -20,7 +20,6 @@
 package org.sonar.mcp.http;
 
 import java.io.Closeable;
-import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 
 public interface HttpClient {
@@ -34,8 +33,6 @@ public interface HttpClient {
     }
 
     String bodyAsString();
-
-    InputStream bodyAsStream();
 
     /**
      * Only runtime exception

@@ -19,8 +19,6 @@
  */
 package org.sonar.mcp.http;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 
 class HttpResponse implements HttpClient.Response {
@@ -44,14 +42,6 @@ class HttpResponse implements HttpClient.Response {
   }
 
   @Override
-  public InputStream bodyAsStream() {
-    if (response.getBodyBytes() == null) {
-      return new ByteArrayInputStream(new byte[0]);
-    }
-    return new ByteArrayInputStream(response.getBodyBytes());
-  }
-
-  @Override
   public void close() {
     // nothing to do
   }
@@ -59,11 +49,6 @@ class HttpResponse implements HttpClient.Response {
   @Override
   public String url() {
     return requestUrl;
-  }
-
-  @Override
-  public String toString() {
-    return response.toString();
   }
 
 }
