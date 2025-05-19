@@ -188,11 +188,11 @@ tasks {
 
 	register("preparePlugins") {
 		val destinationDir = file(layout.buildDirectory)
-		description = "Prepare Sonar plugins"
+		val pluginName = "sonar-mcp-server"
+		description = "Download and prepare Sonar analyzers in the $pluginName folder"
 		group = "build"
 
 		doLast {
-			val pluginName = "sonar-mcp-server"
 			copyPlugins(destinationDir, pluginName)
 			renameCsharpPlugins(destinationDir, pluginName)
 			copyOmnisharp(destinationDir, pluginName)
@@ -227,7 +227,9 @@ tasks {
 		from({
 			configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }
 		}) {
-			exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+			exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
+				// module-info comes from sslcontext-kickstart and is looking for slf4j
+				"META-INF/versions/**/module-info.class", "module-info.class")
 		}
 
 		duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -237,6 +239,15 @@ tasks {
 		reports {
 			xml.required.set(true)
 		}
+	}
+
+	register<Exec>("buildDocker") {
+		val appVersion = project.version.toString()
+		val appName = project.name
+		group = "docker"
+		description = "Builds the Docker image with the current project version"
+
+		commandLine("docker", "build", "-t", "$appName:$appVersion", "--build-arg", "APP_VERSION=$appVersion", ".")
 	}
 }
 
