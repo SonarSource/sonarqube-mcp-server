@@ -53,6 +53,14 @@ public class ServerApiHelper {
     return response;
   }
 
+  public HttpClient.Response post(String path, String contentType, String body) {
+    var response = rawPost(buildEndpointUrl(path), contentType, body);
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
   /**
    * Execute GET and don't check response
    */
@@ -62,6 +70,10 @@ public class ServerApiHelper {
 
   private HttpClient.Response rawGetUrl(String url) {
     return client.getAsync(url).join();
+  }
+
+  private HttpClient.Response rawPost(String url, String contentType, String body) {
+    return client.postAsync(url, contentType, body).join();
   }
 
   private String buildEndpointUrl(String relativePath) {

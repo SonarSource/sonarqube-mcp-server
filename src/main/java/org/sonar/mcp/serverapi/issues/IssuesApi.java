@@ -24,6 +24,9 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.sonar.mcp.serverapi.ServerApiHelper;
 
+import static org.sonarsource.sonarlint.core.http.HttpClient.FORM_URL_ENCODED_CONTENT_TYPE;
+import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
+
 public class IssuesApi {
 
   public static final String SEARCH_PATH = "/api/issues/search";
@@ -41,6 +44,11 @@ public class IssuesApi {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }
+  }
+
+  public void doTransition(String issueKey, Transition transition) {
+    var body = "issue=" + urlEncode(issueKey) + "&transition=" + urlEncode(transition.getStatus());
+    helper.post("/api/issues/do_transition", FORM_URL_ENCODED_CONTENT_TYPE, body);
   }
 
   private String buildPath(@Nullable String[] projects) {

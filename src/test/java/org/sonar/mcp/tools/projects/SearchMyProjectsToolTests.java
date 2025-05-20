@@ -16,11 +16,7 @@
  */
 package org.sonar.mcp.tools.projects;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.http.Body;
-import com.github.tomakehurst.wiremock.http.HttpHeader;
-import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
-import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -28,13 +24,14 @@ import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
+import org.sonar.mcp.harness.MockWebServer;
+import org.sonar.mcp.harness.ReceivedRequest;
 import org.sonar.mcp.harness.SonarMcpServerTest;
 import org.sonar.mcp.harness.SonarMcpServerTestHarness;
 import org.sonar.mcp.serverapi.projects.ProjectsApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SearchMyProjectsToolTests {
@@ -70,7 +67,7 @@ class SearchMyProjectsToolTests {
   @Nested
   class WithServer {
 
-    private final WireMockServer mockServer = new WireMockServer(options().dynamicPort());
+    private final MockWebServer mockServer = new MockWebServer();
 
     @BeforeEach
     void setup() {
@@ -168,12 +165,8 @@ class SearchMyProjectsToolTests {
           Project key: clang | Project name: Clang
           Project key: net.java.openjdk:jdk7 | Project name: JDK 7
           """, false));
-      assertThat(mockServer.getServeEvents().getRequests())
-        .extracting(ServeEvent::getRequest)
-        .extracting(LoggedRequest::getHeaders)
-        .extracting(header -> header.getHeader("Authorization"))
-        .extracting(HttpHeader::firstValue)
-        .containsExactly("Bearer token");
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
     }
   }
 

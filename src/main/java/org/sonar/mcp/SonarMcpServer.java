@@ -33,6 +33,7 @@ import org.sonar.mcp.serverapi.ServerApiHelper;
 import org.sonar.mcp.slcore.BackendService;
 import org.sonar.mcp.tools.Tool;
 import org.sonar.mcp.tools.ToolExecutor;
+import org.sonar.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonar.mcp.tools.issues.SearchIssuesTool;
 import org.sonar.mcp.tools.projects.SearchMyProjectsTool;
 
@@ -56,6 +57,7 @@ public class SonarMcpServer {
     var serverApi = initializeServerApi(mcpConfiguration);
     this.toolExecutor = new ToolExecutor(backendService);
     this.supportedTools = List.of(
+      new ChangeIssueStatusTool(serverApi),
       new SearchMyProjectsTool(serverApi),
       new SearchIssuesTool(serverApi)
     );
