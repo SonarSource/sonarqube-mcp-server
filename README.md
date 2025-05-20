@@ -48,3 +48,9 @@ Replace `<version>` with the actual version of the JAR file.
 ## Data and telemetry
 
 This server collects anonymous usage data and sends it to SonarSource to help improve the product. No source code or IP address is collected, and SonarSource does not share the data with anyone else. Collection of telemetry can be disabled with the following system property or environment variable: `TELEMETRY_DISABLED=true`. Click [here](telemetry-sample.md) to see a sample of the data that are collected.
+
+## License
+
+Copyright 2025 SonarSource.
+
+Licensed under the [SONAR Source-Available License v1.0](https://www.sonarsource.com/license/ssal/)
