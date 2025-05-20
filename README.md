@@ -5,10 +5,8 @@
 Run the following Gradle command to clean the project, prepare the necessary plugins, and build the application:
 
 ```bash
-./gradlew clean build preparePlugins
+./gradlew clean build
 ```
-
-The `preparePlugins` task generates plugin directories (e.g., analyzers/omnisharp) under `build/sonar-mcp-server/`
 
 The JAR file will be created in `build/libs/`
 
@@ -19,7 +17,6 @@ Once built, you can run the application using:
 ```bash
 java \
 -DSTORAGE_PATH=PATH_TO_REPLACE \
--DPLUGIN_PATH=PATH_TO_REPLACE \
 -DSONARQUBE_CLOUD_TOKEN=TOKEN \
 -DSONARQUBE_CLOUD_ORG=ORG \
 -jar build/libs/sonar-mcp-server-<version>.jar
@@ -41,7 +38,6 @@ Use the following JSON configuration when integrating with an MCP Client:
                 ],
                 "env": {
                   "STORAGE_PATH": "<path_to_your_mcp_storage>",
-                  "PLUGIN_PATH": "<path_to_the_sonar_plugins>",
                   "SONARQUBE_CLOUD_TOKEN": "<sonarqube_cloud_user_token>",
                   "SONARQUBE_CLOUD_ORG": "<sonarqube_cloud_organization>"
                 }
@@ -66,8 +62,6 @@ Then, run the image as follows:
     "args": [
       "run",
       "-i",
-      "-v",
-      "<path_to_folder_plugins>:/app/plugins",
       "--rm",
       "sonar-mcp-server:<version>"
     ],

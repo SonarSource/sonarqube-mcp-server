@@ -178,44 +178,11 @@ fun unzipEslintBridgeBundle(destinationDir: File, pluginName: String) {
 
 tasks {
 	test {
-		dependsOn("preparePlugins")
 		useJUnitPlatform()
 		systemProperty("TELEMETRY_DISABLED", "true")
 		systemProperty("sonar.mcp.server.version", project.version)
 		doNotTrackState("Tests should always run")
 		jvmArgs("-javaagent:${mockitoAgent.asPath}")
-	}
-
-	register("preparePlugins") {
-		val destinationDir = file(layout.buildDirectory)
-		val pluginName = "sonar-mcp-server"
-		description = "Download and prepare Sonar analyzers in the $pluginName folder"
-		group = "build"
-
-		doLast {
-			copyPlugins(destinationDir, pluginName)
-			renameCsharpPlugins(destinationDir, pluginName)
-			copyOmnisharp(destinationDir, pluginName)
-			unzipEslintBridgeBundle(destinationDir, pluginName)
-		}
-	}
-
-	register<Copy>("copyPluginResources") {
-		dependsOn("preparePlugins")
-		description = "Copy Sonar plugins"
-		group = "build"
-
-		val pluginName = "sonar-mcp-server"
-		val fromDir = layout.buildDirectory.dir(pluginName)
-
-		from(fromDir) {
-			include("**/plugins/**", "**/omnisharp/**")
-			eachFile {
-				path = path.removePrefix("$pluginName/")
-			}
-		}
-
-		into("$buildDir/generated-resources/plugins")
 	}
 
 	jar {

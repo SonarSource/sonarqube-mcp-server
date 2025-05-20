@@ -41,8 +41,6 @@ class BackendServiceTests {
 
   @TempDir
   private static Path storagePath;
-  @TempDir
-  private static Path pluginPath;
 
   private BackendService service;
   private AnalysisRpcService analysisRpcService;
@@ -56,8 +54,8 @@ class BackendServiceTests {
 
     var jsonRpcLauncher = mock(ClientJsonRpcLauncher.class);
     when(jsonRpcLauncher.getServerProxy()).thenReturn(backend);
-    service = new BackendService(jsonRpcLauncher, storagePath.toString(), pluginPath.toString(),
-      System.getProperty("sonar.mcp.server.version"), "Sonar MCP Server Tests");
+    service = new BackendService(jsonRpcLauncher, storagePath.toString(), System.getProperty("sonar.mcp.server.version"),
+      "Sonar MCP Server Tests");
   }
 
   @Test

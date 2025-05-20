@@ -43,7 +43,6 @@ COPY --chown=appuser:appgroup --chmod=755 build/libs/sonar-mcp-server-${APP_VERS
 USER appuser
 
 ENV STORAGE_PATH=/data/storage
-ENV PLUGIN_PATH=/app/plugins
 ENV SONARQUBE_CLOUD_TOKEN=
 ENV SONARQUBE_CLOUD_ORG=
 

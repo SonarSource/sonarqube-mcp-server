@@ -56,10 +56,9 @@ public class SonarMcpServer {
     var serverApi = initializeServerApi(mcpConfiguration);
     this.toolExecutor = new ToolExecutor(backendService);
     this.supportedTools = List.of(
-      // disable this tool for now, will be re-introduced later
-//      new AnalyzeIssuesTool(backendService),
       new SearchMyProjectsTool(serverApi),
-      new SearchIssuesTool(serverApi));
+      new SearchIssuesTool(serverApi)
+    );
   }
 
   public void start() {
