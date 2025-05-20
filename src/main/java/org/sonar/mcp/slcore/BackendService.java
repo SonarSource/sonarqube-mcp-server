@@ -16,13 +16,16 @@
  */
 package org.sonar.mcp.slcore;
 
+import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.sonar.mcp.analysis.LanguageUtils;
 import org.sonar.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonar.mcp.log.McpLogger;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
@@ -53,7 +57,6 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
-import static org.sonar.mcp.analysis.LanguageUtils.getSupportedSonarLanguages;
 
 public class BackendService {
 
@@ -62,6 +65,7 @@ public class BackendService {
 
   private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
   private final String storagePath;
+  @Nullable
   private final String pluginPath;
   private final String appVersion;
   private final String userAgent;
@@ -148,12 +152,20 @@ public class BackendService {
   }
 
   private CompletableFuture<Void> initRpcServer(SonarLintRpcServer rpcServer) {
-    var pluginResolvedPath = getPluginPath();
-
     var capabilities = EnumSet.of(BackendCapability.FULL_SYNCHRONIZATION, BackendCapability.PROJECT_SYNCHRONIZATION);
     if (isTelemetryEnabled) {
       capabilities.add(BackendCapability.TELEMETRY);
     }
+
+    var analyzerPaths = Set.<Path>of();
+    var enabledLanguages = EnumSet.noneOf(Language.class);
+    if (getPluginPath() != null) {
+      var analyzersAndLanguages = findAnalyzersFromPluginDirectory();
+      analyzerPaths = analyzersAndLanguages.analyzerPaths;
+      enabledLanguages = analyzersAndLanguages.enabledLanguages;
+      LOG.info("Enabling languages: " + enabledLanguages);
+    }
+
     return rpcServer.initialize(
       new InitializeParams(
         new ClientConstantInfoDto(
@@ -168,20 +180,9 @@ public class BackendService {
         capabilities,
         getStoragePath(),
         getWorkDir(),
-        Set.of(pluginResolvedPath.resolve("sonar-go-plugin-1.21.1.1670.jar"),
-          pluginResolvedPath.resolve("sonar-html-plugin-3.19.0.5695.jar"),
-          pluginResolvedPath.resolve("sonar-iac-plugin-1.45.0.14930.jar"),
-          pluginResolvedPath.resolve("sonar-java-plugin-8.13.0.38826.jar"),
-          pluginResolvedPath.resolve("sonar-java-symbolic-execution-plugin-8.13.0.38826.jar"),
-          pluginResolvedPath.resolve("sonar-javascript-plugin-10.22.0.32148.jar"),
-          pluginResolvedPath.resolve("sonar-kotlin-plugin-3.1.0.7071.jar"),
-          pluginResolvedPath.resolve("sonar-php-plugin-3.45.0.12991.jar"),
-          pluginResolvedPath.resolve("sonar-python-plugin-5.3.0.21704.jar"),
-          pluginResolvedPath.resolve("sonar-ruby-plugin-1.18.1.375.jar"),
-          pluginResolvedPath.resolve("sonar-text-plugin-2.22.0.5855.jar"),
-          pluginResolvedPath.resolve("sonar-xml-plugin-2.13.0.5938.jar")),
+        analyzerPaths,
         Map.of(),
-        getSupportedSonarLanguages(),
+        enabledLanguages,
         Set.of(),
         emptySet(),
         null,
@@ -200,8 +201,9 @@ public class BackendService {
     return Paths.get(storagePath);
   }
 
+  @Nullable
   private Path getPluginPath() {
-    return Paths.get(pluginPath);
+    return pluginPath == null ? null : Paths.get(pluginPath);
   }
 
   private void projectOpened() {
@@ -210,6 +212,29 @@ public class BackendService {
       .didAddConfigurationScopes(new DidAddConfigurationScopesParams(
         List.of(new ConfigurationScopeDto(PROJECT_ID, null, false, PROJECT_ID, null))
       )));
+  }
+
+  private AnalyzersAndLanguagesEnabled findAnalyzersFromPluginDirectory() {
+    var pluginsPaths = new HashSet<Path>();
+    var languages = EnumSet.noneOf(Language.class);
+    var pluginFolder = getPluginPath();
+    if (pluginFolder != null && Files.isDirectory(pluginFolder)) {
+      try (var directoryStream = Files.newDirectoryStream(pluginFolder, "*.jar")) {
+        var analyzers = LanguageUtils.getSupportedLanguagesPerAnalyzers();
+        for (var path : directoryStream) {
+          var fileName = path.getFileName().toString();
+          analyzers.forEach((analyzer, supportedLanguages) -> {
+            if (fileName.contains(analyzer)) {
+              pluginsPaths.add(path);
+              languages.addAll(supportedLanguages);
+            }
+          });
+        }
+      } catch (IOException e) {
+        LOG.error("Unable to find analyzers in plugin folder", e);
+      }
+    }
+    return new AnalyzersAndLanguagesEnabled(pluginsPaths, languages);
   }
 
   public void shutdown() {
@@ -230,4 +255,7 @@ public class BackendService {
       }
     }
   }
+
+  private record AnalyzersAndLanguagesEnabled(Set<Path> analyzerPaths, EnumSet<Language> enabledLanguages) {}
+
 }

@@ -37,9 +37,12 @@ public class McpServerLaunchConfiguration {
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
 
   private final String storagePath;
+  @Nullable
   private final String pluginPath;
   private final String sonarqubeCloudUrl;
+  @Nullable
   private final String sonarqubeCloudOrg;
+  @Nullable
   private final String sonarqubeCloudToken;
   private final String appVersion;
   private final String userAgent;
@@ -49,7 +52,6 @@ public class McpServerLaunchConfiguration {
     this.storagePath = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
     Objects.requireNonNull(storagePath, "STORAGE_PATH environment variable or property must be set");
     this.pluginPath = getValueViaEnvOrPropertyOrDefault(environment, PLUGIN_PATH, null);
-    Objects.requireNonNull(pluginPath, "PLUGIN_PATH environment variable or property must be set");
     this.sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, SONARCLOUD_URL);
     this.sonarqubeCloudOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_ORG, null);
     this.sonarqubeCloudToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_TOKEN, null);
@@ -63,7 +65,7 @@ public class McpServerLaunchConfiguration {
     return storagePath;
   }
 
-  @NotNull
+  @Nullable
   public String getPluginPath() {
     return pluginPath;
   }
@@ -73,10 +75,12 @@ public class McpServerLaunchConfiguration {
     return sonarqubeCloudUrl;
   }
 
+  @Nullable
   public String getSonarqubeCloudOrg() {
     return sonarqubeCloudOrg;
   }
 
+  @Nullable
   public String getSonarqubeCloudToken() {
     return sonarqubeCloudToken;
   }

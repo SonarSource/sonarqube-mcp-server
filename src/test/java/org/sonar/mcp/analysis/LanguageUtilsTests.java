@@ -25,12 +25,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LanguageUtilsTests {
 
   @Test
-  void should_return_non_empty_list_for_supported_languages() {
-    var supportedLanguages = LanguageUtils.getSupportedSonarLanguages();
+  void should_return_non_empty_list_for_supported_analyzers() {
+    var supportedLanguages = LanguageUtils.getSupportedLanguagesPerAnalyzers();
 
-    assertThat(supportedLanguages)
-      .isNotEmpty()
-      .contains(Language.JAVA);
+    assertThat(supportedLanguages).isNotEmpty();
   }
 
   @Test
