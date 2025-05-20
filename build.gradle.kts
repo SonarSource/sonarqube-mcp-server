@@ -67,15 +67,6 @@ license {
 	strictCheck = true
 }
 
-configurations {
-	val sqplugins = create("sqplugins") { isTransitive = false }
-	create("sqplugins_deps") {
-		extendsFrom(sqplugins)
-		isTransitive = true
-	}
-	create("omnisharp")
-}
-
 val mockitoAgent = configurations.create("mockitoAgent")
 
 dependencies {
@@ -95,85 +86,6 @@ dependencies {
 	testImplementation(libs.wiremock)
 	testRuntimeOnly(libs.junit.launcher)
 	mockitoAgent(libs.mockito.core) { isTransitive = false }
-	"sqplugins"(libs.bundles.sonar.analyzers)
-	if (artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
-		"sqplugins"(libs.sonar.cfamily)
-		"sqplugins"(libs.sonar.dotnet.enterprise)
-		"omnisharp"("org.sonarsource.sonarlint.omnisharp:omnisharp-roslyn:$omnisharpVersion:mono@zip")
-		"omnisharp"("org.sonarsource.sonarlint.omnisharp:omnisharp-roslyn:$omnisharpVersion:net472@zip")
-		"omnisharp"("org.sonarsource.sonarlint.omnisharp:omnisharp-roslyn:$omnisharpVersion:net6@zip")
-	}
-}
-
-fun copyPlugins(destinationDir: File, pluginName: String) {
-	copy {
-		from(project.configurations["sqplugins"])
-		into(file("$destinationDir/$pluginName/plugins"))
-	}
-}
-
-fun renameCsharpPlugins(destinationDir: File, pluginName: String) {
-	val pluginsDir = File("$destinationDir/$pluginName/plugins")
-	pluginsDir.listFiles()?.forEach { file ->
-		if (file.name.matches(Regex("sonar-csharp-enterprise-plugin-.*\\.jar"))) {
-			file.renameTo(File(pluginsDir, "sonar-csharp-enterprise-plugin.jar"))
-		} else if (file.name.matches(Regex("sonar-csharp-plugin-.*\\.jar"))) {
-			file.renameTo(File(pluginsDir, "sonar-csharp-plugin.jar"))
-		}
-	}
-}
-
-fun copyOmnisharp(destinationDir: File, pluginName: String) {
-	configurations["omnisharp"].resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
-		copy {
-			from(zipTree(artifact.file))
-			into(file("$destinationDir/$pluginName/omnisharp/${artifact.classifier}"))
-		}
-	}
-}
-
-fun unzipEslintBridgeBundle(destinationDir: File, pluginName: String) {
-	val pluginsDir = File("$destinationDir/$pluginName/plugins")
-	val jarPath = pluginsDir.listFiles()?.find {
-		it.name.startsWith("sonar-javascript-plugin-") && it.name.endsWith(".jar")
-	} ?: throw GradleException("sonar-javascript-plugin-* JAR not found in $destinationDir")
-
-	val zipFile = ZipFile(jarPath)
-	val entry = zipFile.entries().asSequence().find { it.name.matches(Regex("sonarjs-.*\\.tgz")) }
-		?: throw GradleException("eslint bridge server bundle not found in JAR $jarPath")
-
-
-	val outputFolderPath = Paths.get("$pluginsDir/eslint-bridge")
-	val outputFilePath = outputFolderPath.resolve(entry.name)
-
-	if (!Files.exists(outputFolderPath)) {
-		Files.createDirectory(outputFolderPath)
-	}
-
-	zipFile.getInputStream(entry).use { input ->
-		FileOutputStream(outputFilePath.toFile()).use { output ->
-			input.copyTo(output)
-		}
-	}
-
-	GzipCompressorInputStream(FileInputStream(outputFilePath.toFile())).use { gzipInput ->
-		TarArchiveInputStream(gzipInput).use { tarInput ->
-			var tarEntry: ArchiveEntry?
-			while (tarInput.nextEntry.also { tarEntry = it } != null) {
-				val outputFile = outputFolderPath.resolve(tarEntry!!.name).toFile()
-				if (tarEntry!!.isDirectory) {
-					outputFile.mkdirs()
-				} else {
-					outputFile.parentFile.mkdirs()
-					FileOutputStream(outputFile).use { output ->
-						tarInput.copyTo(output)
-					}
-				}
-			}
-		}
-	}
-
-	Files.delete(outputFilePath)
 }
 
 tasks {

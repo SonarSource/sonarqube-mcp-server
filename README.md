@@ -2,7 +2,7 @@
 
 ## Building
 
-Run the following Gradle command to clean the project, prepare the necessary plugins, and build the application:
+Run the following Gradle command to clean the project, and build the application:
 
 ```bash
 ./gradlew clean build
