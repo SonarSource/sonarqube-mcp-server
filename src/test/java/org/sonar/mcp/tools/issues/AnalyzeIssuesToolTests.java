@@ -21,12 +21,14 @@ package org.sonar.mcp.tools.issues;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.sonar.mcp.harness.SonarMcpServerTest;
 import org.sonar.mcp.harness.SonarMcpServerTestHarness;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Disabled("This tool is not supported for now, will be re-introduced later")
 class AnalyzeIssuesToolTests {
 
   @Nested
