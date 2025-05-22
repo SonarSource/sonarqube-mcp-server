@@ -45,7 +45,7 @@ class ChangeIssuesStatusToolTests {
         Map.of("status", new String[]{"accept"})));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Missing required argument: key", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
     }
 
     @SonarMcpServerTest
@@ -57,7 +57,7 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k")));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Missing required argument: status", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: status", true));
     }
 
     @SonarMcpServerTest

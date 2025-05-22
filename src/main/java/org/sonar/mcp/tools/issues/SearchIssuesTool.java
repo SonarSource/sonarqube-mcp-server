@@ -17,7 +17,6 @@
 package org.sonar.mcp.tools.issues;
 
 import java.util.List;
-import java.util.Map;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
 import org.sonar.mcp.tools.SchemaToolBuilder;
@@ -42,16 +41,9 @@ public class SearchIssuesTool extends Tool {
   }
 
   @Override
-  public Tool.Result execute(Map<String, Object> arguments) {
-    List<String> projects = null;
-    if (arguments.containsKey(PROJECTS_PROPERTY)) {
-      projects = ((List<String>) arguments.get(PROJECTS_PROPERTY));
-    }
-    String pullRequestId = null;
-    if (arguments.containsKey(PULL_REQUEST_ID_PROPERTY)) {
-      pullRequestId = ((String) arguments.get(PULL_REQUEST_ID_PROPERTY));
-    }
-
+  public Tool.Result execute(Tool.Arguments arguments) {
+    var projects = arguments.getOptionalStringList(PROJECTS_PROPERTY);
+    var pullRequestId = arguments.getOptionalString(PULL_REQUEST_ID_PROPERTY);
     var response = serverApi.issuesApi().search(projects, pullRequestId);
     return Tool.Result.success(buildResponseFromSearchResponse(response.issues()));
   }

@@ -16,8 +16,6 @@
  */
 package org.sonar.mcp.tools.issues;
 
-import java.util.List;
-import java.util.Map;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.issues.Transition;
 import org.sonar.mcp.tools.SchemaToolBuilder;
@@ -44,16 +42,9 @@ public class ChangeIssueStatusTool extends Tool {
   }
 
   @Override
-  public Tool.Result execute(Map<String, Object> arguments) {
-    if (!arguments.containsKey(KEY_PROPERTY)) {
-      return Tool.Result.failure("Missing required argument: " + KEY_PROPERTY);
-    }
-    var key = (String) arguments.get(KEY_PROPERTY);
-
-    if (!arguments.containsKey(STATUS_PROPERTY)) {
-      return Tool.Result.failure("Missing required argument: " + STATUS_PROPERTY);
-    }
-    var statusString = ((List<String>) arguments.get(STATUS_PROPERTY)).get(0);
+  public Tool.Result execute(Tool.Arguments arguments) {
+    var key = arguments.getStringOrThrow(KEY_PROPERTY);
+    var statusString = arguments.getStringListOrThrow(STATUS_PROPERTY).get(0);
     var status = Transition.fromStatus(statusString);
     if (status.isEmpty()) {
       return Tool.Result.failure("Status is unknown: " + statusString);

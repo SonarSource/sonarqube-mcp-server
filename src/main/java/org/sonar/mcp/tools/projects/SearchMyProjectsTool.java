@@ -16,7 +16,6 @@
  */
 package org.sonar.mcp.tools.projects;
 
-import java.util.Map;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.components.ComponentsApi;
 import org.sonar.mcp.tools.SchemaToolBuilder;
@@ -39,16 +38,12 @@ public class SearchMyProjectsTool extends Tool {
   }
 
   @Override
-  public Tool.Result execute(Map<String, Object> arguments) {
+  public Tool.Result execute(Tool.Arguments arguments) {
     if (!serverApi.isAuthenticationSet()) {
       return Tool.Result.failure("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'");
     }
 
-    int page = 1;
-    if (arguments.containsKey(PAGE_PROPERTY)) {
-      page = Integer.parseInt((String) arguments.get(PAGE_PROPERTY));
-    }
-
+    var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);
     var projects = serverApi.componentsApi().searchProjectsInMyOrg(page);
     return Tool.Result.success(buildResponseFromAllProjectsResponse(projects));
   }

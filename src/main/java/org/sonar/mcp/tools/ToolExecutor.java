@@ -34,7 +34,7 @@ public class ToolExecutor {
   public McpSchema.CallToolResult execute(Tool tool, Map<String, Object> arguments) {
     Tool.Result result;
     try {
-      result = tool.execute(arguments);
+      result = tool.execute(new Tool.Arguments(arguments));
     } catch (Exception e) {
       String message;
       if (e instanceof NotFoundException) {

@@ -17,7 +17,10 @@
 package org.sonar.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.List;
 import java.util.Map;
+import javax.annotation.CheckForNull;
+import org.sonar.mcp.tools.exception.MissingRequiredArgumentException;
 
 public abstract class Tool {
   private final McpSchema.Tool definition;
@@ -30,7 +33,47 @@ public abstract class Tool {
     return definition;
   }
 
-  public abstract Result execute(Map<String, Object> arguments);
+  public abstract Result execute(Arguments arguments);
+
+  public static class Arguments {
+    private final Map<String, Object> argumentsMap;
+
+    public Arguments(Map<String, Object> argumentsMap) {
+      this.argumentsMap = argumentsMap;
+    }
+
+    public String getStringOrThrow(String argumentName) {
+      if (!argumentsMap.containsKey(argumentName)) {
+        throw new MissingRequiredArgumentException(argumentName);
+      }
+      return (String) argumentsMap.get(argumentName);
+    }
+
+    @CheckForNull
+    public String getOptionalString(String argumentName) {
+      return (String) argumentsMap.get(argumentName);
+    }
+
+    public int getIntOrDefault(String argumentName, int defaultValue) {
+      var stringArgument = getOptionalString(argumentName);
+      if (stringArgument == null) {
+        return defaultValue;
+      }
+      return Integer.parseInt(stringArgument);
+    }
+
+    public List<String> getStringListOrThrow(String argumentName) {
+      if (!argumentsMap.containsKey(argumentName)) {
+        throw new MissingRequiredArgumentException(argumentName);
+      }
+      return (List<String>) argumentsMap.get(argumentName);
+    }
+
+    @CheckForNull
+    public List<String> getOptionalStringList(String argumentName) {
+      return (List<String>) argumentsMap.get(argumentName);
+    }
+  }
 
   public static class Result {
     public static Result success(String content) {

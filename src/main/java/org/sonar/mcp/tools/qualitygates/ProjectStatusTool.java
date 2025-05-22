@@ -16,7 +16,6 @@
  */
 package org.sonar.mcp.tools.qualitygates;
 
-import java.util.Map;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonar.mcp.tools.SchemaToolBuilder;
@@ -51,31 +50,16 @@ public class ProjectStatusTool extends Tool {
   }
 
   @Override
-  public Tool.Result execute(Map<String, Object> arguments) {
+  public Tool.Result execute(Tool.Arguments arguments) {
     if (!serverApi.isAuthenticationSet()) {
       return Tool.Result.failure("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'");
     }
 
-    String analysisId = null;
-    if (arguments.containsKey(ANALYSIS_ID_PROPERTY)) {
-      analysisId = (String) arguments.get(ANALYSIS_ID_PROPERTY);
-    }
-    String branch = null;
-    if (arguments.containsKey(BRANCH_PROPERTY)) {
-      branch = (String) arguments.get(BRANCH_PROPERTY);
-    }
-    String projectId = null;
-    if (arguments.containsKey(PROJECT_ID_PROPERTY)) {
-      projectId = (String) arguments.get(PROJECT_ID_PROPERTY);
-    }
-    String projectKey = null;
-    if (arguments.containsKey(PROJECT_KEY_PROPERTY)) {
-      projectKey = (String) arguments.get(PROJECT_KEY_PROPERTY);
-    }
-    String pullRequest = null;
-    if (arguments.containsKey(PULL_REQUEST_PROPERTY)) {
-      pullRequest = (String) arguments.get(PULL_REQUEST_PROPERTY);
-    }
+    var analysisId = arguments.getOptionalString(ANALYSIS_ID_PROPERTY);
+    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
+    var projectId = arguments.getOptionalString(PROJECT_ID_PROPERTY);
+    var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
+    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
 
     if (analysisId == null && projectId == null && projectKey == null) {
       return Tool.Result.failure("Either '%s', '%s' or '%s' must be provided".formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY));
