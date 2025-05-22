@@ -16,7 +16,6 @@
  */
 package org.sonar.mcp.tools.qualitygates;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
@@ -54,12 +53,9 @@ public class ProjectStatusTool extends Tool {
   }
 
   @Override
-  public McpSchema.CallToolResult execute(Map<String, Object> arguments) {
+  public Tool.Result execute(Map<String, Object> arguments) {
     if (!serverApi.isAuthenticationSet()) {
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'")
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'");
     }
 
     String analysisId = null;
@@ -84,17 +80,11 @@ public class ProjectStatusTool extends Tool {
     }
 
     if (analysisId == null && projectId == null && projectKey == null) {
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Either '%s', '%s' or '%s' must be provided".formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY))
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Either '%s', '%s' or '%s' must be provided".formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY));
     }
 
     if (projectId != null && (branch != null || pullRequest != null)) {
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Project ID doesn't work with branches or pull requests")
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Project ID doesn't work with branches or pull requests");
     }
 
     var text = new StringBuilder();
@@ -108,16 +98,10 @@ public class ProjectStatusTool extends Tool {
       } else {
         message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
       }
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Failed to fetch project status: " + message)
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Failed to fetch project status: " + message);
     }
 
-    return McpSchema.CallToolResult.builder()
-      .addTextContent(text.toString())
-      .isError(false)
-      .build();
+    return Tool.Result.success(text.toString());
   }
 
   private static String buildResponseFromProjectStatus(QualityGatesApi.ProjectStatusResponse projectStatus) {

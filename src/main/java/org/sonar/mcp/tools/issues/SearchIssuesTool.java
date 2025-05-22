@@ -16,7 +16,6 @@
  */
 package org.sonar.mcp.tools.issues;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
@@ -45,7 +44,7 @@ public class SearchIssuesTool extends Tool {
   }
 
   @Override
-  public McpSchema.CallToolResult execute(Map<String, Object> arguments) {
+  public Tool.Result execute(Map<String, Object> arguments) {
     List<String> projects = null;
     if (arguments.containsKey(PROJECTS_PROPERTY)) {
       projects = ((List<String>) arguments.get(PROJECTS_PROPERTY));
@@ -66,16 +65,10 @@ public class SearchIssuesTool extends Tool {
       } else {
         message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
       }
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Failed to fetch all projects: " + message)
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Failed to fetch all projects: " + message);
     }
 
-    return McpSchema.CallToolResult.builder()
-      .addTextContent(text.toString())
-      .isError(false)
-      .build();
+    return Tool.Result.success(text.toString());
   }
 
   private static String buildResponseFromSearchResponse(List<IssuesApi.Issue> issues) {

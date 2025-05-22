@@ -42,12 +42,9 @@ public class SearchMyProjectsTool extends Tool {
   }
 
   @Override
-  public McpSchema.CallToolResult execute(Map<String, Object> arguments) {
+  public Tool.Result execute(Map<String, Object> arguments) {
     if (!serverApi.isAuthenticationSet()) {
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'")
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'");
     }
 
     int page = 1;
@@ -66,16 +63,10 @@ public class SearchMyProjectsTool extends Tool {
       } else {
         message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
       }
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Failed to fetch all projects: " + message)
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Failed to fetch all projects: " + message);
     }
 
-    return McpSchema.CallToolResult.builder()
-      .addTextContent(text.toString())
-      .isError(false)
-      .build();
+    return Tool.Result.success(text.toString());
   }
 
   private static String buildResponseFromAllProjectsResponse(ComponentsApi.SearchResponse response) {

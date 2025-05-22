@@ -45,28 +45,19 @@ public class ChangeIssueStatusTool extends Tool {
   }
 
   @Override
-  public McpSchema.CallToolResult execute(Map<String, Object> arguments) {
+  public Tool.Result execute(Map<String, Object> arguments) {
     if (!arguments.containsKey(KEY_PROPERTY)) {
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Missing required argument: " + KEY_PROPERTY)
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Missing required argument: " + KEY_PROPERTY);
     }
     var key = (String) arguments.get(KEY_PROPERTY);
 
     if (!arguments.containsKey(STATUS_PROPERTY)) {
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Missing required argument: " + STATUS_PROPERTY)
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Missing required argument: " + STATUS_PROPERTY);
     }
     var statusString = ((List<String>) arguments.get(STATUS_PROPERTY)).get(0);
     var status = Transition.fromStatus(statusString);
     if (status.isEmpty()) {
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Status is unknown: " + statusString)
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Status is unknown: " + statusString);
     }
 
     var text = new StringBuilder();
@@ -74,16 +65,10 @@ public class ChangeIssueStatusTool extends Tool {
       serverApi.issuesApi().doTransition(key, status.get());
       text.append("The issue status was successfully changed.");
     } catch (Exception e) {
-      return McpSchema.CallToolResult.builder()
-        .addTextContent("Failed to change the issue status: " + e.getMessage())
-        .isError(true)
-        .build();
+      return Tool.Result.failure("Failed to change the issue status", e);
     }
 
-    return McpSchema.CallToolResult.builder()
-      .addTextContent(text.toString())
-      .isError(false)
-      .build();
+    return Tool.Result.success(text.toString());
   }
 
 }

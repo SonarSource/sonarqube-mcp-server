@@ -30,6 +30,33 @@ public abstract class Tool {
     return definition;
   }
 
-  public abstract McpSchema.CallToolResult execute(Map<String, Object> arguments);
+  public abstract Result execute(Map<String, Object> arguments);
 
+  public static class Result {
+    public static Result success(String content) {
+      return new Result(McpSchema.CallToolResult.builder().isError(false).addTextContent(content).build());
+    }
+
+    public static Result failure(String errorMessage) {
+      return new Result(McpSchema.CallToolResult.builder().isError(true).addTextContent(errorMessage).build());
+    }
+
+    public static Result failure(String errorMessage, Throwable throwable) {
+      return new Result(McpSchema.CallToolResult.builder().isError(true).addTextContent(errorMessage + ": " + throwable.getMessage()).build());
+    }
+
+    private final McpSchema.CallToolResult callToolResult;
+
+    public Result(McpSchema.CallToolResult callToolResult) {
+      this.callToolResult = callToolResult;
+    }
+
+    public McpSchema.CallToolResult toCallToolResult() {
+      return callToolResult;
+    }
+
+    public boolean isError() {
+      return callToolResult.isError();
+    }
+  }
 }

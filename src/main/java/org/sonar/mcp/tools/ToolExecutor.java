@@ -30,14 +30,14 @@ public class ToolExecutor {
   }
 
   public McpSchema.CallToolResult execute(Tool tool, Map<String, Object> arguments) {
-    McpSchema.CallToolResult result;
+    Tool.Result result;
     try {
       result = tool.execute(arguments);
     } catch (Exception e) {
-      result = new McpSchema.CallToolResult("An error occurred during the tool execution: " + e.getMessage(), true);
+      result = Tool.Result.failure("An error occurred during the tool execution",  e);
       logger.error("An error occurred during the tool execution", e);
     }
     backendService.notifyToolCalled("mcp." + tool.definition().name(), !result.isError());
-    return result;
+    return result.toCallToolResult();
   }
 }
