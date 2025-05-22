@@ -14,22 +14,7 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonar.mcp.tools;
+@ParametersAreNonnullByDefault
+package org.sonar.mcp.serverapi.qualitygates;
 
-import io.modelcontextprotocol.spec.McpSchema;
-import java.util.Map;
-
-public abstract class Tool {
-  private final McpSchema.Tool definition;
-
-  protected Tool(McpSchema.Tool definition) {
-    this.definition = definition;
-  }
-
-  public McpSchema.Tool definition() {
-    return definition;
-  }
-
-  public abstract McpSchema.CallToolResult execute(Map<String, Object> arguments);
-
-}
+import javax.annotation.ParametersAreNonnullByDefault;

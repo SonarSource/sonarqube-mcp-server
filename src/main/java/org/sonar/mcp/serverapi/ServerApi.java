@@ -19,6 +19,7 @@ package org.sonar.mcp.serverapi;
 import javax.annotation.Nullable;
 import org.sonar.mcp.serverapi.components.ComponentsApi;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
+import org.sonar.mcp.serverapi.qualitygates.QualityGatesApi;
 
 public class ServerApi {
 
@@ -28,6 +29,10 @@ public class ServerApi {
   public ServerApi(ServerApiHelper helper, @Nullable String token) {
     this.helper = helper;
     this.isAuthenticationSet = token != null && helper.getOrganization() != null;
+  }
+
+  public QualityGatesApi qualityGatesApi() {
+    return new QualityGatesApi(helper);
   }
 
   public ComponentsApi componentsApi() {

@@ -94,8 +94,6 @@ class SearchIssuesToolTests {
     assertThat(result).isEqualTo(new McpSchema.CallToolResult("No issues were found.", false));
   }
 
-
-
   @SonarMcpServerTest
   void it_should_fetch_issues_for_specific_projects(SonarMcpServerTestHarness harness) {
     var issueKey = "issueKey1";
