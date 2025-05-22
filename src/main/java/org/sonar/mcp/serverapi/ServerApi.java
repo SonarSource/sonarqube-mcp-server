@@ -17,8 +17,8 @@
 package org.sonar.mcp.serverapi;
 
 import javax.annotation.Nullable;
+import org.sonar.mcp.serverapi.components.ComponentsApi;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
-import org.sonar.mcp.serverapi.projects.ProjectsApi;
 
 public class ServerApi {
 
@@ -30,8 +30,8 @@ public class ServerApi {
     this.isAuthenticationSet = token != null && helper.getOrganization() != null;
   }
 
-  public ProjectsApi projectsApi() {
-    return new ProjectsApi(helper);
+  public ComponentsApi componentsApi() {
+    return new ComponentsApi(helper);
   }
 
   public IssuesApi issuesApi() {

@@ -28,7 +28,7 @@ import org.sonar.mcp.harness.MockWebServer;
 import org.sonar.mcp.harness.ReceivedRequest;
 import org.sonar.mcp.harness.SonarMcpServerTest;
 import org.sonar.mcp.harness.SonarMcpServerTestHarness;
-import org.sonar.mcp.serverapi.projects.ProjectsApi;
+import org.sonar.mcp.serverapi.components.ComponentsApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -97,7 +97,7 @@ class SearchMyProjectsToolTests {
 
     @SonarMcpServerTest
     void it_should_show_error_when_failing(SonarMcpServerTestHarness harness) {
-      mockServer.stubFor(get(ProjectsApi.SEARCH_MY_PROJECTS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+      mockServer.stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&organization=org").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
         "SONARQUBE_CLOUD_TOKEN", "token",
@@ -109,45 +109,16 @@ class SearchMyProjectsToolTests {
         Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to fetch all projects: Error 500 on " + mockServer.baseUrl() + "/api/projects/search_my_projects", true));
+        .isEqualTo(new McpSchema.CallToolResult("Failed to fetch all projects: Error 500 on " + mockServer.baseUrl() + "/api/components/search?p=1&organization=org", true));
     }
 
     @SonarMcpServerTest
-    void it_should_return_the_project_list(SonarMcpServerTestHarness harness) {
-      mockServer.stubFor(get(ProjectsApi.SEARCH_MY_PROJECTS_PATH)
+    void it_should_return_the_project_list_when_no_page_is_provided(SonarMcpServerTestHarness harness) {
+      var projectKey = "project-key";
+      var projectName = "Project Name";
+      mockServer.stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&organization=org")
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes("""
-            {
-              "paging": {
-                "pageIndex": 1,
-                "pageSize": 100,
-                "total": 2
-              },
-              "projects": [
-                {
-                  "key": "clang",
-                  "name": "Clang",
-                  "lastAnalysisDate": "2016-06-11T14:25:53+0000",
-                  "qualityGate": "OK",
-                  "links": []
-                },
-                {
-                  "key": "net.java.openjdk:jdk7",
-                  "name": "JDK 7",
-                  "description": "JDK",
-                  "lastAnalysisDate": "2016-06-10T13:17:53+0000",
-                  "qualityGate": "ERROR",
-                  "links": [
-                    {
-                      "name": "Sources",
-                      "type": "scm",
-                      "href": "http://download.java.net/openjdk/jdk8/"
-                    }
-                  ]
-                }
-              ]
-            }
-            """.getBytes(StandardCharsets.UTF_8))
+          Body.fromJsonBytes(generateResponse(projectKey, projectName, 1, 4).getBytes(StandardCharsets.UTF_8))
         )));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
@@ -161,13 +132,60 @@ class SearchMyProjectsToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
-          Found 2 Sonar projects in your organization.
-          Project key: clang | Project name: Clang
-          Project key: net.java.openjdk:jdk7 | Project name: JDK 7
-          """, false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+          Found 1 Sonar projects in your organization.
+          This response is paginated and this is the page 1 out of 4 total pages. There is a maximum of 100 projects per page.
+          Project key: %s | Project name: %s
+          """.formatted(projectKey, projectName), false));
+      assertThat(mockServer.getReceivedRequests()).containsExactly(new ReceivedRequest("Bearer token", ""));
     }
+
+    @SonarMcpServerTest
+    void it_should_return_the_project_list_when_page_is_provided(SonarMcpServerTestHarness harness) {
+      var projectKey = "project-key";
+      var projectName = "Project Name";
+      mockServer.stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=2&organization=org")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateResponse(projectKey, projectName, 2, 2).getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
+        "SONARQUBE_CLOUD_TOKEN", "token",
+        "SONARQUBE_CLOUD_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        SearchMyProjectsTool.TOOL_NAME,
+        Map.of("page", "2")));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Found 1 Sonar projects in your organization.
+          This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 projects per page.
+          Project key: %s | Project name: %s
+          """.formatted(projectKey, projectName), false));
+      assertThat(mockServer.getReceivedRequests()).containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
+  }
+
+  private static String generateResponse(String projectKey, String projectName, int pageIndex, int totalPages) {
+    return """
+            {
+               "paging": {
+                 "pageIndex": %s,
+                 "pageSize": 100,
+                 "total": %s
+               },
+               "components": [
+                 {
+                   "organization": "my-org-1",
+                   "key": "%s",
+                   "qualifier": "TRK",
+                   "name": "%s",
+                   "project": "project-key"
+                 }
+               ]
+             }
+            """.formatted(pageIndex, totalPages, projectKey, projectName);
   }
 
 }

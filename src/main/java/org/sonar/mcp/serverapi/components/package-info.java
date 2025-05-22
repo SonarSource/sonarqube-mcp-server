@@ -15,6 +15,6 @@
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
 @ParametersAreNonnullByDefault
-package org.sonar.mcp.serverapi.projects;
+package org.sonar.mcp.serverapi.components;
 
 import javax.annotation.ParametersAreNonnullByDefault;

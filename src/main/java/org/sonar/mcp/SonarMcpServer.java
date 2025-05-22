@@ -19,7 +19,6 @@ package org.sonar.mcp;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
@@ -76,7 +75,7 @@ public class SonarMcpServer {
   private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
     return new McpServerFeatures.SyncToolSpecification(
       tool.definition(),
-      (McpSyncServerExchange exchange, Map<String, Object> argMap) -> toolExecutor.execute(tool, argMap)
+      (exchange, argMap) -> toolExecutor.execute(tool, argMap)
     );
   }
 

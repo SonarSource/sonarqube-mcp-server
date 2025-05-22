@@ -21,23 +21,28 @@ import java.util.List;
 import java.util.Map;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
+import org.sonar.mcp.serverapi.components.ComponentsApi;
 import org.sonar.mcp.serverapi.exception.NotFoundException;
-import org.sonar.mcp.serverapi.projects.ProjectsApi;
 import org.sonar.mcp.tools.Tool;
 
 public class SearchMyProjectsTool extends Tool {
 
   public static final String TOOL_NAME = "search_my_sonarqube_cloud_projects";
+  public static final String PAGE_PROPERTY = "page";
 
   private final ServerApi serverApi;
 
   public SearchMyProjectsTool(ServerApi serverApi) {
     super(new McpSchema.Tool(
       TOOL_NAME,
-      "Find all my SonarQube Cloud projects.",
+      """
+        Find Sonar projects in my organization. The response is paginated.
+        """,
       new McpSchema.JsonSchema(
         "object",
-        Map.of(),
+        Map.of(PAGE_PROPERTY, Map.of("type", "string", "description", """
+            An optional page number. Defaults to 1.
+            """)),
         List.of(),
         false
       )
@@ -54,10 +59,15 @@ public class SearchMyProjectsTool extends Tool {
         .build();
     }
 
+    int page = 1;
+    if (arguments.containsKey(PAGE_PROPERTY)) {
+      page = Integer.parseInt((String) arguments.get(PAGE_PROPERTY));
+    }
+
     var text = new StringBuilder();
     try {
-      var projects = serverApi.projectsApi().searchMyProjects();
-      text.append(buildResponseFromAllProjectsResponse(projects.projects()));
+      var projects = serverApi.componentsApi().searchProjectsInMyOrg(page);
+      text.append(buildResponseFromAllProjectsResponse(projects));
     } catch (Exception e) {
       String message;
       if (e instanceof NotFoundException) {
@@ -77,8 +87,9 @@ public class SearchMyProjectsTool extends Tool {
       .build();
   }
 
-  private static String buildResponseFromAllProjectsResponse(List<ProjectsApi.ProjectResponse> projects) {
+  private static String buildResponseFromAllProjectsResponse(ComponentsApi.SearchResponse response) {
     var stringBuilder = new StringBuilder();
+    var projects = response.components();
 
     if (projects.isEmpty()) {
       stringBuilder.append("No projects were found.");
@@ -86,6 +97,9 @@ public class SearchMyProjectsTool extends Tool {
     }
 
     stringBuilder.append("Found ").append(projects.size()).append(" Sonar projects in your organization.\n");
+    stringBuilder.append("This response is paginated and this is the page ").append(response.paging().pageIndex())
+      .append(" out of ").append(response.paging().total()).append(" total pages. There is a maximum of ")
+      .append(response.paging().pageSize()).append(" projects per page.\n");
 
     projects.forEach(p -> {
       stringBuilder.append("Project key: ").append(p.key()).append(" | Project name: ").append(p.name());
@@ -94,4 +108,5 @@ public class SearchMyProjectsTool extends Tool {
 
     return stringBuilder.toString();
   }
+
 }
