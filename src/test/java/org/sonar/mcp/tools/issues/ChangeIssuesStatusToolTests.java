@@ -104,7 +104,7 @@ class ChangeIssuesStatusToolTests {
           "status", new String[]{"accept"})));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to change the issue status: Forbidden", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
     }
 
     @SonarMcpServerTest

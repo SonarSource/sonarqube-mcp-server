@@ -16,10 +16,10 @@
  */
 package org.sonar.mcp.serverapi.exception;
 
-public class ForbiddenException extends ServerApiException {
+public class ServerApiException extends SonarMcpException {
 
-  public ForbiddenException(String message) {
-    super(message);
+  public ServerApiException(String message) {
+    super("SonarQube answered with " + message);
   }
 
 }

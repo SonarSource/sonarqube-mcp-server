@@ -18,7 +18,9 @@ package org.sonar.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.log.McpLogger;
+import org.sonar.mcp.serverapi.exception.NotFoundException;
 import org.sonar.mcp.slcore.BackendService;
 
 public class ToolExecutor {
@@ -34,7 +36,13 @@ public class ToolExecutor {
     try {
       result = tool.execute(arguments);
     } catch (Exception e) {
-      result = Tool.Result.failure("An error occurred during the tool execution",  e);
+      String message;
+      if (e instanceof NotFoundException) {
+        message = "Make sure your token is valid.";
+      } else {
+        message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
+      }
+      result = Tool.Result.failure("An error occurred during the tool execution: " + message);
       logger.error("An error occurred during the tool execution", e);
     }
     backendService.notifyToolCalled("mcp." + tool.definition().name(), !result.isError());

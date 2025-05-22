@@ -16,12 +16,9 @@
  */
 package org.sonar.mcp.tools.projects;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
-import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.components.ComponentsApi;
-import org.sonar.mcp.serverapi.exception.NotFoundException;
 import org.sonar.mcp.tools.SchemaToolBuilder;
 import org.sonar.mcp.tools.Tool;
 
@@ -52,21 +49,8 @@ public class SearchMyProjectsTool extends Tool {
       page = Integer.parseInt((String) arguments.get(PAGE_PROPERTY));
     }
 
-    var text = new StringBuilder();
-    try {
-      var projects = serverApi.componentsApi().searchProjectsInMyOrg(page);
-      text.append(buildResponseFromAllProjectsResponse(projects));
-    } catch (Exception e) {
-      String message;
-      if (e instanceof NotFoundException) {
-        message = "Make sure your token is valid.";
-      } else {
-        message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
-      }
-      return Tool.Result.failure("Failed to fetch all projects: " + message);
-    }
-
-    return Tool.Result.success(text.toString());
+    var projects = serverApi.componentsApi().searchProjectsInMyOrg(page);
+    return Tool.Result.success(buildResponseFromAllProjectsResponse(projects));
   }
 
   private static String buildResponseFromAllProjectsResponse(ComponentsApi.SearchResponse response) {

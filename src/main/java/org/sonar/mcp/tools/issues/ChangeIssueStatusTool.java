@@ -16,7 +16,6 @@
  */
 package org.sonar.mcp.tools.issues;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import org.sonar.mcp.serverapi.ServerApi;
@@ -60,15 +59,8 @@ public class ChangeIssueStatusTool extends Tool {
       return Tool.Result.failure("Status is unknown: " + statusString);
     }
 
-    var text = new StringBuilder();
-    try {
-      serverApi.issuesApi().doTransition(key, status.get());
-      text.append("The issue status was successfully changed.");
-    } catch (Exception e) {
-      return Tool.Result.failure("Failed to change the issue status", e);
-    }
-
-    return Tool.Result.success(text.toString());
+    serverApi.issuesApi().doTransition(key, status.get());
+    return Tool.Result.success("The issue status was successfully changed.");
   }
 
 }

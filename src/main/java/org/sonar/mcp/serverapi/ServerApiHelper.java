@@ -27,7 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.sonar.mcp.http.HttpClient;
 import org.sonar.mcp.serverapi.exception.ForbiddenException;
 import org.sonar.mcp.serverapi.exception.NotFoundException;
-import org.sonar.mcp.serverapi.exception.ServerErrorException;
+import org.sonar.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonar.mcp.serverapi.exception.UnauthorizedException;
 
 public class ServerApiHelper {
@@ -99,7 +99,7 @@ public class ServerApiHelper {
         return new NotFoundException(formatHttpFailedResponse(failedResponse, null));
       }
       if (failedResponse.code() >= HttpURLConnection.HTTP_INTERNAL_ERROR) {
-        return new ServerErrorException(formatHttpFailedResponse(failedResponse, null));
+        return new ServerInternalErrorException(formatHttpFailedResponse(failedResponse, null));
       }
 
       var errorMsg = tryParseAsJsonError(failedResponse);

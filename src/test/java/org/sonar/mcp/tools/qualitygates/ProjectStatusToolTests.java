@@ -95,7 +95,7 @@ class ProjectStatusToolTests {
         Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "12345")));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to fetch project status: Make sure your token is valid.", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
     }
 
     @SonarMcpServerTest
@@ -144,7 +144,7 @@ class ProjectStatusToolTests {
         Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "12345")));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to fetch project status: Error 500 on " + mockServer.baseUrl() + "/api" +
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + mockServer.baseUrl() + "/api" +
           "/qualitygates/project_status?analysisId=12345", true));
     }
 

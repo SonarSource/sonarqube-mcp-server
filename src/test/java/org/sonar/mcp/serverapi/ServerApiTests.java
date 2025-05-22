@@ -25,7 +25,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.sonar.mcp.http.HttpClientProvider;
 import org.sonar.mcp.serverapi.exception.ForbiddenException;
 import org.sonar.mcp.serverapi.exception.NotFoundException;
-import org.sonar.mcp.serverapi.exception.ServerErrorException;
+import org.sonar.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonar.mcp.serverapi.exception.UnauthorizedException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -59,7 +59,7 @@ class ServerApiTests {
     sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_UNAUTHORIZED)));
 
     var exception = assertThrows(UnauthorizedException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("Not authorized. Please check server credentials.");
+    assertThat(exception).hasMessage("SonarQube answered with Not authorized. Please check server credentials.");
   }
 
   @Test
@@ -67,7 +67,7 @@ class ServerApiTests {
     sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
 
     var exception = assertThrows(ForbiddenException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("Forbidden");
+    assertThat(exception).hasMessage("SonarQube answered with Forbidden");
   }
 
   @Test
@@ -75,15 +75,15 @@ class ServerApiTests {
     sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 
     var exception = assertThrows(NotFoundException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("Error 404 on " + sonarqubeMock.baseUrl() + "/test");
+    assertThat(exception).hasMessage("SonarQube answered with Error 404 on " + sonarqubeMock.baseUrl() + "/test");
   }
 
   @Test
   void it_should_throw_on_internal_error_response() {
     sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
 
-    var exception = assertThrows(ServerErrorException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("Error 500 on " + sonarqubeMock.baseUrl() + "/test");
+    var exception = assertThrows(ServerInternalErrorException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("SonarQube answered with Error 500 on " + sonarqubeMock.baseUrl() + "/test");
   }
 
   @Test

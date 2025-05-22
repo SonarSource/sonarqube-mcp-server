@@ -92,7 +92,7 @@ class SearchMyProjectsToolTests {
         Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to fetch all projects: Make sure your token is valid.", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
     }
 
     @SonarMcpServerTest
@@ -109,7 +109,7 @@ class SearchMyProjectsToolTests {
         Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to fetch all projects: Error 500 on " + mockServer.baseUrl() + "/api/components/search?p=1&organization=org", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + mockServer.baseUrl() + "/api/components/search?p=1&organization=org", true));
     }
 
     @SonarMcpServerTest

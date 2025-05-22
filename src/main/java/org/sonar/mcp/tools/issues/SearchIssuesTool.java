@@ -18,9 +18,7 @@ package org.sonar.mcp.tools.issues;
 
 import java.util.List;
 import java.util.Map;
-import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
-import org.sonar.mcp.serverapi.exception.NotFoundException;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
 import org.sonar.mcp.tools.SchemaToolBuilder;
 import org.sonar.mcp.tools.Tool;
@@ -54,21 +52,8 @@ public class SearchIssuesTool extends Tool {
       pullRequestId = ((String) arguments.get(PULL_REQUEST_ID_PROPERTY));
     }
 
-    var text = new StringBuilder();
-    try {
-      var response = serverApi.issuesApi().search(projects, pullRequestId);
-      text.append(buildResponseFromSearchResponse(response.issues()));
-    } catch (Exception e) {
-      String message;
-      if (e instanceof NotFoundException) {
-        message = "Make sure your token is valid.";
-      } else {
-        message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
-      }
-      return Tool.Result.failure("Failed to fetch all projects: " + message);
-    }
-
-    return Tool.Result.success(text.toString());
+    var response = serverApi.issuesApi().search(projects, pullRequestId);
+    return Tool.Result.success(buildResponseFromSearchResponse(response.issues()));
   }
 
   private static String buildResponseFromSearchResponse(List<IssuesApi.Issue> issues) {

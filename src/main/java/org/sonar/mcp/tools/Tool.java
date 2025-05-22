@@ -41,10 +41,6 @@ public abstract class Tool {
       return new Result(McpSchema.CallToolResult.builder().isError(true).addTextContent(errorMessage).build());
     }
 
-    public static Result failure(String errorMessage, Throwable throwable) {
-      return new Result(McpSchema.CallToolResult.builder().isError(true).addTextContent(errorMessage + ": " + throwable.getMessage()).build());
-    }
-
     private final McpSchema.CallToolResult callToolResult;
 
     public Result(McpSchema.CallToolResult callToolResult) {

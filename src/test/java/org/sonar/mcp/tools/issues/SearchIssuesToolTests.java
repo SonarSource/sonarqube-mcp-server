@@ -59,7 +59,7 @@ class SearchIssuesToolTests {
       Map.of()));
 
     assertThat(result)
-      .isEqualTo(new McpSchema.CallToolResult("Failed to fetch all projects: Make sure your token is valid.", true));
+      .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
   }
 
   @SonarMcpServerTest

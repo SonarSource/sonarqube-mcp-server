@@ -17,9 +17,7 @@
 package org.sonar.mcp.tools.qualitygates;
 
 import java.util.Map;
-import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
-import org.sonar.mcp.serverapi.exception.NotFoundException;
 import org.sonar.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonar.mcp.tools.SchemaToolBuilder;
 import org.sonar.mcp.tools.Tool;
@@ -87,21 +85,8 @@ public class ProjectStatusTool extends Tool {
       return Tool.Result.failure("Project ID doesn't work with branches or pull requests");
     }
 
-    var text = new StringBuilder();
-    try {
-      var projectStatus = serverApi.qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
-      text.append(buildResponseFromProjectStatus(projectStatus));
-    } catch (Exception e) {
-      String message;
-      if (e instanceof NotFoundException) {
-        message = "Make sure your token is valid.";
-      } else {
-        message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
-      }
-      return Tool.Result.failure("Failed to fetch project status: " + message);
-    }
-
-    return Tool.Result.success(text.toString());
+    var projectStatus = serverApi.qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
+    return Tool.Result.success(buildResponseFromProjectStatus(projectStatus));
   }
 
   private static String buildResponseFromProjectStatus(QualityGatesApi.ProjectStatusResponse projectStatus) {

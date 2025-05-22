@@ -17,9 +17,9 @@
 package org.sonar.mcp.serverapi.exception;
 
 
-public class ServerErrorException extends SonarMcpException {
+public class ServerInternalErrorException extends ServerApiException {
 
-  public ServerErrorException(String message) {
+  public ServerInternalErrorException(String message) {
     super(message);
   }
 

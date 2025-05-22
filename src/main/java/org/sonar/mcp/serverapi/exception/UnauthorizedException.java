@@ -16,7 +16,7 @@
  */
 package org.sonar.mcp.serverapi.exception;
 
-public class UnauthorizedException extends RuntimeException {
+public class UnauthorizedException extends ServerApiException {
 
   public UnauthorizedException(String message) {
     super(message);
