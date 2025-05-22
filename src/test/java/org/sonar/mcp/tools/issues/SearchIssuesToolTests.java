@@ -18,7 +18,6 @@ package org.sonar.mcp.tools.issues;
 
 import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpSchema;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -99,7 +98,7 @@ class SearchIssuesToolTests {
     var issueKey = "issueKey1";
     var ruleName = "ruleName1";
     var projectName = "projectName1";
-    mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org&projects=" + URLEncoder.encode("project1,project2", StandardCharsets.UTF_8))
+    mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org&projects=project1,project2")
       .willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
           {
@@ -123,7 +122,7 @@ class SearchIssuesToolTests {
 
     var result = mcpClient.callTool(new McpSchema.CallToolRequest(
       SearchIssuesTool.TOOL_NAME,
-      Map.of(SearchIssuesTool.PROJECTS_PROPERTY, "project1,project2")));
+      Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[]{"project1", "project2"})));
 
     assertThat(result)
       .isEqualTo(new McpSchema.CallToolResult("""
@@ -164,6 +163,46 @@ class SearchIssuesToolTests {
     var result = mcpClient.callTool(new McpSchema.CallToolRequest(
       SearchIssuesTool.TOOL_NAME,
       Map.of()));
+
+    assertThat(result)
+      .isEqualTo(new McpSchema.CallToolResult("""
+        Found 1 issues.
+        Issue key: %s | Rule name: %s | Project name: %s
+        """.formatted(issueKey, ruleName, projectName), false));
+    assertThat(mockServer.getReceivedRequests())
+      .containsExactly(new ReceivedRequest("Bearer token", ""));
+  }
+
+  @SonarMcpServerTest
+  void it_should_return_issues_from_a_pull_request(SonarMcpServerTestHarness harness) {
+    var issueKey = "issueKey1";
+    var ruleName = "ruleName1";
+    var projectName = "projectName1";
+    mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org&pullRequest=1")
+      .willReturn(aResponse().withResponseBody(
+        Body.fromJsonBytes("""
+          {
+              "paging": {
+                "pageIndex": 1,
+                "pageSize": 100,
+                "total": 1
+              },
+              "issues": [%s],
+              "components": [],
+              "rules": [],
+              "users": []
+            }
+          """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
+      )));
+    var mcpClient = harness.newClient(Map.of(
+      "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
+      "SONARQUBE_CLOUD_TOKEN", "token",
+      "SONARQUBE_CLOUD_ORG", "org"
+    ));
+
+    var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      SearchIssuesTool.TOOL_NAME,
+      Map.of("pullRequestId", "1")));
 
     assertThat(result)
       .isEqualTo(new McpSchema.CallToolResult("""

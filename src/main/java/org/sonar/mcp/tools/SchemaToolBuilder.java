@@ -24,6 +24,9 @@ import java.util.Map;
 
 public class SchemaToolBuilder {
 
+  private static final String DESCRIPTION_KEY_NAME = "description";
+  private static final String TYPE_PROPERTY_NAME = "type";
+  private static final String ITEMS_PROPERTY_NAME = "items";
   private final Map<String, Object> properties;
   private final List<String> requiredProperties;
   private String name;
@@ -45,13 +48,8 @@ public class SchemaToolBuilder {
     return this;
   }
 
-  public SchemaToolBuilder setAdditionalProperties(boolean additionalProperties) {
-    this.additionalProperties = additionalProperties;
-    return this;
-  }
-
   public SchemaToolBuilder addStringProperty(String propertyName, String description) {
-    var content = Map.of("type", "string", "description", description);
+    var content = Map.of(TYPE_PROPERTY_NAME, "string", DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
     requiredProperties.add(propertyName);
     return this;
@@ -63,14 +61,20 @@ public class SchemaToolBuilder {
     return this;
   }
 
-  public SchemaToolBuilder addArrayProperty(String propertyName, String itemsType, String[] items, String description) {
-    var content = Map.of("type", "array", "description", description, "items", Map.of(itemsType, items));
+  public SchemaToolBuilder addArrayProperty(String propertyName, String itemsType, String description) {
+    var content = Map.of(TYPE_PROPERTY_NAME, "array", DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, itemsType));
     properties.put(propertyName, content);
     return this;
   }
 
-  public SchemaToolBuilder addRequiredArrayProperty(String propertyName, String itemsType, String[] items, String description) {
-    addArrayProperty(propertyName, itemsType, items, description);
+  public SchemaToolBuilder addEnumProperty(String propertyName, String[] items, String description) {
+    var content = Map.of(TYPE_PROPERTY_NAME, "array", DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of("enum", items));
+    properties.put(propertyName, content);
+    return this;
+  }
+
+  public SchemaToolBuilder addRequiredEnumProperty(String propertyName, String[] items, String description) {
+    addEnumProperty(propertyName, items, description);
     requiredProperties.add(propertyName);
     return this;
   }

@@ -17,12 +17,11 @@
 package org.sonar.mcp.serverapi.issues;
 
 import com.google.gson.Gson;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.sonar.mcp.serverapi.ServerApiHelper;
+import org.sonar.mcp.serverapi.UrlBuilder;
 
 import static org.sonarsource.sonarlint.core.http.HttpClient.FORM_URL_ENCODED_CONTENT_TYPE;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
@@ -39,8 +38,8 @@ public class IssuesApi {
     this.organization = organization;
   }
 
-  public SearchResponse searchIssuesInProject(@Nullable String[] projects) {
-    try (var response = helper.get(buildPath(projects))) {
+  public SearchResponse search(@Nullable List<String> projects, @Nullable String pullRequestId) {
+    try (var response = helper.get(buildPath(projects, pullRequestId))) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }
@@ -51,19 +50,12 @@ public class IssuesApi {
     helper.post("/api/issues/do_transition", FORM_URL_ENCODED_CONTENT_TYPE, body);
   }
 
-  private String buildPath(@Nullable String[] projects) {
-    var path = new StringBuilder(SEARCH_PATH);
-    boolean hasQueryParams = false;
-
-    if (organization != null) {
-      path.append("?organization=").append(URLEncoder.encode(organization, StandardCharsets.UTF_8));
-      hasQueryParams = true;
-    }
-    if (projects != null && projects.length > 0) {
-      path.append(hasQueryParams ? "&" : "?").append("projects=").append(URLEncoder.encode(String.join(",", projects), StandardCharsets.UTF_8));
-    }
-
-    return path.toString();
+  private String buildPath(@Nullable List<String> projects, @Nullable String pullRequestId) {
+    return new UrlBuilder(SEARCH_PATH)
+      .addParam("organization", organization)
+      .addParam("projects", projects)
+      .addParam("pullRequest", pullRequestId)
+      .build();
   }
 
   public record SearchResponse(Paging paging, List<Issue> issues, List<Component> components, List<Rule> rules, List<User> users) {

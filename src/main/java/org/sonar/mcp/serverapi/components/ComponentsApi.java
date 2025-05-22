@@ -17,10 +17,9 @@
 package org.sonar.mcp.serverapi.components;
 
 import com.google.gson.Gson;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.sonar.mcp.serverapi.ServerApiHelper;
+import org.sonar.mcp.serverapi.UrlBuilder;
 
 public class ComponentsApi {
 
@@ -33,15 +32,12 @@ public class ComponentsApi {
   }
 
   public SearchResponse searchProjectsInMyOrg(int page) {
-    var path = new StringBuilder(COMPONENTS_SEARCH_PATH);
-    var organization = helper.getOrganization();
+    var url = new UrlBuilder(COMPONENTS_SEARCH_PATH)
+      .addParam("p", Integer.toString(page))
+      .addParam("organization", helper.getOrganization())
+      .build();
 
-    path.append("?p=").append(page);
-    if (organization != null) {
-      path.append("&organization=").append(URLEncoder.encode(organization, StandardCharsets.UTF_8));
-    }
-
-    try (var response = helper.get(path.toString())) {
+    try (var response = helper.get(url)) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }

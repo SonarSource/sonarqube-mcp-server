@@ -30,6 +30,7 @@ public class SearchIssuesTool extends Tool {
 
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
   public static final String PROJECTS_PROPERTY = "projects";
+  public static final String PULL_REQUEST_ID_PROPERTY = "pullRequestId";
 
   private final ServerApi serverApi;
 
@@ -37,21 +38,26 @@ public class SearchIssuesTool extends Tool {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setDescription("Search for Sonar issues in my organization's projects.")
-      .addStringProperty(PROJECTS_PROPERTY, "A list of optional Sonar projects to look in, separated by commas. For example, \"project1,project2\".")
+      .addArrayProperty(PROJECTS_PROPERTY, "String", "An optional list of Sonar projects to look in")
+      .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
       .build());
     this.serverApi = serverApi;
   }
 
   @Override
   public McpSchema.CallToolResult execute(Map<String, Object> arguments) {
-    String[] projects = null;
+    List<String> projects = null;
     if (arguments.containsKey(PROJECTS_PROPERTY)) {
-      projects = ((String) arguments.get(PROJECTS_PROPERTY)).split(",");
+      projects = ((List<String>) arguments.get(PROJECTS_PROPERTY));
+    }
+    String pullRequestId = null;
+    if (arguments.containsKey(PULL_REQUEST_ID_PROPERTY)) {
+      pullRequestId = ((String) arguments.get(PULL_REQUEST_ID_PROPERTY));
     }
 
     var text = new StringBuilder();
     try {
-      var response = serverApi.issuesApi().searchIssuesInProject(projects);
+      var response = serverApi.issuesApi().search(projects, pullRequestId);
       text.append(buildResponseFromSearchResponse(response.issues()));
     } catch (Exception e) {
       String message;

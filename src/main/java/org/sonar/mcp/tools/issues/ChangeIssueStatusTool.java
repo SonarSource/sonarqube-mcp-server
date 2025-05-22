@@ -39,7 +39,7 @@ public class ChangeIssueStatusTool extends Tool {
         Change the status of a Sonar issue. This tool can be used to change the status of an issue to "accept", "falsepositive" or to "reopen" an issue.
         An example request could be: I would like to accept the issue having the key "AX-HMISMFixnZED\"""")
       .addRequiredStringProperty(KEY_PROPERTY, "The key of the issue which status should be changed")
-      .addRequiredArrayProperty(STATUS_PROPERTY, "enum", new String[]{"accept", "falsepositive", "reopen"}, "The new status of the issue")
+      .addRequiredEnumProperty(STATUS_PROPERTY, new String[] {"accept", "falsepositive", "reopen"}, "The new status of the issue")
       .build());
     this.serverApi = serverApi;
   }
