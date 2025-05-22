@@ -23,6 +23,7 @@ import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.exception.NotFoundException;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
+import org.sonar.mcp.tools.SchemaToolBuilder;
 import org.sonar.mcp.tools.Tool;
 
 public class SearchIssuesTool extends Tool {
@@ -33,20 +34,11 @@ public class SearchIssuesTool extends Tool {
   private final ServerApi serverApi;
 
   public SearchIssuesTool(ServerApi serverApi) {
-    super(new McpSchema.Tool(
-      TOOL_NAME,
-      "Search for Sonar issues in my organization's projects.",
-      new McpSchema.JsonSchema(
-        "object",
-        Map.of(
-          PROJECTS_PROPERTY, Map.of("type", "string", "description", """
-            A list of optional Sonar projects to look in, separated by commas. For example, "project1,project2".
-            """)
-        ),
-        List.of(),
-        false
-      )
-    ));
+    super(new SchemaToolBuilder()
+      .setName(TOOL_NAME)
+      .setDescription("Search for Sonar issues in my organization's projects.")
+      .addStringProperty(PROJECTS_PROPERTY, "A list of optional Sonar projects to look in, separated by commas. For example, \"project1,project2\".")
+      .build());
     this.serverApi = serverApi;
   }
 

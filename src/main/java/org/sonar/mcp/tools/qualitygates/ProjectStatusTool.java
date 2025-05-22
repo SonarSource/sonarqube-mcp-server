@@ -17,12 +17,12 @@
 package org.sonar.mcp.tools.qualitygates;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import java.util.List;
 import java.util.Map;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.exception.NotFoundException;
 import org.sonar.mcp.serverapi.qualitygates.QualityGatesApi;
+import org.sonar.mcp.tools.SchemaToolBuilder;
 import org.sonar.mcp.tools.Tool;
 
 public class ProjectStatusTool extends Tool {
@@ -37,32 +37,19 @@ public class ProjectStatusTool extends Tool {
   private final ServerApi serverApi;
 
   public ProjectStatusTool(ServerApi serverApi) {
-    super(new McpSchema.Tool(
-      TOOL_NAME,
-      "Get the Quality Gate Status for the project. Either '%s', '%s' or '%s' must be provided.".formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY),
-      new McpSchema.JsonSchema(
-        "object",
-        Map.of(
-          ANALYSIS_ID_PROPERTY, Map.of("type", "string", "description", """
-            The optional analysis ID to get the status for, for example 'AU-TpxcA-iU5OvuD2FL1'
-            """),
-          BRANCH_PROPERTY, Map.of("type", "string", "description", """
-            The optional branch key to get the status for, for example 'feature/my_branch'
-            """),
-          PROJECT_ID_PROPERTY, Map.of("type", "string", "description", """
-            The optional project ID to get the status for, for example 'AU-Tpxb--iU5OvuD2FLy'. Doesn't work with branches or pull requests.
-            """),
-          PROJECT_KEY_PROPERTY, Map.of("type", "string", "description", """
-            The optional project key to get the status for, for example 'my_project'
-            """),
-          PULL_REQUEST_PROPERTY, Map.of("type", "string", "description", """
-            The optional pull request ID to get the status for, for example '5461'
-            """)
-        ),
-        List.of(),
-        false
-      )
-    ));
+    super(new SchemaToolBuilder()
+      .setName(TOOL_NAME)
+      .setDescription("""
+        Get the Quality Gate Status for the project. Either '%s', '%s' or '%s' must be provided.
+        """.formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY))
+      .addStringProperty(ANALYSIS_ID_PROPERTY, "The optional analysis ID to get the status for, for example 'AU-TpxcA-iU5OvuD2FL1'")
+      .addStringProperty(BRANCH_PROPERTY, "The optional branch key to get the status for, for example 'feature/my_branch'")
+      .addStringProperty(PROJECT_ID_PROPERTY, """
+        The optional project ID to get the status for, for example 'AU-Tpxb--iU5OvuD2FLy'. Doesn't work with branches or pull requests.
+        """)
+      .addStringProperty(PROJECT_KEY_PROPERTY, "The optional project key to get the status for, for example 'my_project'")
+      .addStringProperty(PULL_REQUEST_PROPERTY, "The optional pull request ID to get the status for, for example '5461'")
+      .build());
     this.serverApi = serverApi;
   }
 
@@ -112,7 +99,7 @@ public class ProjectStatusTool extends Tool {
 
     var text = new StringBuilder();
     try {
-      var projectStatus = serverApi.qualityGatesApi().listMyQualityGates(analysisId, branch, projectId, projectKey, pullRequest);
+      var projectStatus = serverApi.qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
       text.append(buildResponseFromProjectStatus(projectStatus));
     } catch (Exception e) {
       String message;

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.issues.Transition;
+import org.sonar.mcp.tools.SchemaToolBuilder;
 import org.sonar.mcp.tools.Tool;
 
 public class ChangeIssueStatusTool extends Tool {
@@ -28,31 +29,18 @@ public class ChangeIssueStatusTool extends Tool {
   public static final String TOOL_NAME = "change_sonar_issue_status";
   public static final String KEY_PROPERTY = "key";
   public static final String STATUS_PROPERTY = "status";
-  public static final String DESCRIPTION_PROPERTY = "description";
 
   private final ServerApi serverApi;
 
   public ChangeIssueStatusTool(ServerApi serverApi) {
-    super(new McpSchema.Tool(
-      TOOL_NAME,
-      """
+    super(new SchemaToolBuilder()
+      .setName(TOOL_NAME)
+      .setDescription("""
         Change the status of a Sonar issue. This tool can be used to change the status of an issue to "accept", "falsepositive" or to "reopen" an issue.
-        An example request could be: I would like to accept the issue having the key "AX-HMISMFixnZED\"""",
-      new McpSchema.JsonSchema(
-        "object",
-        Map.of(
-          KEY_PROPERTY, Map.of(
-            "type", "string",
-            DESCRIPTION_PROPERTY, "The key of the issue which status should be changed"),
-          STATUS_PROPERTY, Map.of(
-            "type", "array",
-            "items", Map.of("enum", new String[]{"accept", "falsepositive", "reopen"}),
-            DESCRIPTION_PROPERTY, "The new status of the issue")
-        ),
-        List.of(KEY_PROPERTY, STATUS_PROPERTY),
-        false
-      )
-    ));
+        An example request could be: I would like to accept the issue having the key "AX-HMISMFixnZED\"""")
+      .addRequiredStringProperty(KEY_PROPERTY, "The key of the issue which status should be changed")
+      .addRequiredArrayProperty(STATUS_PROPERTY, "enum", new String[]{"accept", "falsepositive", "reopen"}, "The new status of the issue")
+      .build());
     this.serverApi = serverApi;
   }
 

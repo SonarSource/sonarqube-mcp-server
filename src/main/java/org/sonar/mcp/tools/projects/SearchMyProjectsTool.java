@@ -17,12 +17,12 @@
 package org.sonar.mcp.tools.projects;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import java.util.List;
 import java.util.Map;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.components.ComponentsApi;
 import org.sonar.mcp.serverapi.exception.NotFoundException;
+import org.sonar.mcp.tools.SchemaToolBuilder;
 import org.sonar.mcp.tools.Tool;
 
 public class SearchMyProjectsTool extends Tool {
@@ -33,20 +33,11 @@ public class SearchMyProjectsTool extends Tool {
   private final ServerApi serverApi;
 
   public SearchMyProjectsTool(ServerApi serverApi) {
-    super(new McpSchema.Tool(
-      TOOL_NAME,
-      """
-        Find Sonar projects in my organization. The response is paginated.
-        """,
-      new McpSchema.JsonSchema(
-        "object",
-        Map.of(PAGE_PROPERTY, Map.of("type", "string", "description", """
-            An optional page number. Defaults to 1.
-            """)),
-        List.of(),
-        false
-      )
-    ));
+    super(new SchemaToolBuilder()
+      .setName(TOOL_NAME)
+      .setDescription("Find Sonar projects in my organization. The response is paginated.")
+      .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
+      .build());
     this.serverApi = serverApi;
   }
 

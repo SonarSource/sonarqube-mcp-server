@@ -33,7 +33,7 @@ public class QualityGatesApi {
     this.helper = helper;
   }
 
-  public ProjectStatusResponse listMyQualityGates(@Nullable String analysisId, @Nullable String branchKey,
+  public ProjectStatusResponse getProjectQualityGateStatus(@Nullable String analysisId, @Nullable String branchKey,
     @Nullable String projectId, @Nullable String projectKey, @Nullable String pullRequest) {
     var path = new StringBuilder(PROJECT_STATUS_PATH);
     boolean hasQueryParams = false;
@@ -44,12 +44,15 @@ public class QualityGatesApi {
     }
     if (branchKey != null) {
       path.append(hasQueryParams ? "&" : "?").append("branchKey=").append(URLEncoder.encode(branchKey, StandardCharsets.UTF_8));
+      hasQueryParams = true;
     }
     if (projectId != null) {
       path.append(hasQueryParams ? "&" : "?").append("projectId=").append(URLEncoder.encode(projectId, StandardCharsets.UTF_8));
+      hasQueryParams = true;
     }
     if (projectKey != null) {
       path.append(hasQueryParams ? "&" : "?").append("projectKey=").append(URLEncoder.encode(projectKey, StandardCharsets.UTF_8));
+      hasQueryParams = true;
     }
     if (pullRequest != null) {
       path.append(hasQueryParams ? "&" : "?").append("pullRequest=").append(URLEncoder.encode(pullRequest, StandardCharsets.UTF_8));
