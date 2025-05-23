@@ -17,10 +17,10 @@ Sonar MCP Server can be launched in two ways:
 
 ### Configuration
 
-To enable full functionality, the following environment variables must be given before starting the server:
+To enable full functionality, the following environment variables must be set before starting the server:
 
-* `SONARQUBE_CLOUD_TOKEN`: Your SonarQube Cloud **USER** token.
-* `SONARQUBE_CLOUD_ORG`: Your SonarQube Cloud organization name.
+* `SONARQUBE_CLOUD_TOKEN`: Your SonarQube Cloud **USER** [token](https://sonarcloud.io/account/security).
+* `SONARQUBE_CLOUD_ORG`: Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations).
 * `STORAGE_PATH`: An absolute path to a writable directory where Sonar MCP Server will store its files (e.g., for creation, updates, and persistence).
   * *This variable is not required when running within a Docker container, as bind mounts are used for storage.*
 
