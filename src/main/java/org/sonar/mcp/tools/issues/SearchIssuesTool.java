@@ -34,7 +34,7 @@ public class SearchIssuesTool extends Tool {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setDescription("Search for Sonar issues in my organization's projects.")
-      .addArrayProperty(PROJECTS_PROPERTY, "String", "An optional list of Sonar projects to look in")
+      .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
       .build());
     this.serverApi = serverApi;

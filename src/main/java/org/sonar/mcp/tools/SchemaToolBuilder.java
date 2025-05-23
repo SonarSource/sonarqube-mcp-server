@@ -51,7 +51,6 @@ public class SchemaToolBuilder {
   public SchemaToolBuilder addStringProperty(String propertyName, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, "string", DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
-    requiredProperties.add(propertyName);
     return this;
   }
 
