@@ -114,4 +114,9 @@ public class SonarMcpServer {
     McpLogger.getInstance().setOutput(null);
   }
 
+  // Returns the list of supported tools for testing purposes.
+  public List<Tool> getSupportedTools() {
+    return List.copyOf(supportedTools);
+  }
+
 }
