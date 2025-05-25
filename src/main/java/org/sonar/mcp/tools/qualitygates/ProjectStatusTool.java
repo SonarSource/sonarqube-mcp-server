@@ -18,6 +18,7 @@ package org.sonar.mcp.tools.qualitygates;
 
 import org.sonar.mcp.serverapi.ServerApi;
 import org.sonar.mcp.serverapi.qualitygates.QualityGatesApi;
+import org.sonar.mcp.serverapi.qualitygates.response.ProjectStatusResponse;
 import org.sonar.mcp.tools.SchemaToolBuilder;
 import org.sonar.mcp.tools.Tool;
 
@@ -73,7 +74,7 @@ public class ProjectStatusTool extends Tool {
     return Tool.Result.success(buildResponseFromProjectStatus(projectStatus));
   }
 
-  private static String buildResponseFromProjectStatus(QualityGatesApi.ProjectStatusResponse projectStatus) {
+  private static String buildResponseFromProjectStatus(ProjectStatusResponse projectStatus) {
     var stringBuilder = new StringBuilder();
     var status = projectStatus.projectStatus();
 
