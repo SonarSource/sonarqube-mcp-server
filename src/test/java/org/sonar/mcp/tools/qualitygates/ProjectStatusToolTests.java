@@ -34,7 +34,6 @@ import org.sonar.mcp.serverapi.qualitygates.QualityGatesApi;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 
 class ProjectStatusToolTests {
 
