@@ -34,6 +34,7 @@ import org.sonar.mcp.tools.Tool;
 import org.sonar.mcp.tools.ToolExecutor;
 import org.sonar.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonar.mcp.tools.issues.SearchIssuesTool;
+import org.sonar.mcp.tools.languages.ListLanguagesTool;
 import org.sonar.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonar.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonar.mcp.tools.qualitygates.ProjectStatusTool;
@@ -67,6 +68,8 @@ public class SonarMcpServer {
       new ShowRuleTool(serverApi),
       new ListRuleRepositoriesTool(serverApi),
       new ListQualityGatesTool(serverApi)
+      new ProjectStatusTool(serverApi),
+      new ListLanguagesTool(serverApi)
     );
   }
 

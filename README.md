@@ -93,6 +93,11 @@ Alternatively, you can manually create or update your VS Code MCP configurations
 
 ## Tools
 
+### Languages
+
+- **list_languages** - List all programming languages supported in this instance
+  - `q` - Optional pattern to match language keys/names against - _String_
+
 ### Issues
 
 - **change_sonar_issue_status** - Change the status of a Sonar issue to "accept", "falsepositive" or to "reopen" an issue

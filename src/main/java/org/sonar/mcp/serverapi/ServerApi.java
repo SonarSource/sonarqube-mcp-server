@@ -19,6 +19,7 @@ package org.sonar.mcp.serverapi;
 import javax.annotation.Nullable;
 import org.sonar.mcp.serverapi.components.ComponentsApi;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
+import org.sonar.mcp.serverapi.languages.LanguagesApi;
 import org.sonar.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonar.mcp.serverapi.rules.RulesApi;
 
@@ -46,6 +47,10 @@ public class ServerApi {
 
   public RulesApi rulesApi() {
     return new RulesApi(helper, helper.getOrganization());
+  }
+
+  public LanguagesApi languagesApi() {
+    return new LanguagesApi(helper);
   }
 
   public boolean isAuthenticationSet() {
