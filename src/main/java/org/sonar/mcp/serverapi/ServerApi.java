@@ -17,6 +17,7 @@
 package org.sonar.mcp.serverapi;
 
 import javax.annotation.Nullable;
+import org.sonar.mcp.serverapi.badges.ProjectBadgesApi;
 import org.sonar.mcp.serverapi.components.ComponentsApi;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
 import org.sonar.mcp.serverapi.languages.LanguagesApi;
@@ -51,6 +52,10 @@ public class ServerApi {
 
   public LanguagesApi languagesApi() {
     return new LanguagesApi(helper);
+  }
+
+  public ProjectBadgesApi projectBadgesApi() {
+    return new ProjectBadgesApi(helper);
   }
 
   public boolean isAuthenticationSet() {

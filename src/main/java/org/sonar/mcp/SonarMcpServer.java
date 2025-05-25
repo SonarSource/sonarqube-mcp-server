@@ -32,6 +32,9 @@ import org.sonar.mcp.serverapi.ServerApiHelper;
 import org.sonar.mcp.slcore.BackendService;
 import org.sonar.mcp.tools.Tool;
 import org.sonar.mcp.tools.ToolExecutor;
+import org.sonar.mcp.tools.badges.GetProjectMeasureBadgeTool;
+import org.sonar.mcp.tools.badges.GetAiCodeAssuranceBadgeTool;
+import org.sonar.mcp.tools.badges.GetQualityGateBadgeTool;
 import org.sonar.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonar.mcp.tools.issues.SearchIssuesTool;
 import org.sonar.mcp.tools.languages.ListLanguagesTool;
@@ -68,7 +71,8 @@ public class SonarMcpServer {
       new ShowRuleTool(serverApi),
       new ListRuleRepositoriesTool(serverApi),
       new ListQualityGatesTool(serverApi),
-      new ListLanguagesTool(serverApi)
+      new ListLanguagesTool(serverApi),
+      new GetQualityGateBadgeTool(serverApi)
     );
   }
 

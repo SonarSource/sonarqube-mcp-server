@@ -18,6 +18,7 @@ package org.sonar.mcp.tools.qualitygates;
 
 import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -210,7 +211,7 @@ class ProjectStatusToolTests {
 
     @SonarMcpServerTest
     void it_should_return_the_project_status_with_project_id(SonarMcpServerTestHarness harness) {
-      mockServer.stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectId=" + urlEncode("AU-Tpxb--iU5OvuD2FLy"))
+      mockServer.stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectId=" + URLEncoder.encode("AU-Tpxb--iU5OvuD2FLy", StandardCharsets.UTF_8))
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8))
         )));

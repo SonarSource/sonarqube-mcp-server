@@ -93,6 +93,25 @@ Alternatively, you can manually create or update your VS Code MCP configurations
 
 ## Tools
 
+### Badges
+
+- **get_project_measure_badge** - Find Sonar projects in my organization
+  - `project` - Project or application key - _Required String_
+  - `metric` - Metric key (e.g. 'alert_status', 'bugs', etc) - _Required String_
+  - `branch` - Optional branch key - _String_
+  - `token` - Optional security token required for private projects - _String_
+
+
+- **get_ai_code_assurance_badge** - Find Sonar projects in my organization
+  - `project` - Project or application key - _Required String_
+  - `token` - Optional security token required for private projects - _String_
+
+
+- **get_quality_gate_badge** - Get an SVG badge showing the quality gate status for a project
+  - `project` - Project or application key - _Required String_
+  - `branch` - Optional branch key - _String_
+  - `token` - Optional security token required for private projects - _String_
+
 ### Languages
 
 - **list_languages** - List all programming languages supported in this instance

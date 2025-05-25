@@ -89,4 +89,5 @@ public class SchemaToolBuilder {
 
     return new McpSchema.Tool(name, description, new McpSchema.JsonSchema("object", properties, requiredProperties, additionalProperties));
   }
+
 }
