@@ -20,6 +20,7 @@ import javax.annotation.Nullable;
 import org.sonar.mcp.serverapi.components.ComponentsApi;
 import org.sonar.mcp.serverapi.issues.IssuesApi;
 import org.sonar.mcp.serverapi.qualitygates.QualityGatesApi;
+import org.sonar.mcp.serverapi.rules.RulesApi;
 
 public class ServerApi {
 
@@ -41,6 +42,10 @@ public class ServerApi {
 
   public IssuesApi issuesApi() {
     return new IssuesApi(helper, helper.getOrganization());
+  }
+
+  public RulesApi rulesApi() {
+    return new RulesApi(helper, helper.getOrganization());
   }
 
   public boolean isAuthenticationSet() {

@@ -36,6 +36,7 @@ import org.sonar.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonar.mcp.tools.issues.SearchIssuesTool;
 import org.sonar.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonar.mcp.tools.qualitygates.ProjectStatusTool;
+import org.sonar.mcp.tools.rules.ShowRuleTool;
 
 public class SonarMcpServer {
 
@@ -60,7 +61,8 @@ public class SonarMcpServer {
       new ChangeIssueStatusTool(serverApi),
       new SearchMyProjectsTool(serverApi),
       new SearchIssuesTool(serverApi),
-      new ProjectStatusTool(serverApi)
+      new ProjectStatusTool(serverApi),
+      new ShowRuleTool(serverApi)
     );
   }
 
