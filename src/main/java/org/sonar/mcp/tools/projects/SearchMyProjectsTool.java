@@ -67,7 +67,7 @@ public class SearchMyProjectsTool extends Tool {
       stringBuilder.append("\n");
     });
 
-    return stringBuilder.toString();
+    return stringBuilder.toString().trim();
   }
 
 }

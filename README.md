@@ -107,6 +107,8 @@ Alternatively, you can manually create or update your VS Code MCP configurations
 - **change_sonar_issue_status** - Change the status of a Sonar issue to "accept", "falsepositive" or to "reopen" an issue
   - `key` - Issue key - _Required String_
   - `status` - New issue's status - _Required Enum {"accept", "falsepositive", "reopen"}_
+
+
 - **search_sonar_issues_in_projects** - Search for Sonar issues in my organization's projects
   - `projects` - Optional list of Sonar projects - _String[]_
   - `pullRequestId` - Optional Pull Request's identifier - _String_
@@ -117,6 +119,11 @@ Alternatively, you can manually create or update your VS Code MCP configurations
   - `page` - Optional page number - _String_
 
 ### Rules
+
+- **list_rule_repositories** - List rule repositories available in SonarQube
+  - `language` - Optional language key - _String_
+  - `q` - Optional search query - _String_
+
 
 - **show_rule** - Shows detailed information about a SonarQube rule
   - `key` - Rule key - _Required String_

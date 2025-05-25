@@ -17,7 +17,7 @@
 package org.sonar.mcp.tools.rules;
 
 import org.sonar.mcp.serverapi.ServerApi;
-import org.sonar.mcp.serverapi.rules.RulesApi;
+import org.sonar.mcp.serverapi.rules.response.ShowResponse;
 import org.sonar.mcp.tools.SchemaToolBuilder;
 import org.sonar.mcp.tools.Tool;
 
@@ -48,7 +48,7 @@ public class ShowRuleTool extends Tool {
     return Tool.Result.success(buildResponseFromShowResponse(response.rule()));
   }
 
-  private static String buildResponseFromShowResponse(RulesApi.Rule rule) {
+  private static String buildResponseFromShowResponse(ShowResponse.Rule rule) {
     var responseBuilder = new StringBuilder();
     responseBuilder.append("Rule details:\n");
     responseBuilder.append("Key: ").append(rule.key()).append("\n");

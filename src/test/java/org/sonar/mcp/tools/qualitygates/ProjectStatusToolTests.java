@@ -173,8 +173,7 @@ class ProjectStatusToolTests {
           new_sqale_debt_ratio is OK, the threshold is 5 and the actual value is 0.6562109862671661
           reopened_issues is OK, the threshold is null and the actual value is 0
           open_issues is ERROR, the threshold is null and the actual value is 17
-          skipped_tests is OK, the threshold is null and the actual value is 0
-          """, false));
+          skipped_tests is OK, the threshold is null and the actual value is 0""", false));
       assertThat(mockServer.getReceivedRequests())
         .containsExactly(new ReceivedRequest("Bearer token", ""));
     }
@@ -204,8 +203,7 @@ class ProjectStatusToolTests {
           new_sqale_debt_ratio is OK, the threshold is 5 and the actual value is 0.6562109862671661
           reopened_issues is OK, the threshold is null and the actual value is 0
           open_issues is ERROR, the threshold is null and the actual value is 17
-          skipped_tests is OK, the threshold is null and the actual value is 0
-          """, false));
+          skipped_tests is OK, the threshold is null and the actual value is 0""", false));
       assertThat(mockServer.getReceivedRequests())
         .containsExactly(new ReceivedRequest("Bearer token", ""));
     }
@@ -235,8 +233,7 @@ class ProjectStatusToolTests {
           new_sqale_debt_ratio is OK, the threshold is 5 and the actual value is 0.6562109862671661
           reopened_issues is OK, the threshold is null and the actual value is 0
           open_issues is ERROR, the threshold is null and the actual value is 17
-          skipped_tests is OK, the threshold is null and the actual value is 0
-          """, false));
+          skipped_tests is OK, the threshold is null and the actual value is 0""", false));
       assertThat(mockServer.getReceivedRequests())
         .containsExactly(new ReceivedRequest("Bearer token", ""));
     }

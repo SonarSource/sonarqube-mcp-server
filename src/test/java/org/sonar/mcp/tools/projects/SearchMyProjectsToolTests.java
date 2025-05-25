@@ -134,8 +134,7 @@ class SearchMyProjectsToolTests {
         .isEqualTo(new McpSchema.CallToolResult("""
           Found 1 Sonar projects in your organization.
           This response is paginated and this is the page 1 out of 4 total pages. There is a maximum of 100 projects per page.
-          Project key: %s | Project name: %s
-          """.formatted(projectKey, projectName), false));
+          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false));
       assertThat(mockServer.getReceivedRequests()).containsExactly(new ReceivedRequest("Bearer token", ""));
     }
 
@@ -161,8 +160,7 @@ class SearchMyProjectsToolTests {
         .isEqualTo(new McpSchema.CallToolResult("""
           Found 1 Sonar projects in your organization.
           This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 projects per page.
-          Project key: %s | Project name: %s
-          """.formatted(projectKey, projectName), false));
+          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false));
       assertThat(mockServer.getReceivedRequests()).containsExactly(new ReceivedRequest("Bearer token", ""));
     }
   }

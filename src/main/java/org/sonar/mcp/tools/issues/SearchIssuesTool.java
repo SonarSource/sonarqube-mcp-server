@@ -63,7 +63,7 @@ public class SearchIssuesTool extends Tool {
       stringBuilder.append("\n");
     });
 
-    return stringBuilder.toString();
+    return stringBuilder.toString().trim();
   }
 
 }

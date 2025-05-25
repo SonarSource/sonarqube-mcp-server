@@ -127,8 +127,7 @@ class SearchIssuesToolTests {
     assertThat(result)
       .isEqualTo(new McpSchema.CallToolResult("""
         Found 1 issues.
-        Issue key: %s | Rule name: %s | Project name: %s
-        """.formatted(issueKey, ruleName, projectName), false));
+        Issue key: %s | Rule name: %s | Project name: %s""".formatted(issueKey, ruleName, projectName), false));
     assertThat(mockServer.getReceivedRequests())
       .containsExactly(new ReceivedRequest("Bearer token", ""));
   }
@@ -167,8 +166,7 @@ class SearchIssuesToolTests {
     assertThat(result)
       .isEqualTo(new McpSchema.CallToolResult("""
         Found 1 issues.
-        Issue key: %s | Rule name: %s | Project name: %s
-        """.formatted(issueKey, ruleName, projectName), false));
+        Issue key: %s | Rule name: %s | Project name: %s""".formatted(issueKey, ruleName, projectName), false));
     assertThat(mockServer.getReceivedRequests())
       .containsExactly(new ReceivedRequest("Bearer token", ""));
   }
@@ -207,8 +205,7 @@ class SearchIssuesToolTests {
     assertThat(result)
       .isEqualTo(new McpSchema.CallToolResult("""
         Found 1 issues.
-        Issue key: %s | Rule name: %s | Project name: %s
-        """.formatted(issueKey, ruleName, projectName), false));
+        Issue key: %s | Rule name: %s | Project name: %s""".formatted(issueKey, ruleName, projectName), false));
     assertThat(mockServer.getReceivedRequests())
       .containsExactly(new ReceivedRequest("Bearer token", ""));
   }

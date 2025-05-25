@@ -85,6 +85,7 @@ public class ProjectStatusTool extends Tool {
         .append(" and the actual value is ").append(condition.actualValue()).append("\n");
     }
 
-    return stringBuilder.toString();
+    return stringBuilder.toString().trim();
   }
+
 }
