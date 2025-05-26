@@ -45,7 +45,7 @@ public class ToolExecutor {
       result = Tool.Result.failure("An error occurred during the tool execution: " + message);
       logger.error("An error occurred during the tool execution", e);
     }
-    backendService.notifyToolCalled("mcp." + tool.definition().name(), !result.isError());
+    backendService.notifyToolCalled("mcp_" + tool.definition().name(), !result.isError());
     return result.toCallToolResult();
   }
 }

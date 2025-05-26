@@ -119,19 +119,16 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public void startProgress(StartProgressParams params) throws UnsupportedOperationException {
-
     //
   }
 
   @Override
   public void reportProgress(ReportProgressParams params) {
-
     //
   }
 
   @Override
   public void didSynchronizeConfigurationScopes(Set<String> configurationScopeIds) {
-
     //
   }
 
@@ -173,7 +170,7 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public TelemetryClientLiveAttributesResponse getTelemetryLiveAttributes() {
-    return null;
+    return new TelemetryClientLiveAttributesResponse(Map.of());
   }
 
   @Override
