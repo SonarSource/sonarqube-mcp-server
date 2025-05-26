@@ -26,7 +26,6 @@ import java.util.concurrent.CancellationException;
 import org.jetbrains.annotations.Nullable;
 import org.sonar.mcp.log.McpLogger;
 import org.sonarsource.sonarlint.core.rpc.client.ConfigScopeNotFoundException;
-import org.sonarsource.sonarlint.core.rpc.client.ConnectionNotFoundException;
 import org.sonarsource.sonarlint.core.rpc.client.SonarLintCancelChecker;
 import org.sonarsource.sonarlint.core.rpc.client.SonarLintRpcClientDelegate;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.config.binding.BindingSuggestionDto;
@@ -114,7 +113,7 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public AssistBindingResponse assistBinding(AssistBindingParams params, SonarLintCancelChecker cancelChecker) throws CancellationException {
-    return null;
+    return new AssistBindingResponse(null);
   }
 
   @Override
@@ -136,7 +135,7 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
   }
 
   @Override
-  public @Nullable Either<TokenDto, UsernamePasswordDto> getCredentials(String connectionId) throws ConnectionNotFoundException {
+  public @Nullable Either<TokenDto, UsernamePasswordDto> getCredentials(String connectionId) {
     return null;
   }
 
@@ -147,7 +146,7 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public GetProxyPasswordAuthenticationResponse getProxyPasswordAuthentication(String host, int port, String protocol, String prompt, String scheme, URL targetHost) {
-    return null;
+    return new GetProxyPasswordAuthenticationResponse(null, null);
   }
 
   @Override
@@ -173,7 +172,7 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public TelemetryClientLiveAttributesResponse getTelemetryLiveAttributes() {
-    return null;
+    return new TelemetryClientLiveAttributesResponse(Map.of());
   }
 
   @Override
