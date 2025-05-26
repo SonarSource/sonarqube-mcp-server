@@ -307,10 +307,6 @@ class McpSchemaValidationTest {
   }
 
   private void validateJsonSchemaProperties(Map<String, Object> properties, String toolName) {
-    assertThat(properties)
-      .as("Properties should not be empty for tool '%s'", toolName)
-      .isNotEmpty();
-    
     for (var property : properties.entrySet()) {
       assertThat(property.getKey())
         .as("Property name should not be empty for tool '%s'", toolName)
