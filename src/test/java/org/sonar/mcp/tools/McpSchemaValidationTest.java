@@ -78,7 +78,7 @@ class McpSchemaValidationTest {
       .doesNotEndWith("_");
 
     assertThat(tool.definition().name().length())
-      .as("Tool name should not be greater than 126 characters")
+      .as("Tool name should not be greater than 126 characters (telemetry requirement)")
       .isLessThanOrEqualTo(126);
   }
 
@@ -260,26 +260,22 @@ class McpSchemaValidationTest {
       .hasSize(toolNames.size());
   }
 
-  @Test
-  void tool_names_should_be_descriptive() {
-    var allTools = getAllTools();
-    
-    for (var tool : allTools) {
-      var toolName = tool.definition().name();
+  @ParameterizedTest(name = "Tool ''{0}'' should have a descriptive name")
+  @MethodSource("provideTools")
+  void tool_names_should_be_descriptive(Tool tool) {
+    var toolName = tool.definition().name();
 
-      assertThat(toolName.length())
-        .as("Tool name '%s' should be descriptive (at least 3 characters)", toolName)
-        .isGreaterThanOrEqualTo(3);
+    var hasActionWord = toolName.contains("get") || toolName.contains("search") ||
+      toolName.contains("change") || toolName.contains("list") ||
+      toolName.contains("create") || toolName.contains("update") ||
+      toolName.contains("delete") || toolName.contains("show");
 
-      var hasActionWord = toolName.contains("get") || toolName.contains("search") || 
-                         toolName.contains("change") || toolName.contains("list") ||
-                         toolName.contains("create") || toolName.contains("update") ||
-                         toolName.contains("delete") || toolName.contains("show");
-      
-      assertThat(hasActionWord)
-        .as("Tool name '%s' should contain an action word (get, search, change, list, etc.)", toolName)
-        .isTrue();
-    }
+    assertThat(hasActionWord)
+      .as("Tool name '%s' should contain an action word (get, search, change, list, etc.)", toolName)
+      .isTrue();
+    assertThat(toolName.length())
+      .as("Tool name '%s' should be descriptive (at least 3 characters)", toolName)
+      .isGreaterThanOrEqualTo(3);
   }
 
   @Test
