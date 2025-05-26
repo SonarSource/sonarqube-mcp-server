@@ -76,6 +76,10 @@ class McpSchemaValidationTest {
       .as("Tool name should not start or end with underscore")
       .doesNotStartWith("_")
       .doesNotEndWith("_");
+
+    assertThat(tool.definition().name().length())
+      .as("Tool name should not be greater than 116 characters")
+      .isLessThanOrEqualTo(116);
   }
 
   @ParameterizedTest(name = "Tool ''{0}'' should have meaningful description")
