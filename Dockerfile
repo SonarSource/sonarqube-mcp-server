@@ -7,13 +7,13 @@ ARG APP_VERSION=
 
 WORKDIR /app
 
-COPY build/libs/sonar-mcp-server-${APP_VERSION}.jar /app/sonar-mcp-server.jar
+COPY build/libs/sonarqube-mcp-server-${APP_VERSION}.jar /app/sonarqube-mcp-server.jar
 
 RUN jdeps --ignore-missing-deps -q  \
     --recursive  \
     --multi-release 21  \
     --print-module-deps  \
-    /app/sonar-mcp-server.jar > modules.txt
+    /app/sonarqube-mcp-server.jar > modules.txt
 
 RUN "$JAVA_HOME"/bin/jlink \
          --verbose \
@@ -38,7 +38,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
 
 WORKDIR /app
 
-COPY --chown=appuser:appgroup --chmod=755 build/libs/sonar-mcp-server-${APP_VERSION}.jar /app/sonar-mcp-server.jar
+COPY --chown=appuser:appgroup --chmod=755 build/libs/sonarqube-mcp-server-${APP_VERSION}.jar /app/sonarqube-mcp-server.jar
 
 USER appuser
 
@@ -46,4 +46,4 @@ ENV STORAGE_PATH=/data/storage
 ENV SONARQUBE_CLOUD_TOKEN=
 ENV SONARQUBE_CLOUD_ORG=
 
-ENTRYPOINT ["java", "-jar", "/app/sonar-mcp-server.jar"]
+ENTRYPOINT ["java", "-jar", "/app/sonarqube-mcp-server.jar"]

@@ -17,7 +17,7 @@ plugins {
 	alias(libs.plugins.cyclonedx)
 }
 
-group = "org.sonarsource.sonar.mcp.server"
+group = "org.sonarsource.sonarqube.mcp.server"
 
 val omnisharpVersion: String by project
 
@@ -92,14 +92,14 @@ tasks {
 	test {
 		useJUnitPlatform()
 		systemProperty("TELEMETRY_DISABLED", "true")
-		systemProperty("sonar.mcp.server.version", project.version)
+		systemProperty("sonarqube.mcp.server.version", project.version)
 		doNotTrackState("Tests should always run")
 		jvmArgs("-javaagent:${mockitoAgent.asPath}")
 	}
 
 	jar {
 		manifest {
-			attributes["Main-Class"] = "org.sonar.mcp.SonarMcpServer"
+			attributes["Main-Class"] = "org.sonarsource.sonarqube.mcp.SonarQubeMcpServer"
 			attributes["Implementation-Version"] = project.version
 		}
 
@@ -131,7 +131,7 @@ tasks {
 }
 
 application {
-	mainClass = "org.sonar.mcp.SonarMcpServer"
+	mainClass = "org.sonarsource.sonarqube.mcp.SonarQubeMcpServer"
 }
 
 artifactory {
@@ -141,7 +141,7 @@ artifactory {
 	clientConfig.envVarsExcludePatterns = "*password*,*PASSWORD*,*secret*,*MAVEN_CMD_LINE_ARGS*,sun.java.command,*token*,*TOKEN*,*LOGIN*,*login*,*key*,*KEY*,*PASSPHRASE*,*signing*"
 	clientConfig.info.addEnvironmentProperty(
 		"ARTIFACTS_TO_DOWNLOAD",
-		"org.sonarsource.sonar.mcp.server:sonar-mcp-server:jar,org.sonarsource.sonar.mcp.server:sonar-mcp-server:json:cyclonedx"
+		"org.sonarsource.sonarqube.mcp.server:sonarqube-mcp-server:jar,org.sonarsource.sonarqube.mcp.server:sonarqube-mcp-server:json:cyclonedx"
 	)
 	setContextUrl(System.getenv("ARTIFACTORY_URL"))
 	publish {
@@ -170,7 +170,7 @@ sonar {
 	properties {
 		property("sonar.organization", "sonarsource")
 		property("sonar.projectKey", "SonarSource_sonar-mcp-server")
-		property("sonar.projectName", "Sonar MCP Server")
+		property("sonar.projectName", "SonarQube MCP Server")
 		property("sonar.links.ci", "https://cirrus-ci.com/github/SonarSource/sonar-mcp-server")
 		property("sonar.links.scm", "https://github.com/SonarSource/sonar-mcp-server")
 		property("sonar.links.issue", "https://jira.sonarsource.com/browse/SLCORE")

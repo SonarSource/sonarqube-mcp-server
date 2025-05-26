@@ -1,4 +1,4 @@
-rootProject.name = "sonar-mcp-server"
+rootProject.name = "sonarqube-mcp-server"
 
 plugins {
     id("com.gradle.develocity") version "3.18.2"
