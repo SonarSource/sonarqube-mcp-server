@@ -104,6 +104,11 @@ Alternatively, you can manually create or update your VS Code MCP configurations
   - `projects` - Optional list of Sonar projects - _String[]_
   - `pullRequestId` - Optional Pull Request's identifier - _String_
 
+### Projects
+
+- **search_my_sonarqube_cloud_projects** - Find Sonar projects in my organization
+  - `page` - Optional page number - _String_
+
 ### Quality Gates
 
 - **get_quality_gate_status_for_project** - Get the Quality Gate Status for the project
@@ -115,11 +120,6 @@ Alternatively, you can manually create or update your VS Code MCP configurations
 
 
 - **list_quality_gates** - List all quality gates in the organization
-
-### Projects
-
-- **search_my_sonarqube_cloud_projects** - Find Sonar projects in my organization
-  - `page` - Optional page number - _String_
 
 ### Rules
 
