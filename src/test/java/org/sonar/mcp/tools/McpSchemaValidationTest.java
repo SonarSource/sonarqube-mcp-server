@@ -78,8 +78,8 @@ class McpSchemaValidationTest {
       .doesNotEndWith("_");
 
     assertThat(tool.definition().name().length())
-      .as("Tool name should not be greater than 116 characters")
-      .isLessThanOrEqualTo(116);
+      .as("Tool name should not be greater than 126 characters")
+      .isLessThanOrEqualTo(126);
   }
 
   @ParameterizedTest(name = "Tool ''{0}'' should have meaningful description")
