@@ -2,7 +2,7 @@
 <!DOCTYPE configuration>
 
 <configuration>
-  <root level="warn"/>
+  <root level="trace"/>
   <logger name="org.springframework" level="warn"/>
   <logger name="org.sonarsource.sonarlint.core.plugin.commons.container.PriorityBeanFactory" level="warn"/>
   <logger name="nl.altindag.ssl" level="warn"/>

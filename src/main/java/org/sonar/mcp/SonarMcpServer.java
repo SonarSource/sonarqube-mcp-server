@@ -79,6 +79,7 @@ public class SonarMcpServer {
       .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
       .build();
     LOG.setOutput(syncServer);
+    backendService.initialize();
     Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(syncServer, backendService)));
   }
 

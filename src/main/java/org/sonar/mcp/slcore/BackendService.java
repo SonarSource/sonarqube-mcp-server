@@ -30,7 +30,10 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.sonar.mcp.configuration.McpServerLaunchConfiguration;
+import org.sonar.mcp.log.McpClientLogbackAppender;
 import org.sonar.mcp.log.McpLogger;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.impl.BackendJsonRpcLauncher;
@@ -73,7 +76,6 @@ public class BackendService {
     this.userAgent = mcpConfiguration.getUserAgent();
     this.appName = mcpConfiguration.getAppName();
     this.isTelemetryEnabled = mcpConfiguration.isTelemetryEnabled();
-    initBackendService();
   }
 
   // For tests
@@ -83,18 +85,11 @@ public class BackendService {
     this.appVersion = appVersion;
     this.userAgent = appName + " " + appVersion;
     this.appName = appName;
-    initBackendService();
-  }
-
-  private void initBackendService() {
-    createServiceStartingTask();
   }
 
   public CompletableFuture<AnalyzeFilesResponse> analyzeFilesAndTrack(UUID analysisId, List<URI> filesToAnalyze, Long startTime) {
-    return backendFuture.thenComposeAsync(server ->
-      server.getAnalysisService().analyzeFilesAndTrack(
-        new AnalyzeFilesAndTrackParams(PROJECT_ID, analysisId, filesToAnalyze, Map.of(), false, startTime)
-      ));
+    return backendFuture.thenComposeAsync(server -> server.getAnalysisService().analyzeFilesAndTrack(
+      new AnalyzeFilesAndTrackParams(PROJECT_ID, analysisId, filesToAnalyze, Map.of(), false, startTime)));
   }
 
   public void addFile(ClientFileDto clientFileDto) {
@@ -120,7 +115,7 @@ public class BackendService {
     return Paths.get(System.getProperty("user.home")).resolve(".sonarlint");
   }
 
-  private void createServiceStartingTask() {
+  public void initialize() {
     try {
       LOG.info("Starting backend service");
       if (clientLauncher == null) {
@@ -129,6 +124,11 @@ public class BackendService {
         var serverToClientOutputStream = new PipedOutputStream();
         var serverToClientInputStream = new PipedInputStream(serverToClientOutputStream);
         new BackendJsonRpcLauncher(clientToServerInputStream, serverToClientOutputStream);
+        var rootLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        rootLogger.detachAndStopAllAppenders();
+        var rpcAppender = new McpClientLogbackAppender();
+        rpcAppender.start();
+        rootLogger.addAppender(rpcAppender);
         clientLauncher = new ClientJsonRpcLauncher(serverToClientInputStream, clientToServerOutputStream, new McpSonarLintRpcClient());
       }
       var backend = clientLauncher.getServerProxy();
@@ -153,8 +153,7 @@ public class BackendService {
       new InitializeParams(
         new ClientConstantInfoDto(
           appName,
-          userAgent
-        ),
+          userAgent),
         new TelemetryClientConstantAttributesDto("mcpserver", appName, appVersion, "MCP", emptyMap()),
         new HttpConfigurationDto(
           new SslConfigurationDto(null, null, null, null, null, null),
@@ -175,9 +174,7 @@ public class BackendService {
         false,
         new LanguageSpecificRequirements(null, null),
         false,
-        null
-      )
-    );
+        null));
   }
 
   private Path getStoragePath() {
@@ -188,8 +185,7 @@ public class BackendService {
     backendFuture.thenAcceptAsync(server -> server
       .getConfigurationService()
       .didAddConfigurationScopes(new DidAddConfigurationScopesParams(
-        List.of(new ConfigurationScopeDto(PROJECT_ID, null, false, PROJECT_ID, null))
-      )));
+        List.of(new ConfigurationScopeDto(PROJECT_ID, null, false, PROJECT_ID, null)))));
   }
 
   public void shutdown() {

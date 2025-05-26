@@ -39,8 +39,7 @@ import org.sonar.mcp.SonarMcpServer;
 public class SonarMcpServerTestHarness extends TypeBasedParameterResolver<SonarMcpServerTestHarness> implements BeforeAllCallback, AfterEachCallback, AfterAllCallback {
   private static final Map<String, String> DEFAULT_ENV = Map.of(
     "STORAGE_PATH", "",
-    "SONARQUBE_CLOUD_URL", "fake.url"
-  );
+    "SONARQUBE_CLOUD_URL", "fake.url");
   private boolean isStatic;
   private final List<McpSyncClient> clients = new ArrayList<>();
 
@@ -88,7 +87,7 @@ public class SonarMcpServerTestHarness extends TypeBasedParameterResolver<SonarM
       environment.putAll(overriddenEnv);
       new SonarMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream), environment).start();
       client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream))
-        .loggingConsumer(System.out::println).build();
+        .loggingConsumer(SonarMcpServerTestHarness::printLogs).build();
       client.initialize();
       client.setLoggingLevel(McpSchema.LoggingLevel.CRITICAL);
     } catch (IOException e) {
@@ -96,5 +95,9 @@ public class SonarMcpServerTestHarness extends TypeBasedParameterResolver<SonarM
     }
     this.clients.add(client);
     return client;
+  }
+
+  private static void printLogs(McpSchema.LoggingMessageNotification notification) {
+    // do nothing by default to avoid too verbose tests
   }
 }

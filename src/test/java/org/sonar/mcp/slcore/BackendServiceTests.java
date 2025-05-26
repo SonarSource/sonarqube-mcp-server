@@ -56,6 +56,7 @@ class BackendServiceTests {
     when(jsonRpcLauncher.getServerProxy()).thenReturn(backend);
     service = new BackendService(jsonRpcLauncher, storagePath.toString(), System.getProperty("sonar.mcp.server.version"),
       "Sonar MCP Server Tests");
+    service.initialize();
   }
 
   @Test
