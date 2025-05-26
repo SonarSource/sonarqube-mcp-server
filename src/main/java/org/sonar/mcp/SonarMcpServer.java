@@ -67,8 +67,7 @@ public class SonarMcpServer {
       new ProjectStatusTool(serverApi),
       new ShowRuleTool(serverApi),
       new ListRuleRepositoriesTool(serverApi),
-      new ListQualityGatesTool(serverApi)
-      new ProjectStatusTool(serverApi),
+      new ListQualityGatesTool(serverApi),
       new ListLanguagesTool(serverApi)
     );
   }
