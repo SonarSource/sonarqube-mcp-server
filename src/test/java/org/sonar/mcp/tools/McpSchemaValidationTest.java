@@ -76,10 +76,14 @@ class McpSchemaValidationTest {
       .as("Tool name should not start or end with underscore")
       .doesNotStartWith("_")
       .doesNotEndWith("_");
+  }
 
-    assertThat(tool.definition().name().length())
-      .as("Tool name should not be greater than 126 characters (telemetry requirement)")
-      .isLessThanOrEqualTo(126);
+  @ParameterizedTest(name = "Tool ''{0}'' should follow MCP naming convention")
+  @MethodSource("provideTools")
+  void tool_name_should_follow_telemetry_requirements(Tool tool) {
+    assertThat(tool.definition().name())
+      .as("Tool name should match the required regex pattern")
+      .matches("^[a-z_][a-z0-9_]{1,126}$");
   }
 
   @ParameterizedTest(name = "Tool ''{0}'' should have meaningful description")
@@ -207,8 +211,7 @@ class McpSchemaValidationTest {
               assertThat(enumArray)
                 .as("Enum property '%s' in tool '%s' should have at least one value", property.getKey(), schema.name())
                 .isNotEmpty();
-              
-              // Validate enum values are strings (common case)
+
               for (var enumValue : enumArray) {
                 assertThat(enumValue)
                   .as("Enum value in property '%s' for tool '%s' should not be null", property.getKey(), schema.name())
