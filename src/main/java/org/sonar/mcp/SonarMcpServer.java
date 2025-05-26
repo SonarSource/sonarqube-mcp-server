@@ -72,6 +72,8 @@ public class SonarMcpServer {
       new ListRuleRepositoriesTool(serverApi),
       new ListQualityGatesTool(serverApi),
       new ListLanguagesTool(serverApi),
+      new GetAiCodeAssuranceBadgeTool(serverApi),
+      new GetProjectMeasureBadgeTool(serverApi),
       new GetQualityGateBadgeTool(serverApi)
     );
   }
