@@ -127,7 +127,7 @@ class SearchIssuesToolTests {
     assertThat(result)
       .isEqualTo(new McpSchema.CallToolResult("""
         Found 1 issues.
-        Issue key: %s | Rule: %s | Project: %s | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+        Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
         """.formatted(issueKey, ruleName, projectName).trim(), false));
     assertThat(mockServer.getReceivedRequests())
       .containsExactly(new ReceivedRequest("Bearer token", ""));
@@ -167,14 +167,14 @@ class SearchIssuesToolTests {
     assertThat(result)
       .isEqualTo(new McpSchema.CallToolResult("""
         Found 1 issues.
-        Issue key: %s | Rule: %s | Project: %s | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+        Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
         """.formatted(issueKey, ruleName, projectName).trim(), false));
     assertThat(mockServer.getReceivedRequests())
       .containsExactly(new ReceivedRequest("Bearer token", ""));
   }
 
   @SonarQubeMcpServerTest
-  void it_should_return_issues_from_a_pull_request(SonarQubeMcpServerTestHarness harness) {
+  void it_should_return_issues_and_files_from_a_pull_request(SonarQubeMcpServerTestHarness harness) {
     var issueKey = "issueKey1";
     var ruleName = "ruleName1";
     var projectName = "projectName1";
@@ -188,7 +188,23 @@ class SearchIssuesToolTests {
                 "total": 1
               },
               "issues": [%s],
-              "components": [],
+              "components": [
+                  {
+                    "key": "com.github.kevinsawicki:http-request:src/main/java/com/github/kevinsawicki/http/HttpRequest.java",
+                    "enabled": true,
+                    "qualifier": "FIL",
+                    "name": "HttpRequest.java",
+                    "longName": "src/main/java/com/github/kevinsawicki/http/HttpRequest.java",
+                    "path": "src/main/java/com/github/kevinsawicki/http/HttpRequest.java"
+                  },
+                  {
+                    "key": "com.github.kevinsawicki:http-request",
+                    "enabled": true,
+                    "qualifier": "TRK",
+                    "name": "http-request",
+                    "longName": "http-request"
+                  }
+              ],
               "rules": [],
               "users": []
             }
@@ -207,7 +223,7 @@ class SearchIssuesToolTests {
     assertThat(result)
       .isEqualTo(new McpSchema.CallToolResult("""
         Found 1 issues.
-        Issue key: %s | Rule: %s | Project: %s | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+        Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
         """.formatted(issueKey, ruleName, projectName).trim(), false));
     assertThat(mockServer.getReceivedRequests())
       .containsExactly(new ReceivedRequest("Bearer token", ""));

@@ -62,11 +62,13 @@ public class SearchIssuesTool extends Tool {
       stringBuilder.append("Issue key: ").append(issue.key())
         .append(" | Rule: ").append(issue.rule())
         .append(" | Project: ").append(issue.project())
+        .append(" | Component: ").append(issue.component())
         .append(" | Severity: ").append(issue.severity())
         .append(" | Status: ").append(issue.status())
         .append(" | Message: ").append(issue.message())
         .append(" | Attribute: ").append(issue.cleanCodeAttribute())
-        .append(" | Category: ").append(issue.cleanCodeAttributeCategory());
+        .append(" | Category: ").append(issue.cleanCodeAttributeCategory())
+        .append(" | Author: ").append(issue.author());
       var textRange = issue.textRange();
       if (textRange != null) {
         stringBuilder
