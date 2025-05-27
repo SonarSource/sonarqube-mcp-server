@@ -17,9 +17,9 @@
 package org.sonarsource.sonarqube.mcp.serverapi.components;
 
 import com.google.gson.Gson;
-import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
+import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 
 public class ComponentsApi {
 
@@ -41,15 +41,6 @@ public class ComponentsApi {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }
-  }
-
-  public record SearchResponse(Paging paging, List<Component> components) {
-  }
-
-  public record Paging(Integer pageIndex, Integer pageSize, Integer total) {
-  }
-
-  public record Component(String organization, String key, String qualifier, String name, String project) {
   }
 
 }

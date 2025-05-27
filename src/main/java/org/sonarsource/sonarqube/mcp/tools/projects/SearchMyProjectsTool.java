@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.projects;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
-import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
@@ -48,7 +48,7 @@ public class SearchMyProjectsTool extends Tool {
     return Tool.Result.success(buildResponseFromAllProjectsResponse(projects));
   }
 
-  private static String buildResponseFromAllProjectsResponse(ComponentsApi.SearchResponse response) {
+  private static String buildResponseFromAllProjectsResponse(SearchResponse response) {
     var stringBuilder = new StringBuilder();
     var projects = response.components();
 

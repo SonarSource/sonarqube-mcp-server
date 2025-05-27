@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
-import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
@@ -48,7 +48,7 @@ public class SearchIssuesTool extends Tool {
     return Tool.Result.success(buildResponseFromSearchResponse(response.issues()));
   }
 
-  private static String buildResponseFromSearchResponse(List<IssuesApi.Issue> issues) {
+  private static String buildResponseFromSearchResponse(List<SearchResponse.Issue> issues) {
     var stringBuilder = new StringBuilder();
 
     if (issues.isEmpty()) {
@@ -58,10 +58,26 @@ public class SearchIssuesTool extends Tool {
 
     stringBuilder.append("Found ").append(issues.size()).append(" issues.\n");
 
-    issues.forEach(p -> {
-      stringBuilder.append("Issue key: ").append(p.key()).append(" | Rule name: ").append(p.rule()).append(" | Project name: ").append(p.project());
+    for (var issue : issues) {
+      stringBuilder.append("Issue key: ").append(issue.key())
+        .append(" | Rule: ").append(issue.rule())
+        .append(" | Project: ").append(issue.project())
+        .append(" | Severity: ").append(issue.severity())
+        .append(" | Status: ").append(issue.status())
+        .append(" | Message: ").append(issue.message())
+        .append(" | Attribute: ").append(issue.cleanCodeAttribute())
+        .append(" | Category: ").append(issue.cleanCodeAttributeCategory());
+      var textRange = issue.textRange();
+      if (textRange != null) {
+        stringBuilder
+          .append(" | Start Line: ").append(issue.textRange().startLine())
+          .append(" | End Line: ").append(issue.textRange().endLine());
+      }
+      if (issue.creationDate() != null) {
+        stringBuilder.append(" | Created: ").append(issue.creationDate());
+      }
       stringBuilder.append("\n");
-    });
+    }
 
     return stringBuilder.toString().trim();
   }
