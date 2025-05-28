@@ -137,6 +137,7 @@ tasks {
 		description = "Builds the Docker image with the current project version"
 
 		commandLine("docker", "build", "-t", "$appName:$appVersion", "--build-arg", "APP_VERSION=$appVersion", ".")
+		dependsOn("build")
 	}
 
 	register("preparePlugins") {

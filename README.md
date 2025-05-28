@@ -42,7 +42,7 @@ The JAR file will be created in `build/libs/`.
 To create the Docker image, run the `buildDocker` task:
 
 ```bash
-./gradlew clean build buildDocker -x test
+./gradlew clean buildDocker -x test
 ```
 
 ### Usage
