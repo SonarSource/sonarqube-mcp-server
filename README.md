@@ -24,7 +24,7 @@ To enable full functionality, the following environment variables must be set be
 * `SONARQUBE_CLOUD_ORG`: Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations).
 * `STORAGE_PATH`: An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence).
   * *This variable is not required when running within a Docker container.*
-* `PLUGINS_PATH`: An absolute path to a folder containing the SonarQube analyzers.
+* `PLUGINS_PATH`: An optional absolute path to a folder containing the SonarQube analyzers. If none is provided, analysis is disabled.
   * *This variable is not required when running within a Docker container.*
 
 ## Installation
