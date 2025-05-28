@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.slcore;
 
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,11 @@ import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalysisRpcService;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesAndTrackParams;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.file.DidUpdateFileSystemParams;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.file.FileRpcService;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.telemetry.TelemetryRpcService;
+import org.sonarsource.sonarlint.core.rpc.protocol.client.telemetry.ToolCalledParams;
+import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,17 +50,23 @@ class BackendServiceTests {
 
   private BackendService service;
   private AnalysisRpcService analysisRpcService;
+  private TelemetryRpcService telemetryRpcService;
+  private FileRpcService fileRpcService;
 
   @BeforeEach
   void init() {
     var backend = mock(SonarLintRpcServer.class);
     when(backend.initialize(any())).thenReturn(CompletableFuture.completedFuture(null));
     analysisRpcService = mock(AnalysisRpcService.class);
+    telemetryRpcService = mock(TelemetryRpcService.class);
+    fileRpcService = mock(FileRpcService.class);
     when(backend.getAnalysisService()).thenReturn(analysisRpcService);
+    when(backend.getTelemetryService()).thenReturn(telemetryRpcService);
+    when(backend.getFileService()).thenReturn(fileRpcService);
 
     var jsonRpcLauncher = mock(ClientJsonRpcLauncher.class);
     when(jsonRpcLauncher.getServerProxy()).thenReturn(backend);
-    service = new BackendService(jsonRpcLauncher, storagePath.toString(), "build/plugins", System.getProperty("sonarqube.mcp.server.version"),
+    service = new BackendService(jsonRpcLauncher, storagePath.toString(), null, System.getProperty("sonarqube.mcp.server.version"),
       "SonarQube MCP Server Tests");
     service.initialize();
   }
@@ -75,6 +87,50 @@ class BackendServiceTests {
       "extraProperties",
       "shouldFetchServerIssues"
     ).containsExactly(BackendService.PROJECT_ID, analysisId, List.of(), Map.of(), false);
+  }
+
+  @Test
+  void should_notify_tool_called() {
+    var toolName = "tool_name";
+
+    service.notifyToolCalled(toolName, true);
+
+    var captor = ArgumentCaptor.forClass(ToolCalledParams.class);
+    verify(telemetryRpcService, timeout(1000)).toolCalled(captor.capture());
+    assertThat(captor.getValue()).extracting(
+      "toolName",
+      "succeeded"
+    ).containsExactly(toolName, true);
+  }
+
+  @Test
+  void should_remove_file() {
+    var file = URI.create("file:///path/to/file.java");
+
+    service.removeFile(file);
+
+    var captor = ArgumentCaptor.forClass(DidUpdateFileSystemParams.class);
+    verify(fileRpcService, timeout(1000)).didUpdateFileSystem(captor.capture());
+    assertThat(captor.getValue()).extracting(
+      "addedFiles",
+      "changedFiles",
+      "removedFiles"
+    ).containsExactly(List.of(), List.of(), List.of(file));
+  }
+
+  @Test
+  void should_add_file() {
+    var clientFileDto = mock(ClientFileDto.class);
+
+    service.addFile(clientFileDto);
+
+    var captor = ArgumentCaptor.forClass(DidUpdateFileSystemParams.class);
+    verify(fileRpcService, timeout(1000)).didUpdateFileSystem(captor.capture());
+    assertThat(captor.getValue()).extracting(
+      "addedFiles",
+      "changedFiles",
+      "removedFiles"
+    ).containsExactly(List.of(clientFileDto), List.of(), List.of());
   }
 
 }
