@@ -7,7 +7,17 @@ license-plugin = "0.16.1"
 artifactory-plugin = "5.2.5"
 cyclonedx-plugin = "1.10.0"
 
-sonar-php = "3.27.1.9352"
+sonar-java = "8.13.0.38826"
+sonar-javascript = "10.22.0.32148"
+sonar-php = "3.45.0.12991"
+sonar-python = "5.3.0.21704"
+sonar-kotlin = "3.1.0.7071"
+sonar-ruby = "1.18.1.375"
+sonar-go = "1.21.1.1670"
+sonar-html = "3.19.0.5695"
+sonar-xml = "2.13.0.5938"
+sonar-text = "2.22.0.5855"
+sonar-iac = "1.45.0.14930"
 
 mcp-server = "0.9.0"
 commons-lang3 = "3.17.0"
@@ -27,7 +37,18 @@ sonarlint-java-client-utils = { module = "org.sonarsource.sonarlint.core:sonarli
 sonarlint-rpc-java-client = { module = "org.sonarsource.sonarlint.core:sonarlint-rpc-java-client", version.ref = "sonarlint-core" }
 sonarlint-rpc-impl = { module = "org.sonarsource.sonarlint.core:sonarlint-rpc-impl", version.ref = "sonarlint-core" }
 
+sonar-java-symbolic-execution = { module = "org.sonarsource.java:sonar-java-symbolic-execution-plugin", version.ref = "sonar-java" }
+sonar-java = { module = "org.sonarsource.java:sonar-java-plugin", version.ref = "sonar-java" }
+sonar-javascript = { module = "org.sonarsource.javascript:sonar-javascript-plugin", version.ref = "sonar-javascript" }
 sonar-php = { module = "org.sonarsource.php:sonar-php-plugin", version.ref = "sonar-php" }
+sonar-python = { module = "org.sonarsource.python:sonar-python-plugin", version.ref = "sonar-python" }
+sonar-kotlin = { module = "org.sonarsource.kotlin:sonar-kotlin-plugin", version.ref = "sonar-kotlin" }
+sonar-ruby = { module = "org.sonarsource.slang:sonar-ruby-plugin", version.ref = "sonar-ruby" }
+sonar-html = { module = "org.sonarsource.html:sonar-html-plugin", version.ref = "sonar-html" }
+sonar-xml = { module = "org.sonarsource.xml:sonar-xml-plugin", version.ref = "sonar-xml" }
+sonar-text = { module = "org.sonarsource.text:sonar-text-plugin", version.ref = "sonar-text" }
+sonar-go = { module = "org.sonarsource.go:sonar-go-plugin", version.ref = "sonar-go" }
+sonar-iac = { module = "org.sonarsource.iac:sonar-iac-plugin", version.ref = "sonar-iac" }
 
 mcp-server = { module = "io.modelcontextprotocol.sdk:mcp", version.ref = "mcp-server" }
 commons-langs3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
@@ -42,6 +63,9 @@ mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
 wiremock = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
+
+[bundles]
+sonar-analyzers = ["sonar-java", "sonar-java-symbolic-execution", "sonar-javascript", "sonar-php", "sonar-python", "sonar-kotlin", "sonar-ruby", "sonar-html", "sonar-xml", "sonar-text", "sonar-go", "sonar-iac"]
 
 [plugins]
 license = { id = "com.github.hierynomus.license", version.ref = "license-plugin" }

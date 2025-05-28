@@ -5,6 +5,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=SonarSource_sonar-mcp-server&metric=alert_status&token=364a508a1e77096460f8571d8e66b41c99c95bea)](https://sonarcloud.io/summary/new_code?id=SonarSource_sonarqube-mcp-server)
 
 The SonarQube MCP Server is a Model Context Protocol (MCP) server that provides seamless integration with SonarQube Server or Cloud.
+It also enables the analysis of code snippet directly within the agent context.
 
 ## Prerequisites
 
@@ -15,22 +16,33 @@ SonarQube MCP Server can be launched in two ways:
 * **Directly from the JAR**
   * **Requires:** Java Development Kit (JDK) version 21 or later.
 
+### Configuration
+
+To enable full functionality, the following environment variables must be set before starting the server:
+
+* `SONARQUBE_CLOUD_TOKEN`: Your SonarQube Cloud **USER** [token](https://sonarcloud.io/account/security).
+* `SONARQUBE_CLOUD_ORG`: Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations).
+* `STORAGE_PATH`: An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence).
+  * *This variable is not required when running within a Docker container.*
+* `PLUGINS_PATH`: An absolute path to a folder containing the SonarQube analyzers.
+  * *This variable is not required when running within a Docker container.*
+
 ## Installation
 
 ### Building
 
-Run the following Gradle command to clean the project and build the application:
+Run the following Gradle command to clean the project, download analyzers, and build the application:
 
 ```bash
-./gradlew clean build -x test
+./gradlew clean preparePlugins build -x test
 ```
 
 The JAR file will be created in `build/libs/`.
 
-To create the Docker image:
+To create the Docker image, run the `buildDocker` task:
 
 ```bash
-./gradlew clean build buildDocker -x test
+./gradlew clean preparePlugins build buildDocker -x test
 ```
 
 ### Usage
@@ -81,6 +93,7 @@ Alternatively, you can manually copy and paste the MCP configurations. Below are
       "STORAGE_PATH": "<path_to_your_mcp_storage>",
       "SONARQUBE_TOKEN": "<token>",
       "SONARQUBE_ORG": "<org>"
+      "PLUGINS_PATH": "<path_to_your_sonar_analyzers>",
     }
   }
 }
@@ -116,6 +129,12 @@ On top of the previous SonarQube environments, you should add the following vari
 
 ## Tools
 
+### Analysis
+
+- **analyze_code_snippet_with_sonarqube** - Analyze a code snippet with SonarQube analyzers to find SonarQube issues in it.
+  - `codeSnippet` - Code snippet or full file content - _Required String_
+  - `language` - Optional language of the code snippet - _String_
+
 ### Languages
 
 - **list_languages** - List all programming languages supported in this instance
@@ -123,12 +142,12 @@ On top of the previous SonarQube environments, you should add the following vari
 
 ### Issues
 
-- **change_sonar_issue_status** - Change the status of a Sonar issue to "accept", "falsepositive" or to "reopen" an issue
+- **change_sonar_issue_status** - Change the status of a SonarQube issue to "accept", "falsepositive" or to "reopen" an issue
   - `key` - Issue key - _Required String_
   - `status` - New issue's status - _Required Enum {"accept", "falsepositive", "reopen"}_
 
 
-- **search_sonar_issues_in_projects** - Search for Sonar issues in my organization's projects
+- **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects
   - `projects` - Optional list of Sonar projects - _String[]_
   - `pullRequestId` - Optional Pull Request's identifier - _String_
 

@@ -79,7 +79,7 @@ public class AnalysisToolTests {
           Complete the task associated to this "TODO" comment.
           Rule key: php:S1135
           Severity: INFO
-          Clean Code attribute: CONVENTIONAL
+          Clean Code attribute: COMPLETE
           Impacts: {MAINTAINABILITY=INFO}
           Description: Complete the task associated to this "TODO" comment.
           Quick fixes available: No

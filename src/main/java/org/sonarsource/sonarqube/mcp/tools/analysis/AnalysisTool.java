@@ -35,7 +35,7 @@ import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.mapSonarLangu
 
 public class AnalysisTool extends Tool {
 
-  public static final String TOOL_NAME = "analyze_code_snippet_with_sonar";
+  public static final String TOOL_NAME = "analyze_code_snippet_with_sonarqube";
   public static final String SNIPPET_PROPERTY = "codeSnippet";
   public static final String LANGUAGE_PROPERTY = "language";
 
@@ -44,7 +44,7 @@ public class AnalysisTool extends Tool {
   public AnalysisTool(BackendService backendService) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("Analyze a code snippet with Sonar analyzers, and find Sonar issues in it.")
+      .setDescription("Analyze a code snippet with Sonar analyzers to find Sonar issues in it.")
       .addRequiredStringProperty(SNIPPET_PROPERTY, "Code snippet or full file content")
       .addStringProperty(LANGUAGE_PROPERTY, "Language of the code snippet")
       .build());

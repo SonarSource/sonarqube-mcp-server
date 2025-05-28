@@ -20,8 +20,6 @@ plugins {
 
 group = "org.sonarsource.sonarqube.mcp.server"
 
-val omnisharpVersion: String by project
-
 // The environment variables ARTIFACTORY_PRIVATE_USERNAME and ARTIFACTORY_PRIVATE_PASSWORD are used on CI env
 // On local box, please add artifactoryUsername and artifactoryPassword to ~/.gradle/gradle.properties
 val artifactoryUsername = System.getenv("ARTIFACTORY_PRIVATE_USERNAME")
@@ -69,7 +67,14 @@ license {
 }
 
 val mockitoAgent = configurations.create("mockitoAgent")
-val sonarPhpPlugin: Configuration by configurations.creating
+
+configurations {
+	val sqplugins = create("sqplugins") { isTransitive = false }
+	create("sqplugins_deps") {
+		extendsFrom(sqplugins)
+		isTransitive = true
+	}
+}
 
 dependencies {
 	implementation(libs.mcp.server)
@@ -87,7 +92,7 @@ dependencies {
 	testImplementation(libs.awaitility)
 	testImplementation(libs.wiremock)
 	testRuntimeOnly(libs.junit.launcher)
-	sonarPhpPlugin(libs.sonar.php)
+	"sqplugins"(libs.bundles.sonar.analyzers)
 	mockitoAgent(libs.mockito.core) { isTransitive = false }
 }
 
@@ -132,14 +137,86 @@ tasks {
 		commandLine("docker", "build", "-t", "$appName:$appVersion", "--build-arg", "APP_VERSION=$appVersion", ".")
 	}
 
-	register<Copy>("copySonarPhpPlugin") {
-		from(sonarPhpPlugin)
-		into("$buildDir/plugins")
+	register("preparePlugins") {
+		val destinationDir = file(layout.buildDirectory)
+		description = "Prepare SonarQube plugins"
+		group = "build"
+
+		doLast {
+			val pluginName = "sonarqube-mcp-server"
+			copyPlugins(destinationDir, pluginName)
+			unzipEslintBridgeBundle(destinationDir, pluginName)
+		}
 	}
 
-	named("test") {
-		dependsOn("copySonarPhpPlugin")
+	register<Copy>("copyPluginResources") {
+		dependsOn("preparePlugins")
+		description = "Copy SonarQube plugins"
+		group = "build"
+
+		val pluginName = "sonarqube-mcp-server"
+		val fromDir = layout.buildDirectory.dir(pluginName)
+
+		from(fromDir) {
+			include("**/plugins/**", "**/omnisharp/**")
+			eachFile {
+				path = path.removePrefix("$pluginName/")
+			}
+		}
+
+		into("$buildDir/generated-resources/plugins")
 	}
+}
+
+fun copyPlugins(destinationDir: File, pluginName: String) {
+	copy {
+		from(project.configurations["sqplugins"])
+		into(file("$destinationDir/$pluginName/plugins"))
+	}
+}
+
+fun unzipEslintBridgeBundle(destinationDir: File, pluginName: String) {
+	val pluginsDir = File("$destinationDir/$pluginName/plugins")
+	val jarPath = pluginsDir.listFiles()?.find {
+		it.name.startsWith("sonar-javascript-plugin-") && it.name.endsWith(".jar")
+	} ?: throw GradleException("sonar-javascript-plugin-* JAR not found in $destinationDir")
+
+	val zipFile = ZipFile(jarPath)
+	val entry = zipFile.entries().asSequence().find { it.name.matches(Regex("sonarjs-.*\\.tgz")) }
+		?: throw GradleException("eslint bridge server bundle not found in JAR $jarPath")
+
+
+	val outputFolderPath = Paths.get("$pluginsDir/eslint-bridge")
+	val outputFilePath = outputFolderPath.resolve(entry.name)
+
+	if (!Files.exists(outputFolderPath)) {
+		Files.createDirectory(outputFolderPath)
+	}
+
+	zipFile.getInputStream(entry).use { input ->
+		FileOutputStream(outputFilePath.toFile()).use { output ->
+			input.copyTo(output)
+		}
+	}
+
+	GzipCompressorInputStream(FileInputStream(outputFilePath.toFile())).use { gzipInput ->
+		TarArchiveInputStream(gzipInput).use { tarInput ->
+			var tarEntry: ArchiveEntry?
+			while (tarInput.nextEntry.also { tarEntry = it } != null) {
+				val outputFile = outputFolderPath.resolve(tarEntry!!.name).toFile()
+				if (tarEntry!!.isDirectory) {
+					outputFile.mkdirs()
+				} else {
+					outputFile.parentFile.mkdirs()
+					FileOutputStream(outputFile).use { output ->
+						tarInput.copyTo(output)
+					}
+				}
+			}
+		}
+	}
+
+	Files.delete(outputFilePath)
 }
 
 application {
