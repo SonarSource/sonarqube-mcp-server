@@ -148,24 +148,6 @@ tasks {
 			unzipEslintBridgeBundle(destinationDir, pluginName)
 		}
 	}
-
-	register<Copy>("copyPluginResources") {
-		dependsOn("preparePlugins")
-		description = "Copy SonarQube plugins"
-		group = "build"
-
-		val pluginName = "sonarqube-mcp-server"
-		val fromDir = layout.buildDirectory.dir(pluginName)
-
-		from(fromDir) {
-			include("**/plugins/**", "**/omnisharp/**")
-			eachFile {
-				path = path.removePrefix("$pluginName/")
-			}
-		}
-
-		into("$buildDir/generated-resources/plugins")
-	}
 }
 
 fun copyPlugins(destinationDir: File, pluginName: String) {
