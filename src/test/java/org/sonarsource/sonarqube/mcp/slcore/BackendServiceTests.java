@@ -54,7 +54,7 @@ class BackendServiceTests {
 
     var jsonRpcLauncher = mock(ClientJsonRpcLauncher.class);
     when(jsonRpcLauncher.getServerProxy()).thenReturn(backend);
-    service = new BackendService(jsonRpcLauncher, storagePath.toString(), System.getProperty("sonarqube.mcp.server.version"),
+    service = new BackendService(jsonRpcLauncher, storagePath.toString(), "build/plugins", System.getProperty("sonarqube.mcp.server.version"),
       "SonarQube MCP Server Tests");
     service.initialize();
   }

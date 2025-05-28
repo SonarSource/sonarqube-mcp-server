@@ -40,6 +40,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   private static final Map<String, String> DEFAULT_ENV = Map.of(
     "STORAGE_PATH", "",
     "SONARQUBE_URL", "fake.url");
+    "PLUGINS_PATH", "build/plugins",
   private boolean isStatic;
   private final List<McpSyncClient> clients = new ArrayList<>();
 

@@ -32,6 +32,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
+import org.sonarsource.sonarqube.mcp.tools.analysis.AnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
 import org.sonarsource.sonarqube.mcp.tools.languages.ListLanguagesTool;
@@ -68,7 +69,8 @@ public class SonarQubeMcpServer {
       new ShowRuleTool(serverApi),
       new ListRuleRepositoriesTool(serverApi),
       new ListQualityGatesTool(serverApi),
-      new ListLanguagesTool(serverApi)
+      new ListLanguagesTool(serverApi),
+      new AnalysisTool(backendService)
     );
   }
 
