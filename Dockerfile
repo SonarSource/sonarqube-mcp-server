@@ -30,6 +30,8 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 COPY --from=builder /optimized-jdk-21 $JAVA_HOME
 
+RUN apk add --no-cache nodejs=~22 npm
+
 ARG APP_VERSION=
 
 WORKDIR /app

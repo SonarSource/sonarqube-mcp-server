@@ -70,7 +70,7 @@ public class LanguageUtils {
   @CheckForNull
   public static SonarLanguage getSonarLanguageFromInput(@Nullable String languageInput) {
     for (var sonarLanguage : getSupportedSonarLanguages()) {
-      if (sonarLanguage.getSonarLanguageKey().equalsIgnoreCase(languageInput)) {
+      if (sonarLanguage.getPluginKey().equalsIgnoreCase(languageInput)) {
         return sonarLanguage;
       }
     }

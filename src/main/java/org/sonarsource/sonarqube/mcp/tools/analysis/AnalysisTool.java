@@ -133,9 +133,9 @@ public class AnalysisTool extends Tool {
     var defaultFileSuffixes = language.getDefaultFileSuffixes();
     var extension = defaultFileSuffixes.length > 0 ? defaultFileSuffixes[0] : "";
     if (extension.isBlank()) {
-      extension = "txt";
+      extension = ".txt";
     }
-    var tempFile = workDir.resolve("analysis-" + analysisId + "." + extension);
+    var tempFile = workDir.resolve("analysis-" + analysisId + extension);
     Files.writeString(tempFile, fileContent);
     return tempFile;
   }
