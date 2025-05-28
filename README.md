@@ -34,7 +34,7 @@ To enable full functionality, the following environment variables must be set be
 Run the following Gradle command to clean the project, download analyzers, and build the application:
 
 ```bash
-./gradlew clean preparePlugins build -x test
+./gradlew clean build -x test
 ```
 
 The JAR file will be created in `build/libs/`.
@@ -42,7 +42,7 @@ The JAR file will be created in `build/libs/`.
 To create the Docker image, run the `buildDocker` task:
 
 ```bash
-./gradlew clean preparePlugins build buildDocker -x test
+./gradlew clean build buildDocker -x test
 ```
 
 ### Usage
