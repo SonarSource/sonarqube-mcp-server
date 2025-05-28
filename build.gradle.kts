@@ -1,9 +1,6 @@
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.zip.ZipFile
-import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 
@@ -19,6 +16,9 @@ plugins {
 }
 
 group = "org.sonarsource.sonarqube.mcp.server"
+
+val pluginName = "sonarqube-mcp-server"
+val mainClassName = "org.sonarsource.sonarqube.mcp.SonarQubeMcpServer"
 
 // The environment variables ARTIFACTORY_PRIVATE_USERNAME and ARTIFACTORY_PRIVATE_PASSWORD are used on CI env
 // On local box, please add artifactoryUsername and artifactoryPassword to ~/.gradle/gradle.properties
@@ -108,7 +108,7 @@ tasks {
 
 	jar {
 		manifest {
-			attributes["Main-Class"] = "org.sonarsource.sonarqube.mcp.SonarQubeMcpServer"
+			attributes["Main-Class"] = mainClassName
 			attributes["Implementation-Version"] = project.version
 		}
 
@@ -144,9 +144,12 @@ tasks {
 		val destinationDir = file(layout.buildDirectory)
 		description = "Prepare SonarQube plugins"
 		group = "build"
+		
+		// Incremental build support
+		inputs.files(configurations["sqplugins"])
+		outputs.dir("$destinationDir/$pluginName/plugins")
 
 		doLast {
-			val pluginName = "sonarqube-mcp-server"
 			copyPlugins(destinationDir, pluginName)
 			unzipEslintBridgeBundle(destinationDir, pluginName)
 		}
@@ -164,48 +167,41 @@ fun unzipEslintBridgeBundle(destinationDir: File, pluginName: String) {
 	val pluginsDir = File("$destinationDir/$pluginName/plugins")
 	val jarPath = pluginsDir.listFiles()?.find {
 		it.name.startsWith("sonar-javascript-plugin-") && it.name.endsWith(".jar")
-	} ?: throw GradleException("sonar-javascript-plugin-* JAR not found in $destinationDir")
+	} ?: throw GradleException("sonar-javascript-plugin-* JAR not found in $pluginsDir")
 
-	val zipFile = ZipFile(jarPath)
-	val entry = zipFile.entries().asSequence().find { it.name.matches(Regex("sonarjs-.*\\.tgz")) }
-		?: throw GradleException("eslint bridge server bundle not found in JAR $jarPath")
+	ZipFile(jarPath).use { zipFile ->
+		val entry = zipFile.entries().asSequence().find { it.name.matches(Regex("sonarjs-.*\\.tgz")) }
+			?: throw GradleException("eslint bridge server bundle not found in JAR $jarPath")
 
+		val outputFolderPath = Paths.get("$pluginsDir/eslint-bridge")
+		val outputFilePath = outputFolderPath.resolve(entry.name)
 
-	val outputFolderPath = Paths.get("$pluginsDir/eslint-bridge")
-	val outputFilePath = outputFolderPath.resolve(entry.name)
+		Files.createDirectories(outputFolderPath)
 
-	if (!Files.exists(outputFolderPath)) {
-		Files.createDirectory(outputFolderPath)
-	}
-
-	zipFile.getInputStream(entry).use { input ->
-		FileOutputStream(outputFilePath.toFile()).use { output ->
-			input.copyTo(output)
+		zipFile.getInputStream(entry).use { input ->
+			Files.copy(input, outputFilePath)
 		}
-	}
 
-	GzipCompressorInputStream(FileInputStream(outputFilePath.toFile())).use { gzipInput ->
-		TarArchiveInputStream(gzipInput).use { tarInput ->
-			var tarEntry: ArchiveEntry?
-			while (tarInput.nextEntry.also { tarEntry = it } != null) {
-				val outputFile = outputFolderPath.resolve(tarEntry!!.name).toFile()
-				if (tarEntry!!.isDirectory) {
-					outputFile.mkdirs()
-				} else {
-					outputFile.parentFile.mkdirs()
-					FileOutputStream(outputFile).use { output ->
-						tarInput.copyTo(output)
+		GzipCompressorInputStream(Files.newInputStream(outputFilePath)).use { gzipInput ->
+			TarArchiveInputStream(gzipInput).use { tarInput ->
+				generateSequence { tarInput.nextEntry }
+					.forEach { tarEntry ->
+						val outputFile = outputFolderPath.resolve(tarEntry.name).toFile()
+						if (tarEntry.isDirectory) {
+							outputFile.mkdirs()
+						} else {
+							outputFile.parentFile.mkdirs()
+							Files.copy(tarInput, outputFile.toPath())
+						}
 					}
-				}
 			}
 		}
+		Files.deleteIfExists(outputFilePath)
 	}
-
-	Files.delete(outputFilePath)
 }
 
 application {
-	mainClass = "org.sonarsource.sonarqube.mcp.SonarQubeMcpServer"
+	mainClass = mainClassName
 }
 
 artifactory {
