@@ -58,7 +58,7 @@ build_task:
     - source cirrus-env BUILD
     - source .cirrus/use-gradle-wrapper.sh
     - source set_gradle_build_version
-    - regular_gradle_build_deploy_analyze :cyclonedxBom jacocoTestReport
+    - regular_gradle_build_deploy_analyze preparePlugins :cyclonedxBom jacocoTestReport
 
 mend_scan_task:
   depends_on:
