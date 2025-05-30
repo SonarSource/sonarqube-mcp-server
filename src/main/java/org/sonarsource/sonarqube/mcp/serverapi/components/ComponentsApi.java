@@ -32,12 +32,15 @@ public class ComponentsApi {
   }
 
   public SearchResponse searchProjectsInMyOrg(int page) {
-    var url = new UrlBuilder(COMPONENTS_SEARCH_PATH)
-      .addParam("p", Integer.toString(page))
-      .addParam("organization", helper.getOrganization())
-      .build();
+    var builder = new UrlBuilder(COMPONENTS_SEARCH_PATH)
+      .addParam("p", Integer.toString(page));
+    if (helper.getOrganization() != null) {
+      builder.addParam("organization", helper.getOrganization());
+    } else {
+      builder.addParam("qualifiers", "TRK");
+    }
 
-    try (var response = helper.get(url)) {
+    try (var response = helper.get(builder.build())) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }

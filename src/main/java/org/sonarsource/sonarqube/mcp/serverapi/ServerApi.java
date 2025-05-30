@@ -30,7 +30,7 @@ public class ServerApi {
 
   public ServerApi(ServerApiHelper helper, @Nullable String token) {
     this.helper = helper;
-    this.isAuthenticationSet = token != null && helper.getOrganization() != null;
+    this.isAuthenticationSet = token != null;
   }
 
   public QualityGatesApi qualityGatesApi() {

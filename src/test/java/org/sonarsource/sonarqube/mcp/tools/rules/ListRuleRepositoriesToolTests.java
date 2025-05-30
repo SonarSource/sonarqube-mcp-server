@@ -47,13 +47,13 @@ class ListRuleRepositoriesToolTests {
         Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'", true));
+        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube, please provide valid credentials", true));
     }
 
   }
 
   @Nested
-  class WithServer {
+  class WithSonarCloudServer {
 
     private final MockWebServer mockServer = new MockWebServer();
 
@@ -202,6 +202,109 @@ class ListRuleRepositoriesToolTests {
         "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
         "SONARQUBE_CLOUD_TOKEN", "token",
         "SONARQUBE_CLOUD_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        ListRuleRepositoriesTool.TOOL_NAME,
+        Map.of(
+          "language", "java",
+          "q", "sonar")));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Found 1 rule repositories:
+
+          Key: java
+          Name: SonarJava
+          Language: java""", false));
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
+  }
+
+  @Nested
+  class WithSonarQubeServer {
+
+    private final MockWebServer mockServer = new MockWebServer();
+
+    @BeforeEach
+    void setup() {
+      mockServer.start();
+    }
+
+    @AfterEach
+    void teardown() {
+      mockServer.stop();
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(RulesApi.REPOSITORIES_PATH).willReturn(aResponse().withStatus(403)));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_SERVER_URL", mockServer.baseUrl(),
+        "SONARQUBE_SERVER_USER_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        ListRuleRepositoriesTool.TOOL_NAME,
+        Map.of()));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_repositories_with_language_filter(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(RulesApi.REPOSITORIES_PATH + "?language=java")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+              "repositories": [
+                {"key": "java", "name": "SonarJava", "language": "java"},
+                {"key": "pmd", "name": "PMD", "language": "java"}
+              ]
+            }
+            """.getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_SERVER_URL", mockServer.baseUrl(),
+        "SONARQUBE_SERVER_USER_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        ListRuleRepositoriesTool.TOOL_NAME,
+        Map.of("language", "java")));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Found 2 rule repositories:
+
+          Key: java
+          Name: SonarJava
+          Language: java
+
+          Key: pmd
+          Name: PMD
+          Language: java""", false));
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_repositories_with_both_filters(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(RulesApi.REPOSITORIES_PATH + "?language=java&q=sonar")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+              "repositories": [
+                {"key": "java", "name": "SonarJava", "language": "java"}
+              ]
+            }
+            """.getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_SERVER_URL", mockServer.baseUrl(),
+        "SONARQUBE_SERVER_USER_TOKEN", "token"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(

@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SearchMyProjectsTool extends Tool {
 
-  public static final String TOOL_NAME = "search_my_sonarqube_cloud_projects";
+  public static final String TOOL_NAME = "search_my_sonarqube_projects";
   public static final String PAGE_PROPERTY = "page";
 
   private final ServerApi serverApi;
@@ -31,7 +31,7 @@ public class SearchMyProjectsTool extends Tool {
   public SearchMyProjectsTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("Find Sonar projects in my organization. The response is paginated.")
+      .setDescription("Find Sonar projects. The response is paginated.")
       .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .build());
     this.serverApi = serverApi;
@@ -40,7 +40,7 @@ public class SearchMyProjectsTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     if (!serverApi.isAuthenticationSet()) {
-      return Tool.Result.failure("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'");
+      return Tool.Result.failure("Not connected to SonarQube, please provide valid credentials");
     }
 
     var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);

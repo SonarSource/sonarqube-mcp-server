@@ -92,12 +92,13 @@ public class SonarQubeMcpServer {
 
   private static ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
     var organization = mcpConfiguration.getSonarqubeCloudOrg();
-    var token = mcpConfiguration.getSonarqubeCloudToken();
+    var token = mcpConfiguration.getToken();
+    var url = mcpConfiguration.getUrl();
 
     var httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     var httpClient = httpClientProvider.getHttpClient(token);
 
-    var serverApiHelper = new ServerApiHelper(new EndpointParams(mcpConfiguration.getSonarqubeCloudUrl(), organization), httpClient);
+    var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization), httpClient);
     return new ServerApi(serverApiHelper, token);
   }
 

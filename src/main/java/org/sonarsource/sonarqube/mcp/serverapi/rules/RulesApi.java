@@ -44,10 +44,12 @@ public class RulesApi {
   }
 
   private String buildPath(String ruleKey) {
-    return new UrlBuilder(SHOW_PATH)
-      .addParam("key", ruleKey)
-      .addParam("organization", organization)
-      .build();
+    var builder = new UrlBuilder(SHOW_PATH)
+      .addParam("key", ruleKey);
+    if (organization != null) {
+      builder.addParam("organization", organization);
+    }
+    return builder.build();
   }
 
   public RepositoriesResponse getRepositories(@Nullable String language, @Nullable String query) {

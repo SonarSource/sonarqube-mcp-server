@@ -61,9 +61,11 @@ public class QualityGatesApi {
   }
 
   private static String buildListPath(@Nullable String organization) {
-    return new UrlBuilder(LIST_PATH)
-      .addParam("organization", organization)
-      .build();
+    var builder = new UrlBuilder(LIST_PATH);
+    if (organization != null) {
+      builder.addParam("organization", organization);
+    }
+    return builder.build();
   }
 
 }

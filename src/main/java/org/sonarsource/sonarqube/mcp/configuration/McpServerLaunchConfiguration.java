@@ -33,6 +33,8 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_CLOUD_URL = "SONARQUBE_CLOUD_URL";
   private static final String SONARQUBE_CLOUD_ORG = "SONARQUBE_CLOUD_ORG";
   private static final String SONARQUBE_CLOUD_TOKEN = "SONARQUBE_CLOUD_TOKEN";
+  private static final String SONARQUBE_SERVER_URL = "SONARQUBE_SERVER_URL";
+  private static final String SONARQUBE_SERVER_USER_TOKEN = "SONARQUBE_SERVER_USER_TOKEN";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
 
   private final String storagePath;
@@ -41,6 +43,10 @@ public class McpServerLaunchConfiguration {
   private final String sonarqubeCloudOrg;
   @Nullable
   private final String sonarqubeCloudToken;
+  @Nullable
+  private final String sonarqubeServerUrl;
+  @Nullable
+  private final String sonarqubeServerToken;
   private final String appVersion;
   private final String userAgent;
   private final boolean isTelemetryEnabled;
@@ -51,6 +57,21 @@ public class McpServerLaunchConfiguration {
     this.sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, SONARCLOUD_URL);
     this.sonarqubeCloudOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_ORG, null);
     this.sonarqubeCloudToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_TOKEN, null);
+    this.sonarqubeServerUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_SERVER_URL, null);
+    this.sonarqubeServerToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_SERVER_USER_TOKEN, null);
+
+    if (this.sonarqubeCloudToken != null && this.sonarqubeServerToken != null) {
+      throw new IllegalStateException("Both SONARQUBE_CLOUD_TOKEN and SONARQUBE_SERVER_USER_TOKEN environment variables must not be set");
+    }
+
+    if (this.sonarqubeServerToken != null) {
+      Objects.requireNonNull(this.sonarqubeServerUrl, "SONARQUBE_SERVER_URL environment variable must be set");
+    }
+
+    if (this.sonarqubeCloudToken != null) {
+      Objects.requireNonNull(this.sonarqubeCloudOrg, "SONARQUBE_CLOUD_ORG environment variable must be set");
+    }
+
     this.appVersion = fetchAppVersion();
     this.userAgent = APP_NAME + " " + appVersion;
     this.isTelemetryEnabled = !Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, TELEMETRY_DISABLED, "false"));
@@ -61,19 +82,26 @@ public class McpServerLaunchConfiguration {
     return storagePath;
   }
 
-  @NotNull
-  public String getSonarqubeCloudUrl() {
-    return sonarqubeCloudUrl;
-  }
-
   @Nullable
   public String getSonarqubeCloudOrg() {
     return sonarqubeCloudOrg;
   }
 
+  public String getUrl() {
+    if (sonarqubeCloudToken != null) {
+      return sonarqubeCloudUrl;
+    } else {
+      return sonarqubeServerUrl;
+    }
+  }
+
   @Nullable
-  public String getSonarqubeCloudToken() {
-    return sonarqubeCloudToken;
+  public String getToken() {
+    if (sonarqubeCloudToken != null) {
+      return sonarqubeCloudToken;
+    } else {
+      return sonarqubeServerToken;
+    }
   }
 
   public String getAppVersion() {

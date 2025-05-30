@@ -52,11 +52,13 @@ public class IssuesApi {
   }
 
   private String buildPath(@Nullable List<String> projects, @Nullable String pullRequestId) {
-    return new UrlBuilder(SEARCH_PATH)
-      .addParam("organization", organization)
+    var builder = new UrlBuilder(SEARCH_PATH)
       .addParam("projects", projects)
-      .addParam("pullRequest", pullRequestId)
-      .build();
+      .addParam("pullRequest", pullRequestId);
+    if (organization != null) {
+      builder.addParam("organization", organization);
+    }
+    return builder.build();
   }
 
 }

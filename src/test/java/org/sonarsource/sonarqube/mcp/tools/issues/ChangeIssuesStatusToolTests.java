@@ -75,7 +75,7 @@ class ChangeIssuesStatusToolTests {
   }
 
   @Nested
-  class WithServer {
+  class WithSonarCloudServer {
 
     private final MockWebServer mockServer = new MockWebServer();
 

@@ -4,7 +4,7 @@
 [![Build Status](https://api.cirrus-ci.com/github/SonarSource/sonarqube-mcp-server.svg?branch=master)](https://cirrus-ci.com/github/SonarSource/sonarqube-mcp-server)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=SonarSource_sonar-mcp-server&metric=alert_status&token=364a508a1e77096460f8571d8e66b41c99c95bea)](https://sonarcloud.io/summary/new_code?id=SonarSource_sonarqube-mcp-server)
 
-The SonarQube MCP Server is a Model Context Protocol (MCP) server that provides seamless integration with SonarQube Cloud.
+The SonarQube MCP Server is a Model Context Protocol (MCP) server that provides seamless integration with SonarQube Server or Cloud.
 
 ## Prerequisites
 
@@ -19,8 +19,15 @@ SonarQube MCP Server can be launched in two ways:
 
 To enable full functionality, the following environment variables must be set before starting the server:
 
-* `SONARQUBE_CLOUD_TOKEN`: Your SonarQube Cloud **USER** [token](https://sonarcloud.io/account/security).
+For SonarQube Server:
+* `SONARQUBE_SERVER_URL`: Your SonarQube Server URL.
+* `SONARQUBE_SERVER_TOKEN`: Your SonarQube Server **USER** [token](https://sonarcloud.io/account/security).
+
+For SonarQube Cloud:
+* `SONARQUBE_CLOUD_TOKEN`: Your SonarQube Cloud [token](https://sonarcloud.io/account/security).
 * `SONARQUBE_CLOUD_ORG`: Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations).
+
+
 * `STORAGE_PATH`: An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence).
   * *This variable is not required when running within a Docker container, as bind mounts are used for storage.*
 

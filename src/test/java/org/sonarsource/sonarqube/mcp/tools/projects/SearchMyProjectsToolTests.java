@@ -48,24 +48,13 @@ class SearchMyProjectsToolTests {
         Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'", true));
+        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube, please provide valid credentials", true));
     }
 
-    @SonarQubeMcpServerTest
-    void it_should_return_an_error_if_sonarqube_cloud_org_is_missing(SonarQubeMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient(Map.of("SONARQUBE_CLOUD_TOKEN", "token"));
-
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SearchMyProjectsTool.TOOL_NAME,
-        Map.of("prefix", "proj")));
-
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube Cloud, please provide 'SONARQUBE_CLOUD_TOKEN' and 'SONARQUBE_CLOUD_ORG'", true));
-    }
   }
 
   @Nested
-  class WithServer {
+  class WithSonarCloudServer {
 
     private final MockWebServer mockServer = new MockWebServer();
 
@@ -150,6 +139,88 @@ class SearchMyProjectsToolTests {
         "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
         "SONARQUBE_CLOUD_TOKEN", "token",
         "SONARQUBE_CLOUD_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        SearchMyProjectsTool.TOOL_NAME,
+        Map.of("page", "2")));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Found 1 Sonar projects in your organization.
+          This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 projects per page.
+          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false));
+      assertThat(mockServer.getReceivedRequests()).containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
+  }
+
+  @Nested
+  class WithSonarQubeServer {
+
+    private final MockWebServer mockServer = new MockWebServer();
+
+    @BeforeEach
+    void setup() {
+      mockServer.start();
+    }
+
+    @AfterEach
+    void teardown() {
+      mockServer.stop();
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&qualifiers=TRK").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_SERVER_URL", mockServer.baseUrl(),
+        "SONARQUBE_SERVER_USER_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        SearchMyProjectsTool.TOOL_NAME,
+        Map.of()));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_the_project_list_when_no_page_is_provided(SonarQubeMcpServerTestHarness harness) {
+      var projectKey = "project-key";
+      var projectName = "Project Name";
+      mockServer.stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&qualifiers=TRK")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateResponse(projectKey, projectName, 1, 4).getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_SERVER_URL", mockServer.baseUrl(),
+        "SONARQUBE_SERVER_USER_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        SearchMyProjectsTool.TOOL_NAME,
+        Map.of()));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Found 1 Sonar projects in your organization.
+          This response is paginated and this is the page 1 out of 4 total pages. There is a maximum of 100 projects per page.
+          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false));
+      assertThat(mockServer.getReceivedRequests()).containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_the_project_list_when_page_is_provided(SonarQubeMcpServerTestHarness harness) {
+      var projectKey = "project-key";
+      var projectName = "Project Name";
+      mockServer.stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=2&qualifiers=TRK")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateResponse(projectKey, projectName, 2, 2).getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_SERVER_URL", mockServer.baseUrl(),
+        "SONARQUBE_SERVER_USER_TOKEN", "token"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
