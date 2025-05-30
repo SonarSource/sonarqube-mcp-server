@@ -44,9 +44,9 @@ class McpSchemaValidationTest {
 
   private static Map<String, String> createTestEnvironment() {
     return Map.of(
-      "SONARQUBE_CLOUD_URL", "https://foo.bar",
-      "SONARQUBE_CLOUD_TOKEN", "test-token",
-      "SONARQUBE_CLOUD_ORG", "test-org",
+      "SONARQUBE_URL", "https://foo.bar",
+      "SONARQUBE_TOKEN", "test-token",
+      "SONARQUBE_ORG", "test-org",
       "STORAGE_PATH", "fake"
     );
   }

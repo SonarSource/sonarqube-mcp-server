@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ServerApiTests {
 
-  private static final String USER_AGENT = "Sonar MCP tests";
+  private static final String USER_AGENT = "SonarQube MCP tests";
   private ServerApiHelper serverApiHelper;
 
   @RegisterExtension

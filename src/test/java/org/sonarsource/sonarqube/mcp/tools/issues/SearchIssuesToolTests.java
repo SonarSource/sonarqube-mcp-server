@@ -54,9 +54,9 @@ class SearchIssuesToolTests {
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org").willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-        "SONARQUBE_CLOUD_TOKEN", "token",
-        "SONARQUBE_CLOUD_ORG", "org"
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -89,9 +89,9 @@ class SearchIssuesToolTests {
             """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
         )));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-        "SONARQUBE_CLOUD_TOKEN", "token",
-        "SONARQUBE_CLOUD_ORG", "org"
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -127,8 +127,8 @@ class SearchIssuesToolTests {
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       mockServer.stubFor(get(IssuesApi.SEARCH_PATH).willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_SERVER_URL", mockServer.baseUrl(),
-        "SONARQUBE_SERVER_USER_TOKEN", "token"
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -161,8 +161,8 @@ class SearchIssuesToolTests {
             """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
         )));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_SERVER_URL", mockServer.baseUrl(),
-        "SONARQUBE_SERVER_USER_TOKEN", "token"
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -216,8 +216,8 @@ class SearchIssuesToolTests {
             """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
         )));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_SERVER_URL", mockServer.baseUrl(),
-        "SONARQUBE_SERVER_USER_TOKEN", "token"
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(

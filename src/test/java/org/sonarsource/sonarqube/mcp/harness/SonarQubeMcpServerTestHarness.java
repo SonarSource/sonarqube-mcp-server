@@ -39,7 +39,7 @@ import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements BeforeAllCallback, AfterEachCallback, AfterAllCallback {
   private static final Map<String, String> DEFAULT_ENV = Map.of(
     "STORAGE_PATH", "",
-    "SONARQUBE_CLOUD_URL", "fake.url");
+    "SONARQUBE_URL", "fake.url");
   private boolean isStatic;
   private final List<McpSyncClient> clients = new ArrayList<>();
 

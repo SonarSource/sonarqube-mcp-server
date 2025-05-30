@@ -93,9 +93,9 @@ class ChangeIssuesStatusToolTests {
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       mockServer.stubFor(post("/api/issues/do_transition").willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-        "SONARQUBE_CLOUD_TOKEN", "token",
-        "SONARQUBE_CLOUD_ORG", "org"
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -111,9 +111,9 @@ class ChangeIssuesStatusToolTests {
     void it_should_change_the_status_to_accept(SonarQubeMcpServerTestHarness harness) {
       mockServer.stubFor(post("/api/issues/do_transition").willReturn(ok()));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-        "SONARQUBE_CLOUD_TOKEN", "token",
-        "SONARQUBE_CLOUD_ORG", "org"
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -130,9 +130,9 @@ class ChangeIssuesStatusToolTests {
     void it_should_change_the_status_to_false_positive(SonarQubeMcpServerTestHarness harness) {
       mockServer.stubFor(post("/api/issues/do_transition").willReturn(ok()));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-        "SONARQUBE_CLOUD_TOKEN", "token",
-        "SONARQUBE_CLOUD_ORG", "org"
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -149,9 +149,9 @@ class ChangeIssuesStatusToolTests {
     void it_should_reopen_the_issue(SonarQubeMcpServerTestHarness harness) {
       mockServer.stubFor(post("/api/issues/do_transition").willReturn(ok()));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-        "SONARQUBE_CLOUD_TOKEN", "token",
-        "SONARQUBE_CLOUD_ORG", "org"
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
       ));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(

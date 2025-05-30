@@ -43,9 +43,8 @@ COPY --chown=appuser:appgroup --chmod=755 build/libs/sonarqube-mcp-server-${APP_
 USER appuser
 
 ENV STORAGE_PATH=/data/storage
-ENV SONARQUBE_CLOUD_TOKEN=
-ENV SONARQUBE_CLOUD_ORG=
-ENV SONARQUBE_SERVER_URL=
-ENV SONARQUBE_SERVER_TOKEN=
+ENV SONARQUBE_TOKEN=
+ENV SONARQUBE_ORG=
+ENV SONARQUBE_URL=
 
 ENTRYPOINT ["java", "-jar", "/app/sonarqube-mcp-server.jar"]
