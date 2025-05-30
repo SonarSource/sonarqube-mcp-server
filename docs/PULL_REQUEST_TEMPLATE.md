@@ -6,7 +6,7 @@ Part of
     * Ignore or delete this note to create a new Task in Jira without a parent 
 -->
 
-* Please review our [contribution guidelines](https://github.com/SonarSource/sonar-mcp-server/blob/master/docs/contributing.md).
+* Please review our [contribution guidelines](https://github.com/SonarSource/sonarqube-mcp-server/blob/master/docs/contributing.md).
 
 And please ensure your pull request adheres to the following guidelines: 
 

@@ -135,7 +135,7 @@ application {
 }
 
 artifactory {
-	clientConfig.info.buildName = "sonar-mcp-server"
+	clientConfig.info.buildName = "sonarqube-mcp-server"
 	clientConfig.info.buildNumber = System.getenv("BUILD_ID")
 	clientConfig.isIncludeEnvVars = true
 	clientConfig.envVarsExcludePatterns = "*password*,*PASSWORD*,*secret*,*MAVEN_CMD_LINE_ARGS*,sun.java.command,*token*,*TOKEN*,*LOGIN*,*login*,*key*,*KEY*,*PASSPHRASE*,*signing*"
@@ -156,7 +156,7 @@ artifactory {
 					"vcs.revision" to System.getenv("CIRRUS_CHANGE_IN_REPO"),
 					"vcs.branch" to (System.getenv("CIRRUS_BASE_BRANCH")
 						?: System.getenv("CIRRUS_BRANCH")),
-					"build.name" to "sonar-mcp-server",
+					"build.name" to "sonarqube-mcp-server",
 					"build.number" to System.getenv("BUILD_ID")
 				)
 			)
@@ -169,11 +169,11 @@ artifactory {
 sonar {
 	properties {
 		property("sonar.organization", "sonarsource")
-		property("sonar.projectKey", "SonarSource_sonar-mcp-server")
+		property("sonar.projectKey", "SonarSource_sonarqube-mcp-server")
 		property("sonar.projectName", "SonarQube MCP Server")
-		property("sonar.links.ci", "https://cirrus-ci.com/github/SonarSource/sonar-mcp-server")
-		property("sonar.links.scm", "https://github.com/SonarSource/sonar-mcp-server")
-		property("sonar.links.issue", "https://jira.sonarsource.com/browse/SLCORE")
+		property("sonar.links.ci", "https://cirrus-ci.com/github/SonarSource/sonarqube-mcp-server")
+		property("sonar.links.scm", "https://github.com/SonarSource/sonarqube-mcp-server")
+		property("sonar.links.issue", "https://jira.sonarsource.com/browse/MCP")
 		property("sonar.exclusions", "**/build/**/*")
 	}
 }
