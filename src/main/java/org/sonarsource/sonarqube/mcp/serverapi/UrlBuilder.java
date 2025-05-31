@@ -30,6 +30,13 @@ public class UrlBuilder {
     this.path = path;
   }
 
+  public UrlBuilder addParam(String name, @Nullable Integer value) {
+    if (value != null) {
+      parameters.add(new QueryParam(name, List.of(value.toString())));
+    }
+    return this;
+  }
+
   public UrlBuilder addParam(String name, @Nullable String value) {
     if (value != null) {
       parameters.add(new QueryParam(name, List.of(value)));

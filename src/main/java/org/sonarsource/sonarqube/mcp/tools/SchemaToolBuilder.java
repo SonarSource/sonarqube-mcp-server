@@ -48,6 +48,12 @@ public class SchemaToolBuilder {
     return this;
   }
 
+  public SchemaToolBuilder addIntegerProperty(String propertyName, String description) {
+    var content = Map.of(TYPE_PROPERTY_NAME, "number", DESCRIPTION_KEY_NAME, description);
+    properties.put(propertyName, content);
+    return this;
+  }
+
   public SchemaToolBuilder addStringProperty(String propertyName, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, "string", DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);

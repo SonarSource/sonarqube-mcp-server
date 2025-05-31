@@ -20,6 +20,8 @@ import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
+import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 
@@ -51,6 +53,14 @@ public class ServerApi {
 
   public LanguagesApi languagesApi() {
     return new LanguagesApi(helper);
+  }
+
+  public MeasuresApi measuresApi() {
+    return new MeasuresApi(helper);
+  }
+
+  public MetricsApi metricsApi() {
+    return new MetricsApi(helper);
   }
 
   public boolean isAuthenticationSet() {

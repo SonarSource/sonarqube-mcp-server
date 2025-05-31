@@ -50,6 +50,11 @@ public abstract class Tool {
     }
 
     @CheckForNull
+    public Integer getOptionalInteger(String argumentName) {
+      return (Integer) argumentsMap.get(argumentName);
+    }
+
+    @CheckForNull
     public String getOptionalString(String argumentName) {
       return (String) argumentsMap.get(argumentName);
     }

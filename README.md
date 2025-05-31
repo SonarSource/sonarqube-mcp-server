@@ -141,6 +141,20 @@ On top of the previous SonarQube environments, you should add the following vari
   - `projects` - Optional list of Sonar projects - _String[]_
   - `pullRequestId` - Optional Pull Request's identifier - _String_
 
+### Measures
+
+- **get_component_measures** - Get measures for a component (project, directory, file)
+  - `component` - Optional component key to get measures for - _String_
+  - `branch` - Optional branch to analyze for measures - _String_
+  - `metricKeys` - Optional metric keys to retrieve (e.g. nloc, complexity, violations, coverage) - _String[]_
+  - `pullRequest` - Optional pull request identifier to analyze for measures - _String_
+
+### Metrics
+
+- **search_metrics** - Search for metrics
+  - `p` - Optional 1-based page number (default: 1) - _Integer_
+  - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
+
 ### Projects
 
 - **search_my_sonarqube_cloud_projects** - Find Sonar projects in my organization
