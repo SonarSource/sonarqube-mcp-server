@@ -166,6 +166,38 @@ artifactory {
 	}
 }
 
+publishing {
+	publications {
+		create<MavenPublication>("mavenJava") {
+			pom {
+				name.set("sonarqube-mcp-server")
+				description.set(project.description)
+				url.set("https://www.sonarqube.org/")
+				organization {
+					name.set("SonarSource")
+					url.set("https://www.sonarqube.org/")
+				}
+				licenses {
+					license {
+						name.set("SSALv1")
+						url.set("https://sonarsource.com/license/ssal/")
+						distribution.set("repo")
+					}
+				}
+				scm {
+					url.set("https://github.com/SonarSource/sonarqube-mcp-server")
+				}
+				developers {
+					developer {
+						id.set("sonarsource-team")
+						name.set("SonarSource Team")
+					}
+				}
+			}
+		}
+	}
+}
+
 sonar {
 	properties {
 		property("sonar.organization", "sonarsource")
