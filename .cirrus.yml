@@ -46,7 +46,7 @@ build_task:
   eks_container:
     <<: *CONTAINER_DEFINITION
     cpu: 1
-    memory: 2G
+    memory: 3G
   env:
     ARTIFACTORY_DEPLOY_REPO: sonarsource-public-qa
     ARTIFACTORY_DEPLOY_USERNAME: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-qa-deployer username]
