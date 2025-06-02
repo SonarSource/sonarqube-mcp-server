@@ -137,7 +137,7 @@ application {
 
 artifactory {
 	clientConfig.info.buildName = "sonarqube-mcp-server"
-	clientConfig.info.buildNumber = System.getenv("BUILD_ID")
+	clientConfig.info.buildNumber = System.getenv("BUILD_NUMBER")
 	clientConfig.isIncludeEnvVars = true
 	clientConfig.envVarsExcludePatterns = "*password*,*PASSWORD*,*secret*,*MAVEN_CMD_LINE_ARGS*,sun.java.command,*token*,*TOKEN*,*LOGIN*,*login*,*key*,*KEY*,*PASSPHRASE*,*signing*"
 	clientConfig.info.addEnvironmentProperty("PROJECT_VERSION", version.toString())
@@ -157,7 +157,7 @@ artifactory {
 					"vcs.branch" to (System.getenv("CIRRUS_BASE_BRANCH")
 						?: System.getenv("CIRRUS_BRANCH")),
 					"build.name" to "sonarqube-mcp-server",
-					"build.number" to System.getenv("BUILD_ID")
+					"build.number" to System.getenv("BUILD_NUMBER")
 				)
 			)
 			setPublishPom(true)
