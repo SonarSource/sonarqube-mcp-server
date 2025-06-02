@@ -10,6 +10,7 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 plugins {
 	application
 	jacoco
+	`maven-publish`
 	signing
 	alias(libs.plugins.sonarqube)
 	alias(libs.plugins.license)
@@ -139,10 +140,7 @@ artifactory {
 	clientConfig.info.buildNumber = System.getenv("BUILD_ID")
 	clientConfig.isIncludeEnvVars = true
 	clientConfig.envVarsExcludePatterns = "*password*,*PASSWORD*,*secret*,*MAVEN_CMD_LINE_ARGS*,sun.java.command,*token*,*TOKEN*,*LOGIN*,*login*,*key*,*KEY*,*PASSPHRASE*,*signing*"
-	clientConfig.info.addEnvironmentProperty(
-		"ARTIFACTS_TO_DOWNLOAD",
-		"org.sonarsource.sonarqube.mcp.server:sonarqube-mcp-server:jar,org.sonarsource.sonarqube.mcp.server:sonarqube-mcp-server:json:cyclonedx"
-	)
+	clientConfig.info.addEnvironmentProperty("ARTIFACTS_TO_DOWNLOAD", "")
 	setContextUrl(System.getenv("ARTIFACTORY_URL"))
 	publish {
 		repository {
@@ -151,6 +149,7 @@ artifactory {
 			setProperty("password", System.getenv("ARTIFACTORY_DEPLOY_PASSWORD"))
 		}
 		defaults {
+			publications("mavenJava")
 			setProperties(
 				mapOf(
 					"vcs.revision" to System.getenv("CIRRUS_CHANGE_IN_REPO"),
