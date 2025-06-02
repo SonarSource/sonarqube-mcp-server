@@ -169,6 +169,7 @@ artifactory {
 publishing {
 	publications {
 		create<MavenPublication>("mavenJava") {
+			from(components["java"])
 			pom {
 				name.set("sonarqube-mcp-server")
 				description.set(project.description)
