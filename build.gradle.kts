@@ -140,13 +140,14 @@ artifactory {
 	clientConfig.info.buildNumber = System.getenv("BUILD_ID")
 	clientConfig.isIncludeEnvVars = true
 	clientConfig.envVarsExcludePatterns = "*password*,*PASSWORD*,*secret*,*MAVEN_CMD_LINE_ARGS*,sun.java.command,*token*,*TOKEN*,*LOGIN*,*login*,*key*,*KEY*,*PASSPHRASE*,*signing*"
+	clientConfig.info.addEnvironmentProperty("PROJECT_VERSION", version.toString())
 	clientConfig.info.addEnvironmentProperty("ARTIFACTS_TO_DOWNLOAD", "")
 	setContextUrl(System.getenv("ARTIFACTORY_URL"))
 	publish {
 		repository {
-			setProperty("repoKey", System.getenv("ARTIFACTORY_DEPLOY_REPO"))
-			setProperty("username", System.getenv("ARTIFACTORY_DEPLOY_USERNAME"))
-			setProperty("password", System.getenv("ARTIFACTORY_DEPLOY_PASSWORD"))
+			repoKey = System.getenv("ARTIFACTORY_DEPLOY_REPO")
+			username = System.getenv("ARTIFACTORY_DEPLOY_USERNAME")
+			password = System.getenv("ARTIFACTORY_DEPLOY_PASSWORD")
 		}
 		defaults {
 			publications("mavenJava")

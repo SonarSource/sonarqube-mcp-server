@@ -4,7 +4,7 @@ sonarlint-core = "10.22.0.81232"
 sonarqube = "6.1.0.5360"
 
 license-plugin = "0.16.1"
-artifactory-plugin = "4.33.1"
+artifactory-plugin = "5.2.5"
 cyclonedx-plugin = "1.10.0"
 
 mcp-server = "0.9.0"
