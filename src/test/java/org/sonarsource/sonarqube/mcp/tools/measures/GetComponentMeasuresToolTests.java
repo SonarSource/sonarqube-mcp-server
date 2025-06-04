@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -34,77 +35,79 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GetComponentMeasuresToolTests {
 
-  private final MockWebServer mockServer = new MockWebServer();
+  @Nested
+  class WithSonarCloudServer {
 
-  @BeforeEach
-  void setup() {
-    mockServer.start();
-  }
+    private final MockWebServer mockServer = new MockWebServer();
 
-  @AfterEach
-  void teardown() {
-    mockServer.stop();
-  }
+    @BeforeEach
+    void setup() {
+      mockServer.start();
+    }
 
-  @SonarQubeMcpServerTest
-  void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-    var mcpClient = harness.newClient(Map.of(
-      "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-      "SONARQUBE_CLOUD_TOKEN", "token",
-      "SONARQUBE_CLOUD_ORG", "org"
-    ));
+    @AfterEach
+    void teardown() {
+      mockServer.stop();
+    }
 
-    var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-      GetComponentMeasuresTool.TOOL_NAME,
-      Map.of()));
+    @SonarQubeMcpServerTest
+    void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
+      ));
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of()));
 
-    assertThat(result)
-      .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
-  }
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
+    }
 
-  @SonarQubeMcpServerTest
-  void it_should_succeed_when_no_component_found(SonarQubeMcpServerTestHarness harness) {
-    mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
-      .willReturn(aResponse().withResponseBody(
-        Body.fromJsonBytes("""
+    @SonarQubeMcpServerTest
+    void it_should_succeed_when_no_component_found(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
           {
             "component": null,
             "metrics": [],
             "periods": []
           }
           """.getBytes(StandardCharsets.UTF_8))
-      )));
-    var mcpClient = harness.newClient(Map.of(
-      "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-      "SONARQUBE_CLOUD_TOKEN", "token",
-      "SONARQUBE_CLOUD_ORG", "org"
-    ));
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
+      ));
 
-    var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-      GetComponentMeasuresTool.TOOL_NAME,
-      Map.of()));
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of()));
 
-    assertThat(result).isEqualTo(new McpSchema.CallToolResult("No component found.", false));
-  }
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No component found.", false));
+    }
 
-  @SonarQubeMcpServerTest
-  void it_should_fetch_component_measures_with_component_key(SonarQubeMcpServerTestHarness harness) {
-    mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&additionalFields=metrics")
-      .willReturn(aResponse().withResponseBody(
-        Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
-      )));
-    var mcpClient = harness.newClient(Map.of(
-      "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-      "SONARQUBE_CLOUD_TOKEN", "token",
-      "SONARQUBE_CLOUD_ORG", "org"
-    ));
+    @SonarQubeMcpServerTest
+    void it_should_fetch_component_measures_with_component_key(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
+      ));
 
-    var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-      GetComponentMeasuresTool.TOOL_NAME,
-      Map.of(GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java")));
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java")));
 
-    assertThat(result)
-      .isEqualTo(new McpSchema.CallToolResult("""
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Qualifier: FIL
@@ -149,31 +152,31 @@ class GetComponentMeasuresToolTests {
 
         Periods:
           - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
-    assertThat(mockServer.getReceivedRequests())
-      .containsExactly(new ReceivedRequest("Bearer token", ""));
-  }
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
 
-  @SonarQubeMcpServerTest
-  void it_should_fetch_component_measures_with_branch(SonarQubeMcpServerTestHarness harness) {
-    mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&branch=main&additionalFields=metrics")
-      .willReturn(aResponse().withResponseBody(
-        Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
-      )));
-    var mcpClient = harness.newClient(Map.of(
-      "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-      "SONARQUBE_CLOUD_TOKEN", "token",
-      "SONARQUBE_CLOUD_ORG", "org"
-    ));
+    @SonarQubeMcpServerTest
+    void it_should_fetch_component_measures_with_branch(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&branch=main&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
+      ));
 
-    var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-      GetComponentMeasuresTool.TOOL_NAME,
-      Map.of(
-        GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
-        GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
-      )));
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
+        )));
 
-    assertThat(result)
-      .isEqualTo(new McpSchema.CallToolResult("""
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Qualifier: FIL
@@ -218,31 +221,31 @@ class GetComponentMeasuresToolTests {
 
         Periods:
           - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
-    assertThat(mockServer.getReceivedRequests())
-      .containsExactly(new ReceivedRequest("Bearer token", ""));
-  }
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
 
-  @SonarQubeMcpServerTest
-  void it_should_fetch_component_measures_with_metric_keys(SonarQubeMcpServerTestHarness harness) {
-    mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&metricKeys=ncloc,complexity&additionalFields=metrics")
-      .willReturn(aResponse().withResponseBody(
-        Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
-      )));
-    var mcpClient = harness.newClient(Map.of(
-      "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-      "SONARQUBE_CLOUD_TOKEN", "token",
-      "SONARQUBE_CLOUD_ORG", "org"
-    ));
+    @SonarQubeMcpServerTest
+    void it_should_fetch_component_measures_with_metric_keys(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&metricKeys=ncloc,complexity&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
+      ));
 
-    var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-      GetComponentMeasuresTool.TOOL_NAME,
-      Map.of(
-        GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
-        GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
-      )));
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
+        )));
 
-    assertThat(result)
-      .isEqualTo(new McpSchema.CallToolResult("""
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Qualifier: FIL
@@ -287,31 +290,31 @@ class GetComponentMeasuresToolTests {
 
         Periods:
           - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
-    assertThat(mockServer.getReceivedRequests())
-      .containsExactly(new ReceivedRequest("Bearer token", ""));
-  }
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
 
-  @SonarQubeMcpServerTest
-  void it_should_fetch_component_measures_with_pull_request(SonarQubeMcpServerTestHarness harness) {
-    mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&pullRequest=123&additionalFields=metrics")
-      .willReturn(aResponse().withResponseBody(
-        Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
-      )));
-    var mcpClient = harness.newClient(Map.of(
-      "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-      "SONARQUBE_CLOUD_TOKEN", "token",
-      "SONARQUBE_CLOUD_ORG", "org"
-    ));
+    @SonarQubeMcpServerTest
+    void it_should_fetch_component_measures_with_pull_request(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&pullRequest=123&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
+      ));
 
-    var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-      GetComponentMeasuresTool.TOOL_NAME,
-      Map.of(
-        GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
-        GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
-      )));
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
+        )));
 
-    assertThat(result)
-      .isEqualTo(new McpSchema.CallToolResult("""
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Qualifier: FIL
@@ -356,15 +359,15 @@ class GetComponentMeasuresToolTests {
 
         Periods:
           - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
-    assertThat(mockServer.getReceivedRequests())
-      .containsExactly(new ReceivedRequest("Bearer token", ""));
-  }
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
 
-  @SonarQubeMcpServerTest
-  void it_should_handle_component_with_no_measures(SonarQubeMcpServerTestHarness harness) {
-    mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
-      .willReturn(aResponse().withResponseBody(
-        Body.fromJsonBytes("""
+    @SonarQubeMcpServerTest
+    void it_should_handle_component_with_no_measures(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
           {
             "component": {
               "key": "MY_PROJECT:EmptyFile.java",
@@ -390,19 +393,19 @@ class GetComponentMeasuresToolTests {
             "periods": []
           }
           """.getBytes(StandardCharsets.UTF_8))
-      )));
-    var mcpClient = harness.newClient(Map.of(
-      "SONARQUBE_CLOUD_URL", mockServer.baseUrl(),
-      "SONARQUBE_CLOUD_TOKEN", "token",
-      "SONARQUBE_CLOUD_ORG", "org"
-    ));
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org"
+      ));
 
-    var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-      GetComponentMeasuresTool.TOOL_NAME,
-      Map.of()));
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of()));
 
-    assertThat(result)
-      .isEqualTo(new McpSchema.CallToolResult("""
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
         Component: EmptyFile.java
         Key: MY_PROJECT:EmptyFile.java
         Qualifier: FIL
@@ -419,6 +422,391 @@ class GetComponentMeasuresToolTests {
             Qualitative: false
             Hidden: false
             Custom: false""", false));
+    }
+  }
+
+  @Nested
+  class WithSonarQubeServer {
+
+    private final MockWebServer mockServer = new MockWebServer();
+
+    @BeforeEach
+    void setup() {
+      mockServer.start();
+    }
+
+    @AfterEach
+    void teardown() {
+      mockServer.stop();
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
+      ));
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of()));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_succeed_when_no_component_found(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+          {
+            "component": null,
+            "metrics": [],
+            "periods": []
+          }
+          """.getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of()));
+
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No component found.", false));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_fetch_component_measures_with_component_key(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java")));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+        Component: ElementImpl.java
+        Key: MY_PROJECT:ElementImpl.java
+        Qualifier: FIL
+        Language: java
+        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
+
+        Measures:
+          - Complexity (complexity): 12
+            Description: Cyclomatic complexity
+          - New issues (new_violations):  | New: 25 (not best)
+            Description: New Issues
+          - Lines of code (ncloc): 114
+            Description: Non Commenting Lines of Code
+
+        Available Metrics:
+          - Complexity (complexity)
+            Description: Cyclomatic complexity
+            Domain: Complexity
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false
+
+          - Lines of code (ncloc)
+            Description: Non Commenting Lines of Code
+            Domain: Size
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false
+
+          - New issues (new_violations)
+            Description: New Issues
+            Domain: Issues
+            Type: INT
+            Higher values are better: false
+            Qualitative: true
+            Hidden: false
+            Custom: false
+
+        Periods:
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_fetch_component_measures_with_branch(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&branch=main&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
+        )));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+        Component: ElementImpl.java
+        Key: MY_PROJECT:ElementImpl.java
+        Qualifier: FIL
+        Language: java
+        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
+
+        Measures:
+          - Complexity (complexity): 12
+            Description: Cyclomatic complexity
+          - New issues (new_violations):  | New: 25 (not best)
+            Description: New Issues
+          - Lines of code (ncloc): 114
+            Description: Non Commenting Lines of Code
+
+        Available Metrics:
+          - Complexity (complexity)
+            Description: Cyclomatic complexity
+            Domain: Complexity
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false
+
+          - Lines of code (ncloc)
+            Description: Non Commenting Lines of Code
+            Domain: Size
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false
+
+          - New issues (new_violations)
+            Description: New Issues
+            Domain: Issues
+            Type: INT
+            Higher values are better: false
+            Qualitative: true
+            Hidden: false
+            Custom: false
+
+        Periods:
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_fetch_component_measures_with_metric_keys(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&metricKeys=ncloc,complexity&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
+        )));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+        Component: ElementImpl.java
+        Key: MY_PROJECT:ElementImpl.java
+        Qualifier: FIL
+        Language: java
+        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
+
+        Measures:
+          - Complexity (complexity): 12
+            Description: Cyclomatic complexity
+          - New issues (new_violations):  | New: 25 (not best)
+            Description: New Issues
+          - Lines of code (ncloc): 114
+            Description: Non Commenting Lines of Code
+
+        Available Metrics:
+          - Complexity (complexity)
+            Description: Cyclomatic complexity
+            Domain: Complexity
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false
+
+          - Lines of code (ncloc)
+            Description: Non Commenting Lines of Code
+            Domain: Size
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false
+
+          - New issues (new_violations)
+            Description: New Issues
+            Domain: Issues
+            Type: INT
+            Higher values are better: false
+            Qualitative: true
+            Hidden: false
+            Custom: false
+
+        Periods:
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_fetch_component_measures_with_pull_request(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&pullRequest=123&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
+        )));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+        Component: ElementImpl.java
+        Key: MY_PROJECT:ElementImpl.java
+        Qualifier: FIL
+        Language: java
+        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
+
+        Measures:
+          - Complexity (complexity): 12
+            Description: Cyclomatic complexity
+          - New issues (new_violations):  | New: 25 (not best)
+            Description: New Issues
+          - Lines of code (ncloc): 114
+            Description: Non Commenting Lines of Code
+
+        Available Metrics:
+          - Complexity (complexity)
+            Description: Cyclomatic complexity
+            Domain: Complexity
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false
+
+          - Lines of code (ncloc)
+            Description: Non Commenting Lines of Code
+            Domain: Size
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false
+
+          - New issues (new_violations)
+            Description: New Issues
+            Domain: Issues
+            Type: INT
+            Higher values are better: false
+            Qualitative: true
+            Hidden: false
+            Custom: false
+
+        Periods:
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertThat(mockServer.getReceivedRequests())
+        .containsExactly(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_handle_component_with_no_measures(SonarQubeMcpServerTestHarness harness) {
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+          {
+            "component": {
+              "key": "MY_PROJECT:EmptyFile.java",
+              "name": "EmptyFile.java",
+              "qualifier": "FIL",
+              "language": "java",
+              "path": "src/main/java/EmptyFile.java",
+              "measures": []
+            },
+            "metrics": [
+              {
+                "key": "ncloc",
+                "name": "Lines of code",
+                "description": "Non Commenting Lines of Code",
+                "domain": "Size",
+                "type": "INT",
+                "higherValuesAreBetter": false,
+                "qualitative": false,
+                "hidden": false,
+                "custom": false
+              }
+            ],
+            "periods": []
+          }
+          """.getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of()));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+        Component: EmptyFile.java
+        Key: MY_PROJECT:EmptyFile.java
+        Qualifier: FIL
+        Language: java
+        Path: src/main/java/EmptyFile.java
+
+        No measures found for this component.
+        Available Metrics:
+          - Lines of code (ncloc)
+            Description: Non Commenting Lines of Code
+            Domain: Size
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false""", false));
+    }
+
   }
 
   private static String generateComponentMeasuresResponse() {

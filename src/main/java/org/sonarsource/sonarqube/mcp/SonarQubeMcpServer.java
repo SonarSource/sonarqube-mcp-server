@@ -72,7 +72,7 @@ public class SonarQubeMcpServer {
       new ListRuleRepositoriesTool(serverApi),
       new ListQualityGatesTool(serverApi),
       new ListLanguagesTool(serverApi),
-      new AnalysisTool(backendService)
+      new AnalysisTool(backendService),
       new GetComponentMeasuresTool(serverApi),
       new SearchMetricsTool(serverApi)
     );
