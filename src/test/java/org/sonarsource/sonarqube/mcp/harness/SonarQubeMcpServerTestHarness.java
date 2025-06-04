@@ -43,6 +43,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     "SONARQUBE_URL", "fake.url");
   private boolean isStatic;
   private final List<McpSyncClient> clients = new ArrayList<>();
+  private final List<SonarQubeMcpServer> servers = new ArrayList<>();
 
   @Override
   public SonarQubeMcpServerTestHarness resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
@@ -71,6 +72,16 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   private void shutdownAll() {
     clients.forEach(McpSyncClient::closeGracefully);
     clients.clear();
+
+    servers.forEach(server -> {
+      try {
+        server.shutdown();
+      } catch (Exception e) {
+        // Log error but continue cleanup
+        System.err.println("Error shutting down server: " + e.getMessage());
+      }
+    });
+    servers.clear();
   }
 
   public McpSyncClient newClient() {
@@ -79,6 +90,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
 
   public McpSyncClient newClient(Map<String, String> overriddenEnv) {
     McpSyncClient client;
+    SonarQubeMcpServer server;
     try {
       var clientToServerOutputStream = new PipedOutputStream();
       var clientToServerInputStream = new PipedInputStream(clientToServerOutputStream);
@@ -86,15 +98,20 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       var serverToClientInputStream = new PipedInputStream(serverToClientOutputStream);
       var environment = new HashMap<>(DEFAULT_ENV);
       environment.putAll(overriddenEnv);
-      new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream), environment).start();
+      server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream), environment);
+      server.start();
+      
+      // Give the server a moment to fully initialize
+      Thread.sleep(100);
+      
       client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream))
         .loggingConsumer(SonarQubeMcpServerTestHarness::printLogs).build();
       client.initialize();
-      client.setLoggingLevel(McpSchema.LoggingLevel.CRITICAL);
-    } catch (IOException e) {
+    } catch (IOException | InterruptedException e) {
       throw new RuntimeException(e);
     }
     this.clients.add(client);
+    this.servers.add(server);
     return client;
   }
 
