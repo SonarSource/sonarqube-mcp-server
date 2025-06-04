@@ -51,8 +51,8 @@ public class GetScmInfoTool extends Tool {
 
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
     var commitsByLine = arguments.getOptionalBoolean(COMMITS_BY_LINE_PROPERTY);
-    var from = arguments.getOptionalNumber(FROM_PROPERTY);
-    var to = arguments.getOptionalNumber(TO_PROPERTY);
+    var from = arguments.getOptionalInteger(FROM_PROPERTY);
+    var to = arguments.getOptionalInteger(TO_PROPERTY);
     
     try {
       var scmInfo = serverApi.sourcesApi().getScmInfo(key, commitsByLine, from, to);

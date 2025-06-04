@@ -68,11 +68,6 @@ public abstract class Tool {
       return (String) argumentsMap.get(argumentName);
     }
 
-    @CheckForNull
-    public Integer getOptionalNumber(String argumentName) {
-      return (Integer) argumentsMap.get(argumentName);
-    }
-
     public int getIntOrDefault(String argumentName, int defaultValue) {
       var stringArgument = getOptionalString(argumentName);
       if (stringArgument == null) {
