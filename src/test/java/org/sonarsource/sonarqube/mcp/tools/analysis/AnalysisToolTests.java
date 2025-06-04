@@ -27,7 +27,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 public class AnalysisToolTests {
 
   @Nested
-  class Failure {
+  class MissingPrerequisite {
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_codeSnippet_is_missing(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
@@ -44,7 +44,7 @@ public class AnalysisToolTests {
   }
 
   @Nested
-  class Success {
+  class Standalone {
     @SonarQubeMcpServerTest
     void it_should_find_no_issues_in_an_empty_file(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();

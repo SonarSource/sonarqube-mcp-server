@@ -16,17 +16,6 @@ SonarQube MCP Server can be launched in two ways:
 * **Directly from the JAR**
   * **Requires:** Java Development Kit (JDK) version 21 or later.
 
-### Configuration
-
-To enable full functionality, the following environment variables must be set before starting the server:
-
-* `SONARQUBE_CLOUD_TOKEN`: Your SonarQube Cloud **USER** [token](https://sonarcloud.io/account/security).
-* `SONARQUBE_CLOUD_ORG`: Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations).
-* `STORAGE_PATH`: An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence).
-  * *This variable is not required when running within a Docker container.*
-* `PLUGINS_PATH`: An optional absolute path to a folder containing the SonarQube analyzers. If none is provided, analysis is disabled.
-  * *This variable is not required when running within a Docker container.*
-
 ## Installation
 
 ### Building
@@ -91,9 +80,9 @@ Alternatively, you can manually copy and paste the MCP configurations. Below are
     ],
     "env": {
       "STORAGE_PATH": "<path_to_your_mcp_storage>",
+      "PLUGINS_PATH": "<path_to_your_sonar_analyzers>",
       "SONARQUBE_TOKEN": "<token>",
       "SONARQUBE_ORG": "<org>"
-      "PLUGINS_PATH": "<path_to_your_sonar_analyzers>",
     }
   }
 }
@@ -123,9 +112,10 @@ To enable full functionality, the following environment variables must be set be
 
 On top of the previous SonarQube environments, you should add the following variable when running the MCP Server via a JAR:
 
-| Environmment variable | Description                                                                                                                                |
-|------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| `STORAGE_PATH`      | An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence) |
+| Environmment variable | Description                                                                                                                               |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `STORAGE_PATH`        | An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence) |
+| `PLUGINS_PATH`        | An optional absolute path to a folder containing the SonarQube analyzers. If none is provided, analysis is disabled |
 
 ## Tools
 

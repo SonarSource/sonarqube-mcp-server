@@ -30,16 +30,16 @@ public class McpServerLaunchConfiguration {
   private static final String SONARCLOUD_URL = "https://sonarcloud.io";
 
   private static final String STORAGE_PATH = "STORAGE_PATH";
+  private static final String PLUGINS_PATH = "PLUGINS_PATH";
   private static final String SONARQUBE_URL = "SONARQUBE_URL";
   private static final String SONARQUBE_ORG = "SONARQUBE_ORG";
   private static final String SONARQUBE_TOKEN = "SONARQUBE_TOKEN";
-  private static final String PLUGINS_PATH = "PLUGINS_PATH";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
 
   private final String storagePath;
-  private final String sonarqubeUrl;
   @Nullable
   private final String pluginsPath;
+  private final String sonarqubeUrl;
   @Nullable
   private final String sonarqubeOrg;
   @Nullable
@@ -71,12 +71,13 @@ public class McpServerLaunchConfiguration {
   }
 
   @Nullable
-  public String getSonarqubeOrg() {
-    return sonarqubeOrg;
-  @Nullable
   public String getPluginsPath() {
     return pluginsPath;
   }
+
+  @Nullable
+  public String getSonarqubeOrg() {
+    return sonarqubeOrg;
   }
 
   public String getSonarQubeUrl() {
