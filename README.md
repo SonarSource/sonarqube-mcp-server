@@ -131,7 +131,7 @@ On top of the previous SonarQube environments, you should add the following vari
 
 ### Analysis
 
-- **analyze_code_snippet_with_sonarqube** - Analyze a code snippet with SonarQube analyzers to find SonarQube issues in it.
+- **analyze_code_snippet** - Analyze a code snippet with SonarQube analyzers to find SonarQube issues in it.
   - `codeSnippet` - Code snippet or full file content - _Required String_
   - `language` - Optional language of the code snippet - _String_
 

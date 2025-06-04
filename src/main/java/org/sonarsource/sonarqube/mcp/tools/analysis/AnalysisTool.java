@@ -35,7 +35,7 @@ import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.mapSonarLangu
 
 public class AnalysisTool extends Tool {
 
-  public static final String TOOL_NAME = "analyze_code_snippet_with_sonarqube";
+  public static final String TOOL_NAME = "analyze_code_snippet";
   public static final String SNIPPET_PROPERTY = "codeSnippet";
   public static final String LANGUAGE_PROPERTY = "language";
 
@@ -69,7 +69,7 @@ public class AnalysisTool extends Tool {
       var clientFileDto = backendService.toClientFileDto(tmpFile, codeSnippet, mapSonarLanguageToLanguage(sonarLanguage));
       backendService.addFile(clientFileDto);
       var startTime = System.currentTimeMillis();
-      var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri()), startTime).get(20,
+      var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri()), startTime).get(30,
         TimeUnit.SECONDS);
       return Tool.Result.success(buildResponseFromAnalysisResults(response));
     } catch (IOException | ExecutionException | TimeoutException e) {
