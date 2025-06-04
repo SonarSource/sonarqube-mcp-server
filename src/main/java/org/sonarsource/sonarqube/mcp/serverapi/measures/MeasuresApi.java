@@ -33,8 +33,8 @@ public class MeasuresApi {
     this.helper = helper;
   }
 
-  public ComponentMeasuresResponse getComponentMeasures(@Nullable String component, @Nullable String branch, 
-                                                       @Nullable List<String> metricKeys, @Nullable String pullRequest) {
+  public ComponentMeasuresResponse getComponentMeasures(@Nullable String component, @Nullable String branch,
+    @Nullable List<String> metricKeys, @Nullable String pullRequest) {
     try (var response = helper.get(buildPath(component, branch, metricKeys, pullRequest))) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, ComponentMeasuresResponse.class);
@@ -42,7 +42,7 @@ public class MeasuresApi {
   }
 
   private static String buildPath(@Nullable String component, @Nullable String branch, 
-                                 @Nullable List<String> metricKeys, @Nullable String pullRequest) {
+    @Nullable List<String> metricKeys, @Nullable String pullRequest) {
     return new UrlBuilder(COMPONENT_PATH)
       .addParam("component", component)
       .addParam("branch", branch)
