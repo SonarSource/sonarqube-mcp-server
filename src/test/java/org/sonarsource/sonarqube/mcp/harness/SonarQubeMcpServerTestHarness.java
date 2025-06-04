@@ -101,13 +101,10 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream), environment);
       server.start();
       
-      // Give the server a moment to fully initialize
-      Thread.sleep(100);
-      
       client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream))
         .loggingConsumer(SonarQubeMcpServerTestHarness::printLogs).build();
       client.initialize();
-    } catch (IOException | InterruptedException e) {
+    } catch (IOException e) {
       throw new RuntimeException(e);
     }
     this.clients.add(client);
