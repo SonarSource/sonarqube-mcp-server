@@ -43,6 +43,8 @@ import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
+import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
+import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
 
 public class SonarQubeMcpServer {
 
@@ -74,7 +76,9 @@ public class SonarQubeMcpServer {
       new ListLanguagesTool(serverApi),
       new AnalysisTool(backendService),
       new GetComponentMeasuresTool(serverApi),
-      new SearchMetricsTool(serverApi)
+      new SearchMetricsTool(serverApi),
+      new GetScmInfoTool(serverApi),
+      new GetRawSourceTool(serverApi)
     );
   }
 

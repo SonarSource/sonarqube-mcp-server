@@ -24,6 +24,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.sources.SourcesApi;
 
 public class ServerApi {
 
@@ -61,6 +62,10 @@ public class ServerApi {
 
   public MetricsApi metricsApi() {
     return new MetricsApi(helper);
+  }
+
+  public SourcesApi sourcesApi() {
+    return new SourcesApi(helper);
   }
 
   public boolean isAuthenticationSet() {

@@ -66,6 +66,18 @@ public class SchemaToolBuilder {
     return this;
   }
 
+  public SchemaToolBuilder addBooleanProperty(String propertyName, String description) {
+    var content = Map.of(TYPE_PROPERTY_NAME, "boolean", DESCRIPTION_KEY_NAME, description);
+    properties.put(propertyName, content);
+    return this;
+  }
+
+  public SchemaToolBuilder addNumberProperty(String propertyName, String description) {
+    var content = Map.of(TYPE_PROPERTY_NAME, "number", DESCRIPTION_KEY_NAME, description);
+    properties.put(propertyName, content);
+    return this;
+  }
+
   public SchemaToolBuilder addArrayProperty(String propertyName, String itemsType, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, "array", DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, itemsType));
     properties.put(propertyName, content);
