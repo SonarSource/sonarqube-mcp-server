@@ -99,26 +99,26 @@ Depending on your environment, you should provide specific environment variables
 
 To enable full functionality, the following environment variables must be set before starting the server:
 
-| Environmment variable | Description                                                                                                                               |
-|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOKEN`     | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/) |
-| `SONARQUBE_ORG`       | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                                                      |
+| Environment variable | Description                                                                                                                               |
+|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `SONARQUBE_TOKEN`    | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/) |
+| `SONARQUBE_ORG`      | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                                                      |
 
 ### SonarQube Server
 
-| Environmment variable | Description                                                                                                                                 |
-|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOKEN`      | Your SonarQube Server **USER** [token](https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token) |
-| `SONARQUBE_URL`        | Your SonarQube Server URL                                                                                                                   |
+| Environment variable | Description                                                                                                                                 |
+|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `SONARQUBE_TOKEN`     | Your SonarQube Server **USER** [token](https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token) |
+| `SONARQUBE_URL`       | Your SonarQube Server URL                                                                                                                   |
 
 ### JAR
 
 On top of the previous SonarQube environments, you should add the following variable when running the MCP Server via a JAR:
 
-| Environmment variable | Description                                                                                                                               |
-|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `STORAGE_PATH`        | An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence) |
-| `PLUGINS_PATH`        | An optional absolute path to a folder containing the SonarQube analyzers. If none is provided, analysis is disabled |
+| Environment variable | Description                                                                                                                               |
+|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `STORAGE_PATH`       | An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence) |
+| `PLUGINS_PATH`       | An optional absolute path to a folder containing the SonarQube analyzers. If none is provided, analysis is disabled |
 
 ## Tools
 
@@ -184,6 +184,20 @@ On top of the previous SonarQube environments, you should add the following vari
 
 - **show_rule** - Shows detailed information about a SonarQube rule
   - `key` - Rule key - _Required String_
+
+### Sources
+
+- **get_raw_source** - Get source code as raw text. Require 'See Source Code' permission on file
+  - `key` - File key - _Required String_
+  - `branch` - Optional branch key - _String_
+  - `pullRequest` - Optional pull request id - _String_
+
+
+- **get_scm_info** - Get SCM information of source files. Require See Source Code permission on file's project
+  - `key` - File key - _Required String_
+  - `commits_by_line` - Group lines by SCM commit if value is false, else display commits for each line - _String_
+  - `from` - First line to return. Starts at 1 - _Number_
+  - `to` - Last line to return (inclusive) - _Number_
 
 ## Data and telemetry
 

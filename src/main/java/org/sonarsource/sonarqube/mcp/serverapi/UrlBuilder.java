@@ -44,6 +44,13 @@ public class UrlBuilder {
     return this;
   }
 
+  public UrlBuilder addParam(String name, @Nullable Boolean value) {
+    if (value != null) {
+      parameters.add(new QueryParam(name, List.of(value.toString())));
+    }
+    return this;
+  }
+
   public UrlBuilder addParam(String name, @Nullable List<String> values) {
     if (values != null && !values.isEmpty()) {
       parameters.add(new QueryParam(name, values));

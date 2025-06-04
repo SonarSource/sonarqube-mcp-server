@@ -43,6 +43,8 @@ import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
+import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
+import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
 
 public class SonarQubeMcpServer {
 
@@ -52,6 +54,8 @@ public class SonarQubeMcpServer {
   private final StdioServerTransportProvider transportProvider;
   private final List<Tool> supportedTools;
   private final McpServerLaunchConfiguration mcpConfiguration;
+  private McpSyncServer syncServer;
+  private volatile boolean isShutdown = false;
 
   public static void main(String[] args) {
     new SonarQubeMcpServer(new StdioServerTransportProvider(), System.getenv()).start();
@@ -74,19 +78,21 @@ public class SonarQubeMcpServer {
       new ListLanguagesTool(serverApi),
       new AnalysisTool(backendService),
       new GetComponentMeasuresTool(serverApi),
-      new SearchMetricsTool(serverApi)
+      new SearchMetricsTool(serverApi),
+      new GetScmInfoTool(serverApi),
+      new GetRawSourceTool(serverApi)
     );
   }
 
   public void start() {
-    var syncServer = McpServer.sync(transportProvider)
+    syncServer = McpServer.sync(transportProvider)
       .serverInfo(new McpSchema.Implementation("sonarqube-mcp-server", mcpConfiguration.getAppVersion()))
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
       .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
       .build();
     LOG.setOutput(syncServer);
     backendService.initialize();
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(syncServer, backendService)));
+    Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
   }
 
   private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
@@ -108,9 +114,15 @@ public class SonarQubeMcpServer {
     return new ServerApi(serverApiHelper, token);
   }
 
-  private static void shutdown(McpSyncServer syncServer, BackendService backendService) {
+  public void shutdown() {
+    if (isShutdown) {
+      return;
+    }
+    isShutdown = true;
     try {
-      syncServer.closeGracefully();
+      if (syncServer != null) {
+        syncServer.closeGracefully();
+      }
     } catch (Exception e) {
       LOG.error("Error shutting down MCP server", e);
     }

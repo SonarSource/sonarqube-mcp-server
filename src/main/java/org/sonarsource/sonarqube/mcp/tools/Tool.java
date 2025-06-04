@@ -55,6 +55,15 @@ public abstract class Tool {
     }
 
     @CheckForNull
+    public Boolean getOptionalBoolean(String argumentName) {
+      var arg = (String) argumentsMap.get(argumentName);
+      if (arg == null) {
+        return null;
+      }
+      return Boolean.parseBoolean(arg);
+    }
+
+    @CheckForNull
     public String getOptionalString(String argumentName) {
       return (String) argumentsMap.get(argumentName);
     }
