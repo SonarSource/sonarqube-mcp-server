@@ -56,7 +56,7 @@ public class UrlBuilder {
     var leadingCharacter = '?';
     for (var parameter : parameters) {
       url.append(leadingCharacter)
-        .append(parameter.name)
+        .append(urlEncode(parameter.name))
         .append("=")
         .append(String.join(",", parameter.values.stream().map(UrlBuilder::urlEncode).toList()));
       leadingCharacter = '&';
