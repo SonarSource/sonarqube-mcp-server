@@ -5,6 +5,8 @@ env:
   ARTIFACTORY_URL: VAULT[development/kv/data/repox data.url]
   ARTIFACTORY_PRIVATE_USERNAME: vault-${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-private-reader
   ARTIFACTORY_PRIVATE_PASSWORD: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-private-reader access_token]
+  DEVELOCITY_TOKEN: VAULT[development/kv/data/develocity data.token]
+  DEVELOCITY_ACCESS_KEY: develocity.sonar.build=${DEVELOCITY_TOKEN}
   SLACK_TOKEN: VAULT[development/kv/data/slack data.token]
   SLACK_CHANNEL: squad-ide-mcp-server-bots
   GRADLE_VERSION: "8.13"
