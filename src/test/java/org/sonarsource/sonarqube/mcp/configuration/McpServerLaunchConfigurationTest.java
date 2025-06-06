@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class McpServerLaunchConfigurationTest {
 
@@ -31,6 +32,24 @@ class McpServerLaunchConfigurationTest {
 
     assertThat(configuration.getUserAgent())
       .isEqualTo("SonarQube MCP Server " + System.getProperty("sonarqube.mcp.server.version"));
+  }
+
+  @Test
+  void should_throw_error_if_no_storage_path() {
+    var arg = Map.<String, String>of();
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("STORAGE_PATH environment variable or property must be set");
+  }
+
+  @Test
+  void should_throw_error_if_sonarqube_cloud_org_is_missing() {
+    var arg = Map.of("STORAGE_PATH", "", "SONARQUBE_TOKEN", "token");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("SONARQUBE_ORG environment variable must be set when using SonarQube Cloud");
   }
 
 }
