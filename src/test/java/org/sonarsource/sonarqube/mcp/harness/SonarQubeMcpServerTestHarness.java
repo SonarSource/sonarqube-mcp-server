@@ -26,11 +26,12 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Comparator;
+import java.util.UUID;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -59,15 +60,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   private void cleanupTempStoragePath() {
     if (tempStoragePath != null && Files.exists(tempStoragePath)) {
       try {
-        Files.walk(tempStoragePath)
-          .sorted(Comparator.reverseOrder())
-          .forEach(path -> {
-            try {
-              Files.delete(path);
-            } catch (IOException e) {
-              // Ignore cleanup errors
-            }
-          });
+        Files.delete(tempStoragePath);
       } catch (IOException e) {
         // Ignore cleanup errors
       }
@@ -80,9 +73,11 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   }
 
   public McpSyncClient newClient(Map<String, String> overriddenEnv) {
-    if (tempStoragePath == null) {
+    if (overriddenEnv.containsKey("STORAGE_PATH")) {
+      tempStoragePath = Paths.get(overriddenEnv.get("STORAGE_PATH"));
+    } else {
       try {
-        tempStoragePath = Files.createTempDirectory("sonarqube-mcp-test-storage-");
+        tempStoragePath = Files.createTempDirectory("sonarqube-mcp-test-storage-" + UUID.randomUUID());
       } catch (IOException e) {
         throw new RuntimeException("Failed to create temporary storage directory", e);
       }
