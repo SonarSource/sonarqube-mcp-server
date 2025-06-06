@@ -57,6 +57,10 @@ Alternatively, you can manually copy and paste the MCP configurations. Below are
       "run",
       "-i",
       "--rm",
+      "-e",
+      "SONARQUBE_TOKEN",
+      "-e",
+      "SONARQUBE_ORG",
       "sonarqube-mcp-server:<version>"
     ],
     "env": {

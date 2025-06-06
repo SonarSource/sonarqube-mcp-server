@@ -26,9 +26,7 @@ import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 public class McpServerLaunchConfiguration {
 
   private static final String APP_NAME = "SonarQube MCP Server";
-
   private static final String SONARCLOUD_URL = "https://sonarcloud.io";
-
   private static final String STORAGE_PATH = "STORAGE_PATH";
   private static final String PLUGINS_PATH = "PLUGINS_PATH";
   private static final String SONARQUBE_URL = "SONARQUBE_URL";
@@ -113,6 +111,9 @@ public class McpServerLaunchConfiguration {
     }
     if (property == null) {
       property = defaultValue;
+    }
+    if (property != null && property.isBlank()) {
+      property = null;
     }
     return property;
   }

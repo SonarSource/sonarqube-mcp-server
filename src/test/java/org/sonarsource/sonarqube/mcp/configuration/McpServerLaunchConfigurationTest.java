@@ -16,16 +16,18 @@
  */
 package org.sonarsource.sonarqube.mcp.configuration;
 
+import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpServerLaunchConfigurationTest {
 
   @Test
-  void should_return_correct_user_agent() {
-    var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", ""));
+  void should_return_correct_user_agent(@TempDir Path tempDir) {
+    var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", tempDir.toString()));
 
     assertThat(configuration.getUserAgent())
       .isEqualTo("SonarQube MCP Server " + System.getProperty("sonarqube.mcp.server.version"));

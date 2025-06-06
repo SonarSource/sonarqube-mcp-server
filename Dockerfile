@@ -45,7 +45,7 @@ COPY --chown=appuser:appgroup --chmod=755 build/sonarqube-mcp-server/plugins ./p
 
 USER appuser
 
-ENV STORAGE_PATH=/data/storage
+ENV STORAGE_PATH=./storage
 ENV SONARQUBE_TOKEN=
 ENV SONARQUBE_ORG=
 ENV SONARQUBE_URL=
