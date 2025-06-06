@@ -32,6 +32,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 
 class GetComponentMeasuresToolTests {
 
@@ -92,7 +93,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_component_key(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&additionalFields=metrics")
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
         )));
@@ -158,7 +159,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_branch(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&branch=main&additionalFields=metrics")
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&branch=main&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
         )));
@@ -227,7 +228,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_metric_keys(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&metricKeys=ncloc,complexity&additionalFields=metrics")
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&metricKeys=ncloc,complexity&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
         )));
@@ -296,7 +297,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_pull_request(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&pullRequest=123&additionalFields=metrics")
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&pullRequest=123&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
         )));
@@ -480,7 +481,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_component_key(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&additionalFields=metrics")
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
         )));
@@ -545,7 +546,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_branch(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&branch=main&additionalFields=metrics")
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&branch=main&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
         )));
@@ -613,7 +614,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_metric_keys(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&metricKeys=ncloc,complexity&additionalFields=metrics")
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&metricKeys=ncloc,complexity&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
         )));
@@ -681,7 +682,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_pull_request(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=MY_PROJECT%3AElementImpl.java&pullRequest=123&additionalFields=metrics")
+      mockServer.stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&pullRequest=123&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
         )));

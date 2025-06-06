@@ -102,7 +102,8 @@ tasks {
 		systemProperty("TELEMETRY_DISABLED", "true")
 		systemProperty("sonarqube.mcp.server.version", project.version)
 		doNotTrackState("Tests should always run")
-		jvmArgs("-javaagent:${mockitoAgent.asPath}")
+		maxHeapSize = "2g"
+		jvmArgs("-javaagent:${mockitoAgent.asPath}", "-XX:MaxMetaspaceSize=512m")
 		dependsOn("preparePlugins")
 	}
 
