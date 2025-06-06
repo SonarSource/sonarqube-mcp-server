@@ -44,8 +44,17 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_if_sonarqube_cloud_org_is_missing() {
-    var arg = Map.of("STORAGE_PATH", "", "SONARQUBE_TOKEN", "token");
+  void should_throw_error_if_storage_path_is_empty() {
+    var arg = Map.of("STORAGE_PATH", "");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("STORAGE_PATH environment variable or property must be set");
+  }
+
+  @Test
+  void should_throw_error_if_sonarqube_cloud_org_is_missing(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
 
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
