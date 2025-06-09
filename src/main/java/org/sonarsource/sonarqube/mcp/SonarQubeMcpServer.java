@@ -54,6 +54,7 @@ public class SonarQubeMcpServer {
   private final StdioServerTransportProvider transportProvider;
   private final List<Tool> supportedTools;
   private final McpServerLaunchConfiguration mcpConfiguration;
+  private final HttpClientProvider httpClientProvider;
   private McpSyncServer syncServer;
   private volatile boolean isShutdown = false;
 
@@ -65,6 +66,7 @@ public class SonarQubeMcpServer {
     this.transportProvider = transportProvider;
     this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
     this.backendService = new BackendService(mcpConfiguration);
+    this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     var serverApi = initializeServerApi(mcpConfiguration);
     this.toolExecutor = new ToolExecutor(backendService);
     this.supportedTools = List.of(
@@ -102,12 +104,11 @@ public class SonarQubeMcpServer {
     );
   }
 
-  private static ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
+  private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
     var organization = mcpConfiguration.getSonarqubeOrg();
     var token = mcpConfiguration.getSonarQubeToken();
     var url = mcpConfiguration.getSonarQubeUrl();
 
-    var httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     var httpClient = httpClientProvider.getHttpClient(token);
 
     var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization), httpClient);
@@ -119,6 +120,11 @@ public class SonarQubeMcpServer {
       return;
     }
     isShutdown = true;
+    try {
+      httpClientProvider.shutdown();
+    } catch (Exception e) {
+      LOG.error("Error shutting down HTTP client", e);
+    }
     try {
       if (syncServer != null) {
         syncServer.closeGracefully();
