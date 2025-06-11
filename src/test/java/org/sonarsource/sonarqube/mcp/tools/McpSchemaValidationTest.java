@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
-import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +27,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
+import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -19,7 +19,6 @@ package org.sonarsource.sonarqube.mcp;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +44,7 @@ import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
+import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 public class SonarQubeMcpServer {
 

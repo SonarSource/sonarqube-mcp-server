@@ -19,11 +19,8 @@ package org.sonarsource.sonarqube.mcp.harness;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,11 +29,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
+import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements AfterEachCallback {
   private static final Map<String, String> DEFAULT_ENV_TEMPLATE = Map.of(
@@ -92,26 +91,24 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
         throw new RuntimeException("Failed to create temporary storage directory", e);
       }
     }
-    
-    McpSyncClient client;
-    SonarQubeMcpServer server;
-    try {
-      var clientToServerOutputStream = new PipedOutputStream();
-      var clientToServerInputStream = new PipedInputStream(clientToServerOutputStream);
-      var serverToClientOutputStream = new PipedOutputStream();
-      var serverToClientInputStream = new PipedInputStream(serverToClientOutputStream);
-      var environment = new HashMap<>(DEFAULT_ENV_TEMPLATE);
-      environment.put("STORAGE_PATH", tempStoragePath.toString());
-      environment.putAll(overriddenEnv);
-      server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream), environment);
-      server.start();
-      
-      client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream))
-        .loggingConsumer(SonarQubeMcpServerTestHarness::printLogs).build();
-      client.initialize();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+
+    var clientToServerBlockingQueue = new LinkedBlockingQueue<Integer>();
+    var clientToServerOutputStream = new BlockingQueueOutputStream(clientToServerBlockingQueue);
+    var clientToServerInputStream = new BlockingQueueInputStream(clientToServerBlockingQueue);
+    var serverToClientBlockingQueue = new LinkedBlockingQueue<Integer>();
+    var serverToClientOutputStream = new BlockingQueueOutputStream(serverToClientBlockingQueue);
+    var serverToClientInputStream = new BlockingQueueInputStream(serverToClientBlockingQueue);
+    var environment = new HashMap<>(DEFAULT_ENV_TEMPLATE);
+    environment.put("STORAGE_PATH", tempStoragePath.toString());
+    environment.putAll(overriddenEnv);
+
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream),
+      environment);
+    server.start();
+
+    var client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream))
+      .loggingConsumer(SonarQubeMcpServerTestHarness::printLogs).build();
+    client.initialize();
     this.clients.add(client);
     this.servers.add(server);
     return client;
