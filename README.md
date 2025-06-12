@@ -199,6 +199,25 @@ On top of the previous SonarQube environments, you should add the following vari
   - `from` - First line to return. Starts at 1 - _Number_
   - `to` - Last line to return (inclusive) - _Number_
 
+### System
+
+**Note: System tools are only available when connecting to SonarQube Server.**
+
+- **get_system_health** - Get the health status of SonarQube Server instance
+
+
+- **get_system_info** - Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. Requires 'Administer' permissions
+
+
+- **get_system_logs** - Get SonarQube Server system logs in plain-text format. Requires system administration permission
+  - `name` - Optional name of the logs to get. Possible values: access, app, ce, deprecation, es, web. Default: app - _String_
+
+
+- **get_system_ping** - Ping the SonarQube Server system to check if it's alive
+
+
+- **get_system_status** - Get state information about SonarQube Server
+
 ## Data and telemetry
 
 This server collects anonymous usage data and sends it to SonarSource to help improve the product. No source code or IP address is collected, and SonarSource does not share the data with anyone else. Collection of telemetry can be disabled with the following system property or environment variable: `TELEMETRY_DISABLED=true`. Click [here](telemetry-sample.md) to see a sample of the data that are collected.

@@ -44,6 +44,7 @@ public class McpServerLaunchConfiguration {
   private final String appVersion;
   private final String userAgent;
   private final boolean isTelemetryEnabled;
+  private final boolean isSonarCloud;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     this.storagePath = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -54,7 +55,9 @@ public class McpServerLaunchConfiguration {
     this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
 
-    if (this.sonarqubeToken != null && (SONARCLOUD_URL.equals(this.sonarqubeUrl) && this.sonarqubeOrg == null)) {
+    this.isSonarCloud = SONARCLOUD_URL.equals(this.sonarqubeUrl);
+
+    if (this.sonarqubeToken != null && (this.isSonarCloud && this.sonarqubeOrg == null)) {
       throw new IllegalArgumentException("SONARQUBE_ORG environment variable must be set when using SonarQube Cloud");
     }
 
@@ -102,6 +105,10 @@ public class McpServerLaunchConfiguration {
 
   public boolean isTelemetryEnabled() {
     return isTelemetryEnabled;
+  }
+
+  public boolean isSonarCloud() {
+    return isSonarCloud;
   }
 
   @CheckForNull
