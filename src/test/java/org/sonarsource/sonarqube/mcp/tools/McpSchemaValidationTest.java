@@ -64,6 +64,17 @@ class McpSchemaValidationTest {
     validateMcpToolSchema(schema);
   }
 
+  // there is no constraint in the spec, but some clients may filter out some tools when the name is too long
+  // e.g. for Cursor when length(server name + tool name) > 60
+  // we decide 40 characters is a reasonable threshold
+  @ParameterizedTest(name = "Tool ''{0}'' name should be short")
+  @MethodSource("provideTools")
+  void tool_name_should_be_short(Tool tool) {
+    var toolNameLength = tool.definition().name().length();
+
+    assertThat(toolNameLength).isLessThanOrEqualTo(40);
+  }
+
   @ParameterizedTest(name = "Tool ''{0}'' should follow MCP naming convention")
   @MethodSource("provideTools")
   void tool_name_should_follow_mcp_naming_convention(Tool tool) {

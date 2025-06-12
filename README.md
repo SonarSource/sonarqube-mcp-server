@@ -39,9 +39,9 @@ To create the Docker image, run the `buildDocker` task:
 
 Once the application is built locally (either as a JAR or a Docker image), you can use the following buttons to simplify the installation process within VS Code.
 
-[![Install for SonarQube Cloud with Docker](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud_with_Docker-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube-mcp-server&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_ORG%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Organization%20Key%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22sonarqube-mcp-server%3A0.0.2-SNAPSHOT%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_ORG%22%3A%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
+[![Install for SonarQube Cloud with Docker](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud_with_Docker-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_ORG%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Organization%20Key%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22sonarqube-mcp-server%3A0.0.2-SNAPSHOT%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_ORG%22%3A%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
 
-[![Install for SonarQube Server with Docker](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server_with_Docker-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube-mcp-server&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22sonarqube-mcp-server%3A0.0.2-SNAPSHOT%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
+[![Install for SonarQube Server with Docker](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server_with_Docker-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22sonarqube-mcp-server%3A0.0.2-SNAPSHOT%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
 
 #### General cases
 
@@ -51,7 +51,7 @@ Alternatively, you can manually copy and paste the MCP configurations. Below are
 
 ```JSON
 {
-  "sonarqube-mcp-server-docker": {
+  "sonarqube": {
     "command": "docker",
     "args": [
       "run",
@@ -75,7 +75,7 @@ Alternatively, you can manually copy and paste the MCP configurations. Below are
 
 ```JSON
 {
-  "sonarqube-mcp-server": {
+  "sonarqube": {
     "command": "java",
     "args": [
       "-jar",
@@ -160,12 +160,12 @@ On top of the previous SonarQube environments, you should add the following vari
 
 ### Projects
 
-- **search_my_sonarqube_cloud_projects** - Find Sonar projects in my organization
+- **search_my_sonarqube_projects** - Find Sonar projects in my organization
   - `page` - Optional page number - _String_
 
 ### Quality Gates
 
-- **get_quality_gate_status_for_project** - Get the Quality Gate Status for the project
+- **get_project_quality_gate_status** - Get the Quality Gate Status for the project
   - `analysisId` - Optional analysis ID - _String_
   - `branch` - Optional branch key - _String_
   - `projectId` - Optional project ID - _String_

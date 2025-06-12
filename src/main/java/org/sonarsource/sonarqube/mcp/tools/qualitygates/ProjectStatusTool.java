@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ProjectStatusTool extends Tool {
 
-  public static final String TOOL_NAME = "get_quality_gate_status_for_project";
+  public static final String TOOL_NAME = "get_project_quality_gate_status";
   public static final String ANALYSIS_ID_PROPERTY = "analysisId";
   public static final String BRANCH_PROPERTY = "branch";
   public static final String PROJECT_ID_PROPERTY = "projectId";
