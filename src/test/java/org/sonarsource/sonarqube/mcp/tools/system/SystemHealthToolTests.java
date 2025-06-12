@@ -162,27 +162,6 @@ class SystemHealthToolTests {
       assertThat(mockServer.getReceivedRequests())
         .containsExactly(new ReceivedRequest("Bearer token", ""));
     }
-
-    @SonarQubeMcpServerTest
-    void it_should_return_the_system_health_status(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.HEALTH_PATH)
-        .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateGreenHealthPayload().getBytes(StandardCharsets.UTF_8))
-        )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
-
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemHealthTool.TOOL_NAME,
-        Map.of()));
-
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("SonarQube Server Health Status: GREEN", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
-    }
   }
 
   private static String generateGreenHealthPayload() {

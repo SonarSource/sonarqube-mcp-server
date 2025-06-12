@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
+import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.HealthResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -57,25 +58,30 @@ public class SystemHealthTool extends Tool {
     }
 
     if (response.nodes() != null && !response.nodes().isEmpty()) {
-      stringBuilder.append("\nNodes:\n");
-      for (var node : response.nodes()) {
-        stringBuilder.append("\n").append(node.name())
-          .append(" (").append(node.type()).append(")")
-          .append(" - ").append(node.health())
-          .append("\n");
-        stringBuilder.append("  Host: ").append(node.host())
-          .append(":").append(node.port()).append("\n");
-        stringBuilder.append("  Started: ").append(node.startedAt()).append("\n");
-
-        if (node.causes() != null && !node.causes().isEmpty()) {
-          stringBuilder.append("  Causes:\n");
-          for (var cause : node.causes()) {
-            stringBuilder.append("  - ").append(cause.message()).append("\n");
-          }
-        }
-      }
+      buildNodeResponse(stringBuilder, response.nodes());
     }
 
     return stringBuilder.toString().trim();
   }
+
+  private static void buildNodeResponse(StringBuilder stringBuilder, List<HealthResponse.Node> nodes) {
+    stringBuilder.append("\nNodes:\n");
+    for (var node : nodes) {
+      stringBuilder.append("\n").append(node.name())
+        .append(" (").append(node.type()).append(")")
+        .append(" - ").append(node.health())
+        .append("\n");
+      stringBuilder.append("  Host: ").append(node.host())
+        .append(":").append(node.port()).append("\n");
+      stringBuilder.append("  Started: ").append(node.startedAt()).append("\n");
+
+      if (node.causes() != null && !node.causes().isEmpty()) {
+        stringBuilder.append("  Causes:\n");
+        for (var cause : node.causes()) {
+          stringBuilder.append("  - ").append(cause.message()).append("\n");
+        }
+      }
+    }
+  }
+
 }

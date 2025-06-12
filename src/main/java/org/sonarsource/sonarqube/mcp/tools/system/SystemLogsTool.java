@@ -25,6 +25,7 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 public class SystemLogsTool extends Tool {
 
   public static final String TOOL_NAME = "get_system_logs";
+  public static final String NAME_PROPERTY = "name";
 
   private final ServerApi serverApi;
 
@@ -32,7 +33,7 @@ public class SystemLogsTool extends Tool {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setDescription("Get system logs in plain-text format. Requires system administration permission.")
-      .addStringProperty("name", "Name of the logs to get. Possible values: access, app, ce, deprecation, es, web. Default: app")
+      .addStringProperty(NAME_PROPERTY, "Name of the logs to get. Possible values: access, app, ce, deprecation, es, web. Default: app")
       .build());
     this.serverApi = serverApi;
   }

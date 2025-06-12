@@ -101,6 +101,21 @@ class SystemLogsToolTests {
     }
 
     @SonarQubeMcpServerTest
+    void it_should_return_an_error_if_the_property_is_invalid(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_URL", mockServer.baseUrl(),
+        "SONARQUBE_TOKEN", "token"
+      ));
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        SystemLogsTool.TOOL_NAME,
+        Map.of(SystemLogsTool.NAME_PROPERTY, "foo")));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("Invalid log name. Possible values: access, app, ce, deprecation, es, web", true));
+    }
+
+    @SonarQubeMcpServerTest
     void it_should_return_the_system_logs(SonarQubeMcpServerTestHarness harness) {
       mockServer.stubFor(get(SystemApi.LOGS_PATH)
         .willReturn(aResponse().withBody(generateAppLogsPayload())));
