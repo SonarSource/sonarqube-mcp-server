@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.http;
 
-import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
@@ -28,7 +27,6 @@ import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBu
 import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
-
 
 public class HttpClientProvider {
 
@@ -52,12 +50,8 @@ public class HttpClientProvider {
     httpClient.start();
   }
 
-  public HttpClient getHttpClient(@Nullable String sonarqubeCloudToken) {
+  public HttpClient getHttpClient(String sonarqubeCloudToken) {
     return new HttpClientAdapter(httpClient, sonarqubeCloudToken);
-  }
-
-  public HttpClient getHttpClient() {
-    return getHttpClient(null);
   }
 
   public void shutdown() {

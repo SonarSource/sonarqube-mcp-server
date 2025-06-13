@@ -20,10 +20,7 @@ import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -38,23 +35,9 @@ class SearchMetricsToolTests {
   @Nested
   class WithSonarCloudServer {
 
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
-
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -68,7 +51,7 @@ class SearchMetricsToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_succeed_when_no_metrics_found(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MetricsApi.SEARCH_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(MetricsApi.SEARCH_PATH)
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -80,8 +63,6 @@ class SearchMetricsToolTests {
             """.getBytes(StandardCharsets.UTF_8))
         )));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -98,13 +79,11 @@ class SearchMetricsToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_search_metrics_with_default_parameters(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MetricsApi.SEARCH_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(MetricsApi.SEARCH_PATH)
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateSearchMetricsResponse().getBytes(StandardCharsets.UTF_8))
         )));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -137,19 +116,17 @@ class SearchMetricsToolTests {
               Qualitative: true
               Hidden: false
               Custom: false""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
     void it_should_search_metrics_with_page_parameters(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MetricsApi.SEARCH_PATH + "?p=2&ps=20")
+      harness.getMockSonarQubeServer().stubFor(get(MetricsApi.SEARCH_PATH + "?p=2&ps=20")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateSearchMetricsResponse().getBytes(StandardCharsets.UTF_8))
         )));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -185,8 +162,8 @@ class SearchMetricsToolTests {
               Qualitative: true
               Hidden: false
               Custom: false""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
   }
@@ -194,24 +171,9 @@ class SearchMetricsToolTests {
   @Nested
   class WithSonarQubeServer {
 
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
-
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SearchMetricsTool.TOOL_NAME,
@@ -223,7 +185,7 @@ class SearchMetricsToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_succeed_when_no_metrics_found(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MetricsApi.SEARCH_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(MetricsApi.SEARCH_PATH)
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -234,10 +196,7 @@ class SearchMetricsToolTests {
             }
             """.getBytes(StandardCharsets.UTF_8))
         )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SearchMetricsTool.TOOL_NAME,
@@ -252,14 +211,11 @@ class SearchMetricsToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_search_metrics_with_default_parameters(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MetricsApi.SEARCH_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(MetricsApi.SEARCH_PATH)
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateSearchMetricsResponse().getBytes(StandardCharsets.UTF_8))
         )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SearchMetricsTool.TOOL_NAME,
@@ -290,20 +246,17 @@ class SearchMetricsToolTests {
               Qualitative: true
               Hidden: false
               Custom: false""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
     void it_should_search_metrics_with_page_parameters(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(MetricsApi.SEARCH_PATH + "?p=2&ps=20")
+      harness.getMockSonarQubeServer().stubFor(get(MetricsApi.SEARCH_PATH + "?p=2&ps=20")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateSearchMetricsResponse().getBytes(StandardCharsets.UTF_8))
         )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SearchMetricsTool.TOOL_NAME,
@@ -337,8 +290,8 @@ class SearchMetricsToolTests {
               Qualitative: true
               Hidden: false
               Custom: false""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 

@@ -21,10 +21,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -39,13 +36,12 @@ class SystemStatusToolTests {
 
   @Nested
   class WithSonarCloudServer {
+
     @SonarQubeMcpServerTest
     void it_should_not_be_available_for_sonarcloud(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", "https://sonarcloud.io",
-        "SONARQUBE_TOKEN", "token",
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
+        "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
         mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -59,27 +55,13 @@ class SystemStatusToolTests {
 
   @Nested
   class WithSonarQubeServer {
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
 
     @SonarQubeMcpServerTest
     void it_should_return_status_without_authentication(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.STATUS_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateUpStatusPayload().getBytes(StandardCharsets.UTF_8))
-        )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl()
-      ));
+          Body.fromJsonBytes(generateUpStatusPayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,
@@ -95,37 +77,31 @@ class SystemStatusToolTests {
 
           ID: 20150504120436
           Version: 5.1""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest(null, ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest(null, ""));
     }
 
     @SonarQubeMcpServerTest
     void it_should_show_error_when_request_fails(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.STATUS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,
         Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + mockServer.baseUrl() + "/api" +
-          "/system/status", true));
+        .isEqualTo(
+          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
+            "/system/status", true));
     }
 
     @SonarQubeMcpServerTest
     void it_should_return_up_status(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.STATUS_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateUpStatusPayload().getBytes(StandardCharsets.UTF_8))
-        )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+          Body.fromJsonBytes(generateUpStatusPayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,
@@ -141,20 +117,16 @@ class SystemStatusToolTests {
 
           ID: 20150504120436
           Version: 5.1""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
     void it_should_return_starting_status(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.STATUS_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateStartingStatusPayload().getBytes(StandardCharsets.UTF_8))
-        )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+          Body.fromJsonBytes(generateStartingStatusPayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,
@@ -170,20 +142,16 @@ class SystemStatusToolTests {
 
           ID: 20150504120436
           Version: 5.1""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
     void it_should_return_db_migration_needed_status(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.STATUS_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateDbMigrationNeededStatusPayload().getBytes(StandardCharsets.UTF_8))
-        )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+          Body.fromJsonBytes(generateDbMigrationNeededStatusPayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,
@@ -199,8 +167,8 @@ class SystemStatusToolTests {
 
           ID: 20150504120436
           Version: 5.1""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 

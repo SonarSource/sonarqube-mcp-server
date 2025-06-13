@@ -14,38 +14,13 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.http;
+package org.sonarsource.sonarqube.mcp.serverapi.plugins.response;
 
-import java.io.Closeable;
-import java.util.concurrent.CompletableFuture;
+import java.util.List;
 
-public interface HttpClient {
+public record InstalledPluginsResponse(List<Plugin> plugins) {
 
-  interface Response extends Closeable {
-
-    int code();
-
-    default boolean isSuccessful() {
-      return code() >= 200 && code() < 300;
-    }
-
-    String bodyAsString();
-
-    java.io.InputStream bodyAsStream();
-
-    /**
-     * Only runtime exception
-     */
-    @Override
-    void close();
-
-    String url();
+  public record Plugin(String key, boolean sonarLintSupported, String filename) {
   }
-
-  CompletableFuture<Response> getAsync(String url);
-
-  CompletableFuture<Response> getAsyncAnonymous(String url);
-
-  CompletableFuture<Response> postAsync(String url, String contentType, String body);
 
 }

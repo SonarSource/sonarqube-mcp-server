@@ -28,32 +28,27 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
 public class LanguageUtils {
 
-  private static final Map<String, Set<Language>> supportedLanguagesPerAnalyzers = createSupportedLanguagesPerAnalyzers();
+  public static final Map<String, Set<Language>> SUPPORTED_LANGUAGES_BY_PLUGIN_KEY = new HashMap<>();
 
-  private static Map<String, Set<Language>> createSupportedLanguagesPerAnalyzers() {
-    var analyzers = new HashMap<String, Set<Language>>();
-    analyzers.put("sonar-kotlin-plugin", Set.of(Language.KOTLIN));
-    analyzers.put("sonar-java-plugin", Set.of(Language.JAVA));
-    analyzers.put("sonar-iac-plugin", Set.of(Language.CLOUDFORMATION, Language.KUBERNETES, Language.TERRAFORM,
-      Language.AZURERESOURCEMANAGER, Language.ANSIBLE, Language.DOCKER));
-    analyzers.put("sonar-python-plugin", Set.of(Language.PYTHON, Language.IPYTHON));
-    analyzers.put("sonar-ruby-plugin", Set.of(Language.RUBY));
-    analyzers.put("sonar-java-symbolic-execution-plugin", Collections.emptySet());
-    analyzers.put("sonar-go-plugin", Set.of(Language.GO));
-    analyzers.put("sonar-javascript-plugin", Set.of(Language.JS, Language.TS, Language.JSP));
-    analyzers.put("sonar-text-plugin", Set.of(Language.SECRETS));
-    analyzers.put("sonar-php-plugin", Set.of(Language.PHP));
-    analyzers.put("sonar-xml-plugin", Set.of(Language.XML));
-    analyzers.put("sonar-html-plugin", Set.of(Language.HTML, Language.CSS));
-    return analyzers;
-  }
-
-  public static Map<String, Set<Language>> getSupportedLanguagesPerAnalyzers() {
-    return supportedLanguagesPerAnalyzers;
+  static {
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("kotlin", Set.of(Language.KOTLIN));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("java", Set.of(Language.JAVA));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("iac",
+      Set.of(Language.CLOUDFORMATION, Language.KUBERNETES, Language.TERRAFORM, Language.AZURERESOURCEMANAGER, Language.ANSIBLE, Language.DOCKER));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("python", Set.of(Language.PYTHON, Language.IPYTHON));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("ruby", Set.of(Language.RUBY));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("javasymbolicexecution", Collections.emptySet());
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("go", Set.of(Language.GO));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("javascript", Set.of(Language.JS, Language.TS, Language.JSP));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("text", Set.of(Language.SECRETS));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("textenterprise", Set.of(Language.SECRETS));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("php", Set.of(Language.PHP));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("xml", Set.of(Language.XML));
+    SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("web", Set.of(Language.HTML, Language.CSS));
   }
 
   public static Set<SonarLanguage> getSupportedSonarLanguages() {
-    return supportedLanguagesPerAnalyzers.values().stream()
+    return SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.values().stream()
       .flatMap(Set::stream)
       .map(language -> {
         for (var sonarLanguage : SonarLanguage.values()) {

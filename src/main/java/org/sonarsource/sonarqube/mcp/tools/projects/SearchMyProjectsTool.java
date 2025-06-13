@@ -39,10 +39,6 @@ public class SearchMyProjectsTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApi.isAuthenticationSet()) {
-      return Tool.Result.failure("Not connected to SonarQube, please provide valid credentials");
-    }
-
     var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);
     var projects = serverApi.componentsApi().searchProjectsInMyOrg(page);
     return Tool.Result.success(buildResponseFromAllProjectsResponse(projects));

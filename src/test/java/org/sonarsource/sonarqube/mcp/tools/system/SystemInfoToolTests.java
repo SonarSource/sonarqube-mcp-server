@@ -21,10 +21,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -38,29 +35,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class SystemInfoToolTests {
 
   @Nested
-  class MissingPrerequisite {
-    @SonarQubeMcpServerTest
-    void it_should_return_an_error_if_sonarqube_token_is_missing(SonarQubeMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient(Map.of("SONARQUBE_URL", "fake.url"));
-
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemInfoTool.TOOL_NAME,
-        Map.of()));
-
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube Server, please provide valid credentials", true));
-    }
-  }
-
-  @Nested
   class WithSonarCloudServer {
+
     @SonarQubeMcpServerTest
     void it_should_not_be_available_for_sonarcloud(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", "https://sonarcloud.io",
-        "SONARQUBE_TOKEN", "token",
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
+        "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
         mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -74,25 +55,11 @@ class SystemInfoToolTests {
 
   @Nested
   class WithSonarQubeServer {
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.INFO_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.INFO_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemInfoTool.TOOL_NAME,
@@ -104,14 +71,10 @@ class SystemInfoToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_the_system_info(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.INFO_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.INFO_PATH)
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateSystemInfoPayload().getBytes(StandardCharsets.UTF_8))
-        )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+          Body.fromJsonBytes(generateSystemInfoPayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemInfoTool.TOOL_NAME,
@@ -140,8 +103,8 @@ class SystemInfoToolTests {
           --------
           Total settings: 2
           (Use SonarQube Server Web UI to view detailed settings)""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 
@@ -167,4 +130,4 @@ class SystemInfoToolTests {
       }""";
   }
 
-} 
+}

@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import org.jetbrains.annotations.Nullable;
-import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarlint.core.rpc.client.ConfigScopeNotFoundException;
 import org.sonarsource.sonarlint.core.rpc.client.ConnectionNotFoundException;
 import org.sonarsource.sonarlint.core.rpc.client.SonarLintCancelChecker;
@@ -53,6 +52,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Either;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.TokenDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.UsernamePasswordDto;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
   private static final McpLogger LOG = McpLogger.getInstance();

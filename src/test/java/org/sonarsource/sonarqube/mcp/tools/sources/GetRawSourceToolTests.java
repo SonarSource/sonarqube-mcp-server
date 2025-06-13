@@ -18,10 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.sources;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -48,41 +45,15 @@ class GetRawSourceToolTests {
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
     }
-
-    @SonarQubeMcpServerTest
-    void it_should_return_an_error_if_not_authenticated(SonarQubeMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient();
-
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php")));
-
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube, please provide valid credentials", true));
-    }
   }
 
   @Nested
   class WithSonarCloudServer {
 
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
-
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_insufficient_permissions(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php")).willReturn(aResponse().withStatus(403)));
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php")).willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -96,10 +67,8 @@ class GetRawSourceToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_file_is_not_found(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/NonExistent.php")).willReturn(aResponse().withStatus(404)));
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/NonExistent.php")).willReturn(aResponse().withStatus(404)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -109,7 +78,7 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
-          mockServer.baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"), true));
+          harness.getMockSonarQubeServer().baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"), true));
     }
 
     @SonarQubeMcpServerTest
@@ -125,12 +94,10 @@ class GetRawSourceToolTests {
           BLOCKER, CRITICAL, MAJOR, MINOR, INFO
         }
         """;
-      
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php"))
+
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php"))
         .willReturn(aResponse().withBody(sourceCode)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -140,8 +107,8 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
@@ -157,12 +124,10 @@ class GetRawSourceToolTests {
           BLOCKER, CRITICAL, MAJOR, MINOR, INFO
         }
         """;
-      
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&branch=" + urlEncode("feature/my_branch"))
+
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&branch=" + urlEncode("feature/my_branch"))
         .willReturn(aResponse().withBody(sourceCode)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -172,8 +137,8 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
@@ -189,12 +154,10 @@ class GetRawSourceToolTests {
           BLOCKER, CRITICAL, MAJOR, MINOR, INFO
         }
         """;
-      
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&pullRequest=5461")
+
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&pullRequest=5461")
         .willReturn(aResponse().withBody(sourceCode)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -204,8 +167,8 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
@@ -221,12 +184,10 @@ class GetRawSourceToolTests {
           BLOCKER, CRITICAL, MAJOR, MINOR, INFO
         }
         """;
-      
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&branch=" + urlEncode("feature/my_branch") + "&pullRequest=5461")
+
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&branch=" + urlEncode("feature/my_branch") + "&pullRequest=5461")
         .willReturn(aResponse().withBody(sourceCode)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -236,8 +197,8 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
   }
@@ -245,25 +206,10 @@ class GetRawSourceToolTests {
   @Nested
   class WithSonarQubeServer {
 
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
-
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_insufficient_permissions(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php")).willReturn(aResponse().withStatus(403)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php")).willReturn(aResponse().withStatus(403)));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         GetRawSourceTool.TOOL_NAME,
@@ -275,11 +221,8 @@ class GetRawSourceToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_file_is_not_found(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/NonExistent.php")).willReturn(aResponse().withStatus(404)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/NonExistent.php")).willReturn(aResponse().withStatus(404)));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         GetRawSourceTool.TOOL_NAME,
@@ -287,7 +230,7 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
-          mockServer.baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"), true));
+          harness.getMockSonarQubeServer().baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"), true));
     }
 
     @SonarQubeMcpServerTest
@@ -304,12 +247,9 @@ class GetRawSourceToolTests {
         }
         """;
 
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php"))
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php"))
         .willReturn(aResponse().withBody(sourceCode)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         GetRawSourceTool.TOOL_NAME,
@@ -317,8 +257,8 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
@@ -335,12 +275,9 @@ class GetRawSourceToolTests {
         }
         """;
 
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&branch=" + urlEncode("feature/my_branch"))
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&branch=" + urlEncode("feature/my_branch"))
         .willReturn(aResponse().withBody(sourceCode)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         GetRawSourceTool.TOOL_NAME,
@@ -348,8 +285,8 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
@@ -366,12 +303,9 @@ class GetRawSourceToolTests {
         }
         """;
 
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&pullRequest=5461")
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&pullRequest=5461")
         .willReturn(aResponse().withBody(sourceCode)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         GetRawSourceTool.TOOL_NAME,
@@ -379,8 +313,8 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
@@ -397,12 +331,9 @@ class GetRawSourceToolTests {
         }
         """;
 
-      mockServer.stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&branch=" + urlEncode("feature/my_branch") + "&pullRequest=5461")
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&branch=" + urlEncode("feature/my_branch") + "&pullRequest=5461")
         .willReturn(aResponse().withBody(sourceCode)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         GetRawSourceTool.TOOL_NAME,
@@ -410,8 +341,8 @@ class GetRawSourceToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
   }

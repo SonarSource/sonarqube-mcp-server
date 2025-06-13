@@ -26,6 +26,7 @@ import java.util.Map;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.plugins.PluginsSynchronizer;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
@@ -41,8 +42,8 @@ import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
-import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
+import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
@@ -61,6 +62,7 @@ public class SonarQubeMcpServer {
   private final List<Tool> supportedTools = new ArrayList<>();
   private final McpServerLaunchConfiguration mcpConfiguration;
   private final HttpClientProvider httpClientProvider;
+  private final PluginsSynchronizer pluginsSynchronizer;
   private McpSyncServer syncServer;
   private volatile boolean isShutdown = false;
 
@@ -74,6 +76,7 @@ public class SonarQubeMcpServer {
     this.backendService = new BackendService(mcpConfiguration);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     var serverApi = initializeServerApi(mcpConfiguration);
+    this.pluginsSynchronizer = new PluginsSynchronizer(serverApi, mcpConfiguration.getStoragePath());
     this.toolExecutor = new ToolExecutor(backendService);
 
     // SonarQube Server specific tools
@@ -100,8 +103,7 @@ public class SonarQubeMcpServer {
       new GetComponentMeasuresTool(serverApi),
       new SearchMetricsTool(serverApi),
       new GetScmInfoTool(serverApi),
-      new GetRawSourceTool(serverApi)
-    ));
+      new GetRawSourceTool(serverApi)));
   }
 
   public void start() {
@@ -111,15 +113,16 @@ public class SonarQubeMcpServer {
       .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
       .build();
     LOG.setOutput(syncServer);
-    backendService.initialize();
+
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+    backendService.initialize(analyzers);
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
   }
 
   private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
     return new McpServerFeatures.SyncToolSpecification(
       tool.definition(),
-      (exchange, argMap) -> toolExecutor.execute(tool, argMap)
-    );
+      (exchange, argMap) -> toolExecutor.execute(tool, argMap));
   }
 
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
@@ -130,7 +133,7 @@ public class SonarQubeMcpServer {
     var httpClient = httpClientProvider.getHttpClient(token);
 
     var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization), httpClient);
-    return new ServerApi(serverApiHelper, token);
+    return new ServerApi(serverApiHelper);
   }
 
   public void shutdown() {

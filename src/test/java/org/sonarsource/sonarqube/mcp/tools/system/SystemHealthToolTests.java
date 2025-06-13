@@ -21,10 +21,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -38,29 +35,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class SystemHealthToolTests {
 
   @Nested
-  class MissingPrerequisite {
-    @SonarQubeMcpServerTest
-    void it_should_return_an_error_if_sonarqube_token_is_missing(SonarQubeMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient(Map.of("SONARQUBE_URL", "fake.url"));
-
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemHealthTool.TOOL_NAME,
-        Map.of()));
-
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube Server, please provide valid credentials", true));
-    }
-  }
-
-  @Nested
   class WithSonarCloudServer {
+
     @SonarQubeMcpServerTest
     void it_should_not_be_available_for_sonarcloud(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", "https://sonarcloud.io",
-        "SONARQUBE_TOKEN", "token",
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
+        "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
         mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -74,45 +55,28 @@ class SystemHealthToolTests {
 
   @Nested
   class WithSonarQubeServer {
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
 
     @SonarQubeMcpServerTest
     void it_should_show_error_when_request_fails(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.HEALTH_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.HEALTH_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemHealthTool.TOOL_NAME,
         Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + mockServer.baseUrl() + "/api" +
-          "/system/health", true));
+        .isEqualTo(
+          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
+            "/system/health", true));
     }
 
     @SonarQubeMcpServerTest
     void it_should_return_the_system_health_status_green(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.HEALTH_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.HEALTH_PATH)
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateGreenHealthPayload().getBytes(StandardCharsets.UTF_8))
-        )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+          Body.fromJsonBytes(generateGreenHealthPayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemHealthTool.TOOL_NAME,
@@ -120,20 +84,16 @@ class SystemHealthToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("SonarQube Server Health Status: GREEN", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
     void it_should_return_the_system_health_status_red_with_details(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.HEALTH_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.HEALTH_PATH)
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateRedHealthPayload().getBytes(StandardCharsets.UTF_8))
-        )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+          Body.fromJsonBytes(generateRedHealthPayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemHealthTool.TOOL_NAME,
@@ -159,8 +119,8 @@ class SystemHealthToolTests {
             Started: 2015-08-13T23:34:59+0200
             Causes:
             - bar""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 
@@ -212,4 +172,4 @@ class SystemHealthToolTests {
       }""";
   }
 
-} 
+}

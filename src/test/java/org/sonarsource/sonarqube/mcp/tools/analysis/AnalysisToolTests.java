@@ -35,8 +35,7 @@ public class AnalysisToolTests {
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         AnalysisTool.TOOL_NAME,
         Map.of(
-          AnalysisTool.LANGUAGE_PROPERTY, ""
-        )));
+          AnalysisTool.LANGUAGE_PROPERTY, "")));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: codeSnippet", true));
@@ -44,7 +43,8 @@ public class AnalysisToolTests {
   }
 
   @Nested
-  class Standalone {
+  class Connected {
+
     @SonarQubeMcpServerTest
     void it_should_find_no_issues_in_an_empty_file(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
@@ -53,8 +53,7 @@ public class AnalysisToolTests {
         AnalysisTool.TOOL_NAME,
         Map.of(
           AnalysisTool.SNIPPET_PROPERTY, "",
-          AnalysisTool.LANGUAGE_PROPERTY, ""
-        )));
+          AnalysisTool.LANGUAGE_PROPERTY, "")));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("No Sonar issues found in the code snippet.", false));
@@ -70,8 +69,7 @@ public class AnalysisToolTests {
           AnalysisTool.SNIPPET_PROPERTY, """
             // TODO just do it
             """,
-          AnalysisTool.LANGUAGE_PROPERTY, "php"
-        )));
+          AnalysisTool.LANGUAGE_PROPERTY, "php")));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

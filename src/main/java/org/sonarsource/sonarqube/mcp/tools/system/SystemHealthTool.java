@@ -38,10 +38,6 @@ public class SystemHealthTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApi.isAuthenticationSet()) {
-      return Tool.Result.failure("Not connected to SonarQube Server, please provide valid credentials");
-    }
-
     var response = serverApi.systemApi().getHealth();
     return Tool.Result.success(buildResponseFromHealth(response));
   }

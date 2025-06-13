@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.http;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 
 class HttpResponse implements HttpClient.Response {
@@ -36,6 +38,11 @@ class HttpResponse implements HttpClient.Response {
   @Override
   public String bodyAsString() {
     return response.getBodyText();
+  }
+
+  @Override
+  public InputStream bodyAsStream() {
+    return new ByteArrayInputStream(response.getBodyBytes());
   }
 
   @Override

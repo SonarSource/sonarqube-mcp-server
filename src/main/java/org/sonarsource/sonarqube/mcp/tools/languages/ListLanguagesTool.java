@@ -39,10 +39,6 @@ public class ListLanguagesTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApi.isAuthenticationSet()) {
-      return Tool.Result.failure("Not connected to SonarQube, please provide valid credentials");
-    }
-
     var query = arguments.getOptionalString(QUERY_PROPERTY);
     var response = serverApi.languagesApi().list(query);
     return Tool.Result.success(buildResponseFromList(response));

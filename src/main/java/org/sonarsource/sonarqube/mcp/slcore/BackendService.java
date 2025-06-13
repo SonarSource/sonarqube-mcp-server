@@ -16,16 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.slcore;
 
-import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,10 +32,6 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.sonarsource.sonarqube.mcp.analysis.LanguageUtils;
-import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
-import org.sonarsource.sonarqube.mcp.log.McpClientLogbackAppender;
-import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.impl.BackendJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
@@ -57,6 +50,9 @@ import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.TelemetryC
 import org.sonarsource.sonarlint.core.rpc.protocol.client.telemetry.ToolCalledParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
+import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
+import org.sonarsource.sonarqube.mcp.log.McpClientLogbackAppender;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
@@ -67,9 +63,7 @@ public class BackendService {
   private static final McpLogger LOG = McpLogger.getInstance();
 
   private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
-  private final String storagePath;
-  @Nullable
-  private final String pluginsPath;
+  private final Path storagePath;
   private final String appVersion;
   private final String userAgent;
   private final String appName;
@@ -78,7 +72,6 @@ public class BackendService {
 
   public BackendService(McpServerLaunchConfiguration mcpConfiguration) {
     this.storagePath = mcpConfiguration.getStoragePath();
-    this.pluginsPath = mcpConfiguration.getPluginsPath();
     this.appVersion = mcpConfiguration.getAppVersion();
     this.userAgent = mcpConfiguration.getUserAgent();
     this.appName = mcpConfiguration.getAppName();
@@ -86,10 +79,9 @@ public class BackendService {
   }
 
   // For tests
-  BackendService(ClientJsonRpcLauncher launcher, String storagePath, @Nullable String pluginsPath, String appVersion, String appName) {
+  BackendService(ClientJsonRpcLauncher launcher, Path storagePath, String appVersion, String appName) {
     this.clientLauncher = launcher;
     this.storagePath = storagePath;
-    this.pluginsPath = pluginsPath;
     this.appVersion = appVersion;
     this.userAgent = appName + " " + appVersion;
     this.appName = appName;
@@ -123,7 +115,7 @@ public class BackendService {
     return Paths.get(System.getProperty("user.home")).resolve(".sonarlint");
   }
 
-  public void initialize() {
+  public void initialize(AnalyzersAndLanguagesEnabled analyzers) {
     try {
       LOG.info("Starting backend service");
       if (clientLauncher == null) {
@@ -140,7 +132,7 @@ public class BackendService {
         clientLauncher = new ClientJsonRpcLauncher(serverToClientInputStream, clientToServerOutputStream, new McpSonarLintRpcClient());
       }
       var backend = clientLauncher.getServerProxy();
-      initRpcServer(backend).get(1, TimeUnit.MINUTES);
+      initRpcServer(backend, analyzers).get(1, TimeUnit.MINUTES);
       backendFuture.complete(backend);
       LOG.info("Backend service initialized");
       projectOpened();
@@ -151,20 +143,13 @@ public class BackendService {
     }
   }
 
-  private CompletableFuture<Void> initRpcServer(SonarLintRpcServer rpcServer) {
+  private CompletableFuture<Void> initRpcServer(SonarLintRpcServer rpcServer, AnalyzersAndLanguagesEnabled analyzersInStorage) {
     var capabilities = EnumSet.of(BackendCapability.FULL_SYNCHRONIZATION, BackendCapability.PROJECT_SYNCHRONIZATION);
     if (isTelemetryEnabled) {
       capabilities.add(BackendCapability.TELEMETRY);
     }
 
-    var analyzerPaths = Set.<Path>of();
-    var enabledLanguages = EnumSet.noneOf(Language.class);
-    if (getPluginsPath() != null) {
-      var analyzersAndLanguages = findAnalyzersFromPluginDirectory();
-      analyzerPaths = analyzersAndLanguages.analyzerPaths;
-      enabledLanguages = analyzersAndLanguages.enabledLanguages;
-      LOG.info("Enabling languages: " + enabledLanguages);
-    }
+    LOG.info("Using discovered analyzers, enabling languages: " + analyzersInStorage.enabledLanguages);
 
     return rpcServer.initialize(
       new InitializeParams(
@@ -177,11 +162,11 @@ public class BackendService {
           null, null, null, null),
         null,
         capabilities,
-        getStoragePath(),
+        storagePath,
         getWorkDir(),
-        analyzerPaths,
+        analyzersInStorage.analyzerPaths,
         Map.of(),
-        enabledLanguages,
+        analyzersInStorage.enabledLanguages,
         Set.of(),
         emptySet(),
         null,
@@ -194,43 +179,11 @@ public class BackendService {
         null));
   }
 
-  private Path getStoragePath() {
-    return Paths.get(storagePath);
-  }
-
   private void projectOpened() {
     backendFuture.thenAcceptAsync(server -> server
       .getConfigurationService()
       .didAddConfigurationScopes(new DidAddConfigurationScopesParams(
         List.of(new ConfigurationScopeDto(PROJECT_ID, null, false, PROJECT_ID, null)))));
-  }
-
-  @Nullable
-  private Path getPluginsPath() {
-    return pluginsPath == null ? null : Paths.get(pluginsPath);
-  }
-
-  private AnalyzersAndLanguagesEnabled findAnalyzersFromPluginDirectory() {
-    var pluginsPaths = new HashSet<Path>();
-    var languages = EnumSet.noneOf(Language.class);
-    var pluginFolder = getPluginsPath();
-    if (pluginFolder != null && Files.isDirectory(pluginFolder)) {
-      try (var directoryStream = Files.newDirectoryStream(pluginFolder, "*.jar")) {
-        var analyzers = LanguageUtils.getSupportedLanguagesPerAnalyzers();
-        for (var path : directoryStream) {
-          var fileName = path.getFileName().toString();
-          analyzers.forEach((analyzer, supportedLanguages) -> {
-            if (fileName.contains(analyzer)) {
-              pluginsPaths.add(path);
-              languages.addAll(supportedLanguages);
-            }
-          });
-        }
-      } catch (IOException e) {
-        LOG.error("Unable to find analyzers in plugin folder", e);
-      }
-    }
-    return new AnalyzersAndLanguagesEnabled(pluginsPaths, languages);
   }
 
   public void shutdown() {
@@ -252,6 +205,7 @@ public class BackendService {
     }
   }
 
-  private record AnalyzersAndLanguagesEnabled(Set<Path> analyzerPaths, EnumSet<Language> enabledLanguages) {}
+  public record AnalyzersAndLanguagesEnabled(Set<Path> analyzerPaths, EnumSet<Language> enabledLanguages) {
+  }
 
 }

@@ -51,10 +51,6 @@ public class ProjectStatusTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApi.isAuthenticationSet()) {
-      return Tool.Result.failure("Not connected to SonarQube, please provide valid credentials");
-    }
-
     var analysisId = arguments.getOptionalString(ANALYSIS_ID_PROPERTY);
     var branch = arguments.getOptionalString(BRANCH_PROPERTY);
     var projectId = arguments.getOptionalString(PROJECT_ID_PROPERTY);

@@ -18,10 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -77,24 +74,10 @@ class ChangeIssuesStatusToolTests {
   @Nested
   class WithSonarCloudServer {
 
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
-
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(post("/api/issues/do_transition").willReturn(aResponse().withStatus(403)));
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -109,10 +92,8 @@ class ChangeIssuesStatusToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_change_the_status_to_accept(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(post("/api/issues/do_transition").willReturn(ok()));
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -122,16 +103,14 @@ class ChangeIssuesStatusToolTests {
           "status", new String[]{"accept"})));
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("The issue status was successfully changed.", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", "issue=k&transition=accept"));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", "issue=k&transition=accept"));
     }
 
     @SonarQubeMcpServerTest
     void it_should_change_the_status_to_false_positive(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(post("/api/issues/do_transition").willReturn(ok()));
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -141,16 +120,14 @@ class ChangeIssuesStatusToolTests {
           "status", new String[]{"falsepositive"})));
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("The issue status was successfully changed.", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", "issue=k&transition=falsepositive"));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", "issue=k&transition=falsepositive"));
     }
 
     @SonarQubeMcpServerTest
     void it_should_reopen_the_issue(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(post("/api/issues/do_transition").willReturn(ok()));
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -160,8 +137,8 @@ class ChangeIssuesStatusToolTests {
           "status", new String[]{"reopen"})));
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("The issue status was successfully changed.", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", "issue=k&transition=reopen"));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", "issue=k&transition=reopen"));
     }
 
   }

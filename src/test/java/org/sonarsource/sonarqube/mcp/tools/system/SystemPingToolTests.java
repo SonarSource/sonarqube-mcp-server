@@ -19,10 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -37,25 +34,12 @@ class SystemPingToolTests {
 
   @Nested
   class WithSonarCloudServer {
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
 
     @SonarQubeMcpServerTest
     void it_should_not_be_available_for_sonarcloud(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", "https://sonarcloud.io",
-        "SONARQUBE_TOKEN", "token",
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
+        "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
         mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -69,25 +53,12 @@ class SystemPingToolTests {
 
   @Nested
   class WithSonarQubeServer {
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
 
     @SonarQubeMcpServerTest
     void it_should_return_pong_without_authentication(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.PING_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.PING_PATH)
         .willReturn(aResponse().withBody("pong")));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl()
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemPingTool.TOOL_NAME,
@@ -95,35 +66,30 @@ class SystemPingToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("pong", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest(null, ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest(null, ""));
     }
 
     @SonarQubeMcpServerTest
     void it_should_show_error_when_request_fails(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.PING_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.PING_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemPingTool.TOOL_NAME,
         Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + mockServer.baseUrl() + "/api" +
-          "/system/ping", true));
+        .isEqualTo(
+          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
+            "/system/ping", true));
     }
 
     @SonarQubeMcpServerTest
     void it_should_return_pong_with_authentication(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.PING_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.PING_PATH)
         .willReturn(aResponse().withBody("pong")));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemPingTool.TOOL_NAME,
@@ -131,9 +97,9 @@ class SystemPingToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("pong", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 
-} 
+}

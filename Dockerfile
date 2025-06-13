@@ -41,7 +41,6 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
     chown -R appuser:appgroup /home/appuser ./storage
 
 COPY --chown=appuser:appgroup --chmod=755 build/libs/sonarqube-mcp-server-${APP_VERSION}.jar ./sonarqube-mcp-server.jar
-COPY --chown=appuser:appgroup --chmod=755 build/sonarqube-mcp-server/plugins ./plugins
 
 USER appuser
 
@@ -49,6 +48,5 @@ ENV STORAGE_PATH=./storage
 ENV SONARQUBE_TOKEN=
 ENV SONARQUBE_ORG=
 ENV SONARQUBE_URL=
-ENV PLUGINS_PATH=./plugins
 
 ENTRYPOINT ["java", "-jar", "./sonarqube-mcp-server.jar"]

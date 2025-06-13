@@ -16,30 +16,31 @@
  */
 package org.sonarsource.sonarqube.mcp.configuration;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 
+import static java.util.Objects.requireNonNull;
+
 public class McpServerLaunchConfiguration {
 
   private static final String APP_NAME = "SonarQube MCP Server";
-  private static final String SONARCLOUD_URL = "https://sonarcloud.io";
   private static final String STORAGE_PATH = "STORAGE_PATH";
-  private static final String PLUGINS_PATH = "PLUGINS_PATH";
+  private static final String SONARQUBE_CLOUD_URL = "SONARQUBE_CLOUD_URL";
   private static final String SONARQUBE_URL = "SONARQUBE_URL";
   private static final String SONARQUBE_ORG = "SONARQUBE_ORG";
   private static final String SONARQUBE_TOKEN = "SONARQUBE_TOKEN";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
 
-  private final String storagePath;
-  @Nullable
-  private final String pluginsPath;
+  private final Path storagePath;
+  private final String sonarqubeCloudUrl;
   private final String sonarqubeUrl;
   @Nullable
   private final String sonarqubeOrg;
-  @Nullable
   private final String sonarqubeToken;
   private final String appVersion;
   private final String userAgent;
@@ -47,34 +48,33 @@ public class McpServerLaunchConfiguration {
   private final boolean isSonarCloud;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
-    this.storagePath = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
-    if (storagePath == null) {
+    var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
+    if (storagePathString == null) {
       throw new IllegalArgumentException("STORAGE_PATH environment variable or property must be set");
     }
-    this.sonarqubeUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, SONARCLOUD_URL);
+    this.storagePath = Paths.get(storagePathString);
+    this.sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, "https://sonarcloud.io");
+    this.sonarqubeUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, sonarqubeCloudUrl);
     this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
+    if (sonarqubeToken == null) {
+      throw new IllegalArgumentException("SONARQUBE_TOKEN environment variable or property must be set");
+    }
 
-    this.isSonarCloud = SONARCLOUD_URL.equals(this.sonarqubeUrl);
+    this.isSonarCloud = requireNonNull(sonarqubeCloudUrl).equals(this.sonarqubeUrl);
 
-    if (this.sonarqubeToken != null && (this.isSonarCloud && this.sonarqubeOrg == null)) {
+    if (this.isSonarCloud && this.sonarqubeOrg == null) {
       throw new IllegalArgumentException("SONARQUBE_ORG environment variable must be set when using SonarQube Cloud");
     }
 
-    this.pluginsPath = getValueViaEnvOrPropertyOrDefault(environment, PLUGINS_PATH, null);
     this.appVersion = fetchAppVersion();
     this.userAgent = APP_NAME + " " + appVersion;
     this.isTelemetryEnabled = !Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, TELEMETRY_DISABLED, "false"));
   }
 
   @NotNull
-  public String getStoragePath() {
+  public Path getStoragePath() {
     return storagePath;
-  }
-
-  @Nullable
-  public String getPluginsPath() {
-    return pluginsPath;
   }
 
   @Nullable
@@ -86,7 +86,6 @@ public class McpServerLaunchConfiguration {
     return sonarqubeUrl;
   }
 
-  @Nullable
   public String getSonarQubeToken() {
     return sonarqubeToken;
   }

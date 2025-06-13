@@ -19,10 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -36,29 +33,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class SystemLogsToolTests {
 
   @Nested
-  class MissingPrerequisite {
-    @SonarQubeMcpServerTest
-    void it_should_return_an_error_if_sonarqube_token_is_missing(SonarQubeMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient(Map.of("SONARQUBE_URL", "fake.url"));
-
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemLogsTool.TOOL_NAME,
-        Map.of()));
-
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube Server, please provide valid credentials", true));
-    }
-  }
-
-  @Nested
   class WithSonarCloudServer {
+
     @SonarQubeMcpServerTest
     void it_should_not_be_available_for_sonarcloud(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", "https://sonarcloud.io",
-        "SONARQUBE_TOKEN", "token",
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
+        "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
         mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -72,25 +53,11 @@ class SystemLogsToolTests {
 
   @Nested
   class WithSonarQubeServer {
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.LOGS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.LOGS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemLogsTool.TOOL_NAME,
@@ -102,10 +69,7 @@ class SystemLogsToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_property_is_invalid(SonarQubeMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemLogsTool.TOOL_NAME,
@@ -117,12 +81,9 @@ class SystemLogsToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_the_system_logs(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(SystemApi.LOGS_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.LOGS_PATH)
         .willReturn(aResponse().withBody(generateAppLogsPayload())));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemLogsTool.TOOL_NAME,
@@ -135,8 +96,8 @@ class SystemLogsToolTests {
 
           2023-01-01 10:00:01 INFO  o.s.s.a.WebServer Starting SonarQube Web Server
           2023-01-01 10:00:02 INFO  o.s.s.p.ProcessEntryPoint Process[web] is up""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 
@@ -146,4 +107,4 @@ class SystemLogsToolTests {
       2023-01-01 10:00:02 INFO  o.s.s.p.ProcessEntryPoint Process[web] is up""";
   }
 
-} 
+}

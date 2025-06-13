@@ -21,10 +21,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -37,44 +34,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ListQualityGatesToolTests {
 
   @Nested
-  class MissingPrerequisite {
-
-    @SonarQubeMcpServerTest
-    void it_should_return_an_error_if_sonarqube_token_is_missing(SonarQubeMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient(Map.of("SONARQUBE_ORG", "org"));
-
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ListQualityGatesTool.TOOL_NAME,
-        Map.of()));
-
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Not connected to SonarQube, please provide valid credentials", true));
-    }
-
-  }
-
-  @Nested
   class WithSonarCloudServer {
-
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         ListQualityGatesTool.TOOL_NAME,
@@ -86,33 +51,27 @@ class ListQualityGatesToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_show_error_when_request_fails(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(QualityGatesApi.LIST_PATH + "?organization=org").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.LIST_PATH + "?organization=org").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         ListQualityGatesTool.TOOL_NAME,
         Map.of()));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + mockServer.baseUrl() + "/api" +
-          "/qualitygates/list?organization=org", true));
+        .isEqualTo(
+          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
+            "/qualitygates/list?organization=org", true));
     }
 
     @SonarQubeMcpServerTest
     void it_should_return_the_quality_gates_list(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(QualityGatesApi.LIST_PATH + "?organization=org")
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.LIST_PATH + "?organization=org")
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8))
-        )));
+          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         ListQualityGatesTool.TOOL_NAME,
@@ -129,33 +88,18 @@ class ListQualityGatesToolTests {
 
           Sonar way - Without Coverage (ID: 9)
           No conditions""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 
   @Nested
   class WithSonarQubeServer {
 
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
-
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(QualityGatesApi.LIST_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.LIST_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         ListQualityGatesTool.TOOL_NAME,
@@ -167,14 +111,10 @@ class ListQualityGatesToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_the_quality_gates_list(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(QualityGatesApi.LIST_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.LIST_PATH)
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8))
-        )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         ListQualityGatesTool.TOOL_NAME,
@@ -191,8 +131,8 @@ class ListQualityGatesToolTests {
 
           Sonar way - Without Coverage (ID: 9)
           No conditions""", false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 
@@ -250,4 +190,4 @@ class ListQualityGatesToolTests {
          }
        }""";
   }
-} 
+}

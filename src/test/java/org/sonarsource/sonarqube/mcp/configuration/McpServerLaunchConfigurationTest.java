@@ -28,7 +28,7 @@ class McpServerLaunchConfigurationTest {
 
   @Test
   void should_return_correct_user_agent(@TempDir Path tempDir) {
-    var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", tempDir.toString()));
+    var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org"));
 
     assertThat(configuration.getUserAgent())
       .isEqualTo("SonarQube MCP Server " + System.getProperty("sonarqube.mcp.server.version"));
@@ -50,6 +50,15 @@ class McpServerLaunchConfigurationTest {
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("STORAGE_PATH environment variable or property must be set");
+  }
+
+  @Test
+  void should_throw_error_if_sonarqube_token_is_missing(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_ORG", "org");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("SONARQUBE_TOKEN environment variable or property must be set");
   }
 
   @Test

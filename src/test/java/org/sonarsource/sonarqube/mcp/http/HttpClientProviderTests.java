@@ -48,7 +48,9 @@ class HttpClientProviderTests {
   void it_should_use_user_agent() {
     var underTest = new HttpClientProvider(USER_AGENT);
 
-    underTest.getHttpClient().get(sonarqubeMock.url("/test"));
+    try (var ignored = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/test")).join()) {
+      // nothing
+    }
 
     sonarqubeMock.verify(getRequestedFor(urlEqualTo("/test"))
       .withHeader("User-Agent", equalTo(USER_AGENT)));
@@ -62,7 +64,7 @@ class HttpClientProviderTests {
 
     var underTest = new HttpClientProvider(USER_AGENT);
 
-    var future = underTest.getHttpClient().getAsync(sonarqubeMock.url("/delayed"));
+    var future = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/delayed"));
     assertThrows(TimeoutException.class, () -> future.get(100, TimeUnit.MILLISECONDS));
     assertThat(future.cancel(true)).isTrue();
     assertThat(future).isCancelled();
@@ -76,7 +78,9 @@ class HttpClientProviderTests {
         .withStatus(HttpStatus.SC_MOVED_PERMANENTLY)
         .withHeader("Location", sonarqubeMock.url("/afterMove"))));
 
-    new HttpClientProvider(USER_AGENT).getHttpClient().post(sonarqubeMock.url("/permanentMoved"), "text/html", "Foo");
+    try (var ignored = new HttpClientProvider(USER_AGENT).getHttpClient("token").postAsync(sonarqubeMock.url("/permanentMoved"), "text/html", "Foo").join()) {
+      // nothing
+    }
 
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/afterMove")));
   }
@@ -89,7 +93,9 @@ class HttpClientProviderTests {
         .withStatus(HttpStatus.SC_MOVED_TEMPORARILY)
         .withHeader("Location", sonarqubeMock.url("/afterMove"))));
 
-    new HttpClientProvider(USER_AGENT).getHttpClient().post(sonarqubeMock.url("/tempMoved"), "text/html", "Foo");
+    try (var ignored = new HttpClientProvider(USER_AGENT).getHttpClient("token").postAsync(sonarqubeMock.url("/tempMoved"), "text/html", "Foo").join()) {
+      // nothing
+    }
 
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/afterMove")));
   }
@@ -102,7 +108,9 @@ class HttpClientProviderTests {
         .withStatus(HttpStatus.SC_SEE_OTHER)
         .withHeader("Location", sonarqubeMock.url("/afterMove"))));
 
-    new HttpClientProvider(USER_AGENT).getHttpClient().post(sonarqubeMock.url("/seeOther"), "text/html", "Foo");
+    try (var ignored = new HttpClientProvider(USER_AGENT).getHttpClient("token").postAsync(sonarqubeMock.url("/seeOther"), "text/html", "Foo").join()) {
+      // nothing
+    }
 
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/afterMove")));
   }
@@ -111,7 +119,7 @@ class HttpClientProviderTests {
   void it_should_support_async_get() throws ExecutionException, InterruptedException, TimeoutException {
     var underTest = new HttpClientProvider(USER_AGENT);
 
-    underTest.getHttpClient().getAsync(sonarqubeMock.url("/test")).get(2, TimeUnit.SECONDS);
+    underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/test")).get(2, TimeUnit.SECONDS);
 
     sonarqubeMock.verify(getRequestedFor(urlEqualTo("/test")));
   }
@@ -120,7 +128,7 @@ class HttpClientProviderTests {
   void it_should_support_async_post() throws ExecutionException, InterruptedException, TimeoutException {
     var underTest = new HttpClientProvider(USER_AGENT);
 
-    underTest.getHttpClient().postAsync(sonarqubeMock.url("/test"), "text/html", "").get(2, TimeUnit.SECONDS);
+    underTest.getHttpClient("token").postAsync(sonarqubeMock.url("/test"), "text/html", "").get(2, TimeUnit.SECONDS);
 
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/test")));
   }

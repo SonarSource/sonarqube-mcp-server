@@ -37,10 +37,6 @@ public class ListQualityGatesTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApi.isAuthenticationSet()) {
-      return Tool.Result.failure("Not connected to SonarQube, please provide valid credentials");
-    }
-
     var response = serverApi.qualityGatesApi().list();
     return Tool.Result.success(buildResponseFromList(response));
   }

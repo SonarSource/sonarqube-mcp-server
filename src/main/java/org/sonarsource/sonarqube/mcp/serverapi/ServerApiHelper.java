@@ -53,6 +53,14 @@ public class ServerApiHelper {
     return response;
   }
 
+  public HttpClient.Response getAnonymous(String path) {
+    var response = rawGetAnonymous(path);
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
   public HttpClient.Response post(String path, String contentType, String body) {
     var response = rawPost(buildEndpointUrl(path), contentType, body);
     if (!response.isSuccessful()) {
@@ -65,11 +73,11 @@ public class ServerApiHelper {
    * Execute GET and don't check response
    */
   public HttpClient.Response rawGet(String relativePath) {
-    return rawGetUrl(buildEndpointUrl(relativePath));
+    return client.getAsync(buildEndpointUrl(relativePath)).join();
   }
 
-  private HttpClient.Response rawGetUrl(String url) {
-    return client.getAsync(url).join();
+  public HttpClient.Response rawGetAnonymous(String relativePath) {
+    return client.getAsyncAnonymous(buildEndpointUrl(relativePath)).join();
   }
 
   private HttpClient.Response rawPost(String url, String contentType, String body) {

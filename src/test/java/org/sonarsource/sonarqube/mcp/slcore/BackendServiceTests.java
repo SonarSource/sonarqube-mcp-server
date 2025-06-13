@@ -18,8 +18,10 @@ package org.sonarsource.sonarqube.mcp.slcore;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.backend.file.FileRpcService;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.telemetry.TelemetryRpcService;
 import org.sonarsource.sonarlint.core.rpc.protocol.client.telemetry.ToolCalledParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
+import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -66,9 +69,9 @@ class BackendServiceTests {
 
     var jsonRpcLauncher = mock(ClientJsonRpcLauncher.class);
     when(jsonRpcLauncher.getServerProxy()).thenReturn(backend);
-    service = new BackendService(jsonRpcLauncher, storagePath.toString(), null, System.getProperty("sonarqube.mcp.server.version"),
+    service = new BackendService(jsonRpcLauncher, storagePath, System.getProperty("sonarqube.mcp.server.version"),
       "SonarQube MCP Server Tests");
-    service.initialize();
+    service.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
   }
 
   @Test

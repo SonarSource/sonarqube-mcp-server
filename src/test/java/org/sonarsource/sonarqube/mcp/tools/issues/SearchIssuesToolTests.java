@@ -20,10 +20,7 @@ import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -38,24 +35,10 @@ class SearchIssuesToolTests {
   @Nested
   class WithSonarCloudServer {
 
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
-
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org").willReturn(aResponse().withStatus(403)));
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org").willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -72,7 +55,7 @@ class SearchIssuesToolTests {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
       var projectName = "projectName1";
-      mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2&organization=org")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2&organization=org")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -89,8 +72,6 @@ class SearchIssuesToolTests {
             """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
         )));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org"
       ));
 
@@ -103,33 +84,18 @@ class SearchIssuesToolTests {
           Found 1 issues.
           Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
           """.formatted(issueKey, ruleName, projectName).trim(), false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 
   @Nested
   class WithSonarQubeServer {
 
-    private final MockWebServer mockServer = new MockWebServer();
-
-    @BeforeEach
-    void setup() {
-      mockServer.start();
-    }
-
-    @AfterEach
-    void teardown() {
-      mockServer.stop();
-    }
-
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      mockServer.stubFor(get(IssuesApi.SEARCH_PATH).willReturn(aResponse().withStatus(403)));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH).willReturn(aResponse().withStatus(403)));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SearchIssuesTool.TOOL_NAME,
@@ -144,7 +110,7 @@ class SearchIssuesToolTests {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
       var projectName = "projectName1";
-      mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -160,10 +126,7 @@ class SearchIssuesToolTests {
               }
             """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
         )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SearchIssuesTool.TOOL_NAME,
@@ -174,8 +137,8 @@ class SearchIssuesToolTests {
           Found 1 issues.
           Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
           """.formatted(issueKey, ruleName, projectName).trim(), false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
 
     @SonarQubeMcpServerTest
@@ -183,7 +146,7 @@ class SearchIssuesToolTests {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
       var projectName = "projectName1";
-      mockServer.stubFor(get(IssuesApi.SEARCH_PATH + "?pullRequest=1")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?pullRequest=1")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -215,10 +178,7 @@ class SearchIssuesToolTests {
               }
             """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
         )));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_URL", mockServer.baseUrl(),
-        "SONARQUBE_TOKEN", "token"
-      ));
+      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SearchIssuesTool.TOOL_NAME,
@@ -229,8 +189,8 @@ class SearchIssuesToolTests {
           Found 1 issues.
           Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
           """.formatted(issueKey, ruleName, projectName).trim(), false));
-      assertThat(mockServer.getReceivedRequests())
-        .containsExactly(new ReceivedRequest("Bearer token", ""));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 

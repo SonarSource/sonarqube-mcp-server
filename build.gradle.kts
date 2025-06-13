@@ -104,7 +104,7 @@ tasks {
 		doNotTrackState("Tests should always run")
 		maxHeapSize = "2g"
 		jvmArgs("-javaagent:${mockitoAgent.asPath}", "-XX:MaxMetaspaceSize=512m")
-		dependsOn("preparePlugins")
+		dependsOn("prepareTestPlugins")
 	}
 
 	jar {
@@ -122,7 +122,6 @@ tasks {
 		}
 
 		duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-		dependsOn("preparePlugins")
 	}
 
 	jacocoTestReport {
@@ -141,9 +140,9 @@ tasks {
 		dependsOn("build")
 	}
 
-	register("preparePlugins") {
+	register("prepareTestPlugins") {
 		val destinationDir = file(layout.buildDirectory)
-		description = "Prepare SonarQube plugins"
+		description = "Prepare SonarQube test plugins"
 		group = "build"
 		
 		// Incremental build support
@@ -151,53 +150,15 @@ tasks {
 		outputs.dir("$destinationDir/$pluginName/plugins")
 
 		doLast {
-			copyPlugins(destinationDir, pluginName)
-			unzipEslintBridgeBundle(destinationDir, pluginName)
+			copyTestPlugins(destinationDir, pluginName)
 		}
 	}
 }
 
-fun copyPlugins(destinationDir: File, pluginName: String) {
+fun copyTestPlugins(destinationDir: File, pluginName: String) {
 	copy {
 		from(project.configurations["sqplugins"])
 		into(file("$destinationDir/$pluginName/plugins"))
-	}
-}
-
-fun unzipEslintBridgeBundle(destinationDir: File, pluginName: String) {
-	val pluginsDir = File("$destinationDir/$pluginName/plugins")
-	val jarPath = pluginsDir.listFiles()?.find {
-		it.name.startsWith("sonar-javascript-plugin-") && it.name.endsWith(".jar")
-	} ?: throw GradleException("sonar-javascript-plugin-* JAR not found in $pluginsDir")
-
-	ZipFile(jarPath).use { zipFile ->
-		val entry = zipFile.entries().asSequence().find { it.name.matches(Regex("sonarjs-.*\\.tgz")) }
-			?: throw GradleException("eslint bridge server bundle not found in JAR $jarPath")
-
-		val outputFolderPath = Paths.get("$pluginsDir/eslint-bridge")
-		val outputFilePath = outputFolderPath.resolve(entry.name)
-
-		Files.createDirectories(outputFolderPath)
-
-		zipFile.getInputStream(entry).use { input ->
-			Files.copy(input, outputFilePath)
-		}
-
-		GzipCompressorInputStream(Files.newInputStream(outputFilePath)).use { gzipInput ->
-			TarArchiveInputStream(gzipInput).use { tarInput ->
-				generateSequence { tarInput.nextEntry }
-					.forEach { tarEntry ->
-						val outputFile = outputFolderPath.resolve(tarEntry.name).toFile()
-						if (tarEntry.isDirectory) {
-							outputFile.mkdirs()
-						} else {
-							outputFile.parentFile.mkdirs()
-							Files.copy(tarInput, outputFile.toPath())
-						}
-					}
-			}
-		}
-		Files.deleteIfExists(outputFilePath)
 	}
 }
 

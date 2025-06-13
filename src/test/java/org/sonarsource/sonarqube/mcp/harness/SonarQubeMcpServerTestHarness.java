@@ -30,24 +30,49 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
+import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
-public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements AfterEachCallback {
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+
+public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements AfterEachCallback, BeforeEachCallback {
   private static final Map<String, String> DEFAULT_ENV_TEMPLATE = Map.of(
-    "PLUGINS_PATH", "build/sonarqube-mcp-server/plugins",
-    "SONARQUBE_URL", "fake.url");
+    "SONARQUBE_TOKEN", "token");
   private final List<McpSyncClient> clients = new ArrayList<>();
   private Path tempStoragePath;
   private final List<SonarQubeMcpServer> servers = new ArrayList<>();
+  private final MockWebServer mockSonarQubeServer = new MockWebServer();
 
   @Override
   public SonarQubeMcpServerTestHarness resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
     return this;
+  }
+
+  @Override
+  public void beforeEach(ExtensionContext context) throws Exception {
+    mockSonarQubeServer.start();
+    mockSonarQubeServer.stubFor(get(PluginsApi.INSTALLED_PLUGINS_PATH).willReturn(okJson("""
+      {
+          "plugins": [
+            {
+              "key": "php",
+              "filename": "sonar-php-plugin-3.45.0.12991.jar",
+              "sonarLintSupported": true
+            }
+          ]
+        }
+      """)));
+    mockSonarQubeServer.stubFor(get(PluginsApi.DOWNLOAD_PLUGINS_PATH + "?plugin=php")
+      .willReturn(aResponse().withBody(Files.readAllBytes(Paths.get("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.45.0.12991.jar")))));
   }
 
   @Override
@@ -64,6 +89,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     });
     servers.clear();
     cleanupTempStoragePath();
+    mockSonarQubeServer.stop();
   }
 
   private void cleanupTempStoragePath() {
@@ -77,6 +103,10 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     }
   }
 
+  public MockWebServer getMockSonarQubeServer() {
+    return mockSonarQubeServer;
+  }
+
   public McpSyncClient newClient() {
     return newClient(Map.of());
   }
@@ -87,6 +117,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     } else {
       try {
         tempStoragePath = Files.createTempDirectory("sonarqube-mcp-test-storage-" + UUID.randomUUID());
+        FileUtils.copyDirectory(Paths.get("build/sonarqube-mcp-server/plugins").toFile(), tempStoragePath.toFile());
       } catch (IOException e) {
         throw new RuntimeException("Failed to create temporary storage directory", e);
       }
@@ -100,6 +131,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     var serverToClientInputStream = new BlockingQueueInputStream(serverToClientBlockingQueue);
     var environment = new HashMap<>(DEFAULT_ENV_TEMPLATE);
     environment.put("STORAGE_PATH", tempStoragePath.toString());
+    environment.put("SONARQUBE_URL", mockSonarQubeServer.baseUrl());
     environment.putAll(overriddenEnv);
 
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream),

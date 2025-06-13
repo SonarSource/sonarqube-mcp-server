@@ -40,10 +40,6 @@ public class SystemLogsTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApi.isAuthenticationSet()) {
-      return Tool.Result.failure("Not connected to SonarQube Server, please provide valid credentials");
-    }
-
     var name = arguments.getOptionalString("name");
 
     if (name != null && !isValidLogName(name)) {

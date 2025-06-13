@@ -83,7 +83,6 @@ Alternatively, you can manually copy and paste the MCP configurations. Below are
     ],
     "env": {
       "STORAGE_PATH": "<path_to_your_mcp_storage>",
-      "PLUGINS_PATH": "<path_to_your_sonar_analyzers>",
       "SONARQUBE_TOKEN": "<token>",
       "SONARQUBE_ORG": "<org>"
     }
@@ -118,7 +117,6 @@ On top of the previous SonarQube environments, you should add the following vari
 | Environment variable | Description                                                                                                                               |
 |----------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | `STORAGE_PATH`       | An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence) |
-| `PLUGINS_PATH`       | An optional absolute path to a folder containing the SonarQube analyzers. If none is provided, analysis is disabled |
 
 ## Tools
 

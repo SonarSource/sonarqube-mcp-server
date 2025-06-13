@@ -59,13 +59,13 @@ public class SystemApi {
   }
 
   public String getPing() {
-    try (var response = helper.get(PING_PATH)) {
+    try (var response = helper.getAnonymous(PING_PATH)) {
       return response.bodyAsString();
     }
   }
 
   public StatusResponse getStatus() {
-    try (var response = helper.get(STATUS_PATH)) {
+    try (var response = helper.getAnonymous(STATUS_PATH)) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, StatusResponse.class);
     }

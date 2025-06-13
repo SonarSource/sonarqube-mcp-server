@@ -42,9 +42,6 @@ public class ListRuleRepositoriesTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApi.isAuthenticationSet()) {
-      return Tool.Result.failure("Not connected to SonarQube, please provide valid credentials");
-    }
     var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
     var query = arguments.getOptionalString(QUERY_PROPERTY);
     var response = serverApi.rulesApi().getRepositories(language, query);

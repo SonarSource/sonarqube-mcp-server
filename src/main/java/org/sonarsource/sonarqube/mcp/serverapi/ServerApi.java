@@ -16,12 +16,12 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
-import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.SourcesApi;
@@ -30,11 +30,9 @@ import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 public class ServerApi {
 
   private final ServerApiHelper helper;
-  private final boolean isAuthenticationSet;
 
-  public ServerApi(ServerApiHelper helper, @Nullable String token) {
+  public ServerApi(ServerApiHelper helper) {
     this.helper = helper;
-    this.isAuthenticationSet = token != null;
   }
 
   public QualityGatesApi qualityGatesApi() {
@@ -73,8 +71,8 @@ public class ServerApi {
     return new SystemApi(helper);
   }
 
-  public boolean isAuthenticationSet() {
-    return isAuthenticationSet;
+  public PluginsApi pluginsApi() {
+    return new PluginsApi(helper);
   }
 
 }

@@ -42,10 +42,6 @@ public class GetRawSourceTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApi.isAuthenticationSet()) {
-      return Tool.Result.failure("Not connected to SonarQube, please provide valid credentials");
-    }
-
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
     var branch = arguments.getOptionalString(BRANCH_PROPERTY);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);

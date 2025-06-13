@@ -31,17 +31,11 @@ class HttpClientAdapter implements HttpClient {
 
   private static final String AUTHORIZATION_HEADER = "Authorization";
   private final CloseableHttpAsyncClient apacheClient;
-  @Nullable
   private final String token;
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken) {
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, String sonarqubeCloudToken) {
     this.apacheClient = apacheClient;
     this.token = sonarqubeCloudToken;
-  }
-
-  @Override
-  public Response post(String url, String contentType, String bodyContent) {
-    return waitFor(postAsync(url, contentType, bodyContent));
   }
 
   @Override
@@ -49,21 +43,17 @@ class HttpClientAdapter implements HttpClient {
     var request = SimpleRequestBuilder.post(url)
       .setBody(body, ContentType.parse(contentType))
       .build();
-    return executeAsync(request);
-  }
-
-  @Override
-  public Response get(String url) {
-    return waitFor(getAsync(url));
+    return executeAsync(request, token);
   }
 
   @Override
   public CompletableFuture<Response> getAsync(String url) {
-    return executeAsync(SimpleRequestBuilder.get(url).build());
+    return executeAsync(SimpleRequestBuilder.get(url).build(), token);
   }
 
-  private static Response waitFor(CompletableFuture<Response> f) {
-    return f.join();
+  @Override
+  public CompletableFuture<Response> getAsyncAnonymous(String url) {
+    return executeAsync(SimpleRequestBuilder.get(url).build(), null);
   }
 
   private class CompletableFutureWrappingFuture extends CompletableFuture<Response> {
@@ -106,10 +96,10 @@ class HttpClientAdapter implements HttpClient {
     }
   }
 
-  private CompletableFuture<Response> executeAsync(SimpleHttpRequest httpRequest) {
+  private CompletableFuture<Response> executeAsync(SimpleHttpRequest httpRequest, @Nullable String tokenToUse) {
     try {
-      if (token != null) {
-        httpRequest.setHeader(AUTHORIZATION_HEADER, bearer(token));
+      if (tokenToUse != null) {
+        httpRequest.setHeader(AUTHORIZATION_HEADER, bearer(tokenToUse));
       }
       return new CompletableFutureWrappingFuture(httpRequest);
     } catch (Exception e) {
