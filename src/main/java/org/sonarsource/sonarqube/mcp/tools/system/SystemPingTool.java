@@ -22,7 +22,7 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SystemPingTool extends Tool {
 
-  public static final String TOOL_NAME = "get_system_ping";
+  public static final String TOOL_NAME = "ping_system";
 
   private final ServerApi serverApi;
 

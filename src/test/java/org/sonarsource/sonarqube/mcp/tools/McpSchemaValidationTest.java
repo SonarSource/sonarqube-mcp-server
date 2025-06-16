@@ -283,7 +283,7 @@ class McpSchemaValidationTest {
       toolName.contains("change") || toolName.contains("list") ||
       toolName.contains("create") || toolName.contains("update") ||
       toolName.contains("delete") || toolName.contains("show") ||
-      toolName.contains("analyze");
+      toolName.contains("analyze") || toolName.contains("ping");
 
     assertThat(hasActionWord)
       .as("Tool name '%s' should contain an action word (get, search, change, list, etc.)", toolName)

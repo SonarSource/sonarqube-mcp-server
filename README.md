@@ -213,7 +213,7 @@ On top of the previous SonarQube environments, you should add the following vari
   - `name` - Optional name of the logs to get. Possible values: access, app, ce, deprecation, es, web. Default: app - _String_
 
 
-- **get_system_ping** - Ping the SonarQube Server system to check if it's alive
+- **ping_system** - Ping the SonarQube Server system to check if it's alive
 
 
 - **get_system_status** - Get state information about SonarQube Server
