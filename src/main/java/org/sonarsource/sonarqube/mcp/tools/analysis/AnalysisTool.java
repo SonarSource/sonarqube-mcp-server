@@ -16,9 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
+import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -26,33 +28,42 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.StandaloneRuleConfigDto;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
+import static java.util.stream.Collectors.toMap;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.mapSonarLanguageToLanguage;
 
 public class AnalysisTool extends Tool {
 
   public static final String TOOL_NAME = "analyze_code_snippet";
+  public static final String PROJECT_KEY_PROPERTY = "projectKey";
   public static final String SNIPPET_PROPERTY = "codeSnippet";
   public static final String LANGUAGE_PROPERTY = "language";
 
   private final BackendService backendService;
+  private final ServerApi serverApi;
 
-  public AnalysisTool(BackendService backendService) {
+  public AnalysisTool(BackendService backendService, ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setDescription("Analyze a code snippet with Sonar analyzers to find Sonar issues in it.")
+      .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
       .addRequiredStringProperty(SNIPPET_PROPERTY, "Code snippet or full file content")
       .addStringProperty(LANGUAGE_PROPERTY, "Language of the code snippet")
       .build());
     this.backendService = backendService;
+    this.serverApi = serverApi;
   }
 
   @Override
   public Result execute(Arguments arguments) {
+    var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
     var codeSnippet = arguments.getStringOrThrow(SNIPPET_PROPERTY);
     var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
 
@@ -60,6 +71,8 @@ public class AnalysisTool extends Tool {
     if (sonarLanguage == null) {
       sonarLanguage = SonarLanguage.SECRETS;
     }
+
+    applyRulesFromProject(projectKey);
 
     var analysisId = UUID.randomUUID();
     Path tmpFile = null;
@@ -87,6 +100,24 @@ public class AnalysisTool extends Tool {
         }
       }
     }
+  }
+
+  private void applyRulesFromProject(@Nullable String projectKey) {
+    var activeRules = new HashMap<String, StandaloneRuleConfigDto>();
+    serverApi.qualityProfilesApi().getQualityProfiles(projectKey).profiles()
+      .forEach(profile -> {
+        var count = 0;
+        var page = 1;
+        SearchResponse searchResponse;
+        do {
+          searchResponse = serverApi.rulesApi().search(profile.key(), page);
+          page++;
+          count += searchResponse.ps();
+          searchResponse.actives().forEach((ruleKey, actives) -> activeRules.put(ruleKey,
+            new StandaloneRuleConfigDto(true, actives.getFirst().params().stream().collect(toMap(SearchResponse.RuleParameter::key, SearchResponse.RuleParameter::value)))));
+        } while (count < searchResponse.total());
+      });
+    backendService.updateRulesConfiguration(activeRules);
   }
 
   private static String buildResponseFromAnalysisResults(AnalyzeFilesResponse response) {

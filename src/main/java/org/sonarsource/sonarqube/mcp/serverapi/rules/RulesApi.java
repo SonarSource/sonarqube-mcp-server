@@ -21,12 +21,14 @@ import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.RepositoriesResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
 
 public class RulesApi {
 
   public static final String SHOW_PATH = "/api/rules/show";
   public static final String REPOSITORIES_PATH = "/api/rules/repositories";
+  public static final String SEARCH_PATH = "/api/rules/search";
 
   private final ServerApiHelper helper;
   private final String organization;
@@ -66,4 +68,17 @@ public class RulesApi {
       .build();
   }
 
-} 
+  public SearchResponse search(String qualityProfileKey, int page) {
+    var url = new UrlBuilder(SEARCH_PATH)
+      .addParam("qprofile", qualityProfileKey)
+      .addParam("organization", helper.getOrganization())
+      .addParam("activation", "true")
+      .addParam("f", "templateKey,actives")
+      .addParam("p", page)
+      .build();
+    try (var response = helper.get(url)) {
+      var responseStr = response.bodyAsString();
+      return new Gson().fromJson(responseStr, SearchResponse.class);
+    }
+  }
+}

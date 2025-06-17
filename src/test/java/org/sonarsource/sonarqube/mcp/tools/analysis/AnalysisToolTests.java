@@ -17,11 +17,18 @@
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Nullable;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 public class AnalysisToolTests {
@@ -47,6 +54,7 @@ public class AnalysisToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_find_no_issues_in_an_empty_file(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of("php:S1135"));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -60,7 +68,8 @@ public class AnalysisToolTests {
     }
 
     @SonarQubeMcpServerTest
-    void it_should_find_an_issues_in_a_php_file(SonarQubeMcpServerTestHarness harness) {
+    void it_should_find_an_issues_in_a_php_file_when_rule_enabled_in_default_quality_profile(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of("php:S1135"));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
@@ -83,6 +92,87 @@ public class AnalysisToolTests {
           Quick fixes available: No
           Starting on line: 1""", false));
     }
+
+    @SonarQubeMcpServerTest
+    void it_should_find_an_issues_in_a_php_file_when_rule_enabled_in_project_quality_profile(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, "projectKey", List.of("php:S1135"));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        AnalysisTool.TOOL_NAME,
+        Map.of(
+          AnalysisTool.PROJECT_KEY_PROPERTY, "projectKey",
+          AnalysisTool.SNIPPET_PROPERTY, """
+            // TODO just do it
+            """,
+          AnalysisTool.LANGUAGE_PROPERTY, "php")));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Found 1 Sonar issues in the code snippet
+          Complete the task associated to this "TODO" comment.
+          Rule key: php:S1135
+          Severity: INFO
+          Clean Code attribute: COMPLETE
+          Impacts: {MAINTAINABILITY=INFO}
+          Description: Complete the task associated to this "TODO" comment.
+          Quick fixes available: No
+          Starting on line: 1""", false));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_find_no_issues_if_rule_is_not_active(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of());
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+        AnalysisTool.TOOL_NAME,
+        Map.of(
+          AnalysisTool.SNIPPET_PROPERTY, """
+            // TODO just do it
+            """,
+          AnalysisTool.LANGUAGE_PROPERTY, "php")));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("No Sonar issues found in the code snippet.", false));
+    }
+  }
+
+  private void mockServerRules(SonarQubeMcpServerTestHarness harness, @Nullable String projectKey, List<String> activeRuleKeys) {
+    mockQualityProfiles(harness, projectKey, "qpKey");
+    mockRules(harness, "qpKey", activeRuleKeys);
+  }
+
+  private static void mockQualityProfiles(SonarQubeMcpServerTestHarness harness, @Nullable String projectKey, String qualityProfileKey) {
+    var query = projectKey == null ? "defaults=true" : ("project=" + projectKey);
+    harness.getMockSonarQubeServer().stubFor(get(QualityProfilesApi.SEARCH_PATH + "?" + query).willReturn(okJson("""
+      {
+          "profiles": [
+            {
+              "key": "%s"
+            }
+          ]
+        }
+      """.formatted(qualityProfileKey))));
+  }
+
+  private static void mockRules(SonarQubeMcpServerTestHarness harness, String qualityProfileKey, List<String> activeRuleKeys) {
+    var rulesPayload = activeRuleKeys.stream().map("""
+      "%s": [
+        {
+          "params": []
+        }
+      ]
+      """::formatted).collect(Collectors.joining(","));
+
+    harness.getMockSonarQubeServer().stubFor(get(RulesApi.SEARCH_PATH + "?qprofile=" + qualityProfileKey + "&activation=true&f=templateKey%2Cactives&p=1").willReturn(okJson(
+            """
+      {
+        "actives": {
+          %s
+        }
+      }
+      """.formatted(rulesPayload))));
   }
 
 }

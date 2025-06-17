@@ -23,6 +23,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,6 +48,8 @@ import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.Initialize
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.LanguageSpecificRequirements;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.SslConfigurationDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.TelemetryClientConstantAttributesDto;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.StandaloneRuleConfigDto;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.UpdateStandaloneRulesConfigurationParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.client.telemetry.ToolCalledParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
@@ -203,6 +206,18 @@ public class BackendService {
         LOG.error("Unable to stop the MCP backend launcher", e);
       }
     }
+  }
+
+  public void updateRulesConfiguration(Map<String, StandaloneRuleConfigDto> ruleConfigurationByKey) {
+    backendFuture.thenAccept(server -> {
+      var newActiveRules = new HashMap<String, StandaloneRuleConfigDto>();
+      server.getRulesService().listAllStandaloneRulesDefinitions().join().getRulesByKey().forEach((key, value) ->
+      // disable all standalone rules
+      newActiveRules.put(key, new StandaloneRuleConfigDto(false, Map.of())));
+      // enable custom ones
+      newActiveRules.putAll(ruleConfigurationByKey);
+      server.getRulesService().updateStandaloneRulesConfiguration(new UpdateStandaloneRulesConfigurationParams(newActiveRules));
+    });
   }
 
   public record AnalyzersAndLanguagesEnabled(Set<Path> analyzerPaths, EnumSet<Language> enabledLanguages) {

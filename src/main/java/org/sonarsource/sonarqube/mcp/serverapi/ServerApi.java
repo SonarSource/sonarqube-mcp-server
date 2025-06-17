@@ -23,6 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.SourcesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
@@ -37,6 +38,10 @@ public class ServerApi {
 
   public QualityGatesApi qualityGatesApi() {
     return new QualityGatesApi(helper);
+  }
+
+  public QualityProfilesApi qualityProfilesApi() {
+    return new QualityProfilesApi(helper);
   }
 
   public ComponentsApi componentsApi() {
