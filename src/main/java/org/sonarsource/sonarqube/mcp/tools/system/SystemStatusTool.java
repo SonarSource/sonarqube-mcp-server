@@ -42,24 +42,15 @@ public class SystemStatusTool extends Tool {
   }
 
   private static String buildResponseFromStatus(StatusResponse response) {
-    var stringBuilder = new StringBuilder();
-    stringBuilder.append("SonarQube Server System Status\n");
-    stringBuilder.append("=======================\n\n");
+    return """
+      SonarQube Server System Status
+      =======================
 
-    if (response.status() != null) {
-      stringBuilder.append("Status: ").append(response.status()).append("\n");
-      stringBuilder.append("Description: ").append(getStatusDescription(response.status())).append("\n\n");
-    }
+      Status: %s
+      Description: %s
 
-    if (response.id() != null) {
-      stringBuilder.append("ID: ").append(response.id()).append("\n");
-    }
-
-    if (response.version() != null) {
-      stringBuilder.append("Version: ").append(response.version()).append("\n");
-    }
-
-    return stringBuilder.toString().trim();
+      ID: %s
+      Version: %s""".formatted(response.status(), getStatusDescription(response.status()), response.id(), response.version());
   }
 
   private static String getStatusDescription(String status) {

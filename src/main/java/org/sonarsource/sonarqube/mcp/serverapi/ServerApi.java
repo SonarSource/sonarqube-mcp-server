@@ -80,4 +80,7 @@ public class ServerApi {
     return new PluginsApi(helper);
   }
 
+  public boolean isSonarQubeCloud() {
+    return helper.getOrganization() != null;
+  }
 }

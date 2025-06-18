@@ -58,10 +58,10 @@ class SystemStatusToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_status_without_authentication(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient();
       harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateUpStatusPayload().getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,
@@ -83,8 +83,8 @@ class SystemStatusToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_show_error_when_request_fails(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient();
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,
@@ -98,10 +98,10 @@ class SystemStatusToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_up_status(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient();
       harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateUpStatusPayload().getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,
@@ -123,10 +123,10 @@ class SystemStatusToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_starting_status(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient();
       harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateStartingStatusPayload().getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,
@@ -148,10 +148,10 @@ class SystemStatusToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_db_migration_needed_status(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient();
       harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateDbMigrationNeededStatusPayload().getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(new McpSchema.CallToolRequest(
         SystemStatusTool.TOOL_NAME,

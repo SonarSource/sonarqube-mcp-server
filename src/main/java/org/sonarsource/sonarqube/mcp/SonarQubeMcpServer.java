@@ -63,6 +63,7 @@ public class SonarQubeMcpServer {
   private final McpServerLaunchConfiguration mcpConfiguration;
   private final HttpClientProvider httpClientProvider;
   private final PluginsSynchronizer pluginsSynchronizer;
+  private final SonarQubeVersionChecker sonarQubeVersionChecker;
   private McpSyncServer syncServer;
   private volatile boolean isShutdown = false;
 
@@ -76,6 +77,7 @@ public class SonarQubeMcpServer {
     this.backendService = new BackendService(mcpConfiguration);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     var serverApi = initializeServerApi(mcpConfiguration);
+    this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     this.pluginsSynchronizer = new PluginsSynchronizer(serverApi, mcpConfiguration.getStoragePath());
     this.toolExecutor = new ToolExecutor(backendService);
 
@@ -107,6 +109,7 @@ public class SonarQubeMcpServer {
   }
 
   public void start() {
+    sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
     syncServer = McpServer.sync(transportProvider)
       .serverInfo(new McpSchema.Implementation("sonarqube-mcp-server", mcpConfiguration.getAppVersion()))
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())

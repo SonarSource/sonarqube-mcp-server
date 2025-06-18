@@ -16,11 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.system.response;
 
-import javax.annotation.Nullable;
-
 public record StatusResponse(
-  @Nullable String id,
-  @Nullable String version,
-  @Nullable String status
-) {
+  String id,
+  String version,
+  String status) {
 }

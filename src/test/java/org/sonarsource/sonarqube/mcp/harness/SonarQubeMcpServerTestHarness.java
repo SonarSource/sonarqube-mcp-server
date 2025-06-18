@@ -17,10 +17,12 @@
 package org.sonarsource.sonarqube.mcp.harness;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -38,6 +40,7 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -112,6 +115,16 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   }
 
   public McpSyncClient newClient(Map<String, String> overriddenEnv) {
+    if (!overriddenEnv.containsKey("SONARQUBE_ORG")) {
+      mockSonarQubeServer.stubFor(get(SystemApi.STATUS_PATH)
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+      {
+        "id": "20150504120436",
+        "version": "2025.1",
+        "status": "UP"
+      }""".getBytes(StandardCharsets.UTF_8)))));
+    }
     if (overriddenEnv.containsKey("STORAGE_PATH")) {
       tempStoragePath = Paths.get(overriddenEnv.get("STORAGE_PATH"));
     } else {
