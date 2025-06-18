@@ -42,9 +42,9 @@ class ProjectStatusToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "12345")));
+        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "12345"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
@@ -55,9 +55,7 @@ class ProjectStatusToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ProjectStatusTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ProjectStatusTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Either 'analysisId', 'projectId' or 'projectKey' must be provided", true));
@@ -68,9 +66,9 @@ class ProjectStatusToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "123", ProjectStatusTool.BRANCH_PROPERTY, "branch")));
+        Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "123", ProjectStatusTool.BRANCH_PROPERTY, "branch"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Project ID doesn't work with branches or pull requests", true));
@@ -83,9 +81,9 @@ class ProjectStatusToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "12345")));
+        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "12345"));
 
       assertThat(result)
         .isEqualTo(
@@ -101,9 +99,9 @@ class ProjectStatusToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey")));
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -127,9 +125,9 @@ class ProjectStatusToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "id")));
+        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "id"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -153,9 +151,9 @@ class ProjectStatusToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "AU-Tpxb--iU5OvuD2FLy")));
+        Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "AU-Tpxb--iU5OvuD2FLy"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -180,9 +178,9 @@ class ProjectStatusToolTests {
       harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectKey=pkey").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey")));
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -195,9 +193,9 @@ class ProjectStatusToolTests {
           Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey")));
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -220,9 +218,9 @@ class ProjectStatusToolTests {
           Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "id")));
+        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "id"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

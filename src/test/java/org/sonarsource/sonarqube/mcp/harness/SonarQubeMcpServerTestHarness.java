@@ -110,11 +110,11 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     return mockSonarQubeServer;
   }
 
-  public McpSyncClient newClient() {
+  public SonarQubeMcpTestClient newClient() {
     return newClient(Map.of());
   }
 
-  public McpSyncClient newClient(Map<String, String> overriddenEnv) {
+  public SonarQubeMcpTestClient newClient(Map<String, String> overriddenEnv) {
     if (!overriddenEnv.containsKey("SONARQUBE_ORG")) {
       mockSonarQubeServer.stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
@@ -156,7 +156,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     client.initialize();
     this.clients.add(client);
     this.servers.add(server);
-    return client;
+    return new SonarQubeMcpTestClient(client);
   }
 
   private static void printLogs(McpSchema.LoggingMessageNotification notification) {

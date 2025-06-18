@@ -41,9 +41,7 @@ class SearchMetricsToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SearchMetricsTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
@@ -66,9 +64,7 @@ class SearchMetricsToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SearchMetricsTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("""
         Search Results: 0 total metrics
@@ -87,9 +83,7 @@ class SearchMetricsToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SearchMetricsTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -130,12 +124,12 @@ class SearchMetricsToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         SearchMetricsTool.TOOL_NAME,
         Map.of(
           SearchMetricsTool.PAGE_PROPERTY, 2,
           SearchMetricsTool.PAGE_SIZE_PROPERTY, 20
-        )));
+        ));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -175,9 +169,7 @@ class SearchMetricsToolTests {
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SearchMetricsTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
@@ -198,9 +190,7 @@ class SearchMetricsToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SearchMetricsTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("""
         Search Results: 0 total metrics
@@ -217,9 +207,7 @@ class SearchMetricsToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SearchMetricsTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -258,12 +246,12 @@ class SearchMetricsToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         SearchMetricsTool.TOOL_NAME,
         Map.of(
           SearchMetricsTool.PAGE_PROPERTY, 2,
           SearchMetricsTool.PAGE_SIZE_PROPERTY, 20
-        )));
+        ));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

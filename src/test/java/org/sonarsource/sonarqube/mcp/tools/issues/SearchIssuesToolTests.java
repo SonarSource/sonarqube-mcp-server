@@ -42,9 +42,7 @@ class SearchIssuesToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SearchIssuesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -75,9 +73,9 @@ class SearchIssuesToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[]{"project1", "project2"})));
+        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[]{"project1", "project2"}));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -97,9 +95,7 @@ class SearchIssuesToolTests {
       harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH).willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SearchIssuesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -128,9 +124,9 @@ class SearchIssuesToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[]{"project1", "project2"})));
+        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[]{"project1", "project2"}));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -180,9 +176,9 @@ class SearchIssuesToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of("pullRequestId", "1")));
+        Map.of("pullRequestId", "1"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

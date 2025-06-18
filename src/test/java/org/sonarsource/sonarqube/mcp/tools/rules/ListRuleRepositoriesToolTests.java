@@ -41,9 +41,7 @@ class ListRuleRepositoriesToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ListRuleRepositoriesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ListRuleRepositoriesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -61,9 +59,7 @@ class ListRuleRepositoriesToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ListRuleRepositoriesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ListRuleRepositoriesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("No rule repositories found.", false));
@@ -86,9 +82,9 @@ class ListRuleRepositoriesToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ListRuleRepositoriesTool.TOOL_NAME,
-        Map.of("language", "java")));
+        Map.of("language", "java"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -120,9 +116,9 @@ class ListRuleRepositoriesToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ListRuleRepositoriesTool.TOOL_NAME,
-        Map.of("q", "sonar")));
+        Map.of("q", "sonar"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -153,11 +149,11 @@ class ListRuleRepositoriesToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ListRuleRepositoriesTool.TOOL_NAME,
         Map.of(
           "language", "java",
-          "q", "sonar")));
+          "q", "sonar"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -179,9 +175,7 @@ class ListRuleRepositoriesToolTests {
       harness.getMockSonarQubeServer().stubFor(get(RulesApi.REPOSITORIES_PATH).willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ListRuleRepositoriesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ListRuleRepositoriesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -201,9 +195,9 @@ class ListRuleRepositoriesToolTests {
             """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ListRuleRepositoriesTool.TOOL_NAME,
-        Map.of("language", "java")));
+        Map.of("language", "java"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -233,11 +227,11 @@ class ListRuleRepositoriesToolTests {
             """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ListRuleRepositoriesTool.TOOL_NAME,
         Map.of(
           "language", "java",
-          "q", "sonar")));
+          "q", "sonar"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

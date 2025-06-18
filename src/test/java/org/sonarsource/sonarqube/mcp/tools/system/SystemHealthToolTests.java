@@ -44,9 +44,7 @@ class SystemHealthToolTests {
         "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(new McpSchema.CallToolRequest(
-          SystemHealthTool.TOOL_NAME,
-          Map.of()));
+        mcpClient.callTool(SystemHealthTool.TOOL_NAME);
       });
 
       assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemHealthTool.TOOL_NAME);
@@ -61,9 +59,7 @@ class SystemHealthToolTests {
       harness.getMockSonarQubeServer().stubFor(get(SystemApi.HEALTH_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemHealthTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemHealthTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(
@@ -78,9 +74,7 @@ class SystemHealthToolTests {
           Body.fromJsonBytes(generateGreenHealthPayload().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemHealthTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemHealthTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("SonarQube Server Health Status: GREEN", false));
@@ -95,9 +89,7 @@ class SystemHealthToolTests {
           Body.fromJsonBytes(generateRedHealthPayload().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemHealthTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemHealthTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

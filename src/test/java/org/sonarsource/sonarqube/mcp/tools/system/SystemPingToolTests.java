@@ -42,9 +42,7 @@ class SystemPingToolTests {
         "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(new McpSchema.CallToolRequest(
-          SystemPingTool.TOOL_NAME,
-          Map.of()));
+        mcpClient.callTool(SystemPingTool.TOOL_NAME);
       });
 
       assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemPingTool.TOOL_NAME);
@@ -60,9 +58,7 @@ class SystemPingToolTests {
         .willReturn(aResponse().withBody("pong")));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemPingTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("pong", false));
@@ -75,9 +71,7 @@ class SystemPingToolTests {
       harness.getMockSonarQubeServer().stubFor(get(SystemApi.PING_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemPingTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(
@@ -91,9 +85,7 @@ class SystemPingToolTests {
         .willReturn(aResponse().withBody("pong")));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemPingTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("pong", false));

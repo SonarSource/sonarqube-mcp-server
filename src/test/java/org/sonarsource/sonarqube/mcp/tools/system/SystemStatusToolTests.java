@@ -44,9 +44,7 @@ class SystemStatusToolTests {
         "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(new McpSchema.CallToolRequest(
-          SystemStatusTool.TOOL_NAME,
-          Map.of()));
+        mcpClient.callTool(SystemStatusTool.TOOL_NAME);
       });
 
       assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemStatusTool.TOOL_NAME);
@@ -63,9 +61,7 @@ class SystemStatusToolTests {
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateUpStatusPayload().getBytes(StandardCharsets.UTF_8)))));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemStatusTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -86,9 +82,7 @@ class SystemStatusToolTests {
       var mcpClient = harness.newClient();
       harness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemStatusTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(
@@ -103,9 +97,7 @@ class SystemStatusToolTests {
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateUpStatusPayload().getBytes(StandardCharsets.UTF_8)))));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemStatusTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -128,9 +120,7 @@ class SystemStatusToolTests {
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateStartingStatusPayload().getBytes(StandardCharsets.UTF_8)))));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemStatusTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -153,9 +143,7 @@ class SystemStatusToolTests {
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateDbMigrationNeededStatusPayload().getBytes(StandardCharsets.UTF_8)))));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemStatusTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

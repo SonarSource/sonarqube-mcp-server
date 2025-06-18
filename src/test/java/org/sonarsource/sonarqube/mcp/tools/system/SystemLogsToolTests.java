@@ -42,9 +42,7 @@ class SystemLogsToolTests {
         "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(new McpSchema.CallToolRequest(
-          SystemLogsTool.TOOL_NAME,
-          Map.of()));
+        mcpClient.callTool(SystemLogsTool.TOOL_NAME);
       });
 
       assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemLogsTool.TOOL_NAME);
@@ -59,9 +57,7 @@ class SystemLogsToolTests {
       harness.getMockSonarQubeServer().stubFor(get(SystemApi.LOGS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemLogsTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemLogsTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -71,9 +67,9 @@ class SystemLogsToolTests {
     void it_should_return_an_error_if_the_property_is_invalid(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         SystemLogsTool.TOOL_NAME,
-        Map.of(SystemLogsTool.NAME_PROPERTY, "foo")));
+        Map.of(SystemLogsTool.NAME_PROPERTY, "foo"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Invalid log name. Possible values: access, app, ce, deprecation, es, web", true));
@@ -85,9 +81,7 @@ class SystemLogsToolTests {
         .willReturn(aResponse().withBody(generateAppLogsPayload())));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemLogsTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemLogsTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

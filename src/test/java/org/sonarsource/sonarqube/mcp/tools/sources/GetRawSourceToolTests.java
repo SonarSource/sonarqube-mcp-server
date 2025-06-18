@@ -38,9 +38,7 @@ class GetRawSourceToolTests {
     void it_should_return_an_error_if_the_key_parameter_is_missing(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of("SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        GetRawSourceTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(GetRawSourceTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
@@ -57,9 +55,9 @@ class GetRawSourceToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php")));
+        Map.of("key", "my_project:src/foo/Bar.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Forbidden", true));
@@ -72,9 +70,9 @@ class GetRawSourceToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/NonExistent.php")));
+        Map.of("key", "my_project:src/foo/NonExistent.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
@@ -101,9 +99,9 @@ class GetRawSourceToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php")));
+        Map.of("key", "my_project:src/foo/Bar.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
@@ -131,9 +129,9 @@ class GetRawSourceToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch")));
+        Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
@@ -161,9 +159,9 @@ class GetRawSourceToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "pullRequest", "5461")));
+        Map.of("key", "my_project:src/foo/Bar.php", "pullRequest", "5461"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
@@ -191,9 +189,9 @@ class GetRawSourceToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch", "pullRequest", "5461")));
+        Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch", "pullRequest", "5461"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
@@ -211,9 +209,9 @@ class GetRawSourceToolTests {
       harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php")).willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php")));
+        Map.of("key", "my_project:src/foo/Bar.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Forbidden", true));
@@ -224,9 +222,9 @@ class GetRawSourceToolTests {
       harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/NonExistent.php")).willReturn(aResponse().withStatus(404)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/NonExistent.php")));
+        Map.of("key", "my_project:src/foo/NonExistent.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
@@ -251,9 +249,9 @@ class GetRawSourceToolTests {
         .willReturn(aResponse().withBody(sourceCode)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php")));
+        Map.of("key", "my_project:src/foo/Bar.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
@@ -279,9 +277,9 @@ class GetRawSourceToolTests {
         .willReturn(aResponse().withBody(sourceCode)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch")));
+        Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
@@ -307,9 +305,9 @@ class GetRawSourceToolTests {
         .willReturn(aResponse().withBody(sourceCode)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "pullRequest", "5461")));
+        Map.of("key", "my_project:src/foo/Bar.php", "pullRequest", "5461"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
@@ -335,9 +333,9 @@ class GetRawSourceToolTests {
         .willReturn(aResponse().withBody(sourceCode)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetRawSourceTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch", "pullRequest", "5461")));
+        Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch", "pullRequest", "5461"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));

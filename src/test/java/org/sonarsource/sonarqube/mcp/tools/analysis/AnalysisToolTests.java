@@ -39,10 +39,9 @@ public class AnalysisToolTests {
     void it_should_return_an_error_if_codeSnippet_is_missing(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         AnalysisTool.TOOL_NAME,
-        Map.of(
-          AnalysisTool.LANGUAGE_PROPERTY, "")));
+        Map.of(AnalysisTool.LANGUAGE_PROPERTY, ""));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: codeSnippet", true));
@@ -57,11 +56,11 @@ public class AnalysisToolTests {
       mockServerRules(harness, null, List.of("php:S1135"));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         AnalysisTool.TOOL_NAME,
         Map.of(
           AnalysisTool.SNIPPET_PROPERTY, "",
-          AnalysisTool.LANGUAGE_PROPERTY, "")));
+          AnalysisTool.LANGUAGE_PROPERTY, ""));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("No Sonar issues found in the code snippet.", false));
@@ -72,13 +71,13 @@ public class AnalysisToolTests {
       mockServerRules(harness, null, List.of("php:S1135"));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         AnalysisTool.TOOL_NAME,
         Map.of(
           AnalysisTool.SNIPPET_PROPERTY, """
             // TODO just do it
             """,
-          AnalysisTool.LANGUAGE_PROPERTY, "php")));
+          AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -98,14 +97,14 @@ public class AnalysisToolTests {
       mockServerRules(harness, "projectKey", List.of("php:S1135"));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         AnalysisTool.TOOL_NAME,
         Map.of(
           AnalysisTool.PROJECT_KEY_PROPERTY, "projectKey",
           AnalysisTool.SNIPPET_PROPERTY, """
             // TODO just do it
             """,
-          AnalysisTool.LANGUAGE_PROPERTY, "php")));
+          AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -125,13 +124,13 @@ public class AnalysisToolTests {
       mockServerRules(harness, null, List.of());
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         AnalysisTool.TOOL_NAME,
         Map.of(
           AnalysisTool.SNIPPET_PROPERTY, """
             // TODO just do it
             """,
-          AnalysisTool.LANGUAGE_PROPERTY, "php")));
+          AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("No Sonar issues found in the code snippet.", false));
@@ -166,13 +165,13 @@ public class AnalysisToolTests {
       """::formatted).collect(Collectors.joining(","));
 
     harness.getMockSonarQubeServer().stubFor(get(RulesApi.SEARCH_PATH + "?qprofile=" + qualityProfileKey + "&activation=true&f=templateKey%2Cactives&p=1").willReturn(okJson(
-            """
-      {
-        "actives": {
-          %s
+      """
+        {
+          "actives": {
+            %s
+          }
         }
-      }
-      """.formatted(rulesPayload))));
+        """.formatted(rulesPayload))));
   }
 
 }

@@ -44,9 +44,7 @@ class SystemInfoToolTests {
         "SONARQUBE_ORG", "org"));
 
       var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(new McpSchema.CallToolRequest(
-          SystemInfoTool.TOOL_NAME,
-          Map.of()));
+        mcpClient.callTool(SystemInfoTool.TOOL_NAME);
       });
 
       assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemInfoTool.TOOL_NAME);
@@ -61,9 +59,7 @@ class SystemInfoToolTests {
       harness.getMockSonarQubeServer().stubFor(get(SystemApi.INFO_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemInfoTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemInfoTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -76,9 +72,7 @@ class SystemInfoToolTests {
           Body.fromJsonBytes(generateSystemInfoPayload().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        SystemInfoTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(SystemInfoTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

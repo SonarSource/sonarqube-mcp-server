@@ -40,9 +40,7 @@ class ShowRuleToolTests {
     void it_should_return_an_error_if_the_key_parameter_is_missing(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of("SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ShowRuleTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ShowRuleTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
@@ -58,9 +56,9 @@ class ShowRuleToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ShowRuleTool.TOOL_NAME,
-        Map.of("key", "java:S1541")));
+        Map.of("key", "java:S1541"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -139,9 +137,9 @@ class ShowRuleToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ShowRuleTool.TOOL_NAME,
-        Map.of("key", "java:S1541")));
+        Map.of("key", "java:S1541"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -174,9 +172,9 @@ class ShowRuleToolTests {
       harness.getMockSonarQubeServer().stubFor(get(RulesApi.SHOW_PATH + "?key=" + urlEncode("java:S1541")).willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ShowRuleTool.TOOL_NAME,
-        Map.of("key", "java:S1541")));
+        Map.of("key", "java:S1541"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -254,9 +252,9 @@ class ShowRuleToolTests {
               .getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ShowRuleTool.TOOL_NAME,
-        Map.of("key", "java:S1541")));
+        Map.of("key", "java:S1541"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

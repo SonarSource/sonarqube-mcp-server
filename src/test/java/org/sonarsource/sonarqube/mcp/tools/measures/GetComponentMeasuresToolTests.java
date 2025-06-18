@@ -41,9 +41,8 @@ class GetComponentMeasuresToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"
       ));
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        GetComponentMeasuresTool.TOOL_NAME,
-        Map.of()));
+
+      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
@@ -65,9 +64,7 @@ class GetComponentMeasuresToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        GetComponentMeasuresTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("No component found.", false));
     }
@@ -82,9 +79,9 @@ class GetComponentMeasuresToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
-        Map.of(GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java")));
+        Map.of(GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -146,12 +143,12 @@ class GetComponentMeasuresToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
-        )));
+        ));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -213,12 +210,12 @@ class GetComponentMeasuresToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
-        )));
+        ));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -280,12 +277,12 @@ class GetComponentMeasuresToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
-        )));
+        ));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -372,9 +369,7 @@ class GetComponentMeasuresToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        GetComponentMeasuresTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -403,9 +398,8 @@ class GetComponentMeasuresToolTests {
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        GetComponentMeasuresTool.TOOL_NAME,
-        Map.of()));
+
+      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
@@ -425,9 +419,7 @@ class GetComponentMeasuresToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        GetComponentMeasuresTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("No component found.", false));
     }
@@ -440,9 +432,9 @@ class GetComponentMeasuresToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
-        Map.of(GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java")));
+        Map.of(GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -502,12 +494,12 @@ class GetComponentMeasuresToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
-        )));
+        ));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -567,12 +559,12 @@ class GetComponentMeasuresToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
-        )));
+        ));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -632,12 +624,12 @@ class GetComponentMeasuresToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
-        )));
+        ));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -722,9 +714,7 @@ class GetComponentMeasuresToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        GetComponentMeasuresTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

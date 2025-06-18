@@ -41,9 +41,7 @@ class ListQualityGatesToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ListQualityGatesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
@@ -55,9 +53,7 @@ class ListQualityGatesToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ListQualityGatesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(
@@ -73,9 +69,7 @@ class ListQualityGatesToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ListQualityGatesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -101,9 +95,7 @@ class ListQualityGatesToolTests {
       harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.LIST_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ListQualityGatesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -116,9 +108,7 @@ class ListQualityGatesToolTests {
           Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        ListQualityGatesTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

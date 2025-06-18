@@ -40,9 +40,7 @@ class GetScmInfoToolTests {
     void it_should_return_an_error_if_the_key_parameter_is_missing(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of("SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
-        GetScmInfoTool.TOOL_NAME,
-        Map.of()));
+      var result = mcpClient.callTool(GetScmInfoTool.TOOL_NAME);
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
@@ -59,9 +57,9 @@ class GetScmInfoToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php")));
+        Map.of("key", "my_project:src/foo/Bar.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
@@ -83,9 +81,9 @@ class GetScmInfoToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php")));
+        Map.of("key", "my_project:src/foo/Bar.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -116,9 +114,9 @@ class GetScmInfoToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true")));
+        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -148,9 +146,9 @@ class GetScmInfoToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "from", 10, "to", 20)));
+        Map.of("key", "my_project:src/foo/Bar.php", "from", 10, "to", 20));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -180,9 +178,9 @@ class GetScmInfoToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5)));
+        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -209,9 +207,9 @@ class GetScmInfoToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Empty.php")));
+        Map.of("key", "my_project:src/foo/Empty.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -232,9 +230,9 @@ class GetScmInfoToolTests {
       harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_SCM_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php")).willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php")));
+        Map.of("key", "my_project:src/foo/Bar.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
@@ -255,9 +253,9 @@ class GetScmInfoToolTests {
             """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php")));
+        Map.of("key", "my_project:src/foo/Bar.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -287,9 +285,9 @@ class GetScmInfoToolTests {
             """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true")));
+        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -318,9 +316,9 @@ class GetScmInfoToolTests {
             """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "from", 10, "to", 20)));
+        Map.of("key", "my_project:src/foo/Bar.php", "from", 10, "to", 20));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -349,9 +347,9 @@ class GetScmInfoToolTests {
             """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5)));
+        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
@@ -377,9 +375,9 @@ class GetScmInfoToolTests {
             """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Empty.php")));
+        Map.of("key", "my_project:src/foo/Empty.php"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""

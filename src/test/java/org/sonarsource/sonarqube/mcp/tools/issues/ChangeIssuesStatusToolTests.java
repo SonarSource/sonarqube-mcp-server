@@ -37,9 +37,9 @@ class ChangeIssuesStatusToolTests {
     void it_should_return_an_error_if_the_key_parameter_is_missing(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
-        Map.of("status", new String[]{"accept"})));
+        Map.of("status", new String[] {"accept"}));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
@@ -49,9 +49,9 @@ class ChangeIssuesStatusToolTests {
     void it_should_return_an_error_if_the_status_parameter_is_missing(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
-        Map.of("key", "k")));
+        Map.of("key", "k"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: status", true));
@@ -61,9 +61,11 @@ class ChangeIssuesStatusToolTests {
     void it_should_return_an_error_if_the_status_parameter_is_unknown(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
-        Map.of("key", "k", "status", new String[]{"yolo"})));
+        Map.of(
+          "key", "k",
+          "status", new String[] {"yolo"}));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("Status is unknown: yolo", true));
@@ -78,13 +80,12 @@ class ChangeIssuesStatusToolTests {
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
-          "status", new String[]{"accept"})));
+          "status", new String[] {"accept"}));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -94,13 +95,12 @@ class ChangeIssuesStatusToolTests {
     void it_should_change_the_status_to_accept(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
-          "status", new String[]{"accept"})));
+          "status", new String[] {"accept"}));
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("The issue status was successfully changed.", false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
@@ -111,13 +111,12 @@ class ChangeIssuesStatusToolTests {
     void it_should_change_the_status_to_false_positive(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
-          "status", new String[]{"falsepositive"})));
+          "status", new String[] {"falsepositive"}));
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("The issue status was successfully changed.", false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
@@ -128,13 +127,12 @@ class ChangeIssuesStatusToolTests {
     void it_should_reopen_the_issue(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
-      var result = mcpClient.callTool(new McpSchema.CallToolRequest(
+      var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
-          "status", new String[]{"reopen"})));
+          "status", new String[] {"reopen"}));
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("The issue status was successfully changed.", false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
