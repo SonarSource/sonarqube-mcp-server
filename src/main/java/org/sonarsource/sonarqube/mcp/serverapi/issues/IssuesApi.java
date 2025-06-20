@@ -38,8 +38,8 @@ public class IssuesApi {
     this.organization = organization;
   }
 
-  public SearchResponse search(@Nullable List<String> projects, @Nullable String pullRequestId) {
-    try (var response = helper.get(buildPath(projects, pullRequestId))) {
+  public SearchResponse search(@Nullable List<String> projects, @Nullable String pullRequestId, @Nullable Integer page, @Nullable Integer pageSize) {
+    try (var response = helper.get(buildPath(projects, pullRequestId, page, pageSize))) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }
@@ -51,10 +51,12 @@ public class IssuesApi {
     response.close();
   }
 
-  private String buildPath(@Nullable List<String> projects, @Nullable String pullRequestId) {
+  private String buildPath(@Nullable List<String> projects, @Nullable String pullRequestId, @Nullable Integer page, @Nullable Integer pageSize) {
     var builder = new UrlBuilder(SEARCH_PATH)
       .addParam("projects", projects)
-      .addParam("pullRequest", pullRequestId);
+      .addParam("pullRequest", pullRequestId)
+      .addParam("p", page)
+      .addParam("ps", pageSize);
     if (organization != null) {
       builder.addParam("organization", organization);
     }

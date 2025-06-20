@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
-import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -27,6 +26,8 @@ public class SearchIssuesTool extends Tool {
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
   public static final String PROJECTS_PROPERTY = "projects";
   public static final String PULL_REQUEST_ID_PROPERTY = "pullRequestId";
+  public static final String PAGE_PROPERTY = "p";
+  public static final String PAGE_SIZE_PROPERTY = "ps";
 
   private final ServerApi serverApi;
 
@@ -36,6 +37,8 @@ public class SearchIssuesTool extends Tool {
       .setDescription("Search for Sonar issues in my organization's projects.")
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
+      .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
+      .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .build());
     this.serverApi = serverApi;
   }
@@ -44,12 +47,15 @@ public class SearchIssuesTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var projects = arguments.getOptionalStringList(PROJECTS_PROPERTY);
     var pullRequestId = arguments.getOptionalString(PULL_REQUEST_ID_PROPERTY);
-    var response = serverApi.issuesApi().search(projects, pullRequestId);
-    return Tool.Result.success(buildResponseFromSearchResponse(response.issues()));
+    var page = arguments.getOptionalInteger(PAGE_PROPERTY);
+    var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
+    var response = serverApi.issuesApi().search(projects, pullRequestId, page, pageSize);
+    return Tool.Result.success(buildResponseFromSearchResponse(response));
   }
 
-  private static String buildResponseFromSearchResponse(List<SearchResponse.Issue> issues) {
+  private static String buildResponseFromSearchResponse(SearchResponse response) {
     var stringBuilder = new StringBuilder();
+    var issues = response.issues();
 
     if (issues.isEmpty()) {
       stringBuilder.append("No issues were found.");
@@ -57,6 +63,11 @@ public class SearchIssuesTool extends Tool {
     }
 
     stringBuilder.append("Found ").append(issues.size()).append(" issues.\n");
+
+    var paging = response.paging();
+    stringBuilder.append("This response is paginated and this is the page ").append(paging.pageIndex())
+      .append(" out of ").append(paging.total()).append(" total pages. There is a maximum of ")
+      .append(paging.pageSize()).append(" issues per page.\n");
 
     for (var issue : issues) {
       stringBuilder.append("Issue key: ").append(issue.key())
@@ -70,14 +81,10 @@ public class SearchIssuesTool extends Tool {
         .append(" | Category: ").append(issue.cleanCodeAttributeCategory())
         .append(" | Author: ").append(issue.author());
       var textRange = issue.textRange();
-      if (textRange != null) {
-        stringBuilder
-          .append(" | Start Line: ").append(issue.textRange().startLine())
-          .append(" | End Line: ").append(issue.textRange().endLine());
-      }
-      if (issue.creationDate() != null) {
-        stringBuilder.append(" | Created: ").append(issue.creationDate());
-      }
+      stringBuilder
+        .append(" | Start Line: ").append(textRange.startLine())
+        .append(" | End Line: ").append(textRange.endLine());
+      stringBuilder.append(" | Created: ").append(issue.creationDate());
       stringBuilder.append("\n");
     }
 
