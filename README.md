@@ -142,7 +142,7 @@ On top of the previous SonarQube environments, you should add the following vari
   - `projects` - Optional list of Sonar projects - _String[]_
   - `pullRequestId` - Optional Pull Request's identifier - _String_
   - `p` - Optional page number (default: 1) - _Integer_
-  - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 - _Integer_
+  - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
 ### Measures
 
