@@ -52,10 +52,8 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Either;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.TokenDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.UsernamePasswordDto;
-import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
-  private static final McpLogger LOG = McpLogger.getInstance();
 
   @Override
   public void suggestBinding(Map<String, List<BindingSuggestionDto>> suggestionsByConfigScope) {
@@ -79,7 +77,7 @@ public class McpSonarLintRpcClient implements SonarLintRpcClientDelegate {
 
   @Override
   public void log(LogParams params) {
-    LOG.log(params);
+    // never called, logs will not come from this method but directly appended to the log file
   }
 
   @Override

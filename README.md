@@ -19,7 +19,7 @@ SonarQube MCP Server can be launched in two ways:
 
 ### Building
 
-Run the following Gradle command to clean the project, download analyzers, and build the application:
+Run the following Gradle command to clean the project and build the application:
 
 ```bash
 ./gradlew clean build -x test
@@ -217,6 +217,10 @@ On top of the previous SonarQube environments, you should add the following vari
 
 
 - **get_system_status** - Get state information about SonarQube Server
+
+## Troubleshooting
+
+Applications logs will be written to the `STORAGE_PATH/logs/mcp.log` file.
 
 ## Data and telemetry
 

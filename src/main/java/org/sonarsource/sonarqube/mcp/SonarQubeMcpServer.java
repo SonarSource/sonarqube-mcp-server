@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,12 +47,12 @@ import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
-import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemHealthTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemInfoTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemLogsTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
+import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 public class SonarQubeMcpServer {
 
@@ -66,6 +67,7 @@ public class SonarQubeMcpServer {
   private final SonarQubeVersionChecker sonarQubeVersionChecker;
   private McpSyncServer syncServer;
   private volatile boolean isShutdown = false;
+  private boolean logFileLocationLogged;
 
   public static void main(String[] args) {
     new SonarQubeMcpServer(new StdioServerTransportProvider(), System.getenv()).start();
@@ -88,8 +90,7 @@ public class SonarQubeMcpServer {
         new SystemInfoTool(serverApi),
         new SystemLogsTool(serverApi),
         new SystemPingTool(serverApi),
-        new SystemStatusTool(serverApi)
-      ));
+        new SystemStatusTool(serverApi)));
     }
 
     this.supportedTools.addAll(List.of(
@@ -115,7 +116,6 @@ public class SonarQubeMcpServer {
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
       .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
       .build();
-    LOG.setOutput(syncServer);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
     backendService.initialize(analyzers);
@@ -125,7 +125,18 @@ public class SonarQubeMcpServer {
   private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
     return new McpServerFeatures.SyncToolSpecification(
       tool.definition(),
-      (exchange, argMap) -> toolExecutor.execute(tool, argMap));
+      (exchange, argMap) -> {
+        logLogFileLocation(exchange);
+        return toolExecutor.execute(tool, argMap);
+      });
+  }
+
+  private void logLogFileLocation(McpSyncServerExchange exchange) {
+    if (!logFileLocationLogged) {
+      exchange.loggingNotification(new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.INFO, "sonarqube-mcp-server",
+        "Logs are redirected to " + mcpConfiguration.getLogFilePath().toAbsolutePath()));
+      logFileLocationLogged = true;
+    }
   }
 
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
@@ -161,7 +172,6 @@ public class SonarQubeMcpServer {
     } catch (Exception e) {
       LOG.error("Error shutting down MCP backend", e);
     }
-    McpLogger.getInstance().setOutput(null);
   }
 
   // Returns the list of supported tools for testing purposes.

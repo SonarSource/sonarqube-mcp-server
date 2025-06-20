@@ -16,6 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.slcore;
 
+import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.rolling.RollingFileAppender;
+import ch.qos.logback.core.rolling.TimeBasedRollingPolicy;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
@@ -54,7 +58,6 @@ import org.sonarsource.sonarlint.core.rpc.protocol.client.telemetry.ToolCalledPa
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
-import org.sonarsource.sonarqube.mcp.log.McpClientLogbackAppender;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 import static java.util.Collections.emptyMap;
@@ -67,6 +70,7 @@ public class BackendService {
 
   private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
   private final Path storagePath;
+  private final Path logFilePath;
   private final String appVersion;
   private final String userAgent;
   private final String appName;
@@ -75,6 +79,7 @@ public class BackendService {
 
   public BackendService(McpServerLaunchConfiguration mcpConfiguration) {
     this.storagePath = mcpConfiguration.getStoragePath();
+    this.logFilePath = mcpConfiguration.getLogFilePath();
     this.appVersion = mcpConfiguration.getAppVersion();
     this.userAgent = mcpConfiguration.getUserAgent();
     this.appName = mcpConfiguration.getAppName();
@@ -85,6 +90,7 @@ public class BackendService {
   BackendService(ClientJsonRpcLauncher launcher, Path storagePath, String appVersion, String appName) {
     this.clientLauncher = launcher;
     this.storagePath = storagePath;
+    this.logFilePath = storagePath.resolve("mcp.log");
     this.appVersion = appVersion;
     this.userAgent = appName + " " + appVersion;
     this.appName = appName;
@@ -129,9 +135,25 @@ public class BackendService {
         new BackendJsonRpcLauncher(clientToServerInputStream, serverToClientOutputStream);
         var rootLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
         rootLogger.detachAndStopAllAppenders();
-        var rpcAppender = new McpClientLogbackAppender();
-        rpcAppender.start();
-        rootLogger.addAppender(rpcAppender);
+        var fileAppender = new RollingFileAppender<ILoggingEvent>();
+        fileAppender.setContext(rootLogger.getLoggerContext());
+        fileAppender.setName("FILE");
+        fileAppender.setFile(logFilePath.toAbsolutePath().toString());
+        var policy = new TimeBasedRollingPolicy<ILoggingEvent>();
+        policy.setContext(rootLogger.getLoggerContext());
+        policy.setFileNamePattern(storagePath.toAbsolutePath() + "/logs/mcp.%d{yyyy-MM-dd}.log");
+        policy.setMaxHistory(10);
+        policy.setParent(fileAppender);
+        policy.start();
+        fileAppender.setRollingPolicy(policy);
+        var encoder = new PatternLayoutEncoder();
+        encoder.setContext(rootLogger.getLoggerContext());
+        encoder.setPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n");
+        encoder.start();
+
+        fileAppender.setEncoder(encoder);
+        fileAppender.start();
+        rootLogger.addAppender(fileAppender);
         clientLauncher = new ClientJsonRpcLauncher(serverToClientInputStream, clientToServerOutputStream, new McpSonarLintRpcClient());
       }
       var backend = clientLauncher.getServerProxy();

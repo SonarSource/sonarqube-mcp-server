@@ -130,7 +130,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     } else {
       try {
         tempStoragePath = Files.createTempDirectory("sonarqube-mcp-test-storage-" + UUID.randomUUID());
-        FileUtils.copyDirectory(Paths.get("build/sonarqube-mcp-server/plugins").toFile(), tempStoragePath.toFile());
+        FileUtils.copyDirectoryToDirectory(Paths.get("build/sonarqube-mcp-server/plugins").toFile(), tempStoragePath.toFile());
       } catch (IOException e) {
         throw new RuntimeException("Failed to create temporary storage directory", e);
       }

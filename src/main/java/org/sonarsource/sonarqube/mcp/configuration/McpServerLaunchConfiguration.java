@@ -37,7 +37,6 @@ public class McpServerLaunchConfiguration {
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
 
   private final Path storagePath;
-  private final String sonarqubeCloudUrl;
   private final String sonarqubeUrl;
   @Nullable
   private final String sonarqubeOrg;
@@ -53,7 +52,7 @@ public class McpServerLaunchConfiguration {
       throw new IllegalArgumentException("STORAGE_PATH environment variable or property must be set");
     }
     this.storagePath = Paths.get(storagePathString);
-    this.sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, "https://sonarcloud.io");
+    var sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, "https://sonarcloud.io");
     this.sonarqubeUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, sonarqubeCloudUrl);
     this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
@@ -75,6 +74,11 @@ public class McpServerLaunchConfiguration {
   @NotNull
   public Path getStoragePath() {
     return storagePath;
+  }
+
+  @NotNull
+  public Path getLogFilePath() {
+    return storagePath.resolve("logs").resolve("mcp.log");
   }
 
   @Nullable
