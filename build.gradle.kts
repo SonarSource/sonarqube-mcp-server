@@ -130,16 +130,6 @@ tasks {
 		}
 	}
 
-	register<Exec>("buildDocker") {
-		val appVersion = project.version.toString()
-		val appName = project.name
-		group = "docker"
-		description = "Builds the Docker image with the current project version"
-
-		commandLine("docker", "build", "-t", "$appName:$appVersion", "--build-arg", "APP_VERSION=$appVersion", ".")
-		dependsOn("build")
-	}
-
 	register("prepareTestPlugins") {
 		val destinationDir = file(layout.buildDirectory)
 		description = "Prepare SonarQube test plugins"

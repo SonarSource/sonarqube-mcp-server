@@ -3,11 +3,9 @@ FROM eclipse-temurin:21-jdk-alpine AS builder
 RUN apk update &&  \
     apk add binutils
 
-ARG APP_VERSION=
-
 WORKDIR /app
 
-COPY build/libs/sonarqube-mcp-server-${APP_VERSION}.jar ./sonarqube-mcp-server.jar
+ADD https://github.com/SonarSource/sonarqube-mcp-server/releases/download/0.0.2.138/sonarqube-mcp-server-0.0.2.138.jar ./sonarqube-mcp-server.jar
 
 RUN jdeps --ignore-missing-deps -q  \
     --recursive  \
@@ -32,21 +30,16 @@ COPY --from=builder /optimized-jdk-21 $JAVA_HOME
 
 RUN apk add --no-cache nodejs=~22 npm
 
-ARG APP_VERSION=
-
 WORKDIR /app
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
     mkdir -p /home/appuser/.sonarlint ./storage && \
     chown -R appuser:appgroup /home/appuser ./storage
 
-COPY --chown=appuser:appgroup --chmod=755 build/libs/sonarqube-mcp-server-${APP_VERSION}.jar ./sonarqube-mcp-server.jar
+COPY --from=builder --chown=appuser:appgroup --chmod=755 /app/sonarqube-mcp-server.jar /app/sonarqube-mcp-server.jar
 
 USER appuser
 
 ENV STORAGE_PATH=./storage
-ENV SONARQUBE_TOKEN=
-ENV SONARQUBE_ORG=
-ENV SONARQUBE_URL=
 
-ENTRYPOINT ["java", "-jar", "./sonarqube-mcp-server.jar"]
+ENTRYPOINT ["java", "-jar", "/app/sonarqube-mcp-server.jar"]
