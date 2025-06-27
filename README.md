@@ -6,9 +6,90 @@
 The SonarQube MCP Server is a Model Context Protocol (MCP) server that provides seamless integration with SonarQube Server or Cloud.
 It also enables the analysis of code snippet directly within the agent context.
 
-## Installation
+## Quick setup
 
-### Building
+The simplest method is to rely on our Docker image hosted at (mcp/sonarqube)[https://hub.docker.com/r/mcp/sonarqube]. Read below for how to build locally.
+
+### VS Code
+
+You can use the following buttons to simplify the installation process within VS Code.
+
+[![Install for SonarQube Cloud](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_ORG%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Organization%20Key%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_ORG%22%3A%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
+
+[![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
+
+### Cursor
+
+* To connect with SonarQube Cloud:
+
+[![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfT1JHIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9PUkciOiI8b3JnPiJ9fQ%3D%3D)
+
+* To connect with SonarQube Server:
+
+[![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfVVJMIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9VUkwiOiI8dXJsPiJ9fQ%3D%3D)
+
+### Windsurf
+
+SonarQube MCP Server is available as a Windsurf plugin. Follow these instructions:
+
+1. Click on the `Plugins` button at the top right of the Cascade view
+2. Search for `sonarqube` on the Plugin store
+3. Click `Install`
+4. Add the required SonarQube token. Then add the organization key if you want to connect with SonarQube Cloud, or the SonarQube URL if you want to connect to SonarQube Server or Community Build.
+
+## Manual installation
+
+You can manually install the SonarQube MCP server by copying the following snippet in the MCP servers configuration file:
+
+* To connect with SonarQube Cloud:
+
+```JSON
+{
+  "sonarqube": {
+    "command": "docker",
+    "args": [
+      "run",
+      "-i",
+      "--rm",
+      "-e",
+      "SONARQUBE_TOKEN",
+      "-e",
+      "SONARQUBE_ORG",
+      "mcp/sonarqube"
+    ],
+    "env": {
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_ORG": "<org>"
+    }
+  }
+}
+```
+
+* To connect with SonarQube Server:
+
+```JSON
+{
+  "sonarqube": {
+    "command": "docker",
+    "args": [
+      "run",
+      "-i",
+      "--rm",
+      "-e",
+      "SONARQUBE_TOKEN",
+      "-e",
+      "SONARQUBE_URL",
+      "mcp/sonarqube"
+    ],
+    "env": {
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_URL": "<url>"
+    }
+  }
+}
+```
+
+## Build
 
 SonarQube MCP Server requires a Java Development Kit (JDK) version 21 or later to build.
 
@@ -20,19 +101,9 @@ Run the following Gradle command to clean the project and build the application:
 
 The JAR file will be created in `build/libs/`.
 
-### Usage
+You will then need to manually copy and paste the MCP configuration, as follows:
 
-#### VS Code
-
-Once the application is built locally, you can use the following buttons to simplify the installation process within VS Code.
-
-[![Install for SonarQube Cloud with Docker](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud_with_Docker-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_ORG%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Organization%20Key%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22sonarqube-mcp-server%3A0.0.2-SNAPSHOT%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_ORG%22%3A%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
-
-[![Install for SonarQube Server with Docker](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server_with_Docker-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22sonarqube-mcp-server%3A0.0.2-SNAPSHOT%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
-
-#### General cases
-
-Alternatively, you can manually copy and paste the MCP configuration, as follows:
+* To connect with SonarQube Cloud:
 
 ```JSON
 {
@@ -46,6 +117,25 @@ Alternatively, you can manually copy and paste the MCP configuration, as follows
       "STORAGE_PATH": "<path_to_your_mcp_storage>",
       "SONARQUBE_TOKEN": "<token>",
       "SONARQUBE_ORG": "<org>"
+    }
+  }
+}
+```
+
+* To connect with SonarQube Server:
+
+```JSON
+{
+  "sonarqube": {
+    "command": "java",
+    "args": [
+      "-jar",
+      "<path_to_sonarqube_mcp_server_jar>"
+    ],
+    "env": {
+      "STORAGE_PATH": "<path_to_your_mcp_storage>",
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_URL": "<url>"
     }
   }
 }
