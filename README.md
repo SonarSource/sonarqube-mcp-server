@@ -8,7 +8,7 @@ It also enables the analysis of code snippet directly within the agent context.
 
 ## Quick setup
 
-The simplest method is to rely on our Docker image hosted at (mcp/sonarqube)[https://hub.docker.com/r/mcp/sonarqube]. Read below for how to build locally.
+The simplest method is to rely on our Docker image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below for how to build locally.
 
 ### VS Code
 
