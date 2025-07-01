@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.configuration;
 
 import java.nio.file.Path;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -25,6 +26,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class McpServerLaunchConfigurationTest {
+
+  @AfterEach
+  void cleanup() {
+    System.clearProperty("SONARQUBE_URL");
+  }
 
   @Test
   void should_return_correct_user_agent(@TempDir Path tempDir) {
@@ -68,6 +74,58 @@ class McpServerLaunchConfigurationTest {
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("SONARQUBE_ORG environment variable must be set when using SonarQube Cloud");
+  }
+
+  @Test
+  void should_return_default_value_if_url_is_not_set(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
+    var mcpServerLaunchConfiguration = new McpServerLaunchConfiguration(arg);
+
+    var sonarQubeUrl = mcpServerLaunchConfiguration.getSonarQubeUrl();
+
+    assertThat(sonarQubeUrl).isEqualTo("https://sonarcloud.io");
+  }
+
+  @Test
+  void should_return_url_from_environment_variable_if_set(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org", "SONARQUBE_URL", "XXX");
+    var mcpServerLaunchConfiguration = new McpServerLaunchConfiguration(arg);
+
+    var sonarQubeUrl = mcpServerLaunchConfiguration.getSonarQubeUrl();
+
+    assertThat(sonarQubeUrl).isEqualTo("XXX");
+  }
+
+  @Test
+  void should_return_url_from_system_property_if_set(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
+    System.setProperty("SONARQUBE_URL", "XXX");
+    var mcpServerLaunchConfiguration = new McpServerLaunchConfiguration(arg);
+
+    var sonarQubeUrl = mcpServerLaunchConfiguration.getSonarQubeUrl();
+
+    assertThat(sonarQubeUrl).isEqualTo("XXX");
+  }
+
+  @Test
+  void should_return_default_value_if_url_environment_variable_is_blank(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org", "SONARQUBE_URL", "");
+    var mcpServerLaunchConfiguration = new McpServerLaunchConfiguration(arg);
+
+    var sonarQubeUrl = mcpServerLaunchConfiguration.getSonarQubeUrl();
+
+    assertThat(sonarQubeUrl).isEqualTo("https://sonarcloud.io");
+  }
+
+  @Test
+  void should_return_default_value_if_url_system_property_is_blank(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
+    System.setProperty("SONARQUBE_URL", "");
+    var mcpServerLaunchConfiguration = new McpServerLaunchConfiguration(arg);
+
+    var sonarQubeUrl = mcpServerLaunchConfiguration.getSonarQubeUrl();
+
+    assertThat(sonarQubeUrl).isEqualTo("https://sonarcloud.io");
   }
 
 }

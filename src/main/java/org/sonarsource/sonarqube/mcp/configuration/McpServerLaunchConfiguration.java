@@ -116,17 +116,18 @@ public class McpServerLaunchConfiguration {
 
   @CheckForNull
   private static String getValueViaEnvOrPropertyOrDefault(Map<String, String> environment, String propertyName, @Nullable String defaultValue) {
-    var property = environment.get(propertyName);
-    if (property == null) {
-      property = System.getProperty(propertyName);
+    var value = environment.get(propertyName);
+    if (isNullOrBlank(value)) {
+      value = System.getProperty(propertyName);
+      if (isNullOrBlank(value)) {
+        value = defaultValue;
+      }
     }
-    if (property == null) {
-      property = defaultValue;
-    }
-    if (property != null && property.isBlank()) {
-      property = null;
-    }
-    return property;
+    return value;
+  }
+
+  private static boolean isNullOrBlank(@Nullable String value) {
+    return value == null || value.isBlank();
   }
 
   private static String fetchAppVersion() {
