@@ -13,9 +13,11 @@ RUN jdeps --ignore-missing-deps -q  \
     --print-module-deps  \
     /app/sonarqube-mcp-server.jar > modules.txt
 
+ARG JDEPS_EXTRA="jdk.crypto.cryptoki"
+
 RUN "$JAVA_HOME"/bin/jlink \
          --verbose \
-         --add-modules $(cat modules.txt) \
+         --add-modules "$(cat modules.txt),${JDEPS_EXTRA}" \
          --strip-debug \
          --no-man-pages \
          --no-header-files \
