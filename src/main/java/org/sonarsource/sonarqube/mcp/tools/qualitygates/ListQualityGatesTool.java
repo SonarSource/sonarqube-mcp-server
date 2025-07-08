@@ -46,25 +46,54 @@ public class ListQualityGatesTool extends Tool {
     stringBuilder.append("Quality Gates:\n");
 
     for (var gate : response.qualitygates()) {
-      stringBuilder.append("\n").append(gate.name())
-        .append(" (ID: ").append(gate.id()).append(")")
-        .append(gate.isDefault() ? " [Default]" : "")
-        .append(gate.isBuiltIn() ? " [Built-in]" : "")
-        .append("\n");
-
-      if (gate.conditions() != null && !gate.conditions().isEmpty()) {
-        stringBuilder.append("Conditions:\n");
-        for (var condition : gate.conditions()) {
-          stringBuilder.append("- ").append(condition.metric())
-            .append(" ").append(condition.op())
-            .append(" ").append(condition.error())
-            .append("\n");
-        }
-      } else {
-        stringBuilder.append("No conditions\n");
+      stringBuilder.append("\n").append(gate.name() != null ? gate.name() : "Unnamed");
+      if (Boolean.TRUE.equals(gate.isDefault())) {
+        stringBuilder.append(" [Default]");
       }
+      if (Boolean.TRUE.equals(gate.isBuiltIn())) {
+        stringBuilder.append(" [Built-in]");
+      }
+      if (gate.id() != null) {
+        stringBuilder.append(" (ID: ").append(gate.id()).append(")");
+      }
+      stringBuilder.append("\n");
+
+      appendConditions(stringBuilder, gate);
+      appendCloudFields(stringBuilder, gate);
     }
 
     return stringBuilder.toString().trim();
+  }
+
+  private static void appendConditions(StringBuilder sb, ListResponse.QualityGate gate) {
+    if (gate.conditions() == null) {
+      return;
+    }
+    if (!gate.conditions().isEmpty()) {
+      sb.append("Conditions:\n");
+      for (var condition : gate.conditions()) {
+        sb.append("- ").append(condition.metric())
+          .append(" ").append(condition.op())
+          .append(" ").append(condition.error())
+          .append("\n");
+      }
+    } else {
+      sb.append("No conditions\n");
+    }
+  }
+
+  private static void appendCloudFields(StringBuilder sb, ListResponse.QualityGate gate) {
+    if (gate.caycStatus() != null) {
+      sb.append("Status: ").append(gate.caycStatus()).append("\n");
+    }
+    if (gate.hasStandardConditions() != null) {
+      sb.append("Standard Conditions: ").append(gate.hasStandardConditions()).append("\n");
+    }
+    if (gate.hasMQRConditions() != null) {
+      sb.append("MQR Conditions: ").append(gate.hasMQRConditions()).append("\n");
+    }
+    if (gate.isAiCodeSupported() != null) {
+      sb.append("AI Code Supported: ").append(gate.isAiCodeSupported()).append("\n");
+    }
   }
 }

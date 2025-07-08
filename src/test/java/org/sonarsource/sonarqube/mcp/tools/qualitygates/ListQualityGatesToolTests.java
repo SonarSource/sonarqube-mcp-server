@@ -74,16 +74,90 @@ class ListQualityGatesToolTests {
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
           Quality Gates:
-
-          Sonar way (ID: 8) [Default] [Built-in]
+          
+          Sonar way [Default] [Built-in] (ID: 8)
           Conditions:
           - blocker_violations GT 0
           - tests LT 10
-
+          
           Sonar way - Without Coverage (ID: 9)
           No conditions""", false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_the_quality_gates_list_for_sonacloud_format(SonarQubeMcpServerTestHarness harness) {
+      String cloudPayload = """
+        {
+          "qualitygates": [
+            {
+              "name": "Sonar way",
+              "isDefault": true,
+              "isBuiltIn": true,
+              "actions": {
+                "rename": false,
+                "setAsDefault": false,
+                "copy": true,
+                "associateProjects": false,
+                "delete": false,
+                "manageConditions": false,
+                "delegate": false,
+                "manageAiCodeAssurance": false
+              },
+              "caycStatus": "compliant",
+              "hasStandardConditions": false,
+              "hasMQRConditions": false,
+              "isAiCodeSupported": false
+            },
+            {
+              "name": "Sonar way - Without Coverage",
+              "isDefault": false,
+              "isBuiltIn": false,
+              "actions": {
+                "rename": true,
+                "setAsDefault": true,
+                "copy": true,
+                "associateProjects": true,
+                "delete": true,
+                "manageConditions": true,
+                "delegate": true,
+                "manageAiCodeAssurance": true
+              },
+              "caycStatus": "non-compliant",
+              "hasStandardConditions": false,
+              "hasMQRConditions": false,
+              "isAiCodeSupported": false
+            }
+          ],
+          "actions": {
+            "create": true
+          }
+        }
+      """;
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.LIST_PATH + "?organization=org")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(cloudPayload.getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Quality Gates:
+
+          Sonar way [Default] [Built-in]
+          Status: compliant
+          Standard Conditions: false
+          MQR Conditions: false
+          AI Code Supported: false
+
+          Sonar way - Without Coverage
+          Status: non-compliant
+          Standard Conditions: false
+          MQR Conditions: false
+          AI Code Supported: false""", false));
     }
   }
 
@@ -113,12 +187,12 @@ class ListQualityGatesToolTests {
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
           Quality Gates:
-
-          Sonar way (ID: 8) [Default] [Built-in]
+          
+          Sonar way [Default] [Built-in] (ID: 8)
           Conditions:
           - blocker_violations GT 0
           - tests LT 10
-
+          
           Sonar way - Without Coverage (ID: 9)
           No conditions""", false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
