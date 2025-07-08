@@ -153,12 +153,12 @@ class ShowRuleToolTests {
           - MAINTAINABILITY: HIGH
 
           Description:
-          <h2>Why is this an issue?</h2>
           <p>The cyclomatic complexity of methods should not exceed a defined threshold.</p>
           <p>Complex code can perform poorly and will in any case be difficult to understand and therefore to maintain.</p>
           <h3>Exceptions</h3>
           <p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in
-          <code>equals</code> and <code>hashCode</code> methods.</p>""", false));
+          <code>equals</code> and <code>hashCode</code> methods.</p>
+          """, false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -268,14 +268,95 @@ class ShowRuleToolTests {
           - MAINTAINABILITY: HIGH
 
           Description:
-          <h2>Why is this an issue?</h2>
           <p>The cyclomatic complexity of methods should not exceed a defined threshold.</p>
           <p>Complex code can perform poorly and will in any case be difficult to understand and therefore to maintain.</p>
           <h3>Exceptions</h3>
           <p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in
-          <code>equals</code> and <code>hashCode</code> methods.</p>""", false));
+          <code>equals</code> and <code>hashCode</code> methods.</p>
+          """, false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_fallback_to_htmlDesc_when_descriptionSections_is_empty(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(RulesApi.SHOW_PATH + "?key=" + urlEncode("java:S1000"))
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(
+            """
+              {
+                   "rule": {
+                       "key": "java:S1000",
+                       "repo": "java",
+                       "name": "Dummy rule",
+                       "htmlDesc": "<p>This is the HTML description.</p>",
+                       "severity": "MAJOR",
+                       "type": "CODE_SMELL",
+                       "lang": "java",
+                       "langName": "Java",
+                       "descriptionSections": []
+                   },
+                   "actives": []
+               }
+              """
+              .getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        ShowRuleTool.TOOL_NAME,
+        Map.of("key", "java:S1000"));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Rule details:
+          Key: java:S1000
+          Name: Dummy rule
+          Severity: MAJOR
+          Type: CODE_SMELL
+          Language: Java (java)
+
+          Description:
+          <p>This is the HTML description.</p>""", false));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_show_no_description_when_both_are_missing(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(RulesApi.SHOW_PATH + "?key=" + urlEncode("java:S2000"))
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(
+            """
+              {
+                   "rule": {
+                       "key": "java:S2000",
+                       "repo": "java",
+                       "name": "No description rule",
+                       "severity": "MINOR",
+                       "type": "CODE_SMELL",
+                       "lang": "java",
+                       "langName": "Java",
+                       "descriptionSections": []
+                   },
+                   "actives": []
+               }
+              """
+              .getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        ShowRuleTool.TOOL_NAME,
+        Map.of("key", "java:S2000"));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Rule details:
+          Key: java:S2000
+          Name: No description rule
+          Severity: MINOR
+          Type: CODE_SMELL
+          Language: Java (java)
+
+          Description:
+          No description available.""", false));
     }
   }
 }

@@ -58,7 +58,19 @@ public class ShowRuleTool extends Tool {
         responseBuilder.append("- ").append(impact.softwareQuality()).append(": ").append(impact.severity()).append("\n")
       );
     }
-    responseBuilder.append("\nDescription:\n").append(rule.htmlDesc());
+    responseBuilder.append("\nDescription:\n");
+    // Prefer descriptionSections if present and non-empty
+    if (rule.descriptionSections() != null && !rule.descriptionSections().isEmpty()) {
+      for (var section : rule.descriptionSections()) {
+        responseBuilder.append(section.content());
+        // Add a newline between sections for readability
+        responseBuilder.append("\n");
+      }
+    } else if (rule.htmlDesc() != null && !rule.htmlDesc().isBlank()) {
+      responseBuilder.append(rule.htmlDesc());
+    } else {
+      responseBuilder.append("No description available.");
+    }
     return responseBuilder.toString();
   }
 
