@@ -47,10 +47,10 @@ public class ListQualityGatesTool extends Tool {
 
     for (var gate : response.qualitygates()) {
       stringBuilder.append("\n").append(gate.name() != null ? gate.name() : "Unnamed");
-      if (Boolean.TRUE.equals(gate.isDefault())) {
+      if (gate.isDefault()) {
         stringBuilder.append(" [Default]");
       }
-      if (Boolean.TRUE.equals(gate.isBuiltIn())) {
+      if (gate.isBuiltIn()) {
         stringBuilder.append(" [Built-in]");
       }
       if (gate.id() != null) {
