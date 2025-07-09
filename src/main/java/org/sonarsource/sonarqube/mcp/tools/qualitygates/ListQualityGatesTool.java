@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.qualitygates;
 
+import java.util.Objects;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -46,7 +47,7 @@ public class ListQualityGatesTool extends Tool {
     stringBuilder.append("Quality Gates:\n");
 
     for (var gate : response.qualitygates()) {
-      stringBuilder.append("\n").append(gate.name() != null ? gate.name() : "Unnamed");
+      stringBuilder.append("\n").append(Objects.requireNonNullElse(gate.name(), "Unnamed"));
       if (gate.isDefault()) {
         stringBuilder.append(" [Default]");
       }
