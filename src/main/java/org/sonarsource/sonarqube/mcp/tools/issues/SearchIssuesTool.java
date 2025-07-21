@@ -81,10 +81,14 @@ public class SearchIssuesTool extends Tool {
         .append(" | Attribute: ").append(issue.cleanCodeAttribute())
         .append(" | Category: ").append(issue.cleanCodeAttributeCategory())
         .append(" | Author: ").append(issue.author());
+      
       var textRange = issue.textRange();
-      stringBuilder
-        .append(" | Start Line: ").append(textRange.startLine())
-        .append(" | End Line: ").append(textRange.endLine());
+      if (textRange != null) {
+        stringBuilder
+          .append(" | Start Line: ").append(textRange.startLine())
+          .append(" | End Line: ").append(textRange.endLine());
+      }
+      
       stringBuilder.append(" | Created: ").append(issue.creationDate());
       stringBuilder.append("\n");
     }

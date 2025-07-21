@@ -242,6 +242,43 @@ class SearchIssuesToolTests {
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
+
+    @SonarQubeMcpServerTest
+    void it_should_handle_issues_with_null_text_range(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssueWithNullTextRange(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          Found 1 issues.
+          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
+          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Created: 2013-05-13T17:55:39+0200
+          """.formatted(issueKey, ruleName, projectName).trim(), false));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
   }
 
   @Nested
@@ -550,6 +587,63 @@ class SearchIssuesToolTests {
           "startOffset": 0,
           "endOffset": 204
         },
+        "flows": [],
+        "ruleDescriptionContextKey": "spring",
+        "cleanCodeAttributeCategory": "INTENTIONAL",
+        "cleanCodeAttribute": "CLEAR",
+        "impacts": [
+          {
+            "softwareQuality": "MAINTAINABILITY",
+            "severity": "HIGH"
+          }
+        ]
+      }""".formatted(issueKey, projectName, ruleName);
+  }
+
+  private static String generateIssueWithNullTextRange(String issueKey, String ruleName, String projectName) {
+    return """
+        {
+        "key": "%s",
+        "component": "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+        "project": "%s",
+        "rule": "%s",
+        "issueStatus": "CLOSED",
+        "status": "RESOLVED",
+        "resolution": "FALSE-POSITIVE",
+        "severity": "MINOR",
+        "message": "'3' is a magic number.",
+        "line": 81,
+        "hash": "a227e508d6646b55a086ee11d63b21e9",
+        "author": "Developer 1",
+        "effort": "2h1min",
+        "creationDate": "2013-05-13T17:55:39+0200",
+        "updateDate": "2013-05-13T17:55:39+0200",
+        "tags": [
+          "bug"
+        ],
+        "type": "RELIABILITY",
+        "comments": [
+          {
+            "key": "7d7c56f5-7b5a-41b9-87f8-36fa70caa5ba",
+            "login": "john.smith",
+            "htmlText": "Must be &quot;final&quot;!",
+            "markdown": "Must be \\"final\\"!",
+            "updatable": false,
+            "createdAt": "2013-05-13T18:08:34+0200"
+          }
+        ],
+        "attr": {
+          "jira-issue-key": "SONAR-1234"
+        },
+        "transitions": [
+          "unconfirm",
+          "resolve",
+          "falsepositive"
+        ],
+        "actions": [
+          "comment"
+        ],
+        "textRange": null,
         "flows": [],
         "ruleDescriptionContextKey": "spring",
         "cleanCodeAttributeCategory": "INTENTIONAL",
