@@ -65,8 +65,9 @@ public class SearchIssuesTool extends Tool {
     stringBuilder.append("Found ").append(issues.size()).append(" issues.\n");
 
     var paging = response.paging();
+    var totalPages = (int) Math.ceil((double) paging.total() / paging.pageSize());
     stringBuilder.append("This response is paginated and this is the page ").append(paging.pageIndex())
-      .append(" out of ").append(paging.total()).append(" total pages. There is a maximum of ")
+      .append(" out of ").append(totalPages).append(" total pages. There is a maximum of ")
       .append(paging.pageSize()).append(" issues per page.\n");
 
     for (var issue : issues) {

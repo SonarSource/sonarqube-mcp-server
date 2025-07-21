@@ -54,9 +54,12 @@ public class SearchMyProjectsTool extends Tool {
     }
 
     stringBuilder.append("Found ").append(projects.size()).append(" Sonar projects in your organization.\n");
-    stringBuilder.append("This response is paginated and this is the page ").append(response.paging().pageIndex())
-      .append(" out of ").append(response.paging().total()).append(" total pages. There is a maximum of ")
-      .append(response.paging().pageSize()).append(" projects per page.\n");
+    
+    var paging = response.paging();
+    var totalPages = (int) Math.ceil((double) paging.total() / paging.pageSize());
+    stringBuilder.append("This response is paginated and this is the page ").append(paging.pageIndex())
+      .append(" out of ").append(totalPages).append(" total pages. There is a maximum of ")
+      .append(paging.pageSize()).append(" projects per page.\n");
 
     projects.forEach(p -> {
       stringBuilder.append("Project key: ").append(p.key()).append(" | Project name: ").append(p.name());

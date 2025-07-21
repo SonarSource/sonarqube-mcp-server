@@ -67,7 +67,7 @@ class SearchMyProjectsToolTests {
       var projectName = "Project Name";
       harness.getMockSonarQubeServer().stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&organization=org")
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateResponse(projectKey, projectName, 1, 4).getBytes(StandardCharsets.UTF_8)))));
+          Body.fromJsonBytes(generateResponse(projectKey, projectName, 1, 400).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
@@ -87,7 +87,7 @@ class SearchMyProjectsToolTests {
       var projectName = "Project Name";
       harness.getMockSonarQubeServer().stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=2&organization=org")
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateResponse(projectKey, projectName, 2, 2).getBytes(StandardCharsets.UTF_8)))));
+          Body.fromJsonBytes(generateResponse(projectKey, projectName, 2, 200).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
@@ -124,7 +124,7 @@ class SearchMyProjectsToolTests {
       var projectName = "Project Name";
       harness.getMockSonarQubeServer().stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&qualifiers=TRK")
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateResponse(projectKey, projectName, 1, 4).getBytes(StandardCharsets.UTF_8)))));
+          Body.fromJsonBytes(generateResponse(projectKey, projectName, 1, 400).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SearchMyProjectsTool.TOOL_NAME);
@@ -143,7 +143,7 @@ class SearchMyProjectsToolTests {
       var projectName = "Project Name";
       harness.getMockSonarQubeServer().stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=2&qualifiers=TRK")
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generateResponse(projectKey, projectName, 2, 2).getBytes(StandardCharsets.UTF_8)))));
+          Body.fromJsonBytes(generateResponse(projectKey, projectName, 2, 200).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
@@ -159,7 +159,7 @@ class SearchMyProjectsToolTests {
     }
   }
 
-  private static String generateResponse(String projectKey, String projectName, int pageIndex, int totalPages) {
+  private static String generateResponse(String projectKey, String projectName, int pageIndex, int totalItems) {
     return """
       {
          "paging": {
@@ -177,7 +177,7 @@ class SearchMyProjectsToolTests {
            }
          ]
        }
-      """.formatted(pageIndex, totalPages, projectKey, projectName);
+      """.formatted(pageIndex, totalItems, projectKey, projectName);
   }
 
 }

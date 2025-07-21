@@ -99,7 +99,7 @@ class SearchIssuesToolTests {
                 "paging": {
                   "pageIndex": 2,
                   "pageSize": 100,
-                  "total": 3
+                  "total": 200
                 },
                 "issues": [%s],
                 "components": [],
@@ -119,7 +119,7 @@ class SearchIssuesToolTests {
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
           Found 1 issues.
-          This response is paginated and this is the page 2 out of 3 total pages. There is a maximum of 100 issues per page.
+          This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 issues per page.
           Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
           """.formatted(issueKey, ruleName, projectName).trim(), false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
@@ -138,7 +138,7 @@ class SearchIssuesToolTests {
                 "paging": {
                   "pageIndex": 1,
                   "pageSize": 100,
-                  "total": 2
+                  "total": 200
                 },
                 "issues": [%s],
                 "components": [],
@@ -214,7 +214,7 @@ class SearchIssuesToolTests {
                 "paging": {
                   "pageIndex": 2,
                   "pageSize": 50,
-                  "total": 3
+                  "total": 175
                 },
                 "issues": [%s],
                 "components": [],
@@ -236,7 +236,7 @@ class SearchIssuesToolTests {
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
           Found 1 issues.
-          This response is paginated and this is the page 2 out of 3 total pages. There is a maximum of 50 issues per page.
+          This response is paginated and this is the page 2 out of 4 total pages. There is a maximum of 50 issues per page.
           Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
           """.formatted(issueKey, ruleName, projectName).trim(), false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
@@ -360,7 +360,7 @@ class SearchIssuesToolTests {
                 "paging": {
                   "pageIndex": 2,
                   "pageSize": 100,
-                  "total": 3
+                  "total": 200
                 },
                 "issues": [%s],
                 "components": [],
@@ -380,7 +380,7 @@ class SearchIssuesToolTests {
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
           Found 1 issues.
-          This response is paginated and this is the page 2 out of 3 total pages. There is a maximum of 100 issues per page.
+          This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 issues per page.
           Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
           """.formatted(issueKey, ruleName, projectName).trim(), false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
@@ -399,7 +399,7 @@ class SearchIssuesToolTests {
                 "paging": {
                   "pageIndex": 1,
                   "pageSize": 100,
-                  "total": 2
+                  "total": 200
                 },
                 "issues": [%s],
                 "components": [],
@@ -473,7 +473,7 @@ class SearchIssuesToolTests {
                 "paging": {
                   "pageIndex": 2,
                   "pageSize": 50,
-                  "total": 3
+                  "total": 200
                 },
                 "issues": [%s],
                 "components": [],
@@ -493,7 +493,7 @@ class SearchIssuesToolTests {
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
           Found 1 issues.
-          This response is paginated and this is the page 2 out of 3 total pages. There is a maximum of 50 issues per page.
+          This response is paginated and this is the page 2 out of 4 total pages. There is a maximum of 50 issues per page.
           Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
           """.formatted(issueKey, ruleName, projectName).trim(), false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
