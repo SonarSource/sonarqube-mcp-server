@@ -29,6 +29,8 @@ public class SchemaToolBuilder {
   private static final String ITEMS_PROPERTY_NAME = "items";
   private final Map<String, Object> properties;
   private final List<String> requiredProperties;
+  private final Map<String, Object> def;
+  private final Map<String, Object> definitions;
   private String name;
   private String description;
   private boolean additionalProperties;
@@ -36,6 +38,8 @@ public class SchemaToolBuilder {
   public SchemaToolBuilder() {
     this.properties = new HashMap<>();
     this.requiredProperties = new ArrayList<>();
+    this.def = new HashMap<>();
+    this.definitions = new HashMap<>();
   }
 
   public SchemaToolBuilder setName(String name) {
@@ -99,6 +103,6 @@ public class SchemaToolBuilder {
       throw new IllegalStateException("Cannot set a required property that does not exist.");
     }
 
-    return new McpSchema.Tool(name, description, new McpSchema.JsonSchema("object", properties, requiredProperties, additionalProperties));
+    return new McpSchema.Tool(name, description, new McpSchema.JsonSchema("object", properties, requiredProperties, additionalProperties, def, definitions));
   }
 }
