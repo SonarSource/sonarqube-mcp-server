@@ -24,6 +24,7 @@ import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
@@ -89,7 +90,7 @@ public class ServerApiHelper {
   }
 
   public static String concat(String baseUrl, String relativePath) {
-    return StringUtils.appendIfMissing(baseUrl, "/") +
+    return Strings.CS.appendIfMissing(baseUrl, "/") +
       (relativePath.startsWith("/") ? relativePath.substring(1) : relativePath);
   }
 
