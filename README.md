@@ -169,6 +169,55 @@ To enable full functionality, the following environment variables must be set be
 | `SONARQUBE_TOKEN`     | Your SonarQube Server **USER** [token](https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token) |
 | `SONARQUBE_URL`       | Your SonarQube Server URL                                                                                                                   |
 
+### Custom Certificates
+
+If your SonarQube Server uses a self-signed certificate or a certificate from a private Certificate Authority (CA), you can add custom certificates to the Docker container that will automatically be installed.
+
+#### Using Docker Volume Mount
+
+Mount a directory containing your certificates when running the container:
+
+```bash
+docker run -i --rm \
+  -v /path/to/your/certificates/:/usr/local/share/ca-certificates/:ro \
+  -e SONARQUBE_TOKEN="<token>" \
+  -e SONARQUBE_URL="<url>" \
+  mcp/sonarqube
+```
+
+#### Supported Certificate Formats
+
+The container supports the following certificate formats:
+- `.crt` files (PEM or DER encoded)
+- `.pem` files (PEM encoded)
+
+#### MCP Configuration with Certificates
+
+When using custom certificates, you can modify your MCP configuration to mount the certificates:
+
+```JSON
+{
+  "sonarqube": {
+    "command": "docker",
+    "args": [
+      "run",
+      "-i",
+      "--rm",
+      "-v",
+      "/path/to/your/certificates/:/usr/local/share/ca-certificates/:ro",
+      "-e",
+      "SONARQUBE_TOKEN",
+      "-e",
+      "SONARQUBE_URL",
+      "mcp/sonarqube"
+    ],
+    "env": {
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_URL": "<url>"
+    }
+  }
+}
+```
 
 ## Tools
 
