@@ -13,14 +13,14 @@ mcp-server = "0.10.0"
 commons-lang3 = "3.18.0"
 commons-text = "1.13.1"
 sslcontext-kickstart = "9.1.0"
-logback = "1.5.17"
+logback = "1.5.18"
 
-junit = "5.12.2"
-junit-launcher = "1.12.2"
-mockito = "5.17.0"
-assertj = "3.10.0"
+junit = "5.13.4"
+junit-launcher = "1.13.4"
+mockito = "5.18.0"
+assertj = "3.27.3"
 awaitility = "4.3.0"
-wiremock = "3.13.0"
+wiremock = "3.13.1"
 
 [libraries]
 sonarlint-java-client-utils = { module = "org.sonarsource.sonarlint.core:sonarlint-java-client-utils", version.ref = "sonarlint-core" }
