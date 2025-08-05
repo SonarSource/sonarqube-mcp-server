@@ -227,6 +227,13 @@ When using custom certificates, you can modify your MCP configuration to mount t
   - `codeSnippet` - Code snippet or full file content - _Required String_
   - `language` - Optional language of the code snippet - _String_
 
+### Dependency Risks
+
+- **get_dependency_risks** - Get dependency risks from SonarQube SCA analysis for a project
+  - `projectKey` - Optional project key to analyze for dependency risks - _String_
+  - `branchKey` - Optional branch key to analyze for dependency risks - _String_
+  - `pullRequestKey` - Optional pull request key to analyze for dependency risks - _String_
+
 ### Languages
 
 - **list_languages** - List all programming languages supported in this instance

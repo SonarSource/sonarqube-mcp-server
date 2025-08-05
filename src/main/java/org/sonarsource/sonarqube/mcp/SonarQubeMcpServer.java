@@ -45,6 +45,7 @@ import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
+import org.sonarsource.sonarqube.mcp.tools.sca.DependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemHealthTool;
@@ -106,7 +107,8 @@ public class SonarQubeMcpServer {
       new GetComponentMeasuresTool(serverApi),
       new SearchMetricsTool(serverApi),
       new GetScmInfoTool(serverApi),
-      new GetRawSourceTool(serverApi)));
+      new GetRawSourceTool(serverApi),
+      new DependencyRisksTool(serverApi)));
   }
 
   public void start() {
