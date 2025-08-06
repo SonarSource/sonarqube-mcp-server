@@ -14,7 +14,7 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-/**
- * This package contains the tests for the system tools.
- */
-package org.sonarsource.sonarqube.mcp.tools.system; 
+@ParametersAreNonnullByDefault
+package org.sonarsource.sonarqube.mcp.serverapi.sca;
+
+import javax.annotation.ParametersAreNonnullByDefault;

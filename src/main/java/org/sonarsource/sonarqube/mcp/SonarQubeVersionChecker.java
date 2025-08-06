@@ -37,4 +37,12 @@ public class SonarQubeVersionChecker {
       }
     }
   }
+
+  public boolean isSonarQubeServerVersionHigherOrEqualsThan(String minVersion) {
+    if (!serverApi.isSonarQubeCloud()) {
+      var version = Version.create(serverApi.systemApi().getStatus().version());
+      return version.satisfiesMinRequirement(Version.create(minVersion));
+    }
+    return false;
+  }
 }
