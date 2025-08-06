@@ -45,6 +45,7 @@ import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
+import org.sonarsource.sonarqube.mcp.tools.sca.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemHealthTool;
@@ -91,6 +92,12 @@ public class SonarQubeMcpServer {
         new SystemLogsTool(serverApi),
         new SystemPingTool(serverApi),
         new SystemStatusTool(serverApi)));
+
+      if (sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3")) {
+        this.supportedTools.add(new SearchDependencyRisksTool(serverApi));
+      } else {
+        LOG.info("Search Dependency Risks tool is not available because it requires SonarQube Server 2025 Release 3 Enterprise or higher.");
+      }
     }
 
     this.supportedTools.addAll(List.of(
