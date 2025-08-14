@@ -26,6 +26,7 @@ jobs:
           version: 2025.7.12
       - uses: SonarSource/ci-github-actions/build-gradle@v1
         with:
+          sonar-platform: sqc-eu
           deploy-pull-request: true
           artifactory-reader-role: private-reader
           artifactory-deployer-role: qa-deployer
