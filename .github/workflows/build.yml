@@ -24,7 +24,7 @@ jobs:
       - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
         with:
           version: 2025.7.12
-      - uses: SonarSource/ci-github-actions/build-gradle@v1
+      - uses: SonarSource/ci-github-actions/build-gradle@master
         with:
           sonar-platform: sqc-eu
           deploy-pull-request: true
@@ -32,7 +32,7 @@ jobs:
           artifactory-deployer-role: qa-deployer
 
   promote:
-    needs: [build]
+    needs: [ build ]
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
