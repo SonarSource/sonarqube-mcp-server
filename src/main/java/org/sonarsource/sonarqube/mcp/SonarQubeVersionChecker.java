@@ -49,7 +49,7 @@ public class SonarQubeVersionChecker {
     return false;
   }
 
-  public boolean isScaEnabled(ServerApi serverApi) {
+  public boolean isScaEnabled() {
     try {
       var settingsResponse = serverApi.settingsApi().getSettings();
       return settingsResponse.isBooleanSettingEnabled("sonar.sca.enabled");

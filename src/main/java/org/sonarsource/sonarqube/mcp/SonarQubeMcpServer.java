@@ -94,7 +94,7 @@ public class SonarQubeMcpServer {
         new SystemStatusTool(serverApi)));
 
       if (sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
-        if (sonarQubeVersionChecker.isScaEnabled(serverApi)) {
+        if (sonarQubeVersionChecker.isScaEnabled()) {
           this.supportedTools.add(new SearchDependencyRisksTool(serverApi));
         } else {
           LOG.info("Search Dependency Risks tool is not available because Advanced Security is not enabled.");

@@ -18,6 +18,8 @@ package org.sonarsource.sonarqube.mcp;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.StatusResponse;
@@ -76,20 +78,12 @@ class SonarQubeVersionCheckerTest {
     assertThat(result).isFalse();
   }
 
-  @Test
-  void it_should_return_true_when_server_version_is_higher_than_min_version() {
+
+  @ParameterizedTest
+  @ValueSource(strings = {"2025.4", "2025.3", "10.9.1", "2025.3-SNAPSHOT"})
+  void it_should_return_true_when_valid() {
     when(serverApi.isSonarQubeCloud()).thenReturn(false);
     when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2025.4", "UP"));
-
-    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
-
-    assertThat(result).isTrue();
-  }
-
-  @Test
-  void it_should_return_true_when_server_version_equals_min_version() {
-    when(serverApi.isSonarQubeCloud()).thenReturn(false);
-    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2025.3", "UP"));
 
     var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
 
@@ -106,23 +100,4 @@ class SonarQubeVersionCheckerTest {
     assertThat(result).isFalse();
   }
 
-  @Test
-  void it_should_handle_different_version_formats() {
-    when(serverApi.isSonarQubeCloud()).thenReturn(false);
-    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "10.9.1", "UP"));
-
-    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("10.9");
-
-    assertThat(result).isTrue();
-  }
-
-  @Test
-  void it_should_handle_version_with_qualifiers() {
-    when(serverApi.isSonarQubeCloud()).thenReturn(false);
-    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2025.3-SNAPSHOT", "UP"));
-
-    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
-
-    assertThat(result).isTrue();
-  }
 }
