@@ -66,4 +66,63 @@ class SonarQubeVersionCheckerTest {
       .isInstanceOf(IllegalStateException.class)
       .hasMessage("SonarQube server version is not supported, minimal version is SQS 2025.1 or SQCB 25.1");
   }
+
+  @Test
+  void it_should_return_false_for_sonarqube_cloud() {
+    when(serverApi.isSonarQubeCloud()).thenReturn(true);
+
+    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
+
+    assertThat(result).isFalse();
+  }
+
+  @Test
+  void it_should_return_true_when_server_version_is_higher_than_min_version() {
+    when(serverApi.isSonarQubeCloud()).thenReturn(false);
+    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2025.4", "UP"));
+
+    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
+
+    assertThat(result).isTrue();
+  }
+
+  @Test
+  void it_should_return_true_when_server_version_equals_min_version() {
+    when(serverApi.isSonarQubeCloud()).thenReturn(false);
+    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2025.3", "UP"));
+
+    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
+
+    assertThat(result).isTrue();
+  }
+
+  @Test
+  void it_should_return_false_when_server_version_is_lower_than_min_version() {
+    when(serverApi.isSonarQubeCloud()).thenReturn(false);
+    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2025.2", "UP"));
+
+    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
+
+    assertThat(result).isFalse();
+  }
+
+  @Test
+  void it_should_handle_different_version_formats() {
+    when(serverApi.isSonarQubeCloud()).thenReturn(false);
+    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "10.9.1", "UP"));
+
+    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("10.9");
+
+    assertThat(result).isTrue();
+  }
+
+  @Test
+  void it_should_handle_version_with_qualifiers() {
+    when(serverApi.isSonarQubeCloud()).thenReturn(false);
+    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2025.3-SNAPSHOT", "UP"));
+
+    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
+
+    assertThat(result).isTrue();
+  }
 }

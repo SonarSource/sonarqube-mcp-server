@@ -49,6 +49,7 @@ class SystemHealthToolTests {
 
       assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemHealthTool.TOOL_NAME);
     }
+
   }
 
   @Nested

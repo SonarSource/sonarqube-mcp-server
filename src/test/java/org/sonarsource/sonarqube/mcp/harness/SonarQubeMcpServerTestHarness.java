@@ -40,6 +40,7 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.settings.SettingsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
@@ -76,6 +77,19 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       """)));
     mockSonarQubeServer.stubFor(get(PluginsApi.DOWNLOAD_PLUGINS_PATH + "?plugin=php")
       .willReturn(aResponse().withBody(Files.readAllBytes(Paths.get("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.45.0.12991.jar")))));
+
+    mockSonarQubeServer.stubFor(get(SettingsApi.SETTINGS_PATH).willReturn(okJson("""
+      {
+        "settings": [
+          {
+            "key": "sonar.sca.enabled",
+            "value": "true",
+            "inherited": false
+          }
+        ],
+        "setSecuredSettings": []
+      }
+      """)));
   }
 
   @Override
@@ -116,14 +130,18 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
 
   public SonarQubeMcpTestClient newClient(Map<String, String> overriddenEnv) {
     if (!overriddenEnv.containsKey("SONARQUBE_ORG")) {
+      var version = "2025.4";
+      if (overriddenEnv.containsKey("SONARQUBE_VERSION")) {
+        version = overriddenEnv.get("SONARQUBE_VERSION");
+      }
       mockSonarQubeServer.stubFor(get(SystemApi.STATUS_PATH)
         .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes("""
+          Body.fromJsonBytes(String.format("""
       {
         "id": "20150504120436",
-        "version": "2025.1",
+        "version": "%s",
         "status": "UP"
-      }""".getBytes(StandardCharsets.UTF_8)))));
+      }""", version).getBytes(StandardCharsets.UTF_8)))));
     }
     if (overriddenEnv.containsKey("STORAGE_PATH")) {
       tempStoragePath = Paths.get(overriddenEnv.get("STORAGE_PATH"));
