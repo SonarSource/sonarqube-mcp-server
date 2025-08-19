@@ -229,7 +229,7 @@ When using custom certificates, you can modify your MCP configuration to mount t
 
 ### Dependency Risks
 
-**Note: Dependency risks are only available when connecting to SonarQube Server 2025.4 Enterprise or higher.**
+**Note: Dependency risks are only available when connecting to SonarQube Server 2025.4 Enterprise or higher with SonarQube Advanced Security enabled.**
 
 - **search_dependency_risks** - Search for software composition analysis issues (dependency risks) of a project, paired with releases that appear in the analyzed project, application, or portfolio.
   - `projectKey` - Project key - _String_

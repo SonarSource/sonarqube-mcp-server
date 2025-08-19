@@ -78,14 +78,13 @@ class SonarQubeVersionCheckerTest {
     assertThat(result).isFalse();
   }
 
-
   @ParameterizedTest
   @ValueSource(strings = {"2025.4", "2025.3", "10.9.1", "2025.3-SNAPSHOT"})
-  void it_should_return_true_when_valid() {
+  void it_should_return_true_when_valid(String input) {
     when(serverApi.isSonarQubeCloud()).thenReturn(false);
     when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2025.4", "UP"));
 
-    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
+    var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan(input);
 
     assertThat(result).isTrue();
   }
