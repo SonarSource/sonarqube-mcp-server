@@ -1,5 +1,5 @@
 {
     "sonarCloudOrganization": "sonarsource",
-    "projectKey": "SonarSource_sonar-mcp-server",
+    "projectKey": "SonarSource_sonarqube-mcp-server",
     "region": "EU"
 }

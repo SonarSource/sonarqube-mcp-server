@@ -223,7 +223,7 @@ publishing {
 sonar {
 	properties {
 		property("sonar.organization", "sonarsource")
-		property("sonar.projectKey", "SonarSource_sonar-mcp-server")
+		property("sonar.projectKey", "SonarSource_sonarqube-mcp-server")
 		property("sonar.projectName", "SonarQube MCP Server")
 		property("sonar.links.ci", "https://cirrus-ci.com/github/SonarSource/sonarqube-mcp-server")
 		property("sonar.links.scm", "https://github.com/SonarSource/sonarqube-mcp-server")
