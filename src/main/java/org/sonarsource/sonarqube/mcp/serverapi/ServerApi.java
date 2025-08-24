@@ -29,6 +29,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.settings.SettingsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.SourcesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
+import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 
 public class ServerApi {
 
@@ -88,6 +89,10 @@ public class ServerApi {
 
   public SettingsApi settingsApi() {
     return new SettingsApi(helper);
+  }
+
+  public WebhooksApi webhooksApi() {
+    return new WebhooksApi(helper, helper.getOrganization());
   }
 
   public boolean isSonarQubeCloud() {

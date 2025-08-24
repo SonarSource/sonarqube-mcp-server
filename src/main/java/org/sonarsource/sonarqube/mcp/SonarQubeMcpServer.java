@@ -53,6 +53,7 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemInfoTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemLogsTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
+import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 public class SonarQubeMcpServer {
@@ -117,7 +118,8 @@ public class SonarQubeMcpServer {
       new GetComponentMeasuresTool(serverApi),
       new SearchMetricsTool(serverApi),
       new GetScmInfoTool(serverApi),
-      new GetRawSourceTool(serverApi)));
+      new GetRawSourceTool(serverApi),
+      new CreateWebhookTool(serverApi)));
   }
 
   public void start() {
