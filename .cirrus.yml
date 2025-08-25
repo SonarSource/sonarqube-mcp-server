@@ -62,6 +62,40 @@ build_task:
     - source set_gradle_build_version
     - regular_gradle_build_deploy_analyze :cyclonedxBom jacocoTestReport
 
+sonarqube_us_analysis_task:
+  eks_container:
+    <<: *CONTAINER_DEFINITION
+    cpu: 1
+    memory: 4G
+  env:
+    ARTIFACTORY_DEPLOY_USERNAME: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-qa-deployer username]
+    ARTIFACTORY_DEPLOY_PASSWORD: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-qa-deployer access_token]
+    DEPLOY_PULL_REQUEST: "true"
+    SONAR_HOST_URL: VAULT[development/kv/data/sonarqube-us data.url]
+    SONAR_TOKEN: VAULT[development/kv/data/sonarqube-us data.token]
+  build_script:
+    - source cirrus-env BUILD
+    - source .cirrus/use-gradle-wrapper.sh
+    - source set_gradle_build_version
+    - regular_gradle_build_deploy_analyze :cyclonedxBom jacocoTestReport -Dmaven.deploy.skip=true
+
+sonarqube_next_analysis_task:
+  eks_container:
+    <<: *CONTAINER_DEFINITION
+    cpu: 1
+    memory: 4G
+  env:
+    ARTIFACTORY_DEPLOY_USERNAME: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-qa-deployer username]
+    ARTIFACTORY_DEPLOY_PASSWORD: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-qa-deployer access_token]
+    DEPLOY_PULL_REQUEST: "true"
+    SONAR_HOST_URL: VAULT[development/kv/data/next data.url]
+    SONAR_TOKEN: VAULT[development/kv/data/next data.token]
+  build_script:
+    - source cirrus-env BUILD
+    - source .cirrus/use-gradle-wrapper.sh
+    - source set_gradle_build_version
+    - regular_gradle_build_deploy_analyze :cyclonedxBom jacocoTestReport -Dmaven.deploy.skip=true
+
 mend_scan_task:
   depends_on:
     - build
