@@ -44,7 +44,7 @@ class CreateWebhookToolTests {
 
       var result = mcpClient.callTool(
         CreateWebhookTool.TOOL_NAME,
-        Map.of(CreateWebhookTool.URL_PROPERTY, "https://example.com/webhook"));
+        Map.of(CreateWebhookTool.URL_PROPERTY, URL));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: name", true));
@@ -75,7 +75,7 @@ class CreateWebhookToolTests {
         CreateWebhookTool.TOOL_NAME,
         Map.of(
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
-          CreateWebhookTool.URL_PROPERTY, "https://example.com/webhook"));
+          CreateWebhookTool.URL_PROPERTY, URL));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -175,7 +175,7 @@ class CreateWebhookToolTests {
         CreateWebhookTool.TOOL_NAME,
         Map.of(
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
-          CreateWebhookTool.URL_PROPERTY, "https://example.com/webhook"));
+          CreateWebhookTool.URL_PROPERTY, URL));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
@@ -245,7 +245,7 @@ class CreateWebhookToolTests {
         CreateWebhookTool.TOOL_NAME,
         Map.of(
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
-          CreateWebhookTool.URL_PROPERTY, "https://example.com/webhook"));
+          CreateWebhookTool.URL_PROPERTY, URL));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/webhooks/create", true));

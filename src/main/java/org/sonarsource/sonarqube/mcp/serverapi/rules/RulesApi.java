@@ -47,10 +47,8 @@ public class RulesApi {
 
   private String buildPath(String ruleKey) {
     var builder = new UrlBuilder(SHOW_PATH)
-      .addParam("key", ruleKey);
-    if (organization != null) {
-      builder.addParam("organization", organization);
-    }
+      .addParam("key", ruleKey)
+      .addParam("organization", organization);
     return builder.build();
   }
 

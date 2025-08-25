@@ -346,6 +346,10 @@ When using custom certificates, you can modify your MCP configuration to mount t
   - `project` - Optional project key for project-specific webhook - _String_
   - `secret` - Optional webhook secret for securing the webhook payload - _String_
 
+
+- **list_webhooks** - List all webhooks for the organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission
+  - `project` - Optional project key to list project-specific webhooks - _String_
+
 ## Troubleshooting
 
 Applications logs will be written to the `STORAGE_PATH/logs/mcp.log` file.

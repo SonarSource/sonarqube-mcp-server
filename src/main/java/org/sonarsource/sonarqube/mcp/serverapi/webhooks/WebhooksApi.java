@@ -22,12 +22,14 @@ import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.CreateResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
 
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 
 public class WebhooksApi {
 
   public static final String CREATE_PATH = "/api/webhooks/create";
+  public static final String LIST_PATH = "/api/webhooks/list";
 
   private final ServerApiHelper helper;
   private final String organization;
@@ -46,11 +48,24 @@ public class WebhooksApi {
     }
   }
 
-  private String buildPath() {
-    var builder = new UrlBuilder(CREATE_PATH);
-    if (organization != null) {
-      builder.addParam("organization", organization);
+  public ListResponse listWebhooks(@Nullable String project) {
+    var path = buildListPath(project);
+    try (var response = helper.get(path)) {
+      var responseStr = response.bodyAsString();
+      return new Gson().fromJson(responseStr, ListResponse.class);
     }
+  }
+
+  private String buildPath() {
+    var builder = new UrlBuilder(CREATE_PATH)
+      .addParam("organization", organization);
+    return builder.build();
+  }
+
+  private String buildListPath(@Nullable String project) {
+    var builder = new UrlBuilder(LIST_PATH)
+      .addParam("organization", organization)
+      .addParam("project", project);
     return builder.build();
   }
 

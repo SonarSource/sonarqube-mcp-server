@@ -56,10 +56,8 @@ public class IssuesApi {
       .addParam("projects", projects)
       .addParam("pullRequest", pullRequestId)
       .addParam("p", page)
-      .addParam("ps", pageSize);
-    if (organization != null) {
-      builder.addParam("organization", organization);
-    }
+      .addParam("ps", pageSize)
+      .addParam("organization", organization);
     return builder.build();
   }
 
