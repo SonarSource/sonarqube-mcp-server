@@ -5,15 +5,16 @@ set -euo pipefail
 : "${SONAR_SQC_EU_URL?}" "${SONAR_IRIS_SQC_EU_TOKEN?}"
 : "${SONAR_SQC_US_URL?}" "${SONAR_IRIS_SQC_US_TOKEN?}"
 : "${SONAR_NEXT_URL?}" "${SONAR_IRIS_NEXT_TOKEN?}"
+: "${IRIS_SOURCE_PROJECT_KEY?}" "${IRIS_DESTINATION_PROJECT_KEY?}"
 
 # Run IRIS from SQC EU to SQS
 function run_iris_next () {
   java \
-    -Diris.source.projectKey="SonarSource_sonarqube-mcp-server" \
+    -Diris.source.projectKey="$IRIS_SOURCE_PROJECT_KEY" \
     -Diris.source.organization="SonarSource" \
     -Diris.source.url="$SONAR_SQC_EU_URL" \
     -Diris.source.token="$SONAR_IRIS_SQC_EU_TOKEN" \
-    -Diris.destination.projectKey="SonarSource_sonarqube-mcp-server" \
+    -Diris.destination.projectKey="$IRIS_DESTINATION_PROJECT_KEY" \
     -Diris.destination.url="$SONAR_NEXT_URL" \
     -Diris.destination.token="$SONAR_IRIS_NEXT_TOKEN" \
     -Diris.dryrun=$1 \
@@ -23,11 +24,11 @@ function run_iris_next () {
 # Run IRIS from SQC EU to SQC US
 function run_iris_sqc_us () {
   java \
-    -Diris.source.projectKey="SonarSource_sonarqube-mcp-server" \
+    -Diris.source.projectKey="$IRIS_SOURCE_PROJECT_KEY" \
     -Diris.source.organization="SonarSource" \
     -Diris.source.url="$SONAR_SQC_EU_URL" \
     -Diris.source.token="$SONAR_IRIS_SQC_EU_TOKEN" \
-    -Diris.destination.projectKey="SonarSource_sonarqube-mcp-server" \
+    -Diris.destination.projectKey="$IRIS_DESTINATION_PROJECT_KEY" \
     -Diris.destination.organization="SonarSource" \
     -Diris.destination.url="$SONAR_SQC_US_URL" \
     -Diris.destination.token="$SONAR_IRIS_SQC_US_TOKEN" \

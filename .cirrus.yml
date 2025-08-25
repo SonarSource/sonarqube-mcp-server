@@ -106,14 +106,16 @@ run_iris_task:
     cpu: 1
     memory: 2G
   env:
-    SONAR_SQC_EU_URL: "https://sonarcloud.io"
-    SONAR_SQC_US_URL: "https://sonarqube.us"
-    SONAR_NEXT_URL: "https://next.sonarqube.com/sonarqube"
+    SONAR_SQC_EU_URL: VAULT[development/kv/data/sonarcloud data.url]
+    SONAR_SQC_US_URL: VAULT[development/kv/data/sonarqube-us data.url]
+    SONAR_NEXT_URL: VAULT[development/kv/data/next data.url]
     SONAR_IRIS_NEXT_TOKEN: VAULT[development/kv/data/iris data.next]
     SONAR_IRIS_SQC_EU_TOKEN: VAULT[development/kv/data/iris data.sqc-eu]
     SONAR_IRIS_SQC_US_TOKEN: VAULT[development/kv/data/iris data.sqc-us]
     ARTIFACTORY_USERNAME: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-private-reader username]
     ARTIFACTORY_ACCESS_TOKEN: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-private-reader access_token]
+    IRIS_SOURCE_PROJECT_KEY: "SonarSource_sonarqube-mcp-server"
+    IRIS_DESTINATION_PROJECT_KEY: "SonarSource_sonarqube-mcp-server"
   iris_script: |
     chmod +x .cirrus/run-iris.sh
     .cirrus/run-iris.sh
