@@ -63,6 +63,7 @@ build_task:
     - regular_gradle_build_deploy_analyze :cyclonedxBom jacocoTestReport
 
 sonarqube_us_analysis_task:
+  only_if: $CIRRUS_CRON == "twice-daily"
   eks_container:
     <<: *CONTAINER_DEFINITION
     cpu: 1
@@ -80,6 +81,7 @@ sonarqube_us_analysis_task:
     - regular_gradle_build_deploy_analyze :cyclonedxBom jacocoTestReport -Dmaven.deploy.skip=true
 
 sonarqube_next_analysis_task:
+  only_if: $CIRRUS_CRON == "twice-daily"
   eks_container:
     <<: *CONTAINER_DEFINITION
     cpu: 1
@@ -101,6 +103,7 @@ run_iris_task:
     - build
     - sonarqube_us_analysis
     - sonarqube_next_analysis
+  only_if: $CIRRUS_CRON == "twice-daily"
   eks_container:
     <<: *CONTAINER_DEFINITION
     cpu: 1
