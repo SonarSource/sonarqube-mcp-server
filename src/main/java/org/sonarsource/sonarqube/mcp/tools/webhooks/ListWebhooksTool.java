@@ -26,7 +26,7 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 public class ListWebhooksTool extends Tool {
 
   public static final String TOOL_NAME = "list_webhooks";
-  public static final String PROJECT_PROPERTY = "project";
+  public static final String PROJECT_PROPERTY = "projectKey";
 
   private final ServerApi serverApi;
 

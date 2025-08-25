@@ -25,7 +25,7 @@ public class CreateWebhookTool extends Tool {
   public static final String TOOL_NAME = "create_webhook";
   public static final String NAME_PROPERTY = "name";
   public static final String URL_PROPERTY = "url";
-  public static final String PROJECT_PROPERTY = "project";
+  public static final String PROJECT_PROPERTY = "projectKey";
   public static final String SECRET_PROPERTY = "secret";
 
   private final ServerApi serverApi;

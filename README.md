@@ -343,12 +343,12 @@ When using custom certificates, you can modify your MCP configuration to mount t
 - **create_webhook** - Create a new webhook for the organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission
   - `name` - Webhook name - _Required String_
   - `url` - Webhook URL - _Required String_
-  - `project` - Optional project key for project-specific webhook - _String_
+  - `projectKey` - Optional project key for project-specific webhook - _String_
   - `secret` - Optional webhook secret for securing the webhook payload - _String_
 
 
 - **list_webhooks** - List all webhooks for the organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission
-  - `project` - Optional project key to list project-specific webhooks - _String_
+  - `projectKey` - Optional project key to list project-specific webhooks - _String_
 
 ## Troubleshooting
 
