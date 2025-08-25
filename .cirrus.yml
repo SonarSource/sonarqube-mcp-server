@@ -96,6 +96,28 @@ sonarqube_next_analysis_task:
     - source set_gradle_build_version
     - regular_gradle_build_deploy_analyze :cyclonedxBom jacocoTestReport -Dmaven.deploy.skip=true
 
+run_iris_task:
+  depends_on:
+    - build
+    - sonarqube_us_analysis
+    - sonarqube_next_analysis
+  eks_container:
+    <<: *CONTAINER_DEFINITION
+    cpu: 1
+    memory: 2G
+  env:
+    SONAR_SQC_EU_URL: "https://sonarcloud.io"
+    SONAR_SQC_US_URL: "https://sonarqube.us"
+    SONAR_NEXT_URL: "https://next.sonarqube.com/sonarqube"
+    SONAR_IRIS_NEXT_TOKEN: VAULT[development/kv/data/iris data.next]
+    SONAR_IRIS_SQC_EU_TOKEN: VAULT[development/kv/data/iris data.sqc-eu]
+    SONAR_IRIS_SQC_US_TOKEN: VAULT[development/kv/data/iris data.sqc-us]
+    ARTIFACTORY_USERNAME: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-private-reader username]
+    ARTIFACTORY_ACCESS_TOKEN: VAULT[development/artifactory/token/${CIRRUS_REPO_OWNER}-${CIRRUS_REPO_NAME}-private-reader access_token]
+  iris_script: |
+    chmod +x .cirrus/run-iris.sh
+    .cirrus/run-iris.sh
+
 mend_scan_task:
   depends_on:
     - build
