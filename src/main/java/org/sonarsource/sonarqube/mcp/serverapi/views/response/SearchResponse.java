@@ -14,7 +14,17 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-@ParametersAreNonnullByDefault
-package org.sonarsource.sonarqube.mcp.serverapi.portfolios.response;
+package org.sonarsource.sonarqube.mcp.serverapi.views.response;
 
-import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.List;
+import javax.annotation.Nullable;
+
+public record SearchResponse(List<Component> components, Paging paging) {
+
+  public record Component(String key, String name, String qualifier, String visibility, @Nullable Boolean isFavorite) {
+  }
+
+  public record Paging(Integer pageIndex, Integer pageSize, Integer total) {
+  }
+
+}

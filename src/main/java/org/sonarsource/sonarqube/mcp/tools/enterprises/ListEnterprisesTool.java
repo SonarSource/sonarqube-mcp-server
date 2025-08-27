@@ -47,7 +47,7 @@ public class ListEnterprisesTool extends Tool {
     try {
       var enterpriseKey = arguments.getOptionalString(ENTERPRISE_KEY_PROPERTY);
 
-      var response = serverApi.enterprisesApi().list(enterpriseKey);
+      var response = serverApi.enterprisesApi().listEnterprises(enterpriseKey);
       
       return Result.success(formatResponse(response));
     } catch (Exception e) {

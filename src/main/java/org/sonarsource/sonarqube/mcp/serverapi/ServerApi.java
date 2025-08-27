@@ -23,7 +23,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
-import org.sonarsource.sonarqube.mcp.serverapi.portfolios.PortfoliosApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
@@ -31,6 +30,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.settings.SettingsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.SourcesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
+import org.sonarsource.sonarqube.mcp.serverapi.views.ViewsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 
 public class ServerApi {
@@ -97,8 +97,8 @@ public class ServerApi {
     return new WebhooksApi(helper, helper.getOrganization());
   }
 
-  public PortfoliosApi portfoliosApi() {
-    return new PortfoliosApi(helper, helper.getOrganization());
+  public ViewsApi viewsApi() {
+    return new ViewsApi(helper);
   }
 
   public EnterprisesApi enterprisesApi() {

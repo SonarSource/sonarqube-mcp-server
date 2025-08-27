@@ -15,6 +15,6 @@
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
 @ParametersAreNonnullByDefault
-package org.sonarsource.sonarqube.mcp.serverapi.portfolios;
+package org.sonarsource.sonarqube.mcp.serverapi.views.response;
 
 import javax.annotation.ParametersAreNonnullByDefault;

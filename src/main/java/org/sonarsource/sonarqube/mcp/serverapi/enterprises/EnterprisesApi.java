@@ -24,10 +24,12 @@ import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.ListResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.PortfoliosResponse;
 
 public class EnterprisesApi {
 
   public static final String ENTERPRISES_PATH = "/enterprises/enterprises";
+  public static final String PORTFOLIOS_PATH = "/enterprises/portfolios";
 
   private final ServerApiHelper helper;
 
@@ -35,20 +37,40 @@ public class EnterprisesApi {
     this.helper = helper;
   }
 
-  public ListResponse list(@Nullable String enterpriseKey) {
-    try (var response = helper.getApiSubdomain(buildPath(enterpriseKey))) {
+  public ListResponse listEnterprises(@Nullable String enterpriseKey) {
+    try (var response = helper.getApiSubdomain(buildEnterprisesPath(enterpriseKey))) {
       // The API returns a direct array, not wrapped in an object
       var responseStr = response.bodyAsString();
-      Type enterpriseListType = new TypeToken<List<ListResponse.Enterprise>>(){}.getType();
+      var enterpriseListType = new TypeToken<List<ListResponse.Enterprise>>(){}.getType();
       List<ListResponse.Enterprise> enterprises = new Gson().fromJson(responseStr, enterpriseListType);
       
       return new ListResponse(enterprises);
     }
   }
 
-  private static String buildPath(@Nullable String enterpriseKey) {
+  public PortfoliosResponse listPortfolios(@Nullable String enterpriseId, @Nullable String query, @Nullable Boolean favorite,
+    @Nullable Boolean draft, @Nullable Integer pageIndex, @Nullable Integer pageSize) {
+    try (var response = helper.getApiSubdomain(buildPortfoliosPath(enterpriseId, query, favorite, draft, pageIndex, pageSize))) {
+      var responseStr = response.bodyAsString();
+      return new Gson().fromJson(responseStr, PortfoliosResponse.class);
+    }
+  }
+
+  private static String buildEnterprisesPath(@Nullable String enterpriseKey) {
     return new UrlBuilder(ENTERPRISES_PATH)
       .addParam("enterpriseKey", enterpriseKey)
+      .build();
+  }
+
+  private static String buildPortfoliosPath(@Nullable String enterpriseId, @Nullable String query, @Nullable Boolean favorite,
+    @Nullable Boolean draft, @Nullable Integer pageIndex, @Nullable Integer pageSize) {
+    return new UrlBuilder(PORTFOLIOS_PATH)
+      .addParam("enterpriseId", enterpriseId)
+      .addParam("q", query)
+      .addParam("favorite", favorite)
+      .addParam("draft", draft)
+      .addParam("pageIndex", pageIndex)
+      .addParam("pageSize", pageSize)
       .build();
   }
 

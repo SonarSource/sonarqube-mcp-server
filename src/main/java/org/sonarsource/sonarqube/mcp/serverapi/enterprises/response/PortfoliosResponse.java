@@ -14,28 +14,13 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.serverapi.portfolios.response;
+package org.sonarsource.sonarqube.mcp.serverapi.enterprises.response;
 
 import java.util.List;
 import javax.annotation.Nullable;
 
-public record ListResponse(
-  // SonarQube Server fields
-  @Nullable List<Component> components,
-  @Nullable Paging paging,
-  // SonarQube Cloud fields  
-  @Nullable List<Portfolio> portfolios,
-  @Nullable Page page) {
+public record PortfoliosResponse(List<Portfolio> portfolios, @Nullable Page page) {
 
-  // SonarQube Server portfolio representation (components from /api/views/search)
-  public record Component(String key, String name, String qualifier, String visibility, @Nullable Boolean isFavorite) {
-  }
-
-  // SonarQube Server paging object
-  public record Paging(Integer pageIndex, Integer pageSize, Integer total) {
-  }
-
-  // SonarQube Cloud portfolio representation
   public record Portfolio(
     String id,
     @Nullable String enterpriseId,

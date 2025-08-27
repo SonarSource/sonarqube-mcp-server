@@ -25,7 +25,8 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.serverapi.portfolios.PortfoliosApi;
+import org.sonarsource.sonarqube.mcp.serverapi.enterprises.EnterprisesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.views.ViewsApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -52,7 +53,7 @@ class ListPortfoliosToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_show_error_when_request_fails(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(PortfoliosApi.PORTFOLIOS_PATH + "?favorite=true").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+      harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.PORTFOLIOS_PATH + "?favorite=true").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
         "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
@@ -69,7 +70,7 @@ class ListPortfoliosToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_empty_message_when_no_portfolios(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(PortfoliosApi.PORTFOLIOS_PATH + "?favorite=true")
+      harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.PORTFOLIOS_PATH + "?favorite=true")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateEmptyCloudResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
@@ -88,7 +89,7 @@ class ListPortfoliosToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_portfolios_with_default_parameters(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(PortfoliosApi.PORTFOLIOS_PATH + "?favorite=true")
+      harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.PORTFOLIOS_PATH + "?favorite=true")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateCloudResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
@@ -113,11 +114,12 @@ class ListPortfoliosToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_portfolios_with_parameters(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(PortfoliosApi.PORTFOLIOS_PATH + "?enterpriseId=enterprise123&q=important&favorite=true&pageIndex=2&pageSize=10")
+      harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.PORTFOLIOS_PATH + "?enterpriseId=enterprise123&q=important&favorite=true&pageIndex=2&pageSize=10")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateCloudResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"));
+        "SONARQUBE_ORG", "org",
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
@@ -169,12 +171,13 @@ class ListPortfoliosToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_succeed_when_only_favorite_is_true_without_enterpriseId(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(PortfoliosApi.PORTFOLIOS_PATH + "?favorite=true")
+      harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.PORTFOLIOS_PATH + "?favorite=true")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateEmptyCloudResponse().getBytes(StandardCharsets.UTF_8))
         )));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"));
+        "SONARQUBE_ORG", "org",
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
@@ -190,7 +193,7 @@ class ListPortfoliosToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(PortfoliosApi.VIEWS_SEARCH_PATH + "?qualifiers=VW").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+      harness.getMockSonarQubeServer().stubFor(get(ViewsApi.VIEWS_SEARCH_PATH + "?qualifiers=VW").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(ListPortfoliosTool.TOOL_NAME);
@@ -201,7 +204,7 @@ class ListPortfoliosToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_empty_message_when_no_portfolios(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(PortfoliosApi.VIEWS_SEARCH_PATH + "?qualifiers=VW")
+      harness.getMockSonarQubeServer().stubFor(get(ViewsApi.VIEWS_SEARCH_PATH + "?qualifiers=VW")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateEmptyServerResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
@@ -216,7 +219,7 @@ class ListPortfoliosToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_the_portfolios_list(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(PortfoliosApi.VIEWS_SEARCH_PATH + "?qualifiers=VW")
+      harness.getMockSonarQubeServer().stubFor(get(ViewsApi.VIEWS_SEARCH_PATH + "?qualifiers=VW")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateServerResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
@@ -237,7 +240,7 @@ class ListPortfoliosToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_use_supported_parameters_on_server(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(PortfoliosApi.VIEWS_SEARCH_PATH + "?q=apache&onlyFavorites=true&qualifiers=VW")
+      harness.getMockSonarQubeServer().stubFor(get(ViewsApi.VIEWS_SEARCH_PATH + "?q=apache&onlyFavorites=true&qualifiers=VW")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generateServerResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
