@@ -11,7 +11,7 @@ set -euo pipefail
 function run_iris_next () {
   java \
     -Diris.source.projectKey="$IRIS_SOURCE_PROJECT_KEY" \
-    -Diris.source.organization="SonarSource" \
+    -Diris.source.organization="sonarsource" \
     -Diris.source.url="$SONAR_SQC_EU_URL" \
     -Diris.source.token="$SONAR_IRIS_SQC_EU_TOKEN" \
     -Diris.destination.projectKey="$IRIS_DESTINATION_PROJECT_KEY" \
@@ -25,11 +25,11 @@ function run_iris_next () {
 function run_iris_sqc_us () {
   java \
     -Diris.source.projectKey="$IRIS_SOURCE_PROJECT_KEY" \
-    -Diris.source.organization="SonarSource" \
+    -Diris.source.organization="sonarsource" \
     -Diris.source.url="$SONAR_SQC_EU_URL" \
     -Diris.source.token="$SONAR_IRIS_SQC_EU_TOKEN" \
     -Diris.destination.projectKey="$IRIS_DESTINATION_PROJECT_KEY" \
-    -Diris.destination.organization="SonarSource" \
+    -Diris.destination.organization="sonarsource" \
     -Diris.destination.url="$SONAR_SQC_US_URL" \
     -Diris.destination.token="$SONAR_IRIS_SQC_US_TOKEN" \
     -Diris.dryrun=$1 \
