@@ -41,6 +41,7 @@ import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
 import org.sonarsource.sonarqube.mcp.tools.languages.ListLanguagesTool;
 import org.sonarsource.sonarqube.mcp.tools.measures.GetComponentMeasuresTool;
 import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
+import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
@@ -127,7 +128,8 @@ public class SonarQubeMcpServer {
       new GetScmInfoTool(serverApi),
       new GetRawSourceTool(serverApi),
       new CreateWebhookTool(serverApi),
-      new ListWebhooksTool(serverApi)));
+      new ListWebhooksTool(serverApi),
+      new ListPortfoliosTool(serverApi)));
   }
 
   public void start() {

@@ -27,7 +27,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.ListResponse
 
 public class EnterprisesApi {
 
-  public static final String ENTERPRISES_PATH = "/enterprises/enterprises"; // SonarQube Cloud only - uses api.sonarcloud.io
+  public static final String ENTERPRISES_PATH = "/enterprises/enterprises";
 
   private final ServerApiHelper helper;
 

@@ -285,6 +285,24 @@ When using custom certificates, you can modify your MCP configuration to mount t
 - **list_enterprises** - List enterprises available in SonarQube Cloud. Use this tool to discover enterprise IDs that can be used with other tools.
   - `enterpriseKey` - Optional enterprise key to filter results - _String_
 
+### Portfolios
+
+- **list_portfolios** - List portfolios available in SonarQube with filtering and pagination options.
+
+  **For SonarQube Server:**
+  - `q` - Optional search query to filter portfolios by name or key - _String_
+  - `favorite` - If true, only returns favorite portfolios - _Boolean_
+  - `pageIndex` - Optional 1-based page number (default: 1) - _Integer_
+  - `pageSize` - Optional page size, max 500 (default: 100) - _Integer_
+
+  **For SonarQube Cloud:**
+  - `enterpriseId` - Enterprise uuid. Can be omitted only if 'favorite' parameter is supplied with value true - _String_
+  - `q` - Optional search query to filter portfolios by name - _String_
+  - `favorite` - Required to be true if 'enterpriseId' parameter is omitted. If true, only returns portfolios favorited by the logged-in user. Cannot be true when 'draft' is true - _Boolean_
+  - `draft` - If true, only returns drafts created by the logged-in user. Cannot be true when 'favorite' is true - _Boolean_
+  - `pageIndex` - Optional index of the page to fetch (default: 1) - _Integer_
+  - `pageSize` - Optional size of the page to fetch (default: 50) - _Integer_
+
 ### Projects
 
 - **search_my_sonarqube_projects** - Find Sonar projects in my organization
