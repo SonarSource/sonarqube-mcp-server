@@ -85,8 +85,44 @@ public class ServerApiHelper {
     return client.postAsync(url, contentType, body).join();
   }
 
+  /**
+   * Execute GET using the API subdomain (api.sonarcloud.io)
+   */
+  public HttpClient.Response getApiSubdomain(String path) {
+    var response = rawGetApiSubdomain(path);
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
+  /**
+   * Execute raw GET using the API subdomain (api.sonarcloud.io)
+   */
+  public HttpClient.Response rawGetApiSubdomain(String relativePath) {
+    return client.getAsync(buildApiSubdomainUrl(relativePath)).join();
+  }
+
   private String buildEndpointUrl(String relativePath) {
     return concat(endpointParams.baseUrl(), relativePath);
+  }
+
+  /**
+   * Build URL using the API subdomain (api.sonarcloud.io)
+   */
+  private String buildApiSubdomainUrl(String relativePath) {
+    if (endpointParams.organization() == null) {
+      // For SonarQube Server, fall back to regular endpoint
+      return buildEndpointUrl(relativePath);
+    }
+    
+    var baseUrl = endpointParams.baseUrl();
+    // Transform sonarcloud.io to api.sonarcloud.io
+    if (baseUrl.contains("sonarcloud.io")) {
+      baseUrl = baseUrl.replace("://sonarcloud.io", "://api.sonarcloud.io");
+    }
+    
+    return concat(baseUrl, relativePath);
   }
 
   public static String concat(String baseUrl, String relativePath) {

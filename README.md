@@ -278,6 +278,13 @@ When using custom certificates, you can modify your MCP configuration to mount t
   - `p` - Optional page number (default: 1) - _Integer_
   - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
+### Enterprises
+
+**Note: Enterprises are only available when connecting to SonarQube Cloud.**
+
+- **list_enterprises** - List enterprises available in SonarQube Cloud. Use this tool to discover enterprise IDs that can be used with other tools.
+  - `enterpriseKey` - Optional enterprise key to filter results - _String_
+
 ### Projects
 
 - **search_my_sonarqube_projects** - Find Sonar projects in my organization

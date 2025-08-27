@@ -35,6 +35,7 @@ import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
 import org.sonarsource.sonarqube.mcp.tools.languages.ListLanguagesTool;
@@ -104,6 +105,11 @@ public class SonarQubeMcpServer {
       } else {
         LOG.info("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
       }
+    }
+
+    // SonarQube Cloud specific tools
+    if (mcpConfiguration.isSonarCloud()) {
+      this.supportedTools.add(new ListEnterprisesTool(serverApi));
     }
 
     this.supportedTools.addAll(List.of(
