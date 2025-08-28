@@ -282,7 +282,7 @@ When using custom certificates, you can modify your MCP configuration to mount t
 
 **Note: Enterprises are only available when connecting to SonarQube Cloud.**
 
-- **list_enterprises** - List enterprises available in SonarQube Cloud. Use this tool to discover enterprise IDs that can be used with other tools.
+- **list_enterprises** - List the enterprises available in SonarQube Cloud that you have access to. Use this tool to discover enterprise IDs that can be used with other tools.
   - `enterpriseKey` - Optional enterprise key to filter results - _String_
 
 ### Portfolios
