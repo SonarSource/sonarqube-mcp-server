@@ -52,7 +52,8 @@ public class AnalysisTool extends Tool {
   public AnalysisTool(BackendService backendService, ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("Analyze a code snippet with Sonar analyzers to find Sonar issues in it.")
+      .setDescription("Analyze a file or code snippet with SonarQube analyzers to identify code quality and security issues. " +
+        "Specify the language of the snippet to improve analysis accuracy.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
       .addRequiredStringProperty(SNIPPET_PROPERTY, "Code snippet or full file content")
       .addStringProperty(LANGUAGE_PROPERTY, "Language of the code snippet")
@@ -156,6 +157,9 @@ public class AnalysisTool extends Tool {
         }
       }
     }
+
+    stringBuilder.append("\nDisclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context." +
+      " Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.");
 
     return stringBuilder.toString().trim();
   }

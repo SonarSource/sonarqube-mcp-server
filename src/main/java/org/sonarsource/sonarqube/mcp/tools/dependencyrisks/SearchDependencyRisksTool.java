@@ -34,7 +34,7 @@ public class SearchDependencyRisksTool extends Tool {
   public SearchDependencyRisksTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +
+      .setDescription("Search for software composition analysis issues (dependency risks) of a SonarQube project, " +
         "paired with releases that appear in the analyzed project, application, or portfolio.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The project key")
       .addStringProperty(BRANCH_KEY_PROPERTY, "The branch key")

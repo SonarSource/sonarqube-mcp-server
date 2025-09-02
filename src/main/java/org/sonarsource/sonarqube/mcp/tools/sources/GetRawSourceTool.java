@@ -32,7 +32,7 @@ public class GetRawSourceTool extends Tool {
   public GetRawSourceTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("Get source code as raw text. Require 'See Source Code' permission on file")
+      .setDescription("Get source code as raw text from SonarQube. Require 'See Source Code' permission on file.")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
       .addStringProperty(BRANCH_PROPERTY, "Branch key (e.g. feature/my_branch)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")

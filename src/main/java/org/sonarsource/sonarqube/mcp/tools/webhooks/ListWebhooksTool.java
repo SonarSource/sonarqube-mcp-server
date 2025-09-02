@@ -33,7 +33,7 @@ public class ListWebhooksTool extends Tool {
   public ListWebhooksTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("List all webhooks for the organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
+      .setDescription("List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
       .addStringProperty(PROJECT_PROPERTY, "Optional project key to list project-specific webhooks")
       .build());
     this.serverApi = serverApi;

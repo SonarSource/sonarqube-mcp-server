@@ -33,7 +33,8 @@ public class CreateWebhookTool extends Tool {
   public CreateWebhookTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("Create a new webhook. Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
+      .setDescription("Create a new webhook for the SonarQube organization or project. " +
+        "Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
       .addRequiredStringProperty(NAME_PROPERTY, "Name displayed in the administration console of webhooks (max 100 chars)")
       .addRequiredStringProperty(URL_PROPERTY, "Server endpoint that will receive the webhook payload (max 512 chars)")
       .addStringProperty(PROJECT_PROPERTY, "The key of the project that will own the webhook (max 400 chars)")

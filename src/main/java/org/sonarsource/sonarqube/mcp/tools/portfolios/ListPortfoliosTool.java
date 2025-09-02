@@ -46,7 +46,7 @@ public class ListPortfoliosTool extends Tool {
       .setName(TOOL_NAME);
       
     if (serverApi.isSonarQubeCloud()) {
-      builder.setDescription("List enterprise portfolios with filtering options.")
+      builder.setDescription("List enterprise portfolios available in SonarQube Cloud with filtering and pagination options.")
         .addStringProperty(ENTERPRISE_ID_PROPERTY, "Enterprise uuid. Can be omitted only if 'favorite' parameter is supplied with value true")
         .addStringProperty(QUERY_PROPERTY, "Search query to filter portfolios by name")
         .addBooleanProperty(FAVORITE_PROPERTY, "Required to be true if 'enterpriseId' parameter is omitted. " +
@@ -55,7 +55,7 @@ public class ListPortfoliosTool extends Tool {
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Index of the page to fetch (default: 1)")
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Size of the page to fetch (default: 50)");
     } else {
-      builder.setDescription("List portfolios available in SonarQube Server with filtering options.")
+      builder.setDescription("List portfolios available in SonarQube Server with filtering and pagination options.")
         .addStringProperty(QUERY_PROPERTY, "Search query to filter portfolios by name or key")
         .addBooleanProperty(FAVORITE_PROPERTY, "If true, only returns favorite portfolios")
         .addNumberProperty(PAGE_INDEX_PROPERTY, "1-based page number (default: 1)")

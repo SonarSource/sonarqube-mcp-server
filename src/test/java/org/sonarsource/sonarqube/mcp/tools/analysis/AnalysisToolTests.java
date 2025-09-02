@@ -63,7 +63,9 @@ public class AnalysisToolTests {
           AnalysisTool.LANGUAGE_PROPERTY, ""));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No Sonar issues found in the code snippet.", false));
+        .isEqualTo(new McpSchema.CallToolResult("""
+          No Sonar issues found in the code snippet.
+          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
     }
 
     @SonarQubeMcpServerTest
@@ -89,7 +91,8 @@ public class AnalysisToolTests {
           Impacts: {MAINTAINABILITY=INFO}
           Description: Complete the task associated to this "TODO" comment.
           Quick fixes available: No
-          Starting on line: 1""", false));
+          Starting on line: 1
+          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
     }
 
     @SonarQubeMcpServerTest
@@ -116,7 +119,8 @@ public class AnalysisToolTests {
           Impacts: {MAINTAINABILITY=INFO}
           Description: Complete the task associated to this "TODO" comment.
           Quick fixes available: No
-          Starting on line: 1""", false));
+          Starting on line: 1
+          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
     }
 
     @SonarQubeMcpServerTest
@@ -133,7 +137,9 @@ public class AnalysisToolTests {
           AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No Sonar issues found in the code snippet.", false));
+        .isEqualTo(new McpSchema.CallToolResult("""
+          No Sonar issues found in the code snippet.
+          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
     }
   }
 

@@ -31,7 +31,7 @@ public class ShowRuleTool extends Tool {
   public ShowRuleTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("Shows detailed information about a SonarQube rule")
+      .setDescription("Shows detailed information about a SonarQube rule.")
       .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)")
       .build());
     this.serverApi = serverApi;

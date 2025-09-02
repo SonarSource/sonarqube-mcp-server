@@ -31,7 +31,7 @@ public class SearchMyProjectsTool extends Tool {
   public SearchMyProjectsTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("Find Sonar projects. The response is paginated.")
+      .setDescription("Find SonarQube projects. The response is paginated.")
       .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .build());
     this.serverApi = serverApi;

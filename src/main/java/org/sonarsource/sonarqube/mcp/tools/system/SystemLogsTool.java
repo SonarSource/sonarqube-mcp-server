@@ -32,7 +32,7 @@ public class SystemLogsTool extends Tool {
   public SystemLogsTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("Get system logs in plain-text format. Requires system administration permission.")
+      .setDescription("Get SonarQube Server system logs in plain-text format. Requires system administration permission.")
       .addStringProperty(NAME_PROPERTY, "Name of the logs to get. Possible values: access, app, ce, deprecation, es, web. Default: app")
       .build());
     this.serverApi = serverApi;

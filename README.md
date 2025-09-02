@@ -233,7 +233,7 @@ When using custom certificates, you can modify your MCP configuration to mount t
 
 ### Analysis
 
-- **analyze_code_snippet** - Analyze a code snippet with SonarQube analyzers to find SonarQube issues in it.
+- **analyze_code_snippet** - Analyze a file or code snippet with SonarQube analyzers to identify code quality and security issues. Specify the language of the snippet to improve analysis accuracy.
   - `codeSnippet` - Code snippet or full file content - _Required String_
   - `language` - Optional language of the code snippet - _String_
 
@@ -241,32 +241,39 @@ When using custom certificates, you can modify your MCP configuration to mount t
 
 **Note: Dependency risks are only available when connecting to SonarQube Server 2025.4 Enterprise or higher with SonarQube Advanced Security enabled.**
 
-- **search_dependency_risks** - Search for software composition analysis issues (dependency risks) of a project, paired with releases that appear in the analyzed project, application, or portfolio.
+- **search_dependency_risks** - Search for software composition analysis issues (dependency risks) of a SonarQube project, paired with releases that appear in the analyzed project, application, or portfolio.
   - `projectKey` - Project key - _String_
   - `branchKey` - Optional branch key - _String_
   - `pullRequestKey` - Optional pull request key - _String_
 
-### Languages
+### Enterprises
 
-- **list_languages** - List all programming languages supported in this instance
-  - `q` - Optional pattern to match language keys/names against - _String_
+**Note: Enterprises are only available when connecting to SonarQube Cloud.**
+
+- **list_enterprises** - List the enterprises available in SonarQube Cloud that you have access to. Use this tool to discover enterprise IDs that can be used with other tools.
+    - `enterpriseKey` - Optional enterprise key to filter results - _String_
 
 ### Issues
 
-- **change_sonar_issue_status** - Change the status of a SonarQube issue to "accept", "falsepositive" or to "reopen" an issue
+- **change_sonar_issue_status** - Change the status of a SonarQube issue to "accept", "falsepositive" or to "reopen" an issue.
   - `key` - Issue key - _Required String_
   - `status` - New issue's status - _Required Enum {"accept", "falsepositive", "reopen"}_
 
 
-- **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects
+- **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects.
   - `projects` - Optional list of Sonar projects - _String[]_
   - `pullRequestId` - Optional Pull Request's identifier - _String_
   - `p` - Optional page number (default: 1) - _Integer_
   - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
+### Languages
+
+- **list_languages** - List all programming languages supported in this SonarQube instance.
+    - `q` - Optional pattern to match language keys/names against - _String_
+
 ### Measures
 
-- **get_component_measures** - Get measures for a component (project, directory, file)
+- **get_component_measures** - Get SonarQube measures for a component (project, directory, file).
   - `component` - Optional component key to get measures for - _String_
   - `branch` - Optional branch to analyze for measures - _String_
   - `metricKeys` - Optional metric keys to retrieve (e.g. nloc, complexity, violations, coverage) - _String[]_
@@ -274,20 +281,13 @@ When using custom certificates, you can modify your MCP configuration to mount t
 
 ### Metrics
 
-- **search_metrics** - Search for metrics
+- **search_metrics** - Search for SonarQube metrics.
   - `p` - Optional page number (default: 1) - _Integer_
   - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
-### Enterprises
-
-**Note: Enterprises are only available when connecting to SonarQube Cloud.**
-
-- **list_enterprises** - List the enterprises available in SonarQube Cloud that you have access to. Use this tool to discover enterprise IDs that can be used with other tools.
-  - `enterpriseKey` - Optional enterprise key to filter results - _String_
-
 ### Portfolios
 
-- **list_portfolios** - List portfolios available in SonarQube with filtering and pagination options.
+- **list_portfolios** - List enterprise portfolios available in SonarQube with filtering and pagination options.
 
   **For SonarQube Server:**
   - `q` - Optional search query to filter portfolios by name or key - _String_
@@ -305,12 +305,12 @@ When using custom certificates, you can modify your MCP configuration to mount t
 
 ### Projects
 
-- **search_my_sonarqube_projects** - Find Sonar projects in my organization
+- **search_my_sonarqube_projects** - Find SonarQube projects. The response is paginated.
   - `page` - Optional page number - _String_
 
 ### Quality Gates
 
-- **get_project_quality_gate_status** - Get the Quality Gate Status for the project
+- **get_project_quality_gate_status** - Get the Quality Gate Status for the SonarQube project.
   - `analysisId` - Optional analysis ID - _String_
   - `branch` - Optional branch key - _String_
   - `projectId` - Optional project ID - _String_
@@ -318,27 +318,27 @@ When using custom certificates, you can modify your MCP configuration to mount t
   - `pullRequest` - Optional pull request ID - _String_
 
 
-- **list_quality_gates** - List all quality gates in the organization
+- **list_quality_gates** - List all quality gates in my SonarQube.
 
 ### Rules
 
-- **list_rule_repositories** - List rule repositories available in SonarQube
+- **list_rule_repositories** - List rule repositories available in SonarQube.
   - `language` - Optional language key - _String_
   - `q` - Optional search query - _String_
 
 
-- **show_rule** - Shows detailed information about a SonarQube rule
+- **show_rule** - Shows detailed information about a SonarQube rule.
   - `key` - Rule key - _Required String_
 
 ### Sources
 
-- **get_raw_source** - Get source code as raw text. Require 'See Source Code' permission on file
+- **get_raw_source** - Get source code as raw text from SonarQube. Require 'See Source Code' permission on file.
   - `key` - File key - _Required String_
   - `branch` - Optional branch key - _String_
   - `pullRequest` - Optional pull request id - _String_
 
 
-- **get_scm_info** - Get SCM information of source files. Require See Source Code permission on file's project
+- **get_scm_info** - Get SCM information of SonarQube source files. Require See Source Code permission on file's project.
   - `key` - File key - _Required String_
   - `commits_by_line` - Group lines by SCM commit if value is false, else display commits for each line - _String_
   - `from` - First line to return. Starts at 1 - _Number_
@@ -348,31 +348,31 @@ When using custom certificates, you can modify your MCP configuration to mount t
 
 **Note: System tools are only available when connecting to SonarQube Server.**
 
-- **get_system_health** - Get the health status of SonarQube Server instance
+- **get_system_health** - Get the health status of SonarQube Server instance. Returns GREEN (fully operational), YELLOW (usable but needs attention), or RED (not operational).
 
 
-- **get_system_info** - Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. Requires 'Administer' permissions
+- **get_system_info** - Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. Requires 'Administer' permissions.
 
 
-- **get_system_logs** - Get SonarQube Server system logs in plain-text format. Requires system administration permission
+- **get_system_logs** - Get SonarQube Server system logs in plain-text format. Requires system administration permission.
   - `name` - Optional name of the logs to get. Possible values: access, app, ce, deprecation, es, web. Default: app - _String_
 
 
-- **ping_system** - Ping the SonarQube Server system to check if it's alive
+- **ping_system** - Ping the SonarQube Server system to check if it's alive. Returns 'pong' as plain text.
 
 
-- **get_system_status** - Get state information about SonarQube Server
+- **get_system_status** - Get state information about SonarQube Server. Returns status (STARTING, UP, DOWN, RESTARTING, DB_MIGRATION_NEEDED, DB_MIGRATION_RUNNING), version, and id.
 
 ### Webhooks
 
-- **create_webhook** - Create a new webhook for the organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission
+- **create_webhook** - Create a new webhook for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.
   - `name` - Webhook name - _Required String_
   - `url` - Webhook URL - _Required String_
   - `projectKey` - Optional project key for project-specific webhook - _String_
   - `secret` - Optional webhook secret for securing the webhook payload - _String_
 
 
-- **list_webhooks** - List all webhooks for the organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission
+- **list_webhooks** - List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.
   - `projectKey` - Optional project key to list project-specific webhooks - _String_
 
 ## Troubleshooting

@@ -31,7 +31,7 @@ public class ListLanguagesTool extends Tool {
   public ListLanguagesTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setDescription("List all programming languages supported in this instance")
+      .setDescription("List all programming languages supported in this SonarQube instance")
       .addStringProperty(QUERY_PROPERTY, "Optional pattern to match language keys/names against")
       .build());
     this.serverApi = serverApi;
