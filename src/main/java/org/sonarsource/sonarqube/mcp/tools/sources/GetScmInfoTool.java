@@ -36,7 +36,7 @@ public class GetScmInfoTool extends Tool {
       .setName(TOOL_NAME)
       .setDescription("Get SCM information of SonarQube source files. Require See Source Code permission on file's project")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
-      .addBooleanProperty(COMMITS_BY_LINE_PROPERTY, "Group lines by SCM commit if value is false, else display commits for each line (true/false)")
+      .addStringProperty(COMMITS_BY_LINE_PROPERTY, "Group lines by SCM commit if \"false\", else display commits for each line if \"true\"")
       .addNumberProperty(FROM_PROPERTY, "First line to return. Starts at 1")
       .addNumberProperty(TO_PROPERTY, "Last line to return (inclusive)")
       .build());
@@ -46,7 +46,11 @@ public class GetScmInfoTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
-    var commitsByLine = arguments.getOptionalBoolean(COMMITS_BY_LINE_PROPERTY);
+    var commitsByLineStr = arguments.getOptionalString(COMMITS_BY_LINE_PROPERTY);
+    Boolean commitsByLine = null;
+    if (commitsByLineStr != null) {
+  commitsByLine = Boolean.parseBoolean(commitsByLineStr);
+}
     var from = arguments.getOptionalInteger(FROM_PROPERTY);
     var to = arguments.getOptionalInteger(TO_PROPERTY);
     
