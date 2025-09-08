@@ -1,6 +1,6 @@
 # SonarQube MCP Server
 
-[![Build Status](https://api.cirrus-ci.com/github/SonarSource/sonarqube-mcp-server.svg?branch=master)](https://cirrus-ci.com/github/SonarSource/sonarqube-mcp-server)
+[![Build](https://github.com/SonarSource/sonarqube-mcp-server/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/SonarSource/sonarqube-mcp-server/actions/workflows/build.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=SonarSource_sonarqube-mcp-server&metric=alert_status&token=364a508a1e77096460f8571d8e66b41c99c95bea)](https://sonarcloud.io/summary/new_code?id=SonarSource_sonarqube-mcp-server)
 
 The SonarQube MCP Server is a Model Context Protocol (MCP) server that enables seamless integration with SonarQube Server or Cloud for code quality and security.

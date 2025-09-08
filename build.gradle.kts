@@ -225,7 +225,7 @@ sonar {
 		property("sonar.organization", "sonarsource")
 		property("sonar.projectKey", "SonarSource_sonarqube-mcp-server")
 		property("sonar.projectName", "SonarQube MCP Server")
-		property("sonar.links.ci", "https://cirrus-ci.com/github/SonarSource/sonarqube-mcp-server")
+		property("sonar.links.ci", "https://github.com/SonarSource/sonarqube-mcp-server/actions")
 		property("sonar.links.scm", "https://github.com/SonarSource/sonarqube-mcp-server")
 		property("sonar.links.issue", "https://jira.sonarsource.com/browse/MCP")
 		property("sonar.exclusions", "**/build/**/*")
