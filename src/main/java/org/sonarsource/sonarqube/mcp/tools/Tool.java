@@ -46,36 +46,53 @@ public abstract class Tool {
       if (!argumentsMap.containsKey(argumentName)) {
         throw new MissingRequiredArgumentException(argumentName);
       }
-      return (String) argumentsMap.get(argumentName);
+      var arg = argumentsMap.get(argumentName);
+      if (arg instanceof String string) {
+        return string;
+      } else {
+        return String.valueOf(arg);
+      }
     }
 
     @CheckForNull
     public Integer getOptionalInteger(String argumentName) {
-      return (Integer) argumentsMap.get(argumentName);
+      var arg = argumentsMap.get(argumentName);
+      return switch (arg) {
+        case Integer integer -> integer;
+        case String string -> Integer.parseInt(string);
+        case null, default -> null;
+      };
     }
 
     @CheckForNull
     public Boolean getOptionalBoolean(String argumentName) {
-      var arg = (String) argumentsMap.get(argumentName);
-      if (arg == null) {
-        return null;
-      }
-      return Boolean.parseBoolean(arg);
+      var arg = argumentsMap.get(argumentName);
+      return switch (arg) {
+        case Boolean bool -> bool;
+        case String string -> Boolean.parseBoolean(string);
+        case null, default -> null;
+      };
     }
 
     @CheckForNull
     public String getOptionalString(String argumentName) {
-      return (String) argumentsMap.get(argumentName);
+      var arg = argumentsMap.get(argumentName);
+      if (arg instanceof String string) {
+        return string;
+      } else {
+        return null;
+      }
     }
 
     public int getIntOrDefault(String argumentName, int defaultValue) {
-      var stringArgument = getOptionalString(argumentName);
-      if (stringArgument == null) {
+      var intArgument = getOptionalInteger(argumentName);
+      if (intArgument == null) {
         return defaultValue;
       }
-      return Integer.parseInt(stringArgument);
+      return intArgument;
     }
 
+    @SuppressWarnings("unchecked")
     public List<String> getStringListOrThrow(String argumentName) {
       if (!argumentsMap.containsKey(argumentName)) {
         throw new MissingRequiredArgumentException(argumentName);
@@ -84,6 +101,7 @@ public abstract class Tool {
     }
 
     @CheckForNull
+    @SuppressWarnings("unchecked")
     public List<String> getOptionalStringList(String argumentName) {
       return (List<String>) argumentsMap.get(argumentName);
     }
