@@ -47,11 +47,11 @@ public abstract class Tool {
         throw new MissingRequiredArgumentException(argumentName);
       }
       var arg = argumentsMap.get(argumentName);
-      if (arg instanceof String string) {
-        return string;
-      } else {
-        return String.valueOf(arg);
-      }
+      return switch (arg) {
+        case String string -> string;
+        case null -> throw new MissingRequiredArgumentException(argumentName);
+        default -> String.valueOf(arg);
+      };
     }
 
     @CheckForNull
