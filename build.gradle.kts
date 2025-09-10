@@ -174,9 +174,9 @@ artifactory {
 			publications("mavenJava")
 			setProperties(
 				mapOf(
-					"vcs.revision" to System.getenv("CIRRUS_CHANGE_IN_REPO"),
-					"vcs.branch" to (System.getenv("CIRRUS_BASE_BRANCH")
-						?: System.getenv("CIRRUS_BRANCH")),
+					"vcs.revision" to System.getenv("GITHUB_SHA"),
+					"vcs.branch" to (System.getenv("GITHUB_BASE_REF")
+						?: System.getenv("GITHUB_HEAD_REF") ?: System.getenv("GITHUB_REF_NAME")),
 					"build.name" to "sonarqube-mcp-server",
 					"build.number" to System.getenv("BUILD_NUMBER")
 				)
