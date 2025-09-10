@@ -32,12 +32,9 @@ jobs:
       - uses: SonarSource/ci-github-actions/build-gradle@v1
         with:
           deploy-pull-request: true
-          # Public repo + Cirrus used private-reader & qa-deployer → override roles
           artifactory-reader-role: private-reader
           artifactory-deployer-role: qa-deployer
-          # Cirrus used SonarCloud EU → set platform accordingly
           sonar-platform: sqc-eu
-          # Additional Gradle tasks seen in Cirrus
           gradle-args: ":cyclonedxBom jacocoTestReport"
 
   promote:
@@ -45,11 +42,6 @@ jobs:
     runs-on: github-ubuntu-latest-s  # Public repository runner
     name: Promote
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
-      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
-        with:
-          cache_save: false
-          version: 2025.7.12
       - uses: SonarSource/ci-github-actions/promote@v1
         with:
           promote-pull-request: true

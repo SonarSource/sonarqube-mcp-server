@@ -1,14 +1,17 @@
 name: Slack Notifications
 on:
-  pull_request:
+  check_suite:
+    types: [completed]
 
 permissions:
   contents: read
   id-token: write
   checks: read
 jobs:
-  notify:
-    runs-on: ubuntu-latest
+  slack-notifications:
+    if: >-
+      contains(fromJSON('["main", "master"]'), github.event.check_suite.head_branch) || startsWith(github.event.check_suite.head_branch, 'dogfood-') || startsWith(github.event.check_suite.head_branch, 'branch-')
+    runs-on: github-ubuntu-latest-s
     steps:
       - name: Send Slack Notification
         env:
