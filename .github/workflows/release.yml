@@ -15,4 +15,4 @@ jobs:
       contents: write
     uses: SonarSource/gh-action_release/.github/workflows/main.yaml@v5
     with:
-      slackChannel: squad-ide-mcp-server-bots
+      slackChannel: squad-ide-mcp-server

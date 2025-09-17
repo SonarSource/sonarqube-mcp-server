@@ -18,4 +18,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         uses: SonarSource/gh-action_slack-notify@master
         with:
-          slackChannel: squad-ide-mcp-server
+          slackChannel: squad-ide-mcp-server-bots
