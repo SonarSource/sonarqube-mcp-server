@@ -21,6 +21,8 @@ import java.util.concurrent.CompletableFuture;
 
 public interface HttpClient {
 
+  String JSON_CONTENT_TYPE = "application/json; charset=utf-8";
+
   interface Response extends Closeable {
 
     int code();
@@ -42,9 +44,13 @@ public interface HttpClient {
     String url();
   }
 
+  Response get(String url);
+
   CompletableFuture<Response> getAsync(String url);
 
   CompletableFuture<Response> getAsyncAnonymous(String url);
+
+  Response post(String url, String contentType, String body);
 
   CompletableFuture<Response> postAsync(String url, String contentType, String body);
 

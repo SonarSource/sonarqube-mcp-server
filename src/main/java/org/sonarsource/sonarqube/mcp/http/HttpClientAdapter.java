@@ -38,22 +38,44 @@ class HttpClientAdapter implements HttpClient {
     this.token = sonarqubeCloudToken;
   }
 
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient) {
+    this.apacheClient = apacheClient;
+    this.token = null;
+  }
+
+  @Override
+  public Response post(String url, String contentType, String body) {
+    return waitFor(postAsync(url, contentType, body));
+  }
+
   @Override
   public CompletableFuture<Response> postAsync(String url, String contentType, String body) {
     var request = SimpleRequestBuilder.post(url)
+      .addHeader("Origin", "http://localhost")
       .setBody(body, ContentType.parse(contentType))
       .build();
     return executeAsync(request, token);
   }
 
   @Override
+  public Response get(String url) {
+    return waitFor(getAsync(url));
+  }
+
+  @Override
   public CompletableFuture<Response> getAsync(String url) {
-    return executeAsync(SimpleRequestBuilder.get(url).build(), token);
+    return executeAsync(SimpleRequestBuilder
+      .get(url)
+      .addHeader("Origin", "http://localhost")
+      .build(), token);
   }
 
   @Override
   public CompletableFuture<Response> getAsyncAnonymous(String url) {
-    return executeAsync(SimpleRequestBuilder.get(url).build(), null);
+    return executeAsync(SimpleRequestBuilder
+      .get(url)
+      .addHeader("Origin", "http://localhost")
+      .build(), null);
   }
 
   private class CompletableFutureWrappingFuture extends CompletableFuture<Response> {
@@ -109,6 +131,10 @@ class HttpClientAdapter implements HttpClient {
 
   private static String bearer(String token) {
     return String.format("Bearer %s", token);
+  }
+
+  private static HttpClient.Response waitFor(CompletableFuture<HttpClient.Response> f) {
+    return f.join();
   }
 
 }
