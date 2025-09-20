@@ -34,7 +34,9 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
+import org.sonarsource.sonarqube.mcp.tools.analysis.AutomaticAnalysisEnablementTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeListFilesTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
@@ -57,6 +59,8 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
+import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
+import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeConfiguration;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 public class SonarQubeMcpServer {
@@ -87,6 +91,16 @@ public class SonarQubeMcpServer {
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     this.pluginsSynchronizer = new PluginsSynchronizer(serverApi, mcpConfiguration.getStoragePath());
     this.toolExecutor = new ToolExecutor(backendService);
+    
+    // Initialize SQ:IDE bridge
+    var sonarqubeIdeConfig = new SonarQubeIdeBridgeConfiguration(environment);
+    var sonarqubeIdeBridgeClient = new SonarQubeIdeBridgeClient(sonarqubeIdeConfig, httpClientProvider.getHttpClientWithoutToken());
+
+    if (sonarqubeIdeBridgeClient.isAvailable()) {
+      LOG.info("SonarQube for IDE integration is available, enabling related tools.");
+      this.supportedTools.add(new AnalyzeListFilesTool(sonarqubeIdeBridgeClient));
+      this.supportedTools.add(new AutomaticAnalysisEnablementTool(sonarqubeIdeBridgeClient));
+    }
 
     // SonarQube Server specific tools
     if (!mcpConfiguration.isSonarCloud()) {
