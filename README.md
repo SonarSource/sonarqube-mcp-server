@@ -47,6 +47,22 @@ You can use the following buttons to simplify the installation process within VS
 
 [![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
 
+### Gemini CLI
+
+You can install our MCP server extension by using the following command:
+
+`gemini extensions install https://github.com/SonarSource/sonarqube-mcp-server`
+
+You will need to set the required environment variables before starting Gemini:
+
+```
+SONARQUBE_TOKEN="<token>"
+SONARQUBE_ORG="<org>" // For SonarQube Cloud, empty otherwise
+SONARQUBE_URL="<url>" // For SonarQube Server, empty otherwise
+```
+
+Once installed, the extension will be installed under `<home>/.gemini/extensions/sonarqube-mcp-server/gemini-extension.json`.
+
 ## Manual installation
 
 You can manually install the SonarQube MCP server by copying the following snippet in the MCP servers configuration file:
