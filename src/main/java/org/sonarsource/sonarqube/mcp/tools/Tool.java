@@ -54,6 +54,18 @@ public abstract class Tool {
       };
     }
 
+    public Boolean getBooleanOrThrow(String argumentName) {
+      if (!argumentsMap.containsKey(argumentName)) {
+        throw new MissingRequiredArgumentException(argumentName);
+      }
+      var arg = argumentsMap.get(argumentName);
+      return switch (arg) {
+        case Boolean bool -> bool;
+        case String string -> Boolean.parseBoolean(string);
+        case null, default -> throw new MissingRequiredArgumentException(argumentName);
+      };
+    }
+
     @CheckForNull
     public Integer getOptionalInteger(String argumentName) {
       var arg = argumentsMap.get(argumentName);

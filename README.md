@@ -115,6 +115,37 @@ You can manually install the SonarQube MCP server by copying the following snipp
 }
 ```
 
+## Integration with SonarQube for IDE
+
+The SonarQube MCP Server can integrate with [SonarQube for IDE](https://www.sonarsource.com/products/sonarlint/) to further enhance your development workflow, providing better code analysis and insights directly within your IDE.
+
+When using SonarQube for IDE, the `SONARQUBE_IDE_PORT` environment variable should be set with the correct port number. For example, with SonarQube Cloud:
+
+```JSON
+{
+  "sonarqube": {
+    "command": "docker",
+    "args": [
+      "run",
+      "-i",
+      "--rm",
+      "-e",
+      "SONARQUBE_TOKEN",
+      "-e",
+      "SONARQUBE_ORG",
+      "-e",
+      "SONARQUBE_IDE_PORT",
+      "mcp/sonarqube"
+    ],
+    "env": {
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_ORG": "<org>",
+      "SONARQUBE_IDE_PORT": "<64120-64130>"
+    }
+  }
+}
+```
+
 ## Build
 
 SonarQube MCP Server requires a Java Development Kit (JDK) version 21 or later to build.
@@ -171,13 +202,14 @@ You will then need to manually copy and paste the MCP configuration, as follows:
 
 Depending on your environment, you should provide specific environment variables.
 
-### Mandatory
+### Base
 
 You should add the following variable when running the MCP Server:
 
-| Environment variable | Description                                                                                                                                                                             |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `STORAGE_PATH`       | An absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using Docker |
+| Environment variable | Description                                                                                                                                                                                    |
+|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `STORAGE_PATH`       | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using Docker |
+| `SONARQUBE_IDE_PORT` | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                      |
 
 #### SonarQube Cloud
 
@@ -252,6 +284,14 @@ When using custom certificates, you can modify your MCP configuration to mount t
 - **analyze_code_snippet** - Analyze a file or code snippet with SonarQube analyzers to identify code quality and security issues. Specify the language of the snippet to improve analysis accuracy.
   - `codeSnippet` - Code snippet or full file content - _Required String_
   - `language` - Optional language of the code snippet - _String_
+
+**When integration with SonarQube for IDE is enabled:**
+- **analyze_list_files** - Analyze files in the current working directory using SonarQube for IDE. This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.
+    - `list_files` - List of absolute file paths to analyze - _Required String[]_
+
+
+- **automatic_analysis_enablement** - Enable or disable SonarQube for IDE automatic analysis. When enabled, SonarQube for IDE will automatically analyze files as they are modified in the working directory. When disabled, automatic analysis is turned off.
+    - `enabled` - Enable or disable the automatic analysis - _Required Boolean_
 
 ### Dependency Risks
 

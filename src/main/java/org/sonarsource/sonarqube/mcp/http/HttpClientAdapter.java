@@ -29,6 +29,8 @@ import org.apache.hc.core5.http.ContentType;
 
 class HttpClientAdapter implements HttpClient {
 
+  private static final String ORIGIN_HEADER = "Origin";
+  private static final String HOST = "http://localhost";
   private static final String AUTHORIZATION_HEADER = "Authorization";
   private final CloseableHttpAsyncClient apacheClient;
   private final String token;
@@ -38,9 +40,15 @@ class HttpClientAdapter implements HttpClient {
     this.token = sonarqubeCloudToken;
   }
 
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient) {
+    this.apacheClient = apacheClient;
+    this.token = null;
+  }
+
   @Override
   public CompletableFuture<Response> postAsync(String url, String contentType, String body) {
     var request = SimpleRequestBuilder.post(url)
+      .addHeader(ORIGIN_HEADER, HOST)
       .setBody(body, ContentType.parse(contentType))
       .build();
     return executeAsync(request, token);
@@ -48,12 +56,18 @@ class HttpClientAdapter implements HttpClient {
 
   @Override
   public CompletableFuture<Response> getAsync(String url) {
-    return executeAsync(SimpleRequestBuilder.get(url).build(), token);
+    return executeAsync(SimpleRequestBuilder
+      .get(url)
+      .addHeader(ORIGIN_HEADER, HOST)
+      .build(), token);
   }
 
   @Override
   public CompletableFuture<Response> getAsyncAnonymous(String url) {
-    return executeAsync(SimpleRequestBuilder.get(url).build(), null);
+    return executeAsync(SimpleRequestBuilder
+      .get(url)
+      .addHeader(ORIGIN_HEADER, HOST)
+      .build(), null);
   }
 
   private class CompletableFutureWrappingFuture extends CompletableFuture<Response> {

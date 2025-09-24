@@ -21,6 +21,8 @@ import java.util.concurrent.CompletableFuture;
 
 public interface HttpClient {
 
+  String JSON_CONTENT_TYPE = "application/json; charset=utf-8";
+
   interface Response extends Closeable {
 
     int code();

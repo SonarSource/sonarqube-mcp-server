@@ -34,7 +34,9 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
+import org.sonarsource.sonarqube.mcp.tools.analysis.AutomaticAnalysisEnablementTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeListFilesTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
@@ -57,6 +59,7 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
+import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 public class SonarQubeMcpServer {
@@ -87,6 +90,13 @@ public class SonarQubeMcpServer {
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     this.pluginsSynchronizer = new PluginsSynchronizer(serverApi, mcpConfiguration.getStoragePath());
     this.toolExecutor = new ToolExecutor(backendService);
+    var sonarqubeIdeBridgeClient = initializeBridgeClient(mcpConfiguration);
+
+    if (sonarqubeIdeBridgeClient.isAvailable()) {
+      LOG.info("SonarQube for IDE integration is available, enabling related tools.");
+      this.supportedTools.add(new AnalyzeListFilesTool(sonarqubeIdeBridgeClient));
+      this.supportedTools.add(new AutomaticAnalysisEnablementTool(sonarqubeIdeBridgeClient));
+    }
 
     // SonarQube Server specific tools
     if (!mcpConfiguration.isSonarCloud()) {
@@ -171,6 +181,13 @@ public class SonarQubeMcpServer {
 
     var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization), httpClient);
     return new ServerApi(serverApiHelper);
+  }
+
+  private SonarQubeIdeBridgeClient initializeBridgeClient(McpServerLaunchConfiguration mcpConfiguration) {
+    var bridgeUrl = "http://localhost:" + mcpConfiguration.getSonarQubeIdePort();
+    var httpClient = httpClientProvider.getHttpClientWithoutToken();
+    var bridgeHelper = new ServerApiHelper(new EndpointParams(bridgeUrl, null), httpClient);
+    return new SonarQubeIdeBridgeClient(bridgeHelper);
   }
 
   public void shutdown() {

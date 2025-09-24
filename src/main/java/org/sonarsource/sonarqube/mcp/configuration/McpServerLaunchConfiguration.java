@@ -29,11 +29,13 @@ import static java.util.Objects.requireNonNull;
 public class McpServerLaunchConfiguration {
 
   private static final String APP_NAME = "SonarQube MCP Server";
+
   private static final String STORAGE_PATH = "STORAGE_PATH";
   private static final String SONARQUBE_CLOUD_URL = "SONARQUBE_CLOUD_URL";
   private static final String SONARQUBE_URL = "SONARQUBE_URL";
   private static final String SONARQUBE_ORG = "SONARQUBE_ORG";
   private static final String SONARQUBE_TOKEN = "SONARQUBE_TOKEN";
+  private static final String SONARQUBE_IDE_PORT_ENV = "SONARQUBE_IDE_PORT";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
 
   private final Path storagePath;
@@ -41,6 +43,7 @@ public class McpServerLaunchConfiguration {
   @Nullable
   private final String sonarqubeOrg;
   private final String sonarqubeToken;
+  private final Integer sonarqubeIdePort;
   private final String appVersion;
   private final String userAgent;
   private final boolean isTelemetryEnabled;
@@ -59,6 +62,7 @@ public class McpServerLaunchConfiguration {
     if (sonarqubeToken == null) {
       throw new IllegalArgumentException("SONARQUBE_TOKEN environment variable or property must be set");
     }
+    this.sonarqubeIdePort = parsePortValue(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_IDE_PORT_ENV, null));
 
     this.isSonarCloud = requireNonNull(sonarqubeCloudUrl).equals(this.sonarqubeUrl);
 
@@ -92,6 +96,10 @@ public class McpServerLaunchConfiguration {
 
   public String getSonarQubeToken() {
     return sonarqubeToken;
+  }
+
+  public Integer getSonarQubeIdePort() {
+    return sonarqubeIdePort;
   }
 
   public String getAppVersion() {
@@ -139,6 +147,22 @@ public class McpServerLaunchConfiguration {
       throw new IllegalArgumentException("SonarQube MCP Server version not found");
     }
     return implementationVersion;
+  }
+
+  @CheckForNull
+  private static Integer parsePortValue(@Nullable String portStr) {
+    if (isNullOrBlank(portStr)) {
+      return null;
+    }
+    try {
+      var port = Integer.parseInt(portStr);
+      if (port < 64120 || port > 64130) {
+        throw new IllegalArgumentException("SONARQUBE_IDE_PORT value must be between 64120 and 64130, got: " + port);
+      }
+      return port;
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid SONARQUBE_IDE_PORT value: " + portStr, e);
+    }
   }
 
 }

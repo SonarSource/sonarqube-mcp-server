@@ -235,4 +235,78 @@ class ToolArgumentsTest {
     assertThat(result).isNull();
   }
 
+  @Test
+  void should_return_boolean_when_boolean_argument_is_boolean_true() {
+    var arguments = new Tool.Arguments(Map.of("boolArg", true));
+
+    var result = arguments.getBooleanOrThrow("boolArg");
+
+    assertThat(result).isTrue();
+  }
+
+  @Test
+  void should_return_boolean_when_boolean_argument_is_boolean_false() {
+    var arguments = new Tool.Arguments(Map.of("boolArg", false));
+
+    var result = arguments.getBooleanOrThrow("boolArg");
+
+    assertThat(result).isFalse();
+  }
+
+  @Test
+  void should_parse_string_when_boolean_argument_is_string_true() {
+    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "true"));
+
+    var result = arguments.getBooleanOrThrow("stringBoolArg");
+
+    assertThat(result).isTrue();
+  }
+
+  @Test
+  void should_parse_string_when_boolean_argument_is_string_false() {
+    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "false"));
+
+    var result = arguments.getBooleanOrThrow("stringBoolArg");
+
+    assertThat(result).isFalse();
+  }
+
+  @Test
+  void should_return_false_when_boolean_argument_is_invalid_string() {
+    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "invalid"));
+
+    var result = arguments.getBooleanOrThrow("stringBoolArg");
+
+    assertThat(result).isFalse();
+  }
+
+  @Test
+  void should_throw_exception_when_boolean_argument_is_null() {
+    var argsMap = new HashMap<String, Object>();
+    argsMap.put("nullArg", null);
+    var arguments = new Tool.Arguments(argsMap);
+
+    assertThatThrownBy(() -> arguments.getBooleanOrThrow("nullArg"))
+      .isInstanceOf(MissingRequiredArgumentException.class)
+      .hasMessage("Missing required argument: nullArg");
+  }
+
+  @Test
+  void should_throw_exception_when_boolean_argument_is_missing() {
+    var arguments = new Tool.Arguments(Map.of());
+
+    assertThatThrownBy(() -> arguments.getBooleanOrThrow("missingArg"))
+      .isInstanceOf(MissingRequiredArgumentException.class)
+      .hasMessage("Missing required argument: missingArg");
+  }
+
+  @Test
+  void should_throw_exception_when_boolean_argument_is_wrong_type() {
+    var arguments = new Tool.Arguments(Map.of("intArg", 42));
+
+    assertThatThrownBy(() -> arguments.getBooleanOrThrow("intArg"))
+      .isInstanceOf(MissingRequiredArgumentException.class)
+      .hasMessage("Missing required argument: intArg");
+  }
+
 }

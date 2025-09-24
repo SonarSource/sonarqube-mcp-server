@@ -128,4 +128,31 @@ class McpServerLaunchConfigurationTest {
     assertThat(sonarQubeUrl).isEqualTo("https://sonarcloud.io");
   }
 
+  @Test
+  void should_return_null_if_ide_port_is_not_set(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
+
+    var mcpServerLaunchConfiguration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(mcpServerLaunchConfiguration.getSonarQubeIdePort()).isNull();
+  }
+
+  @Test
+  void should_return_ide_port_if_set(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org", "SONARQUBE_IDE_PORT", "64120");
+
+    var mcpServerLaunchConfiguration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(mcpServerLaunchConfiguration.getSonarQubeIdePort()).isEqualTo(64120);
+  }
+
+  @Test
+  void should_not_return_ide_port_if_out_of_range(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org", "SONARQUBE_IDE_PORT", "70000");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("SONARQUBE_IDE_PORT value must be between 64120 and 64130, got: 70000");
+  }
+
 }

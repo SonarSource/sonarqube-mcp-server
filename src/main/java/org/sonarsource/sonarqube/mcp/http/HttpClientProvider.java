@@ -54,6 +54,10 @@ public class HttpClientProvider {
     return new HttpClientAdapter(httpClient, sonarqubeCloudToken);
   }
 
+  public HttpClient getHttpClientWithoutToken() {
+    return new HttpClientAdapter(httpClient);
+  }
+
   public void shutdown() {
     httpClient.close(CloseMode.IMMEDIATE);
   }
