@@ -50,22 +50,30 @@ public class SonarQubeIdeBridgeClient {
       var response = helper.rawGet(STATUS_PATH);
       return response.isSuccessful();
     } catch (Exception e) {
-      LOG.info("SonarQube for IDE availability check failed");
+      LOG.info("SonarQube for IDE availability check failed, reason: " + e.getMessage());
       return false;
     }
   }
 
-  public Optional<AutomaticAnalysisEnablementResponse> requestAutomaticAnalysisEnablement(boolean enabled) {
+  public AutomaticAnalysisEnablementResponse requestAutomaticAnalysisEnablement(boolean enabled) {
     var url = new UrlBuilder(AUTOMATIC_ANALYSIS_ENABLEMENT_PATH)
       .addParam("enabled", enabled)
       .build();
 
     try (var response = helper.post(url, HttpClient.JSON_CONTENT_TYPE, "")) {
-      var analysisResponse = gson.fromJson(response.bodyAsString(), AutomaticAnalysisEnablementResponse.class);
-      return Optional.of(analysisResponse);
+      if (response.isSuccessful()) {
+        return new AutomaticAnalysisEnablementResponse(true, null);
+      } else {
+        String errorMessage = "Failed to change automatic analysis. Check logs for details.";
+        var errorResponse = gson.fromJson(response.bodyAsString(), AutomaticAnalysisEnablementResponseError.class);
+        if (errorResponse != null && errorResponse.message() != null) {
+          errorMessage = errorResponse.message();
+        }
+        return new AutomaticAnalysisEnablementResponse(false, errorMessage);
+      }
     } catch (Exception e) {
       LOG.error("Error update automatic analysis enablement", e);
-      return Optional.empty();
+      return new AutomaticAnalysisEnablementResponse(false, "Failed to change automatic analysis: " + e.getMessage());
     }
   }
 
@@ -97,7 +105,10 @@ public class SonarQubeIdeBridgeClient {
   ) {
   }
 
-  public record AutomaticAnalysisEnablementResponse(boolean success, String message) {
+  public record AutomaticAnalysisEnablementResponseError(String message) {
+  }
+
+  public record AutomaticAnalysisEnablementResponse(boolean isSuccessful, @Nullable String errorMessage) {
   }
 
 }

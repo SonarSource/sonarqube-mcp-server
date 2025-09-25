@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -79,44 +78,44 @@ class AutomaticAnalysisEnablementToolTests {
     @Test
     void it_should_successfully_enable_automatic_analysis() {
       var successResponse = new SonarQubeIdeBridgeClient.AutomaticAnalysisEnablementResponse(true, "Automatic analysis has been enabled.");
-      when(bridgeClient.requestAutomaticAnalysisEnablement(true)).thenReturn(Optional.of(successResponse));
+      when(bridgeClient.requestAutomaticAnalysisEnablement(true)).thenReturn(successResponse);
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         AutomaticAnalysisEnablementTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Automatic analysis has been enabled.", false));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Successfully updated automatic analysis enablement to true.", false));
     }
 
     @Test
     void it_should_successfully_disable_automatic_analysis() {
       var successResponse = new SonarQubeIdeBridgeClient.AutomaticAnalysisEnablementResponse(true, "Automatic analysis has been disabled.");
-      when(bridgeClient.requestAutomaticAnalysisEnablement(false)).thenReturn(Optional.of(successResponse));
+      when(bridgeClient.requestAutomaticAnalysisEnablement(false)).thenReturn(successResponse);
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         AutomaticAnalysisEnablementTool.ENABLED_PROPERTY, false
       ))).toCallToolResult();
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Automatic analysis has been disabled.", false));
+        .isEqualTo(new McpSchema.CallToolResult("Successfully updated automatic analysis enablement to false.", false));
     }
 
     @Test
     void it_should_handle_unsuccessful_response() {
       var failureResponse = new SonarQubeIdeBridgeClient.AutomaticAnalysisEnablementResponse(false, "Failed to enable automatic analysis.");
-      when(bridgeClient.requestAutomaticAnalysisEnablement(true)).thenReturn(Optional.of(failureResponse));
+      when(bridgeClient.requestAutomaticAnalysisEnablement(true)).thenReturn(failureResponse);
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         AutomaticAnalysisEnablementTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to enable automatic analysis.", false));
+        .isEqualTo(new McpSchema.CallToolResult("Failed to enable automatic analysis.", true));
     }
 
     @Test
     void it_should_return_an_error_if_the_bridge_request_fails() {
-      when(bridgeClient.requestAutomaticAnalysisEnablement(true)).thenReturn(Optional.empty());
+      when(bridgeClient.requestAutomaticAnalysisEnablement(true)).thenReturn(new SonarQubeIdeBridgeClient.AutomaticAnalysisEnablementResponse(false, null));
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         AutomaticAnalysisEnablementTool.ENABLED_PROPERTY, true

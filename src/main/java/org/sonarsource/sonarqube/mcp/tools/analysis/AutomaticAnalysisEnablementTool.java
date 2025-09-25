@@ -46,13 +46,16 @@ public class AutomaticAnalysisEnablementTool extends Tool {
 
     var enabled = arguments.getBooleanOrThrow(ENABLED_PROPERTY);
 
-    var updateResult = bridgeClient.requestAutomaticAnalysisEnablement(enabled);
-    if (updateResult.isEmpty()) {
-      return Result.failure("Failed to update automatic analysis enablement. Check logs for details.");
+    var response = bridgeClient.requestAutomaticAnalysisEnablement(enabled);
+    if (!response.isSuccessful()) {
+      var errorMessage = response.errorMessage();
+      if (errorMessage == null) {
+        errorMessage = "Failed to update automatic analysis enablement. Check logs for details.";
+      }
+      return Result.failure(errorMessage);
     }
 
-    var results = updateResult.get();
-    return Result.success(results.message());
+    return Result.success("Successfully updated automatic analysis enablement to " + enabled + ".");
   }
 
 }

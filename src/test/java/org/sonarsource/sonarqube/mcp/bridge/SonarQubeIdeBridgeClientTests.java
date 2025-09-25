@@ -116,30 +116,20 @@ class SonarQubeIdeBridgeClientTests {
 
       var result = underTest.requestAutomaticAnalysisEnablement(true);
 
-      assertThat(result).isEmpty();
+      assertThat(result.isSuccessful()).isFalse();
+      assertThat(result.errorMessage()).isEqualTo("Failed to change automatic analysis: Server error");
     }
 
     @Test
     void it_should_return_success_when_enablement_succeeds() {
+      when(response.isSuccessful()).thenReturn(true);
       when(helper.post("/sonarlint/api/analysis/automatic/config?enabled=false", HttpClient.JSON_CONTENT_TYPE, ""))
         .thenReturn(response);
-      when(response.bodyAsString()).thenReturn("{\"success\":true,\"message\":\"Analysis disabled\"}");
 
       var result = underTest.requestAutomaticAnalysisEnablement(false);
 
-      assertThat(result).isPresent();
-      assertThat(result.get().success()).isTrue();
-      assertThat(result.get().message()).isEqualTo("Analysis disabled");
-    }
-
-    @Test
-    void it_should_return_empty_when_exception_is_thrown() {
-      when(helper.post("/sonarlint/api/analysis/automatic/config?enabled=true", HttpClient.JSON_CONTENT_TYPE, ""))
-        .thenThrow(new RuntimeException("Network error"));
-
-      var result = underTest.requestAutomaticAnalysisEnablement(true);
-
-      assertThat(result).isEmpty();
+      assertThat(result.isSuccessful()).isTrue();
+      assertThat(result.errorMessage()).isNull();
     }
   }
 

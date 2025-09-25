@@ -45,8 +45,8 @@ public class AnalyzeListFilesTool extends Tool {
       return Result.failure("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.");
     }
 
-    var listFiles = arguments.getOptionalStringList(LIST_FILES_PROPERTY);
-    if (listFiles == null || listFiles.isEmpty()) {
+    var listFiles = arguments.getStringListOrThrow(LIST_FILES_PROPERTY);
+    if (listFiles.isEmpty()) {
       return Result.failure("No files provided to analyze. Please provide a list of file paths using the '" + LIST_FILES_PROPERTY + "' property.");
     }
 
