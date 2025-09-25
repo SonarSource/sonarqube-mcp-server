@@ -96,6 +96,8 @@ public class SonarQubeMcpServer {
       LOG.info("SonarQube for IDE integration is available, enabling related tools.");
       this.supportedTools.add(new AnalyzeListFilesTool(sonarqubeIdeBridgeClient));
       this.supportedTools.add(new AutomaticAnalysisEnablementTool(sonarqubeIdeBridgeClient));
+    } else {
+      this.supportedTools.add(new AnalysisTool(backendService, serverApi));
     }
 
     // SonarQube Server specific tools
@@ -132,7 +134,6 @@ public class SonarQubeMcpServer {
       new ListRuleRepositoriesTool(serverApi),
       new ListQualityGatesTool(serverApi),
       new ListLanguagesTool(serverApi),
-      new AnalysisTool(backendService, serverApi),
       new GetComponentMeasuresTool(serverApi),
       new SearchMetricsTool(serverApi),
       new GetScmInfoTool(serverApi),
