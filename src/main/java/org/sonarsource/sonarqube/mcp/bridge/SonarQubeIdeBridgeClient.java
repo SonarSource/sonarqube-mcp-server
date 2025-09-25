@@ -82,7 +82,7 @@ public class SonarQubeIdeBridgeClient {
     }
   }
 
-  public record AnalyzeListFilesRequest(List<String> fileList) {
+  public record AnalyzeListFilesRequest(List<String> fileAbsolutePaths) {
   }
 
   public record AnalyzeListFilesResponse(List<AnalyzeListFilesIssueResponse> findings) {
