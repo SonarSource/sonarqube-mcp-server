@@ -33,6 +33,7 @@ The user should provide the following environment variables:
 - "Show me the issues in my project"
 - "Find security issues in project X"
 - "List all bugs in my codebase"
+- "Find all blocker issues in my codebase"
 
 **What to do:** Use `search_sonar_issues_in_projects`. You can filter by project, issue type, severity, etc.
 

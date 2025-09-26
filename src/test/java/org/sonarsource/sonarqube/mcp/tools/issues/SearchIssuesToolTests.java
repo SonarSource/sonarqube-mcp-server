@@ -33,14 +33,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SearchIssuesToolTests {
 
   @Nested
-  class WithSonarCloudServer {
+  class WithSonarQubeCloud {
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org").willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
 
@@ -67,22 +66,64 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[]{"project1", "project2"}));
+        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"}));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_filer_by_severity(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2&impactSeverities=HIGH,BLOCKER&organization=org")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"},
+          SearchIssuesTool.SEVERITIES_PROPERTY, new String[] {"HIGH", "BLOCKER"}));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -106,22 +147,23 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
         Map.of(SearchIssuesTool.PAGE_PROPERTY, 2));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -145,20 +187,21 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 1 out of 2 total pages. There is a maximum of 100 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 2 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -182,22 +225,23 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
         Map.of(SearchIssuesTool.PAGE_SIZE_PROPERTY, 20));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 20 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 20 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -221,11 +265,9 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
@@ -234,11 +276,14 @@ class SearchIssuesToolTests {
           SearchIssuesTool.PAGE_SIZE_PROPERTY, 50));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 2 out of 4 total pages. There is a maximum of 50 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 2 out of 4 total pages. There is a maximum of 50 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -262,20 +307,21 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssueWithNullTextRange(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssueWithNullTextRange(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -314,20 +360,62 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[]{"project1", "project2"}));
+        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"}));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_filer_by_severity(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2&impactSeverities=HIGH,BLOCKER")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"},
+          SearchIssuesTool.SEVERITIES_PROPERTY, new String[] {"HIGH", "BLOCKER"}));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -367,8 +455,7 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
@@ -376,11 +463,14 @@ class SearchIssuesToolTests {
         Map.of("pullRequestId", "1"));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -404,22 +494,23 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
         Map.of(SearchIssuesTool.PAGE_PROPERTY, 2));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -443,20 +534,21 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"
-      ));
+        "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 1 out of 2 total pages. There is a maximum of 100 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 2 total pages. There is a maximum of 100 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -480,8 +572,7 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
@@ -489,11 +580,14 @@ class SearchIssuesToolTests {
         Map.of(SearchIssuesTool.PAGE_SIZE_PROPERTY, 20));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 20 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 20 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -517,8 +611,7 @@ class SearchIssuesToolTests {
                 "rules": [],
                 "users": []
               }
-            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
@@ -528,11 +621,14 @@ class SearchIssuesToolTests {
           SearchIssuesTool.PAGE_SIZE_PROPERTY, 50));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 issues.
-          This response is paginated and this is the page 2 out of 4 total pages. There is a maximum of 50 issues per page.
-          Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
-          """.formatted(issueKey, ruleName, projectName).trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 issues.
+            This response is paginated and this is the page 2 out of 4 total pages. There is a maximum of 50 issues per page.
+            Issue key: %s | Rule: %s | Project: %s | Component: com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest | Severity: MINOR | Status: RESOLVED | Message: '3' is a magic number. | Attribute: CLEAR | Category: INTENTIONAL | Author: Developer 1 | Start Line: 2 | End Line: 2 | Created: 2013-05-13T17:55:39+0200
+            """
+            .formatted(issueKey, ruleName, projectName).trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

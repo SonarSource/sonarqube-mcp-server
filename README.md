@@ -493,6 +493,7 @@ When using custom certificates, you can modify your MCP configuration to mount t
 - **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects.
   - `projects` - Optional list of Sonar projects - _String[]_
   - `pullRequestId` - Optional Pull Request's identifier - _String_
+  - `severities` - Optional list of severities to filter by. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER - _String[]_
   - `p` - Optional page number (default: 1) - _Integer_
   - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 

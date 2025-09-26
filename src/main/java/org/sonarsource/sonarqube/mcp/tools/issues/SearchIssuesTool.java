@@ -26,6 +26,7 @@ public class SearchIssuesTool extends Tool {
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
   public static final String PROJECTS_PROPERTY = "projects";
   public static final String PULL_REQUEST_ID_PROPERTY = "pullRequestId";
+  public static final String SEVERITIES_PROPERTY = "severities";
   public static final String PAGE_PROPERTY = "p";
   public static final String PAGE_SIZE_PROPERTY = "ps";
 
@@ -37,6 +38,7 @@ public class SearchIssuesTool extends Tool {
       .setDescription("Search for SonarQube issues in my organization's projects.")
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
+      .addStringProperty(SEVERITIES_PROPERTY, "An optional list of severities to filter by, separated by a comma. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .build());
@@ -47,9 +49,10 @@ public class SearchIssuesTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var projects = arguments.getOptionalStringList(PROJECTS_PROPERTY);
     var pullRequestId = arguments.getOptionalString(PULL_REQUEST_ID_PROPERTY);
+    var severities = arguments.getOptionalStringList(SEVERITIES_PROPERTY);
     var page = arguments.getOptionalInteger(PAGE_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
-    var response = serverApi.issuesApi().search(projects, pullRequestId, page, pageSize);
+    var response = serverApi.issuesApi().search(projects, pullRequestId, severities, page, pageSize);
     return Tool.Result.success(buildResponseFromSearchResponse(response));
   }
 
