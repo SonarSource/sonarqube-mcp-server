@@ -120,6 +120,10 @@ public class BackendService {
     backendFuture.thenAcceptAsync(server -> server.getTelemetryService().toolCalled(new ToolCalledParams(toolName, succeeded)));
   }
 
+  public void notifySonarQubeIdeIntegration() {
+    backendFuture.thenAcceptAsync(server -> server.getTelemetryService().mcpIntegrationEnabled());
+  }
+
   public Path getWorkDir() {
     return Paths.get(System.getProperty("user.home")).resolve(".sonarlint");
   }

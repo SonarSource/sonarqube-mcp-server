@@ -94,6 +94,7 @@ public class SonarQubeMcpServer {
 
     if (sonarqubeIdeBridgeClient.isAvailable()) {
       LOG.info("SonarQube for IDE integration is available, enabling related tools.");
+      backendService.notifySonarQubeIdeIntegration();
       this.supportedTools.add(new AnalyzeFileListTool(sonarqubeIdeBridgeClient));
       this.supportedTools.add(new ToggleAutomaticAnalysisTool(sonarqubeIdeBridgeClient));
     } else {

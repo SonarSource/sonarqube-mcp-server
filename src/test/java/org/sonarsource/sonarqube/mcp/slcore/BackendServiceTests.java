@@ -107,6 +107,13 @@ class BackendServiceTests {
   }
 
   @Test
+  void should_notify_mcp_integration() {
+    service.notifySonarQubeIdeIntegration();
+
+    verify(telemetryRpcService, timeout(1000)).mcpIntegrationEnabled();
+  }
+
+  @Test
   void should_remove_file() {
     var file = URI.create("file:///path/to/file.java");
 
