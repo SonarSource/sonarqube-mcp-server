@@ -213,6 +213,70 @@ The configuration file is located at `~/.copilot/mcp-config.json`.
 
 </details>
 
+<details>
+
+**<summary>Kiro</summary>**
+
+Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if it already exists), add the following configuration:
+
+* To connect with SonarQube Cloud:
+
+```
+{
+  "mcpServers": {
+    "sonarqube": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e", 
+        "SONARQUBE_TOKEN",
+        "-e",
+        "SONARQUBE_ORG",
+        "mcp/sonarqube"
+      ],
+      "env": {
+        "SONARQUBE_TOKEN": "<YOUR_TOKEN>",
+        "SONARQUBE_ORG": "<YOUR_ORG>"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+* To connect with SonarQube Server:
+
+```
+{
+  "mcpServers": {
+    "sonarqube": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e", 
+        "SONARQUBE_TOKEN",
+        "-e",
+        "SONARQUBE_URL",
+        "mcp/sonarqube"
+      ],
+      "env": {
+        "SONARQUBE_TOKEN": "<YOUR_USER_TOKEN>",
+        "SONARQUBE_URL": "<YOUR_SERVER_URL>"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+</details>
+
 ## Manual installation
 
 You can manually install the SonarQube MCP server by copying the following snippet in the MCP servers configuration file:
