@@ -8,21 +8,7 @@ It also supports the analysis of code snippet directly within the agent context.
 
 ## Quick setup
 
-The simplest method is to rely on our Docker image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below for how to build locally.
-
-<details>
-
-**<summary>Cursor</summary>**
-
-* To connect with SonarQube Cloud:
-
-[![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfT1JHIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9PUkciOiI8b3JnPiJ9fQ%3D%3D)
-
-* To connect with SonarQube Server:
-
-[![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfVVJMIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9VUkwiOiI8dXJsPiJ9fQ%3D%3D)
-
-</details>
+The simplest method is to rely on our Docker image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below if you want to build it locally.
 
 <details>
 
@@ -40,26 +26,41 @@ The simplest method is to rely on our Docker image hosted at [mcp/sonarqube](htt
 
 <details>
 
-**<summary>Windsurf</summary>**
+**<summary>Codex CLI</summary>**
 
-SonarQube MCP Server is available as a Windsurf plugin. Follow these instructions:
+In `~/.codex/config.toml`, add the following configuration:
 
-1. Click on the `Plugins` button at the top right of the Cascade view
-2. Search for `sonarqube` on the Plugin store
-3. Click `Install`
-4. Add the required SonarQube token. Then add the organization key if you want to connect with SonarQube Cloud, or the SonarQube URL if you want to connect to SonarQube Server or Community Build.
+* To connect with SonarQube Cloud:
+
+```
+[mcp_servers.sonarqube]
+command = "docker"
+args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"]
+env = { "SONARQUBE_TOKEN" = "<YOUR_USER_TOKEN>", "SONARQUBE_ORG" = "<YOUR_ORG>" }
+```
+
+* To connect with SonarQube Server:
+
+```
+[mcp_servers.sonarqube]
+command = "docker"
+args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_URL", "mcp/sonarqube"]
+env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>" }
+```
 
 </details>
 
 <details>
 
-**<summary>VS Code</summary>**
+**<summary>Cursor</summary>**
 
-You can use the following buttons to simplify the installation process within VS Code.
+* To connect with SonarQube Cloud:
 
-[![Install for SonarQube Cloud](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_ORG%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Organization%20Key%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_ORG%22%3A%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
+[![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfT1JHIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9PUkciOiI8b3JnPiJ9fQ%3D%3D)
 
-[![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
+* To connect with SonarQube Server:
+
+[![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfVVJMIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9VUkwiOiI8dXJsPiJ9fQ%3D%3D)
 
 </details>
 
@@ -85,9 +86,45 @@ Once installed, the extension will be installed under `<home>/.gemini/extensions
 
 <details>
 
+**<summary>GitHub Copilot CLI</summary>**
+
+After starting Copilot CLI, run the following command to add the SonarQube MCP server:
+
+`/mcp add`
+
+You will have to provide different information about the MCP server, you can use tab to navigate between fields.
+
+* To connect with SonarQube Cloud:
+
+```
+Server Name: sonarqube
+Server Type: Local (Press 1)
+Command: docker
+Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
+Environment Variables: SONARQUBE_TOKEN=<YOUR_TOKEN>,SONARQUBE_ORG=<YOUR_ORG>
+Tools: *
+```
+
+* To connect with SonarQube Server:
+
+```
+Server Name: sonarqube
+Server Type: Local (Press 1)
+Command: docker
+Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
+Environment Variables: SONARQUBE_TOKEN=<YOUR_USER_TOKEN>,SONARQUBE_URL=<YOUR_SERVER_URL>
+Tools: *
+```
+
+The configuration file is located at `~/.copilot/mcp-config.json`.
+
+</details>
+
+<details>
+
 **<summary>GitHub Copilot coding agent</summary>**
 
-GitHub Copilot coding agent can leverage the SonarQube MCP server directly in your CI/CD. 
+GitHub Copilot coding agent can leverage the SonarQube MCP server directly in your CI/CD.
 
 To add the secrets to your Copilot environment, follow the Copilot [documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp#setting-up-a-copilot-environment-for-copilot-coding-agent). Only secrets with names prefixed with **COPILOT_MCP_** will be available to your MCP configuration.
 
@@ -153,68 +190,6 @@ In your GitHub repository, navigate under **Settings -> Code & automation -> Cop
 
 <details>
 
-**<summary>Codex CLI</summary>**
-
-In `~/.codex/config.toml`, add the following configuration:
-
-* To connect with SonarQube Cloud:
-
-```
-[mcp_servers.sonarqube]
-command = "docker"
-args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"]
-env = { "SONARQUBE_TOKEN" = "<YOUR_USER_TOKEN>", "SONARQUBE_ORG" = "<YOUR_ORG>" }
-```
-
-* To connect with SonarQube Server:
-
-```
-[mcp_servers.sonarqube]
-command = "docker"
-args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_URL", "mcp/sonarqube"]
-env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>" }
-```
-
-</details>
-
-<details>
-
-**<summary>GitHub Copilot CLI</summary>**
-
-After starting Copilot CLI, run the following command to add the SonarQube MCP server:
-
-`/mcp add`
-
-You will have to provide different information about the MCP server, you can use tab to navigate between fields.
-
-* To connect with SonarQube Cloud:
-
-```
-Server Name: sonarqube
-Server Type: Local (Press 1)
-Command: docker
-Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
-Environment Variables: SONARQUBE_TOKEN=<YOUR_TOKEN>,SONARQUBE_ORG=<YOUR_ORG>
-Tools: *
-```
-
-* To connect with SonarQube Server:
-
-```
-Server Name: sonarqube
-Server Type: Local (Press 1)
-Command: docker
-Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
-Environment Variables: SONARQUBE_TOKEN=<YOUR_USER_TOKEN>,SONARQUBE_URL=<YOUR_SERVER_URL>
-Tools: *
-```
-
-The configuration file is located at `~/.copilot/mcp-config.json`.
-
-</details>
-
-<details>
-
 **<summary>Kiro</summary>**
 
 Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if it already exists), add the following configuration:
@@ -274,6 +249,31 @@ Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if 
   }
 }
 ```
+
+</details>
+
+<details>
+
+**<summary>VS Code</summary>**
+
+You can use the following buttons to simplify the installation process within VS Code.
+
+[![Install for SonarQube Cloud](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_ORG%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Organization%20Key%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_ORG%22%3A%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
+
+[![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
+
+</details>
+
+<details>
+
+**<summary>Windsurf</summary>**
+
+SonarQube MCP Server is available as a Windsurf plugin. Follow these instructions:
+
+1. Click on the `Plugins` button at the top right of the Cascade view
+2. Search for `sonarqube` on the Plugin store
+3. Click `Install`
+4. Add the required SonarQube token. Then add the organization key if you want to connect with SonarQube Cloud, or the SonarQube URL if you want to connect to SonarQube Server or Community Build.
 
 </details>
 
