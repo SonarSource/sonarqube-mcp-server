@@ -277,6 +277,41 @@ SonarQube MCP Server is available as a Windsurf plugin. Follow these instruction
 
 </details>
 
+<details>
+
+**<summary>Zed</summary>**
+
+Navigate to the **Extensions** view in Zed and search for **SonarQube MCP Server**.
+When installing the extension, you will be prompted to provide the necessary environment variables:
+
+* When using SonarQube Cloud:
+
+```
+{
+  "sonarqube_token": "YOUR_SONARQUBE_TOKEN",
+  "sonarqube_org": "SONARQUBE_ORGANIZATION_KEY",
+  "docker_path": "DOCKER_PATH"
+}
+```
+
+* When using SonarQube Server:
+
+```
+{
+  "sonarqube_token": "YOUR_SONARQUBE_USER_TOKEN",
+  "sonarqube_url": "YOUR_SONARQUBE_SERVER_URL",
+  "docker_path": "DOCKER_PATH"
+}
+```
+
+The `docker_path` is the path to a docker executable. Examples:
+
+Linux/macOS: `/usr/bin/docker` or `/usr/local/bin/docker`
+
+Windows: `C:\Program Files\Docker\Docker\resources\bin\docker.exe`
+
+</details>
+
 ## Manual installation
 
 You can manually install the SonarQube MCP server by copying the following snippet in the MCP servers configuration file:
