@@ -10,7 +10,9 @@ It also supports the analysis of code snippet directly within the agent context.
 
 The simplest method is to rely on our Docker image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below for how to build locally.
 
-### Cursor
+<details>
+
+**<summary>Cursor</summary>**
 
 * To connect with SonarQube Cloud:
 
@@ -20,7 +22,11 @@ The simplest method is to rely on our Docker image hosted at [mcp/sonarqube](htt
 
 [![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfVVJMIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9VUkwiOiI8dXJsPiJ9fQ%3D%3D)
 
-### Claude Code
+</details>
+
+<details>
+
+**<summary>Claude Code</summary>**
 
 * To connect with SonarQube Cloud:
 
@@ -30,7 +36,11 @@ The simplest method is to rely on our Docker image hosted at [mcp/sonarqube](htt
 
 `claude mcp add sonarqube --env SONARQUBE_TOKEN=<token> --env SONARQUBE_URL=<url> -- docker run -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_URL mcp/sonarqube`
 
-### Windsurf
+</details>
+
+<details>
+
+**<summary>Windsurf</summary>**
 
 SonarQube MCP Server is available as a Windsurf plugin. Follow these instructions:
 
@@ -39,7 +49,11 @@ SonarQube MCP Server is available as a Windsurf plugin. Follow these instruction
 3. Click `Install`
 4. Add the required SonarQube token. Then add the organization key if you want to connect with SonarQube Cloud, or the SonarQube URL if you want to connect to SonarQube Server or Community Build.
 
-### VS Code
+</details>
+
+<details>
+
+**<summary>VS Code</summary>**
 
 You can use the following buttons to simplify the installation process within VS Code.
 
@@ -47,7 +61,11 @@ You can use the following buttons to simplify the installation process within VS
 
 [![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
 
-### Gemini CLI
+</details>
+
+<details>
+
+**<summary>Gemini CLI</summary>**
 
 You can install our MCP server extension by using the following command:
 
@@ -62,6 +80,76 @@ SONARQUBE_URL="<url>" // For SonarQube Server, empty otherwise
 ```
 
 Once installed, the extension will be installed under `<home>/.gemini/extensions/sonarqube-mcp-server/gemini-extension.json`.
+
+</details>
+
+<details>
+
+**<summary>GitHub Copilot</summary>**
+
+GitHub Copilot coding agent can leverage the SonarQube MCP server directly in your CI/CD. 
+
+In your GitHub repository, navigate under **Settings -> Code & automation -> Copilot -> Coding agent**, and add the following configuration in the MCP configuration section:
+
+* To connect with SonarQube Cloud:
+
+```
+{
+  "mcpServers": {
+    "sonarqube": {
+      "type": "local",
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "SONARQUBE_TOKEN=$SONAR_TOKEN",
+        "-e",
+        "SONARQUBE_ORG=$SONAR_ORG",
+        "mcp/sonarqube"
+      ],
+      "env": {
+        "SONAR_TOKEN": "COPILOT_MCP_SONARQUBE_TOKEN",
+        "SONAR_ORG": "COPILOT_MCP_SONARQUBE_ORG"
+      },
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+* To connect with SonarQube Server:
+
+```
+{
+  "mcpServers": {
+    "sonarqube": {
+      "type": "local",
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "SONARQUBE_TOKEN=$SONAR_TOKEN",
+        "-e",
+        "SONARQUBE_URL=$SONAR_URL",
+        "mcp/sonarqube"
+      ],
+      "env": {
+        "SONAR_TOKEN": "COPILOT_MCP_SONARQUBE_TOKEN",
+        "SONAR_URL": "COPILOT_MCP_SONARQUBE_URL"
+      },
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+Once installed, the extension will be installed under `<home>/.gemini/extensions/sonarqube-mcp-server/gemini-extension.json`.
+
+</details>
 
 ## Manual installation
 
