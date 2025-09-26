@@ -34,9 +34,9 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
-import org.sonarsource.sonarqube.mcp.tools.analysis.AutomaticAnalysisEnablementTool;
+import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalysisTool;
-import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeListFilesTool;
+import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
@@ -94,8 +94,8 @@ public class SonarQubeMcpServer {
 
     if (sonarqubeIdeBridgeClient.isAvailable()) {
       LOG.info("SonarQube for IDE integration is available, enabling related tools.");
-      this.supportedTools.add(new AnalyzeListFilesTool(sonarqubeIdeBridgeClient));
-      this.supportedTools.add(new AutomaticAnalysisEnablementTool(sonarqubeIdeBridgeClient));
+      this.supportedTools.add(new AnalyzeFileListTool(sonarqubeIdeBridgeClient));
+      this.supportedTools.add(new ToggleAutomaticAnalysisTool(sonarqubeIdeBridgeClient));
     } else {
       this.supportedTools.add(new AnalysisTool(backendService, serverApi));
     }

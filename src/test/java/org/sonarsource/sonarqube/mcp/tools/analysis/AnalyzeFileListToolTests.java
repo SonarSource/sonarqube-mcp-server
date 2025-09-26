@@ -32,17 +32,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeListFilesTool.LIST_FILES_PROPERTY;
+import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool.FILE_ABSOLUTE_PATHS_PROPERTY;
 
-class AnalyzeListFilesToolTests {
+class AnalyzeFileListToolTests {
 
   private SonarQubeIdeBridgeClient bridgeClient;
-  private AnalyzeListFilesTool underTest;
+  private AnalyzeFileListTool underTest;
 
   @BeforeEach
   void setUp() {
     bridgeClient = mock(SonarQubeIdeBridgeClient.class);
-    underTest = new AnalyzeListFilesTool(bridgeClient);
+    underTest = new AnalyzeFileListTool(bridgeClient);
   }
 
   @Nested
@@ -52,7 +52,7 @@ class AnalyzeListFilesToolTests {
       when(bridgeClient.isAvailable()).thenReturn(false);
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
-        LIST_FILES_PROPERTY, List.of("file1.java", "file2.java")
+        FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java", "file2.java")
       ))).toCallToolResult();
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.", true));
@@ -69,10 +69,10 @@ class AnalyzeListFilesToolTests {
     @Test
     void it_should_return_failure_when_analysis_fails() {
       when(bridgeClient.isAvailable()).thenReturn(true);
-      when(bridgeClient.requestAnalyzeListFiles(anyList())).thenReturn(Optional.empty());
+      when(bridgeClient.requestAnalyzeFileList(anyList())).thenReturn(Optional.empty());
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
-        LIST_FILES_PROPERTY, List.of("file1.java")
+        FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java")
       ))).toCallToolResult();
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to request analysis of the list of files. Check logs for details.", true));
@@ -81,11 +81,11 @@ class AnalyzeListFilesToolTests {
     @Test
     void it_should_return_success_when_no_issues_found() {
       when(bridgeClient.isAvailable()).thenReturn(true);
-      var emptyResponse = new SonarQubeIdeBridgeClient.AnalyzeListFilesResponse(List.of());
-      when(bridgeClient.requestAnalyzeListFiles(anyList())).thenReturn(Optional.of(emptyResponse));
+      var emptyResponse = new SonarQubeIdeBridgeClient.AnalyzeFileListResponse(List.of());
+      when(bridgeClient.requestAnalyzeFileList(anyList())).thenReturn(Optional.of(emptyResponse));
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
-        LIST_FILES_PROPERTY, List.of("file1.java")
+        FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java")
       ))).toCallToolResult();
 
       assertThat(result.isError()).isFalse();
@@ -98,16 +98,16 @@ class AnalyzeListFilesToolTests {
     void it_should_return_success_with_issues_found() {
       when(bridgeClient.isAvailable()).thenReturn(true);
       var textRange = new TextRange(10, 0, 10, 20);
-      var issue1 = new SonarQubeIdeBridgeClient.AnalyzeListFilesIssueResponse(
+      var issue1 = new SonarQubeIdeBridgeClient.AnalyzeFileListIssueResponse(
         "java:S1234", "Test issue message", "MAJOR", "src/main/java/Test.java", textRange);
-      var issue2 = new SonarQubeIdeBridgeClient.AnalyzeListFilesIssueResponse(
+      var issue2 = new SonarQubeIdeBridgeClient.AnalyzeFileListIssueResponse(
         "java:S5678", "Another issue", "MINOR", "src/main/java/Another.java", null);
       
-      var responseWithIssues = new SonarQubeIdeBridgeClient.AnalyzeListFilesResponse(List.of(issue1, issue2));
-      when(bridgeClient.requestAnalyzeListFiles(anyList())).thenReturn(Optional.of(responseWithIssues));
+      var responseWithIssues = new SonarQubeIdeBridgeClient.AnalyzeFileListResponse(List.of(issue1, issue2));
+      when(bridgeClient.requestAnalyzeFileList(anyList())).thenReturn(Optional.of(responseWithIssues));
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
-        LIST_FILES_PROPERTY, List.of("file1.java", "file2.java")
+        FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java", "file2.java")
       ))).toCallToolResult();
 
       assertThat(result.isError()).isFalse();
@@ -123,17 +123,17 @@ class AnalyzeListFilesToolTests {
     void it_should_limit_issues_display_to_100() {
       when(bridgeClient.isAvailable()).thenReturn(true);
       // Create 150 issues
-      var issues = new ArrayList<SonarQubeIdeBridgeClient.AnalyzeListFilesIssueResponse>();
+      var issues = new ArrayList<SonarQubeIdeBridgeClient.AnalyzeFileListIssueResponse>();
       for (int i = 0; i < 150; i++) {
-        issues.add(new SonarQubeIdeBridgeClient.AnalyzeListFilesIssueResponse(
+        issues.add(new SonarQubeIdeBridgeClient.AnalyzeFileListIssueResponse(
           "java:S" + i, "Issue " + i, "INFO", "file" + i + ".java", null));
       }
       
-      var responseWithManyIssues = new SonarQubeIdeBridgeClient.AnalyzeListFilesResponse(issues);
-      when(bridgeClient.requestAnalyzeListFiles(anyList())).thenReturn(Optional.of(responseWithManyIssues));
+      var responseWithManyIssues = new SonarQubeIdeBridgeClient.AnalyzeFileListResponse(issues);
+      when(bridgeClient.requestAnalyzeFileList(anyList())).thenReturn(Optional.of(responseWithManyIssues));
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
-        LIST_FILES_PROPERTY, List.of("file1.java")
+        FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java")
       ))).toCallToolResult();
 
       assertThat(result.isError()).isFalse();
@@ -147,15 +147,15 @@ class AnalyzeListFilesToolTests {
     @Test
     void it_should_handle_empty_file_list() {
       when(bridgeClient.isAvailable()).thenReturn(true);
-      var emptyResponse = new SonarQubeIdeBridgeClient.AnalyzeListFilesResponse(List.of());
-      when(bridgeClient.requestAnalyzeListFiles(List.of())).thenReturn(Optional.of(emptyResponse));
+      var emptyResponse = new SonarQubeIdeBridgeClient.AnalyzeFileListResponse(List.of());
+      when(bridgeClient.requestAnalyzeFileList(List.of())).thenReturn(Optional.of(emptyResponse));
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
-        LIST_FILES_PROPERTY, List.of()
+        FILE_ABSOLUTE_PATHS_PROPERTY, List.of()
       ))).toCallToolResult();
 
       assertThat(result.isError()).isTrue();
-      assertThat(result.content().getFirst().toString()).contains("No files provided to analyze. Please provide a list of file paths using the '" + LIST_FILES_PROPERTY + "' property.");
+      assertThat(result.content().getFirst().toString()).contains("No files provided to analyze. Please provide a list of file paths using the '" + FILE_ABSOLUTE_PATHS_PROPERTY + "' property.");
     }
   }
 }

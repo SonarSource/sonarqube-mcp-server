@@ -73,13 +73,13 @@ class SonarQubeIdeBridgeClientTests {
   }
 
   @Nested
-  class RequestAnalyzeListFiles {
+  class RequestAnalyzeFileList {
     @Test
     void it_should_return_empty_when_request_fails() {
       when(helper.post("/sonarlint/api/analysis/files", HttpClient.JSON_CONTENT_TYPE, "{\"fileAbsolutePaths\":[\"file1.java\"]}"))
         .thenThrow(new RuntimeException("Server error"));
 
-      var result = underTest.requestAnalyzeListFiles(List.of("file1.java"));
+      var result = underTest.requestAnalyzeFileList(List.of("file1.java"));
 
       assertThat(result).isEmpty();
     }
@@ -90,7 +90,7 @@ class SonarQubeIdeBridgeClientTests {
         .thenReturn(response);
       when(response.bodyAsString()).thenReturn("{\"findings\":[]}");
 
-      var result = underTest.requestAnalyzeListFiles(List.of("file1.java"));
+      var result = underTest.requestAnalyzeFileList(List.of("file1.java"));
 
       assertThat(result).isPresent();
       assertThat(result.get().findings()).isEmpty();
@@ -101,32 +101,32 @@ class SonarQubeIdeBridgeClientTests {
       when(helper.post("/sonarlint/api/analysis/files", HttpClient.JSON_CONTENT_TYPE, "{\"fileAbsolutePaths\":[\"file1.java\"]}"))
         .thenThrow(new RuntimeException("Network error"));
 
-      var result = underTest.requestAnalyzeListFiles(List.of("file1.java"));
+      var result = underTest.requestAnalyzeFileList(List.of("file1.java"));
 
       assertThat(result).isEmpty();
     }
   }
 
   @Nested
-  class RequestAutomaticAnalysisEnablement {
+  class RequestToggleAutomaticAnalysis {
     @Test
     void it_should_return_empty_when_request_fails_with_server_error() {
       when(helper.post("/sonarlint/api/analysis/automatic/config?enabled=true", HttpClient.JSON_CONTENT_TYPE, ""))
         .thenThrow(new RuntimeException("Server error"));
 
-      var result = underTest.requestAutomaticAnalysisEnablement(true);
+      var result = underTest.requestToggleAutomaticAnalysis(true);
 
       assertThat(result.isSuccessful()).isFalse();
-      assertThat(result.errorMessage()).isEqualTo("Failed to change automatic analysis: Server error");
+      assertThat(result.errorMessage()).isEqualTo("Failed to toggle automatic analysis: Server error");
     }
 
     @Test
-    void it_should_return_success_when_enablement_succeeds() {
+    void it_should_return_success_when_toggling_succeeds() {
       when(response.isSuccessful()).thenReturn(true);
       when(helper.post("/sonarlint/api/analysis/automatic/config?enabled=false", HttpClient.JSON_CONTENT_TYPE, ""))
         .thenReturn(response);
 
-      var result = underTest.requestAutomaticAnalysisEnablement(false);
+      var result = underTest.requestToggleAutomaticAnalysis(false);
 
       assertThat(result.isSuccessful()).isTrue();
       assertThat(result.errorMessage()).isNull();

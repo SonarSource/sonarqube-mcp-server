@@ -20,14 +20,14 @@ import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
-public class AutomaticAnalysisEnablementTool extends Tool {
+public class ToggleAutomaticAnalysisTool extends Tool {
 
-  public static final String TOOL_NAME = "automatic_analysis_enablement";
+  public static final String TOOL_NAME = "toggle_automatic_analysis";
   public static final String ENABLED_PROPERTY = "enabled";
 
   private final SonarQubeIdeBridgeClient bridgeClient;
 
-  public AutomaticAnalysisEnablementTool(SonarQubeIdeBridgeClient bridgeClient) {
+  public ToggleAutomaticAnalysisTool(SonarQubeIdeBridgeClient bridgeClient) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setDescription("Enable or disable SonarQube for IDE automatic analysis. " +
@@ -46,16 +46,16 @@ public class AutomaticAnalysisEnablementTool extends Tool {
 
     var enabled = arguments.getBooleanOrThrow(ENABLED_PROPERTY);
 
-    var response = bridgeClient.requestAutomaticAnalysisEnablement(enabled);
+    var response = bridgeClient.requestToggleAutomaticAnalysis(enabled);
     if (!response.isSuccessful()) {
       var errorMessage = response.errorMessage();
       if (errorMessage == null) {
-        errorMessage = "Failed to update automatic analysis enablement. Check logs for details.";
+        errorMessage = "Failed to toggle automatic analysis. Check logs for details.";
       }
       return Result.failure(errorMessage);
     }
 
-    return Result.success("Successfully updated automatic analysis enablement to " + enabled + ".");
+    return Result.success("Successfully toggled automatic analysis to " + enabled + ".");
   }
 
 }

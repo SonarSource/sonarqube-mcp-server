@@ -286,11 +286,11 @@ When using custom certificates, you can modify your MCP configuration to mount t
   - `language` - Optional language of the code snippet - _String_
 
 **When integration with SonarQube for IDE is enabled:**
-- **analyze_list_files** - Analyze files in the current working directory using SonarQube for IDE. This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.
-    - `list_files` - List of absolute file paths to analyze - _Required String[]_
+- **analyze_file_list** - Analyze files in the current working directory using SonarQube for IDE. This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.
+    - `file_absolute_paths` - List of absolute file paths to analyze - _Required String[]_
 
 
-- **automatic_analysis_enablement** - Enable or disable SonarQube for IDE automatic analysis. When enabled, SonarQube for IDE will automatically analyze files as they are modified in the working directory. When disabled, automatic analysis is turned off.
+- **toggle_automatic_analysis** - Enable or disable SonarQube for IDE automatic analysis. When enabled, SonarQube for IDE will automatically analyze files as they are modified in the working directory. When disabled, automatic analysis is turned off.
     - `enabled` - Enable or disable the automatic analysis - _Required Boolean_
 
 ### Dependency Risks

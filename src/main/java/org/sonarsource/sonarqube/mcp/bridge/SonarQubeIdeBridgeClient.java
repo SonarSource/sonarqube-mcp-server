@@ -31,8 +31,8 @@ public class SonarQubeIdeBridgeClient {
 
   private static final McpLogger LOG = McpLogger.getInstance();
 
-  public static final String AUTOMATIC_ANALYSIS_ENABLEMENT_PATH = "/sonarlint/api/analysis/automatic/config";
-  public static final String ANALYZE_LIST_FILES_PATH = "/sonarlint/api/analysis/files";
+  public static final String TOGGLE_AUTOMATIC_ANALYSIS_PATH = "/sonarlint/api/analysis/automatic/config";
+  public static final String ANALYSIS_FILES_PATH = "/sonarlint/api/analysis/files";
   public static final String STATUS_PATH = "/sonarlint/api/status";
 
   private final ServerApiHelper helper;
@@ -55,34 +55,34 @@ public class SonarQubeIdeBridgeClient {
     }
   }
 
-  public AutomaticAnalysisEnablementResponse requestAutomaticAnalysisEnablement(boolean enabled) {
-    var url = new UrlBuilder(AUTOMATIC_ANALYSIS_ENABLEMENT_PATH)
+  public ToggleAutomaticAnalysisResponse requestToggleAutomaticAnalysis(boolean enabled) {
+    var url = new UrlBuilder(TOGGLE_AUTOMATIC_ANALYSIS_PATH)
       .addParam("enabled", enabled)
       .build();
 
     try (var response = helper.post(url, HttpClient.JSON_CONTENT_TYPE, "")) {
       if (response.isSuccessful()) {
-        return new AutomaticAnalysisEnablementResponse(true, null);
+        return new ToggleAutomaticAnalysisResponse(true, null);
       } else {
-        String errorMessage = "Failed to change automatic analysis. Check logs for details.";
-        var errorResponse = gson.fromJson(response.bodyAsString(), AutomaticAnalysisEnablementResponseError.class);
+        String errorMessage = "Failed to toggle automatic analysis. Check logs for details.";
+        var errorResponse = gson.fromJson(response.bodyAsString(), ToggleAutomaticAnalysisResponseError.class);
         if (errorResponse != null && errorResponse.message() != null) {
           errorMessage = errorResponse.message();
         }
-        return new AutomaticAnalysisEnablementResponse(false, errorMessage);
+        return new ToggleAutomaticAnalysisResponse(false, errorMessage);
       }
     } catch (Exception e) {
-      LOG.error("Error update automatic analysis enablement", e);
-      return new AutomaticAnalysisEnablementResponse(false, "Failed to change automatic analysis: " + e.getMessage());
+      LOG.error("Error while toggling automatic analysis", e);
+      return new ToggleAutomaticAnalysisResponse(false, "Failed to toggle automatic analysis: " + e.getMessage());
     }
   }
 
-  public Optional<AnalyzeListFilesResponse> requestAnalyzeListFiles(List<String> filePaths) {
-    var analysisRequest = new AnalyzeListFilesRequest(filePaths);
+  public Optional<AnalyzeFileListResponse> requestAnalyzeFileList(List<String> fileAbsolutePaths) {
+    var analysisRequest = new AnalyzeFileListRequest(fileAbsolutePaths);
     var requestBody = gson.toJson(analysisRequest);
 
-    try (var response = helper.post(ANALYZE_LIST_FILES_PATH, HttpClient.JSON_CONTENT_TYPE, requestBody)) {
-      var analysisResponse = gson.fromJson(response.bodyAsString(), AnalyzeListFilesResponse.class);
+    try (var response = helper.post(ANALYSIS_FILES_PATH, HttpClient.JSON_CONTENT_TYPE, requestBody)) {
+      var analysisResponse = gson.fromJson(response.bodyAsString(), AnalyzeFileListResponse.class);
       return Optional.of(analysisResponse);
     } catch (Exception e) {
       LOG.error("Error requesting file analysis", e);
@@ -90,13 +90,13 @@ public class SonarQubeIdeBridgeClient {
     }
   }
 
-  public record AnalyzeListFilesRequest(List<String> fileAbsolutePaths) {
+  public record AnalyzeFileListRequest(List<String> fileAbsolutePaths) {
   }
 
-  public record AnalyzeListFilesResponse(List<AnalyzeListFilesIssueResponse> findings) {
+  public record AnalyzeFileListResponse(List<AnalyzeFileListIssueResponse> findings) {
   }
 
-  public record AnalyzeListFilesIssueResponse(
+  public record AnalyzeFileListIssueResponse(
     String ruleKey,
     String message,
     @Nullable String severity,
@@ -105,10 +105,10 @@ public class SonarQubeIdeBridgeClient {
   ) {
   }
 
-  public record AutomaticAnalysisEnablementResponseError(String message) {
+  public record ToggleAutomaticAnalysisResponseError(String message) {
   }
 
-  public record AutomaticAnalysisEnablementResponse(boolean isSuccessful, @Nullable String errorMessage) {
+  public record ToggleAutomaticAnalysisResponse(boolean isSuccessful, @Nullable String errorMessage) {
   }
 
 }
