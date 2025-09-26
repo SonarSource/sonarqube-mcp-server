@@ -18,13 +18,26 @@ package org.sonarsource.sonarqube.mcp.harness;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.MappingBuilder;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import java.util.List;
 
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 
 public class MockWebServer {
-  private final WireMockServer mockServer = new WireMockServer(options().dynamicPort());
+  private final WireMockServer mockServer;
+
+  public MockWebServer() {
+    this(options().dynamicPort());
+  }
+
+  public MockWebServer(int port) {
+    this(options().port(port));
+  }
+
+  private MockWebServer(WireMockConfiguration wireMockConfiguration) {
+    this.mockServer = new WireMockServer(wireMockConfiguration);
+  }
 
   public void start() {
     mockServer.start();
@@ -48,4 +61,7 @@ public class MockWebServer {
     return mockServer.baseUrl();
   }
 
+  public int getPort() {
+    return mockServer.port();
+  }
 }

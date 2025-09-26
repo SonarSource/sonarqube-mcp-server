@@ -17,6 +17,10 @@
 package org.sonarsource.sonarqube.mcp;
 
 import java.util.HashMap;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
+import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
@@ -31,8 +35,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SonarQubeMcpServerIdeBridgeTest {
 
+  private MockWebServer mockIdeEmbeddedServer;
+
+  @BeforeEach
+  void prepare() {
+    mockIdeEmbeddedServer = new MockWebServer(64130);
+    mockIdeEmbeddedServer.start();
+  }
+
+  @AfterEach
+  void cleanup() {
+    mockIdeEmbeddedServer.stop();
+  }
+
   @SonarQubeMcpServerTest
   void should_add_bridge_related_tools_when_ide_bridge_is_available(SonarQubeMcpServerTestHarness testHarness) {
+    mockIdeEmbeddedServer.stubFor(get(SonarQubeIdeBridgeClient.STATUS_PATH)
+      .willReturn(aResponse().withStatus(200)));
     testHarness.getMockSonarQubeServer().stubFor(get(SystemApi.STATUS_PATH)
       .willReturn(aResponse().withStatus(200).withBody("""
         {
@@ -44,7 +63,7 @@ class SonarQubeMcpServerIdeBridgeTest {
     var environment = new HashMap<String, String>();
     environment.put("SONARQUBE_URL", testHarness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_TOKEN", "test-token");
-    environment.put("SONARQUBE_IDE_PORT", "64120");
+    environment.put("SONARQUBE_IDE_PORT", Integer.toString(mockIdeEmbeddedServer.getPort()));
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir") + "/test-sonar-storage");
 
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(), environment);
