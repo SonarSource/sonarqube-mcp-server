@@ -85,9 +85,11 @@ Once installed, the extension will be installed under `<home>/.gemini/extensions
 
 <details>
 
-**<summary>GitHub Copilot</summary>**
+**<summary>GitHub Copilot coding agent</summary>**
 
 GitHub Copilot coding agent can leverage the SonarQube MCP server directly in your CI/CD. 
+
+To add the secrets to your Copilot environment, follow the Copilot [documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp#setting-up-a-copilot-environment-for-copilot-coding-agent). Only secrets with names prefixed with **COPILOT_MCP_** will be available to your MCP configuration.
 
 In your GitHub repository, navigate under **Settings -> Code & automation -> Copilot -> Coding agent**, and add the following configuration in the MCP configuration section:
 
@@ -138,7 +140,7 @@ In your GitHub repository, navigate under **Settings -> Code & automation -> Cop
         "mcp/sonarqube"
       ],
       "env": {
-        "SONAR_TOKEN": "COPILOT_MCP_SONARQUBE_TOKEN",
+        "SONAR_TOKEN": "COPILOT_MCP_SONARQUBE_USER_TOKEN",
         "SONAR_URL": "COPILOT_MCP_SONARQUBE_URL"
       },
       "tools": ["*"]
@@ -147,7 +149,31 @@ In your GitHub repository, navigate under **Settings -> Code & automation -> Cop
 }
 ```
 
-Once installed, the extension will be installed under `<home>/.gemini/extensions/sonarqube-mcp-server/gemini-extension.json`.
+</details>
+
+<details>
+
+**<summary>Codex CLI</summary>**
+
+In `~/.codex/config.toml`, add the following configuration:
+
+* To connect with SonarQube Cloud:
+
+```
+[mcp_servers.sonarqube]
+command = "docker"
+args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"]
+env = { "SONARQUBE_TOKEN" = "<YOUR_USER_TOKEN>", "SONARQUBE_ORG" = "<YOUR_ORG>" }
+```
+
+* To connect with SonarQube Server:
+
+```
+[mcp_servers.sonarqube]
+command = "docker"
+args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_URL", "mcp/sonarqube"]
+env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>" }
+```
 
 </details>
 
