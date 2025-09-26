@@ -177,6 +177,42 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>
 
 </details>
 
+<details>
+
+**<summary>GitHub Copilot CLI</summary>**
+
+After starting Copilot CLI, run the following command to add the SonarQube MCP server:
+
+`/mcp add`
+
+You will have to provide different information about the MCP server, you can use tab to navigate between fields.
+
+* To connect with SonarQube Cloud:
+
+```
+Server Name: sonarqube
+Server Type: Local (Press 1)
+Command: docker
+Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
+Environment Variables: SONARQUBE_TOKEN=<YOUR_TOKEN>,SONARQUBE_ORG=<YOUR_ORG>
+Tools: *
+```
+
+* To connect with SonarQube Server:
+
+```
+Server Name: sonarqube
+Server Type: Local (Press 1)
+Command: docker
+Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
+Environment Variables: SONARQUBE_TOKEN=<YOUR_USER_TOKEN>,SONARQUBE_URL=<YOUR_SERVER_URL>
+Tools: *
+```
+
+The configuration file is located at `~/.copilot/mcp-config.json`.
+
+</details>
+
 ## Manual installation
 
 You can manually install the SonarQube MCP server by copying the following snippet in the MCP servers configuration file:
