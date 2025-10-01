@@ -24,6 +24,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -34,9 +35,10 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
-import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
+import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
@@ -49,7 +51,6 @@ import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
-import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemHealthTool;
@@ -59,7 +60,6 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
-import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 public class SonarQubeMcpServer {
@@ -101,29 +101,27 @@ public class SonarQubeMcpServer {
       this.supportedTools.add(new AnalysisTool(backendService, serverApi));
     }
 
-    // SonarQube Server specific tools
-    if (!mcpConfiguration.isSonarCloud()) {
+    // SonarQube Cloud specific tools
+    if (mcpConfiguration.isSonarCloud()) {
+      this.supportedTools.add(new ListEnterprisesTool(serverApi));
+    } else {
+      // SonarQube Server specific tools
       this.supportedTools.addAll(List.of(
         new SystemHealthTool(serverApi),
         new SystemInfoTool(serverApi),
         new SystemLogsTool(serverApi),
         new SystemPingTool(serverApi),
         new SystemStatusTool(serverApi)));
-
-      if (sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
-        if (sonarQubeVersionChecker.isScaEnabled()) {
-          this.supportedTools.add(new SearchDependencyRisksTool(serverApi));
-        } else {
-          LOG.info("Search Dependency Risks tool is not available because Advanced Security is not enabled.");
-        }
-      } else {
-        LOG.info("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
-      }
     }
 
-    // SonarQube Cloud specific tools
-    if (mcpConfiguration.isSonarCloud()) {
-      this.supportedTools.add(new ListEnterprisesTool(serverApi));
+    if (mcpConfiguration.isSonarCloud() || sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
+      if (serverApi.scaApi().getFeatureEnabled().enabled()) {
+        this.supportedTools.add(new SearchDependencyRisksTool(serverApi));
+      } else {
+        LOG.info("Search Dependency Risks tool is not available because Advanced Security is not enabled.");
+      }
+    } else {
+      LOG.info("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
     }
 
     this.supportedTools.addAll(List.of(

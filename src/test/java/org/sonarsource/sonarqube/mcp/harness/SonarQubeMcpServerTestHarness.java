@@ -40,7 +40,7 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
-import org.sonarsource.sonarqube.mcp.serverapi.settings.SettingsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
@@ -62,34 +62,8 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   }
 
   @Override
-  public void beforeEach(ExtensionContext context) throws Exception {
+  public void beforeEach(ExtensionContext context) {
     mockSonarQubeServer.start();
-    mockSonarQubeServer.stubFor(get(PluginsApi.INSTALLED_PLUGINS_PATH).willReturn(okJson("""
-      {
-          "plugins": [
-            {
-              "key": "php",
-              "filename": "sonar-php-plugin-3.45.0.12991.jar",
-              "sonarLintSupported": true
-            }
-          ]
-        }
-      """)));
-    mockSonarQubeServer.stubFor(get(PluginsApi.DOWNLOAD_PLUGINS_PATH + "?plugin=php")
-      .willReturn(aResponse().withBody(Files.readAllBytes(Paths.get("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.45.0.12991.jar")))));
-
-    mockSonarQubeServer.stubFor(get(SettingsApi.SETTINGS_PATH).willReturn(okJson("""
-      {
-        "settings": [
-          {
-            "key": "sonar.sca.enabled",
-            "value": "true",
-            "inherited": false
-          }
-        ],
-        "setSecuredSettings": []
-      }
-      """)));
   }
 
   @Override
@@ -129,20 +103,6 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   }
 
   public SonarQubeMcpTestClient newClient(Map<String, String> overriddenEnv) {
-    if (!overriddenEnv.containsKey("SONARQUBE_ORG")) {
-      var version = "2025.4";
-      if (overriddenEnv.containsKey("SONARQUBE_VERSION")) {
-        version = overriddenEnv.get("SONARQUBE_VERSION");
-      }
-      mockSonarQubeServer.stubFor(get(SystemApi.STATUS_PATH)
-        .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(String.format("""
-      {
-        "id": "20150504120436",
-        "version": "%s",
-        "status": "UP"
-      }""", version).getBytes(StandardCharsets.UTF_8)))));
-    }
     if (overriddenEnv.containsKey("STORAGE_PATH")) {
       tempStoragePath = Paths.get(overriddenEnv.get("STORAGE_PATH"));
     } else {
@@ -164,6 +124,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     environment.put("STORAGE_PATH", tempStoragePath.toString());
     environment.put("SONARQUBE_URL", mockSonarQubeServer.baseUrl());
     environment.putAll(overriddenEnv);
+    prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream),
       environment);
@@ -175,6 +136,51 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     this.clients.add(client);
     this.servers.add(server);
     return new SonarQubeMcpTestClient(client);
+  }
+
+  private void prepareMockWebServer(Map<String, String> environment) {
+    if (!environment.containsKey("SONARQUBE_ORG")) {
+      var version = "2025.4";
+      if (environment.containsKey("SONARQUBE_VERSION")) {
+        version = environment.get("SONARQUBE_VERSION");
+      }
+      mockSonarQubeServer.stubFor(get(SystemApi.STATUS_PATH)
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(String.format("""
+            {
+              "id": "20150504120436",
+              "version": "%s",
+              "status": "UP"
+            }""", version).getBytes(StandardCharsets.UTF_8)))));
+    }
+    mockSonarQubeServer.stubFor(get(PluginsApi.INSTALLED_PLUGINS_PATH).willReturn(okJson("""
+      {
+          "plugins": [
+            {
+              "key": "php",
+              "filename": "sonar-php-plugin-3.45.0.12991.jar",
+              "sonarLintSupported": true
+            }
+          ]
+        }
+      """)));
+    try {
+      mockSonarQubeServer.stubFor(get(PluginsApi.DOWNLOAD_PLUGINS_PATH + "?plugin=php")
+        .willReturn(aResponse().withBody(Files.readAllBytes(Paths.get("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.45.0.12991.jar")))));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    if (!mockSonarQubeServer.isStubConfigured(ScaApi.FEATURE_ENABLED_PATH)) {
+      var v2Prefix = environment.containsKey("SONARQUBE_ORG") ? "" : "/api/v2";
+      var orgParameter = environment.containsKey("SONARQUBE_ORG") ? ("?organization=" + environment.get("SONARQUBE_ORG")) : "";
+      mockSonarQubeServer.stubFor(get(v2Prefix + ScaApi.FEATURE_ENABLED_PATH + orgParameter).willReturn(okJson("""
+        {
+          "enabled": true
+        }
+        """)));
+    }
+
   }
 
   private static void printLogs(McpSchema.LoggingMessageNotification notification) {

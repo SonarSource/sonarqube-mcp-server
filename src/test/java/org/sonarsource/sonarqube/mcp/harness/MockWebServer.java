@@ -57,6 +57,12 @@ public class MockWebServer {
     return mockServer.stubFor(mappingBuilder);
   }
 
+  public boolean isStubConfigured(String path) {
+    return mockServer.listAllStubMappings().getMappings()
+      .stream()
+      .anyMatch(stub -> stub.getRequest().getUrl().contains(path));
+  }
+
   public String baseUrl() {
     return mockServer.baseUrl();
   }

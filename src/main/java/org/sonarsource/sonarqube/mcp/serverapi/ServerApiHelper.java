@@ -115,13 +115,12 @@ public class ServerApiHelper {
       // For SonarQube Server, fall back to regular endpoint
       return buildEndpointUrl(relativePath);
     }
-    
+
     var baseUrl = endpointParams.baseUrl();
     // Transform sonarcloud.io to api.sonarcloud.io
     if (baseUrl.contains("sonarcloud.io")) {
       baseUrl = baseUrl.replace("://sonarcloud.io", "://api.sonarcloud.io");
     }
-    
     return concat(baseUrl, relativePath);
   }
 

@@ -16,13 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
-import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.Version;
 
 public class SonarQubeVersionChecker {
 
-  private static final McpLogger LOG = McpLogger.getInstance();
   // this version does not exist, but it enables us to check for both SQS and SQCB
   private static final Version MINIMAL_SUPPORTED_SONARQUBE_SERVER_VERSION = Version.create("10.9");
 
@@ -47,16 +45,6 @@ public class SonarQubeVersionChecker {
       return version.satisfiesMinRequirement(Version.create(minVersion));
     }
     return false;
-  }
-
-  public boolean isScaEnabled() {
-    try {
-      var settingsResponse = serverApi.settingsApi().getSettings();
-      return settingsResponse.isBooleanSettingEnabled("sonar.sca.enabled");
-    } catch (Exception e) {
-      LOG.error("Failed to check sonar.sca.enabled setting. Assuming SCA is disabled.", e);
-      return false;
-    }
   }
 
 }

@@ -23,6 +23,7 @@ import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
@@ -31,6 +32,7 @@ import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SonarQubeMcpServerIdeBridgeTest {
@@ -59,6 +61,11 @@ class SonarQubeMcpServerIdeBridgeTest {
           "version": "2025.4",
           "status": "UP"
         }""")));
+    testHarness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.FEATURE_ENABLED_PATH).willReturn(okJson("""
+        {
+          "enabled": true
+        }
+        """)));
 
     var environment = new HashMap<String, String>();
     environment.put("SONARQUBE_URL", testHarness.getMockSonarQubeServer().baseUrl());
@@ -84,6 +91,11 @@ class SonarQubeMcpServerIdeBridgeTest {
           "version": "2025.4",
           "status": "UP"
         }""")));
+    testHarness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.FEATURE_ENABLED_PATH).willReturn(okJson("""
+        {
+          "enabled": true
+        }
+        """)));
 
     var environment = new HashMap<String, String>();
     environment.put("SONARQUBE_URL", testHarness.getMockSonarQubeServer().baseUrl());

@@ -25,8 +25,6 @@ import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
-import org.sonarsource.sonarqube.mcp.serverapi.settings.SettingsApi;
-import org.sonarsource.sonarqube.mcp.tools.system.SystemHealthTool;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -39,14 +37,23 @@ class SearchDependencyRisksToolTests {
   class WithSonarCloudServer {
 
     @SonarQubeMcpServerTest
-    void it_should_not_be_available_for_sonarcloud(SonarQubeMcpServerTestHarness harness) {
+    void it_should_not_find_tool_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(ScaApi.FEATURE_ENABLED_PATH + "?organization=org").willReturn(aResponse().withResponseBody(
+        Body.fromJsonBytes("""
+        {
+          "enabled": false
+        }
+        """.getBytes(StandardCharsets.UTF_8))
+      )));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
         "SONARQUBE_ORG", "org"));
 
-      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> mcpClient.callTool(SystemHealthTool.TOOL_NAME));
+      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
+        mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
+      });
 
-      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemHealthTool.TOOL_NAME);
+      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SearchDependencyRisksTool.TOOL_NAME);
     }
   }
 
@@ -55,7 +62,7 @@ class SearchDependencyRisksToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project").willReturn(aResponse().withStatus(403)));
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project").willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
@@ -87,38 +94,10 @@ class SearchDependencyRisksToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_not_find_tool_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(SettingsApi.SETTINGS_PATH).willReturn(aResponse().withResponseBody(
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.FEATURE_ENABLED_PATH).willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
         {
-          "settings": [
-            {
-              "key": "sonar.sca.enabled",
-              "value": "false",
-              "inherited": false
-            }
-          ],
-          "setSecuredSettings": []
-        }
-        """.getBytes(StandardCharsets.UTF_8))
-      )));
-
-      var mcpClient = harness.newClient();
-
-      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
-      });
-
-      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SearchDependencyRisksTool.TOOL_NAME);
-    }
-
-    @SonarQubeMcpServerTest
-    void it_should_not_find_tool_if_sca_setting_is_missing(SonarQubeMcpServerTestHarness harness) {
-      // Mock settings API to return empty settings (no sonar.sca.enabled setting)
-      harness.getMockSonarQubeServer().stubFor(get(SettingsApi.SETTINGS_PATH).willReturn(aResponse().withResponseBody(
-        Body.fromJsonBytes("""
-        {
-          "settings": [],
-          "setSecuredSettings": []
+          "enabled": false
         }
         """.getBytes(StandardCharsets.UTF_8))
       )));
@@ -134,7 +113,7 @@ class SearchDependencyRisksToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_dependency_risks_for_project_key_only(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -165,7 +144,7 @@ class SearchDependencyRisksToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_dependency_risks_with_branch_key(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project&branchKey=feature%2Fnew-feature")
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project&branchKey=feature%2Fnew-feature")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -198,7 +177,7 @@ class SearchDependencyRisksToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_dependency_risks_with_pull_request_key(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project&pullRequestKey=123")
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project&pullRequestKey=123")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -231,7 +210,7 @@ class SearchDependencyRisksToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_handle_empty_dependency_risks_response(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -258,7 +237,7 @@ class SearchDependencyRisksToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_handle_dependency_risks_with_minimal_data(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -289,7 +268,7 @@ class SearchDependencyRisksToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_handle_multiple_dependency_risks(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {

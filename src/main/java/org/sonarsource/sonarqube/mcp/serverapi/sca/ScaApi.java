@@ -21,10 +21,12 @@ import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.sca.response.FeatureEnabledResponse;
 
 public class ScaApi {
 
-  public static final String DEPENDENCY_RISKS_PATH = "/api/v2/sca/issues-releases";
+  public static final String DEPENDENCY_RISKS_PATH = "/sca/issues-releases";
+  public static final String FEATURE_ENABLED_PATH = "/sca/feature-enabled";
 
   private final ServerApiHelper helper;
 
@@ -32,8 +34,21 @@ public class ScaApi {
     this.helper = helper;
   }
 
+  public FeatureEnabledResponse getFeatureEnabled() {
+    var organization = helper.getOrganization();
+    var path = new UrlBuilder(FEATURE_ENABLED_PATH)
+      .addParam("organization", organization)
+      .build();
+    try (var response = organization == null ? helper.get("/api/v2" + path) : helper.getApiSubdomain(path)) {
+      var responseStr = response.bodyAsString();
+      return new Gson().fromJson(responseStr, FeatureEnabledResponse.class);
+    }
+  }
+
   public DependencyRisksResponse getDependencyRisks(String projectKey, @Nullable String branchKey, @Nullable String pullRequestKey) {
-    try (var response = helper.get(buildPath(projectKey, branchKey, pullRequestKey))) {
+    var organization = helper.getOrganization();
+    var path = buildPath(projectKey, branchKey, pullRequestKey);
+    try (var response = organization == null ? helper.get("/api/v2" + path) : helper.getApiSubdomain(path)) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, DependencyRisksResponse.class);
     }
