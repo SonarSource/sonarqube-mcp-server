@@ -694,3 +694,5 @@ This server collects anonymous usage data and sends it to SonarSource to help im
 Copyright 2025 SonarSource.
 
 Licensed under the [SONAR Source-Available License v1.0](https://www.sonarsource.com/license/ssal/). Using the SonarQube MCP Server in compliance with this documentation is a Non-Competitive Purpose and so is allowed under the SSAL.
+
+Your use of SonarQube via MCP is governed by the [SonarQube Cloud Terms of Service](https://www.sonarsource.com/legal/sonarcloud/terms-of-service/) or [SonarQube Server Terms and Conditions](https://www.sonarsource.com/legal/sonarqube/terms-and-conditions/), including use of the Results Data solely for your internal software development purposes.
