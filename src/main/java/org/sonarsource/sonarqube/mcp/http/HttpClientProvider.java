@@ -27,6 +27,10 @@ import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBu
 import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.client5.http.config.RequestConfig;
+import java.net.URL;
+import java.util.concurrent.TimeUnit;
 
 public class HttpClientProvider {
 
@@ -40,12 +44,25 @@ public class HttpClientProvider {
         .setVersionPolicy(HttpVersionPolicy.FORCE_HTTP_1)
         .build())
       .build();
-    this.httpClient = HttpAsyncClients.custom()
+    
+    var httpClientBuilder = HttpAsyncClients.custom()
       .setConnectionManager(asyncConnectionManager)
       .addResponseInterceptorFirst(new RedirectInterceptor())
       .setUserAgent(userAgent)
-      .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider())
-      .build();
+      .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
+    
+    // Configure proxy settings
+    var proxy = configureProxy();
+    if (proxy != null) {
+      var requestConfig = RequestConfig.custom()
+        .setProxy(proxy)
+        .setConnectTimeout(30, TimeUnit.SECONDS)
+        .setResponseTimeout(30, TimeUnit.SECONDS)
+        .build();
+      httpClientBuilder.setDefaultRequestConfig(requestConfig);
+    }
+    
+    this.httpClient = httpClientBuilder.build();
 
     httpClient.start();
   }
@@ -69,6 +86,55 @@ public class HttpClientProvider {
       sslFactoryBuilder.withSystemTrustMaterial();
     }
     return sslFactoryBuilder.build().getSslContext();
+  }
+  
+  private static HttpHost configureProxy() {
+    // Check environment variables first
+    String httpsProxy = System.getenv("HTTPS_PROXY");
+    String httpProxy = System.getenv("HTTP_PROXY");
+    String socksProxy = System.getenv("SOCKS_PROXY");
+    
+    // Prefer HTTPS_PROXY for HTTPS connections
+    String proxyUrl = httpsProxy != null ? httpsProxy : httpProxy;
+    
+    if (proxyUrl != null && !proxyUrl.isEmpty()) {
+      try {
+        URL url = new URL(proxyUrl);
+        // For Apache HttpClient 5, always use "http" as the protocol for HTTP proxies
+        return new HttpHost("http", url.getHost(), url.getPort() > 0 ? url.getPort() : 8080);
+      } catch (Exception e) {
+        // Log error but continue trying other proxy configurations
+      }
+    }
+    
+    // Check for SOCKS proxy (treated as HTTP proxy for Apache HttpClient compatibility)
+    if (socksProxy != null && !socksProxy.isEmpty()) {
+      try {
+        String[] parts = socksProxy.split(":");
+        if (parts.length == 2) {
+          String host = parts[0];
+          int port = Integer.parseInt(parts[1]);
+          return new HttpHost("http", host, port);
+        }
+      } catch (Exception e) {
+        // Log error but continue trying other proxy configurations
+      }
+    }
+    
+    // Fall back to Java system properties
+    String proxyHost = System.getProperty("https.proxyHost");
+    String proxyPortStr = System.getProperty("https.proxyPort");
+    
+    if (proxyHost != null && !proxyHost.isEmpty()) {
+      try {
+        int proxyPort = proxyPortStr != null ? Integer.parseInt(proxyPortStr) : 8080;
+        return new HttpHost("http", proxyHost, proxyPort);
+      } catch (NumberFormatException e) {
+        // Log error but continue
+      }
+    }
+    
+    return null;
   }
 
 }
