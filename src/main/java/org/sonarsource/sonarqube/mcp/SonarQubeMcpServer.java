@@ -114,16 +114,6 @@ public class SonarQubeMcpServer {
         new SystemStatusTool(serverApi)));
     }
 
-    if (mcpConfiguration.isSonarCloud() || sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
-      if (serverApi.scaApi().getFeatureEnabled().enabled()) {
-        this.supportedTools.add(new SearchDependencyRisksTool(serverApi));
-      } else {
-        LOG.info("Search Dependency Risks tool is not available because Advanced Security is not enabled.");
-      }
-    } else {
-      LOG.info("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
-    }
-
     this.supportedTools.addAll(List.of(
       new ChangeIssueStatusTool(serverApi),
       new SearchMyProjectsTool(serverApi),
@@ -139,7 +129,8 @@ public class SonarQubeMcpServer {
       new GetRawSourceTool(serverApi),
       new CreateWebhookTool(serverApi),
       new ListWebhooksTool(serverApi),
-      new ListPortfoliosTool(serverApi)));
+      new ListPortfoliosTool(serverApi),
+      new SearchDependencyRisksTool(serverApi, sonarQubeVersionChecker)));
   }
 
   public void start() {

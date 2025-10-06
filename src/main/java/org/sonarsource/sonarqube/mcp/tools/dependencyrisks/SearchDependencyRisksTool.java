@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 
 import javax.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -30,8 +31,9 @@ public class SearchDependencyRisksTool extends Tool {
   public static final String PULL_REQUEST_KEY_PROPERTY = "pullRequestKey";
 
   private final ServerApi serverApi;
+  private final SonarQubeVersionChecker sonarQubeVersionChecker;
 
-  public SearchDependencyRisksTool(ServerApi serverApi) {
+  public SearchDependencyRisksTool(ServerApi serverApi, SonarQubeVersionChecker sonarQubeVersionChecker) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setDescription("Search for software composition analysis issues (dependency risks) of a SonarQube project, " +
@@ -41,14 +43,21 @@ public class SearchDependencyRisksTool extends Tool {
       .addStringProperty(PULL_REQUEST_KEY_PROPERTY, "The pull request key")
       .build());
     this.serverApi = serverApi;
+    this.sonarQubeVersionChecker = sonarQubeVersionChecker;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
+    if (!serverApi.isSonarQubeCloud() && !sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
+      return Tool.Result.failure("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
+    }
+    if (!serverApi.scaApi().getFeatureEnabled().enabled()) {
+      return Tool.Result.failure("Search Dependency Risks tool is not available because Advanced Security is not enabled.");
+    }
     var projectKey = arguments.getStringOrThrow(PROJECT_KEY_PROPERTY);
     var branchKey = arguments.getOptionalString(BRANCH_KEY_PROPERTY);
     var pullRequestKey = arguments.getOptionalString(PULL_REQUEST_KEY_PROPERTY);
-    
+
     var response = serverApi.scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey);
     return Tool.Result.success(buildResponseFromDependencyRisksResponse(response));
   }
@@ -62,9 +71,9 @@ public class SearchDependencyRisksTool extends Tool {
 
     var stringBuilder = new StringBuilder();
     stringBuilder.append("Found ").append(issuesReleases.size()).append(" dependency risks.\n");
-    
+
     appendPaginationInfo(stringBuilder, response.page());
-    
+
     for (var issueRelease : issuesReleases) {
       appendIssueReleaseInfo(stringBuilder, issueRelease);
     }
@@ -91,7 +100,7 @@ public class SearchDependencyRisksTool extends Tool {
     appendOptionalFields(stringBuilder, issueRelease);
     appendReleaseInfo(stringBuilder, issueRelease.release());
     appendAssigneeInfo(stringBuilder, issueRelease.assignee());
-    
+
     stringBuilder.append(" | Created: ").append(issueRelease.createdAt());
     stringBuilder.append("\n");
   }

@@ -29,7 +29,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SearchDependencyRisksToolTests {
 
@@ -37,23 +36,38 @@ class SearchDependencyRisksToolTests {
   class WithSonarCloudServer {
 
     @SonarQubeMcpServerTest
-    void it_should_not_find_tool_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
+    void it_should_find_tool_even_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(ScaApi.FEATURE_ENABLED_PATH + "?organization=org").willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
-        {
-          "enabled": false
-        }
-        """.getBytes(StandardCharsets.UTF_8))
-      )));
+          {
+            "enabled": false
+          }
+          """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
         "SONARQUBE_ORG", "org"));
 
-      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
-      });
+      assertThat(mcpClient.listTools())
+        .extracting(McpSchema.Tool::name)
+        .contains(SearchDependencyRisksTool.TOOL_NAME);
+    }
 
-      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SearchDependencyRisksTool.TOOL_NAME);
+    @SonarQubeMcpServerTest
+    void it_should_return_an_error_if_the_sca_feature_is_disabled(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(ScaApi.FEATURE_ENABLED_PATH + "?organization=org").willReturn(aResponse().withResponseBody(
+        Body.fromJsonBytes("""
+          {
+            "enabled": false
+          }
+          """.getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available because Advanced Security is not enabled.", true));
     }
   }
 
@@ -85,30 +99,26 @@ class SearchDependencyRisksToolTests {
     void it_should_not_find_tool_if_version_not_sufficient(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of("SONARQUBE_VERSION", "2025.1"));
 
-      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
-      });
+      var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SearchDependencyRisksTool.TOOL_NAME);
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.", true));
     }
 
     @SonarQubeMcpServerTest
-    void it_should_not_find_tool_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
+    void it_should_find_tool_even_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.FEATURE_ENABLED_PATH).willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
-        {
-          "enabled": false
-        }
-        """.getBytes(StandardCharsets.UTF_8))
-      )));
+          {
+            "enabled": false
+          }
+          """.getBytes(StandardCharsets.UTF_8)))));
 
       var mcpClient = harness.newClient();
 
-      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
-      });
-
-      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SearchDependencyRisksTool.TOOL_NAME);
+      assertThat(mcpClient.listTools())
+        .extracting(McpSchema.Tool::name)
+        .contains(SearchDependencyRisksTool.TOOL_NAME);
     }
 
     @SonarQubeMcpServerTest
@@ -126,18 +136,20 @@ class SearchDependencyRisksToolTests {
                 "total": 1
               }
             }
-            """.formatted(generateIssueRelease()).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssueRelease()).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 dependency risks.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-          Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
-          """.trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 dependency risks.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
+            Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
+            """
+            .trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -157,8 +169,7 @@ class SearchDependencyRisksToolTests {
                 "total": 1
               }
             }
-            """.formatted(generateIssueRelease()).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssueRelease()).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(
@@ -166,11 +177,14 @@ class SearchDependencyRisksToolTests {
         SearchDependencyRisksTool.BRANCH_KEY_PROPERTY, "feature/new-feature"));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 dependency risks.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-          Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
-          """.trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 dependency risks.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
+            Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
+            """
+            .trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -190,8 +204,7 @@ class SearchDependencyRisksToolTests {
                 "total": 1
               }
             }
-            """.formatted(generateIssueRelease()).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssueRelease()).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(
@@ -199,11 +212,14 @@ class SearchDependencyRisksToolTests {
         SearchDependencyRisksTool.PULL_REQUEST_KEY_PROPERTY, "123"));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 dependency risks.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-          Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
-          """.trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 dependency risks.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
+            Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
+            """
+            .trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -223,8 +239,7 @@ class SearchDependencyRisksToolTests {
                 "total": 0
               }
             }
-            """.getBytes(StandardCharsets.UTF_8))
-        )));
+            """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
@@ -250,18 +265,20 @@ class SearchDependencyRisksToolTests {
                 "total": 1
               }
             }
-            """.formatted(generateMinimalIssueRelease()).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateMinimalIssueRelease()).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 dependency risks.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-          Issue key: issue-456 | Severity: MEDIUM | Type: PROHIBITED_LICENSE | Quality: MAINTAINABILITY | Status: OPEN | Package: package-name | Version: 2.0.0 | Package Manager: maven | Created: 2024-01-20T14:45:00Z
-          """.trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 1 dependency risks.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
+            Issue key: issue-456 | Severity: MEDIUM | Type: PROHIBITED_LICENSE | Quality: MAINTAINABILITY | Status: OPEN | Package: package-name | Version: 2.0.0 | Package Manager: maven | Created: 2024-01-20T14:45:00Z
+            """
+            .trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -281,19 +298,21 @@ class SearchDependencyRisksToolTests {
                 "total": 2
               }
             }
-            """.formatted(generateIssueRelease(), generateMinimalIssueRelease()).getBytes(StandardCharsets.UTF_8))
-        )));
+            """.formatted(generateIssueRelease(), generateMinimalIssueRelease()).getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 2 dependency risks.
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-          Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
-          Issue key: issue-456 | Severity: MEDIUM | Type: PROHIBITED_LICENSE | Quality: MAINTAINABILITY | Status: OPEN | Package: package-name | Version: 2.0.0 | Package Manager: maven | Created: 2024-01-20T14:45:00Z
-          """.trim(), false));
+        .isEqualTo(new McpSchema.CallToolResult(
+          """
+            Found 2 dependency risks.
+            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
+            Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
+            Issue key: issue-456 | Severity: MEDIUM | Type: PROHIBITED_LICENSE | Quality: MAINTAINABILITY | Status: OPEN | Package: package-name | Version: 2.0.0 | Package Manager: maven | Created: 2024-01-20T14:45:00Z
+            """
+            .trim(),
+          false));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
