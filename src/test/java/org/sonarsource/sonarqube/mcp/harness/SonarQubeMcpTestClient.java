@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.harness;
 
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.List;
 import java.util.Map;
 
 public class SonarQubeMcpTestClient {
@@ -33,6 +34,10 @@ public class SonarQubeMcpTestClient {
 
   public McpSchema.CallToolResult callTool(String toolName, Map<String, Object> arguments) {
     return mcpSyncClient.callTool(new McpSchema.CallToolRequest(toolName, arguments));
+  }
+
+  public List<McpSchema.Tool> listTools() {
+    return mcpSyncClient.listTools().tools();
   }
 
 }
