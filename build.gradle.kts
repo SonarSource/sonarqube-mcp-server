@@ -83,7 +83,7 @@ dependencies {
 	implementation(libs.sonarlint.rpc.impl)
 	implementation(libs.commons.langs3)
 	implementation(libs.commons.text)
-	implementation(libs.sslcontext.kickstart)
+	implementation(libs.ayza)
 	runtimeOnly(libs.logback.classic)
 	testImplementation(platform(libs.junit.bom))
 	testImplementation(libs.junit.jupiter)
