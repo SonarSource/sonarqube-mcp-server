@@ -9,7 +9,7 @@ cyclonedx-plugin = "1.10.0"
 
 sonar-php = "3.45.0.12991"
 
-mcp-server = "0.10.0"
+mcp-server = "0.14.1"
 commons-lang3 = "3.18.0"
 commons-text = "1.13.1"
 sslcontext-kickstart = "9.1.0"

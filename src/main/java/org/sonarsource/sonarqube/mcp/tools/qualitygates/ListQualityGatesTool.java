@@ -31,6 +31,7 @@ public class ListQualityGatesTool extends Tool {
   public ListQualityGatesTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
+      .setTitle("List SonarQube Quality Gates")
       .setDescription("List all quality gates in my SonarQube.")
       .build());
     this.serverApi = serverApi;

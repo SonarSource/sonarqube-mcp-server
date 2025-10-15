@@ -43,11 +43,9 @@ class SystemHealthToolTests {
         "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
         "SONARQUBE_ORG", "org"));
 
-      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(SystemHealthTool.TOOL_NAME);
-      });
+      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> mcpClient.callTool(SystemHealthTool.TOOL_NAME));
 
-      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemHealthTool.TOOL_NAME);
+      assertThat(exception.getMessage()).isEqualTo("Unknown tool: invalid_tool_name");
     }
 
   }

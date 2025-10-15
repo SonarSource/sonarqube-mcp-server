@@ -35,6 +35,7 @@ public class ProjectStatusTool extends Tool {
   public ProjectStatusTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
+      .setTitle("Get SonarQube Project Quality Gate Status")
       .setDescription("""
         Get the Quality Gate Status for the SonarQube project. Either '%s', '%s' or '%s' must be provided.
         """.formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY))
