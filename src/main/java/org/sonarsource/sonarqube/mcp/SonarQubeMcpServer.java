@@ -22,9 +22,13 @@ import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
+import io.modelcontextprotocol.spec.McpServerTransportProvider;
+import io.modelcontextprotocol.spec.McpServerTransportProviderBase;
+import io.modelcontextprotocol.spec.McpStreamableServerTransportProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
@@ -61,30 +65,51 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
+import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 public class SonarQubeMcpServer {
 
   private static final McpLogger LOG = McpLogger.getInstance();
-  private final BackendService backendService;
-  private final ToolExecutor toolExecutor;
-  private final StdioServerTransportProvider transportProvider;
+  private static final String SONARQUBE_MCP_SERVER_NAME = "sonarqube-mcp-server";
+
+  private BackendService backendService;
+  private ToolExecutor toolExecutor;
+  private final HttpServerTransportProvider httpServerManager;
+  private final McpServerTransportProviderBase transportProvider;
   private final List<Tool> supportedTools = new ArrayList<>();
   private final McpServerLaunchConfiguration mcpConfiguration;
-  private final HttpClientProvider httpClientProvider;
-  private final PluginsSynchronizer pluginsSynchronizer;
-  private final SonarQubeVersionChecker sonarQubeVersionChecker;
+  private HttpClientProvider httpClientProvider;
+  private PluginsSynchronizer pluginsSynchronizer;
+  private SonarQubeVersionChecker sonarQubeVersionChecker;
   private McpSyncServer syncServer;
   private volatile boolean isShutdown = false;
   private boolean logFileLocationLogged;
 
   public static void main(String[] args) {
-    new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), System.getenv()).start();
+    new SonarQubeMcpServer(System.getenv()).start();
   }
 
-  public SonarQubeMcpServer(StdioServerTransportProvider transportProvider, Map<String, String> environment) {
-    this.transportProvider = transportProvider;
+  public SonarQubeMcpServer(Map<String, String> environment) {
     this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
+
+    if (mcpConfiguration.isHttpEnabled()) {
+      LOG.info("Starting SonarQube MCP Server with HTTP transport on " + mcpConfiguration.getHttpHost() + ":" + mcpConfiguration.getHttpPort());
+      this.httpServerManager = new HttpServerTransportProvider(
+        mcpConfiguration.getHttpPort(),
+        mcpConfiguration.getHttpHost()
+      );
+      this.transportProvider = httpServerManager.getTransportProvider();
+    } else {
+      LOG.info("Starting SonarQube MCP Server with stdio transport");
+      this.httpServerManager = null;
+      this.transportProvider = new StdioServerTransportProvider(new ObjectMapper());
+    }
+
+    initializeServices();
+  }
+
+  private void initializeServices() {
     this.backendService = new BackendService(mcpConfiguration);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     var serverApi = initializeServerApi(mcpConfiguration);
@@ -136,13 +161,32 @@ public class SonarQubeMcpServer {
 
   public void start() {
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
-    syncServer = McpServer.sync(transportProvider)
-      .serverInfo(new McpSchema.Implementation("sonarqube-mcp-server", mcpConfiguration.getAppVersion()))
-      .instructions("Transform your code quality workflow with SonarQube integration. " +
-        "Analyze code, monitor project health, investigate issues, and understand quality gates.")
-      .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
-      .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
-      .build();
+
+    // Start HTTP server if using HTTP transport
+    if (httpServerManager != null) {
+      LOG.info("Starting HTTP server at " + httpServerManager.getServerUrl());
+      httpServerManager.startServer().join();
+      LOG.info("HTTP server started successfully");
+    }
+
+    // Handle different transport provider types
+    switch (transportProvider) {
+      case McpServerTransportProvider stdioProvider -> syncServer = McpServer.sync(stdioProvider)
+        .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
+        .instructions("Transform your code quality workflow with SonarQube integration. " +
+          "Analyze code, monitor project health, investigate issues, and understand quality gates.")
+        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
+        .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
+        .build();
+      case McpStreamableServerTransportProvider streamableProvider -> syncServer = McpServer.sync(streamableProvider)
+        .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
+        .instructions("Transform your code quality workflow with SonarQube integration. " +
+          "Analyze code, monitor project health, investigate issues, and understand quality gates.")
+        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
+        .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
+        .build();
+      default -> throw new IllegalArgumentException("Unsupported transport provider type: " + transportProvider.getClass().getName());
+    }
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
     backendService.initialize(analyzers);
@@ -152,16 +196,16 @@ public class SonarQubeMcpServer {
   private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
     return new McpServerFeatures.SyncToolSpecification.Builder()
       .tool(tool.definition())
-        .callHandler((exchange, toolRequest) -> {
-          logLogFileLocation(exchange);
-          return toolExecutor.execute(tool, toolRequest);
-        })
+      .callHandler((exchange, toolRequest) -> {
+        logLogFileLocation(exchange);
+        return toolExecutor.execute(tool, toolRequest);
+      })
       .build();
   }
 
   private void logLogFileLocation(McpSyncServerExchange exchange) {
     if (!logFileLocationLogged) {
-      exchange.loggingNotification(new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.INFO, "sonarqube-mcp-server",
+      exchange.loggingNotification(new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.INFO, SONARQUBE_MCP_SERVER_NAME,
         "Logs are redirected to " + mcpConfiguration.getLogFilePath().toAbsolutePath()));
       logFileLocationLogged = true;
     }
@@ -190,6 +234,18 @@ public class SonarQubeMcpServer {
       return;
     }
     isShutdown = true;
+
+    // Stop HTTP server if running
+    if (httpServerManager != null) {
+      try {
+        LOG.info("Stopping HTTP server...");
+        httpServerManager.stopServer().join();
+        LOG.info("HTTP server stopped");
+      } catch (Exception e) {
+        LOG.error("Error shutting down HTTP server", e);
+      }
+    }
+
     try {
       httpClientProvider.shutdown();
     } catch (Exception e) {
@@ -209,7 +265,20 @@ public class SonarQubeMcpServer {
     }
   }
 
-  // Returns the list of supported tools for testing purposes.
+  // Constructor for testing - allows injecting custom transport provider
+  public SonarQubeMcpServer(McpServerTransportProviderBase transportProvider, @Nullable HttpServerTransportProvider httpServerManager, Map<String,
+    String> environment) {
+    this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
+    this.transportProvider = transportProvider;
+    this.httpServerManager = httpServerManager;
+    initializeServices();
+  }
+
+  // Package-private getters for testing
+  McpServerLaunchConfiguration getMcpConfiguration() {
+    return mcpConfiguration;
+  }
+
   public List<Tool> getSupportedTools() {
     return List.copyOf(supportedTools);
   }

@@ -36,7 +36,7 @@ class McpSchemaValidationTest {
 
   private static Stream<Arguments> provideTools() {
     var testEnvironment = createTestEnvironment();
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), testEnvironment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), null, testEnvironment);
     var supportedTools = server.getSupportedTools();
     
     return supportedTools.stream()

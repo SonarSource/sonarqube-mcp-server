@@ -128,7 +128,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new JacksonMcpJsonMapper(new ObjectMapper()), clientToServerInputStream, serverToClientOutputStream),
-      environment);
+      null, environment);
     server.start();
 
     var client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream))
