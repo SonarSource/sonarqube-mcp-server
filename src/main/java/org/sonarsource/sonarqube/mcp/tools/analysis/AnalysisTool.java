@@ -52,6 +52,7 @@ public class AnalysisTool extends Tool {
   public AnalysisTool(BackendService backendService, ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
+      .setTitle("Code File Analysis")
       .setDescription("Analyze a file or code snippet with SonarQube analyzers to identify code quality and security issues. " +
         "Specify the language of the snippet to improve analysis accuracy.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")

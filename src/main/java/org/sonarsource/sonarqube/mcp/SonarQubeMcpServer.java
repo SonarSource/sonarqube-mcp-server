@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -78,7 +79,7 @@ public class SonarQubeMcpServer {
   private boolean logFileLocationLogged;
 
   public static void main(String[] args) {
-    new SonarQubeMcpServer(new StdioServerTransportProvider(), System.getenv()).start();
+    new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), System.getenv()).start();
   }
 
   public SonarQubeMcpServer(StdioServerTransportProvider transportProvider, Map<String, String> environment) {
@@ -137,6 +138,8 @@ public class SonarQubeMcpServer {
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
     syncServer = McpServer.sync(transportProvider)
       .serverInfo(new McpSchema.Implementation("sonarqube-mcp-server", mcpConfiguration.getAppVersion()))
+      .instructions("Transform your code quality workflow with SonarQube integration. " +
+        "Analyze code, monitor project health, investigate issues, and understand quality gates.")
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
       .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
       .build();
@@ -147,12 +150,13 @@ public class SonarQubeMcpServer {
   }
 
   private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
-    return new McpServerFeatures.SyncToolSpecification(
-      tool.definition(),
-      (exchange, argMap) -> {
-        logLogFileLocation(exchange);
-        return toolExecutor.execute(tool, argMap);
-      });
+    return new McpServerFeatures.SyncToolSpecification.Builder()
+      .tool(tool.definition())
+        .callHandler((exchange, toolRequest) -> {
+          logLogFileLocation(exchange);
+          return toolExecutor.execute(tool, toolRequest);
+        })
+      .build();
   }
 
   private void logLogFileLocation(McpSyncServerExchange exchange) {

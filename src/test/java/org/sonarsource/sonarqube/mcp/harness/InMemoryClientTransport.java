@@ -16,7 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.harness;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import io.modelcontextprotocol.json.TypeRef;
+import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -47,6 +48,7 @@ public class InMemoryClientTransport implements McpClientTransport {
   private final Sinks.Many<McpSchema.JSONRPCMessage> inboundSink;
   private final Sinks.Many<McpSchema.JSONRPCMessage> outboundSink;
   private final ObjectMapper objectMapper;
+  private final JacksonMcpJsonMapper mcpJsonMapper;
   private final Scheduler inboundScheduler;
   private final Scheduler outboundScheduler;
   private final Scheduler errorScheduler;
@@ -58,6 +60,7 @@ public class InMemoryClientTransport implements McpClientTransport {
     this.inputStream = inputStream;
     this.outputStream = outputStream;
     this.objectMapper = new ObjectMapper();
+    this.mcpJsonMapper = new JacksonMcpJsonMapper(this.objectMapper);
     this.isClosing = false;
     this.stdErrorHandler = error -> log("STDERR Message received: " + error);
     Assert.notNull(objectMapper, "The ObjectMapper can not be null");
@@ -104,7 +107,7 @@ public class InMemoryClientTransport implements McpClientTransport {
         try {
           while (!this.isClosing && (line = processReader.readLine()) != null) {
             try {
-              McpSchema.JSONRPCMessage message = McpSchema.deserializeJsonRpcMessage(this.objectMapper, line);
+              McpSchema.JSONRPCMessage message = McpSchema.deserializeJsonRpcMessage(this.mcpJsonMapper, line);
               if (!this.inboundSink.tryEmitNext(message).isSuccess()) {
                 if (!this.isClosing) {
                   log("Failed to enqueue inbound message: " + message);
@@ -208,8 +211,9 @@ public class InMemoryClientTransport implements McpClientTransport {
   }
 
   @Override
-  public <T> T unmarshalFrom(Object data, TypeReference<T> typeRef) {
-    return (T) this.objectMapper.convertValue(data, typeRef);
+  public <T> T unmarshalFrom(Object data, TypeRef<T> typeRef) {
+    // Convert TypeRef to TypeReference for Jackson compatibility
+    return this.objectMapper.convertValue(data, this.objectMapper.getTypeFactory().constructType(typeRef.getType()));
   }
 
   private static void log(String message) {

@@ -36,6 +36,7 @@ public class SearchDependencyRisksTool extends Tool {
   public SearchDependencyRisksTool(ServerApi serverApi, SonarQubeVersionChecker sonarQubeVersionChecker) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
+      .setTitle("Search Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a SonarQube project, " +
         "paired with releases that appear in the analyzed project, application, or portfolio.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The project key")

@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import java.util.Map;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
@@ -31,10 +30,10 @@ public class ToolExecutor {
     this.backendService = backendService;
   }
 
-  public McpSchema.CallToolResult execute(Tool tool, Map<String, Object> arguments) {
+  public McpSchema.CallToolResult execute(Tool tool, McpSchema.CallToolRequest toolRequest) {
     Tool.Result result;
     try {
-      result = tool.execute(new Tool.Arguments(arguments));
+      result = tool.execute(new Tool.Arguments(toolRequest.arguments()));
     } catch (Exception e) {
       String message;
       if (e instanceof NotFoundException) {
