@@ -32,6 +32,7 @@ public class ChangeIssueStatusTool extends Tool {
   public ChangeIssueStatusTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
+      .setTitle("Change SonarQube Issue Status")
       .setDescription("""
         Change the status of a Sonar issue. This tool can be used to change the status of an issue to "accept", "falsepositive" or to "reopen" an issue.
         An example request could be: I would like to accept the issue having the key "AX-HMISMFixnZED\"""")

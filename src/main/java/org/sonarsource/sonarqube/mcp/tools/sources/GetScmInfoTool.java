@@ -34,6 +34,7 @@ public class GetScmInfoTool extends Tool {
   public GetScmInfoTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
+      .setTitle("Get SonarQube SCM Information of Source File")
       .setDescription("Get SCM information of SonarQube source files. Require See Source Code permission on file's project")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
       .addBooleanProperty(COMMITS_BY_LINE_PROPERTY, "Group lines by SCM commit if value is false, else display commits for each line (true/false)")

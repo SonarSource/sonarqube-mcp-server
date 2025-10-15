@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,7 @@ class McpSchemaValidationTest {
 
   private static Stream<Arguments> provideTools() {
     var testEnvironment = createTestEnvironment();
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(), testEnvironment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), testEnvironment);
     var supportedTools = server.getSupportedTools();
     
     return supportedTools.stream()
@@ -305,6 +306,11 @@ class McpSchemaValidationTest {
   private void validateMcpToolSchema(McpSchema.Tool schema) {
     assertThat(schema.name())
       .as("Tool name should not be null or empty (MCP spec requirement)")
+      .isNotNull()
+      .isNotEmpty();
+
+    assertThat(schema.title())
+      .as("Tool title should not be null or empty")
       .isNotNull()
       .isNotEmpty();
 

@@ -47,7 +47,7 @@ class SystemInfoToolTests {
         mcpClient.callTool(SystemInfoTool.TOOL_NAME);
       });
 
-      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemInfoTool.TOOL_NAME);
+      assertThat(exception.getMessage()).isEqualTo("Unknown tool: invalid_tool_name");
     }
   }
 

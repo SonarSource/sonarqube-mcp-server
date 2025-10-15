@@ -45,7 +45,7 @@ class SystemPingToolTests {
         mcpClient.callTool(SystemPingTool.TOOL_NAME);
       });
 
-      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + SystemPingTool.TOOL_NAME);
+      assertThat(exception.getMessage()).isEqualTo("Unknown tool: invalid_tool_name");
     }
   }
 

@@ -43,7 +43,8 @@ public class ListPortfoliosTool extends Tool {
 
   private static McpSchema.Tool createToolDefinition(ServerApi serverApi) {
     var builder = new SchemaToolBuilder()
-      .setName(TOOL_NAME);
+      .setName(TOOL_NAME)
+      .setTitle("List SonarQube Portfolios");
       
     if (serverApi.isSonarQubeCloud()) {
       builder.setDescription("List enterprise portfolios available in SonarQube Cloud with filtering and pagination options.")

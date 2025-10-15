@@ -35,6 +35,7 @@ public class GetComponentMeasuresTool extends Tool {
   public GetComponentMeasuresTool(ServerApi serverApi) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
+      .setTitle("Get SonarQube Component Measures")
       .setDescription("Get SonarQube measures for a component (project, directory, file).")
       .addStringProperty(COMPONENT_PROPERTY, "The component key to get measures for")
       .addStringProperty(BRANCH_PROPERTY, "The branch to analyze for measures")

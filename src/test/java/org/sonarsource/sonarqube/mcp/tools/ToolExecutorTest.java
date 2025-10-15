@@ -39,24 +39,24 @@ class ToolExecutorTest {
 
   @Test
   void it_should_register_telemetry_after_the_tool_call_succeeds() {
-    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", null, new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()))) {
+    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of())) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.success("Success!");
       }
-    }, Map.of());
+    }, new McpSchema.CallToolRequest("", Map.of()));
 
     verify(mockBackendService).notifyToolCalled("mcp_tool_name", true);
   }
 
   @Test
   void it_should_register_telemetry_after_the_tool_call_fails() {
-    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", null, new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()))) {
+    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of())) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.failure("Failure!");
       }
-    }, Map.of());
+    }, new McpSchema.CallToolRequest("", Map.of()));
 
     verify(mockBackendService).notifyToolCalled("mcp_tool_name", false);
   }
