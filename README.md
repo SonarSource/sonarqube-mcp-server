@@ -460,6 +460,36 @@ You should add the following variable when running the MCP Server:
 | `STORAGE_PATH`       | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using Docker |
 | `SONARQUBE_IDE_PORT` | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                      |
 
+### HTTP Transport
+
+By default, the SonarQube MCP Server uses stdio transport for communication. You can optionally enable HTTP transport for advanced use cases such as web-based clients or multi-user scenarios:
+
+| Environment variable | Description                                                                                      | Default         |
+|----------------------|--------------------------------------------------------------------------------------------------|-----------------|
+| `SONARQUBE_HTTP_ENABLED`   | Enable HTTP transport mode instead of stdio. Set to `true` to enable HTTP mode.                | `false`         |
+| `SONARQUBE_HTTP_PORT`      | Port number for HTTP server when HTTP transport is enabled (1-65535).                          | `8080`          |
+| `SONARQUBE_HTTP_HOST`      | Host address to bind HTTP server to. Use `127.0.0.1` for localhost only, `0.0.0.0` for all interfaces. | `127.0.0.1`     |
+
+#### HTTP Transport Examples
+
+**Docker with HTTP transport:**
+```bash
+docker run -p 8080:8080 \
+  -e SONARQUBE_HTTP_ENABLED=true \
+  -e SONARQUBE_HTTP_PORT=8080 \
+  -e SONARQUBE_HTTP_HOST=0.0.0.0 \
+  -e SONARQUBE_TOKEN="<token>" \
+  -e SONARQUBE_ORG="<org>" \
+  mcp/sonarqube
+```
+
+The server will be available at `http://127.0.0.1:8080/mcp` and supports:
+- **POST /mcp** - JSON-RPC requests (tool calls, resource requests)
+- **GET /mcp** - Server-Sent Events for streaming notifications
+- **OPTIONS /mcp** - CORS preflight for web clients
+
+**Note:** HTTP transport is designed for advanced integration scenarios. Most users should use the default stdio transport with their MCP client.
+
 #### SonarQube Cloud
 
 To enable full functionality, the following environment variables must be set before starting the server:
