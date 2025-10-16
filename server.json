@@ -1,5 +1,5 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "io.github.SonarSource/sonarqube-mcp-server",
   "description": "An MCP server that enables integration with SonarQube Server or Cloud for code quality and security.",
   "status": "active",
@@ -10,33 +10,33 @@
   "version": "0.0.8",
   "packages": [
     {
-      "registry_type": "oci",
-      "registry_base_url": "https://docker.io",
+      "registryType": "oci",
+      "registryBaseUrl": "https://docker.io",
       "identifier": "mcp/sonarqube",
       "version": "sha256:1f83c5655d462b267414e4b2e81863e3568ab2dc8c5e23ee094f4b1e061cbaf5",
       "transport": {
         "type": "stdio"
       },
-      "environment_variables": [
+      "environmentVariables": [
         {
           "description": "Your SonarQube Server USER token",
-          "is_required": true,
+          "isRequired": true,
           "format": "string",
-          "is_secret": true,
+          "isSecret": true,
           "name": "SONARQUBE_TOKEN"
         },
         {
           "description": "Your SonarQube Cloud organization key (if using SonarQube Cloud)",
-          "is_required": false,
+          "isRequired": false,
           "format": "string",
-          "is_secret": true,
+          "isSecret": true,
           "name": "SONARQUBE_ORG"
         },
         {
           "description": "Your SonarQube Server URL (if using SonarQube Server)",
-          "is_required": false,
+          "isRequired": false,
           "format": "string",
-          "is_secret": true,
+          "isSecret": true,
           "name": "SONARQUBE_URL"
         }
       ]
