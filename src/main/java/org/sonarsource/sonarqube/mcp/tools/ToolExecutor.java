@@ -31,10 +31,17 @@ public class ToolExecutor {
   }
 
   public McpSchema.CallToolResult execute(Tool tool, McpSchema.CallToolRequest toolRequest) {
+    var toolName = tool.definition().name();
+    logger.info("Tool called: " + toolName);
+    
+    var startTime = System.currentTimeMillis();
     Tool.Result result;
     try {
       result = tool.execute(new Tool.Arguments(toolRequest.arguments()));
+      var executionTime = System.currentTimeMillis() - startTime;
+      logger.info("Tool completed: " + toolName + " (execution time: " + executionTime + "ms)");
     } catch (Exception e) {
+      var executionTime = System.currentTimeMillis() - startTime;
       String message;
       if (e instanceof NotFoundException) {
         message = "Make sure your token is valid.";
@@ -42,7 +49,7 @@ public class ToolExecutor {
         message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
       }
       result = Tool.Result.failure("An error occurred during the tool execution: " + message);
-      logger.error("An error occurred during the tool execution", e);
+      logger.error("Tool failed: " + toolName + " (execution time: " + executionTime + "ms)", e);
     }
     backendService.notifyToolCalled("mcp_" + tool.definition().name(), !result.isError());
     return result.toCallToolResult();

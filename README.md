@@ -62,6 +62,18 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>
 
 [![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfVVJMIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9VUkwiOiI8dXJsPiJ9fQ%3D%3D)
 
+* To connect via a remote HTTP server:
+
+```json
+{
+  "mcpServers": {
+    "sonarqube-http": {
+      "url": "<host>:<port>/mcp"
+    }
+  }
+}
+```
+
 </details>
 
 <details>
@@ -459,6 +471,45 @@ You should add the following variable when running the MCP Server:
 |----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `STORAGE_PATH`       | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using Docker |
 | `SONARQUBE_IDE_PORT` | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                      |
+
+### HTTP Transport
+
+By default, the SonarQube MCP Server uses stdio transport for communication. You can optionally enable HTTP transport for advanced use cases such as web-based clients or multi-user scenarios:
+
+| Environment variable | Description                                                                                      | Default         |
+|----------------------|--------------------------------------------------------------------------------------------------|-----------------|
+| `SONARQUBE_HTTP_ENABLED`   | Enable HTTP transport mode instead of stdio. Set to `true` to enable HTTP mode.                | `false`         |
+| `SONARQUBE_HTTP_PORT`      | Port number for HTTP server when HTTP transport is enabled (1-65535).                          | `8080`          |
+| `SONARQUBE_HTTP_HOST`      | Host address to bind HTTP server to. Use `127.0.0.1` for localhost only, `0.0.0.0` for all interfaces. | `127.0.0.1`     |
+
+#### Security
+
+The HTTP transport implementation follows the MCP Streamable HTTP specification and includes important security protections:
+
+**Network Binding:**
+- **Default:** `127.0.0.1` (localhost only) - Recommended for local development
+- **0.0.0.0** (all interfaces) - Only use when you need to accept connections from other machines on your network
+- ⚠️ **Warning:** Binding to `0.0.0.0` exposes your MCP server to your entire network. Only use this if you understand the security implications.
+
+#### HTTP Transport Examples
+
+**Docker with HTTP transport:**
+```bash
+docker run -p 8080:8080 \
+  -e SONARQUBE_HTTP_ENABLED=true \
+  -e SONARQUBE_HTTP_PORT=8080 \
+  -e SONARQUBE_HTTP_HOST="127.0.0.1" \
+  -e SONARQUBE_TOKEN="<token>" \
+  -e SONARQUBE_ORG="<org>" \
+  mcp/sonarqube
+```
+
+The server will be available at `http://127.0.0.1:8080/mcp` and supports:
+- **POST /mcp** - JSON-RPC requests (tool calls, resource requests)
+- **GET /mcp** - Server-Sent Events for streaming notifications
+- **OPTIONS /mcp** - CORS preflight for web clients
+
+**Note:** HTTP transport is designed for advanced integration scenarios. Most users should use the default stdio transport with their MCP client.
 
 #### SonarQube Cloud
 

@@ -14,6 +14,7 @@ commons-lang3 = "3.18.0"
 commons-text = "1.13.1"
 ayza = "10.0.0"
 logback = "1.5.18"
+jetty = "12.1.2"
 
 junit = "5.13.4"
 junit-launcher = "1.13.4"
@@ -35,13 +36,16 @@ commons-text = { module = "org.apache.commons:commons-text", version.ref = "comm
 ayza = { module = "io.github.hakky54:ayza", version.ref = "ayza" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
+jetty-server = { module = "org.eclipse.jetty:jetty-server", version.ref = "jetty" }
+jetty-ee10-servlet = { module = "org.eclipse.jetty.ee10:jetty-ee10-servlet", version.ref = "jetty" }
+
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-launcher" }
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
-wiremock = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
+wiremock-jetty12 = { module = "org.wiremock:wiremock-jetty12", version.ref = "wiremock" }
 
 [bundles]
 sonar-analyzers = ["sonar-php"]
