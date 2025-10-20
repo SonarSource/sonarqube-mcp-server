@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.enterprises;
 
 import com.github.tomakehurst.wiremock.http.Body;
+import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -41,10 +42,9 @@ class ListEnterprisesToolTests {
     void it_should_not_be_available_for_sonarqube_server(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
-      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> 
-        mcpClient.callTool(ListEnterprisesTool.TOOL_NAME));
+      var exception = assertThrows(McpError.class, () -> mcpClient.callTool(ListEnterprisesTool.TOOL_NAME));
 
-      assertThat(exception.getMessage()).isEqualTo("Tool not found: " + ListEnterprisesTool.TOOL_NAME);
+      assertThat(exception.getMessage()).isEqualTo("Unknown tool: invalid_tool_name");
     }
   }
 

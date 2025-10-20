@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,7 +74,7 @@ class SonarQubeMcpServerIdeBridgeTest {
     environment.put("SONARQUBE_IDE_PORT", Integer.toString(mockIdeEmbeddedServer.getPort()));
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir") + "/test-sonar-storage");
 
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(), environment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), environment);
 
     var supportedTools = server.getSupportedTools();
     assertThat(supportedTools)
@@ -102,7 +103,7 @@ class SonarQubeMcpServerIdeBridgeTest {
     environment.put("SONARQUBE_TOKEN", "test-token");
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir") + "/test-sonar-storage");
 
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(), environment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), environment);
 
     var supportedTools = server.getSupportedTools();
     assertThat(supportedTools)

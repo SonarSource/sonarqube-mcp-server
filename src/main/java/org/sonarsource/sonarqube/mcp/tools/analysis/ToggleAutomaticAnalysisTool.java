@@ -30,6 +30,7 @@ public class ToggleAutomaticAnalysisTool extends Tool {
   public ToggleAutomaticAnalysisTool(SonarQubeIdeBridgeClient bridgeClient) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
+      .setTitle("Toggle SonarQube for IDE Automatic Analysis")
       .setDescription("Enable or disable SonarQube for IDE automatic analysis. " +
         "When enabled, SonarQube for IDE will automatically analyze files as they are modified in the working directory. " +
         "When disabled, automatic analysis is turned off.")

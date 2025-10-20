@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
+import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -126,7 +127,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     environment.putAll(overriddenEnv);
     prepareMockWebServer(environment);
 
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), clientToServerInputStream, serverToClientOutputStream),
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new JacksonMcpJsonMapper(new ObjectMapper()), clientToServerInputStream, serverToClientOutputStream),
       environment);
     server.start();
 
