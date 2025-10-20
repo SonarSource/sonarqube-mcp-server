@@ -12,7 +12,7 @@ sonar-php = "3.45.0.12991"
 mcp-server = "0.14.1"
 commons-lang3 = "3.18.0"
 commons-text = "1.13.1"
-sslcontext-kickstart = "9.1.0"
+ayza = "10.0.0"
 logback = "1.5.18"
 
 junit = "5.13.4"
@@ -32,7 +32,7 @@ sonar-php = { module = "org.sonarsource.php:sonar-php-plugin", version.ref = "so
 mcp-server = { module = "io.modelcontextprotocol.sdk:mcp", version.ref = "mcp-server" }
 commons-langs3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
-sslcontext-kickstart = { module = "io.github.hakky54:sslcontext-kickstart", version.ref = "sslcontext-kickstart" }
+ayza = { module = "io.github.hakky54:ayza", version.ref = "ayza" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
