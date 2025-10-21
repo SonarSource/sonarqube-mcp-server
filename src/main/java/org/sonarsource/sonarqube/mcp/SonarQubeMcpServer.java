@@ -246,8 +246,12 @@ public class SonarQubeMcpServer {
   }
 
   private SonarQubeIdeBridgeClient initializeBridgeClient(McpServerLaunchConfiguration mcpConfiguration) {
-    var bridgeUrl = "http://localhost:" + mcpConfiguration.getSonarQubeIdePort();
-    var httpClient = httpClientProvider.getHttpClientWithoutToken();
+    LOG.info("Initializing SonarQube for IDE bridge client...");
+    var host = mcpConfiguration.getAppHost();
+    var port = mcpConfiguration.getSonarQubeIdePort();
+    var bridgeUrl = "http://" + host + ":" + port;
+    LOG.info("Bridge URL: " + bridgeUrl);
+    var httpClient = httpClientProvider.getHttpClientForBridge();
     var bridgeHelper = new ServerApiHelper(new EndpointParams(bridgeUrl, null), httpClient);
     return new SonarQubeIdeBridgeClient(bridgeHelper);
   }

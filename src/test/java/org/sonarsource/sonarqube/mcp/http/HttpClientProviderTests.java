@@ -133,4 +133,30 @@ class HttpClientProviderTests {
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/test")));
   }
 
+  @Test
+  void bridge_client_should_add_host_and_origin_headers_on_get() {
+    var underTest = new HttpClientProvider(USER_AGENT);
+
+    try (var ignored = underTest.getHttpClientForBridge().getAsync(sonarqubeMock.url("/status")).join()) {
+      // nothing
+    }
+
+    sonarqubeMock.verify(getRequestedFor(urlEqualTo("/status"))
+      .withHeader("Host", equalTo("localhost"))
+      .withHeader("Origin", equalTo("http://localhost")));
+  }
+
+  @Test
+  void bridge_client_should_add_host_and_origin_headers_on_post() {
+    var underTest = new HttpClientProvider(USER_AGENT);
+
+    try (var ignored = underTest.getHttpClientForBridge().postAsync(sonarqubeMock.url("/analyze"), "application/json", "{}").join()) {
+      // nothing
+    }
+
+    sonarqubeMock.verify(postRequestedFor(urlEqualTo("/analyze"))
+      .withHeader("Host", equalTo("localhost"))
+      .withHeader("Origin", equalTo("http://localhost")));
+  }
+
 }

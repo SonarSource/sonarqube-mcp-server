@@ -54,7 +54,7 @@ public class HttpClientProvider {
     return new HttpClientAdapter(httpClient, sonarqubeCloudToken);
   }
 
-  public HttpClient getHttpClientWithoutToken() {
+  public HttpClient getHttpClientForBridge() {
     return new HttpClientAdapter(httpClient);
   }
 

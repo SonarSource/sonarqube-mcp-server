@@ -46,11 +46,12 @@ public class SonarQubeIdeBridgeClient {
   }
 
   public boolean isAvailable() {
-    try {
-      var response = helper.rawGet(STATUS_PATH);
+    LOG.info("Checking SonarQube for IDE availability at: " + STATUS_PATH);
+    try (var response = helper.rawGet(STATUS_PATH)) {
+      LOG.info("SonarQube for IDE availability check: " + (response.isSuccessful() ? "available" : "not available"));
       return response.isSuccessful();
     } catch (Exception e) {
-      LOG.info("SonarQube for IDE availability check failed, reason: " + e.getMessage());
+      LOG.info("SonarQube for IDE availability check failed: " + e.getMessage());
       return false;
     }
   }
