@@ -2,18 +2,15 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "io.github.SonarSource/sonarqube-mcp-server",
   "description": "An MCP server that enables integration with SonarQube Server or Cloud for code quality and security.",
-  "status": "active",
   "repository": {
     "url": "https://github.com/SonarSource/sonarqube-mcp-server",
     "source": "github"
   },
-  "version": "0.0.8",
+  "version": "1.0.1",
   "packages": [
     {
       "registryType": "oci",
-      "registryBaseUrl": "https://docker.io",
-      "identifier": "mcp/sonarqube",
-      "version": "sha256:1f83c5655d462b267414e4b2e81863e3568ab2dc8c5e23ee094f4b1e061cbaf5",
+      "identifier": "docker.io/mcp/sonarqube:latest",
       "transport": {
         "type": "stdio"
       },
