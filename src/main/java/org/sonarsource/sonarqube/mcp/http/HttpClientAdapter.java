@@ -30,44 +30,64 @@ import org.apache.hc.core5.http.ContentType;
 class HttpClientAdapter implements HttpClient {
 
   private static final String ORIGIN_HEADER = "Origin";
-  private static final String HOST = "http://localhost";
+  private static final String HOST_HEADER = "Host";
   private static final String AUTHORIZATION_HEADER = "Authorization";
+  private static final String LOCALHOST = "localhost";
+  private static final String LOCALHOST_ORIGIN = "http://localhost";
   private final CloseableHttpAsyncClient apacheClient;
   private final String token;
+  private final boolean isBridgeClient;
 
   HttpClientAdapter(CloseableHttpAsyncClient apacheClient, String sonarqubeCloudToken) {
     this.apacheClient = apacheClient;
     this.token = sonarqubeCloudToken;
+    this.isBridgeClient = false;
   }
 
   HttpClientAdapter(CloseableHttpAsyncClient apacheClient) {
     this.apacheClient = apacheClient;
     this.token = null;
+    this.isBridgeClient = true;
   }
 
   @Override
   public CompletableFuture<Response> postAsync(String url, String contentType, String body) {
-    var request = SimpleRequestBuilder.post(url)
-      .addHeader(ORIGIN_HEADER, HOST)
-      .setBody(body, ContentType.parse(contentType))
-      .build();
-    return executeAsync(request, token);
+    var requestBuilder = SimpleRequestBuilder.post(url)
+      .setBody(body, ContentType.parse(contentType));
+
+    if (isBridgeClient) {
+      requestBuilder
+        .addHeader(HOST_HEADER, LOCALHOST)
+        .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
+    }
+    
+    return executeAsync(requestBuilder.build(), token);
   }
 
   @Override
   public CompletableFuture<Response> getAsync(String url) {
-    return executeAsync(SimpleRequestBuilder
-      .get(url)
-      .addHeader(ORIGIN_HEADER, HOST)
-      .build(), token);
+    var requestBuilder = SimpleRequestBuilder.get(url);
+
+    if (isBridgeClient) {
+      requestBuilder
+        .addHeader(HOST_HEADER, LOCALHOST)
+        .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
+    }
+    
+    return executeAsync(requestBuilder.build(), token);
   }
 
   @Override
   public CompletableFuture<Response> getAsyncAnonymous(String url) {
-    return executeAsync(SimpleRequestBuilder
-      .get(url)
-      .addHeader(ORIGIN_HEADER, HOST)
-      .build(), null);
+    var requestBuilder = SimpleRequestBuilder.get(url);
+
+    if (isBridgeClient) {
+      requestBuilder
+        .addHeader(HOST_HEADER, LOCALHOST)
+        .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
+    }
+    
+    return executeAsync(requestBuilder.build(), null);
   }
 
   private class CompletableFutureWrappingFuture extends CompletableFuture<Response> {

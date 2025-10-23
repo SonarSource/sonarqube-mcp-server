@@ -122,14 +122,20 @@ public class SonarQubeMcpServer {
   }
 
   private void initTools() {
-    var sonarqubeIdeBridgeClient = initializeBridgeClient(mcpConfiguration);
+    boolean useIdeBridge = false;
+    if (!mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeIdePort() != null) {
+      var sonarqubeIdeBridgeClient = initializeBridgeClient(mcpConfiguration);
+      if (sonarqubeIdeBridgeClient.isAvailable()) {
+        LOG.info("SonarQube for IDE integration detected - loading IDE specific tools");
+        backendService.notifySonarQubeIdeIntegration();
+        this.supportedTools.add(new AnalyzeFileListTool(sonarqubeIdeBridgeClient));
+        this.supportedTools.add(new ToggleAutomaticAnalysisTool(sonarqubeIdeBridgeClient));
+        useIdeBridge = true;
+      }
+    }
 
-    if (sonarqubeIdeBridgeClient.isAvailable()) {
-      LOG.info("SonarQube for IDE integration detected - loading IDE specific tools");
-      backendService.notifySonarQubeIdeIntegration();
-      this.supportedTools.add(new AnalyzeFileListTool(sonarqubeIdeBridgeClient));
-      this.supportedTools.add(new ToggleAutomaticAnalysisTool(sonarqubeIdeBridgeClient));
-    } else {
+    // Load standard analysis tool when IDE bridge is not used
+    if (!useIdeBridge) {
       LOG.info("SonarQube for IDE integration not detected - loading standard analysis tool");
       this.supportedTools.add(new AnalysisTool(backendService, serverApi));
     }
@@ -246,8 +252,12 @@ public class SonarQubeMcpServer {
   }
 
   private SonarQubeIdeBridgeClient initializeBridgeClient(McpServerLaunchConfiguration mcpConfiguration) {
-    var bridgeUrl = "http://localhost:" + mcpConfiguration.getSonarQubeIdePort();
-    var httpClient = httpClientProvider.getHttpClientWithoutToken();
+    LOG.info("Initializing SonarQube for IDE bridge client...");
+    var host = mcpConfiguration.getHostMachineAddress();
+    var port = mcpConfiguration.getSonarQubeIdePort();
+    var bridgeUrl = "http://" + host + ":" + port;
+    LOG.info("Bridge URL: " + bridgeUrl);
+    var httpClient = httpClientProvider.getHttpClientForBridge();
     var bridgeHelper = new ServerApiHelper(new EndpointParams(bridgeUrl, null), httpClient);
     return new SonarQubeIdeBridgeClient(bridgeHelper);
   }

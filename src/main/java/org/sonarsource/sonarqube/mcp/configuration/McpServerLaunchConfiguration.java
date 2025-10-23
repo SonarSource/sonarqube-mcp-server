@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.configuration;
 
+import java.net.InetAddress;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -44,6 +45,7 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_HTTP_HOST = "SONARQUBE_HTTP_HOST";
 
   private final Path storagePath;
+  private final String hostMachineAddress;
   private final String sonarqubeUrl;
   @Nullable
   private final String sonarqubeOrg;
@@ -65,6 +67,7 @@ public class McpServerLaunchConfiguration {
       throw new IllegalArgumentException("STORAGE_PATH environment variable or property must be set");
     }
     this.storagePath = Paths.get(storagePathString);
+    this.hostMachineAddress = resolveHostMachineAddress();
     var sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, "https://sonarcloud.io");
     this.sonarqubeUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, sonarqubeCloudUrl);
     this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
@@ -92,6 +95,11 @@ public class McpServerLaunchConfiguration {
   @NotNull
   public Path getStoragePath() {
     return storagePath;
+  }
+
+  @NotNull
+  public String getHostMachineAddress() {
+    return hostMachineAddress;
   }
 
   @NotNull
@@ -204,6 +212,20 @@ public class McpServerLaunchConfiguration {
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid SONARQUBE_HTTP_PORT value: " + portStr, e);
     }
+  }
+
+  /**
+   * Resolves the appropriate host to use for connecting to services on the host machine.
+   * Tries first with host.docker.internal (Windows/macOS), and fallback on localhost
+   */
+  private static String resolveHostMachineAddress() {
+    try {
+      InetAddress.getByName("host.docker.internal");
+      return "host.docker.internal";
+    } catch (Exception e) {
+      // Continue
+    }
+    return "localhost";
   }
 
 }
