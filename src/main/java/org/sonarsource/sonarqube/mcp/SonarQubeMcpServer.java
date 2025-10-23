@@ -28,6 +28,7 @@ import io.modelcontextprotocol.spec.McpStreamableServerTransportProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
@@ -176,23 +177,22 @@ public class SonarQubeMcpServer {
       LOG.info("HTTP server started");
     }
 
-    switch (transportProvider) {
-      case McpServerTransportProvider stdioProvider -> syncServer = McpServer.sync(stdioProvider)
+    Function<Object, McpSyncServer> serverBuilder = provider -> {
+      var builder = switch (provider) {
+        case McpServerTransportProvider p -> McpServer.sync(p);
+        case McpStreamableServerTransportProvider p -> McpServer.sync(p);
+        default -> throw new IllegalArgumentException("Unsupported transport provider type: " + provider.getClass().getName());
+      };
+      return builder
         .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
         .instructions("Transform your code quality workflow with SonarQube integration. " +
           "Analyze code, monitor project health, investigate issues, and understand quality gates.")
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
         .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
         .build();
-      case McpStreamableServerTransportProvider streamableProvider -> syncServer = McpServer.sync(streamableProvider)
-        .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
-        .instructions("Transform your code quality workflow with SonarQube integration. " +
-          "Analyze code, monitor project health, investigate issues, and understand quality gates.")
-        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
-        .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
-        .build();
-      default -> throw new IllegalArgumentException("Unsupported transport provider type: " + transportProvider.getClass().getName());
-    }
+    };
+
+    syncServer = serverBuilder.apply(transportProvider);
 
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
