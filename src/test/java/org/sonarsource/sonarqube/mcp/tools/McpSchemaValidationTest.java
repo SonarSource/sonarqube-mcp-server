@@ -16,218 +16,225 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.jetbrains.annotations.Nullable;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
-import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpSchemaValidationTest {
 
-  private static Stream<Arguments> provideTools() {
-    var testEnvironment = createTestEnvironment();
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), testEnvironment);
-    var supportedTools = server.getSupportedTools();
+  @SonarQubeMcpServerTest
+  void tool_schema_should_be_valid_according_to_mcp_spec(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
     
-    return supportedTools.stream()
-      .map(Arguments::of);
-  }
-
-  private static Map<String, String> createTestEnvironment() {
-    return Map.of(
-      "SONARQUBE_URL", "https://foo.bar",
-      "SONARQUBE_TOKEN", "test-token",
-      "SONARQUBE_ORG", "test-org",
-      "STORAGE_PATH", "fake"
-    );
-  }
-
-  static List<Tool> getAllTools() {
-    return provideTools()
-      .map(args -> (Tool) args.get()[0])
-      .toList();
-  }
-
-  @ParameterizedTest(name = "Tool ''{0}'' should have a valid MCP schema")
-  @MethodSource("provideTools")
-  void tool_schema_should_be_valid_according_to_mcp_spec(Tool tool) {
-    var schema = tool.definition();
-    validateMcpToolSchema(schema);
+    for (var schema : tools) {
+      validateMcpToolSchema(schema);
+    }
   }
 
   // there is no constraint in the spec, but some clients may filter out some tools when the name is too long
   // e.g. for Cursor when length(server name + tool name) > 60
   // we decide 40 characters is a reasonable threshold
-  @ParameterizedTest(name = "Tool ''{0}'' name should be short")
-  @MethodSource("provideTools")
-  void tool_name_should_be_short(Tool tool) {
-    var toolNameLength = tool.definition().name().length();
-
-    assertThat(toolNameLength).isLessThanOrEqualTo(40);
-  }
-
-  @ParameterizedTest(name = "Tool ''{0}'' should follow MCP naming convention")
-  @MethodSource("provideTools")
-  void tool_name_should_follow_mcp_naming_convention(Tool tool) {
-    assertThat(tool.definition().name())
-      .as("Tool name should not be null or empty")
-      .isNotNull()
-      .isNotEmpty()
-      .as("Tool name should follow snake_case convention (lowercase letters, numbers, underscores)")
-      .matches("^[a-z][a-z0-9_]*[a-z0-9]$")
-      .as("Tool name should not start or end with underscore")
-      .doesNotStartWith("_")
-      .doesNotEndWith("_");
-  }
-
-  @ParameterizedTest(name = "Tool ''{0}'' should follow MCP naming convention")
-  @MethodSource("provideTools")
-  void tool_name_should_follow_telemetry_requirements(Tool tool) {
-    assertThat(tool.definition().name())
-      .as("Tool name should match the required regex pattern")
-      .matches("^[a-z_][a-z0-9_]{1,126}$");
-  }
-
-  @ParameterizedTest(name = "Tool ''{0}'' should have meaningful description")
-  @MethodSource("provideTools")
-  void tool_description_should_be_meaningful(Tool tool) {
-    var description = tool.definition().description();
-
-    assertThat(description)
-      .as("Tool description should not be null or empty")
-      .isNotNull()
-      .isNotEmpty();
+  @SonarQubeMcpServerTest
+  void tool_name_should_be_short(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
     
-    assertThat(description.length())
-      .as("Tool description should be meaningful (at least 10 characters)")
-      .isGreaterThanOrEqualTo(10);
-
-    assertThat(description.toLowerCase())
-      .as("Tool description should not just be the tool name")
-      .isNotEqualTo(tool.definition().name().toLowerCase().replace("_", " "));
-  }
-
-  @ParameterizedTest(name = "Tool ''{0}'' should have valid JSON Schema structure")
-  @MethodSource("provideTools")
-  void tool_input_schema_should_be_valid_json_schema(Tool tool) {
-    var schema = tool.definition();
-    var inputSchema = schema.inputSchema();
-
-    assertThat(inputSchema)
-      .as("Input schema should not be null")
-      .isNotNull();
-    
-    assertThat(inputSchema.type())
-      .as("Input schema type should be 'object' for MCP tools")
-      .isEqualTo("object");
-    
-    if (inputSchema.properties() != null) {
-      validateJsonSchemaProperties(inputSchema.properties(), schema.name());
-    }
-    
-    if (inputSchema.required() != null) {
-      validateRequiredProperties(inputSchema.required(), inputSchema.properties(), schema.name());
+    for (var tool : tools) {
+      var toolNameLength = tool.name().length();
+      assertThat(toolNameLength).as("Tool '%s' name should be short", tool.name()).isLessThanOrEqualTo(40);
     }
   }
 
-  @ParameterizedTest(name = "Tool ''{0}'' required properties should exist in properties")
-  @MethodSource("provideTools")
-  void required_properties_should_exist_in_properties(Tool tool) {
-    var schema = tool.definition();
-    var inputSchema = schema.inputSchema();
+  @SonarQubeMcpServerTest
+  void tool_name_should_follow_mcp_naming_convention(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
     
-    if (inputSchema.required() != null && inputSchema.properties() != null) {
-      var propertyNames = inputSchema.properties().keySet();
+    for (var tool : tools) {
+      assertThat(tool.name())
+        .as("Tool '%s' name should not be null or empty", tool.name())
+        .isNotNull()
+        .isNotEmpty()
+        .as("Tool '%s' name should follow snake_case convention (lowercase letters, numbers, underscores)", tool.name())
+        .matches("^[a-z][a-z0-9_]*[a-z0-9]$")
+        .as("Tool '%s' name should not start or end with underscore", tool.name())
+        .doesNotStartWith("_")
+        .doesNotEndWith("_");
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void tool_name_should_follow_telemetry_requirements(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
+    
+    for (var tool : tools) {
+      assertThat(tool.name())
+        .as("Tool '%s' name should match the required regex pattern", tool.name())
+        .matches("^[a-z_][a-z0-9_]{1,126}$");
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void tool_description_should_be_meaningful(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
+    
+    for (var tool : tools) {
+      var description = tool.description();
+
+      assertThat(description)
+        .as("Tool '%s' description should not be null or empty", tool.name())
+        .isNotNull()
+        .isNotEmpty();
       
-      for (var requiredProperty : inputSchema.required()) {
-        assertThat(propertyNames)
-          .as("Required property '%s' should exist in properties for tool '%s'", requiredProperty, schema.name())
-          .contains(requiredProperty);
+      assertThat(description.length())
+        .as("Tool '%s' description should be meaningful (at least 10 characters)", tool.name())
+        .isGreaterThanOrEqualTo(10);
+
+      assertThat(description.toLowerCase())
+        .as("Tool '%s' description should not just be the tool name", tool.name())
+        .isNotEqualTo(tool.name().toLowerCase().replace("_", " "));
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void tool_input_schema_should_be_valid_json_schema(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
+    
+    for (var schema : tools) {
+      var inputSchema = schema.inputSchema();
+
+      assertThat(inputSchema)
+        .as("Input schema should not be null for tool '%s'", schema.name())
+        .isNotNull();
+      
+      assertThat(inputSchema.type())
+        .as("Input schema type should be 'object' for MCP tool '%s'", schema.name())
+        .isEqualTo("object");
+      
+      if (inputSchema.properties() != null) {
+        validateJsonSchemaProperties(inputSchema.properties(), schema.name());
+      }
+      
+      if (inputSchema.required() != null) {
+        validateRequiredProperties(inputSchema.required(), inputSchema.properties(), schema.name());
       }
     }
   }
 
-  @ParameterizedTest(name = "Tool ''{0}'' required properties should not contain duplicates")
-  @MethodSource("provideTools")
-  void required_properties_should_not_contain_duplicates(Tool tool) {
-    var schema = tool.definition();
-    var inputSchema = schema.inputSchema();
-    if (inputSchema.required() != null) {
-      var requiredProperties = inputSchema.required();
-      var uniqueRequiredProperties = Set.copyOf(requiredProperties);
-
-      assertThat(uniqueRequiredProperties)
-        .as("Required properties should not contain duplicates for tool '%s'", schema.name())
-        .hasSize(requiredProperties.size());
+  @SonarQubeMcpServerTest
+  void required_properties_should_exist_in_properties(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
+    
+    for (var schema : tools) {
+      var inputSchema = schema.inputSchema();
+      
+      if (inputSchema.required() != null && inputSchema.properties() != null) {
+        var propertyNames = inputSchema.properties().keySet();
+        
+        for (var requiredProperty : inputSchema.required()) {
+          assertThat(propertyNames)
+            .as("Required property '%s' should exist in properties for tool '%s'", requiredProperty, schema.name())
+            .contains(requiredProperty);
+        }
+      }
     }
   }
 
-  @ParameterizedTest(name = "Tool ''{0}'' property descriptions should be meaningful")
-  @MethodSource("provideTools")
-  void property_descriptions_should_be_meaningful(Tool tool) {
-    var schema = tool.definition();
-    var inputSchema = schema.inputSchema();
+  @SonarQubeMcpServerTest
+  void required_properties_should_not_contain_duplicates(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
     
-    if (inputSchema.properties() != null) {
-      for (var property : inputSchema.properties().entrySet()) {
-        if (property.getValue() instanceof Map<?, ?> propertyDef) {
-          var description = propertyDef.get("description");
-          
-          assertThat(description)
-            .as("Property '%s' in tool '%s' should have a description", property.getKey(), schema.name())
-            .isNotNull();
-          
-          if (description instanceof String descStr) {
-            assertThat(descStr)
-              .as("Property '%s' description in tool '%s' should not be empty", property.getKey(), schema.name())
-              .isNotEmpty();
-            assertThat(descStr.length())
-              .as("Property '%s' description in tool '%s' should be meaningful (at least 5 characters)", property.getKey(), schema.name())
-              .isGreaterThanOrEqualTo(5);
+    for (var schema : tools) {
+      var inputSchema = schema.inputSchema();
+      if (inputSchema.required() != null) {
+        var requiredProperties = inputSchema.required();
+        var uniqueRequiredProperties = Set.copyOf(requiredProperties);
+
+        assertThat(uniqueRequiredProperties)
+          .as("Required properties should not contain duplicates for tool '%s'", schema.name())
+          .hasSize(requiredProperties.size());
+      }
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void property_descriptions_should_be_meaningful(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
+    
+    for (var schema : tools) {
+      var inputSchema = schema.inputSchema();
+      
+      if (inputSchema.properties() != null) {
+        for (var property : inputSchema.properties().entrySet()) {
+          if (property.getValue() instanceof Map<?, ?> propertyDef) {
+            var description = propertyDef.get("description");
+            
+            assertThat(description)
+              .as("Property '%s' in tool '%s' should have a description", property.getKey(), schema.name())
+              .isNotNull();
+            
+            if (description instanceof String descStr) {
+              assertThat(descStr)
+                .as("Property '%s' description in tool '%s' should not be empty", property.getKey(), schema.name())
+                .isNotEmpty();
+              assertThat(descStr.length())
+                .as("Property '%s' description in tool '%s' should be meaningful (at least 5 characters)", property.getKey(), schema.name())
+                .isGreaterThanOrEqualTo(5);
+            }
           }
         }
       }
     }
   }
 
-  @ParameterizedTest(name = "Tool ''{0}'' enum properties should have valid items")
-  @MethodSource("provideTools")
-  void enum_properties_should_have_valid_items(Tool tool) {
-    var schema = tool.definition();
-    var inputSchema = schema.inputSchema();
+  @SonarQubeMcpServerTest
+  void enum_properties_should_have_valid_items(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
     
-    if (inputSchema.properties() != null) {
-      for (var property : inputSchema.properties().entrySet()) {
-        if (property.getValue() instanceof Map<?, ?> propertyDef) {
-          var type = propertyDef.get("type");
-          var items = propertyDef.get("items");
-          
-          if ("array".equals(type) && items instanceof Map<?, ?> itemsDef) {
-            var enumValues = itemsDef.get("enum");
-            if (enumValues != null) {
-              assertThat(enumValues)
-                .as("Enum property '%s' in tool '%s' should have enum values", property.getKey(), schema.name())
-                .isInstanceOf(Object[].class);
-              
-              var enumArray = (Object[]) enumValues;
-              assertThat(enumArray)
-                .as("Enum property '%s' in tool '%s' should have at least one value", property.getKey(), schema.name())
-                .isNotEmpty();
+    for (var schema : tools) {
+      var inputSchema = schema.inputSchema();
+      
+      if (inputSchema.properties() != null) {
+        for (var property : inputSchema.properties().entrySet()) {
+          if (property.getValue() instanceof Map<?, ?> propertyDef) {
+            var type = propertyDef.get("type");
+            var items = propertyDef.get("items");
+            
+            if ("array".equals(type) && items instanceof Map<?, ?> itemsDef) {
+              var enumValues = itemsDef.get("enum");
+              if (enumValues != null) {
+                assertThat(enumValues)
+                  .as("Enum property '%s' in tool '%s' should have enum values", property.getKey(), schema.name())
+                  .satisfiesAnyOf(
+                    ev -> assertThat(ev).isInstanceOf(Object[].class),
+                    ev -> assertThat(ev).isInstanceOf(java.util.List.class)
+                  );
+                
+                var enumList = enumValues instanceof Object[] arr ? java.util.Arrays.asList(arr) : 
+                              enumValues instanceof java.util.List<?> list ? list : java.util.List.of();
+                assertThat(enumList)
+                  .as("Enum property '%s' in tool '%s' should have at least one value", property.getKey(), schema.name())
+                  .isNotEmpty();
 
-              for (var enumValue : enumArray) {
-                assertThat(enumValue)
-                  .as("Enum value in property '%s' for tool '%s' should not be null", property.getKey(), schema.name())
-                  .isNotNull();
+                for (var enumValue : enumList) {
+                  assertThat(enumValue)
+                    .as("Enum value in property '%s' for tool '%s' should not be null", property.getKey(), schema.name())
+                    .isNotNull();
+                }
               }
             }
           }
@@ -236,36 +243,40 @@ class McpSchemaValidationTest {
     }
   }
 
-  @ParameterizedTest(name = "Tool ''{0}'' should have valid property types")
-  @MethodSource("provideTools")
-  void tool_properties_should_have_valid_types(Tool tool) {
-    var schema = tool.definition();
-    var inputSchema = schema.inputSchema();
+  @SonarQubeMcpServerTest
+  void tool_properties_should_have_valid_types(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
     
-    if (inputSchema.properties() != null) {
-      for (var property : inputSchema.properties().entrySet()) {
-        if (property.getValue() instanceof Map<?, ?> propertyDef) {
-          var type = propertyDef.get("type");
-          
-          assertThat(type)
-            .as("Property '%s' in tool '%s' should have a type", property.getKey(), schema.name())
-            .isNotNull();
-          
-          if (type instanceof String typeStr) {
-            assertThat(typeStr)
-              .as("Property '%s' type in tool '%s' should be a valid JSON Schema type", property.getKey(), schema.name())
-              .isIn("string", "number", "integer", "boolean", "array", "object", "null");
+    for (var schema : tools) {
+      var inputSchema = schema.inputSchema();
+      
+      if (inputSchema.properties() != null) {
+        for (var property : inputSchema.properties().entrySet()) {
+          if (property.getValue() instanceof Map<?, ?> propertyDef) {
+            var type = propertyDef.get("type");
+            
+            assertThat(type)
+              .as("Property '%s' in tool '%s' should have a type", property.getKey(), schema.name())
+              .isNotNull();
+            
+            if (type instanceof String typeStr) {
+              assertThat(typeStr)
+                .as("Property '%s' type in tool '%s' should be a valid JSON Schema type", property.getKey(), schema.name())
+                .isIn("string", "number", "integer", "boolean", "array", "object", "null");
+            }
           }
         }
       }
     }
   }
 
-  @Test
-  void all_tool_names_should_be_unique() {
-    var allTools = getAllTools();
+  @SonarQubeMcpServerTest
+  void all_tool_names_should_be_unique(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var allTools = client.listTools();
     var toolNames = allTools.stream()
-      .map(tool -> tool.definition().name())
+      .map(McpSchema.Tool::name)
       .toList();
     
     var uniqueNames = Set.copyOf(toolNames);
@@ -275,28 +286,34 @@ class McpSchemaValidationTest {
       .hasSize(toolNames.size());
   }
 
-  @ParameterizedTest(name = "Tool ''{0}'' should have a descriptive name")
-  @MethodSource("provideTools")
-  void tool_names_should_be_descriptive(Tool tool) {
-    var toolName = tool.definition().name();
+  @SonarQubeMcpServerTest
+  void tool_names_should_be_descriptive(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var tools = client.listTools();
+    
+    for (var tool : tools) {
+      var toolName = tool.name();
 
-    var hasActionWord = toolName.contains("get") || toolName.contains("search") ||
-      toolName.contains("change") || toolName.contains("list") ||
-      toolName.contains("create") || toolName.contains("update") ||
-      toolName.contains("delete") || toolName.contains("show") ||
-      toolName.contains("analyze") || toolName.contains("ping");
+      var hasActionWord = toolName.contains("get") || toolName.contains("search") ||
+        toolName.contains("change") || toolName.contains("list") ||
+        toolName.contains("create") || toolName.contains("update") ||
+        toolName.contains("delete") || toolName.contains("show") ||
+        toolName.contains("analyze") || toolName.contains("ping") ||
+        toolName.contains("toggle");
 
-    assertThat(hasActionWord)
-      .as("Tool name '%s' should contain an action word (get, search, change, list, etc.)", toolName)
-      .isTrue();
-    assertThat(toolName.length())
-      .as("Tool name '%s' should be descriptive (at least 3 characters)", toolName)
-      .isGreaterThanOrEqualTo(3);
+      assertThat(hasActionWord)
+        .as("Tool name '%s' should contain an action word (get, search, change, list, etc.)", toolName)
+        .isTrue();
+      assertThat(toolName.length())
+        .as("Tool name '%s' should be descriptive (at least 3 characters)", toolName)
+        .isGreaterThanOrEqualTo(3);
+    }
   }
 
-  @Test
-  void should_automatically_discover_all_tools_from_server_configuration() {
-    var discoveredTools = getAllTools();
+  @SonarQubeMcpServerTest
+  void should_automatically_discover_all_tools_from_server_configuration(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    var discoveredTools = client.listTools();
     
     assertThat(discoveredTools)
       .as("Should automatically discover tools from SonarQubeMcpServer configuration")
@@ -310,17 +327,17 @@ class McpSchemaValidationTest {
       .isNotEmpty();
 
     assertThat(schema.title())
-      .as("Tool title should not be null or empty")
+      .as("Tool '%s' title should not be null or empty", schema.name())
       .isNotNull()
       .isNotEmpty();
 
     assertThat(schema.description())
-      .as("Tool description should not be null or empty (MCP spec requirement)")
+      .as("Tool '%s' description should not be null or empty (MCP spec requirement)", schema.name())
       .isNotNull()
       .isNotEmpty();
     
     assertThat(schema.inputSchema())
-      .as("Tool input schema should not be null")
+      .as("Tool '%s' input schema should not be null", schema.name())
       .isNotNull();
   }
 
@@ -361,4 +378,4 @@ class McpSchemaValidationTest {
     }
   }
 
-} 
+}

@@ -128,7 +128,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new JacksonMcpJsonMapper(new ObjectMapper()), clientToServerInputStream, serverToClientOutputStream),
-      environment);
+      null, environment);
     server.start();
 
     var client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream))
@@ -139,7 +139,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     return new SonarQubeMcpTestClient(client);
   }
 
-  private void prepareMockWebServer(Map<String, String> environment) {
+  public void prepareMockWebServer(Map<String, String> environment) {
     if (!environment.containsKey("SONARQUBE_ORG")) {
       var version = "2025.4";
       if (environment.containsKey("SONARQUBE_VERSION")) {

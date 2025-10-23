@@ -2,7 +2,9 @@
 <!DOCTYPE configuration>
 
 <configuration>
-  <root level="trace"/>
+  <root level="info"/>
+  
+  <!-- Third-party library logging -->
   <logger name="org.springframework" level="warn"/>
   <logger name="org.sonarsource.sonarlint.core.plugin.commons.container.PriorityBeanFactory" level="warn"/>
   <logger name="nl.altindag.ssl" level="warn"/>
@@ -11,7 +13,14 @@
   <logger name="org.eclipse.lsp4j.jsonrpc" level="error"/>
   <logger name="org.eclipse.jgit" level="info"/>
   <logger name="org.sonar.scm.git.blame" level="info"/>
-  <!-- Disable to avoid logs being printed in loop -->
+  
+  <!-- Jetty HTTP server logging - reduce noise -->
+  <logger name="org.eclipse.jetty" level="warn"/>
+  <logger name="org.eclipse.jetty.server.Server" level="info"/>
+  <logger name="org.eclipse.jetty.server.handler" level="warn"/>
+  <logger name="org.eclipse.jetty.ee10.servlet" level="warn"/>
+  
+  <!-- MCP protocol logging -->
   <logger name="io.modelcontextprotocol.spec.McpSchema" level="off" />
   <logger name="io.modelcontextprotocol.client.McpAsyncClient" level="off" />
   <logger name="io.modelcontextprotocol.spec.McpClientSession" level="off" />

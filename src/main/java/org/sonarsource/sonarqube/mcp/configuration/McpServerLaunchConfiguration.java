@@ -37,6 +37,11 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_TOKEN = "SONARQUBE_TOKEN";
   private static final String SONARQUBE_IDE_PORT_ENV = "SONARQUBE_IDE_PORT";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
+  
+  // HTTP transport configuration
+  private static final String SONARQUBE_HTTP_ENABLED = "SONARQUBE_HTTP_ENABLED";
+  private static final String SONARQUBE_HTTP_PORT = "SONARQUBE_HTTP_PORT";
+  private static final String SONARQUBE_HTTP_HOST = "SONARQUBE_HTTP_HOST";
 
   private final Path storagePath;
   private final String sonarqubeUrl;
@@ -48,6 +53,11 @@ public class McpServerLaunchConfiguration {
   private final String userAgent;
   private final boolean isTelemetryEnabled;
   private final boolean isSonarCloud;
+  
+  // HTTP transport configuration
+  private final boolean isHttpEnabled;
+  private final int httpPort;
+  private final String httpHost;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -73,6 +83,10 @@ public class McpServerLaunchConfiguration {
     this.appVersion = fetchAppVersion();
     this.userAgent = APP_NAME + " " + appVersion;
     this.isTelemetryEnabled = !Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, TELEMETRY_DISABLED, "false"));
+
+    this.isHttpEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_ENABLED, "false"));
+    this.httpPort = parseHttpPortValue(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_PORT, "8080"));
+    this.httpHost = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_HOST, "127.0.0.1");
   }
 
   @NotNull
@@ -122,6 +136,18 @@ public class McpServerLaunchConfiguration {
     return isSonarCloud;
   }
 
+  public boolean isHttpEnabled() {
+    return isHttpEnabled;
+  }
+
+  public int getHttpPort() {
+    return httpPort;
+  }
+
+  public String getHttpHost() {
+    return httpHost;
+  }
+
   @CheckForNull
   private static String getValueViaEnvOrPropertyOrDefault(Map<String, String> environment, String propertyName, @Nullable String defaultValue) {
     var value = environment.get(propertyName);
@@ -162,6 +188,21 @@ public class McpServerLaunchConfiguration {
       return port;
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid SONARQUBE_IDE_PORT value: " + portStr, e);
+    }
+  }
+
+  private static int parseHttpPortValue(@Nullable String portStr) {
+    if (isNullOrBlank(portStr)) {
+      return 8080;
+    }
+    try {
+      var port = Integer.parseInt(portStr);
+      if (port < 1024 || port > 65535) {
+        throw new IllegalArgumentException("SONARQUBE_HTTP_PORT value must be between 1024 and 65535 (unprivileged ports only), got: " + port);
+      }
+      return port;
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid SONARQUBE_HTTP_PORT value: " + portStr, e);
     }
   }
 
