@@ -45,7 +45,7 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_HTTP_HOST = "SONARQUBE_HTTP_HOST";
 
   private final Path storagePath;
-  private final String appHost;
+  private final String hostMachineAddress;
   private final String sonarqubeUrl;
   @Nullable
   private final String sonarqubeOrg;
@@ -67,7 +67,7 @@ public class McpServerLaunchConfiguration {
       throw new IllegalArgumentException("STORAGE_PATH environment variable or property must be set");
     }
     this.storagePath = Paths.get(storagePathString);
-    this.appHost = resolveAppHost();
+    this.hostMachineAddress = resolveHostMachineAddress();
     var sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, "https://sonarcloud.io");
     this.sonarqubeUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, sonarqubeCloudUrl);
     this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
@@ -98,8 +98,8 @@ public class McpServerLaunchConfiguration {
   }
 
   @NotNull
-  public String getAppHost() {
-    return appHost;
+  public String getHostMachineAddress() {
+    return hostMachineAddress;
   }
 
   @NotNull
@@ -218,7 +218,7 @@ public class McpServerLaunchConfiguration {
    * Resolves the appropriate host to use for connecting to services on the host machine.
    * Tries first with host.docker.internal (Windows/macOS), and fallback on localhost
    */
-  private static String resolveAppHost() {
+  private static String resolveHostMachineAddress() {
     try {
       InetAddress.getByName("host.docker.internal");
       return "host.docker.internal";
