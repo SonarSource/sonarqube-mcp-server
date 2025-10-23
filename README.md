@@ -479,7 +479,7 @@ By default, the SonarQube MCP Server uses stdio transport for communication. You
 | Environment variable | Description                                                                                      | Default         |
 |----------------------|--------------------------------------------------------------------------------------------------|-----------------|
 | `SONARQUBE_HTTP_ENABLED`   | Enable HTTP transport mode instead of stdio. Set to `true` to enable HTTP mode.                | `false`         |
-| `SONARQUBE_HTTP_PORT`      | Port number for HTTP server when HTTP transport is enabled (1-65535).                          | `8080`          |
+| `SONARQUBE_HTTP_PORT`      | Port number for HTTP server when HTTP transport is enabled (1024-65535, unprivileged ports only). | `8080`          |
 | `SONARQUBE_HTTP_HOST`      | Host address to bind HTTP server to. Use `127.0.0.1` for localhost only, `0.0.0.0` for all interfaces. | `127.0.0.1`     |
 
 #### Security

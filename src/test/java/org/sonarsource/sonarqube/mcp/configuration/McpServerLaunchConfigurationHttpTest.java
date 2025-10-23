@@ -133,21 +133,31 @@ class McpServerLaunchConfigurationHttpTest {
   @Test
   void should_validate_http_port_bounds_minimum() {
     var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_HTTP_PORT", "0");
+    environment.put("SONARQUBE_HTTP_PORT", "1023");
     
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("SONARQUBE_HTTP_PORT value must be between 1 and 65535, got: 0");
+        .hasMessage("SONARQUBE_HTTP_PORT value must be between 1024 and 65535 (unprivileged ports only), got: 1023");
+  }
+
+  @Test
+  void should_reject_privileged_ports() {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_HTTP_PORT", "80");
+    
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("SONARQUBE_HTTP_PORT value must be between 1024 and 65535 (unprivileged ports only)");
   }
 
   @Test
   void should_accept_valid_http_port_bounds() {
     var environment = createMinimalTestEnvironment();
     
-    // Test minimum valid port
-    environment.put("SONARQUBE_HTTP_PORT", "1");
+    // Test minimum valid unprivileged port
+    environment.put("SONARQUBE_HTTP_PORT", "1024");
     var config1 = new McpServerLaunchConfiguration(environment);
-    assertThat(config1.getHttpPort()).isEqualTo(1);
+    assertThat(config1.getHttpPort()).isEqualTo(1024);
     
     // Test maximum valid port
     environment.put("SONARQUBE_HTTP_PORT", "65535");

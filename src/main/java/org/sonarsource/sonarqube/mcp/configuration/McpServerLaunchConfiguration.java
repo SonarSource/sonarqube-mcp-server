@@ -197,8 +197,8 @@ public class McpServerLaunchConfiguration {
     }
     try {
       var port = Integer.parseInt(portStr);
-      if (port < 1 || port > 65535) {
-        throw new IllegalArgumentException("SONARQUBE_HTTP_PORT value must be between 1 and 65535, got: " + port);
+      if (port < 1024 || port > 65535) {
+        throw new IllegalArgumentException("SONARQUBE_HTTP_PORT value must be between 1024 and 65535 (unprivileged ports only), got: " + port);
       }
       return port;
     } catch (NumberFormatException e) {
