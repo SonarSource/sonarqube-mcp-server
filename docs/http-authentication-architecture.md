@@ -8,10 +8,7 @@
 2. [Architecture Components](#architecture-components)
 3. [Authentication Flow](#authentication-flow)
 4. [Token Propagation](#token-propagation)
-5. [Thread Model and Context Management](#thread-model-and-context-management)
-6. [Security Considerations](#security-considerations)
-7. [Configuration](#configuration)
-8. [Troubleshooting](#troubleshooting)
+5. [Security Considerations](#security-considerations)
 
 ---
 
