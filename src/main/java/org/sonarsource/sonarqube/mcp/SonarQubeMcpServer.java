@@ -32,12 +32,14 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
+import org.sonarsource.sonarqube.mcp.context.RequestContext;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.plugins.PluginsSynchronizer;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
@@ -69,7 +71,7 @@ import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
-public class SonarQubeMcpServer {
+public class SonarQubeMcpServer implements ServerApiProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String SONARQUBE_MCP_SERVER_NAME = "sonarqube-mcp-server";
@@ -81,7 +83,15 @@ public class SonarQubeMcpServer {
   private final List<Tool> supportedTools = new ArrayList<>();
   private final McpServerLaunchConfiguration mcpConfiguration;
   private HttpClientProvider httpClientProvider;
+  
+  /**
+   * ServerApi instance.
+   * - In stdio mode: created once at startup with the configured token
+   * - In HTTP mode: null (created per-request using client's token from Authorization header)
+   */
+  @Nullable
   private ServerApi serverApi;
+  
   private SonarQubeVersionChecker sonarQubeVersionChecker;
   private McpSyncServer syncServer;
   private volatile boolean isShutdown = false;
@@ -93,11 +103,13 @@ public class SonarQubeMcpServer {
 
   public SonarQubeMcpServer(Map<String, String> environment) {
     this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
+    var authConfig = mcpConfiguration.getAuthMode();
 
-    if (mcpConfiguration.isHttpEnabled()) {
+    if (mcpConfiguration.isHttpEnabled() && authConfig != null) {
       this.httpServerManager = new HttpServerTransportProvider(
         mcpConfiguration.getHttpPort(),
-        mcpConfiguration.getHttpHost()
+        mcpConfiguration.getHttpHost(),
+        authConfig
       );
       this.transportProvider = httpServerManager.getTransportProvider();
     } else {
@@ -111,16 +123,24 @@ public class SonarQubeMcpServer {
   private void initializeServices() {
     this.backendService = new BackendService(mcpConfiguration);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
-    this.serverApi = initializeServerApi(mcpConfiguration);
-    this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, mcpConfiguration.getStoragePath());
     this.toolExecutor = new ToolExecutor(backendService);
+
+    PluginsSynchronizer pluginsSynchronizer;
+    if (mcpConfiguration.isHttpEnabled()) {
+      var initServerApi = createServerApiWithToken(mcpConfiguration.getSonarQubeToken());
+      this.sonarQubeVersionChecker = new SonarQubeVersionChecker(initServerApi);
+      pluginsSynchronizer = new PluginsSynchronizer(initServerApi, mcpConfiguration.getStoragePath());
+    } else {
+      this.serverApi = initializeServerApi(mcpConfiguration);
+      this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
+      pluginsSynchronizer = new PluginsSynchronizer(serverApi, mcpConfiguration.getStoragePath());
+    }
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
-    // Avoid logging before backend is initialized, so that logs are properly redirected
     backendService.initialize(analyzers);
-  }
 
+    LOG.info("Startup initialization completed");
+  }
   private void initTools() {
     boolean useIdeBridge = false;
     if (!mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeIdePort() != null) {
@@ -137,41 +157,41 @@ public class SonarQubeMcpServer {
     // Load standard analysis tool when IDE bridge is not used
     if (!useIdeBridge) {
       LOG.info("SonarQube for IDE integration not detected - loading standard analysis tool");
-      this.supportedTools.add(new AnalysisTool(backendService, serverApi));
+      this.supportedTools.add(new AnalysisTool(backendService, this));
     }
 
     // SonarQube Cloud specific tools
     if (mcpConfiguration.isSonarCloud()) {
       LOG.info("SonarQube Cloud detected - loading SonarQube Cloud specific tools");
-      this.supportedTools.add(new ListEnterprisesTool(serverApi));
+      this.supportedTools.add(new ListEnterprisesTool(this));
     } else {
       LOG.info("SonarQube Server detected - loading SonarQube Server specific tools");
       // SonarQube Server specific tools
       this.supportedTools.addAll(List.of(
-        new SystemHealthTool(serverApi),
-        new SystemInfoTool(serverApi),
-        new SystemLogsTool(serverApi),
-        new SystemPingTool(serverApi),
-        new SystemStatusTool(serverApi)));
+        new SystemHealthTool(this),
+        new SystemInfoTool(this),
+        new SystemLogsTool(this),
+        new SystemPingTool(this),
+        new SystemStatusTool(this)));
     }
 
     this.supportedTools.addAll(List.of(
-      new ChangeIssueStatusTool(serverApi),
-      new SearchMyProjectsTool(serverApi),
-      new SearchIssuesTool(serverApi),
-      new ProjectStatusTool(serverApi),
-      new ShowRuleTool(serverApi),
-      new ListRuleRepositoriesTool(serverApi),
-      new ListQualityGatesTool(serverApi),
-      new ListLanguagesTool(serverApi),
-      new GetComponentMeasuresTool(serverApi),
-      new SearchMetricsTool(serverApi),
-      new GetScmInfoTool(serverApi),
-      new GetRawSourceTool(serverApi),
-      new CreateWebhookTool(serverApi),
-      new ListWebhooksTool(serverApi),
-      new ListPortfoliosTool(serverApi),
-      new SearchDependencyRisksTool(serverApi, sonarQubeVersionChecker)));
+      new ChangeIssueStatusTool(this),
+      new SearchMyProjectsTool(this),
+      new SearchIssuesTool(this),
+      new ProjectStatusTool(this),
+      new ShowRuleTool(this),
+      new ListRuleRepositoriesTool(this),
+      new ListQualityGatesTool(this),
+      new ListLanguagesTool(this),
+      new GetComponentMeasuresTool(this),
+      new SearchMetricsTool(this),
+      new GetScmInfoTool(this),
+      new GetRawSourceTool(this),
+      new CreateWebhookTool(this),
+      new ListWebhooksTool(this),
+      new ListPortfoliosTool(this, mcpConfiguration.isSonarCloud()),
+      new SearchDependencyRisksTool(this, sonarQubeVersionChecker)));
   }
 
   public void start() {
@@ -240,13 +260,32 @@ public class SonarQubeMcpServer {
     }
   }
 
+  /**
+   * Get ServerApi instance for the current request context.
+   * - In stdio mode: Returns the global ServerApi instance created at startup
+   * - In HTTP mode: Creates a new ServerApi instance using the token from RequestContext
+   */
+  @Override
+  public ServerApi get() {
+    if (mcpConfiguration.isHttpEnabled()) {
+      return createServerApiWithToken(RequestContext.current().sonarQubeToken());
+    } else {
+      if (serverApi == null) {
+        throw new IllegalStateException("ServerApi not initialized");
+      }
+      return serverApi;
+    }
+  }
+  
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
-    var organization = mcpConfiguration.getSonarqubeOrg();
     var token = mcpConfiguration.getSonarQubeToken();
+    return createServerApiWithToken(token);
+  }
+  
+  private ServerApi createServerApiWithToken(String token) {
+    var organization = mcpConfiguration.getSonarqubeOrg();
     var url = mcpConfiguration.getSonarQubeUrl();
-
     var httpClient = httpClientProvider.getHttpClient(token);
-
     var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization), httpClient);
     return new ServerApi(serverApiHelper);
   }

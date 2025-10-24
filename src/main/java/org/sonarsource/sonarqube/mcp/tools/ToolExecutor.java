@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 
 public class ToolExecutor {
-  private final McpLogger logger = McpLogger.getInstance();
+  private static final McpLogger LOG = McpLogger.getInstance();
   private final BackendService backendService;
 
   public ToolExecutor(BackendService backendService) {
@@ -32,14 +32,14 @@ public class ToolExecutor {
 
   public McpSchema.CallToolResult execute(Tool tool, McpSchema.CallToolRequest toolRequest) {
     var toolName = tool.definition().name();
-    logger.info("Tool called: " + toolName);
+    LOG.info("Tool called: " + toolName);
     
     var startTime = System.currentTimeMillis();
     Tool.Result result;
     try {
       result = tool.execute(new Tool.Arguments(toolRequest.arguments()));
       var executionTime = System.currentTimeMillis() - startTime;
-      logger.info("Tool completed: " + toolName + " (execution time: " + executionTime + "ms)");
+      LOG.info("Tool completed: " + toolName + " (execution time: " + executionTime + "ms)");
     } catch (Exception e) {
       var executionTime = System.currentTimeMillis() - startTime;
       String message;
@@ -49,7 +49,7 @@ public class ToolExecutor {
         message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
       }
       result = Tool.Result.failure("An error occurred during the tool execution: " + message);
-      logger.error("Tool failed: " + toolName + " (execution time: " + executionTime + "ms)", e);
+      LOG.error("Tool failed: " + toolName + " (execution time: " + executionTime + "ms)", e);
     }
     backendService.notifyToolCalled("mcp_" + tool.definition().name(), !result.isError());
     return result.toCallToolResult();

@@ -29,7 +29,7 @@ import java.util.concurrent.TimeoutException;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.StandaloneRuleConfigDto;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -47,9 +47,9 @@ public class AnalysisTool extends Tool {
   public static final String LANGUAGE_PROPERTY = "language";
 
   private final BackendService backendService;
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public AnalysisTool(BackendService backendService, ServerApi serverApi) {
+  public AnalysisTool(BackendService backendService, ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Code File Analysis")
@@ -60,7 +60,7 @@ public class AnalysisTool extends Tool {
       .addStringProperty(LANGUAGE_PROPERTY, "Language of the code snippet")
       .build());
     this.backendService = backendService;
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
@@ -106,13 +106,13 @@ public class AnalysisTool extends Tool {
 
   private void applyRulesFromProject(@Nullable String projectKey) {
     var activeRules = new HashMap<String, StandaloneRuleConfigDto>();
-    serverApi.qualityProfilesApi().getQualityProfiles(projectKey).profiles()
+    serverApiProvider.get().qualityProfilesApi().getQualityProfiles(projectKey).profiles()
       .forEach(profile -> {
         var count = 0;
         var page = 1;
         SearchResponse searchResponse;
         do {
-          searchResponse = serverApi.rulesApi().search(profile.key(), page);
+          searchResponse = serverApiProvider.get().rulesApi().search(profile.key(), page);
           page++;
           count += searchResponse.ps();
           searchResponse.actives().forEach((ruleKey, actives) -> activeRules.put(ruleKey,

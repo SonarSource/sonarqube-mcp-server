@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.projects;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -26,22 +26,22 @@ public class SearchMyProjectsTool extends Tool {
   public static final String TOOL_NAME = "search_my_sonarqube_projects";
   public static final String PAGE_PROPERTY = "page";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public SearchMyProjectsTool(ServerApi serverApi) {
+  public SearchMyProjectsTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
       .setDescription("Find SonarQube projects. The response is paginated.")
       .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);
-    var projects = serverApi.componentsApi().searchProjectsInMyOrg(page);
+    var projects = serverApiProvider.get().componentsApi().searchProjectsInMyOrg(page);
     return Tool.Result.success(buildResponseFromAllProjectsResponse(projects));
   }
 

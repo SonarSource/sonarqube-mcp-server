@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.StatusResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -25,20 +25,20 @@ public class SystemStatusTool extends Tool {
 
   public static final String TOOL_NAME = "get_system_status";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public SystemStatusTool(ServerApi serverApi) {
+  public SystemStatusTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Status")
       .setDescription("Get state information about SonarQube Server. Returns status (STARTING, UP, DOWN, RESTARTING, DB_MIGRATION_NEEDED, DB_MIGRATION_RUNNING), version, and id.")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var response = serverApi.systemApi().getStatus();
+    var response = serverApiProvider.get().systemApi().getStatus();
     return Tool.Result.success(buildResponseFromStatus(response));
   }
 

@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.languages;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.languages.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -26,22 +26,22 @@ public class ListLanguagesTool extends Tool {
   public static final String TOOL_NAME = "list_languages";
   public static final String QUERY_PROPERTY = "q";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public ListLanguagesTool(ServerApi serverApi) {
+  public ListLanguagesTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("List Supported Languages in SonarQube")
       .setDescription("List all programming languages supported in this SonarQube instance")
       .addStringProperty(QUERY_PROPERTY, "Optional pattern to match language keys/names against")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var query = arguments.getOptionalString(QUERY_PROPERTY);
-    var response = serverApi.languagesApi().list(query);
+    var response = serverApiProvider.get().languagesApi().list(query);
     return Tool.Result.success(buildResponseFromList(response));
   }
 

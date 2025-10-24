@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.rules;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -26,22 +26,22 @@ public class ShowRuleTool extends Tool {
   public static final String TOOL_NAME = "show_rule";
   public static final String KEY_PROPERTY = "key";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public ShowRuleTool(ServerApi serverApi) {
+  public ShowRuleTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Rule")
       .setDescription("Shows detailed information about a SonarQube rule.")
       .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var ruleKey = arguments.getStringOrThrow(KEY_PROPERTY);
-    var response = serverApi.rulesApi().showRule(ruleKey);
+    var response = serverApiProvider.get().rulesApi().showRule(ruleKey);
     return Tool.Result.success(buildResponseFromShowResponse(response.rule()));
   }
 

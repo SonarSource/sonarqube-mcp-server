@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.qualitygates;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ProjectStatusResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -30,9 +30,9 @@ public class ProjectStatusTool extends Tool {
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public ProjectStatusTool(ServerApi serverApi) {
+  public ProjectStatusTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Quality Gate Status")
@@ -47,7 +47,7 @@ public class ProjectStatusTool extends Tool {
       .addStringProperty(PROJECT_KEY_PROPERTY, "The optional project key to get the status for, for example 'my_project'")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The optional pull request ID to get the status for, for example '5461'")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
@@ -66,7 +66,7 @@ public class ProjectStatusTool extends Tool {
       return Tool.Result.failure("Project ID doesn't work with branches or pull requests");
     }
 
-    var projectStatus = serverApi.qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
+    var projectStatus = serverApiProvider.get().qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
     return Tool.Result.success(buildResponseFromProjectStatus(projectStatus));
   }
 
