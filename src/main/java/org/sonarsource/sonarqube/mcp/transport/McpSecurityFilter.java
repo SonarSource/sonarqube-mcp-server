@@ -26,16 +26,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
  * Security filter for MCP HTTP transport to prevent DNS rebinding attacks
  * and enforce security best practices per MCP specification.
  */
 public class McpSecurityFilter implements Filter {
-  
-  private static final Logger LOGGER = LoggerFactory.getLogger(McpSecurityFilter.class);
+
+  private static final McpLogger LOG = McpLogger.getInstance();
   
   // Allowed origins for localhost deployments
   private static final Set<String> ALLOWED_LOCALHOST_ORIGINS = Set.of(
@@ -57,7 +56,7 @@ public class McpSecurityFilter implements Filter {
     this.allowAllOrigins = "0.0.0.0".equals(hostBinding);
     
     if (allowAllOrigins) {
-      LOGGER.warn("MCP HTTP server is bound to all network interfaces (0.0.0.0). " +
+      LOG.warn("MCP HTTP server is bound to all network interfaces (0.0.0.0). " +
                   "This is less secure. Consider binding to 127.0.0.1 for local use only.");
     }
   }
@@ -78,7 +77,7 @@ public class McpSecurityFilter implements Filter {
     boolean isOptionsRequest = "OPTIONS".equals(httpRequest.getMethod());
     
     if (origin != null && !isOriginAllowed(origin)) {
-      LOGGER.warn("Rejected request from disallowed origin: {}", origin);
+      LOG.warn("Rejected request from disallowed origin: " + origin);
       httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
       httpResponse.getWriter().write("Origin not allowed");
       return;
@@ -93,7 +92,7 @@ public class McpSecurityFilter implements Filter {
     
     httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     httpResponse.setHeader("Access-Control-Allow-Headers", 
-        "Content-Type, Accept, Mcp-Session-Id, Last-Event-ID");
+        "Content-Type, Accept, Mcp-Session-Id, Last-Event-ID, SONARQUBE_TOKEN");
     httpResponse.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
     httpResponse.setHeader("Access-Control-Max-Age", "3600");
 
@@ -120,9 +119,7 @@ public class McpSecurityFilter implements Filter {
     
     // For localhost bindings, only allow localhost origins
     if ("127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding)) {
-      // Check if origin starts with allowed localhost origins
-      return ALLOWED_LOCALHOST_ORIGINS.stream()
-        .anyMatch(origin::startsWith);
+      return ALLOWED_LOCALHOST_ORIGINS.stream().anyMatch(origin::startsWith);
     }
     
     // For other specific host bindings, be restrictive

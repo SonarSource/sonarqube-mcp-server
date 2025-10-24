@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.measures;
 
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -30,9 +30,9 @@ public class GetComponentMeasuresTool extends Tool {
   public static final String METRIC_KEYS_PROPERTY = "metricKeys";
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public GetComponentMeasuresTool(ServerApi serverApi) {
+  public GetComponentMeasuresTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Component Measures")
@@ -42,7 +42,7 @@ public class GetComponentMeasuresTool extends Tool {
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. nloc, complexity, violations, coverage)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The pull request identifier to analyze for measures")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
@@ -52,7 +52,7 @@ public class GetComponentMeasuresTool extends Tool {
     var metricKeys = arguments.getOptionalStringList(METRIC_KEYS_PROPERTY);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
     
-    var response = serverApi.measuresApi().getComponentMeasures(component, branch, metricKeys, pullRequest);
+    var response = serverApiProvider.get().measuresApi().getComponentMeasures(component, branch, metricKeys, pullRequest);
     return Tool.Result.success(buildResponseFromComponentMeasures(response));
   }
 

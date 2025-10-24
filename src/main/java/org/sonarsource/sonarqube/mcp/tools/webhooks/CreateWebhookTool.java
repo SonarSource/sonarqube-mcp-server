@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
@@ -28,9 +28,9 @@ public class CreateWebhookTool extends Tool {
   public static final String PROJECT_PROPERTY = "projectKey";
   public static final String SECRET_PROPERTY = "secret";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public CreateWebhookTool(ServerApi serverApi) {
+  public CreateWebhookTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Create SonarQube Webhook")
@@ -42,7 +42,7 @@ public class CreateWebhookTool extends Tool {
       .addStringProperty(SECRET_PROPERTY, "If provided, secret will be used as the key to generate the HMAC hex digest value " +
         "in the 'X-Sonar-Webhook-HMAC-SHA256' header (16-200 chars)")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
@@ -52,7 +52,7 @@ public class CreateWebhookTool extends Tool {
     var project = arguments.getOptionalString(PROJECT_PROPERTY);
     var secret = arguments.getOptionalString(SECRET_PROPERTY);
 
-    var response = serverApi.webhooksApi().createWebhook(name, url, project, secret);
+    var response = serverApiProvider.get().webhooksApi().createWebhook(name, url, project, secret);
     var webhook = response.webhook();
 
     var resultMessage = """

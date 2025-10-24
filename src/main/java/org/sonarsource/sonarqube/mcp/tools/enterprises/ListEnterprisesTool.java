@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.enterprises;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -27,11 +27,11 @@ public class ListEnterprisesTool extends Tool {
   public static final String TOOL_NAME = "list_enterprises";
   public static final String ENTERPRISE_KEY_PROPERTY = "enterpriseKey";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public ListEnterprisesTool(ServerApi serverApi) {
+  public ListEnterprisesTool(ServerApiProvider serverApiProvider) {
     super(createToolDefinition());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   private static McpSchema.Tool createToolDefinition() {
@@ -49,7 +49,7 @@ public class ListEnterprisesTool extends Tool {
     try {
       var enterpriseKey = arguments.getOptionalString(ENTERPRISE_KEY_PROPERTY);
 
-      var response = serverApi.enterprisesApi().listEnterprises(enterpriseKey);
+      var response = serverApiProvider.get().enterprisesApi().listEnterprises(enterpriseKey);
       
       return Result.success(formatResponse(response));
     } catch (Exception e) {

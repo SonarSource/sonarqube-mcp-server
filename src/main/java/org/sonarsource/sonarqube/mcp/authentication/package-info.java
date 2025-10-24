@@ -14,28 +14,7 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.log;
+@ParametersAreNonnullByDefault
+package org.sonarsource.sonarqube.mcp.authentication;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-public class McpLogger {
-  private static final Logger LOG = LoggerFactory.getLogger(McpLogger.class);
-  private static final McpLogger INSTANCE = new McpLogger();
-
-  public static McpLogger getInstance() {
-    return INSTANCE;
-  }
-
-  public void info(String message) {
-    LOG.info(message);
-  }
-
-  public void warn(String message) {
-    LOG.warn(message);
-  }
-
-  public void error(String message, Throwable throwable) {
-    LOG.error(message, throwable);
-  }
-}
+import javax.annotation.ParametersAreNonnullByDefault;

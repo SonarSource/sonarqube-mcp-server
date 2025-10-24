@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.rules;
 
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.RepositoriesResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -28,9 +28,9 @@ public class ListRuleRepositoriesTool extends Tool {
   public static final String LANGUAGE_PROPERTY = "language";
   public static final String QUERY_PROPERTY = "q";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public ListRuleRepositoriesTool(ServerApi serverApi) {
+  public ListRuleRepositoriesTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Rule Repositories")
@@ -38,14 +38,14 @@ public class ListRuleRepositoriesTool extends Tool {
       .addStringProperty(LANGUAGE_PROPERTY, "Optional language key to filter repositories (e.g. 'java')")
       .addStringProperty(QUERY_PROPERTY, "Optional search query to filter repositories by name or key")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
     var query = arguments.getOptionalString(QUERY_PROPERTY);
-    var response = serverApi.rulesApi().getRepositories(language, query);
+    var response = serverApiProvider.get().rulesApi().getRepositories(language, query);
     return Tool.Result.success(buildResponseFromRepositories(response.repositories()));
   }
 

@@ -60,6 +60,7 @@ class SonarQubeMcpServerHttpTest {
     environment.put("SONARQUBE_HTTP_ENABLED", "true");
     environment.put("SONARQUBE_HTTP_PORT", "9000");
     environment.put("SONARQUBE_HTTP_HOST", "0.0.0.0");
+    // Authentication is now optional (will show warning)
 
     harness.prepareMockWebServer(environment);
     

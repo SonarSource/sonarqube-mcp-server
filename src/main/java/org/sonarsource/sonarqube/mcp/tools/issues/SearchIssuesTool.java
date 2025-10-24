@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -30,9 +30,9 @@ public class SearchIssuesTool extends Tool {
   public static final String PAGE_PROPERTY = "p";
   public static final String PAGE_SIZE_PROPERTY = "ps";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public SearchIssuesTool(ServerApi serverApi) {
+  public SearchIssuesTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues in Projects")
@@ -43,7 +43,7 @@ public class SearchIssuesTool extends Tool {
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
@@ -53,7 +53,7 @@ public class SearchIssuesTool extends Tool {
     var severities = arguments.getOptionalStringList(SEVERITIES_PROPERTY);
     var page = arguments.getOptionalInteger(PAGE_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
-    var response = serverApi.issuesApi().search(projects, pullRequestId, severities, page, pageSize);
+    var response = serverApiProvider.get().issuesApi().search(projects, pullRequestId, severities, page, pageSize);
     return Tool.Result.success(buildResponseFromSearchResponse(response));
   }
 

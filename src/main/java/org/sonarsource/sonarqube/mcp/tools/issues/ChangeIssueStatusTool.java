@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.Transition;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -27,9 +27,9 @@ public class ChangeIssueStatusTool extends Tool {
   public static final String KEY_PROPERTY = "key";
   public static final String STATUS_PROPERTY = "status";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public ChangeIssueStatusTool(ServerApi serverApi) {
+  public ChangeIssueStatusTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Issue Status")
@@ -39,7 +39,7 @@ public class ChangeIssueStatusTool extends Tool {
       .addRequiredStringProperty(KEY_PROPERTY, "The key of the issue which status should be changed")
       .addRequiredEnumProperty(STATUS_PROPERTY, new String[] {"accept", "falsepositive", "reopen"}, "The new status of the issue")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
@@ -51,7 +51,7 @@ public class ChangeIssueStatusTool extends Tool {
       return Tool.Result.failure("Status is unknown: " + statusString);
     }
 
-    serverApi.issuesApi().doTransition(key, status.get());
+    serverApiProvider.get().issuesApi().doTransition(key, status.get());
     return Tool.Result.success("The issue status was successfully changed.");
   }
 

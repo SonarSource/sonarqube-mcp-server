@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
 import java.util.List;
 import javax.annotation.Nullable;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -28,22 +28,22 @@ public class ListWebhooksTool extends Tool {
   public static final String TOOL_NAME = "list_webhooks";
   public static final String PROJECT_PROPERTY = "projectKey";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public ListWebhooksTool(ServerApi serverApi) {
+  public ListWebhooksTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Webhooks")
       .setDescription("List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
       .addStringProperty(PROJECT_PROPERTY, "Optional project key to list project-specific webhooks")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var project = arguments.getOptionalString(PROJECT_PROPERTY);
-    var response = serverApi.webhooksApi().listWebhooks(project);
+    var response = serverApiProvider.get().webhooksApi().listWebhooks(project);
     return Tool.Result.success(buildResponseFromList(response.webhooks(), project));
   }
 

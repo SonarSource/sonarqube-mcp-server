@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 
 class HttpServerTransportIntegrationTest {
 
@@ -40,7 +41,7 @@ class HttpServerTransportIntegrationTest {
   void setUp() {
     // Use a random available port for testing
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1");
+    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN);
   }
 
   @AfterEach
@@ -122,7 +123,7 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_use_custom_host_and_port() {
     var customPort = findAvailablePort();
-    var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1");
+    var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1", AuthMode.TOKEN);
 
     try {
       customServer.startServer().join();

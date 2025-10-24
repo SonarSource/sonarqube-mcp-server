@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
@@ -27,9 +27,9 @@ public class GetRawSourceTool extends Tool {
   public static final String BRANCH_PROPERTY = "branch";
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public GetRawSourceTool(ServerApi serverApi) {
+  public GetRawSourceTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Raw Source Code")
@@ -38,7 +38,7 @@ public class GetRawSourceTool extends Tool {
       .addStringProperty(BRANCH_PROPERTY, "Branch key (e.g. feature/my_branch)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
@@ -48,7 +48,7 @@ public class GetRawSourceTool extends Tool {
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
     
     try {
-      var rawSource = serverApi.sourcesApi().getRawSource(key, branch, pullRequest);
+      var rawSource = serverApiProvider.get().sourcesApi().getRawSource(key, branch, pullRequest);
       return Tool.Result.success(rawSource);
     } catch (Exception e) {
       return Tool.Result.failure("Failed to retrieve source code: " + e.getMessage());

@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.ScmResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -29,9 +29,9 @@ public class GetScmInfoTool extends Tool {
   public static final String FROM_PROPERTY = "from";
   public static final String TO_PROPERTY = "to";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public GetScmInfoTool(ServerApi serverApi) {
+  public GetScmInfoTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube SCM Information of Source File")
@@ -41,7 +41,7 @@ public class GetScmInfoTool extends Tool {
       .addNumberProperty(FROM_PROPERTY, "First line to return. Starts at 1")
       .addNumberProperty(TO_PROPERTY, "Last line to return (inclusive)")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
@@ -52,7 +52,7 @@ public class GetScmInfoTool extends Tool {
     var to = arguments.getOptionalInteger(TO_PROPERTY);
     
     try {
-      var scmInfo = serverApi.sourcesApi().getScmInfo(key, commitsByLine, from, to);
+      var scmInfo = serverApiProvider.get().sourcesApi().getScmInfo(key, commitsByLine, from, to);
       return Tool.Result.success(buildResponseFromScmInfo(scmInfo));
     } catch (Exception e) {
       return Tool.Result.failure("Failed to retrieve SCM information: " + e.getMessage());
