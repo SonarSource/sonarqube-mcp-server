@@ -39,7 +39,7 @@ public class GetComponentMeasuresTool extends Tool {
       .setDescription("Get SonarQube measures for a component (project, directory, file).")
       .addStringProperty(COMPONENT_PROPERTY, "The component key to get measures for")
       .addStringProperty(BRANCH_PROPERTY, "The branch to analyze for measures")
-      .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. nloc, complexity, violations, coverage)")
+      .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The pull request identifier to analyze for measures")
       .build());
     this.serverApiProvider = serverApiProvider;
