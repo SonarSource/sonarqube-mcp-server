@@ -287,7 +287,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var url = mcpConfiguration.getSonarQubeUrl();
     var httpClient = httpClientProvider.getHttpClient(token);
     var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization), httpClient);
-    return new ServerApi(serverApiHelper);
+    return new ServerApi(serverApiHelper, mcpConfiguration.isSonarCloud());
   }
 
   private SonarQubeIdeBridgeClient initializeBridgeClient(McpServerLaunchConfiguration mcpConfiguration) {

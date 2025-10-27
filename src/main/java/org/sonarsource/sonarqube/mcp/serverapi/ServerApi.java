@@ -35,9 +35,11 @@ import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 public class ServerApi {
 
   private final ServerApiHelper helper;
+  private final boolean isSonarCloud;
 
-  public ServerApi(ServerApiHelper helper) {
+  public ServerApi(ServerApiHelper helper, boolean isSonarCloud) {
     this.helper = helper;
+    this.isSonarCloud = isSonarCloud;
   }
 
   public QualityGatesApi qualityGatesApi() {
@@ -101,6 +103,7 @@ public class ServerApi {
   }
 
   public boolean isSonarQubeCloud() {
-    return helper.getOrganization() != null;
+    return isSonarCloud;
   }
+
 }
