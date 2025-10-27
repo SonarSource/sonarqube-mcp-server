@@ -8,6 +8,8 @@
       "args": [
         "run",
         "-i",
+        "--name",
+        "sonarqube-mcp-server",
         "--rm",
         "-e",
         "SONARQUBE_TOKEN",
