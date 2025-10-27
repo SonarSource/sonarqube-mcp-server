@@ -20,10 +20,10 @@ import java.util.List;
 
 public record ComponentMeasuresResponse(Component component, List<Metric> metrics, List<Period> periods) {
 
-  public record Component(String key, String name, String qualifier, String language, String path, List<Measure> measures) {
+  public record Component(String key, String name, String description, String qualifier, String language, String path, List<Measure> measures) {
   }
 
-  public record Measure(String metric, String value, List<MeasurePeriod> periods) {
+  public record Measure(String metric, String value, Boolean bestValue, List<MeasurePeriod> periods) {
   }
 
   public record MeasurePeriod(int index, String value, boolean bestValue) {
