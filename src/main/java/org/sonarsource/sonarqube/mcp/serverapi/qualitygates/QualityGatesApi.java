@@ -34,19 +34,19 @@ public class QualityGatesApi {
     this.helper = helper;
   }
 
-  public ProjectStatusResponse getProjectQualityGateStatus(@Nullable String analysisId, @Nullable String branchKey,
+  public ProjectStatusResponse getProjectQualityGateStatus(@Nullable String analysisId, @Nullable String branch,
     @Nullable String projectId, @Nullable String projectKey, @Nullable String pullRequest) {
-    try (var response = helper.get(buildStatusPath(analysisId, branchKey, projectId, projectKey, pullRequest))) {
+    try (var response = helper.get(buildStatusPath(analysisId, branch, projectId, projectKey, pullRequest))) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, ProjectStatusResponse.class);
     }
   }
 
-  private static String buildStatusPath(@Nullable String analysisId, @Nullable String branchKey,
+  private static String buildStatusPath(@Nullable String analysisId, @Nullable String branch,
     @Nullable String projectId, @Nullable String projectKey, @Nullable String pullRequest) {
     return new UrlBuilder(PROJECT_STATUS_PATH)
       .addParam("analysisId", analysisId)
-      .addParam("branchKey", branchKey)
+      .addParam("branch", branch)
       .addParam("projectId", projectId)
       .addParam("projectKey", projectKey)
       .addParam("pullRequest", pullRequest)

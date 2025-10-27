@@ -168,6 +168,32 @@ class ProjectStatusToolTests {
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_the_project_status_with_project_key_and_branch(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?branch=" + urlEncode("feature/my-branch") + "&projectKey=pkey")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        ProjectStatusTool.TOOL_NAME,
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey", ProjectStatusTool.BRANCH_PROPERTY, "feature/my-branch"));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          The Quality Gate status is ERROR. Here are the following conditions:
+          new_coverage is ERROR, the threshold is 85 and the actual value is 82.50562381034781
+          new_blocker_violations is ERROR, the threshold is 0 and the actual value is 14
+          new_critical_violations is ERROR, the threshold is 0 and the actual value is 1
+          new_sqale_debt_ratio is OK, the threshold is 5 and the actual value is 0.6562109862671661
+          reopened_issues is OK, the threshold is null and the actual value is 0
+          open_issues is ERROR, the threshold is null and the actual value is 17
+          skipped_tests is OK, the threshold is null and the actual value is 0""", false));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
   }
 
   @Nested
@@ -221,6 +247,31 @@ class ProjectStatusToolTests {
       var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
         Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "id"));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+          The Quality Gate status is ERROR. Here are the following conditions:
+          new_coverage is ERROR, the threshold is 85 and the actual value is 82.50562381034781
+          new_blocker_violations is ERROR, the threshold is 0 and the actual value is 14
+          new_critical_violations is ERROR, the threshold is 0 and the actual value is 1
+          new_sqale_debt_ratio is OK, the threshold is 5 and the actual value is 0.6562109862671661
+          reopened_issues is OK, the threshold is null and the actual value is 0
+          open_issues is ERROR, the threshold is null and the actual value is 17
+          skipped_tests is OK, the threshold is null and the actual value is 0""", false));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_the_project_status_with_project_key_and_branch(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?branch=" + urlEncode("feature/my-branch") + "&projectKey=pkey")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        ProjectStatusTool.TOOL_NAME,
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey", ProjectStatusTool.BRANCH_PROPERTY, "feature/my-branch"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
