@@ -25,7 +25,7 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 public class GetComponentMeasuresTool extends Tool {
 
   public static final String TOOL_NAME = "get_component_measures";
-  public static final String COMPONENT_PROPERTY = "component";
+  public static final String PROJECT_KEY_PROPERTY = "projectKey";
   public static final String BRANCH_PROPERTY = "branch";
   public static final String METRIC_KEYS_PROPERTY = "metricKeys";
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
@@ -35,9 +35,9 @@ public class GetComponentMeasuresTool extends Tool {
   public GetComponentMeasuresTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
-      .setTitle("Get SonarQube Component Measures")
-      .setDescription("Get SonarQube measures for a component (project, directory, file).")
-      .addStringProperty(COMPONENT_PROPERTY, "The component key to get measures for")
+      .setTitle("Get SonarQube Project Measures")
+      .setDescription("Get SonarQube measures for a project, such as ncloc, complexity, violations, coverage, etc.")
+      .addStringProperty(PROJECT_KEY_PROPERTY, "The project key")
       .addStringProperty(BRANCH_PROPERTY, "The branch to analyze for measures")
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The pull request identifier to analyze for measures")
@@ -47,7 +47,7 @@ public class GetComponentMeasuresTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var component = arguments.getOptionalString(COMPONENT_PROPERTY);
+    var component = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
     var branch = arguments.getOptionalString(BRANCH_PROPERTY);
     var metricKeys = arguments.getOptionalStringList(METRIC_KEYS_PROPERTY);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
@@ -63,7 +63,7 @@ public class GetComponentMeasuresTool extends Tool {
     var periods = response.periods();
 
     if (component == null) {
-      stringBuilder.append("No component found.");
+      stringBuilder.append("No project key found.");
       return stringBuilder.toString();
     }
 
@@ -78,6 +78,9 @@ public class GetComponentMeasuresTool extends Tool {
   private static void appendComponentInfo(StringBuilder stringBuilder, ComponentMeasuresResponse.Component component) {
     stringBuilder.append("Component: ").append(component.name()).append("\n");
     stringBuilder.append("Key: ").append(component.key()).append("\n");
+    if (component.description() != null) {
+      stringBuilder.append("Description: ").append(component.description()).append("\n");
+    }
     stringBuilder.append("Qualifier: ").append(component.qualifier()).append("\n");
     if (component.language() != null) {
       stringBuilder.append("Language: ").append(component.language()).append("\n");
@@ -129,9 +132,6 @@ public class GetComponentMeasuresTool extends Tool {
       stringBuilder.append(" | New: ");
       for (var period : measure.periods()) {
         stringBuilder.append(period.value());
-        if (!period.bestValue()) {
-          stringBuilder.append(" (not best)");
-        }
       }
     }
   }

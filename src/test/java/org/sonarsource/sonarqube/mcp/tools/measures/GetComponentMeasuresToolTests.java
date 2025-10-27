@@ -66,7 +66,7 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No component found.", false));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No project key found.", false));
     }
 
     @SonarQubeMcpServerTest
@@ -81,12 +81,13 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
-        Map.of(GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java"));
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
+        Description: Implementation of Element interface
         Qualifier: FIL
         Language: java
         Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
@@ -94,7 +95,7 @@ class GetComponentMeasuresToolTests {
         Measures:
           - Complexity (complexity): 12
             Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25 (not best)
+          - New issues (new_violations):  | New: 25
             Description: New Issues
           - Lines of code (ncloc): 114
             Description: Non Commenting Lines of Code
@@ -146,7 +147,7 @@ class GetComponentMeasuresToolTests {
       var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
-          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
         ));
 
@@ -154,6 +155,7 @@ class GetComponentMeasuresToolTests {
         .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
+        Description: Implementation of Element interface
         Qualifier: FIL
         Language: java
         Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
@@ -161,7 +163,7 @@ class GetComponentMeasuresToolTests {
         Measures:
           - Complexity (complexity): 12
             Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25 (not best)
+          - New issues (new_violations):  | New: 25
             Description: New Issues
           - Lines of code (ncloc): 114
             Description: Non Commenting Lines of Code
@@ -213,7 +215,7 @@ class GetComponentMeasuresToolTests {
       var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
-          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
         ));
 
@@ -221,6 +223,7 @@ class GetComponentMeasuresToolTests {
         .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
+        Description: Implementation of Element interface
         Qualifier: FIL
         Language: java
         Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
@@ -228,7 +231,7 @@ class GetComponentMeasuresToolTests {
         Measures:
           - Complexity (complexity): 12
             Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25 (not best)
+          - New issues (new_violations):  | New: 25
             Description: New Issues
           - Lines of code (ncloc): 114
             Description: Non Commenting Lines of Code
@@ -280,7 +283,7 @@ class GetComponentMeasuresToolTests {
       var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
-          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
         ));
 
@@ -288,6 +291,7 @@ class GetComponentMeasuresToolTests {
         .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
+        Description: Implementation of Element interface
         Qualifier: FIL
         Language: java
         Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
@@ -295,7 +299,7 @@ class GetComponentMeasuresToolTests {
         Measures:
           - Complexity (complexity): 12
             Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25 (not best)
+          - New issues (new_violations):  | New: 25
             Description: New Issues
           - Lines of code (ncloc): 114
             Description: Non Commenting Lines of Code
@@ -381,6 +385,101 @@ class GetComponentMeasuresToolTests {
 
         No measures found for this component.
         Available Metrics:
+          - Lines of code (ncloc)
+            Description: Non Commenting Lines of Code
+            Domain: Size
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false""", false));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_handle_measures_with_and_without_bestValue(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("org.sonarsource.sonarlint.core:sonarlint-core-parent") + "&metricKeys=coverage,ncloc&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+          {
+            "component": {
+              "key": "org.sonarsource.sonarlint.core:sonarlint-core-parent",
+              "name": "SonarLint Core",
+              "description": "Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)",
+              "qualifier": "TRK",
+              "measures": [
+                {
+                  "metric": "coverage",
+                  "value": "91.9",
+                  "bestValue": false
+                },
+                {
+                  "metric": "ncloc",
+                  "value": "53717"
+                }
+              ]
+            },
+            "metrics": [
+              {
+                "key": "coverage",
+                "name": "Coverage",
+                "description": "Coverage by tests",
+                "domain": "Coverage",
+                "type": "PERCENT",
+                "higherValuesAreBetter": true,
+                "qualitative": true,
+                "hidden": false,
+                "custom": false
+              },
+              {
+                "key": "ncloc",
+                "name": "Lines of code",
+                "description": "Non Commenting Lines of Code",
+                "domain": "Size",
+                "type": "INT",
+                "higherValuesAreBetter": false,
+                "qualitative": false,
+                "hidden": false,
+                "custom": false
+              }
+            ],
+            "periods": []
+          }
+          """.getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "org.sonarsource.sonarlint.core:sonarlint-core-parent",
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"coverage", "ncloc"}
+        ));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+        Component: SonarLint Core
+        Key: org.sonarsource.sonarlint.core:sonarlint-core-parent
+        Description: Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)
+        Qualifier: TRK
+
+        Measures:
+          - Coverage (coverage): 91.9
+            Description: Coverage by tests
+          - Lines of code (ncloc): 53717
+            Description: Non Commenting Lines of Code
+
+        Available Metrics:
+          - Coverage (coverage)
+            Description: Coverage by tests
+            Domain: Coverage
+            Type: PERCENT
+            Higher values are better: true
+            Qualitative: true
+            Hidden: false
+            Custom: false
+
           - Lines of code (ncloc)
             Description: Non Commenting Lines of Code
             Domain: Size
@@ -421,7 +520,7 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No component found.", false));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No project key found.", false));
     }
 
     @SonarQubeMcpServerTest
@@ -434,12 +533,13 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
-        Map.of(GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java"));
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java"));
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
+        Description: Implementation of Element interface
         Qualifier: FIL
         Language: java
         Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
@@ -447,7 +547,7 @@ class GetComponentMeasuresToolTests {
         Measures:
           - Complexity (complexity): 12
             Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25 (not best)
+          - New issues (new_violations):  | New: 25
             Description: New Issues
           - Lines of code (ncloc): 114
             Description: Non Commenting Lines of Code
@@ -497,7 +597,7 @@ class GetComponentMeasuresToolTests {
       var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
-          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
         ));
 
@@ -505,6 +605,7 @@ class GetComponentMeasuresToolTests {
         .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
+        Description: Implementation of Element interface
         Qualifier: FIL
         Language: java
         Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
@@ -512,7 +613,7 @@ class GetComponentMeasuresToolTests {
         Measures:
           - Complexity (complexity): 12
             Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25 (not best)
+          - New issues (new_violations):  | New: 25
             Description: New Issues
           - Lines of code (ncloc): 114
             Description: Non Commenting Lines of Code
@@ -562,7 +663,7 @@ class GetComponentMeasuresToolTests {
       var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
-          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
         ));
 
@@ -570,6 +671,7 @@ class GetComponentMeasuresToolTests {
         .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
+        Description: Implementation of Element interface
         Qualifier: FIL
         Language: java
         Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
@@ -577,7 +679,7 @@ class GetComponentMeasuresToolTests {
         Measures:
           - Complexity (complexity): 12
             Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25 (not best)
+          - New issues (new_violations):  | New: 25
             Description: New Issues
           - Lines of code (ncloc): 114
             Description: Non Commenting Lines of Code
@@ -627,7 +729,7 @@ class GetComponentMeasuresToolTests {
       var result = mcpClient.callTool(
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
-          GetComponentMeasuresTool.COMPONENT_PROPERTY, "MY_PROJECT:ElementImpl.java",
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java",
           GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
         ));
 
@@ -635,6 +737,7 @@ class GetComponentMeasuresToolTests {
         .isEqualTo(new McpSchema.CallToolResult("""
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
+        Description: Implementation of Element interface
         Qualifier: FIL
         Language: java
         Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
@@ -642,7 +745,7 @@ class GetComponentMeasuresToolTests {
         Measures:
           - Complexity (complexity): 12
             Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25 (not best)
+          - New issues (new_violations):  | New: 25
             Description: New Issues
           - Lines of code (ncloc): 114
             Description: Non Commenting Lines of Code
@@ -736,6 +839,99 @@ class GetComponentMeasuresToolTests {
             Custom: false""", false));
     }
 
+    @SonarQubeMcpServerTest
+    void it_should_handle_measures_with_and_without_bestValue(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("org.sonarsource.sonarlint.core:sonarlint-core-parent") + "&metricKeys=coverage,ncloc&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+          {
+            "component": {
+              "key": "org.sonarsource.sonarlint.core:sonarlint-core-parent",
+              "name": "SonarLint Core",
+              "description": "Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)",
+              "qualifier": "TRK",
+              "measures": [
+                {
+                  "metric": "coverage",
+                  "value": "91.9",
+                  "bestValue": false
+                },
+                {
+                  "metric": "ncloc",
+                  "value": "53717"
+                }
+              ]
+            },
+            "metrics": [
+              {
+                "key": "coverage",
+                "name": "Coverage",
+                "description": "Coverage by tests",
+                "domain": "Coverage",
+                "type": "PERCENT",
+                "higherValuesAreBetter": true,
+                "qualitative": true,
+                "hidden": false,
+                "custom": false
+              },
+              {
+                "key": "ncloc",
+                "name": "Lines of code",
+                "description": "Non Commenting Lines of Code",
+                "domain": "Size",
+                "type": "INT",
+                "higherValuesAreBetter": false,
+                "qualitative": false,
+                "hidden": false,
+                "custom": false
+              }
+            ],
+            "periods": []
+          }
+          """.getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "org.sonarsource.sonarlint.core:sonarlint-core-parent",
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"coverage", "ncloc"}
+        ));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("""
+        Component: SonarLint Core
+        Key: org.sonarsource.sonarlint.core:sonarlint-core-parent
+        Description: Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)
+        Qualifier: TRK
+
+        Measures:
+          - Coverage (coverage): 91.9
+            Description: Coverage by tests
+          - Lines of code (ncloc): 53717
+            Description: Non Commenting Lines of Code
+
+        Available Metrics:
+          - Coverage (coverage)
+            Description: Coverage by tests
+            Domain: Coverage
+            Type: PERCENT
+            Higher values are better: true
+            Qualitative: true
+            Hidden: false
+            Custom: false
+
+          - Lines of code (ncloc)
+            Description: Non Commenting Lines of Code
+            Domain: Size
+            Type: INT
+            Higher values are better: false
+            Qualitative: false
+            Hidden: false
+            Custom: false""", false));
+    }
+
   }
 
   private static String generateComponentMeasuresResponse() {
@@ -744,13 +940,15 @@ class GetComponentMeasuresToolTests {
         "component": {
           "key": "MY_PROJECT:ElementImpl.java",
           "name": "ElementImpl.java",
+          "description": "Implementation of Element interface",
           "qualifier": "FIL",
           "language": "java",
           "path": "src/main/java/com/sonarsource/markdown/impl/ElementImpl.java",
           "measures": [
             {
               "metric": "complexity",
-              "value": "12"
+              "value": "12",
+              "bestValue": false
             },
             {
               "metric": "new_violations",
@@ -764,7 +962,8 @@ class GetComponentMeasuresToolTests {
             },
             {
               "metric": "ncloc",
-              "value": "114"
+              "value": "114",
+              "bestValue": false
             }
           ]
         },
