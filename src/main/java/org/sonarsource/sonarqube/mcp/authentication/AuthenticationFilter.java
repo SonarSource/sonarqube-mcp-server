@@ -94,14 +94,11 @@ public class AuthenticationFilter implements Filter {
           return;
         }
 
-        httpRequest.setAttribute(SONARQUBE_TOKEN_ATTRIBUTE, token);
-
         RequestContext.set(token);
 
         filterChain.doFilter(req, resp);
 
         if (httpRequest.isAsyncStarted()) {
-          LOG.info("Async request detected, registering cleanup listener");
           httpRequest.getAsyncContext().addListener(new AsyncListener() {
             @Override
             public void onComplete(AsyncEvent event) {
@@ -150,11 +147,9 @@ public class AuthenticationFilter implements Filter {
   private static String extractToken(HttpServletRequest request) {
     var sonarQubeTokenHeader = request.getHeader(SONARQUBE_TOKEN_HEADER);
     if (sonarQubeTokenHeader != null && !sonarQubeTokenHeader.trim().isEmpty()) {
-      LOG.info("Extracted token from SONARQUBE_TOKEN header");
       return sonarQubeTokenHeader.trim();
     }
-    
-    LOG.info("No token found in SONARQUBE_TOKEN header");
+
     return null;
   }
 
