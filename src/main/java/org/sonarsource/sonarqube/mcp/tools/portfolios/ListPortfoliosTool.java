@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.portfolios;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import javax.annotation.Nullable;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.PortfoliosResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.views.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -34,19 +34,21 @@ public class ListPortfoliosTool extends Tool {
   public static final String PAGE_INDEX_PROPERTY = "pageIndex";
   public static final String PAGE_SIZE_PROPERTY = "pageSize";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
+  private final boolean isSonarCloud;
 
-  public ListPortfoliosTool(ServerApi serverApi) {
-    super(createToolDefinition(serverApi));
-    this.serverApi = serverApi;
+  public ListPortfoliosTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
+    super(createToolDefinition(isSonarCloud));
+    this.serverApiProvider = serverApiProvider;
+    this.isSonarCloud = isSonarCloud;
   }
 
-  private static McpSchema.Tool createToolDefinition(ServerApi serverApi) {
+  private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
     var builder = new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Portfolios");
       
-    if (serverApi.isSonarQubeCloud()) {
+    if (isSonarCloud) {
       builder.setDescription("List enterprise portfolios available in SonarQube Cloud with filtering and pagination options.")
         .addStringProperty(ENTERPRISE_ID_PROPERTY, "Enterprise uuid. Can be omitted only if 'favorite' parameter is supplied with value true")
         .addStringProperty(QUERY_PROPERTY, "Search query to filter portfolios by name")
@@ -69,7 +71,7 @@ public class ListPortfoliosTool extends Tool {
   @Override
   public Result execute(Arguments arguments) {
     try {
-      if (serverApi.isSonarQubeCloud()) {
+      if (isSonarCloud) {
         return executeForCloud(arguments);
       } else {
         return executeForServer(arguments);
@@ -93,7 +95,7 @@ public class ListPortfoliosTool extends Tool {
       return Result.failure(validationError);
     }
 
-    var response = serverApi.enterprisesApi().listPortfolios(enterpriseId, query, favorite, draft, pageIndex, pageSize);
+    var response = serverApiProvider.get().enterprisesApi().listPortfolios(enterpriseId, query, favorite, draft, pageIndex, pageSize);
     return Result.success(formatCloudResponse(response));
   }
 
@@ -103,7 +105,7 @@ public class ListPortfoliosTool extends Tool {
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
 
-    var response = serverApi.viewsApi().search(query, favorite, pageIndex, pageSize);
+    var response = serverApiProvider.get().viewsApi().search(query, favorite, pageIndex, pageSize);
     return Result.success(formatServerResponse(response));
   }
 

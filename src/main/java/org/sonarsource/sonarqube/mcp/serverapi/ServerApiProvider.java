@@ -14,28 +14,16 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.log;
+package org.sonarsource.sonarqube.mcp.serverapi;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.function.Supplier;
 
-public class McpLogger {
-  private static final Logger LOG = LoggerFactory.getLogger(McpLogger.class);
-  private static final McpLogger INSTANCE = new McpLogger();
-
-  public static McpLogger getInstance() {
-    return INSTANCE;
-  }
-
-  public void info(String message) {
-    LOG.info(message);
-  }
-
-  public void warn(String message) {
-    LOG.warn(message);
-  }
-
-  public void error(String message, Throwable throwable) {
-    LOG.error(message, throwable);
-  }
+/**
+ * Provider interface for obtaining ServerApi instances.
+ * This abstraction allows tools to work in both stdio and HTTP modes:
+ * - In stdio mode: Returns the global ServerApi instance created at startup
+ * - In HTTP mode: Creates per-request ServerApi instances using client tokens from Authorization headers
+ */
+public interface ServerApiProvider extends Supplier<ServerApi> {
 }
+

@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -30,10 +30,10 @@ public class SearchDependencyRisksTool extends Tool {
   public static final String BRANCH_KEY_PROPERTY = "branchKey";
   public static final String PULL_REQUEST_KEY_PROPERTY = "pullRequestKey";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
   private final SonarQubeVersionChecker sonarQubeVersionChecker;
 
-  public SearchDependencyRisksTool(ServerApi serverApi, SonarQubeVersionChecker sonarQubeVersionChecker) {
+  public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Search Dependency Risks")
@@ -43,23 +43,23 @@ public class SearchDependencyRisksTool extends Tool {
       .addStringProperty(BRANCH_KEY_PROPERTY, "The branch key")
       .addStringProperty(PULL_REQUEST_KEY_PROPERTY, "The pull request key")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
     this.sonarQubeVersionChecker = sonarQubeVersionChecker;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApi.isSonarQubeCloud() && !sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
+    if (!serverApiProvider.get().isSonarQubeCloud() && !sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
       return Tool.Result.failure("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
     }
-    if (!serverApi.scaApi().getFeatureEnabled().enabled()) {
+    if (!serverApiProvider.get().scaApi().getFeatureEnabled().enabled()) {
       return Tool.Result.failure("Search Dependency Risks tool is not available because Advanced Security is not enabled.");
     }
     var projectKey = arguments.getStringOrThrow(PROJECT_KEY_PROPERTY);
     var branchKey = arguments.getOptionalString(BRANCH_KEY_PROPERTY);
     var pullRequestKey = arguments.getOptionalString(PULL_REQUEST_KEY_PROPERTY);
 
-    var response = serverApi.scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey);
+    var response = serverApiProvider.get().scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey);
     return Tool.Result.success(buildResponseFromDependencyRisksResponse(response));
   }
 

@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.InfoResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -27,21 +27,21 @@ public class SystemInfoTool extends Tool {
 
   public static final String TOOL_NAME = "get_system_info";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public SystemInfoTool(ServerApi serverApi) {
+  public SystemInfoTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Information")
       .setDescription("Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. " +
         "Requires 'Administer' permissions.")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var response = serverApi.systemApi().getInfo();
+    var response = serverApiProvider.get().systemApi().getInfo();
     return Tool.Result.success(buildResponseFromInfo(response));
   }
 

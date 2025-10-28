@@ -26,8 +26,9 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.ee10.servlet.FilterHolder;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
  * HTTP transport provider for MCP server using the SDK's built-in servlet transport.
@@ -35,36 +36,39 @@ import org.slf4j.LoggerFactory;
  * as the servlet container to host the SDK's HttpServletStreamableServerTransportProvider.
  */
 public class HttpServerTransportProvider {
-  
-  private static final Logger LOGGER = LoggerFactory.getLogger(HttpServerTransportProvider.class);
+
+  private static final McpLogger LOG = McpLogger.getInstance();
   private static final String MCP_ENDPOINT = "/mcp";
   
   private final int port;
   private final String host;
+  private final AuthMode authMode;
   private final HttpServletStreamableServerTransportProvider mcpTransportProvider;
   private Server httpServer;
   private volatile boolean serverReady = false;
 
   /**
-   * Create HTTP transport provider with custom host binding.
+   * Create HTTP transport provider with custom host binding and authentication.
    * 
    * @param port HTTP port (e.g., 8080)
    * @param host Host to bind to (127.0.0.1 for localhost, 0.0.0.0 for all interfaces)
+   * @param authMode Authentication mode (e.g., TOKEN, OAUTH)
    */
-  public HttpServerTransportProvider(int port, String host) {
+  public HttpServerTransportProvider(int port, String host, AuthMode authMode) {
     this.port = port;
     this.host = host;
+    this.authMode = authMode;
 
     this.mcpTransportProvider = HttpServletStreamableServerTransportProvider.builder()
         .mcpEndpoint(MCP_ENDPOINT)
         .keepAliveInterval(Duration.ofSeconds(30))
         .build();
         
-    LOGGER.info("Created HTTP transport provider for {}:{}{}", host, port, MCP_ENDPOINT);
+    LOG.info("Created HTTP transport provider for " + host + ":" + port + MCP_ENDPOINT + " with authentication: " + authMode);
     
     // Warn about security risk when binding to all interfaces
     if ("0.0.0.0".equals(host)) {
-      LOGGER.warn("SECURITY WARNING: MCP HTTP server is configured to bind to all network interfaces (0.0.0.0). " +
+      LOG.warn("SECURITY WARNING: MCP HTTP server is configured to bind to all network interfaces (0.0.0.0). " +
                   "This exposes the server to your entire network. " +
                   "For local development, consider using 127.0.0.1 instead.");
     }
@@ -81,7 +85,7 @@ public class HttpServerTransportProvider {
    */
   public CompletableFuture<Void> startServer() {
     if (httpServer != null && httpServer.isRunning()) {
-      LOGGER.warn("HTTP server is already running on {}:{}", host, port);
+      LOG.warn("HTTP server is already running on " + host + ":" + port);
       return CompletableFuture.completedFuture(null);
     }
 
@@ -89,6 +93,9 @@ public class HttpServerTransportProvider {
 
     var servletContextHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
     servletContextHandler.setContextPath("/");
+
+    var authFilter = new FilterHolder(new AuthenticationFilter(authMode));
+    servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var securityFilter = new FilterHolder(new McpSecurityFilter(host));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
@@ -110,17 +117,17 @@ public class HttpServerTransportProvider {
       try {
         httpServer.start();
         serverReady = true;
-        LOGGER.info("MCP HTTP server started successfully on http://{}:{}{}", host, port, MCP_ENDPOINT);
+        LOG.info("MCP HTTP server started successfully on http://" + host + ":" + port + MCP_ENDPOINT);
         startupFuture.complete(null);
         httpServer.join();
       } catch (InterruptedException e) {
-        LOGGER.info("MCP HTTP server was interrupted - this is normal during shutdown");
+        LOG.info("MCP HTTP server was interrupted - this is normal during shutdown");
         Thread.currentThread().interrupt();
         if (!startupFuture.isDone()) {
           startupFuture.completeExceptionally(e);
         }
       } catch (Exception e) {
-        LOGGER.error("Error starting MCP HTTP server", e);
+        LOG.error("Error starting MCP HTTP server", e);
         serverReady = false;
         if (!startupFuture.isDone()) {
           startupFuture.completeExceptionally(e);
@@ -133,20 +140,20 @@ public class HttpServerTransportProvider {
 
   public CompletableFuture<Void> stopServer() {
     if (httpServer == null) {
-      LOGGER.debug("HTTP server is not running");
+      LOG.info("HTTP server is not running");
       return CompletableFuture.completedFuture(null);
     }
 
     return CompletableFuture.runAsync(() -> {
-      LOGGER.info("Stopping MCP HTTP server...");
+      LOG.info("Stopping MCP HTTP server...");
       serverReady = false;
       
       try {
         httpServer.stop();
         httpServer = null;
-        LOGGER.info("MCP HTTP server stopped successfully");
+        LOG.info("MCP HTTP server stopped successfully");
       } catch (Exception e) {
-        LOGGER.error("Error stopping HTTP server", e);
+        LOG.error("Error stopping HTTP server", e);
       }
     });
   }

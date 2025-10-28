@@ -24,6 +24,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
+import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,6 +44,9 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_HTTP_ENABLED = "SONARQUBE_HTTP_ENABLED";
   private static final String SONARQUBE_HTTP_PORT = "SONARQUBE_HTTP_PORT";
   private static final String SONARQUBE_HTTP_HOST = "SONARQUBE_HTTP_HOST";
+  
+  // HTTP authentication configuration
+  private static final String SONARQUBE_HTTP_AUTH_MODE = "SONARQUBE_HTTP_AUTH_MODE";
 
   private final Path storagePath;
   private final String hostMachineAddress;
@@ -60,6 +64,9 @@ public class McpServerLaunchConfiguration {
   private final boolean isHttpEnabled;
   private final int httpPort;
   private final String httpHost;
+  // HTTP authentication configuration (only for HTTP mode)
+  @Nullable
+  private final AuthMode authMode;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -71,10 +78,14 @@ public class McpServerLaunchConfiguration {
     var sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, "https://sonarcloud.io");
     this.sonarqubeUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, sonarqubeCloudUrl);
     this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
+
+    this.isHttpEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_ENABLED, "false"));
+
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
     if (sonarqubeToken == null) {
       throw new IllegalArgumentException("SONARQUBE_TOKEN environment variable or property must be set");
     }
+
     this.sonarqubeIdePort = parsePortValue(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_IDE_PORT_ENV, null));
 
     this.isSonarCloud = requireNonNull(sonarqubeCloudUrl).equals(this.sonarqubeUrl);
@@ -87,9 +98,10 @@ public class McpServerLaunchConfiguration {
     this.userAgent = APP_NAME + " " + appVersion;
     this.isTelemetryEnabled = !Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, TELEMETRY_DISABLED, "false"));
 
-    this.isHttpEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_ENABLED, "false"));
     this.httpPort = parseHttpPortValue(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_PORT, "8080"));
     this.httpHost = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_HOST, "127.0.0.1");
+    
+    this.authMode = parseAuthMode(environment);
   }
 
   @NotNull
@@ -116,6 +128,12 @@ public class McpServerLaunchConfiguration {
     return sonarqubeUrl;
   }
 
+  /**
+   * Get the SonarQube token.
+   * - In stdio mode: Used for all operations.
+   * - In HTTP mode: Used only for startup initialization (version check, plugin sync).
+   *   Per-request operations use client tokens from Authorization headers.
+   */
   public String getSonarQubeToken() {
     return sonarqubeToken;
   }
@@ -154,6 +172,11 @@ public class McpServerLaunchConfiguration {
 
   public String getHttpHost() {
     return httpHost;
+  }
+
+  @Nullable
+  public AuthMode getAuthMode() {
+    return authMode;
   }
 
   @CheckForNull
@@ -226,6 +249,16 @@ public class McpServerLaunchConfiguration {
       // Continue
     }
     return "localhost";
+  }
+
+  @CheckForNull
+  private AuthMode parseAuthMode(Map<String, String> environment) {
+    if (isHttpEnabled) {
+      var authModeStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_AUTH_MODE, "TOKEN");
+      return AuthMode.fromString(authModeStr);
+    }
+    // Stdio mode: No HTTP authentication, AuthenticationFilter not registered
+    return null;
   }
 
 }

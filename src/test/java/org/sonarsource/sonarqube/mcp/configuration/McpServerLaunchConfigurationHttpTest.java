@@ -75,12 +75,39 @@ class McpServerLaunchConfigurationHttpTest {
     var environment = createMinimalTestEnvironment();
     environment.put("SONARQUBE_HTTP_ENABLED", "true");
     environment.put("SONARQUBE_HTTP_HOST", "0.0.0.0");
+    // Authentication is optional (will show warning)
     
     var config = new McpServerLaunchConfiguration(environment);
     
     assertThat(config.isHttpEnabled()).isTrue();
     assertThat(config.getHttpPort()).isEqualTo(8080);
     assertThat(config.getHttpHost()).isEqualTo("0.0.0.0");
+  }
+
+  @Test
+  void should_default_to_token_auth_for_non_localhost_binding() {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_HTTP_ENABLED", "true");
+    environment.put("SONARQUBE_HTTP_HOST", "0.0.0.0");
+    // No authentication configured - should default to TOKEN
+    
+    var config = new McpServerLaunchConfiguration(environment);
+    
+    assertThat(config.getHttpHost()).isEqualTo("0.0.0.0");
+    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.TOKEN);
+  }
+
+  @Test
+  void should_default_to_token_auth_for_localhost_binding() {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_HTTP_ENABLED", "true");
+    environment.put("SONARQUBE_HTTP_HOST", "127.0.0.1");
+    // No authentication configured - should default to TOKEN
+    
+    var config = new McpServerLaunchConfiguration(environment);
+    
+    assertThat(config.getHttpHost()).isEqualTo("127.0.0.1");
+    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.TOKEN);
   }
 
   @Test
@@ -131,30 +158,20 @@ class McpServerLaunchConfigurationHttpTest {
   }
 
   @Test
-  void should_validate_http_port_bounds_minimum() {
-    var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_HTTP_PORT", "1023");
-    
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("SONARQUBE_HTTP_PORT value must be between 1024 and 65535 (unprivileged ports only), got: 1023");
-  }
-
-  @Test
   void should_reject_privileged_ports() {
     var environment = createMinimalTestEnvironment();
     environment.put("SONARQUBE_HTTP_PORT", "80");
     
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("SONARQUBE_HTTP_PORT value must be between 1024 and 65535 (unprivileged ports only)");
+        .hasMessage("SONARQUBE_HTTP_PORT value must be between 1024 and 65535 (unprivileged ports only), got: 80");
   }
 
   @Test
   void should_accept_valid_http_port_bounds() {
     var environment = createMinimalTestEnvironment();
     
-    // Test minimum valid unprivileged port
+    // Test minimum valid port
     environment.put("SONARQUBE_HTTP_PORT", "1024");
     var config1 = new McpServerLaunchConfiguration(environment);
     assertThat(config1.getHttpPort()).isEqualTo(1024);

@@ -145,7 +145,8 @@ class ListPortfoliosToolTests {
     @SonarQubeMcpServerTest
     void it_should_fail_when_neither_enterpriseId_nor_favorite_is_provided(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"));
+        "SONARQUBE_ORG", "org",
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(ListPortfoliosTool.TOOL_NAME);
 
@@ -156,7 +157,8 @@ class ListPortfoliosToolTests {
     @SonarQubeMcpServerTest
     void it_should_fail_when_both_favorite_and_draft_are_true(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"));
+        "SONARQUBE_ORG", "org",
+        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,

@@ -150,7 +150,7 @@ class McpSecurityFilterTest {
 
     verify(response).setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     verify(response).setHeader("Access-Control-Allow-Headers", 
-        "Content-Type, Accept, Mcp-Session-Id, Last-Event-ID");
+        "Content-Type, Accept, Mcp-Session-Id, Last-Event-ID, SONARQUBE_TOKEN");
     verify(response).setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
     verify(response).setHeader("Access-Control-Max-Age", "3600");
   }

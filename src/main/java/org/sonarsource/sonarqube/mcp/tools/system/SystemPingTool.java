@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
@@ -24,20 +24,20 @@ public class SystemPingTool extends Tool {
 
   public static final String TOOL_NAME = "ping_system";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public SystemPingTool(ServerApi serverApi) {
+  public SystemPingTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Ping SonarQube Server System")
       .setDescription("Ping the SonarQube Server system to check if it's alive. Returns 'pong' as plain text.")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var response = serverApi.systemApi().getPing();
+    var response = serverApiProvider.get().systemApi().getPing();
     return Tool.Result.success(response.trim());
   }
 

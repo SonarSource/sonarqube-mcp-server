@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 
 import java.util.Locale;
 import javax.annotation.Nullable;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
@@ -27,16 +27,16 @@ public class SystemLogsTool extends Tool {
   public static final String TOOL_NAME = "get_system_logs";
   public static final String NAME_PROPERTY = "name";
 
-  private final ServerApi serverApi;
+  private final ServerApiProvider serverApiProvider;
 
-  public SystemLogsTool(ServerApi serverApi) {
+  public SystemLogsTool(ServerApiProvider serverApiProvider) {
     super(new SchemaToolBuilder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Logs")
       .setDescription("Get SonarQube Server system logs in plain-text format. Requires system administration permission.")
       .addStringProperty(NAME_PROPERTY, "Name of the logs to get. Possible values: access, app, ce, deprecation, es, web. Default: app")
       .build());
-    this.serverApi = serverApi;
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override
@@ -47,7 +47,7 @@ public class SystemLogsTool extends Tool {
       return Tool.Result.failure("Invalid log name. Possible values: access, app, ce, deprecation, es, web");
     }
 
-    var logs = serverApi.systemApi().getLogs(name);
+    var logs = serverApiProvider.get().systemApi().getLogs(name);
     return Tool.Result.success(buildResponseFromLogs(logs, name));
   }
 
