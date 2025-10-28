@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.configuration;
 import java.net.InetAddress;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Locale;
 import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
@@ -40,10 +41,24 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_IDE_PORT_ENV = "SONARQUBE_IDE_PORT";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
   
-  // HTTP transport configuration
-  private static final String SONARQUBE_HTTP_ENABLED = "SONARQUBE_HTTP_ENABLED";
+  // HTTP/HTTPS transport configuration
+  private static final String SONARQUBE_TRANSPORT = "SONARQUBE_TRANSPORT";
   private static final String SONARQUBE_HTTP_PORT = "SONARQUBE_HTTP_PORT";
   private static final String SONARQUBE_HTTP_HOST = "SONARQUBE_HTTP_HOST";
+  
+  // HTTPS/SSL configuration
+  private static final String SONARQUBE_HTTPS_KEYSTORE_PATH = "SONARQUBE_HTTPS_KEYSTORE_PATH";
+  private static final String SONARQUBE_HTTPS_KEYSTORE_PASSWORD = "SONARQUBE_HTTPS_KEYSTORE_PASSWORD";
+  private static final String SONARQUBE_HTTPS_KEYSTORE_TYPE = "SONARQUBE_HTTPS_KEYSTORE_TYPE";
+  private static final String SONARQUBE_HTTPS_TRUSTSTORE_PATH = "SONARQUBE_HTTPS_TRUSTSTORE_PATH";
+  private static final String SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD = "SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD";
+  private static final String SONARQUBE_HTTPS_TRUSTSTORE_TYPE = "SONARQUBE_HTTPS_TRUSTSTORE_TYPE";
+  
+  // Default values for HTTPS
+  private static final String DEFAULT_KEYSTORE_PASSWORD = "sonarlint";
+  private static final String DEFAULT_KEYSTORE_TYPE = "PKCS12";
+  private static final String DEFAULT_KEYSTORE_PATH = "/etc/ssl/mcp/keystore.p12";
+  private static final String DEFAULT_TRUSTSTORE_PATH = "/etc/ssl/mcp/truststore.p12";
   
   // HTTP authentication configuration
   private static final String SONARQUBE_HTTP_AUTH_MODE = "SONARQUBE_HTTP_AUTH_MODE";
@@ -64,7 +79,14 @@ public class McpServerLaunchConfiguration {
   private final boolean isHttpEnabled;
   private final int httpPort;
   private final String httpHost;
-  // HTTP authentication configuration (only for HTTP mode)
+  // HTTPS/SSL configuration
+  private final boolean isHttpsEnabled;
+  private final Path httpsKeystorePath;
+  private final String httpsKeystorePassword;
+  private final String httpsKeystoreType;
+  private final Path httpsTruststorePath;
+  private final String httpsTruststorePassword;
+  private final String httpsTruststoreType;
   @Nullable
   private final AuthMode authMode;
 
@@ -78,8 +100,6 @@ public class McpServerLaunchConfiguration {
     var sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, "https://sonarcloud.io");
     this.sonarqubeUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, sonarqubeCloudUrl);
     this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
-
-    this.isHttpEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_ENABLED, "false"));
 
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
     if (sonarqubeToken == null) {
@@ -98,8 +118,23 @@ public class McpServerLaunchConfiguration {
     this.userAgent = APP_NAME + " " + appVersion;
     this.isTelemetryEnabled = !Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, TELEMETRY_DISABLED, "false"));
 
+    // Parse transport mode: "http", "https", or disabled (stdio)
+    var transportMode = requireNonNull(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TRANSPORT, "")).toLowerCase(Locale.getDefault());
+    this.isHttpEnabled = transportMode.equals("http") || transportMode.equals("https");
+    this.isHttpsEnabled = transportMode.equals("https");
+    
     this.httpPort = parseHttpPortValue(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_PORT, "8080"));
     this.httpHost = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_HOST, "127.0.0.1");
+
+    var keystorePathStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTPS_KEYSTORE_PATH, DEFAULT_KEYSTORE_PATH);
+    this.httpsKeystorePath = Paths.get(requireNonNull(keystorePathStr));
+    this.httpsKeystorePassword = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTPS_KEYSTORE_PASSWORD, DEFAULT_KEYSTORE_PASSWORD);
+    this.httpsKeystoreType = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTPS_KEYSTORE_TYPE, DEFAULT_KEYSTORE_TYPE);
+    
+    var truststorePathStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTPS_TRUSTSTORE_PATH, DEFAULT_TRUSTSTORE_PATH);
+    this.httpsTruststorePath = Paths.get(requireNonNull(truststorePathStr));
+    this.httpsTruststorePassword = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD, DEFAULT_KEYSTORE_PASSWORD);
+    this.httpsTruststoreType = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTPS_TRUSTSTORE_TYPE, DEFAULT_KEYSTORE_TYPE);
     
     this.authMode = parseAuthMode(environment);
   }
@@ -172,6 +207,34 @@ public class McpServerLaunchConfiguration {
 
   public String getHttpHost() {
     return httpHost;
+  }
+
+  public boolean isHttpsEnabled() {
+    return isHttpsEnabled;
+  }
+
+  public Path getHttpsKeystorePath() {
+    return httpsKeystorePath;
+  }
+
+  public String getHttpsKeystorePassword() {
+    return httpsKeystorePassword;
+  }
+
+  public String getHttpsKeystoreType() {
+    return httpsKeystoreType;
+  }
+
+  public Path getHttpsTruststorePath() {
+    return httpsTruststorePath;
+  }
+
+  public String getHttpsTruststorePassword() {
+    return httpsTruststorePassword;
+  }
+
+  public String getHttpsTruststoreType() {
+    return httpsTruststoreType;
   }
 
   @Nullable

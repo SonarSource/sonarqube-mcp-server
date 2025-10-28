@@ -67,6 +67,19 @@ class AuthenticationFilterTest {
 
     verify(filterChain).doFilter(request, response);
     verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    verify(request).setAttribute(AuthenticationFilter.SONARQUBE_TOKEN_ATTRIBUTE, "squ_my_custom_token");
+  }
+
+  @Test
+  void should_trim_token_with_extra_whitespace() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN);
+    when(request.getMethod()).thenReturn("GET");
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("  squ_token123  ");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(request).setAttribute(AuthenticationFilter.SONARQUBE_TOKEN_ATTRIBUTE, "squ_token123");
   }
 
   @Test

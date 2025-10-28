@@ -41,7 +41,7 @@ class SonarQubeMcpServerHttpTest {
   @SonarQubeMcpServerTest
   void should_use_http_transport_when_enabled(SonarQubeMcpServerTestHarness harness) {
     var environment = createTestEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("SONARQUBE_HTTP_ENABLED", "true");
+    environment.put("SONARQUBE_TRANSPORT", "http");
     environment.put("SONARQUBE_HTTP_PORT", "8080");
     environment.put("SONARQUBE_HTTP_HOST", "127.0.0.1");
 
@@ -57,7 +57,7 @@ class SonarQubeMcpServerHttpTest {
   @SonarQubeMcpServerTest
   void should_use_custom_http_configuration(SonarQubeMcpServerTestHarness harness) {
     var environment = createTestEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("SONARQUBE_HTTP_ENABLED", "true");
+    environment.put("SONARQUBE_TRANSPORT", "http");
     environment.put("SONARQUBE_HTTP_PORT", "9000");
     environment.put("SONARQUBE_HTTP_HOST", "0.0.0.0");
     // Authentication is now optional (will show warning)
@@ -84,7 +84,7 @@ class SonarQubeMcpServerHttpTest {
         .sorted()
         .toList();
     
-    environment.put("SONARQUBE_HTTP_ENABLED", "true");
+    environment.put("SONARQUBE_TRANSPORT", "http");
     var httpServer = new SonarQubeMcpServer(environment);
     httpServer.start();
     var httpTools = httpServer.getSupportedTools().stream()
@@ -100,7 +100,7 @@ class SonarQubeMcpServerHttpTest {
   @SonarQubeMcpServerTest
   void should_not_create_http_manager_when_disabled(SonarQubeMcpServerTestHarness harness) {
     var environment = createTestEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("SONARQUBE_HTTP_ENABLED", "false");
+    environment.put("SONARQUBE_TRANSPORT", "false");
 
     harness.prepareMockWebServer(environment);
 
