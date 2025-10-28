@@ -19,7 +19,9 @@ package org.sonarsource.sonarqube.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 
 public class ToolExecutor {
@@ -42,12 +44,13 @@ public class ToolExecutor {
       LOG.info("Tool completed: " + toolName + " (execution time: " + executionTime + "ms)");
     } catch (Exception e) {
       var executionTime = System.currentTimeMillis() - startTime;
-      String message;
-      if (e instanceof NotFoundException) {
-        message = "Make sure your token is valid.";
-      } else {
-        message = e instanceof ResponseErrorException responseErrorException ? responseErrorException.getResponseError().getMessage() : e.getMessage();
-      }
+      var message = switch (e) {
+        case UnauthorizedException ex -> ex.getMessage() + ". Please verify your token is valid and has the correct permissions.";
+        case ForbiddenException ex -> ex.getMessage() + ". Please verify your token has the required permissions for this operation.";
+        case NotFoundException ex -> ex.getMessage() + ". Please verify your token is valid.";
+        case ResponseErrorException responseErrorException -> responseErrorException.getResponseError().getMessage();
+        default -> e.getMessage();
+      };
       result = Tool.Result.failure("An error occurred during the tool execution: " + message);
       LOG.error("Tool failed: " + toolName + " (execution time: " + executionTime + "ms)", e);
     }

@@ -43,8 +43,10 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
+      assertThat(result.isError()).isTrue();
+      var content = result.content().getFirst().toString();
+      assertThat(content).contains("An error occurred during the tool execution:");
+      assertThat(content).contains("Please verify your token is valid.");
     }
 
     @SonarQubeMcpServerTest
@@ -118,7 +120,7 @@ class ListLanguagesToolTests {
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
