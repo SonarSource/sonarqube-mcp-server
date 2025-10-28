@@ -82,7 +82,7 @@ class SearchDependencyRisksToolTests {
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest

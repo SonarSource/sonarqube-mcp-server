@@ -43,9 +43,7 @@ class SystemInfoToolTests {
         "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
         "SONARQUBE_ORG", "org"));
 
-      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> {
-        mcpClient.callTool(SystemInfoTool.TOOL_NAME);
-      });
+      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> mcpClient.callTool(SystemInfoTool.TOOL_NAME));
 
       assertThat(exception.getMessage()).isEqualTo("Unknown tool: invalid_tool_name");
     }
@@ -62,7 +60,7 @@ class SystemInfoToolTests {
       var result = mcpClient.callTool(SystemInfoTool.TOOL_NAME);
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest

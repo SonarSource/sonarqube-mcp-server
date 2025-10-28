@@ -44,8 +44,10 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
+      assertThat(result.isError()).isTrue();
+      var content = result.content().getFirst().toString();
+      assertThat(content).contains("An error occurred during the tool execution:");
+      assertThat(content).contains("Please verify your token is valid.");
     }
 
     @SonarQubeMcpServerTest
@@ -500,8 +502,10 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Make sure your token is valid.", true));
+      assertThat(result.isError()).isTrue();
+      var content = result.content().getFirst().toString();
+      assertThat(content).contains("An error occurred during the tool execution:");
+      assertThat(content).contains("Please verify your token is valid.");
     }
 
     @SonarQubeMcpServerTest

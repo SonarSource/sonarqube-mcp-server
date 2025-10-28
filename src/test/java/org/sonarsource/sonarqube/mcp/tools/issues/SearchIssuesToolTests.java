@@ -44,7 +44,7 @@ class SearchIssuesToolTests {
       var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -338,7 +338,7 @@ class SearchIssuesToolTests {
       var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
