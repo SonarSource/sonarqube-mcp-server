@@ -24,10 +24,12 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SearchDependencyRisksToolTests {
@@ -67,7 +69,7 @@ class SearchDependencyRisksToolTests {
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available because Advanced Security is not enabled.", true));
+        .isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available in your SonarQube Cloud organization because Advanced Security is not enabled.", true));
     }
   }
 
@@ -83,6 +85,19 @@ class SearchDependencyRisksToolTests {
 
       assertThat(result)
         .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_an_error_if_the_sca_feature_is_disabled(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(FeaturesApi.FEATURES_LIST_PATH).willReturn(okJson("""
+          [""]
+          """)));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
+
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available for SonarQube Server because Advanced Security is not enabled.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -107,11 +122,9 @@ class SearchDependencyRisksToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_find_tool_even_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.FEATURE_ENABLED_PATH).willReturn(aResponse().withResponseBody(
+      harness.getMockSonarQubeServer().stubFor(get(FeaturesApi.FEATURES_LIST_PATH).willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
-          {
-            "enabled": false
-          }
+          ["prioritized-rules","from-sonarqube-update","multiple-alm"]
           """.getBytes(StandardCharsets.UTF_8)))));
 
       var mcpClient = harness.newClient();

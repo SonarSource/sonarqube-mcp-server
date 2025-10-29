@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
+import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -49,17 +50,21 @@ public class SearchDependencyRisksTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    if (!serverApiProvider.get().isSonarQubeCloud() && !sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
+    var provider = serverApiProvider.get();
+    if (!provider.isSonarQubeCloud() && !sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
       return Tool.Result.failure("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
     }
-    if (!serverApiProvider.get().scaApi().isScaEnabled()) {
-      return Tool.Result.failure("Search Dependency Risks tool is not available because Advanced Security is not enabled.");
+    if (provider.isSonarQubeCloud() && !provider.scaApi().isScaEnabled()) {
+      return Tool.Result.failure("Search Dependency Risks tool is not available in your SonarQube Cloud organization because Advanced Security is not enabled.");
+    }
+    if (!provider.isSonarQubeCloud() && !provider.featuresApi().listFeatures().contains(Feature.SCA)) {
+      return Tool.Result.failure("Search Dependency Risks tool is not available for SonarQube Server because Advanced Security is not enabled.");
     }
     var projectKey = arguments.getStringOrThrow(PROJECT_KEY_PROPERTY);
     var branchKey = arguments.getOptionalString(BRANCH_KEY_PROPERTY);
     var pullRequestKey = arguments.getOptionalString(PULL_REQUEST_KEY_PROPERTY);
 
-    var response = serverApiProvider.get().scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey);
+    var response = provider.scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey);
     return Tool.Result.success(buildResponseFromDependencyRisksResponse(response));
   }
 

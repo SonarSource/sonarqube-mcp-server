@@ -31,11 +31,9 @@ public class IssuesApi {
   public static final String SEARCH_PATH = "/api/issues/search";
 
   private final ServerApiHelper helper;
-  private final String organization;
 
-  public IssuesApi(ServerApiHelper helper, @Nullable String organization) {
+  public IssuesApi(ServerApiHelper helper) {
     this.helper = helper;
-    this.organization = organization;
   }
 
   public SearchResponse search(@Nullable List<String> projects, @Nullable String pullRequestId, @Nullable List<String> severities, @Nullable Integer page,
@@ -59,7 +57,7 @@ public class IssuesApi {
       .addParam("impactSeverities", severities)
       .addParam("p", page)
       .addParam("ps", pageSize)
-      .addParam("organization", organization);
+      .addParam("organization", helper.getOrganization());
     return builder.build();
   }
 

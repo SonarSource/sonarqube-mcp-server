@@ -14,8 +14,25 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.serverapi.sca.response;
+package org.sonarsource.sonarqube.mcp.serverapi.features;
 
-public record FeatureEnabledResponse(boolean enabled) {
+import java.util.Arrays;
+import java.util.Optional;
+
+public enum Feature {
+  SCA("sca");
+
+  public static Optional<Feature> fromKey(String key) {
+    return Arrays.stream(values()).filter(f -> f.key.equals(key)).findFirst();
+  }
+
+  private final String key;
+
+  Feature(String key) {
+    this.key = key;
+  }
+
+  public String getKey() {
+    return key;
+  }
 }
-

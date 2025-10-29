@@ -35,23 +35,8 @@ public class ScaApi {
   }
 
   public boolean isScaEnabled() {
-    var organization = helper.getOrganization();
-    return organization == null ? getFeatureEnabledForServer() : getFeatureEnabledForCloud(organization);
-  }
-
-  private boolean getFeatureEnabledForServer() {
-    var path = new UrlBuilder(FEATURE_ENABLED_PATH).build();
-    try (var response = helper.get("/api/v2" + path)) {
-      var responseStr = response.bodyAsString();
-      return new Gson().fromJson(responseStr, FeatureEnabledResponse.class).enabled();
-    } catch (Exception e) {
-      return false;
-    }
-  }
-
-  private boolean getFeatureEnabledForCloud(String organization) {
     var path = new UrlBuilder(FEATURE_ENABLED_PATH)
-      .addParam("organization", organization)
+      .addParam("organization", helper.getOrganization())
       .build();
     try (var response = helper.getApiSubdomain(path)) {
       var responseStr = response.bodyAsString();

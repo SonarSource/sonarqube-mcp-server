@@ -14,8 +14,8 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.serverapi.sca.response;
+@ParametersAreNonnullByDefault
+package org.sonarsource.sonarqube.mcp.serverapi.features;
 
-public record FeatureEnabledResponse(boolean enabled) {
-}
+import javax.annotation.ParametersAreNonnullByDefault;
 
