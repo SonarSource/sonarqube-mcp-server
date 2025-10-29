@@ -598,6 +598,10 @@ docker run --name sonarqube-mcp-server -p 8443:8443 \
 
 If your SonarQube Server uses a self-signed certificate or a certificate from a private Certificate Authority (CA), you can add custom certificates to the Docker container that will automatically be installed.
 
+<details>
+
+**<summary>Configuration</summary>**
+
 #### Using Docker Volume Mount
 
 Mount a directory containing your certificates when running the container:
@@ -645,6 +649,43 @@ When using custom certificates, you can modify your MCP configuration to mount t
   }
 }
 ```
+
+</details>
+
+### Proxy
+
+The SonarQube MCP Server supports HTTP proxies through standard Java proxy system properties.
+
+<details>
+
+**<summary>Configuration</summary>**
+
+#### Configuring Proxy Settings
+
+You can configure proxy settings using Java system properties. These can be set as environment variables or passed as JVM arguments.
+
+**Common Proxy Properties:**
+
+| Property | Description | Example |
+|----------|-------------|---------|
+| `http.proxyHost` | HTTP proxy hostname | `proxy.example.com` |
+| `http.proxyPort` | HTTP proxy port | `8080` |
+| `https.proxyHost` | HTTPS proxy hostname | `proxy.example.com` |
+| `https.proxyPort` | HTTPS proxy port | `8443` |
+| `http.nonProxyHosts` | Hosts that bypass the proxy (pipe-separated) | `localhost\|127.0.0.1\|*.internal.com` |
+
+#### Proxy Authentication
+
+If your proxy requires authentication, the SonarQube MCP Server uses Java's standard authentication mechanism. You can set up proxy credentials using Java system properties:
+
+| Property | Description | Example |
+|----------|-------------|---------|
+| `http.proxyUser` | HTTP proxy username | `myuser` |
+| `http.proxyPassword` | HTTP proxy password | `mypassword` |
+| `https.proxyUser` | HTTPS proxy username | `myuser` |
+| `https.proxyPassword` | HTTPS proxy password | `mypassword` |
+
+</details>
 
 ## Tools
 
