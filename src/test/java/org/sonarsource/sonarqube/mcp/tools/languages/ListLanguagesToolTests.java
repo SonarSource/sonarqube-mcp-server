@@ -46,7 +46,7 @@ class ListLanguagesToolTests {
       assertThat(result.isError()).isTrue();
       var content = result.content().getFirst().toString();
       assertThat(content).contains("An error occurred during the tool execution:");
-      assertThat(content).contains("Please verify your token is valid.");
+      assertThat(content).contains("Please verify your token is valid and the requested resource exists.");
     }
 
     @SonarQubeMcpServerTest
