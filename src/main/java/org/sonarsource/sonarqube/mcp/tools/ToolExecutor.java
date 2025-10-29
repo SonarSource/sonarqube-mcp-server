@@ -47,7 +47,7 @@ public class ToolExecutor {
       var message = switch (e) {
         case UnauthorizedException ex -> ex.getMessage() + ". Please verify your token is valid and has the correct permissions.";
         case ForbiddenException ex -> ex.getMessage() + ". Please verify your token has the required permissions for this operation.";
-        case NotFoundException ex -> ex.getMessage() + ". Please verify your token is valid.";
+        case NotFoundException ex -> ex.getMessage() + ". Please verify your token is valid and the requested resource exists.";
         case ResponseErrorException responseErrorException -> responseErrorException.getResponseError().getMessage();
         default -> e.getMessage();
       };
