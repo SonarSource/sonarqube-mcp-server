@@ -18,11 +18,18 @@ package org.sonarsource.sonarqube.mcp.transport;
 
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import jakarta.servlet.DispatcherType;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import javax.net.ssl.SSLContext;
+import nl.altindag.ssl.SSLFactory;
+import org.apache.commons.lang3.SystemUtils;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.ee10.servlet.FilterHolder;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
@@ -43,34 +50,65 @@ public class HttpServerTransportProvider {
   private final int port;
   private final String host;
   private final AuthMode authMode;
+  private final boolean httpsEnabled;
+  private final Path httpsKeystorePath;
+  private final String httpsKeystorePassword;
+  private final String httpsKeystoreType;
+  private final Path httpsTruststorePath;
+  private final String httpsTruststorePassword;
+  private final String httpsTruststoreType;
   private final HttpServletStreamableServerTransportProvider mcpTransportProvider;
   private Server httpServer;
-  private volatile boolean serverReady = false;
 
   /**
    * Create HTTP transport provider with custom host binding and authentication.
    * 
-   * @param port HTTP port (e.g., 8080)
+   * @param port HTTP port (e.g., 8080 for HTTP, 8443 for HTTPS)
    * @param host Host to bind to (127.0.0.1 for localhost, 0.0.0.0 for all interfaces)
    * @param authMode Authentication mode (e.g., TOKEN, OAUTH)
+   * @param httpsEnabled Whether to enable HTTPS/TLS
+   * @param httpsKeystorePath Path to keystore file (contains server certificate and private key)
+   * @param httpsKeystorePassword Keystore password
+   * @param httpsKeystoreType Keystore type (e.g., PKCS12, JKS)
+   * @param httpsTruststorePath Path to truststore file (optional, contains trusted CA certificates)
+   * @param httpsTruststorePassword Truststore password (optional)
+   * @param httpsTruststoreType Truststore type (optional)
    */
-  public HttpServerTransportProvider(int port, String host, AuthMode authMode) {
+  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean httpsEnabled, 
+      Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
+      Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType) {
     this.port = port;
     this.host = host;
     this.authMode = authMode;
+    this.httpsEnabled = httpsEnabled;
+    this.httpsKeystorePath = httpsKeystorePath;
+    this.httpsKeystorePassword = httpsKeystorePassword;
+    this.httpsKeystoreType = httpsKeystoreType;
+    this.httpsTruststorePath = httpsTruststorePath;
+    this.httpsTruststorePassword = httpsTruststorePassword;
+    this.httpsTruststoreType = httpsTruststoreType;
 
     this.mcpTransportProvider = HttpServletStreamableServerTransportProvider.builder()
         .mcpEndpoint(MCP_ENDPOINT)
         .keepAliveInterval(Duration.ofSeconds(30))
         .build();
-        
-    LOG.info("Created HTTP transport provider for " + host + ":" + port + MCP_ENDPOINT + " with authentication: " + authMode);
+    
+    var protocol = httpsEnabled ? "https" : "http";
+    LOG.info("Created " + protocol.toUpperCase(Locale.getDefault()) + " transport provider for "
+      + protocol + "://" + host + ":" + port + MCP_ENDPOINT + " with authentication: " + authMode);
     
     // Warn about security risk when binding to all interfaces
     if ("0.0.0.0".equals(host)) {
       LOG.warn("SECURITY WARNING: MCP HTTP server is configured to bind to all network interfaces (0.0.0.0). " +
                   "This exposes the server to your entire network. " +
                   "For local development, consider using 127.0.0.1 instead.");
+    }
+    
+    // Warn about HTTP without HTTPS
+    if (!httpsEnabled) {
+      LOG.warn("SECURITY WARNING: MCP server is using HTTP without SSL/TLS encryption. " +
+                  "Tokens and data will be transmitted in plain text. " +
+                  "For production use, consider enabling HTTPS with SONARQUBE_HTTPS_ENABLED=true.");
     }
   }
 
@@ -107,7 +145,20 @@ public class HttpServerTransportProvider {
 
     // Create Jetty server
     httpServer = new Server();
-    var connector = new ServerConnector(httpServer);
+    ServerConnector connector;
+    
+    if (httpsEnabled) {
+      // Configure HTTPS with SSL/TLS
+      var sslContextFactory = new SslContextFactory.Server();
+      var sslContext = configureSsl(httpsKeystorePath, httpsKeystorePassword, httpsKeystoreType,
+        httpsTruststorePath, httpsTruststorePassword, httpsTruststoreType);
+      sslContextFactory.setSslContext(sslContext);
+      connector = new ServerConnector(httpServer, sslContextFactory);
+    } else {
+      // Plain HTTP connector
+      connector = new ServerConnector(httpServer);
+    }
+    
     connector.setHost(host);
     connector.setPort(port);
     httpServer.addConnector(connector);
@@ -116,8 +167,8 @@ public class HttpServerTransportProvider {
     CompletableFuture.runAsync(() -> {
       try {
         httpServer.start();
-        serverReady = true;
-        LOG.info("MCP HTTP server started successfully on http://" + host + ":" + port + MCP_ENDPOINT);
+        var protocol = httpsEnabled ? "https" : "http";
+        LOG.info("MCP " + protocol.toUpperCase(Locale.getDefault()) + " server started successfully on " + protocol + "://" + host + ":" + port + MCP_ENDPOINT);
         startupFuture.complete(null);
         httpServer.join();
       } catch (InterruptedException e) {
@@ -128,7 +179,6 @@ public class HttpServerTransportProvider {
         }
       } catch (Exception e) {
         LOG.error("Error starting MCP HTTP server", e);
-        serverReady = false;
         if (!startupFuture.isDone()) {
           startupFuture.completeExceptionally(e);
         }
@@ -146,7 +196,6 @@ public class HttpServerTransportProvider {
 
     return CompletableFuture.runAsync(() -> {
       LOG.info("Stopping MCP HTTP server...");
-      serverReady = false;
       
       try {
         httpServer.stop();
@@ -158,20 +207,44 @@ public class HttpServerTransportProvider {
     });
   }
 
-  public boolean isServerReady() {
-    return httpServer != null && httpServer.isRunning() && serverReady;
-  }
-
   public String getServerUrl() {
-    return "http://" + host + ":" + port + MCP_ENDPOINT;
+    var protocol = httpsEnabled ? "https" : "http";
+    return protocol + "://" + host + ":" + port + MCP_ENDPOINT;
   }
 
-  @Override
-  public String toString() {
-    return "HttpServerTransportProvider{" +
-        "url=" + getServerUrl() +
-        ", ready=" + isServerReady() +
-        '}';
+  /**
+   * @param keystorePath Path to keystore file (server certificate and private key)
+   * @param keystorePassword Keystore password
+   * @param keystoreType Keystore type (e.g., PKCS12, JKS)
+   * @param truststorePath Optional path to truststore file (trusted CA certificates)
+   * @param truststorePassword Optional truststore password
+   * @param truststoreType Optional truststore type
+   * @return Configured SSLContext
+   */
+  private static SSLContext configureSsl(Path keystorePath, String keystorePassword, String keystoreType,
+      Path truststorePath, String truststorePassword, String truststoreType) {
+    
+    var sslFactoryBuilder = SSLFactory.builder()
+      .withDefaultTrustMaterial();
+
+    if (!SystemUtils.IS_OS_WINDOWS) {
+      sslFactoryBuilder.withSystemTrustMaterial();
+    }
+
+    if (Files.exists(keystorePath)) {
+      LOG.info("Configuring SSL with keystore: " + keystorePath + " (type: " + keystoreType + ")");
+      sslFactoryBuilder.withIdentityMaterial(keystorePath, keystorePassword.toCharArray(), keystoreType);
+    } else {
+      LOG.warn("HTTPS enabled but keystore file not found at: " + keystorePath);
+      LOG.warn("To use HTTPS, create a keystore file or the server will use default JVM certificates");
+    }
+
+    if (Files.exists(truststorePath)) {
+      LOG.info("Configuring SSL with truststore: " + truststorePath + " (type: " + truststoreType + ")");
+      sslFactoryBuilder.withInflatableTrustMaterial(truststorePath, truststorePassword.toCharArray(), truststoreType, null);
+    }
+    
+    return sslFactoryBuilder.build().getSslContext();
   }
 
 }

@@ -52,12 +52,6 @@ public class AuthenticationFilter implements Filter {
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String SONARQUBE_TOKEN_HEADER = "SONARQUBE_TOKEN";
   
-  /**
-   * Request attribute key where the extracted bearer token is stored.
-   * This token is the client's SonarQube token, passed through to SonarQube API calls.
-   */
-  public static final String SONARQUBE_TOKEN_ATTRIBUTE = "sonarqube.token";
-  
   private final AuthMode authMode;
 
   public AuthenticationFilter(AuthMode authMode) {
