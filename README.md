@@ -504,7 +504,7 @@ Default mode for single-user setups via command-line tools or MCP clients.
   "mcpServers": {
     "sonarqube": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"],
+      "args": ["run", "--name", "sonarqube-mcp-server", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"],
       "env": {
         "SONARQUBE_TOKEN": "<your-token>",
         "SONARQUBE_ORG": "<your-org>"
@@ -525,7 +525,7 @@ Enables multiple clients to connect to a shared server. Each client provides the
 
 **Example - Docker with SonarQube Cloud:**
 ```bash
-docker run -p 8080:8080 \
+docker run --name sonarqube-mcp-server -p 8080:8080 \
   -e SONARQUBE_TRANSPORT=http \
   -e SONARQUBE_HTTP_HOST=0.0.0.0 \
   -e SONARQUBE_TOKEN="<init-token>" \
@@ -568,7 +568,7 @@ Same as HTTP but with TLS encryption. Requires SSL certificates.
 
 **Example - Docker with SonarQube Cloud:**
 ```bash
-docker run -p 8443:8443 \
+docker run --name sonarqube-mcp-server -p 8443:8443 \
   -v $(pwd)/keystore.p12:/etc/ssl/mcp/keystore.p12:ro \
   -e SONARQUBE_TRANSPORT=https \
   -e SONARQUBE_HTTP_HOST=0.0.0.0 \
