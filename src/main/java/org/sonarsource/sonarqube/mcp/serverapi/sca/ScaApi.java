@@ -34,14 +34,30 @@ public class ScaApi {
     this.helper = helper;
   }
 
-  public FeatureEnabledResponse getFeatureEnabled() {
+  public boolean isScaEnabled() {
     var organization = helper.getOrganization();
+    return organization == null ? getFeatureEnabledForServer() : getFeatureEnabledForCloud(organization);
+  }
+
+  private boolean getFeatureEnabledForServer() {
+    var path = new UrlBuilder(FEATURE_ENABLED_PATH).build();
+    try (var response = helper.get("/api/v2" + path)) {
+      var responseStr = response.bodyAsString();
+      return new Gson().fromJson(responseStr, FeatureEnabledResponse.class).enabled();
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  private boolean getFeatureEnabledForCloud(String organization) {
     var path = new UrlBuilder(FEATURE_ENABLED_PATH)
       .addParam("organization", organization)
       .build();
-    try (var response = organization == null ? helper.get("/api/v2" + path) : helper.getApiSubdomain(path)) {
+    try (var response = helper.getApiSubdomain(path)) {
       var responseStr = response.bodyAsString();
-      return new Gson().fromJson(responseStr, FeatureEnabledResponse.class);
+      return new Gson().fromJson(responseStr, FeatureEnabledResponse.class).enabled();
+    } catch (Exception e) {
+      return false;
     }
   }
 

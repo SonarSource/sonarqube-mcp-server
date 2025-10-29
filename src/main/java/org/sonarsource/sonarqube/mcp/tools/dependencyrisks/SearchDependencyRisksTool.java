@@ -52,7 +52,7 @@ public class SearchDependencyRisksTool extends Tool {
     if (!serverApiProvider.get().isSonarQubeCloud() && !sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
       return Tool.Result.failure("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
     }
-    if (!serverApiProvider.get().scaApi().getFeatureEnabled().enabled()) {
+    if (!serverApiProvider.get().scaApi().isScaEnabled()) {
       return Tool.Result.failure("Search Dependency Risks tool is not available because Advanced Security is not enabled.");
     }
     var projectKey = arguments.getStringOrThrow(PROJECT_KEY_PROPERTY);
