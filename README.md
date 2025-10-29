@@ -56,27 +56,11 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>
 
 * To connect with SonarQube Cloud:
 
-[![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfT1JHIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9PUkciOiI8b3JnPiJ9fQ%3D%3D)
+[![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=sonarqube-mcp-server&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9UT0tFTiIsIlNPTkFSUVVCRV9PUkciOiJZT1VSX09SRyJ9LCJjb21tYW5kIjoiZG9ja2VyIHJ1biAtLW5hbWUgc29uYXJxdWJlLW1jcC1zZXJ2ZXIgLS1ybSAtaSAtZSBTT05BUlFVQkVfVE9LRU4gLWUgU09OQVJRVUJFX09SRyBtY3Avc29uYXJxdWJlIn0%3D)
 
 * To connect with SonarQube Server:
 
-[![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=sonarqube&config=eyJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfVVJMIG1jcC9zb25hcnF1YmUiLCJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiPHRva2VuPiIsIlNPTkFSUVVCRV9VUkwiOiI8dXJsPiJ9fQ%3D%3D)
-
-* To connect via a remote HTTP server:
-
-```json
-{
-  "mcpServers": {
-    "sonarqube-http": {
-      "type": "http",
-      "url": "http://<host>:<port>/mcp",
-      "headers": {
-        "SONARQUBE_TOKEN": "<your-token>"
-      }
-    }
-  }
-}
-```
+[![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=sonarqube-mcp-server&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9VU0VSX1RPS0VOIiwiU09OQVJRVUJFX1VSTCI6IllPVVJfU0VSVkVSX1VSTCJ9LCJjb21tYW5kIjoiZG9ja2VyIHJ1biAtLW5hbWUgc29uYXJxdWJlLW1jcC1zZXJ2ZXIgLS1ybSAtaSAtZSBTT05BUlFVQkVfVE9LRU4gLWUgU09OQVJRVUJFX1VSTCBtY3Avc29uYXJxdWJlIn0%3D)
 
 </details>
 
