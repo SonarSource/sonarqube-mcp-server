@@ -118,7 +118,7 @@ tasks {
 		from({
 			configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }
 		}) {
-			exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
+			exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "META-INF/maven/**",
 				// module-info comes from sslcontext-kickstart and is looking for slf4j
 				"META-INF/versions/**/module-info.class", "module-info.class")
 		}
