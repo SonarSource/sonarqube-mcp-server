@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.serverapi;
 
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.EnterprisesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
@@ -55,11 +56,11 @@ public class ServerApi {
   }
 
   public IssuesApi issuesApi() {
-    return new IssuesApi(helper, helper.getOrganization());
+    return new IssuesApi(helper);
   }
 
   public RulesApi rulesApi() {
-    return new RulesApi(helper, helper.getOrganization());
+    return new RulesApi(helper);
   }
 
   public LanguagesApi languagesApi() {
@@ -91,7 +92,7 @@ public class ServerApi {
   }
 
   public WebhooksApi webhooksApi() {
-    return new WebhooksApi(helper, helper.getOrganization());
+    return new WebhooksApi(helper);
   }
 
   public ViewsApi viewsApi() {
@@ -100,6 +101,10 @@ public class ServerApi {
 
   public EnterprisesApi enterprisesApi() {
     return new EnterprisesApi(helper);
+  }
+
+  public FeaturesApi featuresApi() {
+    return new FeaturesApi(helper);
   }
 
   public boolean isSonarQubeCloud() {

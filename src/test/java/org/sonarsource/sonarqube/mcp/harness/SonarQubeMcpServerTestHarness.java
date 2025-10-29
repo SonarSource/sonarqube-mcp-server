@@ -40,6 +40,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
+import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
@@ -178,14 +179,22 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       throw new RuntimeException(e);
     }
 
-    if (!mockSonarQubeServer.isStubConfigured(ScaApi.FEATURE_ENABLED_PATH)) {
-      var v2Prefix = environment.containsKey("SONARQUBE_ORG") ? "" : "/api/v2";
-      var orgParameter = environment.containsKey("SONARQUBE_ORG") ? ("?organization=" + environment.get("SONARQUBE_ORG")) : "";
-      mockSonarQubeServer.stubFor(get(v2Prefix + ScaApi.FEATURE_ENABLED_PATH + orgParameter).willReturn(okJson("""
-        {
-          "enabled": true
-        }
-        """)));
+    // Configure SCA feature check based on server type
+    if (environment.containsKey("SONARQUBE_ORG")) {
+      if (!mockSonarQubeServer.isStubConfigured(ScaApi.FEATURE_ENABLED_PATH)) {
+        var orgParameter = "?organization=" + environment.get("SONARQUBE_ORG");
+        mockSonarQubeServer.stubFor(get(ScaApi.FEATURE_ENABLED_PATH + orgParameter).willReturn(okJson("""
+          {
+            "enabled": true
+          }
+          """)));
+      }
+    } else {
+      if (!mockSonarQubeServer.isStubConfigured(FeaturesApi.FEATURES_LIST_PATH)) {
+        mockSonarQubeServer.stubFor(get(FeaturesApi.FEATURES_LIST_PATH).willReturn(okJson("""
+          ["sca"]
+          """)));
+      }
     }
 
   }

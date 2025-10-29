@@ -31,11 +31,9 @@ public class RulesApi {
   public static final String SEARCH_PATH = "/api/rules/search";
 
   private final ServerApiHelper helper;
-  private final String organization;
 
-  public RulesApi(ServerApiHelper helper, @Nullable String organization) {
+  public RulesApi(ServerApiHelper helper) {
     this.helper = helper;
-    this.organization = organization;
   }
 
   public ShowResponse showRule(String ruleKey) {
@@ -48,7 +46,7 @@ public class RulesApi {
   private String buildPath(String ruleKey) {
     var builder = new UrlBuilder(SHOW_PATH)
       .addParam("key", ruleKey)
-      .addParam("organization", organization);
+      .addParam("organization", helper.getOrganization());
     return builder.build();
   }
 

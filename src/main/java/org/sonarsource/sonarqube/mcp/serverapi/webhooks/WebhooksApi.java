@@ -32,11 +32,9 @@ public class WebhooksApi {
   public static final String LIST_PATH = "/api/webhooks/list";
 
   private final ServerApiHelper helper;
-  private final String organization;
 
-  public WebhooksApi(ServerApiHelper helper, @Nullable String organization) {
+  public WebhooksApi(ServerApiHelper helper) {
     this.helper = helper;
-    this.organization = organization;
   }
 
   public CreateResponse createWebhook(String name, String url, @Nullable String project, @Nullable String secret) {
@@ -58,13 +56,13 @@ public class WebhooksApi {
 
   private String buildPath() {
     var builder = new UrlBuilder(CREATE_PATH)
-      .addParam("organization", organization);
+      .addParam("organization", helper.getOrganization());
     return builder.build();
   }
 
   private String buildListPath(@Nullable String project) {
     var builder = new UrlBuilder(LIST_PATH)
-      .addParam("organization", organization)
+      .addParam("organization", helper.getOrganization())
       .addParam("project", project);
     return builder.build();
   }
