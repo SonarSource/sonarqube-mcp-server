@@ -490,6 +490,7 @@ To enable full functionality, the following environment variables must be set be
 | `SONARQUBE_TOKEN`     | Your SonarQube Server **USER** [token](https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token) |
 | `SONARQUBE_URL`       | Your SonarQube Server URL                                                                                                                   |
 
+> ⚠️ Connection to SonarQube Server requires a token of type **USER** and will not function properly if project tokens or global tokens are used.
 
 ### Transport Modes
 
