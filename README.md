@@ -380,7 +380,9 @@ You can manually install the SonarQube MCP server by copying the following snipp
 
 The SonarQube MCP Server can integrate with [SonarQube for IDE](https://www.sonarsource.com/products/sonarlint/) to further enhance your development workflow, providing better code analysis and insights directly within your IDE.
 
-When using SonarQube for IDE, the `SONARQUBE_IDE_PORT` environment variable should be set with the correct port number. For example, with SonarQube Cloud:
+When using SonarQube for IDE, the `SONARQUBE_IDE_PORT` environment variable should be set with the correct port number. SonarQube for VS Code includes a Quick Install button, which automatically sets the correct port configuration.
+
+For example, with SonarQube Cloud:
 
 ```JSON
 {
@@ -408,6 +410,8 @@ When using SonarQube for IDE, the `SONARQUBE_IDE_PORT` environment variable shou
   }
 }
 ```
+
+> When running the MCP server in Docker on Linux, the container cannot access the SonarQube for IDE embedded server running on localhost. To allow the container to connect to the SonarQube for IDE server, add the `--network=host` option to your Docker run command.
 
 ## Build
 
