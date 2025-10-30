@@ -71,7 +71,7 @@ This document focuses on the **Stdio Transport**.
    ├─> Initialize SonarQube connection
    │   ├─> Version check
    │   └─> Plugin synchronization
-   ├─> Detect and connect to SonarLint IDE bridge (optional)
+   ├─> Detect and connect to SonarQube for IDE bridge (optional)
    └─> Register MCP tools
 
 3. Stdio Transport Setup
@@ -117,16 +117,16 @@ This document focuses on the **Stdio Transport**.
 
 ## Comparison: Stdio vs HTTP
 
-| Feature | Stdio | HTTP |
-|---------|-------|------|
-| **Setup Complexity** | ✅ Simple | ⚠️ Moderate |
-| **Network Exposure** | ✅ None | ⚠️ Optional |
-| **Multi-User** | ❌ One process per user | ✅ Shared gateway |
-| **Token Handling** | ✅ Environment variable | ✅ Per-request header |
-| **SonarLint IDE Bridge** | ✅ Supported | ❌ Disabled |
-| **Process Lifecycle** | ✅ Automatic | ⚠️ Manual |
-| **Resource Usage** | ⚠️ One JVM per user | ✅ Shared JVM |
-| **Use Case** | Individual developers | Shared server/gateway |
+| Feature                      | Stdio | HTTP |
+|------------------------------|-------|------|
+| **Setup Complexity**         | ✅ Simple | ⚠️ Moderate |
+| **Network Exposure**         | ✅ None | ⚠️ Optional |
+| **Multi-User**               | ❌ One process per user | ✅ Shared gateway |
+| **Token Handling**           | ✅ Environment variable | ✅ Per-request header |
+| **SonarQube for IDE Bridge** | ✅ Supported | ❌ Disabled |
+| **Process Lifecycle**        | ✅ Automatic | ⚠️ Manual |
+| **Resource Usage**           | ⚠️ One JVM per user | ✅ Shared JVM |
+| **Use Case**                 | Individual developers | Shared server/gateway |
 
 **Recommendation:** Use stdio transport unless you specifically need multi-user gateway functionality.
 
