@@ -411,7 +411,7 @@ For example, with SonarQube Cloud:
 }
 ```
 
-> When running the MCP server in Docker on Linux, the container cannot access the SonarQube for IDE embedded server running on localhost. To allow the container to connect to the SonarQube for IDE server, add the --network=host option to your Docker run command.
+> When running the MCP server in Docker on Linux, the container cannot access the SonarQube for IDE embedded server running on localhost. To allow the container to connect to the SonarQube for IDE server, add the `--network=host` option to your Docker run command.
 
 ## Build
 
