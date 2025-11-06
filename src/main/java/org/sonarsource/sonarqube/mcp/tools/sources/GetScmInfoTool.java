@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.sources;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.ScmResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class GetScmInfoTool extends Tool {
@@ -32,7 +33,7 @@ public class GetScmInfoTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetScmInfoTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(GetScmInfoToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube SCM Information of Source File")
       .setDescription("Get SCM information of SonarQube source files. Require See Source Code permission on file's project")
@@ -53,7 +54,9 @@ public class GetScmInfoTool extends Tool {
     
     try {
       var scmInfo = serverApiProvider.get().sourcesApi().getScmInfo(key, commitsByLine, from, to);
-      return Tool.Result.success(buildResponseFromScmInfo(scmInfo));
+      var textResponse = buildResponseFromScmInfo(scmInfo);
+      var structuredContent = buildStructuredContent(scmInfo);
+      return Tool.Result.success(textResponse, structuredContent);
     } catch (Exception e) {
       return Tool.Result.failure("Failed to retrieve SCM information: " + e.getMessage());
     }
@@ -81,6 +84,15 @@ public class GetScmInfoTool extends Tool {
     }
     
     return responseBuilder.toString().trim();
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(ScmResponse scmResponse) {
+    var scmLines = scmResponse.getScmLines().stream()
+      .map(line -> new GetScmInfoToolResponse.ScmLine(line.lineNumber(), line.author(), line.datetime(), line.revision()))
+      .toList();
+
+    var toolResponse = new GetScmInfoToolResponse(scmLines);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
 }

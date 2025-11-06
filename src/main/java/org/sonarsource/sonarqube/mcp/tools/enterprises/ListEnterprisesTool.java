@@ -20,6 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ListEnterprisesTool extends Tool {
@@ -35,7 +36,7 @@ public class ListEnterprisesTool extends Tool {
   }
 
   private static McpSchema.Tool createToolDefinition() {
-    return new SchemaToolBuilder()
+    return SchemaToolBuilder.forOutput(ListEnterprisesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Enterprises")
       .setDescription("List the enterprises available in SonarQube Cloud that you have access to. " +
@@ -50,11 +51,24 @@ public class ListEnterprisesTool extends Tool {
       var enterpriseKey = arguments.getOptionalString(ENTERPRISE_KEY_PROPERTY);
 
       var response = serverApiProvider.get().enterprisesApi().listEnterprises(enterpriseKey);
+      var textResponse = formatResponse(response);
+      var structuredContent = buildStructuredContent(response);
       
-      return Result.success(formatResponse(response));
+      return Result.success(textResponse, structuredContent);
     } catch (Exception e) {
       return Result.failure("An error occurred during the tool execution: " + e.getMessage());
     }
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(ListResponse response) {
+    var enterprises = response.enterprises().stream()
+      .map(e -> new ListEnterprisesToolResponse.Enterprise(
+        e.id(), e.key(), e.name(), e.avatar(), e.defaultPortfolioPermissionTemplateId()
+      ))
+      .toList();
+
+    var toolResponse = new ListEnterprisesToolResponse(enterprises);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
   private static String formatResponse(ListResponse response) {

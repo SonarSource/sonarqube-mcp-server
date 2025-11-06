@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
@@ -24,12 +23,12 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 public class AnalysisToolTests {
 
@@ -43,8 +42,7 @@ public class AnalysisToolTests {
         AnalysisTool.TOOL_NAME,
         Map.of(AnalysisTool.LANGUAGE_PROPERTY, ""));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: codeSnippet", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: codeSnippet", true);
     }
   }
 
@@ -62,10 +60,9 @@ public class AnalysisToolTests {
           AnalysisTool.SNIPPET_PROPERTY, "",
           AnalysisTool.LANGUAGE_PROPERTY, ""));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           No Sonar issues found in the code snippet.
-          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
+          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false);
     }
 
     @SonarQubeMcpServerTest
@@ -81,8 +78,7 @@ public class AnalysisToolTests {
             """,
           AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 Sonar issues in the code snippet
           Complete the task associated to this "TODO" comment.
           Rule key: php:S1135
@@ -92,7 +88,7 @@ public class AnalysisToolTests {
           Description: Complete the task associated to this "TODO" comment.
           Quick fixes available: No
           Starting on line: 1
-          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
+          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false);
     }
 
     @SonarQubeMcpServerTest
@@ -109,8 +105,7 @@ public class AnalysisToolTests {
             """,
           AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 Sonar issues in the code snippet
           Complete the task associated to this "TODO" comment.
           Rule key: php:S1135
@@ -120,7 +115,7 @@ public class AnalysisToolTests {
           Description: Complete the task associated to this "TODO" comment.
           Quick fixes available: No
           Starting on line: 1
-          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
+          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false);
     }
 
     @SonarQubeMcpServerTest
@@ -136,10 +131,9 @@ public class AnalysisToolTests {
             """,
           AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           No Sonar issues found in the code snippet.
-          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
+          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false);
     }
   }
 

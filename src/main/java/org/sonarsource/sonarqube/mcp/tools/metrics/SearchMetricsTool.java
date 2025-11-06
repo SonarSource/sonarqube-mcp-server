@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.metrics;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.response.SearchMetricsResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SearchMetricsTool extends Tool {
@@ -30,7 +31,7 @@ public class SearchMetricsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchMetricsTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SearchMetricsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Metrics")
       .setDescription("Search for SonarQube metrics")
@@ -46,7 +47,21 @@ public class SearchMetricsTool extends Tool {
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
     
     var response = serverApiProvider.get().metricsApi().searchMetrics(page, pageSize);
-    return Tool.Result.success(buildResponseFromSearchMetrics(response));
+    var textResponse = buildResponseFromSearchMetrics(response);
+    var structuredContent = buildStructuredContent(response);
+    return Tool.Result.success(textResponse, structuredContent);
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(SearchMetricsResponse response) {
+    var metrics = response.metrics() == null ? java.util.List.<SearchMetricsToolResponse.Metric>of() : response.metrics().stream()
+      .map(m -> new SearchMetricsToolResponse.Metric(
+        m.id(), m.key(), m.name(), m.description(), m.domain(), m.type(),
+        m.direction(), m.qualitative(), m.hidden(), m.custom()
+      ))
+      .toList();
+
+    var toolResponse = new SearchMetricsToolResponse(metrics, response.total(), response.p(), response.ps());
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
   private static String buildResponseFromSearchMetrics(SearchMetricsResponse response) {

@@ -42,7 +42,7 @@ class ToolExecutorTest {
     toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of())) {
       @Override
       public Result execute(Arguments arguments) {
-        return Result.success("Success!");
+        return Result.success("Success!", Map.of());
       }
     }, new McpSchema.CallToolRequest("", Map.of()));
 

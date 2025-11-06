@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.issues;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.Transition;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ChangeIssueStatusTool extends Tool {
@@ -30,7 +31,7 @@ public class ChangeIssueStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ChangeIssueStatusTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ChangeIssueStatusToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Issue Status")
       .setDescription("""
@@ -52,7 +53,9 @@ public class ChangeIssueStatusTool extends Tool {
     }
 
     serverApiProvider.get().issuesApi().doTransition(key, status.get());
-    return Tool.Result.success("The issue status was successfully changed.");
+    var message = "The issue status was successfully changed.";
+    var response = new ChangeIssueStatusToolResponse(true, message, key, statusString);
+    return Tool.Result.success(message, SchemaUtils.toStructuredContent(response));
   }
 
 }

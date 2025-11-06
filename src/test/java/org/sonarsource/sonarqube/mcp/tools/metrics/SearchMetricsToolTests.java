@@ -17,13 +17,13 @@
 package org.sonarsource.sonarqube.mcp.tools.metrics;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -68,11 +68,11 @@ class SearchMetricsToolTests {
 
       var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Search Results: 0 total metrics
         Page: 1 | Page Size: 100
         
-        No metrics found.""", false));
+        No metrics found.""", false);
     }
 
     @SonarQubeMcpServerTest
@@ -87,8 +87,7 @@ class SearchMetricsToolTests {
 
       var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Search Results: 2 total metrics
           Page: 1 | Page Size: 100
           
@@ -111,7 +110,7 @@ class SearchMetricsToolTests {
               Direction: 1 (higher values are better)
               Qualitative: true
               Hidden: false
-              Custom: false""", false));
+              Custom: false""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -133,8 +132,7 @@ class SearchMetricsToolTests {
           SearchMetricsTool.PAGE_SIZE_PROPERTY, 20
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Search Results: 2 total metrics
           Page: 1 | Page Size: 100
           
@@ -157,7 +155,7 @@ class SearchMetricsToolTests {
               Direction: 1 (higher values are better)
               Qualitative: true
               Hidden: false
-              Custom: false""", false));
+              Custom: false""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -196,11 +194,11 @@ class SearchMetricsToolTests {
 
       var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Search Results: 0 total metrics
         Page: 1 | Page Size: 100
         
-        No metrics found.""", false));
+        No metrics found.""", false);
     }
 
     @SonarQubeMcpServerTest
@@ -213,8 +211,7 @@ class SearchMetricsToolTests {
 
       var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Search Results: 2 total metrics
           Page: 1 | Page Size: 100
           
@@ -237,7 +234,7 @@ class SearchMetricsToolTests {
               Direction: 1 (higher values are better)
               Qualitative: true
               Hidden: false
-              Custom: false""", false));
+              Custom: false""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -257,8 +254,7 @@ class SearchMetricsToolTests {
           SearchMetricsTool.PAGE_SIZE_PROPERTY, 20
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Search Results: 2 total metrics
           Page: 1 | Page Size: 100
           
@@ -281,7 +277,7 @@ class SearchMetricsToolTests {
               Direction: 1 (higher values are better)
               Qualitative: true
               Hidden: false
-              Custom: false""", false));
+              Custom: false""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

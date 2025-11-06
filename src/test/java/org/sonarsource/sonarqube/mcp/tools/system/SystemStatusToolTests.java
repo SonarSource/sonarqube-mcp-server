@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.system;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -63,8 +63,7 @@ class SystemStatusToolTests {
 
       var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SonarQube Server System Status
           =======================
 
@@ -72,7 +71,7 @@ class SystemStatusToolTests {
           Description: SonarQube Server instance is up and running
 
           ID: 20150504120436
-          Version: 5.1""", false));
+          Version: 5.1""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest(null, ""));
     }
@@ -84,10 +83,9 @@ class SystemStatusToolTests {
 
       var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(
-          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
-            "/system/status", true));
+      SonarQubeMcpTestClient.assertResultEquals(result,
+          "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/status",
+          true);
     }
 
     @SonarQubeMcpServerTest
@@ -99,8 +97,7 @@ class SystemStatusToolTests {
 
       var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SonarQube Server System Status
           =======================
 
@@ -108,7 +105,7 @@ class SystemStatusToolTests {
           Description: SonarQube Server instance is up and running
 
           ID: 20150504120436
-          Version: 5.1""", false));
+          Version: 5.1""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -122,8 +119,7 @@ class SystemStatusToolTests {
 
       var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SonarQube Server System Status
           =======================
 
@@ -131,7 +127,7 @@ class SystemStatusToolTests {
           Description: SonarQube Server Web Server is up and serving some Web Services but initialization is still ongoing
 
           ID: 20150504120436
-          Version: 5.1""", false));
+          Version: 5.1""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -145,8 +141,7 @@ class SystemStatusToolTests {
 
       var result = mcpClient.callTool(SystemStatusTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SonarQube Server System Status
           =======================
 
@@ -154,7 +149,7 @@ class SystemStatusToolTests {
           Description: Database migration is required
 
           ID: 20150504120436
-          Version: 5.1""", false));
+          Version: 5.1""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

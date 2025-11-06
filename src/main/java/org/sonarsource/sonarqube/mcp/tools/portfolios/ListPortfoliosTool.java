@@ -16,12 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.portfolios;
 
+import jakarta.annotation.Nullable;
 import io.modelcontextprotocol.spec.McpSchema;
-import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.PortfoliosResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.views.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ListPortfoliosTool extends Tool {
@@ -44,7 +45,7 @@ public class ListPortfoliosTool extends Tool {
   }
 
   private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
-    var builder = new SchemaToolBuilder()
+    var builder = SchemaToolBuilder.forOutput(ListPortfoliosToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Portfolios");
       
@@ -95,8 +96,10 @@ public class ListPortfoliosTool extends Tool {
       return Result.failure(validationError);
     }
 
-    var response = serverApiProvider.get().enterprisesApi().listPortfolios(enterpriseId, query, favorite, draft, pageIndex, pageSize);
-    return Result.success(formatCloudResponse(response));
+    var apiResponse = serverApiProvider.get().enterprisesApi().listPortfolios(enterpriseId, query, favorite, draft, pageIndex, pageSize);
+    var textResponse = formatCloudResponse(apiResponse);
+    var response = buildCloudResponse(apiResponse);
+    return Result.success(textResponse, SchemaUtils.toStructuredContent(response));
   }
 
   private Result executeForServer(Arguments arguments) {
@@ -105,8 +108,10 @@ public class ListPortfoliosTool extends Tool {
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
 
-    var response = serverApiProvider.get().viewsApi().search(query, favorite, pageIndex, pageSize);
-    return Result.success(formatServerResponse(response));
+    var apiResponse = serverApiProvider.get().viewsApi().search(query, favorite, pageIndex, pageSize);
+    var textResponse = formatServerResponse(apiResponse);
+    var response = buildServerResponse(apiResponse);
+    return Result.success(textResponse, SchemaUtils.toStructuredContent(response));
   }
 
   @Nullable
@@ -205,6 +210,49 @@ public class ListPortfoliosTool extends Tool {
         .append(" total pages. There is a maximum of ")
         .append(page.pageSize()).append(" portfolios per page.");
     }
+  }
+
+  private static ListPortfoliosToolResponse buildCloudResponse(PortfoliosResponse response) {
+    var portfolios = response.portfolios().stream()
+      .map(portfolio -> (ListPortfoliosToolResponse.Portfolio) new ListPortfoliosToolResponse.CloudPortfolio(
+        portfolio.id(),
+        portfolio.name(),
+        portfolio.description(),
+        portfolio.enterpriseId(),
+        portfolio.selection(),
+        portfolio.isDraft(),
+        portfolio.draftStage(),
+        portfolio.tags()
+      ))
+      .toList();
+
+    ListPortfoliosToolResponse.Paging paging = null;
+    if (response.page() != null) {
+      var page = response.page();
+      paging = new ListPortfoliosToolResponse.Paging(page.pageIndex(), page.pageSize(), page.total());
+    }
+
+    return new ListPortfoliosToolResponse(portfolios, paging);
+  }
+
+  private static ListPortfoliosToolResponse buildServerResponse(SearchResponse response) {
+    var portfolios = response.components().stream()
+      .map(component -> (ListPortfoliosToolResponse.Portfolio) new ListPortfoliosToolResponse.ServerPortfolio(
+        component.key(),
+        component.name(),
+        component.qualifier(),
+        component.visibility(),
+        component.isFavorite()
+      ))
+      .toList();
+
+    ListPortfoliosToolResponse.Paging paging = null;
+    if (response.paging() != null) {
+      var p = response.paging();
+      paging = new ListPortfoliosToolResponse.Paging(p.pageIndex(), p.pageSize(), p.total());
+    }
+
+    return new ListPortfoliosToolResponse(portfolios, paging);
   }
 
 }

@@ -17,13 +17,13 @@
 package org.sonarsource.sonarqube.mcp.tools.measures;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -68,7 +68,7 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No project key found.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "No project key found.", false);
     }
 
     @SonarQubeMcpServerTest
@@ -85,8 +85,7 @@ class GetComponentMeasuresToolTests {
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Description: Implementation of Element interface
@@ -131,7 +130,7 @@ class GetComponentMeasuresToolTests {
             Custom: false
 
         Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -153,8 +152,7 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Description: Implementation of Element interface
@@ -199,7 +197,7 @@ class GetComponentMeasuresToolTests {
             Custom: false
 
         Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -221,8 +219,7 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Description: Implementation of Element interface
@@ -267,7 +264,7 @@ class GetComponentMeasuresToolTests {
             Custom: false
 
         Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -289,8 +286,7 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Description: Implementation of Element interface
@@ -335,7 +331,7 @@ class GetComponentMeasuresToolTests {
             Custom: false
 
         Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -377,8 +373,7 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: EmptyFile.java
         Key: MY_PROJECT:EmptyFile.java
         Qualifier: FIL
@@ -394,7 +389,7 @@ class GetComponentMeasuresToolTests {
             Higher values are better: false
             Qualitative: false
             Hidden: false
-            Custom: false""", false));
+            Custom: false""", false);
     }
 
     @SonarQubeMcpServerTest
@@ -459,8 +454,7 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"coverage", "ncloc"}
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: SonarLint Core
         Key: org.sonarsource.sonarlint.core:sonarlint-core-parent
         Description: Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)
@@ -489,7 +483,7 @@ class GetComponentMeasuresToolTests {
             Higher values are better: false
             Qualitative: false
             Hidden: false
-            Custom: false""", false));
+            Custom: false""", false);
     }
   }
 
@@ -524,7 +518,7 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No project key found.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "No project key found.", false);
     }
 
     @SonarQubeMcpServerTest
@@ -539,8 +533,7 @@ class GetComponentMeasuresToolTests {
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Description: Implementation of Element interface
@@ -585,7 +578,7 @@ class GetComponentMeasuresToolTests {
             Custom: false
 
         Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -605,8 +598,7 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Description: Implementation of Element interface
@@ -651,7 +643,7 @@ class GetComponentMeasuresToolTests {
             Custom: false
 
         Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -671,8 +663,7 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Description: Implementation of Element interface
@@ -717,7 +708,7 @@ class GetComponentMeasuresToolTests {
             Custom: false
 
         Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -737,8 +728,7 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: ElementImpl.java
         Key: MY_PROJECT:ElementImpl.java
         Description: Implementation of Element interface
@@ -783,7 +773,7 @@ class GetComponentMeasuresToolTests {
             Custom: false
 
         Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -823,8 +813,7 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: EmptyFile.java
         Key: MY_PROJECT:EmptyFile.java
         Qualifier: FIL
@@ -840,7 +829,7 @@ class GetComponentMeasuresToolTests {
             Higher values are better: false
             Qualitative: false
             Hidden: false
-            Custom: false""", false));
+            Custom: false""", false);
     }
 
     @SonarQubeMcpServerTest
@@ -903,8 +892,7 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"coverage", "ncloc"}
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
         Component: SonarLint Core
         Key: org.sonarsource.sonarlint.core:sonarlint-core-parent
         Description: Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)
@@ -933,7 +921,7 @@ class GetComponentMeasuresToolTests {
             Higher values are better: false
             Qualitative: false
             Hidden: false
-            Custom: false""", false));
+            Custom: false""", false);
     }
 
   }

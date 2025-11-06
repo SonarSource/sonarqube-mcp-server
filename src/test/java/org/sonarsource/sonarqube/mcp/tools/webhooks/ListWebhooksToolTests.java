@@ -17,13 +17,13 @@
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -42,8 +42,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -56,8 +55,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No webhooks found.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "No webhooks found.", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -72,8 +70,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 2 webhook(s):
 
           Key: UUID-1
@@ -84,7 +81,7 @@ class ListWebhooksToolTests {
           Key: UUID-2
           Name: my 2nd webhook
           URL: https://www.my-other-webhook-listener.com/fancy-listner
-          Has Secret: Yes""", false));
+          Has Secret: Yes""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -101,14 +98,13 @@ class ListWebhooksToolTests {
         ListWebhooksTool.TOOL_NAME,
         Map.of(ListWebhooksTool.PROJECT_PROPERTY, "my-project"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 webhook(s) for project 'my-project':
 
           Key: UUID-1
           Name: project webhook
           URL: http://project.webhook.com/endpoint
-          Has Secret: No""", false));
+          Has Secret: No""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -125,8 +121,7 @@ class ListWebhooksToolTests {
         ListWebhooksTool.TOOL_NAME,
         Map.of(ListWebhooksTool.PROJECT_PROPERTY, "my-project"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No webhooks found for project 'my-project'.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "No webhooks found for project 'my-project'.", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -142,8 +137,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -156,8 +150,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No webhooks found.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "No webhooks found.", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -172,8 +165,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 2 webhook(s):
 
           Key: UUID-1
@@ -184,7 +176,7 @@ class ListWebhooksToolTests {
           Key: UUID-2
           Name: my 2nd webhook
           URL: https://www.my-other-webhook-listener.com/fancy-listner
-          Has Secret: Yes""", false));
+          Has Secret: Yes""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -201,14 +193,13 @@ class ListWebhooksToolTests {
         ListWebhooksTool.TOOL_NAME,
         Map.of(ListWebhooksTool.PROJECT_PROPERTY, "my-project"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 webhook(s) for project 'my-project':
 
           Key: UUID-1
           Name: project webhook
           URL: http://project.webhook.com/endpoint
-          Has Secret: No""", false));
+          Has Secret: No""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -220,8 +211,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/webhooks/list", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/webhooks/list", true);
     }
   }
 

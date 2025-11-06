@@ -35,12 +35,23 @@ public class SchemaToolBuilder {
   private String title;
   private String description;
   private boolean additionalProperties;
+  private Map<String, Object> outputSchemaFromClass;
 
   public SchemaToolBuilder() {
     this.properties = new HashMap<>();
     this.requiredProperties = new ArrayList<>();
     this.def = new HashMap<>();
     this.definitions = new HashMap<>();
+  }
+
+  /**
+   * Factory method to create a SchemaToolBuilder with automatic output schema generation from a class.
+   * This is the recommended approach for defining structured output.
+   */
+  public static SchemaToolBuilder forOutput(Class<?> outputClass) {
+    var builder = new SchemaToolBuilder();
+    builder.outputSchemaFromClass = SchemaUtils.generateOutputSchema(outputClass);
+    return builder;
   }
 
   public SchemaToolBuilder setName(String name) {
@@ -111,6 +122,6 @@ public class SchemaToolBuilder {
 
     var jsonSchema = new McpSchema.JsonSchema("object", properties, requiredProperties, additionalProperties, def, definitions);
 
-    return new McpSchema.Tool(name, title, description, jsonSchema, null, null, Map.of());
+    return new McpSchema.Tool(name, title, description, jsonSchema, outputSchemaFromClass, null, Map.of());
   }
 }

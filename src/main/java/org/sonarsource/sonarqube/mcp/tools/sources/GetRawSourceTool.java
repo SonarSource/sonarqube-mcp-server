@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.sources;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class GetRawSourceTool extends Tool {
@@ -30,7 +31,7 @@ public class GetRawSourceTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetRawSourceTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(GetRawSourceToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Raw Source Code")
       .setDescription("Get source code as raw text from SonarQube. Require 'See Source Code' permission on file.")
@@ -49,7 +50,8 @@ public class GetRawSourceTool extends Tool {
     
     try {
       var rawSource = serverApiProvider.get().sourcesApi().getRawSource(key, branch, pullRequest);
-      return Tool.Result.success(rawSource);
+      var response = new GetRawSourceToolResponse(key, rawSource);
+      return Tool.Result.success(rawSource, SchemaUtils.toStructuredContent(response));
     } catch (Exception e) {
       return Tool.Result.failure("Failed to retrieve source code: " + e.getMessage());
     }

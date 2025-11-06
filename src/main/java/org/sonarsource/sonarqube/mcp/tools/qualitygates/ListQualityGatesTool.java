@@ -20,6 +20,7 @@ import java.util.Objects;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ListQualityGatesTool extends Tool {
@@ -29,7 +30,7 @@ public class ListQualityGatesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListQualityGatesTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ListQualityGatesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Quality Gates")
       .setDescription("List all quality gates in my SonarQube.")
@@ -40,7 +41,36 @@ public class ListQualityGatesTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var response = serverApiProvider.get().qualityGatesApi().list();
-    return Tool.Result.success(buildResponseFromList(response));
+    var textResponse = buildResponseFromList(response);
+    var structuredContent = buildStructuredContent(response);
+    return Tool.Result.success(textResponse, structuredContent);
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(ListResponse response) {
+    var qualityGates = response.qualitygates().stream()
+      .map(gate -> {
+        var conditions = (gate.conditions() != null)
+          ? gate.conditions().stream()
+              .map(c -> new ListQualityGatesToolResponse.Condition(c.metric(), c.op(), c.error()))
+              .toList()
+          : null;
+        
+        return new ListQualityGatesToolResponse.QualityGate(
+          gate.id(),
+          Objects.requireNonNullElse(gate.name(), "Unnamed"),
+          gate.isDefault(),
+          gate.isBuiltIn(),
+          conditions,
+          gate.caycStatus(),
+          gate.hasStandardConditions(),
+          gate.hasMQRConditions(),
+          gate.isAiCodeSupported()
+        );
+      })
+      .toList();
+
+    var toolResponse = new ListQualityGatesToolResponse(qualityGates);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
   private static String buildResponseFromList(ListResponse response) {

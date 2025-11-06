@@ -17,13 +17,13 @@
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.SourcesApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -42,8 +42,7 @@ class GetScmInfoToolTests {
 
       var result = mcpClient.callTool(GetScmInfoTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: key", true);
     }
 
   }
@@ -61,8 +60,7 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "Failed to retrieve SCM information: SonarQube answered with Forbidden", true);
     }
 
     @SonarQubeMcpServerTest
@@ -85,8 +83,7 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
@@ -94,7 +91,7 @@ class GetScmInfoToolTests {
           -----|-------------|-------------------------|----------------
           1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
           2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5
-          3    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+          3    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -118,15 +115,14 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
           Line | Author      | Date                    | Revision
           -----|-------------|-------------------------|----------------
           1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5""", false));
+          2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -150,15 +146,14 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "from", 10, "to", 20));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
           Line | Author      | Date                    | Revision
           -----|-------------|-------------------------|----------------
           10   | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          11   | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+          11   | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -182,15 +177,14 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
           Line | Author      | Date                    | Revision
           -----|-------------|-------------------------|----------------
           1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+          2    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -211,12 +205,11 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Empty.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
-          No SCM information available for this file.""", false));
+          No SCM information available for this file.""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -234,8 +227,7 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "Failed to retrieve SCM information: SonarQube answered with Forbidden", true);
     }
 
     @SonarQubeMcpServerTest
@@ -257,8 +249,7 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
@@ -266,7 +257,7 @@ class GetScmInfoToolTests {
           -----|-------------|-------------------------|----------------
           1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
           2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5
-          3    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+          3    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -289,15 +280,14 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
           Line | Author      | Date                    | Revision
           -----|-------------|-------------------------|----------------
           1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5""", false));
+          2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -320,15 +310,14 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "from", 10, "to", 20));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
           Line | Author      | Date                    | Revision
           -----|-------------|-------------------------|----------------
           10   | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          11   | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+          11   | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -351,15 +340,14 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
           Line | Author      | Date                    | Revision
           -----|-------------|-------------------------|----------------
           1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+          2    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -379,12 +367,11 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Empty.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SCM Information:
           ================
 
-          No SCM information available for this file.""", false));
+          No SCM information available for this file.""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

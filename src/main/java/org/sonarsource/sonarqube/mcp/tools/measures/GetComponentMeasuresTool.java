@@ -20,6 +20,7 @@ import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class GetComponentMeasuresTool extends Tool {
@@ -33,7 +34,7 @@ public class GetComponentMeasuresTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetComponentMeasuresTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(GetComponentMeasuresToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Measures")
       .setDescription("Get SonarQube measures for a project, such as ncloc, complexity, violations, coverage, etc.")
@@ -53,7 +54,55 @@ public class GetComponentMeasuresTool extends Tool {
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
     
     var response = serverApiProvider.get().measuresApi().getComponentMeasures(component, branch, metricKeys, pullRequest);
-    return Tool.Result.success(buildResponseFromComponentMeasures(response));
+    var textResponse = buildResponseFromComponentMeasures(response);
+    var structuredContent = buildStructuredContent(response);
+    return Tool.Result.success(textResponse, structuredContent);
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(ComponentMeasuresResponse response) {
+    var comp = response.component();
+    
+    // Handle null component case
+    if (comp == null) {
+      // Return minimal valid response when no component found
+      var emptyComponent = new GetComponentMeasuresToolResponse.Component(
+        "", "", "", null, null, null
+      );
+      var toolResponse = new GetComponentMeasuresToolResponse(emptyComponent, List.of(), null);
+      return SchemaUtils.toStructuredContent(toolResponse);
+    }
+    
+    var componentResponse = new GetComponentMeasuresToolResponse.Component(
+      comp.key(), comp.name(), comp.qualifier(),
+      comp.description(), comp.language(), comp.path()
+    );
+    
+    var measures = (comp.measures() != null) ?
+      comp.measures().stream()
+        .map(m -> {
+          List<GetComponentMeasuresToolResponse.Period> periods = null;
+          if (m.periods() != null && !m.periods().isEmpty()) {
+            periods = m.periods().stream()
+              .map(p -> new GetComponentMeasuresToolResponse.Period(p.value()))
+              .toList();
+          }
+          return new GetComponentMeasuresToolResponse.Measure(m.metric(), m.value(), periods);
+        })
+        .toList()
+      : List.<GetComponentMeasuresToolResponse.Measure>of();
+    
+    List<GetComponentMeasuresToolResponse.Metric> metrics = null;
+    if (response.metrics() != null) {
+      metrics = response.metrics().stream()
+        .map(m -> new GetComponentMeasuresToolResponse.Metric(
+          m.key(), m.name(), m.description(), m.domain(), m.type(),
+          m.higherValuesAreBetter(), m.qualitative(), m.hidden(), m.custom()
+        ))
+        .toList();
+    }
+    
+    var toolResponse = new GetComponentMeasuresToolResponse(componentResponse, measures, metrics);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
   private static String buildResponseFromComponentMeasures(ComponentMeasuresResponse response) {

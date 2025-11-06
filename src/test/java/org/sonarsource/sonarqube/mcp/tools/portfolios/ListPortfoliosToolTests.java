@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.portfolios;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.EnterprisesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.views.ViewsApi;
 
@@ -47,8 +47,7 @@ class ListPortfoliosToolTests {
         ListPortfoliosTool.TOOL_NAME,
         Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 404 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 404 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true);
     }
 
     @SonarQubeMcpServerTest
@@ -62,10 +61,10 @@ class ListPortfoliosToolTests {
         ListPortfoliosTool.TOOL_NAME,
         Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
 
-      assertThat(result)
-        .isEqualTo(
-          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() +
-            "/enterprises/portfolios?favorite=true", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true);
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true);
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true);
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true);
     }
 
     @SonarQubeMcpServerTest
@@ -81,8 +80,7 @@ class ListPortfoliosToolTests {
         ListPortfoliosTool.TOOL_NAME,
         Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No portfolios were found.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "No portfolios were found.", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -100,14 +98,13 @@ class ListPortfoliosToolTests {
         ListPortfoliosTool.TOOL_NAME,
         Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Available Portfolios:
           
           Portfolio: Really important portfolio (2eaa4b2d-1543-4556-aede-445eab52457d) | Description: A helpful description of this portfolio | Enterprise: 2eaa4b2d-1543-4556-aede-445eab52457d | Selection: projects | Tags: front-end
           Portfolio: Analytics Dashboard (f3bb5e4e-2654-5667-bfef-556fbc63568e) | Description: Dashboard for analytics data | Enterprise: 2eaa4b2d-1543-4556-aede-445eab52457d | Selection: projects | Draft (Stage: 1) | Tags: analytics, backend
           
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 50 portfolios per page.""", false));
+          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 50 portfolios per page.""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -130,14 +127,13 @@ class ListPortfoliosToolTests {
           ListPortfoliosTool.PAGE_INDEX_PROPERTY, 2,
           ListPortfoliosTool.PAGE_SIZE_PROPERTY, 10));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Available Portfolios:
           
           Portfolio: Really important portfolio (2eaa4b2d-1543-4556-aede-445eab52457d) | Description: A helpful description of this portfolio | Enterprise: 2eaa4b2d-1543-4556-aede-445eab52457d | Selection: projects | Tags: front-end
           Portfolio: Analytics Dashboard (f3bb5e4e-2654-5667-bfef-556fbc63568e) | Description: Dashboard for analytics data | Enterprise: 2eaa4b2d-1543-4556-aede-445eab52457d | Selection: projects | Draft (Stage: 1) | Tags: analytics, backend
           
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 50 portfolios per page.""", false));
+          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 50 portfolios per page.""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -150,8 +146,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(ListPortfoliosTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Either 'enterpriseId' must be provided or 'favorite' must be true", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "Either 'enterpriseId' must be provided or 'favorite' must be true", true);
     }
 
     @SonarQubeMcpServerTest
@@ -167,8 +162,7 @@ class ListPortfoliosToolTests {
           ListPortfoliosTool.FAVORITE_PROPERTY, "true",
           ListPortfoliosTool.DRAFT_PROPERTY, "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Parameters 'favorite' and 'draft' cannot both be true at the same time", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "Parameters 'favorite' and 'draft' cannot both be true at the same time", true);
     }
 
     @SonarQubeMcpServerTest
@@ -185,8 +179,7 @@ class ListPortfoliosToolTests {
         ListPortfoliosTool.TOOL_NAME,
         Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No portfolios were found.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "No portfolios were found.", false);
     }
   }
 
@@ -200,8 +193,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(ListPortfoliosTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden", true);
     }
 
     @SonarQubeMcpServerTest
@@ -213,8 +205,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(ListPortfoliosTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No portfolios were found.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "No portfolios were found.", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -228,14 +219,13 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(ListPortfoliosTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Available Portfolios:
           
           Portfolio: Apache Jakarta Commons (apache-jakarta-commons) | Qualifier: VW | Visibility: public | Favorite: true
           Portfolio: Languages (Languages) | Qualifier: VW | Visibility: private | Favorite: false
           
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 portfolios per page.""", false));
+          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 portfolios per page.""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -253,14 +243,13 @@ class ListPortfoliosToolTests {
           ListPortfoliosTool.QUERY_PROPERTY, "apache",
           ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Available Portfolios:
           
           Portfolio: Apache Jakarta Commons (apache-jakarta-commons) | Qualifier: VW | Visibility: public | Favorite: true
           Portfolio: Languages (Languages) | Qualifier: VW | Visibility: private | Favorite: false
           
-          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 portfolios per page.""", false));
+          This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 portfolios per page.""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

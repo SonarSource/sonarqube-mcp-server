@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.rules;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ShowRuleTool extends Tool {
@@ -29,7 +30,7 @@ public class ShowRuleTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ShowRuleTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ShowRuleToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Rule")
       .setDescription("Shows detailed information about a SonarQube rule.")
@@ -42,7 +43,31 @@ public class ShowRuleTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var ruleKey = arguments.getStringOrThrow(KEY_PROPERTY);
     var response = serverApiProvider.get().rulesApi().showRule(ruleKey);
-    return Tool.Result.success(buildResponseFromShowResponse(response.rule()));
+    var textResponse = buildResponseFromShowResponse(response.rule());
+    var structuredContent = buildStructuredContent(response.rule());
+    return Tool.Result.success(textResponse, structuredContent);
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(ShowResponse.Rule rule) {
+    var impacts = (rule.impacts() != null && !rule.impacts().isEmpty())
+      ? rule.impacts().stream()
+          .map(i -> new ShowRuleToolResponse.Impact(i.softwareQuality(), i.severity()))
+          .toList()
+      : java.util.List.<ShowRuleToolResponse.Impact>of();
+    
+    var sections = (rule.descriptionSections() != null && !rule.descriptionSections().isEmpty())
+      ? rule.descriptionSections().stream()
+          .map(s -> new ShowRuleToolResponse.DescriptionSection(s.content()))
+          .toList()
+      : java.util.List.<ShowRuleToolResponse.DescriptionSection>of();
+    
+    var toolResponse = new ShowRuleToolResponse(
+      rule.key(), rule.name(), rule.severity(), rule.type(),
+      rule.lang(), rule.langName(), rule.htmlDesc(),
+      impacts, sections
+    );
+    
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
   private static String buildResponseFromShowResponse(ShowResponse.Rule rule) {

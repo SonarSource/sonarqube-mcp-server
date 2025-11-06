@@ -16,13 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -59,8 +59,7 @@ class SystemLogsToolTests {
 
       var result = mcpClient.callTool(SystemLogsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -71,8 +70,7 @@ class SystemLogsToolTests {
         SystemLogsTool.TOOL_NAME,
         Map.of(SystemLogsTool.NAME_PROPERTY, "foo"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Invalid log name. Possible values: access, app, ce, deprecation, es, web", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "Invalid log name. Possible values: access, app, ce, deprecation, es, web", true);
     }
 
     @SonarQubeMcpServerTest
@@ -83,13 +81,12 @@ class SystemLogsToolTests {
 
       var result = mcpClient.callTool(SystemLogsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SonarQube Server APP Logs
           =========================
 
           2023-01-01 10:00:01 INFO  o.s.s.a.WebServer Starting SonarQube Web Server
-          2023-01-01 10:00:02 INFO  o.s.s.p.ProcessEntryPoint Process[web] is up""", false));
+          2023-01-01 10:00:02 INFO  o.s.s.p.ProcessEntryPoint Process[web] is up""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

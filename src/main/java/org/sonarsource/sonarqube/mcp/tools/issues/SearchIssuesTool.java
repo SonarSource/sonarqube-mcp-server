@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.issues;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SearchIssuesTool extends Tool {
@@ -33,7 +34,7 @@ public class SearchIssuesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchIssuesTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues in Projects")
       .setDescription("Search for SonarQube issues in my organization's projects.")
@@ -54,7 +55,9 @@ public class SearchIssuesTool extends Tool {
     var page = arguments.getOptionalInteger(PAGE_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
     var response = serverApiProvider.get().issuesApi().search(projects, pullRequestId, severities, page, pageSize);
-    return Tool.Result.success(buildResponseFromSearchResponse(response));
+    var textResponse = buildResponseFromSearchResponse(response);
+    var structuredContent = buildStructuredContent(response);
+    return Tool.Result.success(textResponse, structuredContent);
   }
 
   private static String buildResponseFromSearchResponse(SearchResponse response) {
@@ -98,6 +101,45 @@ public class SearchIssuesTool extends Tool {
     }
 
     return stringBuilder.toString().trim();
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(SearchResponse response) {
+    var issues = response.issues().stream()
+      .map(issue -> {
+        SearchIssuesToolResponse.TextRange textRange = null;
+        if (issue.textRange() != null) {
+          textRange = new SearchIssuesToolResponse.TextRange(
+            issue.textRange().startLine(),
+            issue.textRange().endLine()
+          );
+        }
+        
+        return new SearchIssuesToolResponse.Issue(
+          issue.key(),
+          issue.rule(),
+          issue.project(),
+          issue.component(),
+          issue.severity(),
+          issue.status(),
+          issue.message(),
+          issue.cleanCodeAttribute(),
+          issue.cleanCodeAttributeCategory(),
+          issue.author(),
+          issue.creationDate(),
+          textRange
+        );
+      })
+      .toList();
+
+    var paging = response.paging();
+    var pagingResponse = new SearchIssuesToolResponse.Paging(
+      paging.pageIndex(),
+      paging.pageSize(),
+      paging.total()
+    );
+
+    var toolResponse = new SearchIssuesToolResponse(issues, pagingResponse);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
 }

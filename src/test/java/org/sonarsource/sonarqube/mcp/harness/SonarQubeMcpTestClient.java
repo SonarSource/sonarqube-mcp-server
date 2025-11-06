@@ -40,4 +40,25 @@ public class SonarQubeMcpTestClient {
     return mcpSyncClient.listTools().tools();
   }
 
+  /**
+   * Assert that a CallToolResult has the expected text content and error state.
+   * This ignores structured content for test comparisons.
+   */
+  public static void assertResultEquals(McpSchema.CallToolResult actual, String expectedText, boolean expectedIsError) {
+    var actualText = actual.content().stream()
+      .filter(content -> content instanceof McpSchema.TextContent)
+      .map(content -> ((McpSchema.TextContent) content).text())
+      .findFirst()
+      .orElse("");
+    
+    if (!actualText.equals(expectedText)) {
+      var message = String.format("Text content mismatch:%nExpected:%n%s%n%nActual:%n%s", expectedText, actualText);
+      throw new AssertionError(message);
+    }
+    
+    if (actual.isError() != expectedIsError) {
+      throw new AssertionError("Expected isError: " + expectedIsError + " but was: " + actual.isError());
+    }
+  }
+
 }

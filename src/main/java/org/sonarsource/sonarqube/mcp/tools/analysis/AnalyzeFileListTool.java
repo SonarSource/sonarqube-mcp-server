@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.analysis;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class AnalyzeFileListTool extends Tool {
@@ -30,7 +31,7 @@ public class AnalyzeFileListTool extends Tool {
   private final SonarQubeIdeBridgeClient bridgeClient;
 
   public AnalyzeFileListTool(SonarQubeIdeBridgeClient bridgeClient) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(AnalyzeFileListToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Multiple File Analysis")
       .setDescription("Analyze files in the current working directory using SonarQube for IDE. " +
@@ -60,9 +61,28 @@ public class AnalyzeFileListTool extends Tool {
 
     var results = analysisResult.get();
     var issuesSummary = formatAnalysisResults(results);
+    var structuredContent = buildStructuredContent(results);
 
     LOG.info("Returning success result to MCP client");
-    return Result.success(issuesSummary);
+    return Result.success(issuesSummary, structuredContent);
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(SonarQubeIdeBridgeClient.AnalyzeFileListResponse results) {
+    var findings = results.findings().stream()
+      .map(f -> {
+        AnalyzeFileListToolResponse.TextRange textRange = null;
+        if (f.textRange() != null) {
+          textRange = new AnalyzeFileListToolResponse.TextRange(
+            f.textRange().getStartLine(),
+            f.textRange().getEndLine()
+          );
+        }
+        return new AnalyzeFileListToolResponse.Finding(f.severity(), f.message(), f.filePath(), textRange);
+      })
+      .toList();
+
+    var toolResponse = new AnalyzeFileListToolResponse(findings, results.findings().size());
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
   private static String formatAnalysisResults(SonarQubeIdeBridgeClient.AnalyzeFileListResponse results) {

@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.projects;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SearchMyProjectsTool extends Tool {
@@ -29,7 +30,7 @@ public class SearchMyProjectsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchMyProjectsTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
       .setDescription("Find SonarQube projects. The response is paginated.")
@@ -42,7 +43,9 @@ public class SearchMyProjectsTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);
     var projects = serverApiProvider.get().componentsApi().searchProjectsInMyOrg(page);
-    return Tool.Result.success(buildResponseFromAllProjectsResponse(projects));
+    var textResponse = buildResponseFromAllProjectsResponse(projects);
+    var structuredContent = buildStructuredContent(projects);
+    return Tool.Result.success(textResponse, structuredContent);
   }
 
   private static String buildResponseFromAllProjectsResponse(SearchResponse response) {
@@ -68,6 +71,22 @@ public class SearchMyProjectsTool extends Tool {
     });
 
     return stringBuilder.toString().trim();
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(SearchResponse response) {
+    var projects = response.components().stream()
+      .map(p -> new SearchMyProjectsToolResponse.Project(p.key(), p.name()))
+      .toList();
+
+    var paging = response.paging();
+    var pagingResponse = new SearchMyProjectsToolResponse.Paging(
+      paging.pageIndex(),
+      paging.pageSize(),
+      paging.total()
+    );
+
+    var toolResponse = new SearchMyProjectsToolResponse(projects, pagingResponse);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
 }

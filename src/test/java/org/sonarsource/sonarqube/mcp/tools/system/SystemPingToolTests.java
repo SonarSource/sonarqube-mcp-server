@@ -16,13 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -60,8 +60,7 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("pong", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "pong", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest(null, ""));
     }
@@ -73,10 +72,9 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(
-          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
-            "/system/ping", true));
+      SonarQubeMcpTestClient.assertResultEquals(result,
+        "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/ping",
+        true);
     }
 
     @SonarQubeMcpServerTest
@@ -87,8 +85,7 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("pong", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "pong", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

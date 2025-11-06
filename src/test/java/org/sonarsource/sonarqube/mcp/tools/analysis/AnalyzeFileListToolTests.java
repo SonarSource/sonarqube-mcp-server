@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +25,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarlint.core.commons.api.TextRange;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,7 +55,7 @@ class AnalyzeFileListToolTests {
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java", "file2.java")
       ))).toCallToolResult();
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.", true);
     }
   }
 
@@ -75,7 +75,7 @@ class AnalyzeFileListToolTests {
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java")
       ))).toCallToolResult();
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to request analysis of the list of files. Check logs for details.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "Failed to request analysis of the list of files. Check logs for details.", true);
     }
 
     @Test

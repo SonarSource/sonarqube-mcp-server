@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.languages;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -57,10 +57,10 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(
-          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
-            "/languages/list", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/languages/list", true);
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/languages/list", true);
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/languages/list", true);
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/languages/list", true);
     }
 
     @SonarQubeMcpServerTest
@@ -73,15 +73,14 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Supported Languages:
 
           C (c)
           C++ (cpp)
           Java (java)
           JavaScript (js)
-          Python (python)""", false));
+          Python (python)""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -98,12 +97,11 @@ class ListLanguagesToolTests {
         ListLanguagesTool.TOOL_NAME,
         Map.of(ListLanguagesTool.QUERY_PROPERTY, "java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Supported Languages:
 
           Java (java)
-          JavaScript (js)""", false));
+          JavaScript (js)""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -119,8 +117,7 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -132,15 +129,14 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Supported Languages:
 
           C (c)
           C++ (cpp)
           Java (java)
           JavaScript (js)
-          Python (python)""", false));
+          Python (python)""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -156,12 +152,11 @@ class ListLanguagesToolTests {
         ListLanguagesTool.TOOL_NAME,
         Map.of(ListLanguagesTool.QUERY_PROPERTY, "java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Supported Languages:
 
           Java (java)
-          JavaScript (js)""", false));
+          JavaScript (js)""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

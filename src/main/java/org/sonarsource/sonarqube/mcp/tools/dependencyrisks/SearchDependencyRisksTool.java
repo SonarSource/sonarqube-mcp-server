@@ -16,12 +16,14 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
+import java.util.Map;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SearchDependencyRisksTool extends Tool {
@@ -35,7 +37,7 @@ public class SearchDependencyRisksTool extends Tool {
   private final SonarQubeVersionChecker sonarQubeVersionChecker;
 
   public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SearchDependencyRisksToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a SonarQube project, " +
@@ -65,7 +67,37 @@ public class SearchDependencyRisksTool extends Tool {
     var pullRequestKey = arguments.getOptionalString(PULL_REQUEST_KEY_PROPERTY);
 
     var response = provider.scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey);
-    return Tool.Result.success(buildResponseFromDependencyRisksResponse(response));
+    var textResponse = buildResponseFromDependencyRisksResponse(response);
+    var structuredContent = buildStructuredContent(response);
+    return Tool.Result.success(textResponse, structuredContent);
+  }
+
+  private static Map<String, Object> buildStructuredContent(DependencyRisksResponse response) {
+    var issuesReleases = response.issuesReleases().stream()
+      .map(ir -> {
+        SearchDependencyRisksToolResponse.Release release = null;
+        if (ir.release() != null) {
+          var r = ir.release();
+          release = new SearchDependencyRisksToolResponse.Release(
+            r.packageName(), r.version(), r.packageManager(),
+            r.newlyIntroduced(), r.directSummary(), r.productionScopeSummary()
+          );
+        }
+        
+        SearchDependencyRisksToolResponse.Assignee assignee = null;
+        if (ir.assignee() != null) {
+          assignee = new SearchDependencyRisksToolResponse.Assignee(ir.assignee().name());
+        }
+        
+        return new SearchDependencyRisksToolResponse.IssueRelease(
+          ir.key(), ir.severity(), ir.type(), ir.quality(), ir.status(), ir.createdAt(),
+          ir.vulnerabilityId(), ir.cvssScore(), release, assignee
+        );
+      })
+      .toList();
+
+    var toolResponse = new SearchDependencyRisksToolResponse(issuesReleases);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
   private static String buildResponseFromDependencyRisksResponse(DependencyRisksResponse response) {

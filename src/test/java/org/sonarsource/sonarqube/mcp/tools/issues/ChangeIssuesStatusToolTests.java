@@ -16,12 +16,12 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
@@ -41,8 +41,7 @@ class ChangeIssuesStatusToolTests {
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("status", new String[] {"accept"}));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: key", true);
     }
 
     @SonarQubeMcpServerTest
@@ -53,8 +52,7 @@ class ChangeIssuesStatusToolTests {
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: status", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: status", true);
     }
 
     @SonarQubeMcpServerTest
@@ -67,8 +65,7 @@ class ChangeIssuesStatusToolTests {
           "key", "k",
           "status", new String[] {"yolo"}));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Status is unknown: yolo", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "Status is unknown: yolo", true);
     }
 
   }
@@ -87,8 +84,7 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"accept"}));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -102,7 +98,7 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"accept"}));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("The issue status was successfully changed.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "The issue status was successfully changed.", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "issue=k&transition=accept"));
     }
@@ -118,7 +114,7 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"falsepositive"}));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("The issue status was successfully changed.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "The issue status was successfully changed.", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "issue=k&transition=falsepositive"));
     }
@@ -134,7 +130,7 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"reopen"}));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("The issue status was successfully changed.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "The issue status was successfully changed.", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "issue=k&transition=reopen"));
     }

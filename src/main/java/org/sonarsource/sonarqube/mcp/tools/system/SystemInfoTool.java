@@ -16,11 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
+import jakarta.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.InfoResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SystemInfoTool extends Tool {
@@ -30,7 +32,7 @@ public class SystemInfoTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemInfoTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SystemInfoToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Information")
       .setDescription("Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. " +
@@ -42,7 +44,39 @@ public class SystemInfoTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var response = serverApiProvider.get().systemApi().getInfo();
-    return Tool.Result.success(buildResponseFromInfo(response));
+    var textResponse = buildResponseFromInfo(response);
+    var structuredContent = buildStructuredContent(response);
+    return Tool.Result.success(textResponse, structuredContent);
+  }
+
+  private static Map<String, Object> buildStructuredContent(InfoResponse response) {
+    var sections = new ArrayList<SystemInfoToolResponse.Section>();
+    
+    addSection(sections, "System", response.system());
+    addSection(sections, "Database", response.database());
+    addSection(sections, "Bundled Plugins", response.bundled());
+    addSection(sections, "Installed Plugins", response.plugins());
+    addSection(sections, "Web JVM State", response.webJvmState());
+    addSection(sections, "Web Database Connection", response.webDatabaseConnection());
+    addSection(sections, "Web Logging", response.webLogging());
+    addSection(sections, "Compute Engine Tasks", response.computeEngineTasks());
+    addSection(sections, "Compute Engine JVM State", response.computeEngineJvmState());
+    addSection(sections, "Compute Engine Database Connection", response.computeEngineDatabaseConnection());
+    addSection(sections, "Compute Engine Logging", response.computeEngineLogging());
+    addSection(sections, "Search State", response.searchState());
+    addSection(sections, "Search Indexes", response.searchIndexes());
+    addSection(sections, "ALMs", response.alms());
+    addSection(sections, "Server Push Connections", response.serverPushConnections());
+    addSection(sections, "Settings", response.settings());
+
+    var toolResponse = new SystemInfoToolResponse(sections);
+    return SchemaUtils.toStructuredContent(toolResponse);
+  }
+
+  private static void addSection(ArrayList<SystemInfoToolResponse.Section> sections, String name, @Nullable Map<String, Object> attributes) {
+    if (attributes != null && !attributes.isEmpty()) {
+      sections.add(new SystemInfoToolResponse.Section(name, attributes));
+    }
   }
 
   private static String buildResponseFromInfo(InfoResponse response) {

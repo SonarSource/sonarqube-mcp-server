@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.qualitygates;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ProjectStatusResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ProjectStatusTool extends Tool {
@@ -33,7 +34,7 @@ public class ProjectStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ProjectStatusTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ProjectStatusToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Quality Gate Status")
       .setDescription("""
@@ -67,7 +68,9 @@ public class ProjectStatusTool extends Tool {
     }
 
     var projectStatus = serverApiProvider.get().qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
-    return Tool.Result.success(buildResponseFromProjectStatus(projectStatus));
+    var textResponse = buildResponseFromProjectStatus(projectStatus);
+    var structuredContent = buildStructuredContent(projectStatus);
+    return Tool.Result.success(textResponse, structuredContent);
   }
 
   private static String buildResponseFromProjectStatus(ProjectStatusResponse projectStatus) {
@@ -83,6 +86,16 @@ public class ProjectStatusTool extends Tool {
     }
 
     return stringBuilder.toString().trim();
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(ProjectStatusResponse projectStatus) {
+    var status = projectStatus.projectStatus();
+    var conditions = status.conditions().stream()
+      .map(c -> new ProjectStatusToolResponse.Condition(c.metricKey(), c.status(), c.errorThreshold(), c.actualValue()))
+      .toList();
+
+    var toolResponse = new ProjectStatusToolResponse(status.status(), conditions, null);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
 }

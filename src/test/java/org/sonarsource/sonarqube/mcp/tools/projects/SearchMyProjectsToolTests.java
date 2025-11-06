@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.projects;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -58,9 +58,8 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(SearchMyProjectsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl()
-          + "/api/components/search?p=1&organization=org", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl()
+          + "/api/components/search?p=1&organization=org", true);
     }
 
     @SonarQubeMcpServerTest
@@ -75,11 +74,10 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(SearchMyProjectsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 Sonar projects in your organization.
           This response is paginated and this is the page 1 out of 4 total pages. There is a maximum of 100 projects per page.
-          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false));
+          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests()).contains(new ReceivedRequest("Bearer token", ""));
     }
 
@@ -97,11 +95,10 @@ class SearchMyProjectsToolTests {
         SearchMyProjectsTool.TOOL_NAME,
         Map.of("page", "2"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 Sonar projects in your organization.
           This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 projects per page.
-          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false));
+          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests()).contains(new ReceivedRequest("Bearer token", ""));
     }
   }
@@ -116,8 +113,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(SearchMyProjectsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -131,11 +127,10 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(SearchMyProjectsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 Sonar projects in your organization.
           This response is paginated and this is the page 1 out of 4 total pages. There is a maximum of 100 projects per page.
-          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false));
+          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests()).contains(new ReceivedRequest("Bearer token", ""));
     }
 
@@ -152,11 +147,10 @@ class SearchMyProjectsToolTests {
         SearchMyProjectsTool.TOOL_NAME,
         Map.of("page", "2"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 Sonar projects in your organization.
           This response is paginated and this is the page 2 out of 2 total pages. There is a maximum of 100 projects per page.
-          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false));
+          Project key: %s | Project name: %s""".formatted(projectKey, projectName), false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests()).contains(new ReceivedRequest("Bearer token", ""));
     }
   }

@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.system;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -59,8 +59,7 @@ class SystemInfoToolTests {
 
       var result = mcpClient.callTool(SystemInfoTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -72,8 +71,7 @@ class SystemInfoToolTests {
 
       var result = mcpClient.callTool(SystemInfoTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SonarQube Server System Information
           ===========================
 
@@ -94,7 +92,7 @@ class SystemInfoToolTests {
           Settings
           --------
           Total settings: 2
-          (Use SonarQube Server Web UI to view detailed settings)""", false));
+          (Use SonarQube Server Web UI to view detailed settings)""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

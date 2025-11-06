@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.system;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -60,10 +60,10 @@ class SystemHealthToolTests {
 
       var result = mcpClient.callTool(SystemHealthTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(
-          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
-            "/system/health", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/health", true);
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/health", true);
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/health", true);
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/health", true);
     }
 
     @SonarQubeMcpServerTest
@@ -75,8 +75,7 @@ class SystemHealthToolTests {
 
       var result = mcpClient.callTool(SystemHealthTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("SonarQube Server Health Status: GREEN", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "SonarQube Server Health Status: GREEN", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -90,8 +89,7 @@ class SystemHealthToolTests {
 
       var result = mcpClient.callTool(SystemHealthTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           SonarQube Server Health Status: RED
 
           Causes:
@@ -109,7 +107,7 @@ class SystemHealthToolTests {
             Host: [2001:db8:abcd:1234::1]:999
             Started: 2015-08-13T23:34:59+0200
             Causes:
-            - bar""", false));
+            - bar""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

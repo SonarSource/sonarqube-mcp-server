@@ -16,11 +16,12 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
+import jakarta.annotation.Nullable;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ListWebhooksTool extends Tool {
@@ -31,7 +32,7 @@ public class ListWebhooksTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListWebhooksTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ListWebhooksToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Webhooks")
       .setDescription("List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
@@ -44,7 +45,18 @@ public class ListWebhooksTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var project = arguments.getOptionalString(PROJECT_PROPERTY);
     var response = serverApiProvider.get().webhooksApi().listWebhooks(project);
-    return Tool.Result.success(buildResponseFromList(response.webhooks(), project));
+    var textResponse = buildResponseFromList(response.webhooks(), project);
+    var structuredContent = buildStructuredContent(response.webhooks());
+    return Tool.Result.success(textResponse, structuredContent);
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(List<ListResponse.Webhook> webhooks) {
+    var webhooksList = webhooks.stream()
+      .map(w -> new ListWebhooksToolResponse.Webhook(w.key(), w.name(), w.url(), w.hasSecret()))
+      .toList();
+
+    var toolResponse = new ListWebhooksToolResponse(webhooksList);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
   private static String buildResponseFromList(List<ListResponse.Webhook> webhooks, @Nullable String project) {

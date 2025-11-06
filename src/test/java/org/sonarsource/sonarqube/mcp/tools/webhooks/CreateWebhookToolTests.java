@@ -17,13 +17,13 @@
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -46,8 +46,7 @@ class CreateWebhookToolTests {
         CreateWebhookTool.TOOL_NAME,
         Map.of(CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: name", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: name", true);
     }
 
     @SonarQubeMcpServerTest
@@ -58,8 +57,7 @@ class CreateWebhookToolTests {
         CreateWebhookTool.TOOL_NAME,
         Map.of(CreateWebhookTool.NAME_PROPERTY, "Test Webhook"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: url", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: url", true);
     }
   }
 
@@ -77,8 +75,7 @@ class CreateWebhookToolTests {
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
           CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -95,13 +92,12 @@ class CreateWebhookToolTests {
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
           CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Webhook created successfully.
           Key: webhook-123
           Name: Test Webhook
           URL: %s
-          Has Secret: No""".formatted(URL), false));
+          Has Secret: No""".formatted(URL), false);
       
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "name=Test+Webhook&url=" + urlEncode(URL)));
@@ -123,13 +119,12 @@ class CreateWebhookToolTests {
           CreateWebhookTool.PROJECT_PROPERTY, "my-project",
           CreateWebhookTool.SECRET_PROPERTY, "my-secret-key-123"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Webhook created successfully.
           Key: webhook-456
           Name: My Project Webhook
           URL: %s
-          Has Secret: Yes""".formatted(URL), false));
+          Has Secret: Yes""".formatted(URL), false);
       
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "name=My+Project+Webhook&url=" + urlEncode(URL) + "&project=my-project&secret=my-secret-key-123"));
@@ -150,13 +145,12 @@ class CreateWebhookToolTests {
           CreateWebhookTool.URL_PROPERTY, URL,
           CreateWebhookTool.PROJECT_PROPERTY, "my-project"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Webhook created successfully.
           Key: webhook-789
           Name: Project Webhook
           URL: %s
-          Has Secret: No""".formatted(URL), false));
+          Has Secret: No""".formatted(URL), false);
       
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "name=Project+Webhook&url=" + urlEncode(URL) + "&project=my-project"));
@@ -177,8 +171,7 @@ class CreateWebhookToolTests {
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
           CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -195,13 +188,12 @@ class CreateWebhookToolTests {
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
           CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Webhook created successfully.
           Key: webhook-123
           Name: Test Webhook
           URL: %s
-          Has Secret: No""".formatted(URL), false));
+          Has Secret: No""".formatted(URL), false);
       
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "name=Test+Webhook&url=" + urlEncode(URL)));
@@ -224,13 +216,12 @@ class CreateWebhookToolTests {
           CreateWebhookTool.PROJECT_PROPERTY, "my-project",
           CreateWebhookTool.SECRET_PROPERTY, "my-secret-key-123"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Webhook created successfully.
           Key: webhook-456
           Name: My Project Webhook
           URL: %s
-          Has Secret: Yes""".formatted(url), false));
+          Has Secret: Yes""".formatted(url), false);
 
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "name=My+Project+Webhook&url=" + urlEncode(url) + "&project=my-project&secret=my-secret-key-123"));
@@ -247,8 +238,7 @@ class CreateWebhookToolTests {
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
           CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/webhooks/create", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/webhooks/create", true);
     }
   }
 

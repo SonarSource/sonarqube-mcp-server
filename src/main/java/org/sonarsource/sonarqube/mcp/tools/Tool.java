@@ -120,8 +120,12 @@ public abstract class Tool {
   }
 
   public static class Result {
-    public static Result success(String content) {
-      return new Result(McpSchema.CallToolResult.builder().isError(false).addTextContent(content).build());
+    public static Result success(String content, Map<String, Object> structuredContent) {
+      return new Result(McpSchema.CallToolResult.builder()
+        .isError(false)
+        .addTextContent(content)
+        .structuredContent(structuredContent)
+        .build());
     }
 
     public static Result failure(String errorMessage) {

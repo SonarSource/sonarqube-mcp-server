@@ -17,13 +17,13 @@
 package org.sonarsource.sonarqube.mcp.tools.rules;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -42,8 +42,7 @@ class ShowRuleToolTests {
 
       var result = mcpClient.callTool(ShowRuleTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: key", true);
     }
   }
 
@@ -60,8 +59,7 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1541"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -141,8 +139,7 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1541"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Rule details:
           Key: java:S1541
           Name: Methods should not be too complex
@@ -158,7 +155,7 @@ class ShowRuleToolTests {
           <h3>Exceptions</h3>
           <p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in
           <code>equals</code> and <code>hashCode</code> methods.</p>
-          """, false));
+          """, false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -176,8 +173,7 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1541"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -256,8 +252,7 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1541"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Rule details:
           Key: java:S1541
           Name: Methods should not be too complex
@@ -273,7 +268,7 @@ class ShowRuleToolTests {
           <h3>Exceptions</h3>
           <p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in
           <code>equals</code> and <code>hashCode</code> methods.</p>
-          """, false));
+          """, false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -306,8 +301,7 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1000"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Rule details:
           Key: java:S1000
           Name: Dummy rule
@@ -316,7 +310,7 @@ class ShowRuleToolTests {
           Language: Java (java)
 
           Description:
-          <p>This is the HTML description.</p>""", false));
+          <p>This is the HTML description.</p>""", false);
     }
 
     @SonarQubeMcpServerTest
@@ -346,8 +340,7 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S2000"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Rule details:
           Key: java:S2000
           Name: No description rule
@@ -356,7 +349,7 @@ class ShowRuleToolTests {
           Language: Java (java)
 
           Description:
-          No description available.""", false));
+          No description available.""", false);
     }
   }
 }

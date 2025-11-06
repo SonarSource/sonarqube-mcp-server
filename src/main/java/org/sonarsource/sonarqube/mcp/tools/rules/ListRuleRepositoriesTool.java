@@ -20,6 +20,7 @@ import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.RepositoriesResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ListRuleRepositoriesTool extends Tool {
@@ -31,7 +32,7 @@ public class ListRuleRepositoriesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListRuleRepositoriesTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ListRuleRepositoriesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Rule Repositories")
       .setDescription("List rule repositories available in SonarQube.")
@@ -46,7 +47,9 @@ public class ListRuleRepositoriesTool extends Tool {
     var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
     var query = arguments.getOptionalString(QUERY_PROPERTY);
     var response = serverApiProvider.get().rulesApi().getRepositories(language, query);
-    return Tool.Result.success(buildResponseFromRepositories(response.repositories()));
+    var textResponse = buildResponseFromRepositories(response.repositories());
+    var structuredContent = buildStructuredContent(response.repositories());
+    return Tool.Result.success(textResponse, structuredContent);
   }
 
   private static String buildResponseFromRepositories(List<RepositoriesResponse.Repository> repositories) {
@@ -64,6 +67,15 @@ public class ListRuleRepositoriesTool extends Tool {
     });
 
     return responseBuilder.toString().trim();
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(List<RepositoriesResponse.Repository> repositories) {
+    var repoList = repositories.stream()
+      .map(repo -> new ListRuleRepositoriesToolResponse.Repository(repo.key(), repo.name(), repo.language()))
+      .toList();
+
+    var toolResponse = new ListRuleRepositoriesToolResponse(repoList);
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
 }

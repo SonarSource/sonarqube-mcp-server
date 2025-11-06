@@ -33,6 +33,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 import static java.util.stream.Collectors.toMap;
@@ -50,7 +51,7 @@ public class AnalysisTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public AnalysisTool(BackendService backendService, ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(AnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Code File Analysis")
       .setDescription("Analyze a file or code snippet with SonarQube analyzers to identify code quality and security issues. " +
@@ -86,7 +87,9 @@ public class AnalysisTool extends Tool {
       var startTime = System.currentTimeMillis();
       var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri()), startTime).get(30,
         TimeUnit.SECONDS);
-      return Tool.Result.success(buildResponseFromAnalysisResults(response));
+      var textResponse = buildResponseFromAnalysisResults(response);
+      var structuredContent = buildStructuredContent(response);
+      return Tool.Result.success(textResponse, structuredContent);
     } catch (IOException | ExecutionException | TimeoutException e) {
       return Tool.Result.failure("Error while analyzing the code snippet: " + e.getMessage());
     } catch (InterruptedException e) {
@@ -178,6 +181,33 @@ public class AnalysisTool extends Tool {
 
   private static void removeTmpFileForAnalysis(Path tempFile) throws IOException {
     Files.deleteIfExists(tempFile);
+  }
+
+  private static java.util.Map<String, Object> buildStructuredContent(AnalyzeFilesResponse response) {
+    var issues = response.getRawIssues().stream()
+      .map(issue -> {
+        AnalysisToolResponse.TextRange textRange = null;
+        if (issue.getTextRange() != null) {
+          textRange = new AnalysisToolResponse.TextRange(
+            issue.getTextRange().getStartLine(),
+            issue.getTextRange().getEndLine()
+          );
+        }
+        
+        return new AnalysisToolResponse.Issue(
+          issue.getRuleKey(),
+          issue.getPrimaryMessage(),
+          issue.getSeverity().toString(),
+          issue.getCleanCodeAttribute().name(),
+          issue.getImpacts().toString(),
+          !issue.getQuickFixes().isEmpty(),
+          textRange
+        );
+      })
+      .toList();
+
+    var toolResponse = new AnalysisToolResponse(issues, response.getRawIssues().size());
+    return SchemaUtils.toStructuredContent(toolResponse);
   }
 
 }

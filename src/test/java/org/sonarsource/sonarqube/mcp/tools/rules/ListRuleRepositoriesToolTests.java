@@ -17,13 +17,13 @@
 package org.sonarsource.sonarqube.mcp.tools.rules;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -43,8 +43,7 @@ class ListRuleRepositoriesToolTests {
 
       var result = mcpClient.callTool(ListRuleRepositoriesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -61,8 +60,7 @@ class ListRuleRepositoriesToolTests {
 
       var result = mcpClient.callTool(ListRuleRepositoriesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No rule repositories found.", false));
+      SonarQubeMcpTestClient.assertResultEquals(result, "No rule repositories found.", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -86,8 +84,7 @@ class ListRuleRepositoriesToolTests {
         ListRuleRepositoriesTool.TOOL_NAME,
         Map.of("language", "java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 2 rule repositories:
 
           Key: java
@@ -96,7 +93,7 @@ class ListRuleRepositoriesToolTests {
 
           Key: pmd
           Name: PMD
-          Language: java""", false));
+          Language: java""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -120,8 +117,7 @@ class ListRuleRepositoriesToolTests {
         ListRuleRepositoriesTool.TOOL_NAME,
         Map.of("q", "sonar"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 2 rule repositories:
 
           Key: java
@@ -130,7 +126,7 @@ class ListRuleRepositoriesToolTests {
 
           Key: js
           Name: SonarJS
-          Language: js""", false));
+          Language: js""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -155,13 +151,12 @@ class ListRuleRepositoriesToolTests {
           "language", "java",
           "q", "sonar"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 rule repositories:
 
           Key: java
           Name: SonarJava
-          Language: java""", false));
+          Language: java""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -177,8 +172,7 @@ class ListRuleRepositoriesToolTests {
 
       var result = mcpClient.callTool(ListRuleRepositoriesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
     }
 
     @SonarQubeMcpServerTest
@@ -199,8 +193,7 @@ class ListRuleRepositoriesToolTests {
         ListRuleRepositoriesTool.TOOL_NAME,
         Map.of("language", "java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 2 rule repositories:
 
           Key: java
@@ -209,7 +202,7 @@ class ListRuleRepositoriesToolTests {
 
           Key: pmd
           Name: PMD
-          Language: java""", false));
+          Language: java""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -233,13 +226,12 @@ class ListRuleRepositoriesToolTests {
           "language", "java",
           "q", "sonar"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
+      SonarQubeMcpTestClient.assertResultEquals(result, """
           Found 1 rule repositories:
 
           Key: java
           Name: SonarJava
-          Language: java""", false));
+          Language: java""", false);
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
