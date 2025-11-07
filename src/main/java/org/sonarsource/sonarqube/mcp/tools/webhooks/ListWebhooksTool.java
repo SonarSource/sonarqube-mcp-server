@@ -16,12 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
-import jakarta.annotation.Nullable;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ListWebhooksTool extends Tool {
@@ -45,42 +43,16 @@ public class ListWebhooksTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var project = arguments.getOptionalString(PROJECT_PROPERTY);
     var response = serverApiProvider.get().webhooksApi().listWebhooks(project);
-    var textResponse = buildResponseFromList(response.webhooks(), project);
-    var structuredContent = buildStructuredContent(response.webhooks());
-    return Tool.Result.success(textResponse, structuredContent);
+    var toolResponse = buildStructuredContent(response.webhooks());
+    return Tool.Result.success(toolResponse);
   }
 
-  private static java.util.Map<String, Object> buildStructuredContent(List<ListResponse.Webhook> webhooks) {
+  private static ListWebhooksToolResponse buildStructuredContent(List<ListResponse.Webhook> webhooks) {
     var webhooksList = webhooks.stream()
       .map(w -> new ListWebhooksToolResponse.Webhook(w.key(), w.name(), w.url(), w.hasSecret()))
       .toList();
 
-    var toolResponse = new ListWebhooksToolResponse(webhooksList);
-    return SchemaUtils.toStructuredContent(toolResponse);
-  }
-
-  private static String buildResponseFromList(List<ListResponse.Webhook> webhooks, @Nullable String project) {
-    if (webhooks.isEmpty()) {
-      return project != null 
-        ? String.format("No webhooks found for project '%s'.", project)
-        : "No webhooks found.";
-    }
-
-    var stringBuilder = new StringBuilder();
-    if (project != null) {
-      stringBuilder.append(String.format("Found %d webhook(s) for project '%s':%n%n", webhooks.size(), project));
-    } else {
-      stringBuilder.append(String.format("Found %d webhook(s):%n%n", webhooks.size()));
-    }
-
-    for (var webhook : webhooks) {
-      stringBuilder.append("Key: ").append(webhook.key()).append("\n");
-      stringBuilder.append("Name: ").append(webhook.name()).append("\n");
-      stringBuilder.append("URL: ").append(webhook.url()).append("\n");
-      stringBuilder.append("Has Secret: ").append(webhook.hasSecret() ? "Yes" : "No").append("\n\n");
-    }
-
-    return stringBuilder.toString().trim();
+    return new ListWebhooksToolResponse(webhooksList);
   }
 
 }

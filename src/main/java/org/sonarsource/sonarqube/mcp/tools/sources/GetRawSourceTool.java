@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp.tools.sources;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class GetRawSourceTool extends Tool {
@@ -51,7 +50,7 @@ public class GetRawSourceTool extends Tool {
     try {
       var rawSource = serverApiProvider.get().sourcesApi().getRawSource(key, branch, pullRequest);
       var response = new GetRawSourceToolResponse(key, rawSource);
-      return Tool.Result.success(rawSource, SchemaUtils.toStructuredContent(response));
+      return Tool.Result.success(response);
     } catch (Exception e) {
       return Tool.Result.failure("Failed to retrieve source code: " + e.getMessage());
     }

@@ -19,7 +19,6 @@ package org.sonarsource.sonarqube.mcp.tools.qualitygates;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ProjectStatusResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ProjectStatusTool extends Tool {
@@ -68,34 +67,17 @@ public class ProjectStatusTool extends Tool {
     }
 
     var projectStatus = serverApiProvider.get().qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
-    var textResponse = buildResponseFromProjectStatus(projectStatus);
-    var structuredContent = buildStructuredContent(projectStatus);
-    return Tool.Result.success(textResponse, structuredContent);
+    var toolResponse = buildStructuredContent(projectStatus);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromProjectStatus(ProjectStatusResponse projectStatus) {
-    var stringBuilder = new StringBuilder();
-    var status = projectStatus.projectStatus();
-
-    stringBuilder.append("The Quality Gate status is ").append(status.status()).append(". Here are the following conditions:\n");
-
-    for (var condition : status.conditions()) {
-      stringBuilder.append(condition.metricKey()).append(" is ").append(condition.status())
-        .append(", the threshold is ").append(condition.errorThreshold())
-        .append(" and the actual value is ").append(condition.actualValue()).append("\n");
-    }
-
-    return stringBuilder.toString().trim();
-  }
-
-  private static java.util.Map<String, Object> buildStructuredContent(ProjectStatusResponse projectStatus) {
+  private static ProjectStatusToolResponse buildStructuredContent(ProjectStatusResponse projectStatus) {
     var status = projectStatus.projectStatus();
     var conditions = status.conditions().stream()
       .map(c -> new ProjectStatusToolResponse.Condition(c.metricKey(), c.status(), c.errorThreshold(), c.actualValue()))
       .toList();
 
-    var toolResponse = new ProjectStatusToolResponse(status.status(), conditions, null);
-    return SchemaUtils.toStructuredContent(toolResponse);
+    return new ProjectStatusToolResponse(status.status(), conditions, null);
   }
 
 }

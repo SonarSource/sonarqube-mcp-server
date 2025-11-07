@@ -22,7 +22,6 @@ import java.util.Map;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.InfoResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SystemInfoTool extends Tool {
@@ -44,12 +43,11 @@ public class SystemInfoTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var response = serverApiProvider.get().systemApi().getInfo();
-    var textResponse = buildResponseFromInfo(response);
-    var structuredContent = buildStructuredContent(response);
-    return Tool.Result.success(textResponse, structuredContent);
+    var toolResponse = buildStructuredContent(response);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static Map<String, Object> buildStructuredContent(InfoResponse response) {
+  private static SystemInfoToolResponse buildStructuredContent(InfoResponse response) {
     var sections = new ArrayList<SystemInfoToolResponse.Section>();
     
     addSection(sections, "System", response.system());
@@ -69,8 +67,7 @@ public class SystemInfoTool extends Tool {
     addSection(sections, "Server Push Connections", response.serverPushConnections());
     addSection(sections, "Settings", response.settings());
 
-    var toolResponse = new SystemInfoToolResponse(sections);
-    return SchemaUtils.toStructuredContent(toolResponse);
+    return new SystemInfoToolResponse(sections);
   }
 
   private static void addSection(ArrayList<SystemInfoToolResponse.Section> sections, String name, @Nullable Map<String, Object> attributes) {
@@ -79,50 +76,4 @@ public class SystemInfoTool extends Tool {
     }
   }
 
-  private static String buildResponseFromInfo(InfoResponse response) {
-    var stringBuilder = new StringBuilder();
-    stringBuilder.append("SonarQube Server System Information\n");
-    stringBuilder.append("===========================\n\n");
-
-    if (response.health() != null) {
-      stringBuilder.append("Health: ").append(response.health()).append("\n\n");
-    }
-
-    appendSection(stringBuilder, "System", response.system());
-    appendSection(stringBuilder, "Database", response.database());
-    appendSection(stringBuilder, "Bundled Plugins", response.bundled());
-    appendSection(stringBuilder, "Installed Plugins", response.plugins());
-    appendSection(stringBuilder, "Web JVM State", response.webJvmState());
-    appendSection(stringBuilder, "Web Database Connection", response.webDatabaseConnection());
-    appendSection(stringBuilder, "Web Logging", response.webLogging());
-    appendSection(stringBuilder, "Compute Engine Tasks", response.computeEngineTasks());
-    appendSection(stringBuilder, "Compute Engine JVM State", response.computeEngineJvmState());
-    appendSection(stringBuilder, "Compute Engine Database Connection", response.computeEngineDatabaseConnection());
-    appendSection(stringBuilder, "Compute Engine Logging", response.computeEngineLogging());
-    appendSection(stringBuilder, "Search State", response.searchState());
-    appendSection(stringBuilder, "Search Indexes", response.searchIndexes());
-    appendSection(stringBuilder, "ALMs", response.alms());
-    appendSection(stringBuilder, "Server Push Connections", response.serverPushConnections());
-
-    // The Settings section is typically very large, so we'll show a summary
-    if (response.settings() != null && !response.settings().isEmpty()) {
-      stringBuilder.append("Settings\n");
-      stringBuilder.append("--------\n");
-      stringBuilder.append("Total settings: ").append(response.settings().size()).append("\n");
-      stringBuilder.append("(Use SonarQube Server Web UI to view detailed settings)\n\n");
-    }
-
-    return stringBuilder.toString().trim();
-  }
-
-  private static void appendSection(StringBuilder stringBuilder, String sectionName, @Nullable Map<String, Object> section) {
-    if (section != null && !section.isEmpty()) {
-      stringBuilder.append(sectionName).append("\n");
-      stringBuilder.append("-".repeat(sectionName.length())).append("\n");
-      for (Map.Entry<String, Object> entry : section.entrySet()) {
-        stringBuilder.append("- ").append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
-      }
-      stringBuilder.append("\n");
-    }
-  }
 }

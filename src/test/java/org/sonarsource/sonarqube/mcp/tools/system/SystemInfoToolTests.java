@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -24,13 +25,13 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class SystemInfoToolTests {
 
@@ -59,7 +60,7 @@ class SystemInfoToolTests {
 
       var result = mcpClient.callTool(SystemInfoTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -71,28 +72,30 @@ class SystemInfoToolTests {
 
       var result = mcpClient.callTool(SystemInfoTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-          SonarQube Server System Information
-          ===========================
-
-          Health: GREEN
-
-          System
-          ------
-          - Server ID: AAAAAAAA-BBBBBBBBBBBBBBBBBBBB
-          - Version: 9.8
-          - Edition: Enterprise
-
-          Database
-          --------
-          - Database: PostgreSQL
-          - Database Version: 12.10 (Debian 12.10-1.pgdg110+1)
-          - Username: username
-
-          Settings
-          --------
-          Total settings: 2
-          (Use SonarQube Server Web UI to view detailed settings)""", false);
+      assertResultEquals(result, """
+        {
+          "sections" : [ {
+            "name" : "System",
+            "attributes" : {
+              "Server ID" : "AAAAAAAA-BBBBBBBBBBBBBBBBBBBB",
+              "Version" : "9.8",
+              "Edition" : "Enterprise"
+            }
+          }, {
+            "name" : "Database",
+            "attributes" : {
+              "Database" : "PostgreSQL",
+              "Database Version" : "12.10 (Debian 12.10-1.pgdg110+1)",
+              "Username" : "username"
+            }
+          }, {
+            "name" : "Settings",
+            "attributes" : {
+              "sonar.core.id" : "AAAAAAAA-BBBBBBBBBBBBBBBBBBBB",
+              "sonar.forceAuthentication" : "false"
+            }
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

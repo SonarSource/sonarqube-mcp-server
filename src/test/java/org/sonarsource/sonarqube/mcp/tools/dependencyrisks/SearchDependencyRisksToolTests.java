@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 
@@ -32,6 +31,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class SearchDependencyRisksToolTests {
 
@@ -69,7 +69,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "Search Dependency Risks tool is not available in your SonarQube Cloud organization because Advanced Security is not enabled.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available in your SonarQube Cloud organization because Advanced Security is not enabled.", true));
     }
   }
 
@@ -83,7 +83,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -95,7 +95,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "Search Dependency Risks tool is not available for SonarQube Server because Advanced Security is not enabled.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available for SonarQube Server because Advanced Security is not enabled.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -104,7 +104,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: projectKey", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: projectKey", true));
     }
 
     @SonarQubeMcpServerTest
@@ -113,7 +113,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -150,12 +150,30 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-            Found 1 dependency risks.
-            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-            Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
-            """
-            .trim(), false);
+      assertResultEquals(result, """
+        {
+          "issuesReleases" : [ {
+            "key" : "issue-123",
+            "severity" : "HIGH",
+            "type" : "VULNERABILITY",
+            "quality" : "SECURITY",
+            "status" : "OPEN",
+            "createdAt" : "2024-01-15T10:30:00Z",
+            "vulnerabilityId" : "CVE-2023-1234",
+            "cvssScore" : "7.5",
+            "release" : {
+              "packageName" : "lodash",
+              "version" : "1.2.3",
+              "packageManager" : "npm",
+              "newlyIntroduced" : true,
+              "directSummary" : true,
+              "productionScopeSummary" : true
+            },
+            "assignee" : {
+              "name" : "John Doe"
+            }
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -182,12 +200,30 @@ class SearchDependencyRisksToolTests {
         SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project",
         SearchDependencyRisksTool.BRANCH_KEY_PROPERTY, "feature/new-feature"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-            Found 1 dependency risks.
-            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-            Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
-            """
-            .trim(), false);
+      assertResultEquals(result, """
+        {
+          "issuesReleases" : [ {
+            "key" : "issue-123",
+            "severity" : "HIGH",
+            "type" : "VULNERABILITY",
+            "quality" : "SECURITY",
+            "status" : "OPEN",
+            "createdAt" : "2024-01-15T10:30:00Z",
+            "vulnerabilityId" : "CVE-2023-1234",
+            "cvssScore" : "7.5",
+            "release" : {
+              "packageName" : "lodash",
+              "version" : "1.2.3",
+              "packageManager" : "npm",
+              "newlyIntroduced" : true,
+              "directSummary" : true,
+              "productionScopeSummary" : true
+            },
+            "assignee" : {
+              "name" : "John Doe"
+            }
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -214,12 +250,30 @@ class SearchDependencyRisksToolTests {
         SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project",
         SearchDependencyRisksTool.PULL_REQUEST_KEY_PROPERTY, "123"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-            Found 1 dependency risks.
-            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-            Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
-            """
-            .trim(), false);
+      assertResultEquals(result, """
+        {
+          "issuesReleases" : [ {
+            "key" : "issue-123",
+            "severity" : "HIGH",
+            "type" : "VULNERABILITY",
+            "quality" : "SECURITY",
+            "status" : "OPEN",
+            "createdAt" : "2024-01-15T10:30:00Z",
+            "vulnerabilityId" : "CVE-2023-1234",
+            "cvssScore" : "7.5",
+            "release" : {
+              "packageName" : "lodash",
+              "version" : "1.2.3",
+              "packageManager" : "npm",
+              "newlyIntroduced" : true,
+              "directSummary" : true,
+              "productionScopeSummary" : true
+            },
+            "assignee" : {
+              "name" : "John Doe"
+            }
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -244,7 +298,10 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "No dependency risks were found.", false);
+      assertResultEquals(result, """
+        {
+          "issuesReleases" : [ ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -269,12 +326,25 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-            Found 1 dependency risks.
-            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-            Issue key: issue-456 | Severity: MEDIUM | Type: PROHIBITED_LICENSE | Quality: MAINTAINABILITY | Status: OPEN | Package: package-name | Version: 2.0.0 | Package Manager: maven | Created: 2024-01-20T14:45:00Z
-            """
-            .trim(), false);
+      assertResultEquals(result, """
+        {
+          "issuesReleases" : [ {
+            "key" : "issue-456",
+            "severity" : "MEDIUM",
+            "type" : "PROHIBITED_LICENSE",
+            "quality" : "MAINTAINABILITY",
+            "status" : "OPEN",
+            "createdAt" : "2024-01-20T14:45:00Z",
+            "release" : {
+              "packageName" : "package-name",
+              "version" : "2.0.0",
+              "packageManager" : "maven",
+              "newlyIntroduced" : false,
+              "directSummary" : false,
+              "productionScopeSummary" : false
+            }
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -299,13 +369,45 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-            Found 2 dependency risks.
-            This response is paginated and this is the page 1 out of 1 total pages. There is a maximum of 100 items per page.
-            Issue key: issue-123 | Severity: HIGH | Type: VULNERABILITY | Quality: SECURITY | Status: OPEN | Vulnerability ID: CVE-2023-1234 | CVSS Score: 7.5 | Package: lodash | Version: 1.2.3 | Package Manager: npm | Newly Introduced: Yes | Direct Dependency: Yes | Production Scope: Yes | Assignee: John Doe | Created: 2024-01-15T10:30:00Z
-            Issue key: issue-456 | Severity: MEDIUM | Type: PROHIBITED_LICENSE | Quality: MAINTAINABILITY | Status: OPEN | Package: package-name | Version: 2.0.0 | Package Manager: maven | Created: 2024-01-20T14:45:00Z
-            """
-            .trim(), false);
+      assertResultEquals(result, """
+        {
+          "issuesReleases" : [ {
+            "key" : "issue-123",
+            "severity" : "HIGH",
+            "type" : "VULNERABILITY",
+            "quality" : "SECURITY",
+            "status" : "OPEN",
+            "createdAt" : "2024-01-15T10:30:00Z",
+            "vulnerabilityId" : "CVE-2023-1234",
+            "cvssScore" : "7.5",
+            "release" : {
+              "packageName" : "lodash",
+              "version" : "1.2.3",
+              "packageManager" : "npm",
+              "newlyIntroduced" : true,
+              "directSummary" : true,
+              "productionScopeSummary" : true
+            },
+            "assignee" : {
+              "name" : "John Doe"
+            }
+          }, {
+            "key" : "issue-456",
+            "severity" : "MEDIUM",
+            "type" : "PROHIBITED_LICENSE",
+            "quality" : "MAINTAINABILITY",
+            "status" : "OPEN",
+            "createdAt" : "2024-01-20T14:45:00Z",
+            "release" : {
+              "packageName" : "package-name",
+              "version" : "2.0.0",
+              "packageManager" : "maven",
+              "newlyIntroduced" : false,
+              "directSummary" : false,
+              "productionScopeSummary" : false
+            }
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

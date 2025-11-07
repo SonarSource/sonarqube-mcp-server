@@ -16,18 +16,19 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
-import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class ToggleAutomaticAnalysisToolTests {
 
@@ -63,7 +64,7 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.", true));
     }
   }
 
@@ -83,7 +84,12 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "Successfully toggled automatic analysis to true.", false);
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "enabled" : true,
+          "message" : "Successfully toggled automatic analysis to true."
+        }""");
     }
 
     @Test
@@ -95,7 +101,12 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, false
       ))).toCallToolResult();
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "Successfully toggled automatic analysis to false.", false);
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "enabled" : false,
+          "message" : "Successfully toggled automatic analysis to false."
+        }""");
     }
 
     @Test
@@ -107,7 +118,7 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "Failed to enable automatic analysis.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to enable automatic analysis.", true));
     }
 
     @Test
@@ -118,7 +129,7 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "Failed to toggle automatic analysis. Check logs for details.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to toggle automatic analysis. Check logs for details.", true));
     }
   }
 

@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.qualitygates;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -24,12 +25,12 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class ListQualityGatesToolTests {
 
@@ -57,10 +58,10 @@ class ListQualityGatesToolTests {
 
       var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org", true);
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org", true);
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org", true);
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org", true));
     }
 
     @SonarQubeMcpServerTest
@@ -73,16 +74,30 @@ class ListQualityGatesToolTests {
 
       var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-          Quality Gates:
-          
-          Sonar way [Default] [Built-in] (ID: 8)
-          Conditions:
-          - blocker_violations GT 0
-          - tests LT 10
-          
-          Sonar way - Without Coverage (ID: 9)
-          No conditions""", false);
+      assertResultEquals(result, """
+        {
+          "qualityGates" : [ {
+            "id" : 8,
+            "name" : "Sonar way",
+            "isDefault" : true,
+            "isBuiltIn" : true,
+            "conditions" : [ {
+              "metric" : "blocker_violations",
+              "op" : "GT",
+              "error" : 0
+            }, {
+              "metric" : "tests",
+              "op" : "LT",
+              "error" : 10
+            } ]
+          }, {
+            "id" : 9,
+            "name" : "Sonar way - Without Coverage",
+            "isDefault" : false,
+            "isBuiltIn" : false,
+            "conditions" : [ ]
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -144,20 +159,26 @@ class ListQualityGatesToolTests {
 
       var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-          Quality Gates:
-
-          Sonar way [Default] [Built-in]
-          Status: compliant
-          Standard Conditions: false
-          MQR Conditions: false
-          AI Code Supported: false
-
-          Sonar way - Without Coverage
-          Status: non-compliant
-          Standard Conditions: false
-          MQR Conditions: false
-          AI Code Supported: false""", false);
+      assertResultEquals(result, """
+        {
+          "qualityGates" : [ {
+            "name" : "Sonar way",
+            "isDefault" : true,
+            "isBuiltIn" : true,
+            "caycStatus" : "compliant",
+            "hasStandardConditions" : false,
+            "hasMQRConditions" : false,
+            "isAiCodeSupported" : false
+          }, {
+            "name" : "Sonar way - Without Coverage",
+            "isDefault" : false,
+            "isBuiltIn" : false,
+            "caycStatus" : "non-compliant",
+            "hasStandardConditions" : false,
+            "hasMQRConditions" : false,
+            "isAiCodeSupported" : false
+          } ]
+        }""");
     }
   }
 
@@ -171,7 +192,7 @@ class ListQualityGatesToolTests {
 
       var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -183,16 +204,30 @@ class ListQualityGatesToolTests {
 
       var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-          Quality Gates:
-          
-          Sonar way [Default] [Built-in] (ID: 8)
-          Conditions:
-          - blocker_violations GT 0
-          - tests LT 10
-          
-          Sonar way - Without Coverage (ID: 9)
-          No conditions""", false);
+      assertResultEquals(result, """
+        {
+          "qualityGates" : [ {
+            "id" : 8,
+            "name" : "Sonar way",
+            "isDefault" : true,
+            "isBuiltIn" : true,
+            "conditions" : [ {
+              "metric" : "blocker_violations",
+              "op" : "GT",
+              "error" : 0
+            }, {
+              "metric" : "tests",
+              "op" : "LT",
+              "error" : 10
+            } ]
+          }, {
+            "id" : 9,
+            "name" : "Sonar way - Without Coverage",
+            "isDefault" : false,
+            "isBuiltIn" : false,
+            "conditions" : [ ]
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

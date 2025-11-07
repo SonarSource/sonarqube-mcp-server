@@ -20,7 +20,6 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ListEnterprisesTool extends Tool {
@@ -51,50 +50,22 @@ public class ListEnterprisesTool extends Tool {
       var enterpriseKey = arguments.getOptionalString(ENTERPRISE_KEY_PROPERTY);
 
       var response = serverApiProvider.get().enterprisesApi().listEnterprises(enterpriseKey);
-      var textResponse = formatResponse(response);
-      var structuredContent = buildStructuredContent(response);
+      var toolResponse = buildStructuredContent(response);
       
-      return Result.success(textResponse, structuredContent);
+      return Result.success(toolResponse);
     } catch (Exception e) {
       return Result.failure("An error occurred during the tool execution: " + e.getMessage());
     }
   }
 
-  private static java.util.Map<String, Object> buildStructuredContent(ListResponse response) {
+  private static ListEnterprisesToolResponse buildStructuredContent(ListResponse response) {
     var enterprises = response.enterprises().stream()
       .map(e -> new ListEnterprisesToolResponse.Enterprise(
         e.id(), e.key(), e.name(), e.avatar(), e.defaultPortfolioPermissionTemplateId()
       ))
       .toList();
 
-    var toolResponse = new ListEnterprisesToolResponse(enterprises);
-    return SchemaUtils.toStructuredContent(toolResponse);
-  }
-
-  private static String formatResponse(ListResponse response) {
-    if (response.enterprises().isEmpty()) {
-      return "No enterprises were found.";
-    }
-
-    var builder = new StringBuilder("Available Enterprises:\n\n");
-    
-    for (var enterprise : response.enterprises()) {
-      builder.append("Enterprise: ").append(enterprise.name())
-        .append(" (").append(enterprise.key()).append(")")
-        .append(" | ID: ").append(enterprise.id());
-      
-      if (enterprise.avatar() != null) {
-        builder.append(" | Avatar: ").append(enterprise.avatar());
-      }
-      
-      if (enterprise.defaultPortfolioPermissionTemplateId() != null) {
-        builder.append(" | Default Portfolio Template: ").append(enterprise.defaultPortfolioPermissionTemplateId());
-      }
-      
-      builder.append("\n");
-    }
-    
-    return builder.toString().trim();
+    return new ListEnterprisesToolResponse(enterprises);
   }
 
 }

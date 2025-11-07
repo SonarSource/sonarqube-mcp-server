@@ -19,7 +19,6 @@ package org.sonarsource.sonarqube.mcp.tools.sources;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.ScmResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class GetScmInfoTool extends Tool {
@@ -54,45 +53,19 @@ public class GetScmInfoTool extends Tool {
     
     try {
       var scmInfo = serverApiProvider.get().sourcesApi().getScmInfo(key, commitsByLine, from, to);
-      var textResponse = buildResponseFromScmInfo(scmInfo);
-      var structuredContent = buildStructuredContent(scmInfo);
-      return Tool.Result.success(textResponse, structuredContent);
+      var toolResponse = buildStructuredContent(scmInfo);
+      return Tool.Result.success(toolResponse);
     } catch (Exception e) {
       return Tool.Result.failure("Failed to retrieve SCM information: " + e.getMessage());
     }
   }
 
-  private static String buildResponseFromScmInfo(ScmResponse scmResponse) {
-    var responseBuilder = new StringBuilder();
-    responseBuilder.append("SCM Information:\n");
-    responseBuilder.append("================\n\n");
-    
-    var scmLines = scmResponse.getScmLines();
-    if (scmLines.isEmpty()) {
-      responseBuilder.append("No SCM information available for this file.\n");
-    } else {
-      responseBuilder.append("Line | Author      | Date                    | Revision\n");
-      responseBuilder.append("-----|-------------|-------------------------|----------------\n");
-      
-      for (var scmLine : scmLines) {
-        responseBuilder.append(String.format("%-4d | %-11s | %-23s | %s%n",
-          scmLine.lineNumber(),
-          scmLine.author(),
-          scmLine.datetime(),
-          scmLine.revision()));
-      }
-    }
-    
-    return responseBuilder.toString().trim();
-  }
-
-  private static java.util.Map<String, Object> buildStructuredContent(ScmResponse scmResponse) {
+  private static GetScmInfoToolResponse buildStructuredContent(ScmResponse scmResponse) {
     var scmLines = scmResponse.getScmLines().stream()
       .map(line -> new GetScmInfoToolResponse.ScmLine(line.lineNumber(), line.author(), line.datetime(), line.revision()))
       .toList();
 
-    var toolResponse = new GetScmInfoToolResponse(scmLines);
-    return SchemaUtils.toStructuredContent(toolResponse);
+    return new GetScmInfoToolResponse(scmLines);
   }
 
 }

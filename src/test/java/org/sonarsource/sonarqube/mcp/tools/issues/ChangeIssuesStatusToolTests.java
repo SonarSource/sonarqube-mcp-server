@@ -16,17 +16,18 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class ChangeIssuesStatusToolTests {
 
@@ -41,7 +42,8 @@ class ChangeIssuesStatusToolTests {
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("status", new String[] {"accept"}));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: key", true);
+      assertThat(result)
+        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
     }
 
     @SonarQubeMcpServerTest
@@ -52,7 +54,7 @@ class ChangeIssuesStatusToolTests {
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: Missing required argument: status", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: status", true));
     }
 
     @SonarQubeMcpServerTest
@@ -65,7 +67,7 @@ class ChangeIssuesStatusToolTests {
           "key", "k",
           "status", new String[] {"yolo"}));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "Status is unknown: yolo", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Status is unknown: yolo", true));
     }
 
   }
@@ -84,7 +86,7 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"accept"}));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -98,7 +100,13 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"accept"}));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "The issue status was successfully changed.", false);
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "message" : "The issue status was successfully changed.",
+          "issueKey" : "k",
+          "newStatus" : "accept"
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "issue=k&transition=accept"));
     }
@@ -114,7 +122,13 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"falsepositive"}));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "The issue status was successfully changed.", false);
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "message" : "The issue status was successfully changed.",
+          "issueKey" : "k",
+          "newStatus" : "falsepositive"
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "issue=k&transition=falsepositive"));
     }
@@ -130,7 +144,13 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"reopen"}));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "The issue status was successfully changed.", false);
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "message" : "The issue status was successfully changed.",
+          "issueKey" : "k",
+          "newStatus" : "reopen"
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "issue=k&transition=reopen"));
     }

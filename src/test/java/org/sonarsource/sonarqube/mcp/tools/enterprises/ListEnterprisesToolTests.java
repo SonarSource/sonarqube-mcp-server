@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.enterprises;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpError;
 import java.nio.charset.StandardCharsets;
@@ -25,13 +26,13 @@ import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.EnterprisesApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class ListEnterprisesToolTests {
 
@@ -60,7 +61,7 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Forbidden", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
     }
 
     @SonarQubeMcpServerTest
@@ -72,10 +73,10 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true);
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true);
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true);
-      SonarQubeMcpTestClient.assertResultEquals(result, "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true);
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true));
     }
 
     @SonarQubeMcpServerTest
@@ -89,7 +90,10 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "No enterprises were found.", false);
+      assertResultEquals(result, """
+        {
+          "enterprises" : [ ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -105,11 +109,20 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-          Available Enterprises:
-          
-          Enterprise: Some Enterprise Name (some-enterprise-key) | ID: bbc185c3-3830-44df-b5f3-f2cf2f55868f | Avatar: https://gravatar.com/avatar/aca8d9fc74ff8c807018adfffdc90996 | Default Portfolio Template: bbc185c3-3830-44df-b5f3-f2cf2f55868f
-          Enterprise: Another Enterprise (another-key) | ID: def456gh-7890-1234-ijkl-567890123456""", false);
+      assertResultEquals(result, """
+        {
+          "enterprises" : [ {
+            "id" : "bbc185c3-3830-44df-b5f3-f2cf2f55868f",
+            "key" : "some-enterprise-key",
+            "name" : "Some Enterprise Name",
+            "avatar" : "https://gravatar.com/avatar/aca8d9fc74ff8c807018adfffdc90996",
+            "defaultPortfolioPermissionTemplateId" : "bbc185c3-3830-44df-b5f3-f2cf2f55868f"
+          }, {
+            "id" : "def456gh-7890-1234-ijkl-567890123456",
+            "key" : "another-key",
+            "name" : "Another Enterprise"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -127,10 +140,14 @@ class ListEnterprisesToolTests {
         ListEnterprisesTool.TOOL_NAME,
         Map.of(ListEnterprisesTool.ENTERPRISE_KEY_PROPERTY, "my-enterprise"));
 
-      SonarQubeMcpTestClient.assertResultEquals(result, """
-          Available Enterprises:
-          
-          Enterprise: My Filtered Enterprise (my-enterprise) | ID: abc123de-4567-8901-fghi-234567890123""", false);
+      assertResultEquals(result, """
+        {
+          "enterprises" : [ {
+            "id" : "abc123de-4567-8901-fghi-234567890123",
+            "key" : "my-enterprise",
+            "name" : "My Filtered Enterprise"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

@@ -16,19 +16,20 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class SystemPingToolTests {
 
@@ -60,7 +61,10 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "pong", false);
+      assertResultEquals(result, """
+        {
+          "response" : "pong"
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest(null, ""));
     }
@@ -72,9 +76,9 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result,
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult(
         "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/ping",
-        true);
+        true));
     }
 
     @SonarQubeMcpServerTest
@@ -85,7 +89,10 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      SonarQubeMcpTestClient.assertResultEquals(result, "pong", false);
+      assertResultEquals(result, """
+        {
+          "response" : "pong"
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

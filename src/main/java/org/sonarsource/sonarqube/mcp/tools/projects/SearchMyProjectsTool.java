@@ -19,7 +19,6 @@ package org.sonarsource.sonarqube.mcp.tools.projects;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SearchMyProjectsTool extends Tool {
@@ -43,37 +42,11 @@ public class SearchMyProjectsTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);
     var projects = serverApiProvider.get().componentsApi().searchProjectsInMyOrg(page);
-    var textResponse = buildResponseFromAllProjectsResponse(projects);
-    var structuredContent = buildStructuredContent(projects);
-    return Tool.Result.success(textResponse, structuredContent);
+    var toolResponse = buildStructuredContent(projects);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromAllProjectsResponse(SearchResponse response) {
-    var stringBuilder = new StringBuilder();
-    var projects = response.components();
-
-    if (projects.isEmpty()) {
-      stringBuilder.append("No projects were found.");
-      return stringBuilder.toString();
-    }
-
-    stringBuilder.append("Found ").append(projects.size()).append(" Sonar projects in your organization.\n");
-    
-    var paging = response.paging();
-    var totalPages = (int) Math.ceil((double) paging.total() / paging.pageSize());
-    stringBuilder.append("This response is paginated and this is the page ").append(paging.pageIndex())
-      .append(" out of ").append(totalPages).append(" total pages. There is a maximum of ")
-      .append(paging.pageSize()).append(" projects per page.\n");
-
-    projects.forEach(p -> {
-      stringBuilder.append("Project key: ").append(p.key()).append(" | Project name: ").append(p.name());
-      stringBuilder.append("\n");
-    });
-
-    return stringBuilder.toString().trim();
-  }
-
-  private static java.util.Map<String, Object> buildStructuredContent(SearchResponse response) {
+  private static SearchMyProjectsToolResponse buildStructuredContent(SearchResponse response) {
     var projects = response.components().stream()
       .map(p -> new SearchMyProjectsToolResponse.Project(p.key(), p.name()))
       .toList();
@@ -85,8 +58,7 @@ public class SearchMyProjectsTool extends Tool {
       paging.total()
     );
 
-    var toolResponse = new SearchMyProjectsToolResponse(projects, pagingResponse);
-    return SchemaUtils.toStructuredContent(toolResponse);
+    return new SearchMyProjectsToolResponse(projects, pagingResponse);
   }
 
 }

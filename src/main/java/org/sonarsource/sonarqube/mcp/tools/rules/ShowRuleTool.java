@@ -16,10 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.rules;
 
+import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ShowRuleTool extends Tool {
@@ -43,61 +43,28 @@ public class ShowRuleTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var ruleKey = arguments.getStringOrThrow(KEY_PROPERTY);
     var response = serverApiProvider.get().rulesApi().showRule(ruleKey);
-    var textResponse = buildResponseFromShowResponse(response.rule());
-    var structuredContent = buildStructuredContent(response.rule());
-    return Tool.Result.success(textResponse, structuredContent);
+    var toolResponse = buildStructuredContent(response.rule());
+    return Tool.Result.success(toolResponse);
   }
 
-  private static java.util.Map<String, Object> buildStructuredContent(ShowResponse.Rule rule) {
+  private static ShowRuleToolResponse buildStructuredContent(ShowResponse.Rule rule) {
     var impacts = (rule.impacts() != null && !rule.impacts().isEmpty())
       ? rule.impacts().stream()
           .map(i -> new ShowRuleToolResponse.Impact(i.softwareQuality(), i.severity()))
           .toList()
-      : java.util.List.<ShowRuleToolResponse.Impact>of();
+      : List.<ShowRuleToolResponse.Impact>of();
     
     var sections = (rule.descriptionSections() != null && !rule.descriptionSections().isEmpty())
       ? rule.descriptionSections().stream()
           .map(s -> new ShowRuleToolResponse.DescriptionSection(s.content()))
           .toList()
-      : java.util.List.<ShowRuleToolResponse.DescriptionSection>of();
+      : List.<ShowRuleToolResponse.DescriptionSection>of();
     
-    var toolResponse = new ShowRuleToolResponse(
+    return new ShowRuleToolResponse(
       rule.key(), rule.name(), rule.severity(), rule.type(),
       rule.lang(), rule.langName(), rule.htmlDesc(),
       impacts, sections
     );
-    
-    return SchemaUtils.toStructuredContent(toolResponse);
-  }
-
-  private static String buildResponseFromShowResponse(ShowResponse.Rule rule) {
-    var responseBuilder = new StringBuilder();
-    responseBuilder.append("Rule details:\n");
-    responseBuilder.append("Key: ").append(rule.key()).append("\n");
-    responseBuilder.append("Name: ").append(rule.name()).append("\n");
-    responseBuilder.append("Severity: ").append(rule.severity()).append("\n");
-    responseBuilder.append("Type: ").append(rule.type()).append("\n");
-    responseBuilder.append("Language: ").append(rule.langName()).append(" (").append(rule.lang()).append(")\n");
-    if (rule.impacts() != null && !rule.impacts().isEmpty()) {
-      responseBuilder.append("Impacts:\n");
-      rule.impacts().forEach(impact ->
-        responseBuilder.append("- ").append(impact.softwareQuality()).append(": ").append(impact.severity()).append("\n")
-      );
-    }
-    responseBuilder.append("\nDescription:\n");
-    // Prefer descriptionSections if present and non-empty
-    if (rule.descriptionSections() != null && !rule.descriptionSections().isEmpty()) {
-      for (var section : rule.descriptionSections()) {
-        responseBuilder.append(section.content());
-        // Add a newline between sections for readability
-        responseBuilder.append("\n");
-      }
-    } else if (rule.htmlDesc() != null && !rule.htmlDesc().isBlank()) {
-      responseBuilder.append(rule.htmlDesc());
-    } else {
-      responseBuilder.append("No description available.");
-    }
-    return responseBuilder.toString();
   }
 
 }

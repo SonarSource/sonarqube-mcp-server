@@ -33,7 +33,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 import static java.util.stream.Collectors.toMap;
@@ -87,9 +86,8 @@ public class AnalysisTool extends Tool {
       var startTime = System.currentTimeMillis();
       var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri()), startTime).get(30,
         TimeUnit.SECONDS);
-      var textResponse = buildResponseFromAnalysisResults(response);
-      var structuredContent = buildStructuredContent(response);
-      return Tool.Result.success(textResponse, structuredContent);
+      var toolResponse = buildStructuredContent(response);
+      return Tool.Result.success(toolResponse);
     } catch (IOException | ExecutionException | TimeoutException e) {
       return Tool.Result.failure("Error while analyzing the code snippet: " + e.getMessage());
     } catch (InterruptedException e) {
@@ -125,49 +123,6 @@ public class AnalysisTool extends Tool {
     backendService.updateRulesConfiguration(activeRules);
   }
 
-  private static String buildResponseFromAnalysisResults(AnalyzeFilesResponse response) {
-    var stringBuilder = new StringBuilder();
-
-    if (!response.getFailedAnalysisFiles().isEmpty()) {
-      stringBuilder.append("Failed to analyze the code snippet.");
-      return stringBuilder.toString();
-    }
-
-    if (response.getRawIssues().isEmpty()) {
-      stringBuilder.append("No Sonar issues found in the code snippet.");
-    } else {
-      stringBuilder.append("Found ").append(response.getRawIssues().size()).append(" Sonar issues in the code snippet");
-
-      for (var issue : response.getRawIssues()) {
-        stringBuilder.append("\n");
-        stringBuilder.append(issue.getPrimaryMessage());
-        stringBuilder.append("\n");
-        stringBuilder.append("Rule key: ").append(issue.getRuleKey());
-        stringBuilder.append("\n");
-        stringBuilder.append("Severity: ").append(issue.getSeverity());
-        stringBuilder.append("\n");
-        stringBuilder.append("Clean Code attribute: ").append(issue.getCleanCodeAttribute().name());
-        stringBuilder.append("\n");
-        stringBuilder.append("Impacts: ").append(issue.getImpacts().toString());
-        stringBuilder.append("\n");
-        stringBuilder.append("Description: ").append(issue.getPrimaryMessage());
-        stringBuilder.append("\n");
-        stringBuilder.append("Quick fixes available: ").append(issue.getQuickFixes().isEmpty() ? "No" : "Yes");
-
-        var textRange = issue.getTextRange();
-        if (textRange != null) {
-          stringBuilder.append("\n");
-          stringBuilder.append("Starting on line: ").append(textRange.getStartLine());
-        }
-      }
-    }
-
-    stringBuilder.append("\nDisclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context." +
-      " Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.");
-
-    return stringBuilder.toString().trim();
-  }
-
   private static Path createTemporaryFileForLanguage(String analysisId, Path workDir, String fileContent, SonarLanguage language) throws IOException {
     var defaultFileSuffixes = language.getDefaultFileSuffixes();
     var extension = defaultFileSuffixes.length > 0 ? defaultFileSuffixes[0] : "";
@@ -183,7 +138,7 @@ public class AnalysisTool extends Tool {
     Files.deleteIfExists(tempFile);
   }
 
-  private static java.util.Map<String, Object> buildStructuredContent(AnalyzeFilesResponse response) {
+  public AnalysisToolResponse buildStructuredContent(AnalyzeFilesResponse response) {
     var issues = response.getRawIssues().stream()
       .map(issue -> {
         AnalysisToolResponse.TextRange textRange = null;
@@ -206,8 +161,7 @@ public class AnalysisTool extends Tool {
       })
       .toList();
 
-    var toolResponse = new AnalysisToolResponse(issues, response.getRawIssues().size());
-    return SchemaUtils.toStructuredContent(toolResponse);
+    return new AnalysisToolResponse(issues, response.getRawIssues().size());
   }
 
 }

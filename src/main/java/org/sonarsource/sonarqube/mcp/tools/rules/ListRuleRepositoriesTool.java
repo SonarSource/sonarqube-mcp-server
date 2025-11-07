@@ -20,7 +20,6 @@ import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.RepositoriesResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ListRuleRepositoriesTool extends Tool {
@@ -47,35 +46,16 @@ public class ListRuleRepositoriesTool extends Tool {
     var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
     var query = arguments.getOptionalString(QUERY_PROPERTY);
     var response = serverApiProvider.get().rulesApi().getRepositories(language, query);
-    var textResponse = buildResponseFromRepositories(response.repositories());
-    var structuredContent = buildStructuredContent(response.repositories());
-    return Tool.Result.success(textResponse, structuredContent);
+    var toolResponse = buildStructuredContent(response.repositories());
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromRepositories(List<RepositoriesResponse.Repository> repositories) {
-    if (repositories.isEmpty()) {
-      return "No rule repositories found.";
-    }
-
-    var responseBuilder = new StringBuilder();
-    responseBuilder.append("Found ").append(repositories.size()).append(" rule repositories:\n\n");
-
-    repositories.forEach(repo -> {
-      responseBuilder.append("Key: ").append(repo.key()).append("\n");
-      responseBuilder.append("Name: ").append(repo.name()).append("\n");
-      responseBuilder.append("Language: ").append(repo.language()).append("\n\n");
-    });
-
-    return responseBuilder.toString().trim();
-  }
-
-  private static java.util.Map<String, Object> buildStructuredContent(List<RepositoriesResponse.Repository> repositories) {
+  private static ListRuleRepositoriesToolResponse buildStructuredContent(List<RepositoriesResponse.Repository> repositories) {
     var repoList = repositories.stream()
       .map(repo -> new ListRuleRepositoriesToolResponse.Repository(repo.key(), repo.name(), repo.language()))
       .toList();
 
-    var toolResponse = new ListRuleRepositoriesToolResponse(repoList);
-    return SchemaUtils.toStructuredContent(toolResponse);
+    return new ListRuleRepositoriesToolResponse(repoList);
   }
 
 }

@@ -16,16 +16,26 @@
  */
 package org.sonarsource.sonarqube.mcp.harness;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
 public class SonarQubeMcpTestClient {
   private final McpSyncClient mcpSyncClient;
+  private static final Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 
   public SonarQubeMcpTestClient(McpSyncClient mcpSyncClient) {
     this.mcpSyncClient = mcpSyncClient;
+  }
+
+  public static void assertResultEquals(McpSchema.CallToolResult actual, String expected) {
+    assertThat(JsonParser.parseString(gson.toJson(actual.structuredContent()))).isEqualTo(JsonParser.parseString(expected));
   }
 
   public McpSchema.CallToolResult callTool(String toolName) {
@@ -38,27 +48,6 @@ public class SonarQubeMcpTestClient {
 
   public List<McpSchema.Tool> listTools() {
     return mcpSyncClient.listTools().tools();
-  }
-
-  /**
-   * Assert that a CallToolResult has the expected text content and error state.
-   * This ignores structured content for test comparisons.
-   */
-  public static void assertResultEquals(McpSchema.CallToolResult actual, String expectedText, boolean expectedIsError) {
-    var actualText = actual.content().stream()
-      .filter(content -> content instanceof McpSchema.TextContent)
-      .map(content -> ((McpSchema.TextContent) content).text())
-      .findFirst()
-      .orElse("");
-    
-    if (!actualText.equals(expectedText)) {
-      var message = String.format("Text content mismatch:%nExpected:%n%s%n%nActual:%n%s", expectedText, actualText);
-      throw new AssertionError(message);
-    }
-    
-    if (actual.isError() != expectedIsError) {
-      throw new AssertionError("Expected isError: " + expectedIsError + " but was: " + actual.isError());
-    }
   }
 
 }

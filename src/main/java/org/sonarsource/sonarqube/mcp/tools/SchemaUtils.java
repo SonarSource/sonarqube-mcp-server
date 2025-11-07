@@ -95,7 +95,7 @@ public class SchemaUtils {
       var fieldName = field.getName();
       var propertySchema = generatePropertySchemaFromField(field);
       properties.put(fieldName, propertySchema);
-      
+
       if (!isNullable(field)) {
         required.add(fieldName);
       }
@@ -155,12 +155,12 @@ public class SchemaUtils {
   private static Map<String, Object> generatePropertySchemaFromField(Field field) {
     var schema = new HashMap<String, Object>();
     Class<?> type = field.getType();
-    
+
     // Note: Nullable fields will be excluded from JSON by ObjectMapper.setSerializationInclusion(NON_NULL)
     // So we just define the type normally and rely on the field not being in "required" array
     if (type == String.class) {
       schema.put("type", STRING);
-    } else if (type == Integer.class || type == int.class || 
+    } else if (type == Integer.class || type == int.class ||
                type == Long.class || type == long.class ||
                type == Double.class || type == double.class) {
       schema.put("type", NUMBER);
@@ -269,5 +269,18 @@ public class SchemaUtils {
   public static Map<String, Object> toStructuredContent(Object obj) {
     return OBJECT_MAPPER.convertValue(obj, Map.class);
   }
+
+  /**
+   * Convert a response object to JSON string for text content.
+   * According to MCP spec, structured content should also be available as text (serialized JSON).
+   */
+  public static String toJsonString(Object response) {
+    try {
+      return OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(response);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to convert response to JSON string", e);
+    }
+  }
+
 }
 

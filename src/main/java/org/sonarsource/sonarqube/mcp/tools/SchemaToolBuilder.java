@@ -48,7 +48,7 @@ public class SchemaToolBuilder {
    * Factory method to create a SchemaToolBuilder with automatic output schema generation from a class.
    * This is the recommended approach for defining structured output.
    */
-  public static SchemaToolBuilder forOutput(Class<?> outputClass) {
+  public static SchemaToolBuilder forOutput(Class<? extends Record> outputClass) {
     var builder = new SchemaToolBuilder();
     builder.outputSchemaFromClass = SchemaUtils.generateOutputSchema(outputClass);
     return builder;
