@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ToggleAutomaticAnalysisTool extends Tool {
@@ -59,7 +58,7 @@ public class ToggleAutomaticAnalysisTool extends Tool {
 
     var message = "Successfully toggled automatic analysis to " + enabled + ".";
     var response = new ToggleAutomaticAnalysisToolResponse(true, enabled, message);
-    return Result.success(message, SchemaUtils.toStructuredContent(response));
+    return Result.success(response);
   }
 
 }

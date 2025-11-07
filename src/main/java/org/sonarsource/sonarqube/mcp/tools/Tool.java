@@ -120,14 +120,6 @@ public abstract class Tool {
   }
 
   public static class Result {
-    public static Result success(String content, Map<String, Object> structuredContent) {
-      return new Result(McpSchema.CallToolResult.builder()
-        .isError(false)
-        .addTextContent(content)
-        .structuredContent(structuredContent)
-        .build());
-    }
-
     /**
      * Create a successful result from a response object.
      * The response object will be serialized to both JSON text content and structured content.

@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class SystemPingTool extends Tool {
@@ -39,9 +38,8 @@ public class SystemPingTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var response = serverApiProvider.get().systemApi().getPing();
-    var trimmedResponse = response.trim();
-    var toolResponse = new SystemPingToolResponse(trimmedResponse);
-    return Tool.Result.success(trimmedResponse, SchemaUtils.toStructuredContent(toolResponse));
+    var toolResponse = new SystemPingToolResponse(response);
+    return Tool.Result.success(toolResponse);
   }
 
 }

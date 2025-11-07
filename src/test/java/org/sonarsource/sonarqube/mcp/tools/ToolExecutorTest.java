@@ -39,10 +39,12 @@ class ToolExecutorTest {
 
   @Test
   void it_should_register_telemetry_after_the_tool_call_succeeds() {
+    record TestResponse(@Description("Success message") String message) {}
+    
     toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of())) {
       @Override
       public Result execute(Arguments arguments) {
-        return Result.success("Success!", Map.of());
+        return Result.success(new TestResponse("Success!"));
       }
     }, new McpSchema.CallToolRequest("", Map.of()));
 

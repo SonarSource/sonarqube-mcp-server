@@ -63,9 +63,6 @@ class ListPortfoliosToolTests {
         Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true));
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true));
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true));
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true));
     }
 
     @SonarQubeMcpServerTest

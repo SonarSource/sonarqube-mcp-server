@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class CreateWebhookTool extends Tool {
@@ -56,20 +55,8 @@ public class CreateWebhookTool extends Tool {
     var apiResponse = serverApiProvider.get().webhooksApi().createWebhook(name, url, project, secret);
     var webhook = apiResponse.webhook();
 
-    var resultMessage = """
-      Webhook created successfully.
-      Key: %s
-      Name: %s
-      URL: %s
-      Has Secret: %s""".formatted(
-      webhook.key(),
-      webhook.name(),
-      webhook.url(),
-      webhook.hasSecret() ? "Yes" : "No"
-    );
-
     var response = new CreateWebhookToolResponse(webhook.key(), webhook.name(), webhook.url(), webhook.hasSecret());
-    return Result.success(resultMessage, SchemaUtils.toStructuredContent(response));
+    return Result.success(response);
   }
 
 }

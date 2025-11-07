@@ -19,7 +19,6 @@ package org.sonarsource.sonarqube.mcp.tools.issues;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.Transition;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
-import org.sonarsource.sonarqube.mcp.tools.SchemaUtils;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public class ChangeIssueStatusTool extends Tool {
@@ -46,7 +45,7 @@ public class ChangeIssueStatusTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
-    var statusString = arguments.getStringListOrThrow(STATUS_PROPERTY).get(0);
+    var statusString = arguments.getStringListOrThrow(STATUS_PROPERTY).getFirst();
     var status = Transition.fromStatus(statusString);
     if (status.isEmpty()) {
       return Tool.Result.failure("Status is unknown: " + statusString);
@@ -55,7 +54,7 @@ public class ChangeIssueStatusTool extends Tool {
     serverApiProvider.get().issuesApi().doTransition(key, status.get());
     var message = "The issue status was successfully changed.";
     var response = new ChangeIssueStatusToolResponse(true, message, key, statusString);
-    return Tool.Result.success(message, SchemaUtils.toStructuredContent(response));
+    return Tool.Result.success(response);
   }
 
 }
