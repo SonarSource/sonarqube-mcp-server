@@ -30,7 +30,7 @@ public class SearchMetricsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchMetricsTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SearchMetricsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Metrics")
       .setDescription("Search for SonarQube metrics")
@@ -46,45 +46,19 @@ public class SearchMetricsTool extends Tool {
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
     
     var response = serverApiProvider.get().metricsApi().searchMetrics(page, pageSize);
-    return Tool.Result.success(buildResponseFromSearchMetrics(response));
+    var toolResponse = buildStructuredContent(response);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromSearchMetrics(SearchMetricsResponse response) {
-    var stringBuilder = new StringBuilder();
-    var metrics = response.metrics();
+  private static SearchMetricsToolResponse buildStructuredContent(SearchMetricsResponse response) {
+    var metrics = response.metrics() == null ? java.util.List.<SearchMetricsToolResponse.Metric>of() : response.metrics().stream()
+      .map(m -> new SearchMetricsToolResponse.Metric(
+        m.id(), m.key(), m.name(), m.description(), m.domain(), m.type(),
+        m.direction(), m.qualitative(), m.hidden(), m.custom()
+      ))
+      .toList();
 
-    stringBuilder.append("Search Results: ").append(response.total()).append(" total metrics\n");
-    stringBuilder.append("Page: ").append(response.p()).append(" | Page Size: ").append(response.ps()).append("\n\n");
-
-    if (metrics == null || metrics.isEmpty()) {
-      stringBuilder.append("No metrics found.");
-      return stringBuilder.toString();
-    }
-
-    stringBuilder.append("Metrics:\n");
-    for (var metric : metrics) {
-      stringBuilder.append("  - ").append(metric.name()).append(" (").append(metric.key()).append(")\n");
-      stringBuilder.append("    ID: ").append(metric.id()).append("\n");
-      stringBuilder.append("    Description: ").append(metric.description()).append("\n");
-      stringBuilder.append("    Domain: ").append(metric.domain()).append("\n");
-      stringBuilder.append("    Type: ").append(metric.type()).append("\n");
-      stringBuilder.append("    Direction: ").append(getDirectionDescription(metric.direction())).append("\n");
-      stringBuilder.append("    Qualitative: ").append(metric.qualitative()).append("\n");
-      stringBuilder.append("    Hidden: ").append(metric.hidden()).append("\n");
-      stringBuilder.append("    Custom: ").append(metric.custom()).append("\n");
-      stringBuilder.append("\n");
-    }
-
-    return stringBuilder.toString().trim();
-  }
-
-  private static String getDirectionDescription(int direction) {
-    return switch (direction) {
-      case -1 -> "-1 (lower values are better)";
-      case 0 -> "0 (no direction)";
-      case 1 -> "1 (higher values are better)";
-      default -> String.valueOf(direction);
-    };
+    return new SearchMetricsToolResponse(metrics, response.total(), response.p(), response.ps());
   }
 
 }

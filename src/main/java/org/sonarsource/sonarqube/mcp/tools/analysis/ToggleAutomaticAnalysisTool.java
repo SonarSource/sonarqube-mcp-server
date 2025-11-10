@@ -28,7 +28,7 @@ public class ToggleAutomaticAnalysisTool extends Tool {
   private final SonarQubeIdeBridgeClient bridgeClient;
 
   public ToggleAutomaticAnalysisTool(SonarQubeIdeBridgeClient bridgeClient) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ToggleAutomaticAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Toggle SonarQube for IDE Automatic Analysis")
       .setDescription("Enable or disable SonarQube for IDE automatic analysis. " +
@@ -47,16 +47,18 @@ public class ToggleAutomaticAnalysisTool extends Tool {
 
     var enabled = arguments.getBooleanOrThrow(ENABLED_PROPERTY);
 
-    var response = bridgeClient.requestToggleAutomaticAnalysis(enabled);
-    if (!response.isSuccessful()) {
-      var errorMessage = response.errorMessage();
+    var bridgeResponse = bridgeClient.requestToggleAutomaticAnalysis(enabled);
+    if (!bridgeResponse.isSuccessful()) {
+      var errorMessage = bridgeResponse.errorMessage();
       if (errorMessage == null) {
         errorMessage = "Failed to toggle automatic analysis. Check logs for details.";
       }
       return Result.failure(errorMessage);
     }
 
-    return Result.success("Successfully toggled automatic analysis to " + enabled + ".");
+    var message = "Successfully toggled automatic analysis to " + enabled + ".";
+    var response = new ToggleAutomaticAnalysisToolResponse(true, enabled, message);
+    return Result.success(response);
   }
 
 }

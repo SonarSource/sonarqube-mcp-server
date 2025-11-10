@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,18 +30,23 @@ public class SchemaToolBuilder {
   private static final String ITEMS_PROPERTY_NAME = "items";
   private final Map<String, Object> properties;
   private final List<String> requiredProperties;
-  private final Map<String, Object> def;
-  private final Map<String, Object> definitions;
+  private final Map<String, Object> outputSchemaFromClass;
   private String name;
   private String title;
   private String description;
-  private boolean additionalProperties;
 
-  public SchemaToolBuilder() {
+  public SchemaToolBuilder(Map<String, Object> outputSchemaFromClass) {
     this.properties = new HashMap<>();
     this.requiredProperties = new ArrayList<>();
-    this.def = new HashMap<>();
-    this.definitions = new HashMap<>();
+    this.outputSchemaFromClass = outputSchemaFromClass;
+  }
+
+  /**
+   * Factory method to create a SchemaToolBuilder with automatic output schema generation from a class.
+   * This is the recommended approach for defining structured output.
+   */
+  public static SchemaToolBuilder forOutput(Class<? extends Record> outputClass) {
+    return new SchemaToolBuilder(SchemaUtils.generateOutputSchema(outputClass));
   }
 
   public SchemaToolBuilder setName(String name) {
@@ -109,8 +115,8 @@ public class SchemaToolBuilder {
       throw new IllegalStateException("Cannot set a required property that does not exist.");
     }
 
-    var jsonSchema = new McpSchema.JsonSchema("object", properties, requiredProperties, additionalProperties, def, definitions);
+    var jsonSchema = new McpSchema.JsonSchema("object", properties, requiredProperties, false, Collections.emptyMap(), Collections.emptyMap());
 
-    return new McpSchema.Tool(name, title, description, jsonSchema, null, null, Map.of());
+    return new McpSchema.Tool(name, title, description, jsonSchema, outputSchemaFromClass, null, Map.of());
   }
 }

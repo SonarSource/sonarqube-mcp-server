@@ -16,8 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
-import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpSchema;
+import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
@@ -30,8 +30,59 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class GetScmInfoToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(GetScmInfoTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "scmLines":{
+               "description":"SCM information for each line",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "author":{
+                        "type":"string",
+                        "description":"Author who last modified this line"
+                     },
+                     "datetime":{
+                        "type":"string",
+                        "description":"Date and time of last modification"
+                     },
+                     "lineNumber":{
+                        "type":"integer",
+                        "description":"Line number in the file"
+                     },
+                     "revision":{
+                        "type":"string",
+                        "description":"SCM revision/commit identifier"
+                     }
+                  },
+                  "required":[
+                     "author",
+                     "datetime",
+                     "lineNumber",
+                     "revision"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "scmLines"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class MissingPrerequisite {
@@ -42,8 +93,7 @@ class GetScmInfoToolTests {
 
       var result = mcpClient.callTool(GetScmInfoTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
     }
 
   }
@@ -61,8 +111,7 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
     }
 
     @SonarQubeMcpServerTest
@@ -85,16 +134,25 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          Line | Author      | Date                    | Revision
-          -----|-------------|-------------------------|----------------
-          1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5
-          3    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ {
+            "lineNumber" : 1,
+            "author" : "julien",
+            "datetime" : "2013-03-13T12:34:56+0100",
+            "revision" : "a1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 2,
+            "author" : "julien",
+            "datetime" : "2013-03-14T13:17:22+0100",
+            "revision" : "b1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 3,
+            "author" : "simon",
+            "datetime" : "2014-01-01T15:35:36+0100",
+            "revision" : "c1e2b3e5d6f5"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -118,15 +176,20 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          Line | Author      | Date                    | Revision
-          -----|-------------|-------------------------|----------------
-          1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ {
+            "lineNumber" : 1,
+            "author" : "julien",
+            "datetime" : "2013-03-13T12:34:56+0100",
+            "revision" : "a1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 2,
+            "author" : "julien",
+            "datetime" : "2013-03-14T13:17:22+0100",
+            "revision" : "b1e2b3e5d6f5"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -150,15 +213,20 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "from", 10, "to", 20));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          Line | Author      | Date                    | Revision
-          -----|-------------|-------------------------|----------------
-          10   | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          11   | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ {
+            "lineNumber" : 10,
+            "author" : "julien",
+            "datetime" : "2013-03-13T12:34:56+0100",
+            "revision" : "a1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 11,
+            "author" : "simon",
+            "datetime" : "2014-01-01T15:35:36+0100",
+            "revision" : "c1e2b3e5d6f5"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -182,15 +250,20 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          Line | Author      | Date                    | Revision
-          -----|-------------|-------------------------|----------------
-          1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ {
+            "lineNumber" : 1,
+            "author" : "julien",
+            "datetime" : "2013-03-13T12:34:56+0100",
+            "revision" : "a1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 2,
+            "author" : "simon",
+            "datetime" : "2014-01-01T15:35:36+0100",
+            "revision" : "c1e2b3e5d6f5"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -211,12 +284,10 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Empty.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          No SCM information available for this file.""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -234,8 +305,7 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
     }
 
     @SonarQubeMcpServerTest
@@ -257,16 +327,25 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          Line | Author      | Date                    | Revision
-          -----|-------------|-------------------------|----------------
-          1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5
-          3    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ {
+            "lineNumber" : 1,
+            "author" : "julien",
+            "datetime" : "2013-03-13T12:34:56+0100",
+            "revision" : "a1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 2,
+            "author" : "julien",
+            "datetime" : "2013-03-14T13:17:22+0100",
+            "revision" : "b1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 3,
+            "author" : "simon",
+            "datetime" : "2014-01-01T15:35:36+0100",
+            "revision" : "c1e2b3e5d6f5"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -289,15 +368,20 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          Line | Author      | Date                    | Revision
-          -----|-------------|-------------------------|----------------
-          1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | julien      | 2013-03-14T13:17:22+0100 | b1e2b3e5d6f5""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ {
+            "lineNumber" : 1,
+            "author" : "julien",
+            "datetime" : "2013-03-13T12:34:56+0100",
+            "revision" : "a1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 2,
+            "author" : "julien",
+            "datetime" : "2013-03-14T13:17:22+0100",
+            "revision" : "b1e2b3e5d6f5"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -320,15 +404,20 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "from", 10, "to", 20));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          Line | Author      | Date                    | Revision
-          -----|-------------|-------------------------|----------------
-          10   | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          11   | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ {
+            "lineNumber" : 10,
+            "author" : "julien",
+            "datetime" : "2013-03-13T12:34:56+0100",
+            "revision" : "a1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 11,
+            "author" : "simon",
+            "datetime" : "2014-01-01T15:35:36+0100",
+            "revision" : "c1e2b3e5d6f5"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -351,15 +440,20 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          Line | Author      | Date                    | Revision
-          -----|-------------|-------------------------|----------------
-          1    | julien      | 2013-03-13T12:34:56+0100 | a1e2b3e5d6f5
-          2    | simon       | 2014-01-01T15:35:36+0100 | c1e2b3e5d6f5""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ {
+            "lineNumber" : 1,
+            "author" : "julien",
+            "datetime" : "2013-03-13T12:34:56+0100",
+            "revision" : "a1e2b3e5d6f5"
+          }, {
+            "lineNumber" : 2,
+            "author" : "simon",
+            "datetime" : "2014-01-01T15:35:36+0100",
+            "revision" : "c1e2b3e5d6f5"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -379,12 +473,10 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Empty.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SCM Information:
-          ================
-
-          No SCM information available for this file.""", false));
+      assertResultEquals(result, """
+        {
+          "scmLines" : [ ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

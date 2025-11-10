@@ -28,6 +28,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ToggleAutomaticAnalysisToolTests {
 
@@ -38,6 +40,34 @@ class ToggleAutomaticAnalysisToolTests {
   void setUp() {
     bridgeClient = mock(SonarQubeIdeBridgeClient.class);
     underTest = new ToggleAutomaticAnalysisTool(bridgeClient);
+  }
+
+  @Test
+  void it_should_validate_output_schema() {
+    assertSchemaEquals(underTest.definition().outputSchema(), """
+      {
+          "type":"object",
+          "properties":{
+             "enabled":{
+                "type":"boolean",
+                "description":"The new automatic analysis state"
+             },
+             "message":{
+                "type":"string",
+                "description":"Success or error message"
+             },
+             "success":{
+                "type":"boolean",
+                "description":"Whether the operation was successful"
+             }
+          },
+          "required":[
+             "enabled",
+             "message",
+             "success"
+          ]
+       }
+      """);
   }
 
   @Nested
@@ -63,8 +93,7 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.", true));
     }
   }
 
@@ -84,7 +113,12 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Successfully toggled automatic analysis to true.", false));
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "enabled" : true,
+          "message" : "Successfully toggled automatic analysis to true."
+        }""");
     }
 
     @Test
@@ -96,8 +130,12 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, false
       ))).toCallToolResult();
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Successfully toggled automatic analysis to false.", false));
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "enabled" : false,
+          "message" : "Successfully toggled automatic analysis to false."
+        }""");
     }
 
     @Test
@@ -109,8 +147,7 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to enable automatic analysis.", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to enable automatic analysis.", true));
     }
 
     @Test
@@ -121,8 +158,7 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to toggle automatic analysis. Check logs for details.", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to toggle automatic analysis. Check logs for details.", true));
     }
   }
 

@@ -16,9 +16,9 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.enterprises;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpError;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -32,8 +32,65 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListEnterprisesToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.ENTERPRISES_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+    var mcpClient = harness.newClient(Map.of(
+      "SONARQUBE_ORG", "org",
+      "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListEnterprisesTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+        {
+           "type":"object",
+           "properties":{
+              "enterprises":{
+                 "description":"List of available enterprises",
+                 "type":"array",
+                 "items":{
+                    "type":"object",
+                    "properties":{
+                       "avatar":{
+                          "type":"string",
+                          "description":"Avatar URL"
+                       },
+                       "defaultPortfolioPermissionTemplateId":{
+                          "type":"string",
+                          "description":"Default portfolio permission template ID"
+                       },
+                       "id":{
+                          "type":"string",
+                          "description":"Enterprise unique identifier"
+                       },
+                       "key":{
+                          "type":"string",
+                          "description":"Enterprise key"
+                       },
+                       "name":{
+                          "type":"string",
+                          "description":"Enterprise display name"
+                       }
+                    },
+                    "required":[
+                       "id",
+                       "key",
+                       "name"
+                    ]
+                 }
+              }
+           },
+           "required":[
+              "enterprises"
+           ]
+        }
+      """);
+  }
 
   @Nested
   class WithSonarQubeServer {
@@ -60,8 +117,7 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
     }
 
     @SonarQubeMcpServerTest
@@ -73,10 +129,7 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(
-          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() +
-            "/enterprises/enterprises", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true));
     }
 
     @SonarQubeMcpServerTest
@@ -90,8 +143,10 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No enterprises were found.", false));
+      assertResultEquals(result, """
+        {
+          "enterprises" : [ ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -107,12 +162,20 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Available Enterprises:
-          
-          Enterprise: Some Enterprise Name (some-enterprise-key) | ID: bbc185c3-3830-44df-b5f3-f2cf2f55868f | Avatar: https://gravatar.com/avatar/aca8d9fc74ff8c807018adfffdc90996 | Default Portfolio Template: bbc185c3-3830-44df-b5f3-f2cf2f55868f
-          Enterprise: Another Enterprise (another-key) | ID: def456gh-7890-1234-ijkl-567890123456""", false));
+      assertResultEquals(result, """
+        {
+          "enterprises" : [ {
+            "id" : "bbc185c3-3830-44df-b5f3-f2cf2f55868f",
+            "key" : "some-enterprise-key",
+            "name" : "Some Enterprise Name",
+            "avatar" : "https://gravatar.com/avatar/aca8d9fc74ff8c807018adfffdc90996",
+            "defaultPortfolioPermissionTemplateId" : "bbc185c3-3830-44df-b5f3-f2cf2f55868f"
+          }, {
+            "id" : "def456gh-7890-1234-ijkl-567890123456",
+            "key" : "another-key",
+            "name" : "Another Enterprise"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -130,11 +193,14 @@ class ListEnterprisesToolTests {
         ListEnterprisesTool.TOOL_NAME,
         Map.of(ListEnterprisesTool.ENTERPRISE_KEY_PROPERTY, "my-enterprise"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Available Enterprises:
-          
-          Enterprise: My Filtered Enterprise (my-enterprise) | ID: abc123de-4567-8901-fghi-234567890123""", false));
+      assertResultEquals(result, """
+        {
+          "enterprises" : [ {
+            "id" : "abc123de-4567-8901-fghi-234567890123",
+            "key" : "my-enterprise",
+            "name" : "My Filtered Enterprise"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

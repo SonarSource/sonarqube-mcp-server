@@ -29,9 +29,87 @@ import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 public class AnalysisToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(AnalysisTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+        "type": "object",
+        "properties": {
+          "issueCount": {
+            "type": "integer",
+            "description": "Total number of issues"
+          },
+          "issues": {
+            "type": "array",
+            "description": "List of issues found in the code snippet",
+            "items": {
+              "type": "object",
+              "properties": {
+                "cleanCodeAttribute": {
+                  "type": "string",
+                  "description": "Clean code attribute"
+                },
+                "hasQuickFixes": {
+                  "type": "boolean",
+                  "description": "Whether quick fixes are available"
+                },
+                "impacts": {
+                  "type": "string",
+                  "description": "Software quality impacts"
+                },
+                "primaryMessage": {
+                  "type": "string",
+                  "description": "Primary issue message"
+                },
+                "ruleKey": {
+                  "type": "string",
+                  "description": "Rule key that triggered the issue"
+                },
+                "severity": {
+                  "type": "string",
+                  "description": "Issue severity level"
+                },
+                "textRange": {
+                  "type": "object",
+                  "properties": {
+                    "endLine": {
+                      "type": "integer",
+                      "description": "Ending line number"
+                    },
+                    "startLine": {
+                      "type": "integer",
+                      "description": "Starting line number"
+                    }
+                  },
+                  "required": ["endLine", "startLine"],
+                  "description": "Location in the code"
+                }
+              },
+              "required": [
+                "cleanCodeAttribute",
+                "hasQuickFixes",
+                "impacts",
+                "primaryMessage",
+                "ruleKey",
+                "severity"
+              ]
+            }
+          }
+        },
+        "required": ["issueCount", "issues"]
+      }
+      """);
+  }
 
   @Nested
   class MissingPrerequisite {
@@ -62,10 +140,7 @@ public class AnalysisToolTests {
           AnalysisTool.SNIPPET_PROPERTY, "",
           AnalysisTool.LANGUAGE_PROPERTY, ""));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          No Sonar issues found in the code snippet.
-          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
+      assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
     }
 
     @SonarQubeMcpServerTest
@@ -81,18 +156,22 @@ public class AnalysisToolTests {
             """,
           AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 Sonar issues in the code snippet
-          Complete the task associated to this "TODO" comment.
-          Rule key: php:S1135
-          Severity: INFO
-          Clean Code attribute: COMPLETE
-          Impacts: {MAINTAINABILITY=INFO}
-          Description: Complete the task associated to this "TODO" comment.
-          Quick fixes available: No
-          Starting on line: 1
-          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "ruleKey" : "php:S1135",
+            "primaryMessage" : "Complete the task associated to this \\"TODO\\" comment.",
+            "severity" : "INFO",
+            "cleanCodeAttribute" : "COMPLETE",
+            "impacts" : "{MAINTAINABILITY=INFO}",
+            "hasQuickFixes" : false,
+            "textRange" : {
+              "startLine" : 1,
+              "endLine" : 1
+            }
+          } ],
+          "issueCount" : 1
+        }""");
     }
 
     @SonarQubeMcpServerTest
@@ -109,18 +188,24 @@ public class AnalysisToolTests {
             """,
           AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 Sonar issues in the code snippet
-          Complete the task associated to this "TODO" comment.
-          Rule key: php:S1135
-          Severity: INFO
-          Clean Code attribute: COMPLETE
-          Impacts: {MAINTAINABILITY=INFO}
-          Description: Complete the task associated to this "TODO" comment.
-          Quick fixes available: No
-          Starting on line: 1
-          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
+      assertResultEquals(result, """
+        {
+           "issues":[
+              {
+                 "ruleKey":"php:S1135",
+                 "primaryMessage":"Complete the task associated to this \\"TODO\\" comment.",
+                 "severity":"INFO",
+                 "cleanCodeAttribute":"COMPLETE",
+                 "impacts":"{MAINTAINABILITY=INFO}",
+                 "hasQuickFixes":false,
+                 "textRange":{
+                    "startLine":1,
+                    "endLine":1
+                 }
+              }
+           ],
+           "issueCount":1
+        }""");
     }
 
     @SonarQubeMcpServerTest
@@ -136,10 +221,7 @@ public class AnalysisToolTests {
             """,
           AnalysisTool.LANGUAGE_PROPERTY, "php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          No Sonar issues found in the code snippet.
-          Disclaimer: Analysis results might not be fully accurate as the code snippet is not part of a complete project context. Use SonarQube for IDE for better results, or setup a full project analysis in SonarQube Server or Cloud.""", false));
+      assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
     }
   }
 

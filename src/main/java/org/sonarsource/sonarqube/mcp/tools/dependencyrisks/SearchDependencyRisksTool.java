@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 
-import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
@@ -35,7 +34,7 @@ public class SearchDependencyRisksTool extends Tool {
   private final SonarQubeVersionChecker sonarQubeVersionChecker;
 
   public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SearchDependencyRisksToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a SonarQube project, " +
@@ -65,86 +64,35 @@ public class SearchDependencyRisksTool extends Tool {
     var pullRequestKey = arguments.getOptionalString(PULL_REQUEST_KEY_PROPERTY);
 
     var response = provider.scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey);
-    return Tool.Result.success(buildResponseFromDependencyRisksResponse(response));
+    var toolResponse = buildStructuredContent(response);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromDependencyRisksResponse(DependencyRisksResponse response) {
-    var issuesReleases = response.issuesReleases();
+  private static SearchDependencyRisksToolResponse buildStructuredContent(DependencyRisksResponse response) {
+    var issuesReleases = response.issuesReleases().stream()
+      .map(ir -> {
+        SearchDependencyRisksToolResponse.Release release = null;
+        if (ir.release() != null) {
+          var r = ir.release();
+          release = new SearchDependencyRisksToolResponse.Release(
+            r.packageName(), r.version(), r.packageManager(),
+            r.newlyIntroduced(), r.directSummary(), r.productionScopeSummary()
+          );
+        }
+        
+        SearchDependencyRisksToolResponse.Assignee assignee = null;
+        if (ir.assignee() != null) {
+          assignee = new SearchDependencyRisksToolResponse.Assignee(ir.assignee().name());
+        }
+        
+        return new SearchDependencyRisksToolResponse.IssueRelease(
+          ir.key(), ir.severity(), ir.type(), ir.quality(), ir.status(), ir.createdAt(),
+          ir.vulnerabilityId(), ir.cvssScore(), release, assignee
+        );
+      })
+      .toList();
 
-    if (issuesReleases.isEmpty()) {
-      return "No dependency risks were found.";
-    }
-
-    var stringBuilder = new StringBuilder();
-    stringBuilder.append("Found ").append(issuesReleases.size()).append(" dependency risks.\n");
-
-    appendPaginationInfo(stringBuilder, response.page());
-
-    for (var issueRelease : issuesReleases) {
-      appendIssueReleaseInfo(stringBuilder, issueRelease);
-    }
-
-    return stringBuilder.toString().trim();
-  }
-
-  private static void appendPaginationInfo(StringBuilder stringBuilder, @Nullable DependencyRisksResponse.Page page) {
-    if (page != null) {
-      var totalPages = (int) Math.ceil((double) page.total() / page.pageSize());
-      stringBuilder.append("This response is paginated and this is the page ").append(page.pageIndex())
-        .append(" out of ").append(totalPages).append(" total pages. There is a maximum of ")
-        .append(page.pageSize()).append(" items per page.\n");
-    }
-  }
-
-  private static void appendIssueReleaseInfo(StringBuilder stringBuilder, DependencyRisksResponse.IssueRelease issueRelease) {
-    stringBuilder.append("Issue key: ").append(issueRelease.key())
-      .append(" | Severity: ").append(issueRelease.severity())
-      .append(" | Type: ").append(issueRelease.type())
-      .append(" | Quality: ").append(issueRelease.quality())
-      .append(" | Status: ").append(issueRelease.status());
-
-    appendOptionalFields(stringBuilder, issueRelease);
-    appendReleaseInfo(stringBuilder, issueRelease.release());
-    appendAssigneeInfo(stringBuilder, issueRelease.assignee());
-
-    stringBuilder.append(" | Created: ").append(issueRelease.createdAt());
-    stringBuilder.append("\n");
-  }
-
-  private static void appendOptionalFields(StringBuilder stringBuilder, DependencyRisksResponse.IssueRelease issueRelease) {
-    if (issueRelease.vulnerabilityId() != null) {
-      stringBuilder.append(" | Vulnerability ID: ").append(issueRelease.vulnerabilityId());
-    }
-
-    if (issueRelease.cvssScore() != null) {
-      stringBuilder.append(" | CVSS Score: ").append(issueRelease.cvssScore());
-    }
-  }
-
-  private static void appendReleaseInfo(StringBuilder stringBuilder, @Nullable DependencyRisksResponse.Release release) {
-    if (release != null) {
-      stringBuilder.append(" | Package: ").append(release.packageName())
-        .append(" | Version: ").append(release.version())
-        .append(" | Package Manager: ").append(release.packageManager());
-
-      if (release.newlyIntroduced() != null && release.newlyIntroduced()) {
-        stringBuilder.append(" | Newly Introduced: Yes");
-      }
-
-      if (release.directSummary() != null && release.directSummary()) {
-        stringBuilder.append(" | Direct Dependency: Yes");
-      }
-
-      if (release.productionScopeSummary() != null && release.productionScopeSummary()) {
-        stringBuilder.append(" | Production Scope: Yes");
-      }
-    }
-  }
-
-  private static void appendAssigneeInfo(StringBuilder stringBuilder, @Nullable DependencyRisksResponse.Assignee assignee) {
-    if (assignee != null) {
-      stringBuilder.append(" | Assignee: ").append(assignee.name());
-    }
+    return new SearchDependencyRisksToolResponse(issuesReleases);
   }
 
 }

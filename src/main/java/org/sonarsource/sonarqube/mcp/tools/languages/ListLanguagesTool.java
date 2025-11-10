@@ -29,7 +29,7 @@ public class ListLanguagesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListLanguagesTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ListLanguagesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List Supported Languages in SonarQube")
       .setDescription("List all programming languages supported in this SonarQube instance")
@@ -42,19 +42,16 @@ public class ListLanguagesTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var query = arguments.getOptionalString(QUERY_PROPERTY);
     var response = serverApiProvider.get().languagesApi().list(query);
-    return Tool.Result.success(buildResponseFromList(response));
+    var toolResponse = buildStructuredContent(response);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromList(ListResponse response) {
-    var stringBuilder = new StringBuilder();
-    stringBuilder.append("Supported Languages:\n\n");
+  private static ListLanguagesToolResponse buildStructuredContent(ListResponse response) {
+    var languages = response.languages().stream()
+      .map(language -> new ListLanguagesToolResponse.Language(language.key(), language.name()))
+      .toList();
 
-    for (var language : response.languages()) {
-      stringBuilder.append(language.name())
-        .append(" (").append(language.key()).append(")")
-        .append("\n");
-    }
-
-    return stringBuilder.toString().trim();
+    return new ListLanguagesToolResponse(languages);
   }
+
 } 

@@ -29,8 +29,32 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SystemPingToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SystemPingTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "response":{
+               "type":"string",
+               "description":"The ping response from the server"
+            }
+         },
+         "required":[
+            "response"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {
@@ -60,8 +84,10 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("pong", false));
+      assertResultEquals(result, """
+        {
+          "response" : "pong"
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest(null, ""));
     }
@@ -73,10 +99,9 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(
-          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
-            "/system/ping", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult(
+        "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/ping",
+        true));
     }
 
     @SonarQubeMcpServerTest
@@ -87,8 +112,10 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("pong", false));
+      assertResultEquals(result, """
+        {
+          "response" : "pong"
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

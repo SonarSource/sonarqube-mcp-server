@@ -86,6 +86,8 @@ dependencies {
 	implementation(libs.ayza)
 	implementation(libs.jetty.server)
 	implementation(libs.jetty.ee10.servlet)
+	implementation(libs.jsonschema.generator)
+	implementation(libs.jsonschema.module.jackson)
 	runtimeOnly(libs.logback.classic)
 	testImplementation(platform(libs.junit.bom))
 	testImplementation(libs.junit.jupiter)

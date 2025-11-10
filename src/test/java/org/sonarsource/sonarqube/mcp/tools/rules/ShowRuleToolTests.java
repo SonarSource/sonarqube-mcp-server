@@ -16,8 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.rules;
 
-import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpSchema;
+import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
@@ -30,8 +30,98 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ShowRuleToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ShowRuleTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "descriptionSections":{
+               "description":"Detailed description sections",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "content":{
+                        "type":"string",
+                        "description":"Section content in HTML format"
+                     }
+                  },
+                  "required":[
+                     "content"
+                  ]
+               }
+            },
+            "htmlDesc":{
+               "type":"string",
+               "description":"HTML description of the rule"
+            },
+            "impacts":{
+               "description":"Software quality impacts of this rule",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "severity":{
+                        "type":"string",
+                        "description":"Impact severity level"
+                     },
+                     "softwareQuality":{
+                        "type":"string",
+                        "description":"Software quality dimension (MAINTAINABILITY, RELIABILITY, SECURITY)"
+                     }
+                  },
+                  "required":[
+                     "severity",
+                     "softwareQuality"
+                  ]
+               }
+            },
+            "key":{
+               "type":"string",
+               "description":"Unique rule key"
+            },
+            "lang":{
+               "type":"string",
+               "description":"Language key the rule applies to"
+            },
+            "langName":{
+               "type":"string",
+               "description":"Human-readable language name"
+            },
+            "name":{
+               "type":"string",
+               "description":"Rule display name"
+            },
+            "severity":{
+               "type":"string",
+               "description":"Rule severity level"
+            },
+            "type":{
+               "type":"string",
+               "description":"Rule type (BUG, VULNERABILITY, CODE_SMELL, etc.)"
+            }
+         },
+         "required":[
+            "key",
+            "lang",
+            "langName",
+            "name",
+            "severity",
+            "type"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class MissingPrerequisite {
@@ -42,8 +132,7 @@ class ShowRuleToolTests {
 
       var result = mcpClient.callTool(ShowRuleTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
     }
   }
 
@@ -60,8 +149,7 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1541"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -141,24 +229,23 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1541"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Rule details:
-          Key: java:S1541
-          Name: Methods should not be too complex
-          Severity: CRITICAL
-          Type: CODE_SMELL
-          Language: Java (java)
-          Impacts:
-          - MAINTAINABILITY: HIGH
-
-          Description:
-          <p>The cyclomatic complexity of methods should not exceed a defined threshold.</p>
-          <p>Complex code can perform poorly and will in any case be difficult to understand and therefore to maintain.</p>
-          <h3>Exceptions</h3>
-          <p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in
-          <code>equals</code> and <code>hashCode</code> methods.</p>
-          """, false));
+      assertResultEquals(result, """
+        {
+          "key" : "java:S1541",
+          "name" : "Methods should not be too complex",
+          "severity" : "CRITICAL",
+          "type" : "CODE_SMELL",
+          "lang" : "java",
+          "langName" : "Java",
+          "htmlDesc" : "<h2>Why is this an issue?</h2>\\n<p>The cyclomatic complexity of methods should not exceed a defined threshold.</p>\\n<p>Complex code can perform poorly and will in any case be difficult to understand and therefore to maintain.</p>\\n<h3>Exceptions</h3>\\n<p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in\\n<code>equals</code> and <code>hashCode</code> methods.</p>",
+          "impacts" : [ {
+            "softwareQuality" : "MAINTAINABILITY",
+            "severity" : "HIGH"
+          } ],
+          "descriptionSections" : [ {
+            "content" : "<p>The cyclomatic complexity of methods should not exceed a defined threshold.</p>\\n<p>Complex code can perform poorly and will in any case be difficult to understand and therefore to maintain.</p>\\n<h3>Exceptions</h3>\\n<p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in\\n<code>equals</code> and <code>hashCode</code> methods.</p>"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -176,8 +263,7 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1541"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -256,24 +342,23 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1541"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Rule details:
-          Key: java:S1541
-          Name: Methods should not be too complex
-          Severity: CRITICAL
-          Type: CODE_SMELL
-          Language: Java (java)
-          Impacts:
-          - MAINTAINABILITY: HIGH
-
-          Description:
-          <p>The cyclomatic complexity of methods should not exceed a defined threshold.</p>
-          <p>Complex code can perform poorly and will in any case be difficult to understand and therefore to maintain.</p>
-          <h3>Exceptions</h3>
-          <p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in
-          <code>equals</code> and <code>hashCode</code> methods.</p>
-          """, false));
+      assertResultEquals(result, """
+        {
+          "key" : "java:S1541",
+          "name" : "Methods should not be too complex",
+          "severity" : "CRITICAL",
+          "type" : "CODE_SMELL",
+          "lang" : "java",
+          "langName" : "Java",
+          "htmlDesc" : "<h2>Why is this an issue?</h2>\\n<p>The cyclomatic complexity of methods should not exceed a defined threshold.</p>\\n<p>Complex code can perform poorly and will in any case be difficult to understand and therefore to maintain.</p>\\n<h3>Exceptions</h3>\\n<p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in\\n<code>equals</code> and <code>hashCode</code> methods.</p>",
+          "impacts" : [ {
+            "softwareQuality" : "MAINTAINABILITY",
+            "severity" : "HIGH"
+          } ],
+          "descriptionSections" : [ {
+            "content" : "<p>The cyclomatic complexity of methods should not exceed a defined threshold.</p>\\n<p>Complex code can perform poorly and will in any case be difficult to understand and therefore to maintain.</p>\\n<h3>Exceptions</h3>\\n<p>While having a large number of fields in a class may indicate that it should be split, this rule nonetheless ignores high complexity in\\n<code>equals</code> and <code>hashCode</code> methods.</p>"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -306,17 +391,18 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S1000"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Rule details:
-          Key: java:S1000
-          Name: Dummy rule
-          Severity: MAJOR
-          Type: CODE_SMELL
-          Language: Java (java)
-
-          Description:
-          <p>This is the HTML description.</p>""", false));
+      assertResultEquals(result, """
+        {
+          "key" : "java:S1000",
+          "name" : "Dummy rule",
+          "severity" : "MAJOR",
+          "type" : "CODE_SMELL",
+          "lang" : "java",
+          "langName" : "Java",
+          "htmlDesc" : "<p>This is the HTML description.</p>",
+          "impacts" : [ ],
+          "descriptionSections" : [ ]
+        }""");
     }
 
     @SonarQubeMcpServerTest
@@ -346,17 +432,17 @@ class ShowRuleToolTests {
         ShowRuleTool.TOOL_NAME,
         Map.of("key", "java:S2000"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Rule details:
-          Key: java:S2000
-          Name: No description rule
-          Severity: MINOR
-          Type: CODE_SMELL
-          Language: Java (java)
-
-          Description:
-          No description available.""", false));
+      assertResultEquals(result, """
+        {
+          "key" : "java:S2000",
+          "name" : "No description rule",
+          "severity" : "MINOR",
+          "type" : "CODE_SMELL",
+          "lang" : "java",
+          "langName" : "Java",
+          "impacts" : [ ],
+          "descriptionSections" : [ ]
+        }""");
     }
   }
 }

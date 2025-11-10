@@ -16,8 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.languages;
 
-import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpSchema;
+import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -30,8 +30,49 @@ import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListLanguagesToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListLanguagesTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "languages":{
+               "description":"List of supported programming languages",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "key":{
+                        "type":"string",
+                        "description":"Language key identifier"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Human-readable language name"
+                     }
+                  },
+                  "required":[
+                     "key",
+                     "name"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "languages"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {
@@ -57,10 +98,7 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(
-          new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api" +
-            "/languages/list", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/languages/list", true));
     }
 
     @SonarQubeMcpServerTest
@@ -73,15 +111,25 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Supported Languages:
-
-          C (c)
-          C++ (cpp)
-          Java (java)
-          JavaScript (js)
-          Python (python)""", false));
+      assertResultEquals(result, """
+        {
+          "languages" : [ {
+            "key" : "c",
+            "name" : "C"
+          }, {
+            "key" : "cpp",
+            "name" : "C++"
+          }, {
+            "key" : "java",
+            "name" : "Java"
+          }, {
+            "key" : "js",
+            "name" : "JavaScript"
+          }, {
+            "key" : "python",
+            "name" : "Python"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -98,12 +146,16 @@ class ListLanguagesToolTests {
         ListLanguagesTool.TOOL_NAME,
         Map.of(ListLanguagesTool.QUERY_PROPERTY, "java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Supported Languages:
-
-          Java (java)
-          JavaScript (js)""", false));
+      assertResultEquals(result, """
+        {
+          "languages" : [ {
+            "key" : "java",
+            "name" : "Java"
+          }, {
+            "key" : "js",
+            "name" : "JavaScript"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -119,8 +171,7 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -132,15 +183,25 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Supported Languages:
-
-          C (c)
-          C++ (cpp)
-          Java (java)
-          JavaScript (js)
-          Python (python)""", false));
+      assertResultEquals(result, """
+        {
+          "languages" : [ {
+            "key" : "c",
+            "name" : "C"
+          }, {
+            "key" : "cpp",
+            "name" : "C++"
+          }, {
+            "key" : "java",
+            "name" : "Java"
+          }, {
+            "key" : "js",
+            "name" : "JavaScript"
+          }, {
+            "key" : "python",
+            "name" : "Python"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -156,12 +217,16 @@ class ListLanguagesToolTests {
         ListLanguagesTool.TOOL_NAME,
         Map.of(ListLanguagesTool.QUERY_PROPERTY, "java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Supported Languages:
-
-          Java (java)
-          JavaScript (js)""", false));
+      assertResultEquals(result, """
+        {
+          "languages" : [ {
+            "key" : "java",
+            "name" : "Java"
+          }, {
+            "key" : "js",
+            "name" : "JavaScript"
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

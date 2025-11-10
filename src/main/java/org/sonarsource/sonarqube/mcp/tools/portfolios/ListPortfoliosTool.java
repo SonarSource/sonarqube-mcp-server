@@ -16,8 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.portfolios;
 
+import jakarta.annotation.Nullable;
 import io.modelcontextprotocol.spec.McpSchema;
-import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.PortfoliosResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.views.response.SearchResponse;
@@ -44,7 +44,7 @@ public class ListPortfoliosTool extends Tool {
   }
 
   private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
-    var builder = new SchemaToolBuilder()
+    var builder = SchemaToolBuilder.forOutput(ListPortfoliosToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Portfolios");
       
@@ -95,8 +95,9 @@ public class ListPortfoliosTool extends Tool {
       return Result.failure(validationError);
     }
 
-    var response = serverApiProvider.get().enterprisesApi().listPortfolios(enterpriseId, query, favorite, draft, pageIndex, pageSize);
-    return Result.success(formatCloudResponse(response));
+    var apiResponse = serverApiProvider.get().enterprisesApi().listPortfolios(enterpriseId, query, favorite, draft, pageIndex, pageSize);
+    var response = buildCloudResponse(apiResponse);
+    return Result.success(response);
   }
 
   private Result executeForServer(Arguments arguments) {
@@ -105,8 +106,9 @@ public class ListPortfoliosTool extends Tool {
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
 
-    var response = serverApiProvider.get().viewsApi().search(query, favorite, pageIndex, pageSize);
-    return Result.success(formatServerResponse(response));
+    var apiResponse = serverApiProvider.get().viewsApi().search(query, favorite, pageIndex, pageSize);
+    var response = buildServerResponse(apiResponse);
+    return Result.success(response);
   }
 
   @Nullable
@@ -124,87 +126,47 @@ public class ListPortfoliosTool extends Tool {
     return null;
   }
 
-  private static String formatServerResponse(SearchResponse response) {
-    if (response.components() == null || response.components().isEmpty()) {
-      return "No portfolios were found.";
+  private static ListPortfoliosToolResponse buildCloudResponse(PortfoliosResponse response) {
+    var portfolios = response.portfolios().stream()
+      .map(portfolio -> (ListPortfoliosToolResponse.Portfolio) new ListPortfoliosToolResponse.CloudPortfolio(
+        portfolio.id(),
+        portfolio.name(),
+        portfolio.description(),
+        portfolio.enterpriseId(),
+        portfolio.selection(),
+        portfolio.isDraft(),
+        portfolio.draftStage(),
+        portfolio.tags()
+      ))
+      .toList();
+
+    ListPortfoliosToolResponse.Paging paging = null;
+    if (response.page() != null) {
+      var page = response.page();
+      paging = new ListPortfoliosToolResponse.Paging(page.pageIndex(), page.pageSize(), page.total());
     }
 
-    var builder = new StringBuilder("Available Portfolios:\n\n");
+    return new ListPortfoliosToolResponse(portfolios, paging);
+  }
 
-    for (var component : response.components()) {
-      builder.append("Portfolio: ").append(component.name())
-        .append(" (").append(component.key()).append(")")
-        .append(" | Qualifier: ").append(component.qualifier())
-        .append(" | Visibility: ").append(component.visibility());
+  private static ListPortfoliosToolResponse buildServerResponse(SearchResponse response) {
+    var portfolios = response.components().stream()
+      .map(component -> (ListPortfoliosToolResponse.Portfolio) new ListPortfoliosToolResponse.ServerPortfolio(
+        component.key(),
+        component.name(),
+        component.qualifier(),
+        component.visibility(),
+        component.isFavorite()
+      ))
+      .toList();
 
-      if (component.isFavorite() != null) {
-        builder.append(" | Favorite: ").append(component.isFavorite());
-      }
-
-      builder.append("\n");
-    }
-
-    // Add paging information for SonarQube Server
+    ListPortfoliosToolResponse.Paging paging = null;
     if (response.paging() != null) {
-      builder.append("\nThis response is paginated and this is the page ")
-        .append(response.paging().pageIndex()).append(" out of ")
-        .append((int) Math.ceil((double) response.paging().total() / response.paging().pageSize()))
-        .append(" total pages. There is a maximum of ")
-        .append(response.paging().pageSize()).append(" portfolios per page.");
+      var p = response.paging();
+      paging = new ListPortfoliosToolResponse.Paging(p.pageIndex(), p.pageSize(), p.total());
     }
 
-    return builder.toString().trim();
-  }
-
-  private static String formatCloudResponse(PortfoliosResponse response) {
-    if (response.portfolios() == null || response.portfolios().isEmpty()) {
-      return "No portfolios were found.";
-    }
-
-    var builder = new StringBuilder("Available Portfolios:\n\n");
-
-    for (var portfolio : response.portfolios()) {
-      formatPortfolioDetails(builder, portfolio);
-    }
-
-    addPaginationInfo(builder, response.page());
-
-    return builder.toString().trim();
-  }
-
-  private static void formatPortfolioDetails(StringBuilder builder, PortfoliosResponse.Portfolio portfolio) {
-    builder.append("Portfolio: ").append(portfolio.name())
-      .append(" (").append(portfolio.id()).append(")");
-
-    addOptionalField(builder, portfolio.description(), " | Description: ");
-    addOptionalField(builder, portfolio.enterpriseId(), " | Enterprise: ");
-    addOptionalField(builder, portfolio.selection(), " | Selection: ");
-
-    if (portfolio.isDraft() != null && portfolio.isDraft()) {
-      builder.append(" | Draft (Stage: ").append(portfolio.draftStage()).append(")");
-    }
-
-    if (portfolio.tags() != null && !portfolio.tags().isEmpty()) {
-      builder.append(" | Tags: ").append(String.join(", ", portfolio.tags()));
-    }
-
-    builder.append("\n");
-  }
-
-  private static void addOptionalField(StringBuilder builder, @Nullable String value, String prefix) {
-    if (value != null) {
-      builder.append(prefix).append(value);
-    }
-  }
-
-  private static void addPaginationInfo(StringBuilder builder, @Nullable PortfoliosResponse.Page page) {
-    if (page != null) {
-      builder.append("\nThis response is paginated and this is the page ")
-        .append(page.pageIndex()).append(" out of ")
-        .append((int) Math.ceil((double) page.total() / page.pageSize()))
-        .append(" total pages. There is a maximum of ")
-        .append(page.pageSize()).append(" portfolios per page.");
-    }
+    return new ListPortfoliosToolResponse(portfolios, paging);
   }
 
 }

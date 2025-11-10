@@ -16,8 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
-import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpSchema;
+import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
@@ -29,8 +29,59 @@ import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListWebhooksToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListWebhooksTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "webhooks":{
+               "description":"List of configured webhooks",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "hasSecret":{
+                        "type":"boolean",
+                        "description":"Whether the webhook has a configured secret"
+                     },
+                     "key":{
+                        "type":"string",
+                        "description":"Webhook unique key"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Webhook display name"
+                     },
+                     "url":{
+                        "type":"string",
+                        "description":"Target URL for the webhook"
+                     }
+                  },
+                  "required":[
+                     "hasSecret",
+                     "key",
+                     "name",
+                     "url"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "webhooks"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {
@@ -42,8 +93,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -56,8 +106,10 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No webhooks found.", false));
+      assertResultEquals(result, """
+        {
+          "webhooks" : [ ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -72,19 +124,20 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 2 webhook(s):
-
-          Key: UUID-1
-          Name: my first webhook
-          URL: http://www.my-webhook-listener.com/sonarqube
-          Has Secret: No
-
-          Key: UUID-2
-          Name: my 2nd webhook
-          URL: https://www.my-other-webhook-listener.com/fancy-listner
-          Has Secret: Yes""", false));
+      assertResultEquals(result, """
+        {
+          "webhooks" : [ {
+            "key" : "UUID-1",
+            "name" : "my first webhook",
+            "url" : "http://www.my-webhook-listener.com/sonarqube",
+            "hasSecret" : false
+          }, {
+            "key" : "UUID-2",
+            "name" : "my 2nd webhook",
+            "url" : "https://www.my-other-webhook-listener.com/fancy-listner",
+            "hasSecret" : true
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -101,14 +154,15 @@ class ListWebhooksToolTests {
         ListWebhooksTool.TOOL_NAME,
         Map.of(ListWebhooksTool.PROJECT_PROPERTY, "my-project"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 webhook(s) for project 'my-project':
-
-          Key: UUID-1
-          Name: project webhook
-          URL: http://project.webhook.com/endpoint
-          Has Secret: No""", false));
+      assertResultEquals(result, """
+        {
+          "webhooks" : [ {
+            "key" : "UUID-1",
+            "name" : "project webhook",
+            "url" : "http://project.webhook.com/endpoint",
+            "hasSecret" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -125,8 +179,10 @@ class ListWebhooksToolTests {
         ListWebhooksTool.TOOL_NAME,
         Map.of(ListWebhooksTool.PROJECT_PROPERTY, "my-project"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No webhooks found for project 'my-project'.", false));
+      assertResultEquals(result, """
+        {
+          "webhooks" : [ ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -142,8 +198,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -156,8 +211,10 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("No webhooks found.", false));
+      assertResultEquals(result, """
+        {
+          "webhooks" : [ ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -172,19 +229,20 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 2 webhook(s):
-
-          Key: UUID-1
-          Name: my first webhook
-          URL: http://www.my-webhook-listener.com/sonarqube
-          Has Secret: No
-
-          Key: UUID-2
-          Name: my 2nd webhook
-          URL: https://www.my-other-webhook-listener.com/fancy-listner
-          Has Secret: Yes""", false));
+      assertResultEquals(result, """
+        {
+          "webhooks" : [ {
+            "key" : "UUID-1",
+            "name" : "my first webhook",
+            "url" : "http://www.my-webhook-listener.com/sonarqube",
+            "hasSecret" : false
+          }, {
+            "key" : "UUID-2",
+            "name" : "my 2nd webhook",
+            "url" : "https://www.my-other-webhook-listener.com/fancy-listner",
+            "hasSecret" : true
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -201,14 +259,15 @@ class ListWebhooksToolTests {
         ListWebhooksTool.TOOL_NAME,
         Map.of(ListWebhooksTool.PROJECT_PROPERTY, "my-project"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Found 1 webhook(s) for project 'my-project':
-
-          Key: UUID-1
-          Name: project webhook
-          URL: http://project.webhook.com/endpoint
-          Has Secret: No""", false));
+      assertResultEquals(result, """
+        {
+          "webhooks" : [ {
+            "key" : "UUID-1",
+            "name" : "project webhook",
+            "url" : "http://project.webhook.com/endpoint",
+            "hasSecret" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -220,8 +279,7 @@ class ListWebhooksToolTests {
 
       var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/webhooks/list", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/webhooks/list", true));
     }
   }
 

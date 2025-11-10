@@ -33,7 +33,7 @@ public class SearchIssuesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchIssuesTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues in Projects")
       .setDescription("Search for SonarQube issues in my organization's projects.")
@@ -54,50 +54,46 @@ public class SearchIssuesTool extends Tool {
     var page = arguments.getOptionalInteger(PAGE_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
     var response = serverApiProvider.get().issuesApi().search(projects, pullRequestId, severities, page, pageSize);
-    return Tool.Result.success(buildResponseFromSearchResponse(response));
+    var toolResponse = buildStructuredContent(response);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromSearchResponse(SearchResponse response) {
-    var stringBuilder = new StringBuilder();
-    var issues = response.issues();
-
-    if (issues.isEmpty()) {
-      stringBuilder.append("No issues were found.");
-      return stringBuilder.toString();
-    }
-
-    stringBuilder.append("Found ").append(issues.size()).append(" issues.\n");
+  private static SearchIssuesToolResponse buildStructuredContent(SearchResponse response) {
+    var issues = response.issues().stream()
+      .map(issue -> {
+        SearchIssuesToolResponse.TextRange textRange = null;
+        if (issue.textRange() != null) {
+          textRange = new SearchIssuesToolResponse.TextRange(
+            issue.textRange().startLine(),
+            issue.textRange().endLine()
+          );
+        }
+        
+        return new SearchIssuesToolResponse.Issue(
+          issue.key(),
+          issue.rule(),
+          issue.project(),
+          issue.component(),
+          issue.severity(),
+          issue.status(),
+          issue.message(),
+          issue.cleanCodeAttribute(),
+          issue.cleanCodeAttributeCategory(),
+          issue.author(),
+          issue.creationDate(),
+          textRange
+        );
+      })
+      .toList();
 
     var paging = response.paging();
-    var totalPages = (int) Math.ceil((double) paging.total() / paging.pageSize());
-    stringBuilder.append("This response is paginated and this is the page ").append(paging.pageIndex())
-      .append(" out of ").append(totalPages).append(" total pages. There is a maximum of ")
-      .append(paging.pageSize()).append(" issues per page.\n");
+    var pagingResponse = new SearchIssuesToolResponse.Paging(
+      paging.pageIndex(),
+      paging.pageSize(),
+      paging.total()
+    );
 
-    for (var issue : issues) {
-      stringBuilder.append("Issue key: ").append(issue.key())
-        .append(" | Rule: ").append(issue.rule())
-        .append(" | Project: ").append(issue.project())
-        .append(" | Component: ").append(issue.component())
-        .append(" | Severity: ").append(issue.severity())
-        .append(" | Status: ").append(issue.status())
-        .append(" | Message: ").append(issue.message())
-        .append(" | Attribute: ").append(issue.cleanCodeAttribute())
-        .append(" | Category: ").append(issue.cleanCodeAttributeCategory())
-        .append(" | Author: ").append(issue.author());
-      
-      var textRange = issue.textRange();
-      if (textRange != null) {
-        stringBuilder
-          .append(" | Start Line: ").append(textRange.startLine())
-          .append(" | End Line: ").append(textRange.endLine());
-      }
-      
-      stringBuilder.append(" | Created: ").append(issue.creationDate());
-      stringBuilder.append("\n");
-    }
-
-    return stringBuilder.toString().trim();
+    return new SearchIssuesToolResponse(issues, pagingResponse);
   }
 
 }

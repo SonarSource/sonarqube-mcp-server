@@ -30,7 +30,7 @@ public class AnalyzeFileListTool extends Tool {
   private final SonarQubeIdeBridgeClient bridgeClient;
 
   public AnalyzeFileListTool(SonarQubeIdeBridgeClient bridgeClient) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(AnalyzeFileListToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Multiple File Analysis")
       .setDescription("Analyze files in the current working directory using SonarQube for IDE. " +
@@ -59,50 +59,27 @@ public class AnalyzeFileListTool extends Tool {
     }
 
     var results = analysisResult.get();
-    var issuesSummary = formatAnalysisResults(results);
+    var toolResponse = buildStructuredContent(results);
 
     LOG.info("Returning success result to MCP client");
-    return Result.success(issuesSummary);
+    return Result.success(toolResponse);
   }
 
-  private static String formatAnalysisResults(SonarQubeIdeBridgeClient.AnalyzeFileListResponse results) {
-    var sb = new StringBuilder();
+  private static AnalyzeFileListToolResponse buildStructuredContent(SonarQubeIdeBridgeClient.AnalyzeFileListResponse results) {
+    var findings = results.findings().stream()
+      .map(f -> {
+        AnalyzeFileListToolResponse.TextRange textRange = null;
+        if (f.textRange() != null) {
+          textRange = new AnalyzeFileListToolResponse.TextRange(
+            f.textRange().getStartLine(),
+            f.textRange().getEndLine()
+          );
+        }
+        return new AnalyzeFileListToolResponse.Finding(f.severity(), f.message(), f.filePath(), textRange);
+      })
+      .toList();
 
-    sb.append("SonarQube for IDE Analysis Completed!\n\n");
-    sb.append("Analysis Summary:\n");
-
-    if (results.findings().isEmpty()) {
-      sb.append("No findings found! Your code looks good.\n\n");
-    } else {
-      var findings = results.findings();
-      sb.append("Issues Found (").append(findings.size()).append("):\n");
-      // Show max 100 issues
-      for (int i = 0; i < Math.min(100, findings.size()); i++) {
-        var issue = findings.get(i);
-        sb.append("  ").append(i + 1).append(". ").append(formatFinding(issue)).append("\n");
-      }
-      if (findings.size() > 100) {
-        sb.append("  ... and ").append(findings.size() - 100).append(" more issues\n");
-      }
-    }
-
-    sb.append("Next Steps:\n");
-    sb.append("Check SonarQube for IDE - issues are now displayed in your extension\n");
-    sb.append("Ask the agent to fix the issues.");
-
-    return sb.toString();
-  }
-
-  private static String formatFinding(SonarQubeIdeBridgeClient.AnalyzeFileListIssueResponse issue) {
-    var textRange = issue.textRange();
-    if (textRange == null) {
-      return String.format("[%s] %s (file: %s)",
-        issue.severity(), issue.message(), issue.filePath());
-    } else {
-      return String.format("[%s] %s (file: %s [Lines: %d to %d])",
-        issue.severity(), issue.message(), issue.filePath(),
-        issue.textRange().getStartLine(), issue.textRange().getEndLine());
-    }
+    return new AnalyzeFileListToolResponse(findings, results.findings().size());
   }
 
 }

@@ -31,7 +31,7 @@ public class ListRuleRepositoriesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListRuleRepositoriesTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ListRuleRepositoriesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Rule Repositories")
       .setDescription("List rule repositories available in SonarQube.")
@@ -46,24 +46,16 @@ public class ListRuleRepositoriesTool extends Tool {
     var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
     var query = arguments.getOptionalString(QUERY_PROPERTY);
     var response = serverApiProvider.get().rulesApi().getRepositories(language, query);
-    return Tool.Result.success(buildResponseFromRepositories(response.repositories()));
+    var toolResponse = buildStructuredContent(response.repositories());
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromRepositories(List<RepositoriesResponse.Repository> repositories) {
-    if (repositories.isEmpty()) {
-      return "No rule repositories found.";
-    }
+  private static ListRuleRepositoriesToolResponse buildStructuredContent(List<RepositoriesResponse.Repository> repositories) {
+    var repoList = repositories.stream()
+      .map(repo -> new ListRuleRepositoriesToolResponse.Repository(repo.key(), repo.name(), repo.language()))
+      .toList();
 
-    var responseBuilder = new StringBuilder();
-    responseBuilder.append("Found ").append(repositories.size()).append(" rule repositories:\n\n");
-
-    repositories.forEach(repo -> {
-      responseBuilder.append("Key: ").append(repo.key()).append("\n");
-      responseBuilder.append("Name: ").append(repo.name()).append("\n");
-      responseBuilder.append("Language: ").append(repo.language()).append("\n\n");
-    });
-
-    return responseBuilder.toString().trim();
+    return new ListRuleRepositoriesToolResponse(repoList);
   }
 
 }

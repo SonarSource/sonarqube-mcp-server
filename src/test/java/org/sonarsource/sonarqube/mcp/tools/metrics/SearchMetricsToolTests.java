@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.metrics;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
@@ -29,8 +28,104 @@ import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchMetricsToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SearchMetricsTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "metrics":{
+               "description":"List of metrics matching the search",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "custom":{
+                        "type":"boolean",
+                        "description":"Whether this is a custom metric"
+                     },
+                     "description":{
+                        "type":"string",
+                        "description":"Metric description"
+                     },
+                     "direction":{
+                        "type":"integer",
+                        "description":"Direction for metric improvement"
+                     },
+                     "domain":{
+                        "type":"string",
+                        "description":"Metric domain/category"
+                     },
+                     "hidden":{
+                        "type":"boolean",
+                        "description":"Whether the metric is hidden"
+                     },
+                     "id":{
+                        "type":"string",
+                        "description":"Metric unique identifier"
+                     },
+                     "key":{
+                        "type":"string",
+                        "description":"Metric key"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Metric display name"
+                     },
+                     "qualitative":{
+                        "type":"boolean",
+                        "description":"Whether this is a qualitative metric"
+                     },
+                     "type":{
+                        "type":"string",
+                        "description":"Metric value type"
+                     }
+                  },
+                  "required":[
+                     "custom",
+                     "description",
+                     "direction",
+                     "domain",
+                     "hidden",
+                     "id",
+                     "key",
+                     "name",
+                     "qualitative",
+                     "type"
+                  ]
+               }
+            },
+            "page":{
+               "type":"integer",
+               "description":"Current page number"
+            },
+            "pageSize":{
+               "type":"integer",
+               "description":"Number of items per page"
+            },
+            "total":{
+               "type":"integer",
+               "description":"Total number of metrics"
+            }
+         },
+         "required":[
+            "metrics",
+            "page",
+            "pageSize",
+            "total"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {
@@ -68,11 +163,15 @@ class SearchMetricsToolTests {
 
       var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("""
-        Search Results: 0 total metrics
-        Page: 1 | Page Size: 100
+      assertResultEquals(result, """
+        {
+            "metrics":[
         
-        No metrics found.""", false));
+            ],
+            "total":0,
+            "page":1,
+            "pageSize":100
+         }""");
     }
 
     @SonarQubeMcpServerTest
@@ -87,31 +186,38 @@ class SearchMetricsToolTests {
 
       var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Search Results: 2 total metrics
-          Page: 1 | Page Size: 100
-          
-          Metrics:
-            - Team size (team_size)
-              ID: 23
-              Description: Number of people in the team
-              Domain: Management
-              Type: INT
-              Direction: 0 (no direction)
-              Qualitative: false
-              Hidden: false
-              Custom: true
-          
-            - Uncovered lines (uncovered_lines)
-              ID: 2
-              Description: Uncovered lines
-              Domain: Tests
-              Type: INT
-              Direction: 1 (higher values are better)
-              Qualitative: true
-              Hidden: false
-              Custom: false""", false));
+      assertResultEquals(result, """
+        {
+            "metrics":[
+               {
+                  "id":"23",
+                  "key":"team_size",
+                  "name":"Team size",
+                  "description":"Number of people in the team",
+                  "domain":"Management",
+                  "type":"INT",
+                  "direction":0,
+                  "qualitative":false,
+                  "hidden":false,
+                  "custom":true
+               },
+               {
+                  "id":"2",
+                  "key":"uncovered_lines",
+                  "name":"Uncovered lines",
+                  "description":"Uncovered lines",
+                  "domain":"Tests",
+                  "type":"INT",
+                  "direction":1,
+                  "qualitative":true,
+                  "hidden":false,
+                  "custom":false
+               }
+            ],
+            "total":2,
+            "page":1,
+            "pageSize":100
+         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -133,31 +239,38 @@ class SearchMetricsToolTests {
           SearchMetricsTool.PAGE_SIZE_PROPERTY, 20
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Search Results: 2 total metrics
-          Page: 1 | Page Size: 100
-          
-          Metrics:
-            - Team size (team_size)
-              ID: 23
-              Description: Number of people in the team
-              Domain: Management
-              Type: INT
-              Direction: 0 (no direction)
-              Qualitative: false
-              Hidden: false
-              Custom: true
-          
-            - Uncovered lines (uncovered_lines)
-              ID: 2
-              Description: Uncovered lines
-              Domain: Tests
-              Type: INT
-              Direction: 1 (higher values are better)
-              Qualitative: true
-              Hidden: false
-              Custom: false""", false));
+      assertResultEquals(result, """
+        {
+            "metrics":[
+               {
+                  "id":"23",
+                  "key":"team_size",
+                  "name":"Team size",
+                  "description":"Number of people in the team",
+                  "domain":"Management",
+                  "type":"INT",
+                  "direction":0,
+                  "qualitative":false,
+                  "hidden":false,
+                  "custom":true
+               },
+               {
+                  "id":"2",
+                  "key":"uncovered_lines",
+                  "name":"Uncovered lines",
+                  "description":"Uncovered lines",
+                  "domain":"Tests",
+                  "type":"INT",
+                  "direction":1,
+                  "qualitative":true,
+                  "hidden":false,
+                  "custom":false
+               }
+            ],
+            "total":2,
+            "page":1,
+            "pageSize":100
+         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -196,11 +309,15 @@ class SearchMetricsToolTests {
 
       var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("""
-        Search Results: 0 total metrics
-        Page: 1 | Page Size: 100
+      assertResultEquals(result, """
+        {
+            "metrics":[
         
-        No metrics found.""", false));
+            ],
+            "total":0,
+            "page":1,
+            "pageSize":100
+         }""");
     }
 
     @SonarQubeMcpServerTest
@@ -213,31 +330,38 @@ class SearchMetricsToolTests {
 
       var result = mcpClient.callTool(SearchMetricsTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Search Results: 2 total metrics
-          Page: 1 | Page Size: 100
-          
-          Metrics:
-            - Team size (team_size)
-              ID: 23
-              Description: Number of people in the team
-              Domain: Management
-              Type: INT
-              Direction: 0 (no direction)
-              Qualitative: false
-              Hidden: false
-              Custom: true
-          
-            - Uncovered lines (uncovered_lines)
-              ID: 2
-              Description: Uncovered lines
-              Domain: Tests
-              Type: INT
-              Direction: 1 (higher values are better)
-              Qualitative: true
-              Hidden: false
-              Custom: false""", false));
+      assertResultEquals(result, """
+        {
+            "metrics":[
+               {
+                  "id":"23",
+                  "key":"team_size",
+                  "name":"Team size",
+                  "description":"Number of people in the team",
+                  "domain":"Management",
+                  "type":"INT",
+                  "direction":0,
+                  "qualitative":false,
+                  "hidden":false,
+                  "custom":true
+               },
+               {
+                  "id":"2",
+                  "key":"uncovered_lines",
+                  "name":"Uncovered lines",
+                  "description":"Uncovered lines",
+                  "domain":"Tests",
+                  "type":"INT",
+                  "direction":1,
+                  "qualitative":true,
+                  "hidden":false,
+                  "custom":false
+               }
+            ],
+            "total":2,
+            "page":1,
+            "pageSize":100
+         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -257,31 +381,38 @@ class SearchMetricsToolTests {
           SearchMetricsTool.PAGE_SIZE_PROPERTY, 20
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          Search Results: 2 total metrics
-          Page: 1 | Page Size: 100
-          
-          Metrics:
-            - Team size (team_size)
-              ID: 23
-              Description: Number of people in the team
-              Domain: Management
-              Type: INT
-              Direction: 0 (no direction)
-              Qualitative: false
-              Hidden: false
-              Custom: true
-          
-            - Uncovered lines (uncovered_lines)
-              ID: 2
-              Description: Uncovered lines
-              Domain: Tests
-              Type: INT
-              Direction: 1 (higher values are better)
-              Qualitative: true
-              Hidden: false
-              Custom: false""", false));
+      assertResultEquals(result, """
+        {
+            "metrics":[
+               {
+                  "id":"23",
+                  "key":"team_size",
+                  "name":"Team size",
+                  "description":"Number of people in the team",
+                  "domain":"Management",
+                  "type":"INT",
+                  "direction":0,
+                  "qualitative":false,
+                  "hidden":false,
+                  "custom":true
+               },
+               {
+                  "id":"2",
+                  "key":"uncovered_lines",
+                  "name":"Uncovered lines",
+                  "description":"Uncovered lines",
+                  "domain":"Tests",
+                  "type":"INT",
+                  "direction":1,
+                  "qualitative":true,
+                  "hidden":false,
+                  "custom":false
+               }
+            ],
+            "total":2,
+            "page":1,
+            "pageSize":100
+         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

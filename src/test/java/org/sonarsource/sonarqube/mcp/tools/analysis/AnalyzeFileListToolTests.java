@@ -32,6 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool.FILE_ABSOLUTE_PATHS_PROPERTY;
 
 class AnalyzeFileListToolTests {
@@ -43,6 +45,67 @@ class AnalyzeFileListToolTests {
   void setUp() {
     bridgeClient = mock(SonarQubeIdeBridgeClient.class);
     underTest = new AnalyzeFileListTool(bridgeClient);
+  }
+
+  @Test
+  void it_should_validate_output_schema() {
+    assertSchemaEquals(underTest.definition().outputSchema(), """
+      {
+          "type":"object",
+          "properties":{
+             "findings":{
+                "description":"List of findings from the analysis",
+                "type":"array",
+                "items":{
+                   "type":"object",
+                   "properties":{
+                      "filePath":{
+                         "type":"string",
+                         "description":"File path where the finding was detected"
+                      },
+                      "message":{
+                         "type":"string",
+                         "description":"Description of the finding"
+                      },
+                      "severity":{
+                         "type":"string",
+                         "description":"Severity level of the finding"
+                      },
+                      "textRange":{
+                         "type":"object",
+                         "properties":{
+                            "endLine":{
+                               "type":"integer",
+                               "description":"Ending line number"
+                            },
+                            "startLine":{
+                               "type":"integer",
+                               "description":"Starting line number"
+                            }
+                         },
+                         "required":[
+                            "endLine",
+                            "startLine"
+                         ],
+                         "description":"Location in the source file"
+                      }
+                   },
+                   "required":[
+                      "message"
+                   ]
+                }
+             },
+             "findingsCount":{
+                "type":"integer",
+                "description":"Total number of findings"
+             }
+          },
+          "required":[
+             "findings",
+             "findingsCount"
+          ]
+      }
+      """);
   }
 
   @Nested
@@ -88,10 +151,11 @@ class AnalyzeFileListToolTests {
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java")
       ))).toCallToolResult();
 
-      assertThat(result.isError()).isFalse();
-      assertThat(result.content().getFirst().toString())
-        .contains("SonarQube for IDE Analysis Completed!")
-        .contains("No findings found! Your code looks good.");
+      assertResultEquals(result, """
+        {
+          "findings" : [ ],
+          "findingsCount" : 0
+        }""");
     }
 
     @Test
@@ -110,13 +174,23 @@ class AnalyzeFileListToolTests {
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java", "file2.java")
       ))).toCallToolResult();
 
-      assertThat(result.isError()).isFalse();
-      var content = result.content().getFirst().toString();
-      assertThat(content).contains("SonarQube for IDE Analysis Completed!")
-        .contains("Issues Found (2):")
-        .contains("[MAJOR] Test issue message (file: src/main/java/Test.java [Lines: 10 to 10])")
-        .contains("[MINOR] Another issue (file: src/main/java/Another.java)")
-        .contains("Next Steps:");
+      assertResultEquals(result, """
+        {
+          "findings" : [ {
+            "severity" : "MAJOR",
+            "message" : "Test issue message",
+            "filePath" : "src/main/java/Test.java",
+            "textRange" : {
+              "startLine" : 10,
+              "endLine" : 10
+            }
+          }, {
+            "severity" : "MINOR",
+            "message" : "Another issue",
+            "filePath" : "src/main/java/Another.java"
+          } ],
+          "findingsCount" : 2
+        }""");
     }
 
     @Test
@@ -137,11 +211,13 @@ class AnalyzeFileListToolTests {
       ))).toCallToolResult();
 
       assertThat(result.isError()).isFalse();
-      var content = result.content().getFirst().toString();
-      assertThat(content).contains("Issues Found (150):")
-        .contains("... and 50 more issues")
-        .contains("  100. [INFO] Issue 99 (file: file99.java)")
-        .doesNotContain("  101. [INFO] Issue 100");
+      // Verify we have all 150 findings in structured content
+      @SuppressWarnings("unchecked")
+      var structuredContent = (Map<String, Object>) result.structuredContent();
+      assertThat(structuredContent).isNotNull();
+      var findingsList = (List<?>) structuredContent.get("findings");
+      assertThat(findingsList).hasSize(150);
+      assertThat(structuredContent).containsEntry("findingsCount", 150);
     }
 
     @Test

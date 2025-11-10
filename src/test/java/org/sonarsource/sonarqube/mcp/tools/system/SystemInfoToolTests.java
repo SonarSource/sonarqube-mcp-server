@@ -16,8 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.spec.McpSchema;
+import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
@@ -31,8 +31,49 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SystemInfoToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SystemInfoTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "sections":{
+               "description":"List of system sections with configuration and status information",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "attributes":{
+                        "type":"object",
+                        "description":"Key-value pairs of system information"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Section name"
+                     }
+                  },
+                  "required":[
+                     "attributes",
+                     "name"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "sections"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {
@@ -59,8 +100,7 @@ class SystemInfoToolTests {
 
       var result = mcpClient.callTool(SystemInfoTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -72,29 +112,30 @@ class SystemInfoToolTests {
 
       var result = mcpClient.callTool(SystemInfoTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-          SonarQube Server System Information
-          ===========================
-
-          Health: GREEN
-
-          System
-          ------
-          - Server ID: AAAAAAAA-BBBBBBBBBBBBBBBBBBBB
-          - Version: 9.8
-          - Edition: Enterprise
-
-          Database
-          --------
-          - Database: PostgreSQL
-          - Database Version: 12.10 (Debian 12.10-1.pgdg110+1)
-          - Username: username
-
-          Settings
-          --------
-          Total settings: 2
-          (Use SonarQube Server Web UI to view detailed settings)""", false));
+      assertResultEquals(result, """
+        {
+          "sections" : [ {
+            "name" : "System",
+            "attributes" : {
+              "Server ID" : "AAAAAAAA-BBBBBBBBBBBBBBBBBBBB",
+              "Version" : "9.8",
+              "Edition" : "Enterprise"
+            }
+          }, {
+            "name" : "Database",
+            "attributes" : {
+              "Database" : "PostgreSQL",
+              "Database Version" : "12.10 (Debian 12.10-1.pgdg110+1)",
+              "Username" : "username"
+            }
+          }, {
+            "name" : "Settings",
+            "attributes" : {
+              "sonar.core.id" : "AAAAAAAA-BBBBBBBBBBBBBBBBBBBB",
+              "sonar.forceAuthentication" : "false"
+            }
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

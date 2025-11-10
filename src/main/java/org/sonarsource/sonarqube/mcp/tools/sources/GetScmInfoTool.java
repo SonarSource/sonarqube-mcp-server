@@ -32,7 +32,7 @@ public class GetScmInfoTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetScmInfoTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(GetScmInfoToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube SCM Information of Source File")
       .setDescription("Get SCM information of SonarQube source files. Require See Source Code permission on file's project")
@@ -53,34 +53,19 @@ public class GetScmInfoTool extends Tool {
     
     try {
       var scmInfo = serverApiProvider.get().sourcesApi().getScmInfo(key, commitsByLine, from, to);
-      return Tool.Result.success(buildResponseFromScmInfo(scmInfo));
+      var toolResponse = buildStructuredContent(scmInfo);
+      return Tool.Result.success(toolResponse);
     } catch (Exception e) {
       return Tool.Result.failure("Failed to retrieve SCM information: " + e.getMessage());
     }
   }
 
-  private static String buildResponseFromScmInfo(ScmResponse scmResponse) {
-    var responseBuilder = new StringBuilder();
-    responseBuilder.append("SCM Information:\n");
-    responseBuilder.append("================\n\n");
-    
-    var scmLines = scmResponse.getScmLines();
-    if (scmLines.isEmpty()) {
-      responseBuilder.append("No SCM information available for this file.\n");
-    } else {
-      responseBuilder.append("Line | Author      | Date                    | Revision\n");
-      responseBuilder.append("-----|-------------|-------------------------|----------------\n");
-      
-      for (var scmLine : scmLines) {
-        responseBuilder.append(String.format("%-4d | %-11s | %-23s | %s%n",
-          scmLine.lineNumber(),
-          scmLine.author(),
-          scmLine.datetime(),
-          scmLine.revision()));
-      }
-    }
-    
-    return responseBuilder.toString().trim();
+  private static GetScmInfoToolResponse buildStructuredContent(ScmResponse scmResponse) {
+    var scmLines = scmResponse.getScmLines().stream()
+      .map(line -> new GetScmInfoToolResponse.ScmLine(line.lineNumber(), line.author(), line.datetime(), line.revision()))
+      .toList();
+
+    return new GetScmInfoToolResponse(scmLines);
   }
 
 }

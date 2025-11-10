@@ -29,7 +29,7 @@ public class SystemHealthTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemHealthTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SystemHealthToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Health")
       .setDescription("Get the health status of SonarQube Server instance. Returns GREEN (fully operational), YELLOW (usable but needs attention), or RED (not operational).")
@@ -40,45 +40,37 @@ public class SystemHealthTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var response = serverApiProvider.get().systemApi().getHealth();
-    return Tool.Result.success(buildResponseFromHealth(response));
+    var toolResponse = buildStructuredContent(response);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromHealth(HealthResponse response) {
-    var stringBuilder = new StringBuilder();
-    stringBuilder.append("SonarQube Server Health Status: ").append(response.health()).append("\n");
-
+  private static SystemHealthToolResponse buildStructuredContent(HealthResponse response) {
+    List<SystemHealthToolResponse.Cause> causes = null;
     if (response.causes() != null && !response.causes().isEmpty()) {
-      stringBuilder.append("\nCauses:\n");
-      for (var cause : response.causes()) {
-        stringBuilder.append("- ").append(cause.message()).append("\n");
-      }
+      causes = response.causes().stream()
+        .map(c -> new SystemHealthToolResponse.Cause(c.message()))
+        .toList();
     }
-
+    
+    List<SystemHealthToolResponse.Node> nodes = null;
     if (response.nodes() != null && !response.nodes().isEmpty()) {
-      buildNodeResponse(stringBuilder, response.nodes());
+      nodes = response.nodes().stream()
+        .map(node -> {
+          List<SystemHealthToolResponse.Cause> nodeCauses = null;
+          if (node.causes() != null && !node.causes().isEmpty()) {
+            nodeCauses = node.causes().stream()
+              .map(c -> new SystemHealthToolResponse.Cause(c.message()))
+              .toList();
+          }
+          return new SystemHealthToolResponse.Node(
+            node.name(), node.type(), node.health(), node.host(), 
+            node.port(), node.startedAt(), nodeCauses
+          );
+        })
+        .toList();
     }
 
-    return stringBuilder.toString().trim();
-  }
-
-  private static void buildNodeResponse(StringBuilder stringBuilder, List<HealthResponse.Node> nodes) {
-    stringBuilder.append("\nNodes:\n");
-    for (var node : nodes) {
-      stringBuilder.append("\n").append(node.name())
-        .append(" (").append(node.type()).append(")")
-        .append(" - ").append(node.health())
-        .append("\n");
-      stringBuilder.append("  Host: ").append(node.host())
-        .append(":").append(node.port()).append("\n");
-      stringBuilder.append("  Started: ").append(node.startedAt()).append("\n");
-
-      if (node.causes() != null && !node.causes().isEmpty()) {
-        stringBuilder.append("  Causes:\n");
-        for (var cause : node.causes()) {
-          stringBuilder.append("  - ").append(cause.message()).append("\n");
-        }
-      }
-    }
+    return new SystemHealthToolResponse(response.health(), causes, nodes);
   }
 
 }

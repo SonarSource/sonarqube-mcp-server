@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.measures;
 
 import com.github.tomakehurst.wiremock.http.Body;
-import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
@@ -30,8 +29,156 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class GetComponentMeasuresToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(GetComponentMeasuresTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "component":{
+               "type":"object",
+               "properties":{
+                  "description":{
+                     "type":"string",
+                     "description":"Component description"
+                  },
+                  "key":{
+                     "type":"string",
+                     "description":"Component key"
+                  },
+                  "language":{
+                     "type":"string",
+                     "description":"Programming language"
+                  },
+                  "name":{
+                     "type":"string",
+                     "description":"Component display name"
+                  },
+                  "path":{
+                     "type":"string",
+                     "description":"Component path"
+                  },
+                  "qualifier":{
+                     "type":"string",
+                     "description":"Component qualifier (TRK for project, FIL for file, etc.)"
+                  }
+               },
+               "required":[
+                  "key",
+                  "name",
+                  "qualifier"
+               ],
+               "description":"Component information"
+            },
+            "measures":{
+               "description":"List of measures for the component",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "metric":{
+                        "type":"string",
+                        "description":"Metric key"
+                     },
+                     "periods":{
+                        "description":"Historical period values",
+                        "type":"array",
+                        "items":{
+                           "type":"object",
+                           "properties":{
+                              "value":{
+                                 "type":"string",
+                                 "description":"Period value"
+                              }
+                           },
+                           "required":[
+                              "value"
+                           ]
+                        }
+                     },
+                     "value":{
+                        "type":"string",
+                        "description":"Measure value"
+                     }
+                  },
+                  "required":[
+                     "metric"
+                  ]
+               }
+            },
+            "metrics":{
+               "description":"Metadata about the metrics",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "custom":{
+                        "type":"boolean",
+                        "description":"Whether this is a custom metric"
+                     },
+                     "description":{
+                        "type":"string",
+                        "description":"Metric description"
+                     },
+                     "domain":{
+                        "type":"string",
+                        "description":"Metric domain/category"
+                     },
+                     "hidden":{
+                        "type":"boolean",
+                        "description":"Whether the metric is hidden"
+                     },
+                     "higherValuesAreBetter":{
+                        "type":"boolean",
+                        "description":"Whether higher values are better"
+                     },
+                     "key":{
+                        "type":"string",
+                        "description":"Metric key"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Metric display name"
+                     },
+                     "qualitative":{
+                        "type":"boolean",
+                        "description":"Whether this is a qualitative metric"
+                     },
+                     "type":{
+                        "type":"string",
+                        "description":"Metric value type"
+                     }
+                  },
+                  "required":[
+                     "custom",
+                     "description",
+                     "domain",
+                     "hidden",
+                     "higherValuesAreBetter",
+                     "key",
+                     "name",
+                     "qualitative",
+                     "type"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "component",
+            "measures"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {
@@ -68,7 +215,15 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No project key found.", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "",
+            "name" : "",
+            "qualifier" : ""
+          },
+          "measures" : [ ]
+        }""");
     }
 
     @SonarQubeMcpServerTest
@@ -85,53 +240,60 @@ class GetComponentMeasuresToolTests {
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: ElementImpl.java
-        Key: MY_PROJECT:ElementImpl.java
-        Description: Implementation of Element interface
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
-
-        Measures:
-          - Complexity (complexity): 12
-            Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25
-            Description: New Issues
-          - Lines of code (ncloc): 114
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Complexity (complexity)
-            Description: Cyclomatic complexity
-            Domain: Complexity
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - New issues (new_violations)
-            Description: New Issues
-            Domain: Issues
-            Type: INT
-            Higher values are better: false
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-        Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:ElementImpl.java",
+            "name" : "ElementImpl.java",
+            "qualifier" : "FIL",
+            "description" : "Implementation of Element interface",
+            "language" : "java",
+            "path" : "src/main/java/com/sonarsource/markdown/impl/ElementImpl.java"
+          },
+          "measures" : [ {
+            "metric" : "complexity",
+            "value" : "12"
+          }, {
+            "metric" : "new_violations",
+            "periods" : [ {
+              "value" : "25"
+            } ]
+          }, {
+            "metric" : "ncloc",
+            "value" : "114"
+          } ],
+          "metrics" : [ {
+            "key" : "complexity",
+            "name" : "Complexity",
+            "description" : "Cyclomatic complexity",
+            "domain" : "Complexity",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "new_violations",
+            "name" : "New issues",
+            "description" : "New Issues",
+            "domain" : "Issues",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -153,53 +315,60 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: ElementImpl.java
-        Key: MY_PROJECT:ElementImpl.java
-        Description: Implementation of Element interface
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
-
-        Measures:
-          - Complexity (complexity): 12
-            Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25
-            Description: New Issues
-          - Lines of code (ncloc): 114
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Complexity (complexity)
-            Description: Cyclomatic complexity
-            Domain: Complexity
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - New issues (new_violations)
-            Description: New Issues
-            Domain: Issues
-            Type: INT
-            Higher values are better: false
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-        Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:ElementImpl.java",
+            "name" : "ElementImpl.java",
+            "qualifier" : "FIL",
+            "description" : "Implementation of Element interface",
+            "language" : "java",
+            "path" : "src/main/java/com/sonarsource/markdown/impl/ElementImpl.java"
+          },
+          "measures" : [ {
+            "metric" : "complexity",
+            "value" : "12"
+          }, {
+            "metric" : "new_violations",
+            "periods" : [ {
+              "value" : "25"
+            } ]
+          }, {
+            "metric" : "ncloc",
+            "value" : "114"
+          } ],
+          "metrics" : [ {
+            "key" : "complexity",
+            "name" : "Complexity",
+            "description" : "Cyclomatic complexity",
+            "domain" : "Complexity",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "new_violations",
+            "name" : "New issues",
+            "description" : "New Issues",
+            "domain" : "Issues",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -221,53 +390,60 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: ElementImpl.java
-        Key: MY_PROJECT:ElementImpl.java
-        Description: Implementation of Element interface
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
-
-        Measures:
-          - Complexity (complexity): 12
-            Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25
-            Description: New Issues
-          - Lines of code (ncloc): 114
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Complexity (complexity)
-            Description: Cyclomatic complexity
-            Domain: Complexity
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - New issues (new_violations)
-            Description: New Issues
-            Domain: Issues
-            Type: INT
-            Higher values are better: false
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-        Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:ElementImpl.java",
+            "name" : "ElementImpl.java",
+            "qualifier" : "FIL",
+            "description" : "Implementation of Element interface",
+            "language" : "java",
+            "path" : "src/main/java/com/sonarsource/markdown/impl/ElementImpl.java"
+          },
+          "measures" : [ {
+            "metric" : "complexity",
+            "value" : "12"
+          }, {
+            "metric" : "new_violations",
+            "periods" : [ {
+              "value" : "25"
+            } ]
+          }, {
+            "metric" : "ncloc",
+            "value" : "114"
+          } ],
+          "metrics" : [ {
+            "key" : "complexity",
+            "name" : "Complexity",
+            "description" : "Cyclomatic complexity",
+            "domain" : "Complexity",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "new_violations",
+            "name" : "New issues",
+            "description" : "New Issues",
+            "domain" : "Issues",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -289,53 +465,60 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: ElementImpl.java
-        Key: MY_PROJECT:ElementImpl.java
-        Description: Implementation of Element interface
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
-
-        Measures:
-          - Complexity (complexity): 12
-            Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25
-            Description: New Issues
-          - Lines of code (ncloc): 114
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Complexity (complexity)
-            Description: Cyclomatic complexity
-            Domain: Complexity
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - New issues (new_violations)
-            Description: New Issues
-            Domain: Issues
-            Type: INT
-            Higher values are better: false
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-        Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:ElementImpl.java",
+            "name" : "ElementImpl.java",
+            "qualifier" : "FIL",
+            "description" : "Implementation of Element interface",
+            "language" : "java",
+            "path" : "src/main/java/com/sonarsource/markdown/impl/ElementImpl.java"
+          },
+          "measures" : [ {
+            "metric" : "complexity",
+            "value" : "12"
+          }, {
+            "metric" : "new_violations",
+            "periods" : [ {
+              "value" : "25"
+            } ]
+          }, {
+            "metric" : "ncloc",
+            "value" : "114"
+          } ],
+          "metrics" : [ {
+            "key" : "complexity",
+            "name" : "Complexity",
+            "description" : "Cyclomatic complexity",
+            "domain" : "Complexity",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "new_violations",
+            "name" : "New issues",
+            "description" : "New Issues",
+            "domain" : "Issues",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -377,24 +560,28 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: EmptyFile.java
-        Key: MY_PROJECT:EmptyFile.java
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/EmptyFile.java
-
-        No measures found for this component.
-        Available Metrics:
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:EmptyFile.java",
+            "name" : "EmptyFile.java",
+            "qualifier" : "FIL",
+            "language" : "java",
+            "path" : "src/main/java/EmptyFile.java"
+          },
+          "measures" : [ ],
+          "metrics" : [ {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
     }
 
     @SonarQubeMcpServerTest
@@ -459,37 +646,43 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"coverage", "ncloc"}
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: SonarLint Core
-        Key: org.sonarsource.sonarlint.core:sonarlint-core-parent
-        Description: Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)
-        Qualifier: TRK
-
-        Measures:
-          - Coverage (coverage): 91.9
-            Description: Coverage by tests
-          - Lines of code (ncloc): 53717
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Coverage (coverage)
-            Description: Coverage by tests
-            Domain: Coverage
-            Type: PERCENT
-            Higher values are better: true
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "org.sonarsource.sonarlint.core:sonarlint-core-parent",
+            "name" : "SonarLint Core",
+            "qualifier" : "TRK",
+            "description" : "Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)"
+          },
+          "measures" : [ {
+            "metric" : "coverage",
+            "value" : "91.9"
+          }, {
+            "metric" : "ncloc",
+            "value" : "53717"
+          } ],
+          "metrics" : [ {
+            "key" : "coverage",
+            "name" : "Coverage",
+            "description" : "Coverage by tests",
+            "domain" : "Coverage",
+            "type" : "PERCENT",
+            "higherValuesAreBetter" : true,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
     }
   }
 
@@ -524,7 +717,15 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("No project key found.", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "",
+            "name" : "",
+            "qualifier" : ""
+          },
+          "measures" : [ ]
+        }""");
     }
 
     @SonarQubeMcpServerTest
@@ -539,53 +740,60 @@ class GetComponentMeasuresToolTests {
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: ElementImpl.java
-        Key: MY_PROJECT:ElementImpl.java
-        Description: Implementation of Element interface
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
-
-        Measures:
-          - Complexity (complexity): 12
-            Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25
-            Description: New Issues
-          - Lines of code (ncloc): 114
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Complexity (complexity)
-            Description: Cyclomatic complexity
-            Domain: Complexity
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - New issues (new_violations)
-            Description: New Issues
-            Domain: Issues
-            Type: INT
-            Higher values are better: false
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-        Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:ElementImpl.java",
+            "name" : "ElementImpl.java",
+            "qualifier" : "FIL",
+            "description" : "Implementation of Element interface",
+            "language" : "java",
+            "path" : "src/main/java/com/sonarsource/markdown/impl/ElementImpl.java"
+          },
+          "measures" : [ {
+            "metric" : "complexity",
+            "value" : "12"
+          }, {
+            "metric" : "new_violations",
+            "periods" : [ {
+              "value" : "25"
+            } ]
+          }, {
+            "metric" : "ncloc",
+            "value" : "114"
+          } ],
+          "metrics" : [ {
+            "key" : "complexity",
+            "name" : "Complexity",
+            "description" : "Cyclomatic complexity",
+            "domain" : "Complexity",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "new_violations",
+            "name" : "New issues",
+            "description" : "New Issues",
+            "domain" : "Issues",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -605,53 +813,60 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.BRANCH_PROPERTY, "main"
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: ElementImpl.java
-        Key: MY_PROJECT:ElementImpl.java
-        Description: Implementation of Element interface
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
-
-        Measures:
-          - Complexity (complexity): 12
-            Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25
-            Description: New Issues
-          - Lines of code (ncloc): 114
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Complexity (complexity)
-            Description: Cyclomatic complexity
-            Domain: Complexity
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - New issues (new_violations)
-            Description: New Issues
-            Domain: Issues
-            Type: INT
-            Higher values are better: false
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-        Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:ElementImpl.java",
+            "name" : "ElementImpl.java",
+            "qualifier" : "FIL",
+            "description" : "Implementation of Element interface",
+            "language" : "java",
+            "path" : "src/main/java/com/sonarsource/markdown/impl/ElementImpl.java"
+          },
+          "measures" : [ {
+            "metric" : "complexity",
+            "value" : "12"
+          }, {
+            "metric" : "new_violations",
+            "periods" : [ {
+              "value" : "25"
+            } ]
+          }, {
+            "metric" : "ncloc",
+            "value" : "114"
+          } ],
+          "metrics" : [ {
+            "key" : "complexity",
+            "name" : "Complexity",
+            "description" : "Cyclomatic complexity",
+            "domain" : "Complexity",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "new_violations",
+            "name" : "New issues",
+            "description" : "New Issues",
+            "domain" : "Issues",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -671,53 +886,60 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: ElementImpl.java
-        Key: MY_PROJECT:ElementImpl.java
-        Description: Implementation of Element interface
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
-
-        Measures:
-          - Complexity (complexity): 12
-            Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25
-            Description: New Issues
-          - Lines of code (ncloc): 114
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Complexity (complexity)
-            Description: Cyclomatic complexity
-            Domain: Complexity
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - New issues (new_violations)
-            Description: New Issues
-            Domain: Issues
-            Type: INT
-            Higher values are better: false
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-        Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:ElementImpl.java",
+            "name" : "ElementImpl.java",
+            "qualifier" : "FIL",
+            "description" : "Implementation of Element interface",
+            "language" : "java",
+            "path" : "src/main/java/com/sonarsource/markdown/impl/ElementImpl.java"
+          },
+          "measures" : [ {
+            "metric" : "complexity",
+            "value" : "12"
+          }, {
+            "metric" : "new_violations",
+            "periods" : [ {
+              "value" : "25"
+            } ]
+          }, {
+            "metric" : "ncloc",
+            "value" : "114"
+          } ],
+          "metrics" : [ {
+            "key" : "complexity",
+            "name" : "Complexity",
+            "description" : "Cyclomatic complexity",
+            "domain" : "Complexity",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "new_violations",
+            "name" : "New issues",
+            "description" : "New Issues",
+            "domain" : "Issues",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -737,53 +959,60 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.PULL_REQUEST_PROPERTY, "123"
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: ElementImpl.java
-        Key: MY_PROJECT:ElementImpl.java
-        Description: Implementation of Element interface
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/com/sonarsource/markdown/impl/ElementImpl.java
-
-        Measures:
-          - Complexity (complexity): 12
-            Description: Cyclomatic complexity
-          - New issues (new_violations):  | New: 25
-            Description: New Issues
-          - Lines of code (ncloc): 114
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Complexity (complexity)
-            Description: Cyclomatic complexity
-            Domain: Complexity
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false
-
-          - New issues (new_violations)
-            Description: New Issues
-            Domain: Issues
-            Type: INT
-            Higher values are better: false
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-        Periods:
-          - Period 1: previous_version (2016-01-11T10:49:50+0100) - 1.0-SNAPSHOT""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:ElementImpl.java",
+            "name" : "ElementImpl.java",
+            "qualifier" : "FIL",
+            "description" : "Implementation of Element interface",
+            "language" : "java",
+            "path" : "src/main/java/com/sonarsource/markdown/impl/ElementImpl.java"
+          },
+          "measures" : [ {
+            "metric" : "complexity",
+            "value" : "12"
+          }, {
+            "metric" : "new_violations",
+            "periods" : [ {
+              "value" : "25"
+            } ]
+          }, {
+            "metric" : "ncloc",
+            "value" : "114"
+          } ],
+          "metrics" : [ {
+            "key" : "complexity",
+            "name" : "Complexity",
+            "description" : "Cyclomatic complexity",
+            "domain" : "Complexity",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "new_violations",
+            "name" : "New issues",
+            "description" : "New Issues",
+            "domain" : "Issues",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -823,24 +1052,28 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: EmptyFile.java
-        Key: MY_PROJECT:EmptyFile.java
-        Qualifier: FIL
-        Language: java
-        Path: src/main/java/EmptyFile.java
-
-        No measures found for this component.
-        Available Metrics:
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT:EmptyFile.java",
+            "name" : "EmptyFile.java",
+            "qualifier" : "FIL",
+            "language" : "java",
+            "path" : "src/main/java/EmptyFile.java"
+          },
+          "measures" : [ ],
+          "metrics" : [ {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
     }
 
     @SonarQubeMcpServerTest
@@ -903,37 +1136,43 @@ class GetComponentMeasuresToolTests {
           GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"coverage", "ncloc"}
         ));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("""
-        Component: SonarLint Core
-        Key: org.sonarsource.sonarlint.core:sonarlint-core-parent
-        Description: Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)
-        Qualifier: TRK
-
-        Measures:
-          - Coverage (coverage): 91.9
-            Description: Coverage by tests
-          - Lines of code (ncloc): 53717
-            Description: Non Commenting Lines of Code
-
-        Available Metrics:
-          - Coverage (coverage)
-            Description: Coverage by tests
-            Domain: Coverage
-            Type: PERCENT
-            Higher values are better: true
-            Qualitative: true
-            Hidden: false
-            Custom: false
-
-          - Lines of code (ncloc)
-            Description: Non Commenting Lines of Code
-            Domain: Size
-            Type: INT
-            Higher values are better: false
-            Qualitative: false
-            Hidden: false
-            Custom: false""", false));
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "org.sonarsource.sonarlint.core:sonarlint-core-parent",
+            "name" : "SonarLint Core",
+            "qualifier" : "TRK",
+            "description" : "Library used by SonarLint flavors (Eclipse, IntelliJ, VSCode...)"
+          },
+          "measures" : [ {
+            "metric" : "coverage",
+            "value" : "91.9"
+          }, {
+            "metric" : "ncloc",
+            "value" : "53717"
+          } ],
+          "metrics" : [ {
+            "key" : "coverage",
+            "name" : "Coverage",
+            "description" : "Coverage by tests",
+            "domain" : "Coverage",
+            "type" : "PERCENT",
+            "higherValuesAreBetter" : true,
+            "qualitative" : true,
+            "hidden" : false,
+            "custom" : false
+          }, {
+            "key" : "ncloc",
+            "name" : "Lines of code",
+            "description" : "Non Commenting Lines of Code",
+            "domain" : "Size",
+            "type" : "INT",
+            "higherValuesAreBetter" : false,
+            "qualitative" : false,
+            "hidden" : false,
+            "custom" : false
+          } ]
+        }""");
     }
 
   }

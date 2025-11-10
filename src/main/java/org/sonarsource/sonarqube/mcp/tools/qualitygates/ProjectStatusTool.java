@@ -33,7 +33,7 @@ public class ProjectStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ProjectStatusTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ProjectStatusToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Quality Gate Status")
       .setDescription("""
@@ -67,22 +67,17 @@ public class ProjectStatusTool extends Tool {
     }
 
     var projectStatus = serverApiProvider.get().qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
-    return Tool.Result.success(buildResponseFromProjectStatus(projectStatus));
+    var toolResponse = buildStructuredContent(projectStatus);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromProjectStatus(ProjectStatusResponse projectStatus) {
-    var stringBuilder = new StringBuilder();
+  private static ProjectStatusToolResponse buildStructuredContent(ProjectStatusResponse projectStatus) {
     var status = projectStatus.projectStatus();
+    var conditions = status.conditions().stream()
+      .map(c -> new ProjectStatusToolResponse.Condition(c.metricKey(), c.status(), c.errorThreshold(), c.actualValue()))
+      .toList();
 
-    stringBuilder.append("The Quality Gate status is ").append(status.status()).append(". Here are the following conditions:\n");
-
-    for (var condition : status.conditions()) {
-      stringBuilder.append(condition.metricKey()).append(" is ").append(condition.status())
-        .append(", the threshold is ").append(condition.errorThreshold())
-        .append(" and the actual value is ").append(condition.actualValue()).append("\n");
-    }
-
-    return stringBuilder.toString().trim();
+    return new ProjectStatusToolResponse(status.status(), conditions, null);
   }
 
 }

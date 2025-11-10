@@ -28,8 +28,37 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class GetRawSourceToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(GetRawSourceTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "fileKey":{
+               "type":"string",
+               "description":"The file key"
+            },
+            "sourceCode":{
+               "type":"string",
+               "description":"The raw source code content"
+            }
+         },
+         "required":[
+            "fileKey",
+            "sourceCode"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class MissingPrerequisite {
@@ -40,8 +69,7 @@ class GetRawSourceToolTests {
 
       var result = mcpClient.callTool(GetRawSourceTool.TOOL_NAME);
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
     }
   }
 
@@ -59,8 +87,7 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Forbidden", true));
     }
 
     @SonarQubeMcpServerTest
@@ -74,8 +101,7 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/NonExistent.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
           harness.getMockSonarQubeServer().baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"), true));
     }
 
@@ -103,8 +129,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
+      assertResultEquals(result, """
+        {
+          "fileKey" : "my_project:src/foo/Bar.php",
+          "sourceCode" : "<?php\n// code here\n"
+        }""".replace("<?php\n// code here\n", sourceCode));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -133,8 +162,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
+      assertResultEquals(result, """
+        {
+          "fileKey" : "my_project:src/foo/Bar.php",
+          "sourceCode" : "<?php\n"
+        }""".replace("<?php\n", sourceCode));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -163,8 +195,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "pullRequest", "5461"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
+      assertResultEquals(result, """
+        {
+          "fileKey" : "my_project:src/foo/Bar.php",
+          "sourceCode" : "<?php\n"
+        }""".replace("<?php\n", sourceCode));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -193,8 +228,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch", "pullRequest", "5461"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
+      assertResultEquals(result, """
+        {
+          "fileKey" : "my_project:src/foo/Bar.php",
+          "sourceCode" : "<?php\n"
+        }""".replace("<?php\n", sourceCode));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -213,8 +251,7 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Forbidden", true));
     }
 
     @SonarQubeMcpServerTest
@@ -226,8 +263,7 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/NonExistent.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
+      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
           harness.getMockSonarQubeServer().baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"), true));
     }
 
@@ -253,8 +289,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
+      assertResultEquals(result, """
+        {
+          "fileKey" : "my_project:src/foo/Bar.php",
+          "sourceCode" : "<?php\n// code here\n"
+        }""".replace("<?php\n// code here\n", sourceCode));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -281,8 +320,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
+      assertResultEquals(result, """
+        {
+          "fileKey" : "my_project:src/foo/Bar.php",
+          "sourceCode" : "<?php\n"
+        }""".replace("<?php\n", sourceCode));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -309,8 +351,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "pullRequest", "5461"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
+      assertResultEquals(result, """
+        {
+          "fileKey" : "my_project:src/foo/Bar.php",
+          "sourceCode" : "<?php\n"
+        }""".replace("<?php\n", sourceCode));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
@@ -337,8 +382,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php", "branch", "feature/my_branch", "pullRequest", "5461"));
 
-      assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult(sourceCode, false));
+      assertResultEquals(result, """
+        {
+          "fileKey" : "my_project:src/foo/Bar.php",
+          "sourceCode" : "<?php\n"
+        }""".replace("<?php\n", sourceCode));
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }

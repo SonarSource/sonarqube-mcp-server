@@ -16,8 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import java.util.Locale;
-import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -30,7 +28,7 @@ public class SystemLogsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemLogsTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SystemLogsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Logs")
       .setDescription("Get SonarQube Server system logs in plain-text format. Requires system administration permission.")
@@ -48,7 +46,10 @@ public class SystemLogsTool extends Tool {
     }
 
     var logs = serverApiProvider.get().systemApi().getLogs(name);
-    return Tool.Result.success(buildResponseFromLogs(logs, name));
+    var logType = name != null ? name : "app";
+    var content = logs != null && !logs.trim().isEmpty() ? logs : "No logs available.";
+    var response = new SystemLogsToolResponse(logType, content);
+    return Tool.Result.success(response);
   }
 
   private static boolean isValidLogName(String name) {
@@ -56,15 +57,4 @@ public class SystemLogsTool extends Tool {
            "deprecation".equals(name) || "es".equals(name) || "web".equals(name);
   }
 
-  private static String buildResponseFromLogs(@Nullable String logs, @Nullable String name) {
-    var logType = name != null ? name : "app";
-    var header = "SonarQube Server " + logType.toUpperCase(Locale.getDefault()) + " Logs\n" +
-                 "=".repeat(("SonarQube Server " + logType.toUpperCase(Locale.getDefault()) + " Logs").length()) + "\n\n";
-    
-    if (logs == null || logs.trim().isEmpty()) {
-      return header + "No logs available.";
-    }
-    
-    return header + logs;
-  }
 }

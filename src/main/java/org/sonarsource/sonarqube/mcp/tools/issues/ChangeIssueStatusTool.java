@@ -30,7 +30,7 @@ public class ChangeIssueStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ChangeIssueStatusTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(ChangeIssueStatusToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Issue Status")
       .setDescription("""
@@ -45,14 +45,16 @@ public class ChangeIssueStatusTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
-    var statusString = arguments.getStringListOrThrow(STATUS_PROPERTY).get(0);
+    var statusString = arguments.getStringListOrThrow(STATUS_PROPERTY).getFirst();
     var status = Transition.fromStatus(statusString);
     if (status.isEmpty()) {
       return Tool.Result.failure("Status is unknown: " + statusString);
     }
 
     serverApiProvider.get().issuesApi().doTransition(key, status.get());
-    return Tool.Result.success("The issue status was successfully changed.");
+    var message = "The issue status was successfully changed.";
+    var response = new ChangeIssueStatusToolResponse(true, message, key, statusString);
+    return Tool.Result.success(response);
   }
 
 }

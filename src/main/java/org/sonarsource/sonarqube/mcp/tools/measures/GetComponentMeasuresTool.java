@@ -33,7 +33,7 @@ public class GetComponentMeasuresTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetComponentMeasuresTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(GetComponentMeasuresToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Measures")
       .setDescription("Get SonarQube measures for a project, such as ncloc, complexity, violations, coverage, etc.")
@@ -53,138 +53,52 @@ public class GetComponentMeasuresTool extends Tool {
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
     
     var response = serverApiProvider.get().measuresApi().getComponentMeasures(component, branch, metricKeys, pullRequest);
-    return Tool.Result.success(buildResponseFromComponentMeasures(response));
+    var toolResponse = buildStructuredContent(response);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromComponentMeasures(ComponentMeasuresResponse response) {
-    var stringBuilder = new StringBuilder();
-    var component = response.component();
-    var metrics = response.metrics();
-    var periods = response.periods();
-
-    if (component == null) {
-      stringBuilder.append("No project key found.");
-      return stringBuilder.toString();
+  private static GetComponentMeasuresToolResponse buildStructuredContent(ComponentMeasuresResponse response) {
+    var comp = response.component();
+    
+    // Handle null component case
+    if (comp == null) {
+      // Return minimal valid response when no component found
+      var emptyComponent = new GetComponentMeasuresToolResponse.Component(
+        "", "", "", null, null, null
+      );
+      return new GetComponentMeasuresToolResponse(emptyComponent, List.of(), null);
+    }
+    
+    var componentResponse = new GetComponentMeasuresToolResponse.Component(
+      comp.key(), comp.name(), comp.qualifier(),
+      comp.description(), comp.language(), comp.path()
+    );
+    
+    var measures = (comp.measures() != null) ?
+      comp.measures().stream()
+        .map(m -> {
+          List<GetComponentMeasuresToolResponse.Period> periods = null;
+          if (m.periods() != null && !m.periods().isEmpty()) {
+            periods = m.periods().stream()
+              .map(p -> new GetComponentMeasuresToolResponse.Period(p.value()))
+              .toList();
+          }
+          return new GetComponentMeasuresToolResponse.Measure(m.metric(), m.value(), periods);
+        })
+        .toList()
+      : List.<GetComponentMeasuresToolResponse.Measure>of();
+    
+    List<GetComponentMeasuresToolResponse.Metric> metrics = null;
+    if (response.metrics() != null) {
+      metrics = response.metrics().stream()
+        .map(m -> new GetComponentMeasuresToolResponse.Metric(
+          m.key(), m.name(), m.description(), m.domain(), m.type(),
+          m.higherValuesAreBetter(), m.qualitative(), m.hidden(), m.custom()
+        ))
+        .toList();
     }
 
-    appendComponentInfo(stringBuilder, component);
-    appendMeasuresInfo(stringBuilder, component, metrics);
-    appendMetricsInfo(stringBuilder, metrics);
-    appendPeriodsInfo(stringBuilder, periods);
-
-    return stringBuilder.toString().trim();
-  }
-
-  private static void appendComponentInfo(StringBuilder stringBuilder, ComponentMeasuresResponse.Component component) {
-    stringBuilder.append("Component: ").append(component.name()).append("\n");
-    stringBuilder.append("Key: ").append(component.key()).append("\n");
-    if (component.description() != null) {
-      stringBuilder.append("Description: ").append(component.description()).append("\n");
-    }
-    stringBuilder.append("Qualifier: ").append(component.qualifier()).append("\n");
-    if (component.language() != null) {
-      stringBuilder.append("Language: ").append(component.language()).append("\n");
-    }
-    if (component.path() != null) {
-      stringBuilder.append("Path: ").append(component.path()).append("\n");
-    }
-    stringBuilder.append("\n");
-  }
-
-  private static void appendMeasuresInfo(StringBuilder stringBuilder, ComponentMeasuresResponse.Component component,
-    List<ComponentMeasuresResponse.Metric> metrics) {
-    var measures = component.measures();
-    if (measures == null || measures.isEmpty()) {
-      stringBuilder.append("No measures found for this component.");
-      return;
-    }
-
-    stringBuilder.append("Measures:\n");
-    for (var measure : measures) {
-      appendMeasureInfo(stringBuilder, measure, metrics);
-    }
-  }
-
-  private static void appendMeasureInfo(StringBuilder stringBuilder, ComponentMeasuresResponse.Measure measure,
-    List<ComponentMeasuresResponse.Metric> metrics) {
-    var metric = findMetricByKey(metrics, measure.metric());
-    if (metric != null) {
-      stringBuilder.append("  - ").append(metric.name()).append(" (").append(measure.metric()).append("): ");
-      appendMeasureValue(stringBuilder, measure);
-      stringBuilder.append("\n");
-      if (metric.description() != null) {
-        stringBuilder.append("    Description: ").append(metric.description()).append("\n");
-      }
-    } else {
-      stringBuilder.append("  - ").append(measure.metric()).append(": ").append(measure.value()).append("\n");
-    }
-  }
-
-  private static void appendMeasureValue(StringBuilder stringBuilder, ComponentMeasuresResponse.Measure measure) {
-    if (measure.value() != null) {
-      stringBuilder.append(measure.value());
-    }
-    appendMeasurePeriods(stringBuilder, measure);
-  }
-
-  private static void appendMeasurePeriods(StringBuilder stringBuilder, ComponentMeasuresResponse.Measure measure) {
-    if (measure.periods() != null && !measure.periods().isEmpty()) {
-      stringBuilder.append(" | New: ");
-      for (var period : measure.periods()) {
-        stringBuilder.append(period.value());
-      }
-    }
-  }
-
-  private static void appendMetricsInfo(StringBuilder stringBuilder, List<ComponentMeasuresResponse.Metric> metrics) {
-    if (metrics != null && !metrics.isEmpty()) {
-      stringBuilder.append("\nAvailable Metrics:\n");
-      for (var metric : metrics) {
-        appendMetricInfo(stringBuilder, metric);
-      }
-    }
-  }
-
-  private static void appendMetricInfo(StringBuilder stringBuilder, ComponentMeasuresResponse.Metric metric) {
-    stringBuilder.append("  - ").append(metric.name()).append(" (").append(metric.key()).append(")\n");
-    stringBuilder.append("    Description: ").append(metric.description()).append("\n");
-    stringBuilder.append("    Domain: ").append(metric.domain()).append("\n");
-    stringBuilder.append("    Type: ").append(metric.type()).append("\n");
-    stringBuilder.append("    Higher values are better: ").append(metric.higherValuesAreBetter()).append("\n");
-    stringBuilder.append("    Qualitative: ").append(metric.qualitative()).append("\n");
-    stringBuilder.append("    Hidden: ").append(metric.hidden()).append("\n");
-    stringBuilder.append("    Custom: ").append(metric.custom()).append("\n");
-    stringBuilder.append("\n");
-  }
-
-  private static void appendPeriodsInfo(StringBuilder stringBuilder, List<ComponentMeasuresResponse.Period> periods) {
-    if (periods != null && !periods.isEmpty()) {
-      stringBuilder.append("Periods:\n");
-      for (var period : periods) {
-        appendPeriodInfo(stringBuilder, period);
-      }
-    }
-  }
-
-  private static void appendPeriodInfo(StringBuilder stringBuilder, ComponentMeasuresResponse.Period period) {
-    stringBuilder.append("  - Period ").append(period.index()).append(": ").append(period.mode());
-    if (period.date() != null) {
-      stringBuilder.append(" (").append(period.date()).append(")");
-    }
-    if (period.parameter() != null) {
-      stringBuilder.append(" - ").append(period.parameter());
-    }
-    stringBuilder.append("\n");
-  }
-
-  private static ComponentMeasuresResponse.Metric findMetricByKey(List<ComponentMeasuresResponse.Metric> metrics, String key) {
-    if (metrics == null) {
-      return null;
-    }
-    return metrics.stream()
-      .filter(metric -> metric.key().equals(key))
-      .findFirst()
-      .orElse(null);
+    return new GetComponentMeasuresToolResponse(componentResponse, measures, metrics);
   }
 
 } 

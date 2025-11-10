@@ -29,7 +29,7 @@ public class SearchMyProjectsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchMyProjectsTool(ServerApiProvider serverApiProvider) {
-    super(new SchemaToolBuilder()
+    super(SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
       .setDescription("Find SonarQube projects. The response is paginated.")
@@ -42,32 +42,23 @@ public class SearchMyProjectsTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);
     var projects = serverApiProvider.get().componentsApi().searchProjectsInMyOrg(page);
-    return Tool.Result.success(buildResponseFromAllProjectsResponse(projects));
+    var toolResponse = buildStructuredContent(projects);
+    return Tool.Result.success(toolResponse);
   }
 
-  private static String buildResponseFromAllProjectsResponse(SearchResponse response) {
-    var stringBuilder = new StringBuilder();
-    var projects = response.components();
+  private static SearchMyProjectsToolResponse buildStructuredContent(SearchResponse response) {
+    var projects = response.components().stream()
+      .map(p -> new SearchMyProjectsToolResponse.Project(p.key(), p.name()))
+      .toList();
 
-    if (projects.isEmpty()) {
-      stringBuilder.append("No projects were found.");
-      return stringBuilder.toString();
-    }
-
-    stringBuilder.append("Found ").append(projects.size()).append(" Sonar projects in your organization.\n");
-    
     var paging = response.paging();
-    var totalPages = (int) Math.ceil((double) paging.total() / paging.pageSize());
-    stringBuilder.append("This response is paginated and this is the page ").append(paging.pageIndex())
-      .append(" out of ").append(totalPages).append(" total pages. There is a maximum of ")
-      .append(paging.pageSize()).append(" projects per page.\n");
+    var pagingResponse = new SearchMyProjectsToolResponse.Paging(
+      paging.pageIndex(),
+      paging.pageSize(),
+      paging.total()
+    );
 
-    projects.forEach(p -> {
-      stringBuilder.append("Project key: ").append(p.key()).append(" | Project name: ").append(p.name());
-      stringBuilder.append("\n");
-    });
-
-    return stringBuilder.toString().trim();
+    return new SearchMyProjectsToolResponse(projects, pagingResponse);
   }
 
 }
