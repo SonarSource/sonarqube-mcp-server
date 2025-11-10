@@ -31,8 +31,48 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListLanguagesToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListLanguagesTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "languages":{
+               "description":"List of supported programming languages",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "key":{
+                        "type":"string",
+                        "description":"Language key identifier"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Human-readable language name"
+                     }
+                  },
+                  "required":[
+                     "key",
+                     "name"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "languages"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

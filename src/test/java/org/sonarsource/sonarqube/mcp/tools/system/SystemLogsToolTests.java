@@ -30,8 +30,36 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SystemLogsToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SystemLogsTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "content":{
+               "type":"string",
+               "description":"The log content"
+            },
+            "logType":{
+               "type":"string",
+               "description":"The type of logs retrieved"
+            }
+         },
+         "required":[
+            "content",
+            "logType"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

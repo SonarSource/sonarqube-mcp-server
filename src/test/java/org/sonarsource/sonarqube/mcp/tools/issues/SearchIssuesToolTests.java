@@ -30,8 +30,135 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchIssuesToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SearchIssuesTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "issues":{
+               "description":"List of issues found in the search",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "author":{
+                        "type":"string",
+                        "description":"Author who introduced the issue"
+                     },
+                     "cleanCodeAttribute":{
+                        "type":"string",
+                        "description":"Clean code attribute associated with the issue"
+                     },
+                     "cleanCodeAttributeCategory":{
+                        "type":"string",
+                        "description":"Clean code attribute category"
+                     },
+                     "component":{
+                        "type":"string",
+                        "description":"Component (file) where the issue is located"
+                     },
+                     "creationDate":{
+                        "type":"string",
+                        "description":"Date when the issue was created"
+                     },
+                     "key":{
+                        "type":"string",
+                        "description":"Unique issue identifier"
+                     },
+                     "message":{
+                        "type":"string",
+                        "description":"Issue description message"
+                     },
+                     "project":{
+                        "type":"string",
+                        "description":"Project key where the issue was found"
+                     },
+                     "rule":{
+                        "type":"string",
+                        "description":"Rule that triggered the issue"
+                     },
+                     "severity":{
+                        "type":"string",
+                        "description":"Issue severity level"
+                     },
+                     "status":{
+                        "type":"string",
+                        "description":"Current status of the issue"
+                     },
+                     "textRange":{
+                        "type":"object",
+                        "properties":{
+                           "endLine":{
+                              "type":"integer",
+                              "description":"Ending line number"
+                           },
+                           "startLine":{
+                              "type":"integer",
+                              "description":"Starting line number"
+                           }
+                        },
+                        "required":[
+                           "endLine",
+                           "startLine"
+                        ],
+                        "description":"Location of the issue in the source file"
+                     }
+                  },
+                  "required":[
+                     "author",
+                     "cleanCodeAttribute",
+                     "cleanCodeAttributeCategory",
+                     "component",
+                     "creationDate",
+                     "key",
+                     "message",
+                     "project",
+                     "rule",
+                     "severity",
+                     "status"
+                  ]
+               }
+            },
+            "paging":{
+               "type":"object",
+               "properties":{
+                  "pageIndex":{
+                     "type":"integer",
+                     "description":"Current page index (1-based)"
+                  },
+                  "pageSize":{
+                     "type":"integer",
+                     "description":"Number of items per page"
+                  },
+                  "total":{
+                     "type":"integer",
+                     "description":"Total number of items across all pages"
+                  }
+               },
+               "required":[
+                  "pageIndex",
+                  "pageSize",
+                  "total"
+               ],
+               "description":"Pagination information for the results"
+            }
+         },
+         "required":[
+            "issues",
+            "paging"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarQubeCloud {

@@ -31,8 +31,97 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ShowRuleToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ShowRuleTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "descriptionSections":{
+               "description":"Detailed description sections",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "content":{
+                        "type":"string",
+                        "description":"Section content in HTML format"
+                     }
+                  },
+                  "required":[
+                     "content"
+                  ]
+               }
+            },
+            "htmlDesc":{
+               "type":"string",
+               "description":"HTML description of the rule"
+            },
+            "impacts":{
+               "description":"Software quality impacts of this rule",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "severity":{
+                        "type":"string",
+                        "description":"Impact severity level"
+                     },
+                     "softwareQuality":{
+                        "type":"string",
+                        "description":"Software quality dimension (MAINTAINABILITY, RELIABILITY, SECURITY)"
+                     }
+                  },
+                  "required":[
+                     "severity",
+                     "softwareQuality"
+                  ]
+               }
+            },
+            "key":{
+               "type":"string",
+               "description":"Unique rule key"
+            },
+            "lang":{
+               "type":"string",
+               "description":"Language key the rule applies to"
+            },
+            "langName":{
+               "type":"string",
+               "description":"Human-readable language name"
+            },
+            "name":{
+               "type":"string",
+               "description":"Rule display name"
+            },
+            "severity":{
+               "type":"string",
+               "description":"Rule severity level"
+            },
+            "type":{
+               "type":"string",
+               "description":"Rule type (BUG, VULNERABILITY, CODE_SMELL, etc.)"
+            }
+         },
+         "required":[
+            "key",
+            "lang",
+            "langName",
+            "name",
+            "severity",
+            "type"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class MissingPrerequisite {

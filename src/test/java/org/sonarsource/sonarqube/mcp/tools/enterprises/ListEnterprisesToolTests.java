@@ -33,8 +33,64 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListEnterprisesToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.ENTERPRISES_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+    var mcpClient = harness.newClient(Map.of(
+      "SONARQUBE_ORG", "org",
+      "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListEnterprisesTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+        {
+           "type":"object",
+           "properties":{
+              "enterprises":{
+                 "description":"List of available enterprises",
+                 "type":"array",
+                 "items":{
+                    "type":"object",
+                    "properties":{
+                       "avatar":{
+                          "type":"string",
+                          "description":"Avatar URL"
+                       },
+                       "defaultPortfolioPermissionTemplateId":{
+                          "type":"string",
+                          "description":"Default portfolio permission template ID"
+                       },
+                       "id":{
+                          "type":"string",
+                          "description":"Enterprise unique identifier"
+                       },
+                       "key":{
+                          "type":"string",
+                          "description":"Enterprise key"
+                       },
+                       "name":{
+                          "type":"string",
+                          "description":"Enterprise display name"
+                       }
+                    },
+                    "required":[
+                       "id",
+                       "key",
+                       "name"
+                    ]
+                 }
+              }
+           },
+           "required":[
+              "enterprises"
+           ]
+        }
+      """);
+  }
 
   @Nested
   class WithSonarQubeServer {

@@ -30,8 +30,58 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListWebhooksToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListWebhooksTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "webhooks":{
+               "description":"List of configured webhooks",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "hasSecret":{
+                        "type":"boolean",
+                        "description":"Whether the webhook has a configured secret"
+                     },
+                     "key":{
+                        "type":"string",
+                        "description":"Webhook unique key"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Webhook display name"
+                     },
+                     "url":{
+                        "type":"string",
+                        "description":"Target URL for the webhook"
+                     }
+                  },
+                  "required":[
+                     "hasSecret",
+                     "key",
+                     "name",
+                     "url"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "webhooks"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

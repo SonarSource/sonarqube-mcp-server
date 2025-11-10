@@ -32,8 +32,100 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SystemHealthToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SystemHealthTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "$defs":{
+            "Cause":{
+               "type":"object",
+               "properties":{
+                  "message":{
+                     "type":"string",
+                     "description":"Description of the health issue"
+                  }
+               },
+               "required":[
+                  "message"
+               ]
+            }
+         },
+         "type":"object",
+         "properties":{
+            "causes":{
+               "description":"List of health issues, if any",
+               "type":"array",
+               "items":{
+                  "$ref":"#/$defs/Cause"
+               }
+            },
+            "health":{
+               "type":"string",
+               "description":"Overall health status of the system"
+            },
+            "nodes":{
+               "description":"List of cluster nodes with their health status",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "causes":{
+                        "description":"List of node-specific health issues",
+                        "type":"array",
+                        "items":{
+                           "$ref":"#/$defs/Cause"
+                        }
+                     },
+                     "health":{
+                        "type":"string",
+                        "description":"Health status of this node"
+                     },
+                     "host":{
+                        "type":"string",
+                        "description":"Host address"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Node name"
+                     },
+                     "port":{
+                        "type":"integer",
+                        "description":"Port number"
+                     },
+                     "startedAt":{
+                        "type":"string",
+                        "description":"Timestamp when the node started"
+                     },
+                     "type":{
+                        "type":"string",
+                        "description":"Node type (APPLICATION, SEARCH, etc.)"
+                     }
+                  },
+                  "required":[
+                     "health",
+                     "host",
+                     "name",
+                     "port",
+                     "startedAt",
+                     "type"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "health"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

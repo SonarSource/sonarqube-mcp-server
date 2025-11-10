@@ -31,8 +31,72 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchMyProjectsToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SearchMyProjectsTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "paging":{
+               "type":"object",
+               "properties":{
+                  "pageIndex":{
+                     "type":"integer",
+                     "description":"Current page index (1-based)"
+                  },
+                  "pageSize":{
+                     "type":"integer",
+                     "description":"Number of items per page"
+                  },
+                  "total":{
+                     "type":"integer",
+                     "description":"Total number of items across all pages"
+                  }
+               },
+               "required":[
+                  "pageIndex",
+                  "pageSize",
+                  "total"
+               ],
+               "description":"Pagination information for the results"
+            },
+            "projects":{
+               "description":"List of projects found in the organization",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "key":{
+                        "type":"string",
+                        "description":"Unique project key"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Project display name"
+                     }
+                  },
+                  "required":[
+                     "key",
+                     "name"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "paging",
+            "projects"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

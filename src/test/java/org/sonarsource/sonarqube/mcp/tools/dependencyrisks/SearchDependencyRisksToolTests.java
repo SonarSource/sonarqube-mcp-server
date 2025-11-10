@@ -32,8 +32,124 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchDependencyRisksToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SearchDependencyRisksTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "issuesReleases":{
+               "description":"List of dependency risk issues",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "assignee":{
+                        "type":"object",
+                        "properties":{
+                           "name":{
+                              "type":"string",
+                              "description":"Assignee name"
+                           }
+                        },
+                        "required":[
+                           "name"
+                        ],
+                        "description":"Issue assignee"
+                     },
+                     "createdAt":{
+                        "type":"string",
+                        "description":"Creation timestamp"
+                     },
+                     "cvssScore":{
+                        "type":"string",
+                        "description":"CVSS score"
+                     },
+                     "key":{
+                        "type":"string",
+                        "description":"Issue unique key"
+                     },
+                     "quality":{
+                        "type":"string",
+                        "description":"Software quality dimension"
+                     },
+                     "release":{
+                        "type":"object",
+                        "properties":{
+                           "directSummary":{
+                              "type":"boolean",
+                              "description":"Direct dependency summary"
+                           },
+                           "newlyIntroduced":{
+                              "type":"boolean",
+                              "description":"Whether this dependency was newly introduced"
+                           },
+                           "packageManager":{
+                              "type":"string",
+                              "description":"Package manager (npm, maven, etc.)"
+                           },
+                           "packageName":{
+                              "type":"string",
+                              "description":"Package name"
+                           },
+                           "productionScopeSummary":{
+                              "type":"boolean",
+                              "description":"Production scope summary"
+                           },
+                           "version":{
+                              "type":"string",
+                              "description":"Package version"
+                           }
+                        },
+                        "required":[
+                           "packageManager",
+                           "packageName",
+                           "version"
+                        ],
+                        "description":"Dependency release information"
+                     },
+                     "severity":{
+                        "type":"string",
+                        "description":"Issue severity level"
+                     },
+                     "status":{
+                        "type":"string",
+                        "description":"Issue status"
+                     },
+                     "type":{
+                        "type":"string",
+                        "description":"Issue type"
+                     },
+                     "vulnerabilityId":{
+                        "type":"string",
+                        "description":"CVE or vulnerability identifier"
+                     }
+                  },
+                  "required":[
+                     "createdAt",
+                     "key",
+                     "quality",
+                     "severity",
+                     "status",
+                     "type"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "issuesReleases"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

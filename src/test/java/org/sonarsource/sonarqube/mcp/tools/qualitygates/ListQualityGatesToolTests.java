@@ -31,8 +31,99 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListQualityGatesToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListQualityGatesTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "qualityGates":{
+               "description":"List of quality gates",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "caycStatus":{
+                        "type":"string",
+                        "description":"Clean as You Code status"
+                     },
+                     "conditions":{
+                        "description":"List of conditions",
+                        "type":"array",
+                        "items":{
+                           "type":"object",
+                           "properties":{
+                              "error":{
+                                 "type":"integer",
+                                 "description":"Error threshold"
+                              },
+                              "metric":{
+                                 "type":"string",
+                                 "description":"Metric key"
+                              },
+                              "op":{
+                                 "type":"string",
+                                 "description":"Comparison operator"
+                              }
+                           },
+                           "required":[
+                              "error",
+                              "metric",
+                              "op"
+                           ]
+                        }
+                     },
+                     "hasMQRConditions":{
+                        "type":"boolean",
+                        "description":"Whether it has MQR conditions"
+                     },
+                     "hasStandardConditions":{
+                        "type":"boolean",
+                        "description":"Whether it has standard conditions"
+                     },
+                     "id":{
+                        "type":"integer",
+                        "description":"Quality gate ID"
+                     },
+                     "isAiCodeSupported":{
+                        "type":"boolean",
+                        "description":"Whether AI code is supported"
+                     },
+                     "isBuiltIn":{
+                        "type":"boolean",
+                        "description":"Whether this is a built-in quality gate"
+                     },
+                     "isDefault":{
+                        "type":"boolean",
+                        "description":"Whether this is the default quality gate"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Quality gate name"
+                     }
+                  },
+                  "required":[
+                     "isBuiltIn",
+                     "isDefault",
+                     "name"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "qualityGates"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

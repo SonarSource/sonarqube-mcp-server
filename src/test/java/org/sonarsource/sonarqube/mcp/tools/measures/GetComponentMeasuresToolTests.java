@@ -30,8 +30,155 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class GetComponentMeasuresToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(GetComponentMeasuresTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "component":{
+               "type":"object",
+               "properties":{
+                  "description":{
+                     "type":"string",
+                     "description":"Component description"
+                  },
+                  "key":{
+                     "type":"string",
+                     "description":"Component key"
+                  },
+                  "language":{
+                     "type":"string",
+                     "description":"Programming language"
+                  },
+                  "name":{
+                     "type":"string",
+                     "description":"Component display name"
+                  },
+                  "path":{
+                     "type":"string",
+                     "description":"Component path"
+                  },
+                  "qualifier":{
+                     "type":"string",
+                     "description":"Component qualifier (TRK for project, FIL for file, etc.)"
+                  }
+               },
+               "required":[
+                  "key",
+                  "name",
+                  "qualifier"
+               ],
+               "description":"Component information"
+            },
+            "measures":{
+               "description":"List of measures for the component",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "metric":{
+                        "type":"string",
+                        "description":"Metric key"
+                     },
+                     "periods":{
+                        "description":"Historical period values",
+                        "type":"array",
+                        "items":{
+                           "type":"object",
+                           "properties":{
+                              "value":{
+                                 "type":"string",
+                                 "description":"Period value"
+                              }
+                           },
+                           "required":[
+                              "value"
+                           ]
+                        }
+                     },
+                     "value":{
+                        "type":"string",
+                        "description":"Measure value"
+                     }
+                  },
+                  "required":[
+                     "metric"
+                  ]
+               }
+            },
+            "metrics":{
+               "description":"Metadata about the metrics",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "custom":{
+                        "type":"boolean",
+                        "description":"Whether this is a custom metric"
+                     },
+                     "description":{
+                        "type":"string",
+                        "description":"Metric description"
+                     },
+                     "domain":{
+                        "type":"string",
+                        "description":"Metric domain/category"
+                     },
+                     "hidden":{
+                        "type":"boolean",
+                        "description":"Whether the metric is hidden"
+                     },
+                     "higherValuesAreBetter":{
+                        "type":"boolean",
+                        "description":"Whether higher values are better"
+                     },
+                     "key":{
+                        "type":"string",
+                        "description":"Metric key"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Metric display name"
+                     },
+                     "qualitative":{
+                        "type":"boolean",
+                        "description":"Whether this is a qualitative metric"
+                     },
+                     "type":{
+                        "type":"string",
+                        "description":"Metric value type"
+                     }
+                  },
+                  "required":[
+                     "custom",
+                     "description",
+                     "domain",
+                     "hidden",
+                     "higherValuesAreBetter",
+                     "key",
+                     "name",
+                     "qualitative",
+                     "type"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "component",
+            "measures"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

@@ -29,8 +29,36 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class GetRawSourceToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(GetRawSourceTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "fileKey":{
+               "type":"string",
+               "description":"The file key"
+            },
+            "sourceCode":{
+               "type":"string",
+               "description":"The raw source code content"
+            }
+         },
+         "required":[
+            "fileKey",
+            "sourceCode"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class MissingPrerequisite {

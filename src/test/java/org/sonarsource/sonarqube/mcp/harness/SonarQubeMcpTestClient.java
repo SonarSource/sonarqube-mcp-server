@@ -38,6 +38,10 @@ public class SonarQubeMcpTestClient {
     assertThat(JsonParser.parseString(gson.toJson(actual.structuredContent()))).isEqualTo(JsonParser.parseString(expected));
   }
 
+  public static void assertSchemaEquals(Map<String, Object> actual, String expected) {
+    assertThat(JsonParser.parseString(gson.toJson(actual))).isEqualTo(JsonParser.parseString(expected));
+  }
+
   public McpSchema.CallToolResult callTool(String toolName) {
     return callTool(toolName, Map.of());
   }

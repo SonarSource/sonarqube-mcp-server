@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ToggleAutomaticAnalysisToolTests {
 
@@ -39,6 +40,34 @@ class ToggleAutomaticAnalysisToolTests {
   void setUp() {
     bridgeClient = mock(SonarQubeIdeBridgeClient.class);
     underTest = new ToggleAutomaticAnalysisTool(bridgeClient);
+  }
+
+  @Test
+  void it_should_validate_output_schema() {
+    assertSchemaEquals(underTest.definition().outputSchema(), """
+      {
+          "type":"object",
+          "properties":{
+             "enabled":{
+                "type":"boolean",
+                "description":"The new automatic analysis state"
+             },
+             "message":{
+                "type":"string",
+                "description":"Success or error message"
+             },
+             "success":{
+                "type":"boolean",
+                "description":"Whether the operation was successful"
+             }
+          },
+          "required":[
+             "enabled",
+             "message",
+             "success"
+          ]
+       }
+      """);
   }
 
   @Nested

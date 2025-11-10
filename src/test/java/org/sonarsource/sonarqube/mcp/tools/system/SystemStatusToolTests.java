@@ -32,8 +32,46 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SystemStatusToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SystemStatusTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "description":{
+               "type":"string",
+               "description":"Human-readable description of the status"
+            },
+            "id":{
+               "type":"string",
+               "description":"Unique system identifier"
+            },
+            "status":{
+               "type":"string",
+               "description":"System status (UP, DOWN, etc.)"
+            },
+            "version":{
+               "type":"string",
+               "description":"SonarQube version"
+            }
+         },
+         "required":[
+            "description",
+            "id",
+            "status",
+            "version"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

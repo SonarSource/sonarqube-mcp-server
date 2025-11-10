@@ -32,8 +32,48 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SystemInfoToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SystemInfoTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "sections":{
+               "description":"List of system sections with configuration and status information",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "attributes":{
+                        "type":"object",
+                        "description":"Key-value pairs of system information"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Section name"
+                     }
+                  },
+                  "required":[
+                     "attributes",
+                     "name"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "sections"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

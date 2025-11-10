@@ -28,8 +28,46 @@ import static com.github.tomakehurst.wiremock.client.WireMock.ok;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ChangeIssuesStatusToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ChangeIssueStatusTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "issueKey":{
+               "type":"string",
+               "description":"The key of the issue that was updated"
+            },
+            "message":{
+               "type":"string",
+               "description":"Success or error message"
+            },
+            "newStatus":{
+               "type":"string",
+               "description":"The new status of the issue"
+            },
+            "success":{
+               "type":"boolean",
+               "description":"Whether the operation was successful"
+            }
+         },
+         "required":[
+            "issueKey",
+            "message",
+            "newStatus",
+            "success"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class MissingPrerequisite {

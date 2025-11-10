@@ -30,8 +30,53 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListRuleRepositoriesToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListRuleRepositoriesTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "repositories":{
+               "description":"List of rule repositories",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "key":{
+                        "type":"string",
+                        "description":"Repository key identifier"
+                     },
+                     "language":{
+                        "type":"string",
+                        "description":"Language the repository applies to"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Repository display name"
+                     }
+                  },
+                  "required":[
+                     "key",
+                     "language",
+                     "name"
+                  ]
+               }
+            }
+         },
+         "required":[
+            "repositories"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

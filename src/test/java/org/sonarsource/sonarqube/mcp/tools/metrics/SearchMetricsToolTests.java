@@ -29,8 +29,103 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchMetricsToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SearchMetricsTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertSchemaEquals(tool.outputSchema(), """
+      {
+         "type":"object",
+         "properties":{
+            "metrics":{
+               "description":"List of metrics matching the search",
+               "type":"array",
+               "items":{
+                  "type":"object",
+                  "properties":{
+                     "custom":{
+                        "type":"boolean",
+                        "description":"Whether this is a custom metric"
+                     },
+                     "description":{
+                        "type":"string",
+                        "description":"Metric description"
+                     },
+                     "direction":{
+                        "type":"integer",
+                        "description":"Direction for metric improvement"
+                     },
+                     "domain":{
+                        "type":"string",
+                        "description":"Metric domain/category"
+                     },
+                     "hidden":{
+                        "type":"boolean",
+                        "description":"Whether the metric is hidden"
+                     },
+                     "id":{
+                        "type":"string",
+                        "description":"Metric unique identifier"
+                     },
+                     "key":{
+                        "type":"string",
+                        "description":"Metric key"
+                     },
+                     "name":{
+                        "type":"string",
+                        "description":"Metric display name"
+                     },
+                     "qualitative":{
+                        "type":"boolean",
+                        "description":"Whether this is a qualitative metric"
+                     },
+                     "type":{
+                        "type":"string",
+                        "description":"Metric value type"
+                     }
+                  },
+                  "required":[
+                     "custom",
+                     "description",
+                     "direction",
+                     "domain",
+                     "hidden",
+                     "id",
+                     "key",
+                     "name",
+                     "qualitative",
+                     "type"
+                  ]
+               }
+            },
+            "page":{
+               "type":"integer",
+               "description":"Current page number"
+            },
+            "pageSize":{
+               "type":"integer",
+               "description":"Number of items per page"
+            },
+            "total":{
+               "type":"integer",
+               "description":"Total number of metrics"
+            }
+         },
+         "required":[
+            "metrics",
+            "page",
+            "pageSize",
+            "total"
+         ]
+      }
+      """);
+  }
 
   @Nested
   class WithSonarCloudServer {

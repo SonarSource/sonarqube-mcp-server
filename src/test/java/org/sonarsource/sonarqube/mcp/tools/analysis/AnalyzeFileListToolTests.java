@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool.FILE_ABSOLUTE_PATHS_PROPERTY;
 
 class AnalyzeFileListToolTests {
@@ -44,6 +45,67 @@ class AnalyzeFileListToolTests {
   void setUp() {
     bridgeClient = mock(SonarQubeIdeBridgeClient.class);
     underTest = new AnalyzeFileListTool(bridgeClient);
+  }
+
+  @Test
+  void it_should_validate_output_schema() {
+    assertSchemaEquals(underTest.definition().outputSchema(), """
+      {
+          "type":"object",
+          "properties":{
+             "findings":{
+                "description":"List of findings from the analysis",
+                "type":"array",
+                "items":{
+                   "type":"object",
+                   "properties":{
+                      "filePath":{
+                         "type":"string",
+                         "description":"File path where the finding was detected"
+                      },
+                      "message":{
+                         "type":"string",
+                         "description":"Description of the finding"
+                      },
+                      "severity":{
+                         "type":"string",
+                         "description":"Severity level of the finding"
+                      },
+                      "textRange":{
+                         "type":"object",
+                         "properties":{
+                            "endLine":{
+                               "type":"integer",
+                               "description":"Ending line number"
+                            },
+                            "startLine":{
+                               "type":"integer",
+                               "description":"Starting line number"
+                            }
+                         },
+                         "required":[
+                            "endLine",
+                            "startLine"
+                         ],
+                         "description":"Location in the source file"
+                      }
+                   },
+                   "required":[
+                      "message"
+                   ]
+                }
+             },
+             "findingsCount":{
+                "type":"integer",
+                "description":"Total number of findings"
+             }
+          },
+          "required":[
+             "findings",
+             "findingsCount"
+          ]
+      }
+      """);
   }
 
   @Nested
