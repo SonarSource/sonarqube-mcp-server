@@ -19,37 +19,37 @@ package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.annotation.Nullable;
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SearchDependencyRisksToolResponse(
-  @Description("List of dependency risk issues") List<IssueRelease> issuesReleases
+  @JsonPropertyDescription("List of dependency risk issues") List<IssueRelease> issuesReleases
 ) {
   
   public record IssueRelease(
-    @Description("Issue unique key") String key,
-    @Description("Issue severity level") String severity,
-    @Description("Issue type") String type,
-    @Description("Software quality dimension") String quality,
-    @Description("Issue status") String status,
-    @Description("Creation timestamp") String createdAt,
-    @Description("CVE or vulnerability identifier") @Nullable String vulnerabilityId,
-    @Description("CVSS score") @Nullable String cvssScore,
-    @Description("Dependency release information") @Nullable Release release,
-    @Description("Issue assignee") @Nullable Assignee assignee
+    @JsonPropertyDescription("Issue unique key") String key,
+    @JsonPropertyDescription("Issue severity level") String severity,
+    @JsonPropertyDescription("Issue type") String type,
+    @JsonPropertyDescription("Software quality dimension") String quality,
+    @JsonPropertyDescription("Issue status") String status,
+    @JsonPropertyDescription("Creation timestamp") String createdAt,
+    @JsonPropertyDescription("CVE or vulnerability identifier") @Nullable String vulnerabilityId,
+    @JsonPropertyDescription("CVSS score") @Nullable String cvssScore,
+    @JsonPropertyDescription("Dependency release information") @Nullable Release release,
+    @JsonPropertyDescription("Issue assignee") @Nullable Assignee assignee
   ) {}
   
   public record Release(
-    @Description("Package name") String packageName,
-    @Description("Package version") String version,
-    @Description("Package manager (npm, maven, etc.)") String packageManager,
-    @Description("Whether this dependency was newly introduced") @Nullable Boolean newlyIntroduced,
-    @Description("Direct dependency summary") @Nullable Boolean directSummary,
-    @Description("Production scope summary") @Nullable Boolean productionScopeSummary
+    @JsonPropertyDescription("Package name") String packageName,
+    @JsonPropertyDescription("Package version") String version,
+    @JsonPropertyDescription("Package manager (npm, maven, etc.)") String packageManager,
+    @JsonPropertyDescription("Whether this dependency was newly introduced") @Nullable Boolean newlyIntroduced,
+    @JsonPropertyDescription("Direct dependency summary") @Nullable Boolean directSummary,
+    @JsonPropertyDescription("Production scope summary") @Nullable Boolean productionScopeSummary
   ) {}
   
   public record Assignee(
-    @Description("Assignee name") String name
+    @JsonPropertyDescription("Assignee name") String name
   ) {}
 }
 

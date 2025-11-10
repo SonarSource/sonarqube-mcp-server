@@ -19,44 +19,44 @@ package org.sonarsource.sonarqube.mcp.tools.measures;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.annotation.Nullable;
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record GetComponentMeasuresToolResponse(
-  @Description("Component information") Component component,
-  @Description("List of measures for the component") List<Measure> measures,
-  @Description("Metadata about the metrics") @Nullable List<Metric> metrics
+  @JsonPropertyDescription("Component information") Component component,
+  @JsonPropertyDescription("List of measures for the component") List<Measure> measures,
+  @JsonPropertyDescription("Metadata about the metrics") @Nullable List<Metric> metrics
 ) {
   
   public record Component(
-    @Description("Component key") String key,
-    @Description("Component display name") String name,
-    @Description("Component qualifier (TRK for project, FIL for file, etc.)") String qualifier,
-    @Description("Component description") @Nullable String description,
-    @Description("Programming language") @Nullable String language,
-    @Description("Component path") @Nullable String path
+    @JsonPropertyDescription("Component key") String key,
+    @JsonPropertyDescription("Component display name") String name,
+    @JsonPropertyDescription("Component qualifier (TRK for project, FIL for file, etc.)") String qualifier,
+    @JsonPropertyDescription("Component description") @Nullable String description,
+    @JsonPropertyDescription("Programming language") @Nullable String language,
+    @JsonPropertyDescription("Component path") @Nullable String path
   ) {}
   
   public record Measure(
-    @Description("Metric key") String metric,
-    @Description("Measure value") @Nullable String value,
-    @Description("Historical period values") @Nullable List<Period> periods
+    @JsonPropertyDescription("Metric key") String metric,
+    @JsonPropertyDescription("Measure value") @Nullable String value,
+    @JsonPropertyDescription("Historical period values") @Nullable List<Period> periods
   ) {}
   
   public record Period(
-    @Description("Period value") String value
+    @JsonPropertyDescription("Period value") String value
   ) {}
   
   public record Metric(
-    @Description("Metric key") String key,
-    @Description("Metric display name") String name,
-    @Description("Metric description") String description,
-    @Description("Metric domain/category") String domain,
-    @Description("Metric value type") String type,
-    @Description("Whether higher values are better") boolean higherValuesAreBetter,
-    @Description("Whether this is a qualitative metric") boolean qualitative,
-    @Description("Whether the metric is hidden") boolean hidden,
-    @Description("Whether this is a custom metric") boolean custom
+    @JsonPropertyDescription("Metric key") String key,
+    @JsonPropertyDescription("Metric display name") String name,
+    @JsonPropertyDescription("Metric description") String description,
+    @JsonPropertyDescription("Metric domain/category") String domain,
+    @JsonPropertyDescription("Metric value type") String type,
+    @JsonPropertyDescription("Whether higher values are better") boolean higherValuesAreBetter,
+    @JsonPropertyDescription("Whether this is a qualitative metric") boolean qualitative,
+    @JsonPropertyDescription("Whether the metric is hidden") boolean hidden,
+    @JsonPropertyDescription("Whether this is a custom metric") boolean custom
   ) {}
 }
 

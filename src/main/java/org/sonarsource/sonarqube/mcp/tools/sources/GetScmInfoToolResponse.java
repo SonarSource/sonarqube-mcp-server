@@ -17,17 +17,17 @@
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 public record GetScmInfoToolResponse(
-  @Description("SCM information for each line") List<ScmLine> scmLines
+  @JsonPropertyDescription("SCM information for each line") List<ScmLine> scmLines
 ) {
   
   public record ScmLine(
-    @Description("Line number in the file") int lineNumber,
-    @Description("Author who last modified this line") String author,
-    @Description("Date and time of last modification") String datetime,
-    @Description("SCM revision/commit identifier") String revision
+    @JsonPropertyDescription("Line number in the file") int lineNumber,
+    @JsonPropertyDescription("Author who last modified this line") String author,
+    @JsonPropertyDescription("Date and time of last modification") String datetime,
+    @JsonPropertyDescription("SCM revision/commit identifier") String revision
   ) {}
 }
 

@@ -17,11 +17,11 @@
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record GetRawSourceToolResponse(
-  @Description("The file key") String fileKey,
-  @Description("The raw source code content") String sourceCode
+  @JsonPropertyDescription("The file key") String fileKey,
+  @JsonPropertyDescription("The raw source code content") String sourceCode
 ) {}
 

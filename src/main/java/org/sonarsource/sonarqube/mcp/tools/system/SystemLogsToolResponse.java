@@ -17,11 +17,11 @@
 package org.sonarsource.sonarqube.mcp.tools.system;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SystemLogsToolResponse(
-  @Description("The type of logs retrieved") String logType,
-  @Description("The log content") String content
+  @JsonPropertyDescription("The type of logs retrieved") String logType,
+  @JsonPropertyDescription("The log content") String content
 ) {}
 

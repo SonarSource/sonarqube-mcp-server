@@ -17,21 +17,21 @@
 package org.sonarsource.sonarqube.mcp.tools.enterprises;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Nullable;
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.tools.Description;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ListEnterprisesToolResponse(
-  @Description("List of available enterprises") List<Enterprise> enterprises
+  @JsonPropertyDescription("List of available enterprises") List<Enterprise> enterprises
 ) {
   
   public record Enterprise(
-    @Description("Enterprise unique identifier") String id,
-    @Description("Enterprise key") String key,
-    @Description("Enterprise display name") String name,
-    @Description("Avatar URL") @Nullable String avatar,
-    @Description("Default portfolio permission template ID") @Nullable String defaultPortfolioPermissionTemplateId
+    @JsonPropertyDescription("Enterprise unique identifier") String id,
+    @JsonPropertyDescription("Enterprise key") String key,
+    @JsonPropertyDescription("Enterprise display name") String name,
+    @JsonPropertyDescription("Avatar URL") @Nullable String avatar,
+    @JsonPropertyDescription("Default portfolio permission template ID") @Nullable String defaultPortfolioPermissionTemplateId
   ) {}
 }
 

@@ -19,29 +19,29 @@ package org.sonarsource.sonarqube.mcp.tools.qualitygates;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.annotation.Nullable;
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ListQualityGatesToolResponse(
-  @Description("List of quality gates") List<QualityGate> qualityGates
+  @JsonPropertyDescription("List of quality gates") List<QualityGate> qualityGates
 ) {
   
   public record QualityGate(
-    @Description("Quality gate ID") @Nullable Long id,
-    @Description("Quality gate name") String name,
-    @Description("Whether this is the default quality gate") boolean isDefault,
-    @Description("Whether this is a built-in quality gate") boolean isBuiltIn,
-    @Description("List of conditions") @Nullable List<Condition> conditions,
-    @Description("Clean as You Code status") @Nullable String caycStatus,
-    @Description("Whether it has standard conditions") @Nullable Boolean hasStandardConditions,
-    @Description("Whether it has MQR conditions") @Nullable Boolean hasMQRConditions,
-    @Description("Whether AI code is supported") @Nullable Boolean isAiCodeSupported
+    @JsonPropertyDescription("Quality gate ID") @Nullable Long id,
+    @JsonPropertyDescription("Quality gate name") String name,
+    @JsonPropertyDescription("Whether this is the default quality gate") boolean isDefault,
+    @JsonPropertyDescription("Whether this is a built-in quality gate") boolean isBuiltIn,
+    @JsonPropertyDescription("List of conditions") @Nullable List<Condition> conditions,
+    @JsonPropertyDescription("Clean as You Code status") @Nullable String caycStatus,
+    @JsonPropertyDescription("Whether it has standard conditions") @Nullable Boolean hasStandardConditions,
+    @JsonPropertyDescription("Whether it has MQR conditions") @Nullable Boolean hasMQRConditions,
+    @JsonPropertyDescription("Whether AI code is supported") @Nullable Boolean isAiCodeSupported
   ) {}
   
   public record Condition(
-    @Description("Metric key") String metric,
-    @Description("Comparison operator") String op,
-    @Description("Error threshold") int error
+    @JsonPropertyDescription("Metric key") String metric,
+    @JsonPropertyDescription("Comparison operator") String op,
+    @JsonPropertyDescription("Error threshold") int error
   ) {}
 }
 

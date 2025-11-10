@@ -17,16 +17,16 @@
 package org.sonarsource.sonarqube.mcp.tools.rules;
 
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 public record ListRuleRepositoriesToolResponse(
-  @Description("List of rule repositories") List<Repository> repositories
+  @JsonPropertyDescription("List of rule repositories") List<Repository> repositories
 ) {
   
   public record Repository(
-    @Description("Repository key identifier") String key,
-    @Description("Repository display name") String name,
-    @Description("Language the repository applies to") String language
+    @JsonPropertyDescription("Repository key identifier") String key,
+    @JsonPropertyDescription("Repository display name") String name,
+    @JsonPropertyDescription("Language the repository applies to") String language
   ) {}
 }
 

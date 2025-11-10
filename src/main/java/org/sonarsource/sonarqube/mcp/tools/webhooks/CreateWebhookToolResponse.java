@@ -17,13 +17,13 @@
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record CreateWebhookToolResponse(
-  @Description("The created webhook key") String key,
-  @Description("The webhook name") String name,
-  @Description("The webhook URL") String url,
-  @Description("Whether the webhook has a secret") boolean hasSecret
+  @JsonPropertyDescription("The created webhook key") String key,
+  @JsonPropertyDescription("The webhook name") String name,
+  @JsonPropertyDescription("The webhook URL") String url,
+  @JsonPropertyDescription("Whether the webhook has a secret") boolean hasSecret
 ) {}
 

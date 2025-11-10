@@ -16,13 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 public record SystemStatusToolResponse(
-  @Description("System status (UP, DOWN, etc.)") String status,
-  @Description("Human-readable description of the status") String description,
-  @Description("Unique system identifier") String id,
-  @Description("SonarQube version") String version
+  @JsonPropertyDescription("System status (UP, DOWN, etc.)") String status,
+  @JsonPropertyDescription("Human-readable description of the status") String description,
+  @JsonPropertyDescription("Unique system identifier") String id,
+  @JsonPropertyDescription("SonarQube version") String version
 ) {}
 
 

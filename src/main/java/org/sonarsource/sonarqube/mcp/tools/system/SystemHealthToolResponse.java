@@ -19,27 +19,27 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import jakarta.annotation.Nullable;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SystemHealthToolResponse(
-  @Description("Overall health status of the system") String health,
-  @Description("List of health issues, if any") @Nullable List<Cause> causes,
-  @Description("List of cluster nodes with their health status") @Nullable List<Node> nodes
+  @JsonPropertyDescription("Overall health status of the system") String health,
+  @JsonPropertyDescription("List of health issues, if any") @Nullable List<Cause> causes,
+  @JsonPropertyDescription("List of cluster nodes with their health status") @Nullable List<Node> nodes
 ) {
   
   public record Cause(
-    @Description("Description of the health issue") String message
+    @JsonPropertyDescription("Description of the health issue") String message
   ) {}
   
   public record Node(
-    @Description("Node name") String name,
-    @Description("Node type (APPLICATION, SEARCH, etc.)") String type,
-    @Description("Health status of this node") String health,
-    @Description("Host address") String host,
-    @Description("Port number") int port,
-    @Description("Timestamp when the node started") String startedAt,
-    @Description("List of node-specific health issues") @Nullable List<Cause> causes
+    @JsonPropertyDescription("Node name") String name,
+    @JsonPropertyDescription("Node type (APPLICATION, SEARCH, etc.)") String type,
+    @JsonPropertyDescription("Health status of this node") String health,
+    @JsonPropertyDescription("Host address") String host,
+    @JsonPropertyDescription("Port number") int port,
+    @JsonPropertyDescription("Timestamp when the node started") String startedAt,
+    @JsonPropertyDescription("List of node-specific health issues") @Nullable List<Cause> causes
   ) {}
 }
 

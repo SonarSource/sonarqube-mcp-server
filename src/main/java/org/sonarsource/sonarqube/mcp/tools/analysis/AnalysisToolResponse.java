@@ -19,27 +19,27 @@ import jakarta.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AnalysisToolResponse(
-  @Description("List of issues found in the code snippet") List<Issue> issues,
-  @Description("Total number of issues") int issueCount
+  @JsonPropertyDescription("List of issues found in the code snippet") List<Issue> issues,
+  @JsonPropertyDescription("Total number of issues") int issueCount
 ) {
   
   public record Issue(
-    @Description("Rule key that triggered the issue") String ruleKey,
-    @Description("Primary issue message") String primaryMessage,
-    @Description("Issue severity level") String severity,
-    @Description("Clean code attribute") String cleanCodeAttribute,
-    @Description("Software quality impacts") String impacts,
-    @Description("Whether quick fixes are available") boolean hasQuickFixes,
-    @Description("Location in the code") @Nullable TextRange textRange
+    @JsonPropertyDescription("Rule key that triggered the issue") String ruleKey,
+    @JsonPropertyDescription("Primary issue message") String primaryMessage,
+    @JsonPropertyDescription("Issue severity level") String severity,
+    @JsonPropertyDescription("Clean code attribute") String cleanCodeAttribute,
+    @JsonPropertyDescription("Software quality impacts") String impacts,
+    @JsonPropertyDescription("Whether quick fixes are available") boolean hasQuickFixes,
+    @JsonPropertyDescription("Location in the code") @Nullable TextRange textRange
   ) {}
   
   public record TextRange(
-    @Description("Starting line number") int startLine,
-    @Description("Ending line number") int endLine
+    @JsonPropertyDescription("Starting line number") int startLine,
+    @JsonPropertyDescription("Ending line number") int endLine
   ) {}
 }
 

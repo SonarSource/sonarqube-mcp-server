@@ -19,16 +19,16 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import java.util.Map;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SystemInfoToolResponse(
-  @Description("List of system sections with configuration and status information") List<Section> sections
+  @JsonPropertyDescription("List of system sections with configuration and status information") List<Section> sections
 ) {
   
   public record Section(
-    @Description("Section name") String name,
-    @Description("Key-value pairs of system information") Map<String, Object> attributes
+    @JsonPropertyDescription("Section name") String name,
+    @JsonPropertyDescription("Key-value pairs of system information") Map<String, Object> attributes
   ) {}
 }
 

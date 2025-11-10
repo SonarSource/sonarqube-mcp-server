@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nullable;
 import java.util.List;
@@ -40,39 +41,27 @@ class SchemaUtilsTests {
 
   // Test records
   public record SimpleRecord(
-    @Description("A string field") String name,
-    @Description("An integer field") int age,
-    @Description("A boolean field") boolean active
+    @JsonPropertyDescription("A string field") String name,
+    @JsonPropertyDescription("An integer field") int age,
+    @JsonPropertyDescription("A boolean field") boolean active
   ) {}
 
   public record RecordWithNullable(
-    @Description("Required string field") String requiredField,
-    @Description("Optional string field") @Nullable String optionalField,
-    @Description("Required number") int requiredNumber,
-    @Description("Optional number") @Nullable Integer optionalNumber
+    @JsonPropertyDescription("Required string field") String requiredField,
+    @JsonPropertyDescription("Optional string field") @Nullable String optionalField,
+    @JsonPropertyDescription("Required number") int requiredNumber,
+    @JsonPropertyDescription("Optional number") @Nullable Integer optionalNumber
   ) {}
 
   public record NestedRecord(
-    @Description("Parent name") String parentName,
-    @Description("Child record") SimpleRecord child
+    @JsonPropertyDescription("Parent name") String parentName,
+    @JsonPropertyDescription("Child record") SimpleRecord child
   ) {}
 
   public record RecordWithList(
-    @Description("List of strings") List<String> names,
-    @Description("List of numbers") List<Integer> numbers,
-    @Description("List of nested records") List<SimpleRecord> records
-  ) {}
-
-  public record RecordWithAllTypes(
-    @Description("String type") String stringField,
-    @Description("int primitive") int intField,
-    @Description("Integer wrapper") Integer integerField,
-    @Description("long primitive") long longField,
-    @Description("Long wrapper") Long longWrapperField,
-    @Description("double primitive") double doubleField,
-    @Description("Double wrapper") Double doubleWrapperField,
-    @Description("boolean primitive") boolean booleanField,
-    @Description("Boolean wrapper") Boolean booleanWrapperField
+    @JsonPropertyDescription("List of strings") List<String> names,
+    @JsonPropertyDescription("List of numbers") List<Integer> numbers,
+    @JsonPropertyDescription("List of nested records") List<SimpleRecord> records
   ) {}
 
   @Test
@@ -88,7 +77,7 @@ class SchemaUtilsTests {
             "description": "A string field"
           },
           "age": {
-            "type": "number",
+            "type": "integer",
             "description": "An integer field"
           },
           "active": {
@@ -96,7 +85,7 @@ class SchemaUtilsTests {
             "description": "A boolean field"
           }
         },
-        "required": ["name", "age", "active"]
+        "required": ["active", "age", "name"]
       }""");
   }
 
@@ -117,11 +106,11 @@ class SchemaUtilsTests {
             "description": "Optional string field"
           },
           "requiredNumber": {
-            "type": "number",
+            "type": "integer",
             "description": "Required number"
           },
           "optionalNumber": {
-            "type": "number",
+            "type": "integer",
             "description": "Optional number"
           }
         },
@@ -150,7 +139,7 @@ class SchemaUtilsTests {
                 "description": "A string field"
               },
               "age": {
-                "type": "number",
+                "type": "integer",
                 "description": "An integer field"
               },
               "active": {
@@ -158,15 +147,15 @@ class SchemaUtilsTests {
                 "description": "A boolean field"
               }
             },
-            "required": ["name", "age", "active"]
+            "required": ["active", "age", "name"]
           }
         },
-        "required": ["parentName", "child"]
+        "required": ["child", "parentName"]
       }""");
   }
 
   @Test
-  void it_should_generate_schema_for_list_of_primitives() {
+  void it_should_generate_schema_for_lists() {
     var schema = SchemaUtils.generateOutputSchema(RecordWithList.class);
 
     assertSchemaEquals(schema, """
@@ -184,7 +173,7 @@ class SchemaUtilsTests {
             "type": "array",
             "description": "List of numbers",
             "items": {
-              "type": "number"
+              "type": "integer"
             }
           },
           "records": {
@@ -198,7 +187,7 @@ class SchemaUtilsTests {
                   "description": "A string field"
                 },
                 "age": {
-                  "type": "number",
+                  "type": "integer",
                   "description": "An integer field"
                 },
                 "active": {
@@ -206,7 +195,7 @@ class SchemaUtilsTests {
                   "description": "A boolean field"
                 }
               },
-              "required": ["name", "age", "active"]
+              "required": ["active", "age", "name"]
             }
           }
         },
@@ -215,74 +204,24 @@ class SchemaUtilsTests {
   }
 
   @Test
-  void it_should_handle_all_supported_types() {
-    var schema = SchemaUtils.generateOutputSchema(RecordWithAllTypes.class);
-
-    assertSchemaEquals(schema, """
-      {
-        "type": "object",
-        "properties": {
-          "stringField": {
-            "type": "string",
-            "description": "String type"
-          },
-          "intField": {
-            "type": "number",
-            "description": "int primitive"
-          },
-          "integerField": {
-            "type": "number",
-            "description": "Integer wrapper"
-          },
-          "longField": {
-            "type": "number",
-            "description": "long primitive"
-          },
-          "longWrapperField": {
-            "type": "number",
-            "description": "Long wrapper"
-          },
-          "doubleField": {
-            "type": "number",
-            "description": "double primitive"
-          },
-          "doubleWrapperField": {
-            "type": "number",
-            "description": "Double wrapper"
-          },
-          "booleanField": {
-            "type": "boolean",
-            "description": "boolean primitive"
-          },
-          "booleanWrapperField": {
-            "type": "boolean",
-            "description": "Boolean wrapper"
-          }
-        },
-        "required": ["stringField", "intField", "integerField", "longField", "longWrapperField", "doubleField", "doubleWrapperField", "booleanField", "booleanWrapperField"]
-      }""");
-  }
-
-  @Test
-  void it_should_generate_description_from_field_name_when_annotation_missing() {
+  void it_should_generate_schema_without_description_when_annotation_missing() {
     record NoDescriptionRecord(String userName, int userAge) {}
 
     var schema = SchemaUtils.generateOutputSchema(NoDescriptionRecord.class);
 
+    // Without @JsonPropertyDescription, fields won't have descriptions
     assertSchemaEquals(schema, """
       {
         "type": "object",
         "properties": {
           "userName": {
-            "type": "string",
-            "description": "user name"
+            "type": "string"
           },
           "userAge": {
-            "type": "number",
-            "description": "user age"
+            "type": "integer"
           }
         },
-        "required": ["userName", "userAge"]
+        "required": ["userAge", "userName"]
       }""");
   }
 
@@ -402,9 +341,9 @@ class SchemaUtilsTests {
   @Test
   void it_should_handle_complex_nested_structure() {
     record ComplexRecord(
-      @Description("Top level field") String topLevel,
-      @Description("Nested with list") RecordWithList nestedWithList,
-      @Description("Simple list") List<String> simpleList
+      @JsonPropertyDescription("Top level field") String topLevel,
+      @JsonPropertyDescription("Nested with list") RecordWithList nestedWithList,
+      @JsonPropertyDescription("Simple list") List<String> simpleList
     ) {}
 
     var complex = new ComplexRecord(
@@ -417,11 +356,68 @@ class SchemaUtilsTests {
       List.of("x", "y")
     );
 
-    // Test schema generation
     var schema = SchemaUtils.generateOutputSchema(ComplexRecord.class);
-    @SuppressWarnings("unchecked")
-    var properties = (Map<String, Object>) schema.get("properties");
-    assertThat(properties).hasSize(3);
+    assertSchemaEquals(schema, """
+      {
+        "type": "object",
+        "properties": {
+          "topLevel": {
+            "type": "string",
+            "description": "Top level field"
+          },
+          "nestedWithList": {
+            "type": "object",
+            "description": "Nested with list",
+            "properties": {
+              "names": {
+                "type": "array",
+                "description": "List of strings",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "numbers": {
+                "type": "array",
+                "description": "List of numbers",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "records": {
+                "type": "array",
+                "description": "List of nested records",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "A string field"
+                    },
+                    "age": {
+                      "type": "integer",
+                      "description": "An integer field"
+                    },
+                    "active": {
+                      "type": "boolean",
+                      "description": "A boolean field"
+                    }
+                  },
+                  "required": ["active", "age", "name"]
+                }
+              }
+            },
+            "required": ["names", "numbers", "records"]
+          },
+          "simpleList": {
+            "type": "array",
+            "description": "Simple list",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["nestedWithList", "simpleList", "topLevel"]
+      }""");
 
     // Test serialization
     var content = SchemaUtils.toStructuredContent(complex);

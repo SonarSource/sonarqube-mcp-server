@@ -19,24 +19,24 @@ import jakarta.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AnalyzeFileListToolResponse(
-  @Description("List of findings from the analysis") List<Finding> findings,
-  @Description("Total number of findings") int findingsCount
+  @JsonPropertyDescription("List of findings from the analysis") List<Finding> findings,
+  @JsonPropertyDescription("Total number of findings") int findingsCount
 ) {
   
   public record Finding(
-    @Description("Severity level of the finding") @Nullable String severity,
-    @Description("Description of the finding") String message,
-    @Description("File path where the finding was detected") @Nullable String filePath,
-    @Description("Location in the source file") @Nullable TextRange textRange
+    @JsonPropertyDescription("Severity level of the finding") @Nullable String severity,
+    @JsonPropertyDescription("Description of the finding") String message,
+    @JsonPropertyDescription("File path where the finding was detected") @Nullable String filePath,
+    @JsonPropertyDescription("Location in the source file") @Nullable TextRange textRange
   ) {}
   
   public record TextRange(
-    @Description("Starting line number") int startLine,
-    @Description("Ending line number") int endLine
+    @JsonPropertyDescription("Starting line number") int startLine,
+    @JsonPropertyDescription("Ending line number") int endLine
   ) {}
 }
 

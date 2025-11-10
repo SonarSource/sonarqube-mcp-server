@@ -19,20 +19,20 @@ import jakarta.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ProjectStatusToolResponse(
-  @Description("Overall quality gate status (OK, WARN, ERROR, etc.)") String status,
-  @Description("List of quality gate conditions") List<Condition> conditions,
-  @Description("Whether the quality gate is ignored") @Nullable Boolean ignoredConditions
+  @JsonPropertyDescription("Overall quality gate status (OK, WARN, ERROR, etc.)") String status,
+  @JsonPropertyDescription("List of quality gate conditions") List<Condition> conditions,
+  @JsonPropertyDescription("Whether the quality gate is ignored") @Nullable Boolean ignoredConditions
 ) {
   
   public record Condition(
-    @Description("Metric key") String metricKey,
-    @Description("Condition status (OK, ERROR, etc.)") String status,
-    @Description("Error threshold value") @Nullable String errorThreshold,
-    @Description("Metric actual value") @Nullable String actualValue
+    @JsonPropertyDescription("Metric key") String metricKey,
+    @JsonPropertyDescription("Condition status (OK, ERROR, etc.)") String status,
+    @JsonPropertyDescription("Error threshold value") @Nullable String errorThreshold,
+    @JsonPropertyDescription("Metric actual value") @Nullable String actualValue
   ) {}
 }
 

@@ -16,12 +16,12 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import org.sonarsource.sonarqube.mcp.tools.Description;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 /**
  * Response object for SystemPingTool with structured output.
  */
 public record SystemPingToolResponse(
-  @Description("The ping response from the server") String response
+  @JsonPropertyDescription("The ping response from the server") String response
 ) {}
 
