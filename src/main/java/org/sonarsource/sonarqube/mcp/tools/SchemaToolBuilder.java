@@ -30,14 +30,15 @@ public class SchemaToolBuilder {
   private static final String ITEMS_PROPERTY_NAME = "items";
   private final Map<String, Object> properties;
   private final List<String> requiredProperties;
-  private Map<String, Object> outputSchemaFromClass;
+  private final Map<String, Object> outputSchemaFromClass;
   private String name;
   private String title;
   private String description;
 
-  public SchemaToolBuilder() {
+  public SchemaToolBuilder(Map<String, Object> outputSchemaFromClass) {
     this.properties = new HashMap<>();
     this.requiredProperties = new ArrayList<>();
+    this.outputSchemaFromClass = outputSchemaFromClass;
   }
 
   /**
@@ -45,9 +46,7 @@ public class SchemaToolBuilder {
    * This is the recommended approach for defining structured output.
    */
   public static SchemaToolBuilder forOutput(Class<? extends Record> outputClass) {
-    var builder = new SchemaToolBuilder();
-    builder.outputSchemaFromClass = SchemaUtils.generateOutputSchema(outputClass);
-    return builder;
+    return new SchemaToolBuilder(SchemaUtils.generateOutputSchema(outputClass));
   }
 
   public SchemaToolBuilder setName(String name) {
@@ -108,8 +107,8 @@ public class SchemaToolBuilder {
   }
 
   public McpSchema.Tool build() {
-    if (name == null || description == null || outputSchemaFromClass == null) {
-      throw new IllegalStateException("Name, description and output schema must be set before building the tool.");
+    if (name == null || description == null) {
+      throw new IllegalStateException("Name and description must be set before building the tool.");
     }
 
     if (!properties.keySet().containsAll(requiredProperties)) {
