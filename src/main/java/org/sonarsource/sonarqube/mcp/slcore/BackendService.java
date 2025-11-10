@@ -55,6 +55,8 @@ import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.TelemetryC
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.log.LogLevel;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.StandaloneRuleConfigDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.UpdateStandaloneRulesConfigurationParams;
+import org.sonarsource.sonarlint.core.rpc.protocol.client.telemetry.McpTransportMode;
+import org.sonarsource.sonarlint.core.rpc.protocol.client.telemetry.McpTransportModeUsedParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.client.telemetry.ToolCalledParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
@@ -77,6 +79,7 @@ public class BackendService {
   private final String appName;
   private boolean isTelemetryEnabled;
   private ClientJsonRpcLauncher clientLauncher;
+  private McpTransportMode transportMode;
 
   public BackendService(McpServerLaunchConfiguration mcpConfiguration) {
     this.storagePath = mcpConfiguration.getStoragePath();
@@ -85,6 +88,13 @@ public class BackendService {
     this.userAgent = mcpConfiguration.getUserAgent();
     this.appName = mcpConfiguration.getAppName();
     this.isTelemetryEnabled = mcpConfiguration.isTelemetryEnabled();
+    if (!mcpConfiguration.isHttpEnabled()) {
+      this.transportMode = McpTransportMode.STDIO;
+    } else if (mcpConfiguration.isHttpsEnabled()) {
+      this.transportMode = McpTransportMode.HTTPS;
+    } else {
+      this.transportMode = McpTransportMode.HTTP;
+    }
   }
 
   // For tests
@@ -123,6 +133,10 @@ public class BackendService {
 
   public void notifySonarQubeIdeIntegration() {
     backendFuture.thenAcceptAsync(server -> server.getTelemetryService().mcpIntegrationEnabled());
+  }
+
+  public void notifyTransportModeUsed() {
+    backendFuture.thenAcceptAsync(server -> server.getTelemetryService().mcpTransportModeUsed(new McpTransportModeUsedParams(transportMode)));
   }
 
   public Path getWorkDir() {

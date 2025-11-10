@@ -145,6 +145,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
     backendService.initialize(analyzers);
+    backendService.notifyTransportModeUsed();
 
     LOG.info("Startup initialization completed");
   }
