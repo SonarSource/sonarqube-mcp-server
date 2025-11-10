@@ -482,10 +482,12 @@ You should add the following variable when running the MCP Server:
 
 To enable full functionality, the following environment variables must be set before starting the server:
 
-| Environment variable | Description                                                                                                                               |
-|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOKEN`    | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/) |
-| `SONARQUBE_ORG`      | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                                                      |
+| Environment variable  | Description                                                                                                     |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------|
+| `SONARQUBE_TOKEN`     | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/) |
+| `SONARQUBE_ORG`       | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                            |
+
+Connecting your SonarQube MCP Server with your SonarQube Cloud **US** instance requires the use of the environment variable `SONARQUBE_CLOUD_URL`.
 
 #### SonarQube Server
 
