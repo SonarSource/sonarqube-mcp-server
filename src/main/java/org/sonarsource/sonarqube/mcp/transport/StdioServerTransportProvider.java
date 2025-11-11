@@ -71,8 +71,6 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
 
   private final Sinks.One<Void> inboundReady = Sinks.one();
 
-  private final boolean exitOnClose;
-
   /**
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
    * System streams. Will call System.exit(0) when stdin closes (for Docker containers).
@@ -84,8 +82,9 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
   /**
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
    * streams. Automatically detects if custom streams are used (tests) to disable System.exit().
-   * @param jsonMapper The JsonMapper to use for JSON serialization/deserialization
-   * @param inputStream The input stream to read from
+   *
+   * @param jsonMapper   The JsonMapper to use for JSON serialization/deserialization
+   * @param inputStream  The input stream to read from
    * @param outputStream The output stream to write to
    */
   public StdioServerTransportProvider(McpJsonMapper jsonMapper, InputStream inputStream, OutputStream outputStream) {
@@ -96,8 +95,6 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
     this.jsonMapper = jsonMapper;
     this.inputStream = inputStream;
     this.outputStream = outputStream;
-    // Only exit if using real System streams
-    this.exitOnClose = (inputStream == System.in && outputStream == System.out);
   }
 
   @Override
@@ -270,12 +267,6 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
               session.close();
             }
             inboundSink.tryEmitComplete();
-            // Exit the JVM when stdin closes so Docker --rm can clean up the container
-            // Only exit if configured to do so (disabled in tests to allow JaCoCo coverage)
-            if (exitOnClose) {
-              logger.info("Stdin closed, exiting JVM for Docker cleanup");
-              System.exit(0);
-            }
           }
         });
       }

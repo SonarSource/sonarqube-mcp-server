@@ -17,6 +17,11 @@
   <!-- Suppress verbose JSON schema generator DEBUG logs -->
   <logger name="com.github.victools.jsonschema.generator" level="warn"/>
   
+  <!-- Suppress database and schema migration logs -->
+  <logger name="org.flywaydb" level="warn"/>
+  <logger name="org.jooq" level="warn"/>
+  <logger name="com.zaxxer.hikari" level="warn"/>
+  
   <!-- Jetty HTTP server logging - reduce noise -->
   <logger name="org.eclipse.jetty" level="warn"/>
   <logger name="org.eclipse.jetty.server.Server" level="info"/>
