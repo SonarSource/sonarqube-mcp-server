@@ -71,6 +71,21 @@ class PluginsSynchronizerTest {
   }
 
   @Test
+  void it_should_skip_downloading_plugins_for_unsupported_languages(@TempDir Path tempDir) {
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(new InstalledPluginsResponse.Plugin("cobol", true, "sonar-cobol-plugin.jar"))));
+    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+
+    assertThat(analyzers.analyzerPaths()).isEmpty();
+    assertThat(analyzers.enabledLanguages()).isEmpty();
+    assertThat(tempDir.resolve("plugins").resolve("sonar-cobol-plugin.jar")).doesNotExist();
+  }
+
+  @Test
   void it_should_skip_downloading_already_synchronized_plugin(@TempDir Path tempDir) throws IOException {
     var pluginsFolderPath = tempDir.resolve("plugins");
     Files.createDirectories(pluginsFolderPath);
@@ -129,6 +144,27 @@ class PluginsSynchronizerTest {
     assertThat(analyzers.analyzerPaths()).isEmpty();
     assertThat(analyzers.enabledLanguages()).isEmpty();
     assertThat(pluginPath).doesNotExist();
+  }
+
+  @Test
+  void it_should_cleanup_plugins_for_unsupported_languages(@TempDir Path tempDir) throws IOException {
+    var pluginsFolderPath = tempDir.resolve("plugins");
+    Files.createDirectories(pluginsFolderPath);
+    var unsupportedPluginPath = pluginsFolderPath.resolve("sonar-cobol-plugin.jar");
+    Files.writeString(unsupportedPluginPath, "cobol content");
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("cobol", true, "sonar-cobol-plugin.jar")
+    )));
+    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+
+    assertThat(analyzers.analyzerPaths()).isEmpty();
+    assertThat(analyzers.enabledLanguages()).isEmpty();
+    assertThat(unsupportedPluginPath).doesNotExist();
   }
 
 }

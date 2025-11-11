@@ -65,7 +65,9 @@ public class PluginsSynchronizer {
   }
 
   private boolean shouldDownload(InstalledPluginsResponse.Plugin plugin) {
-    return plugin.sonarLintSupported() && !Files.exists(pluginsPath.resolve(plugin.filename()));
+    return plugin.sonarLintSupported() 
+        && SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.containsKey(plugin.key())
+        && !Files.exists(pluginsPath.resolve(plugin.filename()));
   }
 
   private void downloadPlugin(String pluginKey, Path localPath) {
@@ -84,13 +86,14 @@ public class PluginsSynchronizer {
   }
 
   private void cleanupUnknownPlugins(List<InstalledPluginsResponse.Plugin> serverPlugins) {
-    var serverFileNames = serverPlugins.stream()
+    var supportedServerPlugins = serverPlugins.stream()
+      .filter(plugin -> SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.containsKey(plugin.key()))
       .map(InstalledPluginsResponse.Plugin::filename)
       .collect(Collectors.toSet());
     try (var directoryStream = Files.newDirectoryStream(pluginsPath, "*.jar")) {
       for (var localFile : directoryStream) {
         var fileName = localFile.getFileName().toString();
-        if (!serverFileNames.contains(fileName)) {
+        if (!supportedServerPlugins.contains(fileName)) {
           deleteUnknownPlugin(localFile);
         }
       }
