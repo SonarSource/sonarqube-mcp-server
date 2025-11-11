@@ -252,6 +252,8 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
               session.close();
             }
             inboundSink.tryEmitComplete();
+            // Exit the JVM when stdin closes so Docker --rm can clean up the container
+            System.exit(0);
           }
         });
       }
