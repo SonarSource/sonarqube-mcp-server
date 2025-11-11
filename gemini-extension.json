@@ -1,7 +1,7 @@
 {
   "name": "sonarqube-mcp-server",
   "description": "The SonarQube MCP Server extension enables seamless integration with SonarQube Server or Cloud for code quality and security. It also supports the analysis of code snippet directly within the agent context.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "mcpServers": {
     "sonarqube": {
       "command": "docker",
