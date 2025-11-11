@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.analysis;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
@@ -58,7 +59,7 @@ public class LanguageUtils {
         }
         return null;
       })
-      .filter(java.util.Objects::nonNull)
+      .filter(Objects::nonNull)
       .collect(Collectors.toSet());
   }
 
