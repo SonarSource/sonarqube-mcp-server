@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -70,9 +71,11 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
 
   private final Sinks.One<Void> inboundReady = Sinks.one();
 
+  private final boolean exitOnClose;
+
   /**
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
-   * System streams.
+   * System streams. Will call System.exit(0) when stdin closes (for Docker containers).
    */
   public StdioServerTransportProvider(ObjectMapper objectMapper) {
     this(new JacksonMcpJsonMapper(objectMapper), System.in, System.out);
@@ -80,7 +83,7 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
 
   /**
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
-   * streams.
+   * streams. Automatically detects if custom streams are used (tests) to disable System.exit().
    * @param jsonMapper The JsonMapper to use for JSON serialization/deserialization
    * @param inputStream The input stream to read from
    * @param outputStream The output stream to write to
@@ -93,6 +96,8 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
     this.jsonMapper = jsonMapper;
     this.inputStream = inputStream;
     this.outputStream = outputStream;
+    // Only exit if using real System streams
+    this.exitOnClose = (inputStream == System.in && outputStream == System.out);
   }
 
   @Override
@@ -122,7 +127,20 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
     if (this.session == null) {
       return Mono.empty();
     }
-    return this.session.closeGracefully();
+    
+    return this.session.closeGracefully()
+      .timeout(Duration.ofSeconds(10), Mono.fromRunnable(() -> {
+        logger.warn("closeGracefully() timed out after 10 seconds; proceeding with forced shutdown");
+        try {
+          if (this.session != null) {
+            this.session.close();
+          }
+        } catch (Exception e) {
+          logger.warn("Forced close encountered error: {}", e.toString());
+        }
+      }).then())
+      .doOnError(e -> logger.warn("closeGracefully() failed: {}", e.toString()))
+      .onErrorResume(e -> Mono.empty());
   }
 
   /**
@@ -253,7 +271,11 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
             }
             inboundSink.tryEmitComplete();
             // Exit the JVM when stdin closes so Docker --rm can clean up the container
-            System.exit(0);
+            // Only exit if configured to do so (disabled in tests to allow JaCoCo coverage)
+            if (exitOnClose) {
+              logger.info("Stdin closed, exiting JVM for Docker cleanup");
+              System.exit(0);
+            }
           }
         });
       }
