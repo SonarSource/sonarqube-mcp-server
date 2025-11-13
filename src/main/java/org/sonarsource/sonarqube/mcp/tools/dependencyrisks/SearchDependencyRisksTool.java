@@ -42,6 +42,8 @@ public class SearchDependencyRisksTool extends Tool {
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The project key")
       .addStringProperty(BRANCH_KEY_PROPERTY, "The branch key")
       .addStringProperty(PULL_REQUEST_KEY_PROPERTY, "The pull request key")
+      .setReadOnlyHint()
+      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
     this.sonarQubeVersionChecker = sonarQubeVersionChecker;

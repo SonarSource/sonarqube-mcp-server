@@ -41,6 +41,7 @@ public class CreateWebhookTool extends Tool {
       .addStringProperty(PROJECT_PROPERTY, "The key of the project that will own the webhook (max 400 chars)")
       .addStringProperty(SECRET_PROPERTY, "If provided, secret will be used as the key to generate the HMAC hex digest value " +
         "in the 'X-Sonar-Webhook-HMAC-SHA256' header (16-200 chars)")
+      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

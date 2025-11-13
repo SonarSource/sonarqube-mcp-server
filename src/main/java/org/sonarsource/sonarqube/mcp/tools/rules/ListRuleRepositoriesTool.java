@@ -37,6 +37,9 @@ public class ListRuleRepositoriesTool extends Tool {
       .setDescription("List rule repositories available in SonarQube.")
       .addStringProperty(LANGUAGE_PROPERTY, "Optional language key to filter repositories (e.g. 'java')")
       .addStringProperty(QUERY_PROPERTY, "Optional search query to filter repositories by name or key")
+      .setReadOnlyHint()
+      .setIdempotentHint()
+      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

@@ -43,7 +43,7 @@ class ToggleAutomaticAnalysisToolTests {
   }
 
   @Test
-  void it_should_validate_output_schema() {
+  void it_should_validate_output_schema_and_annotations() {
     assertSchemaEquals(underTest.definition().outputSchema(), """
       {
           "type":"object",

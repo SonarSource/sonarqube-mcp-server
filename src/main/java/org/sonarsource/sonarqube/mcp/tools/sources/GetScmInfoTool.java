@@ -40,6 +40,8 @@ public class GetScmInfoTool extends Tool {
       .addBooleanProperty(COMMITS_BY_LINE_PROPERTY, "Group lines by SCM commit if value is false, else display commits for each line (true/false)")
       .addNumberProperty(FROM_PROPERTY, "First line to return. Starts at 1")
       .addNumberProperty(TO_PROPERTY, "Last line to return (inclusive)")
+      .setReadOnlyHint()
+      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

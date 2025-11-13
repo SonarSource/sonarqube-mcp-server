@@ -35,6 +35,9 @@ public class ShowRuleTool extends Tool {
       .setTitle("Show SonarQube Rule")
       .setDescription("Shows detailed information about a SonarQube rule.")
       .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)")
+      .setReadOnlyHint()
+      .setIdempotentHint()
+      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

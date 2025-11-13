@@ -41,6 +41,8 @@ public class ListEnterprisesTool extends Tool {
       .setDescription("List the enterprises available in SonarQube Cloud that you have access to. " +
         "Use this tool to discover enterprise IDs that can be used with other tools.")
       .addStringProperty(ENTERPRISE_KEY_PROPERTY, "Optional enterprise key to filter results")
+      .setReadOnlyHint()
+      .setOpenWorldHint()
       .build();
   }
 

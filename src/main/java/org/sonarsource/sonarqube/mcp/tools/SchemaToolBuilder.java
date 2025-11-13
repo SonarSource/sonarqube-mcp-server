@@ -34,6 +34,10 @@ public class SchemaToolBuilder {
   private String name;
   private String title;
   private String description;
+  private boolean isReadOnly;
+  private boolean isIdempotent;
+  private boolean isDestructive;
+  private boolean isOpenWorld;
 
   public SchemaToolBuilder(Map<String, Object> outputSchemaFromClass) {
     this.properties = new HashMap<>();
@@ -106,6 +110,38 @@ public class SchemaToolBuilder {
     return this;
   }
 
+  /**
+   * Marks this tool as read-only, indicating it only reads data and doesn't modify any state.
+   */
+  public SchemaToolBuilder setReadOnlyHint() {
+    this.isReadOnly = true;
+    return this;
+  }
+
+  /**
+   * Marks this tool as idempotent, meaning calling it multiple times with the same arguments produces the same result.
+   */
+  public SchemaToolBuilder setIdempotentHint() {
+    this.isIdempotent = true;
+    return this;
+  }
+
+  /**
+   * Marks this tool as destructive, indicating it performs operations that cannot be easily undone.
+   */
+  public SchemaToolBuilder setDestructiveHint() {
+    this.isDestructive = true;
+    return this;
+  }
+
+  /**
+   * Marks this tool as operating in an open world, meaning it can access external resources or services.
+   */
+  public SchemaToolBuilder setOpenWorldHint() {
+    this.isOpenWorld = true;
+    return this;
+  }
+
   public McpSchema.Tool build() {
     if (name == null || description == null) {
       throw new IllegalStateException("Name and description must be set before building the tool.");
@@ -115,8 +151,18 @@ public class SchemaToolBuilder {
       throw new IllegalStateException("Cannot set a required property that does not exist.");
     }
 
-    var jsonSchema = new McpSchema.JsonSchema("object", properties, requiredProperties, false, Collections.emptyMap(), Collections.emptyMap());
+    var jsonSchema = new McpSchema.JsonSchema("object", properties, requiredProperties, false, Collections.emptyMap(),
+      Collections.emptyMap());
 
-    return new McpSchema.Tool(name, title, description, jsonSchema, outputSchemaFromClass, null, Map.of());
+    var toolAnnotations = new McpSchema.ToolAnnotations(
+      null,
+      isReadOnly,
+      isDestructive,
+      isIdempotent,
+      isOpenWorld,
+      null
+    );
+    
+    return new McpSchema.Tool(name, title, description, jsonSchema, outputSchemaFromClass, toolAnnotations, null);
   }
 }
