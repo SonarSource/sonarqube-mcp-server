@@ -20,6 +20,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class SearchMyProjectsTool extends Tool {
 
@@ -35,7 +36,8 @@ public class SearchMyProjectsTool extends Tool {
       .setDescription("Find SonarQube projects. The response is paginated.")
       .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.PROJECTS);
     this.serverApiProvider = serverApiProvider;
   }
 

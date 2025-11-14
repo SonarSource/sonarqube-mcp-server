@@ -34,6 +34,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static java.util.stream.Collectors.toMap;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
@@ -59,7 +60,8 @@ public class AnalysisTool extends Tool {
       .addRequiredStringProperty(SNIPPET_PROPERTY, "Code snippet or full file content")
       .addStringProperty(LANGUAGE_PROPERTY, "Language of the code snippet")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.ANALYSIS);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
   }

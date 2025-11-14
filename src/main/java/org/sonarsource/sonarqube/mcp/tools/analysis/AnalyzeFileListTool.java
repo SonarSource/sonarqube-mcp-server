@@ -20,6 +20,7 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class AnalyzeFileListTool extends Tool {
   private static final McpLogger LOG = McpLogger.getInstance();
@@ -37,7 +38,8 @@ public class AnalyzeFileListTool extends Tool {
         "This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.")
       .addArrayProperty(FILE_ABSOLUTE_PATHS_PROPERTY, "string", "List of absolute file paths to analyze")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.ANALYSIS);
     this.bridgeClient = bridgeClient;
   }
 

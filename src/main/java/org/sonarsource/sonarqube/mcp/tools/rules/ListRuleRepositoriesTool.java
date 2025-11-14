@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.RepositoriesResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class ListRuleRepositoriesTool extends Tool {
 
@@ -38,7 +39,8 @@ public class ListRuleRepositoriesTool extends Tool {
       .addStringProperty(LANGUAGE_PROPERTY, "Optional language key to filter repositories (e.g. 'java')")
       .addStringProperty(QUERY_PROPERTY, "Optional search query to filter repositories by name or key")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.RULES);
     this.serverApiProvider = serverApiProvider;
   }
 

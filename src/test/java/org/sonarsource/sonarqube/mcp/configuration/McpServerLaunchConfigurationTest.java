@@ -21,6 +21,7 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -153,6 +154,88 @@ class McpServerLaunchConfigurationTest {
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("SONARQUBE_IDE_PORT value must be between 64120 and 64130, got: 70000");
+  }
+
+  // Tool category tests
+
+  @Test
+  void should_enable_all_categories_by_default(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.QUALITY_GATES)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.SOURCES)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.MEASURES)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.LANGUAGES)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.PORTFOLIOS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.SYSTEM)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.WEBHOOKS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)).isTrue();
+  }
+
+  @Test
+  void should_only_enable_specified_toolsets_when_toolsets_is_set(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "org",
+      "SONARQUBE_TOOLSETS", "analysis,issues,quality-gates"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.QUALITY_GATES)).isTrue();
+    // PROJECTS is always enabled as it's required to find project keys
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.WEBHOOKS)).isFalse();
+  }
+
+  @Test
+  void should_always_enable_projects_toolset_even_when_not_specified(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "org",
+      "SONARQUBE_TOOLSETS", "analysis,issues"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
+    // PROJECTS should always be enabled even when not explicitly listed
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.WEBHOOKS)).isFalse();
+  }
+
+  @Test
+  void should_return_enabled_toolsets(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "org",
+      "SONARQUBE_TOOLSETS", "analysis,issues"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getEnabledToolsets()).containsExactlyInAnyOrder(
+      ToolCategory.ANALYSIS,
+      ToolCategory.ISSUES
+    );
+  }
+
+  @Test
+  void should_return_empty_set_when_no_toolsets_config_is_set(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getEnabledToolsets()).isEmpty();
   }
 
 }

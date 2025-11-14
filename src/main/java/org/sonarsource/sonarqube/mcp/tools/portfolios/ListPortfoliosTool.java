@@ -23,6 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.PortfoliosRe
 import org.sonarsource.sonarqube.mcp.serverapi.views.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class ListPortfoliosTool extends Tool {
 
@@ -38,7 +39,7 @@ public class ListPortfoliosTool extends Tool {
   private final boolean isSonarCloud;
 
   public ListPortfoliosTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
-    super(createToolDefinition(isSonarCloud));
+    super(createToolDefinition(isSonarCloud), ToolCategory.PORTFOLIOS);
     this.serverApiProvider = serverApiProvider;
     this.isSonarCloud = isSonarCloud;
   }
