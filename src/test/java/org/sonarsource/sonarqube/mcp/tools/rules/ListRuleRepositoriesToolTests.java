@@ -42,7 +42,7 @@ class ListRuleRepositoriesToolTests {
 
     assertThat(tool.annotations()).isNotNull();
     assertThat(tool.annotations().readOnlyHint()).isTrue();
-    assertThat(tool.annotations().idempotentHint()).isTrue();
+    assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().openWorldHint()).isTrue();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 

@@ -35,7 +35,6 @@ public class ListLanguagesTool extends Tool {
       .setDescription("List all programming languages supported in this SonarQube instance")
       .addStringProperty(QUERY_PROPERTY, "Optional pattern to match language keys/names against")
       .setReadOnlyHint()
-      .setIdempotentHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

@@ -45,7 +45,7 @@ class SearchDependencyRisksToolTests {
     assertThat(tool.annotations()).isNotNull();
     assertThat(tool.annotations().readOnlyHint()).isTrue();
     assertThat(tool.annotations().openWorldHint()).isTrue();
-    assertThat(tool.annotations().idempotentHint()).isTrue();
+    assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
     assertSchemaEquals(tool.outputSchema(), """

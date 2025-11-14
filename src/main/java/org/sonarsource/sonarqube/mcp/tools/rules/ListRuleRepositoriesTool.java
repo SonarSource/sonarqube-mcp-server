@@ -38,7 +38,6 @@ public class ListRuleRepositoriesTool extends Tool {
       .addStringProperty(LANGUAGE_PROPERTY, "Optional language key to filter repositories (e.g. 'java')")
       .addStringProperty(QUERY_PROPERTY, "Optional search query to filter repositories by name or key")
       .setReadOnlyHint()
-      .setIdempotentHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

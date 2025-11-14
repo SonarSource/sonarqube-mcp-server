@@ -35,15 +35,11 @@ public class SchemaToolBuilder {
   private String title;
   private String description;
   private boolean isReadOnly;
-  private boolean isIdempotent;
-  private boolean isDestructive;
-  private boolean isOpenWorld;
 
   public SchemaToolBuilder(Map<String, Object> outputSchemaFromClass) {
     this.properties = new HashMap<>();
     this.requiredProperties = new ArrayList<>();
     this.outputSchemaFromClass = outputSchemaFromClass;
-    this.isOpenWorld = true;
   }
 
   /**
@@ -119,22 +115,6 @@ public class SchemaToolBuilder {
     return this;
   }
 
-  /**
-   * Marks this tool as idempotent, meaning calling it multiple times with the same arguments produces the same result.
-   */
-  public SchemaToolBuilder setIdempotentHint() {
-    this.isIdempotent = true;
-    return this;
-  }
-
-  /**
-   * Marks this tool as operating in an open world, meaning it can access external resources or services.
-   */
-  public SchemaToolBuilder setOpenWorldHint() {
-    this.isOpenWorld = true;
-    return this;
-  }
-
   public McpSchema.Tool build() {
     if (name == null || description == null) {
       throw new IllegalStateException("Name and description must be set before building the tool.");
@@ -150,9 +130,9 @@ public class SchemaToolBuilder {
     var toolAnnotations = new McpSchema.ToolAnnotations(
       null,
       isReadOnly,
-      isDestructive,
-      isIdempotent,
-      isOpenWorld,
+      false,
+      false,
+      true,
       null
     );
     
