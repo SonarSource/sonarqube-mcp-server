@@ -22,6 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class SearchDependencyRisksTool extends Tool {
 
@@ -43,7 +44,8 @@ public class SearchDependencyRisksTool extends Tool {
       .addStringProperty(BRANCH_KEY_PROPERTY, "The branch key")
       .addStringProperty(PULL_REQUEST_KEY_PROPERTY, "The pull request key")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.DEPENDENCY_RISKS);
     this.serverApiProvider = serverApiProvider;
     this.sonarQubeVersionChecker = sonarQubeVersionChecker;
   }

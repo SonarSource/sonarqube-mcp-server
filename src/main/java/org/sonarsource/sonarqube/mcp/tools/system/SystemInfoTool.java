@@ -23,6 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.InfoResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class SystemInfoTool extends Tool {
 
@@ -37,7 +38,8 @@ public class SystemInfoTool extends Tool {
       .setDescription("Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. " +
         "Requires 'Administer' permissions.")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.SYSTEM);
     this.serverApiProvider = serverApiProvider;
   }
 

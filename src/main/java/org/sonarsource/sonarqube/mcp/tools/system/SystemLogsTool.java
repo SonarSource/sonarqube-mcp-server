@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class SystemLogsTool extends Tool {
 
@@ -34,7 +35,8 @@ public class SystemLogsTool extends Tool {
       .setDescription("Get SonarQube Server system logs in plain-text format. Requires system administration permission.")
       .addStringProperty(NAME_PROPERTY, "Name of the logs to get. Possible values: access, app, ce, deprecation, es, web. Default: app")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.SYSTEM);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.HealthResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class SystemHealthTool extends Tool {
 
@@ -34,7 +35,8 @@ public class SystemHealthTool extends Tool {
       .setTitle("Get SonarQube System Health")
       .setDescription("Get the health status of SonarQube Server instance. Returns GREEN (fully operational), YELLOW (usable but needs attention), or RED (not operational).")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.SYSTEM);
     this.serverApiProvider = serverApiProvider;
   }
 

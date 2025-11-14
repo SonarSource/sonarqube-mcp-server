@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class ShowRuleTool extends Tool {
 
@@ -36,7 +37,8 @@ public class ShowRuleTool extends Tool {
       .setDescription("Shows detailed information about a SonarQube rule.")
       .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.RULES);
     this.serverApiProvider = serverApiProvider;
   }
 

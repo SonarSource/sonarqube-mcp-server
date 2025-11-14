@@ -20,6 +20,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.Transition;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class ChangeIssueStatusTool extends Tool {
 
@@ -38,7 +39,8 @@ public class ChangeIssueStatusTool extends Tool {
         An example request could be: I would like to accept the issue having the key "AX-HMISMFixnZED\"""")
       .addRequiredStringProperty(KEY_PROPERTY, "The key of the issue which status should be changed")
       .addRequiredEnumProperty(STATUS_PROPERTY, new String[] {"accept", "falsepositive", "reopen"}, "The new status of the issue")
-      .build());
+      .build(),
+      ToolCategory.ISSUES);
     this.serverApiProvider = serverApiProvider;
   }
 

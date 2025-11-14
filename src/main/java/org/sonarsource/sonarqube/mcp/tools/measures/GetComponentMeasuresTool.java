@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class GetComponentMeasuresTool extends Tool {
 
@@ -42,7 +43,8 @@ public class GetComponentMeasuresTool extends Tool {
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The pull request identifier to analyze for measures")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.MEASURES);
     this.serverApiProvider = serverApiProvider;
   }
 

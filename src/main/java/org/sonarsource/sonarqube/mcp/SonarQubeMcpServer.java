@@ -150,14 +150,16 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.info("Startup initialization completed");
   }
   private void initTools() {
+    var allTools = new ArrayList<Tool>();
+    
     boolean useIdeBridge = false;
     if (!mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeIdePort() != null) {
       var sonarqubeIdeBridgeClient = initializeBridgeClient(mcpConfiguration);
       if (sonarqubeIdeBridgeClient.isAvailable()) {
         LOG.info("SonarQube for IDE integration detected - loading IDE specific tools");
         backendService.notifySonarQubeIdeIntegration();
-        this.supportedTools.add(new AnalyzeFileListTool(sonarqubeIdeBridgeClient));
-        this.supportedTools.add(new ToggleAutomaticAnalysisTool(sonarqubeIdeBridgeClient));
+        allTools.add(new AnalyzeFileListTool(sonarqubeIdeBridgeClient));
+        allTools.add(new ToggleAutomaticAnalysisTool(sonarqubeIdeBridgeClient));
         useIdeBridge = true;
       }
     }
@@ -165,17 +167,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     // Load standard analysis tool when IDE bridge is not used
     if (!useIdeBridge) {
       LOG.info("SonarQube for IDE integration not detected - loading standard analysis tool");
-      this.supportedTools.add(new AnalysisTool(backendService, this));
+      allTools.add(new AnalysisTool(backendService, this));
     }
 
     // SonarQube Cloud specific tools
     if (mcpConfiguration.isSonarCloud()) {
       LOG.info("SonarQube Cloud detected - loading SonarQube Cloud specific tools");
-      this.supportedTools.add(new ListEnterprisesTool(this));
+      allTools.add(new ListEnterprisesTool(this));
     } else {
       LOG.info("SonarQube Server detected - loading SonarQube Server specific tools");
       // SonarQube Server specific tools
-      this.supportedTools.addAll(List.of(
+      allTools.addAll(List.of(
         new SystemHealthTool(this),
         new SystemInfoTool(this),
         new SystemLogsTool(this),
@@ -183,7 +185,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         new SystemStatusTool(this)));
     }
 
-    this.supportedTools.addAll(List.of(
+    allTools.addAll(List.of(
       new ChangeIssueStatusTool(this),
       new SearchMyProjectsTool(this),
       new SearchIssuesTool(this),
@@ -200,6 +202,13 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListWebhooksTool(this),
       new ListPortfoliosTool(this, mcpConfiguration.isSonarCloud()),
       new SearchDependencyRisksTool(this, sonarQubeVersionChecker)));
+      
+    // Filter tools based on enabled categories
+    this.supportedTools.addAll(allTools.stream()
+      .filter(tool -> mcpConfiguration.isToolCategoryEnabled(tool.getCategory()))
+      .toList());
+      
+    LOG.info("Loaded " + this.supportedTools.size() + " tools after category filtering");
   }
 
   public void start() {

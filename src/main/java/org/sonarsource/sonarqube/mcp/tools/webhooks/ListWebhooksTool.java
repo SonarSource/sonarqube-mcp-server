@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class ListWebhooksTool extends Tool {
 
@@ -36,7 +37,8 @@ public class ListWebhooksTool extends Tool {
       .setDescription("List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
       .addStringProperty(PROJECT_PROPERTY, "Optional project key to list project-specific webhooks")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.WEBHOOKS);
     this.serverApiProvider = serverApiProvider;
   }
 

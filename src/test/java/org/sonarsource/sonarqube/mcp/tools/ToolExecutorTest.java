@@ -42,7 +42,7 @@ class ToolExecutorTest {
   void it_should_register_telemetry_after_the_tool_call_succeeds() {
     record TestResponse(@JsonPropertyDescription("Success message") String message) {}
     
-    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of())) {
+    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.success(new TestResponse("Success!"));
@@ -54,7 +54,7 @@ class ToolExecutorTest {
 
   @Test
   void it_should_register_telemetry_after_the_tool_call_fails() {
-    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of())) {
+    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.failure("Failure!");
