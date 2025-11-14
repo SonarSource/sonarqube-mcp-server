@@ -36,6 +36,7 @@ public class SystemInfoTool extends Tool {
       .setTitle("Get SonarQube System Information")
       .setDescription("Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. " +
         "Requires 'Administer' permissions.")
+      .setReadOnlyHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

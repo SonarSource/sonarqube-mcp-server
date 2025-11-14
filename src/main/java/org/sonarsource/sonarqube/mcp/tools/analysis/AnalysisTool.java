@@ -58,6 +58,7 @@ public class AnalysisTool extends Tool {
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
       .addRequiredStringProperty(SNIPPET_PROPERTY, "Code snippet or full file content")
       .addStringProperty(LANGUAGE_PROPERTY, "Language of the code snippet")
+      .setReadOnlyHint()
       .build());
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;

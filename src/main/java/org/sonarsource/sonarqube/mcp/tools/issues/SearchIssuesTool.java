@@ -42,6 +42,7 @@ public class SearchIssuesTool extends Tool {
       .addArrayProperty(SEVERITIES_PROPERTY, "string", "An optional list of severities to filter by, separated by a comma. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
+      .setReadOnlyHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

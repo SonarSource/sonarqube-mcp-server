@@ -36,6 +36,7 @@ public class SearchMetricsTool extends Tool {
       .setDescription("Search for SonarQube metrics")
       .addNumberProperty(PAGE_PROPERTY, "1-based page number (default: 1)")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size. Must be greater than 0 and less than or equal to 500 (default: 100)")
+      .setReadOnlyHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

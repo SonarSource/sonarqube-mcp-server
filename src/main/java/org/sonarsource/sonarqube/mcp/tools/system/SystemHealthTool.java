@@ -33,6 +33,7 @@ public class SystemHealthTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Health")
       .setDescription("Get the health status of SonarQube Server instance. Returns GREEN (fully operational), YELLOW (usable but needs attention), or RED (not operational).")
+      .setReadOnlyHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

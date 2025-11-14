@@ -34,6 +34,7 @@ public class SearchMyProjectsTool extends Tool {
       .setTitle("Search My SonarQube Projects")
       .setDescription("Find SonarQube projects. The response is paginated.")
       .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
+      .setReadOnlyHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

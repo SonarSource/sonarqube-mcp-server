@@ -38,13 +38,19 @@ import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.asser
 class ListEnterprisesToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.ENTERPRISES_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
     var mcpClient = harness.newClient(Map.of(
       "SONARQUBE_ORG", "org",
       "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListEnterprisesTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertThat(tool.annotations()).isNotNull();
+    assertThat(tool.annotations().readOnlyHint()).isTrue();
+    assertThat(tool.annotations().openWorldHint()).isTrue();
+    assertThat(tool.annotations().idempotentHint()).isFalse();
+    assertThat(tool.annotations().destructiveHint()).isFalse();
 
     assertSchemaEquals(tool.outputSchema(), """
         {

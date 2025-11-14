@@ -48,7 +48,13 @@ class AnalyzeFileListToolTests {
   }
 
   @Test
-  void it_should_validate_output_schema() {
+  void it_should_validate_output_schema_and_annotations() {
+    assertThat(underTest.definition().annotations()).isNotNull();
+    assertThat(underTest.definition().annotations().readOnlyHint()).isTrue();
+    assertThat(underTest.definition().annotations().openWorldHint()).isTrue();
+    assertThat(underTest.definition().annotations().idempotentHint()).isFalse();
+    assertThat(underTest.definition().annotations().destructiveHint()).isFalse();
+
     assertSchemaEquals(underTest.definition().outputSchema(), """
       {
           "type":"object",

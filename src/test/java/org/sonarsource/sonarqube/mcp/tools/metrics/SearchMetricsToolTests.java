@@ -34,10 +34,16 @@ import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.asser
 class SearchMetricsToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SearchMetricsTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertThat(tool.annotations()).isNotNull();
+    assertThat(tool.annotations().readOnlyHint()).isTrue();
+    assertThat(tool.annotations().openWorldHint()).isTrue();
+    assertThat(tool.annotations().idempotentHint()).isFalse();
+    assertThat(tool.annotations().destructiveHint()).isFalse();
 
     assertSchemaEquals(tool.outputSchema(), """
       {

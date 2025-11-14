@@ -46,6 +46,7 @@ public class ProjectStatusTool extends Tool {
         """)
       .addStringProperty(PROJECT_KEY_PROPERTY, "The optional project key to get the status for, for example 'my_project'")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The optional pull request ID to get the status for, for example '5461'")
+      .setReadOnlyHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

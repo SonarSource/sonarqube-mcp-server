@@ -31,6 +31,7 @@ public class SystemStatusTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Status")
       .setDescription("Get state information about SonarQube Server. Returns status (STARTING, UP, DOWN, RESTARTING, DB_MIGRATION_NEEDED, DB_MIGRATION_RUNNING), version, and id.")
+      .setReadOnlyHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

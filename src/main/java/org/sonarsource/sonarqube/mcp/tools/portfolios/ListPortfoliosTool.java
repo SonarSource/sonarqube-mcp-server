@@ -65,7 +65,9 @@ public class ListPortfoliosTool extends Tool {
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size, max 500 (default: 100)");
     }
     
-    return builder.build();
+    return builder
+      .setReadOnlyHint()
+      .build();
   }
 
   @Override
