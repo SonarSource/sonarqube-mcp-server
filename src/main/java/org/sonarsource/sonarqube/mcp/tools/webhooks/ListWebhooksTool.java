@@ -36,7 +36,6 @@ public class ListWebhooksTool extends Tool {
       .setDescription("List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
       .addStringProperty(PROJECT_PROPERTY, "Optional project key to list project-specific webhooks")
       .setReadOnlyHint()
-      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

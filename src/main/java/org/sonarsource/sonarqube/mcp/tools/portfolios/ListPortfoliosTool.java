@@ -67,7 +67,6 @@ public class ListPortfoliosTool extends Tool {
     
     return builder
       .setReadOnlyHint()
-      .setOpenWorldHint()
       .build();
   }
 

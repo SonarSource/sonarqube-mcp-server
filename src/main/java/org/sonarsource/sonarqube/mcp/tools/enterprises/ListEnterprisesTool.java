@@ -42,7 +42,6 @@ public class ListEnterprisesTool extends Tool {
         "Use this tool to discover enterprise IDs that can be used with other tools.")
       .addStringProperty(ENTERPRISE_KEY_PROPERTY, "Optional enterprise key to filter results")
       .setReadOnlyHint()
-      .setOpenWorldHint()
       .build();
   }
 

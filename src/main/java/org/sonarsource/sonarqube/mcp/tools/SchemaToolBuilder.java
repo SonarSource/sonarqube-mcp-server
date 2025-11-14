@@ -43,6 +43,7 @@ public class SchemaToolBuilder {
     this.properties = new HashMap<>();
     this.requiredProperties = new ArrayList<>();
     this.outputSchemaFromClass = outputSchemaFromClass;
+    this.isOpenWorld = true;
   }
 
   /**
@@ -123,14 +124,6 @@ public class SchemaToolBuilder {
    */
   public SchemaToolBuilder setIdempotentHint() {
     this.isIdempotent = true;
-    return this;
-  }
-
-  /**
-   * Marks this tool as destructive, indicating it performs operations that cannot be easily undone.
-   */
-  public SchemaToolBuilder setDestructiveHint() {
-    this.isDestructive = true;
     return this;
   }
 

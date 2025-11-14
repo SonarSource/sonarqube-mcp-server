@@ -37,7 +37,6 @@ public class AnalyzeFileListTool extends Tool {
         "This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.")
       .addArrayProperty(FILE_ABSOLUTE_PATHS_PROPERTY, "string", "List of absolute file paths to analyze")
       .setReadOnlyHint()
-      .setOpenWorldHint()
       .build());
     this.bridgeClient = bridgeClient;
   }

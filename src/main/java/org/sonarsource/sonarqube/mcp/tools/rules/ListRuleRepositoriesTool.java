@@ -39,7 +39,6 @@ public class ListRuleRepositoriesTool extends Tool {
       .addStringProperty(QUERY_PROPERTY, "Optional search query to filter repositories by name or key")
       .setReadOnlyHint()
       .setIdempotentHint()
-      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

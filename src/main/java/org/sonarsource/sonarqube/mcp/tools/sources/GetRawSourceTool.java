@@ -38,7 +38,6 @@ public class GetRawSourceTool extends Tool {
       .addStringProperty(BRANCH_PROPERTY, "Branch key (e.g. feature/my_branch)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")
       .setReadOnlyHint()
-      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

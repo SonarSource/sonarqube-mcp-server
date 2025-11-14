@@ -36,7 +36,6 @@ public class ListLanguagesTool extends Tool {
       .addStringProperty(QUERY_PROPERTY, "Optional pattern to match language keys/names against")
       .setReadOnlyHint()
       .setIdempotentHint()
-      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

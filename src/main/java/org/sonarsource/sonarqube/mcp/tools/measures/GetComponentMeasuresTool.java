@@ -42,7 +42,6 @@ public class GetComponentMeasuresTool extends Tool {
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The pull request identifier to analyze for measures")
       .setReadOnlyHint()
-      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

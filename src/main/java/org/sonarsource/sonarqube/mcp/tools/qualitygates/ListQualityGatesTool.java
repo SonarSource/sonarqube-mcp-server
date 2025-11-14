@@ -34,7 +34,6 @@ public class ListQualityGatesTool extends Tool {
       .setDescription("List all quality gates in my SonarQube.")
       .setReadOnlyHint()
       .setIdempotentHint()
-      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

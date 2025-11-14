@@ -32,7 +32,6 @@ public class SystemPingTool extends Tool {
       .setTitle("Ping SonarQube Server System")
       .setDescription("Ping the SonarQube Server system to check if it's alive. Returns 'pong' as plain text.")
       .setReadOnlyHint()
-      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

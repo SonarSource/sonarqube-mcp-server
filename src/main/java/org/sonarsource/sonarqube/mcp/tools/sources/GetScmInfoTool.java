@@ -41,7 +41,6 @@ public class GetScmInfoTool extends Tool {
       .addNumberProperty(FROM_PROPERTY, "First line to return. Starts at 1")
       .addNumberProperty(TO_PROPERTY, "Last line to return (inclusive)")
       .setReadOnlyHint()
-      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }

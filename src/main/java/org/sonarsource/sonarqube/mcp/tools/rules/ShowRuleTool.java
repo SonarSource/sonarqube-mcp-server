@@ -37,7 +37,6 @@ public class ShowRuleTool extends Tool {
       .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)")
       .setReadOnlyHint()
       .setIdempotentHint()
-      .setOpenWorldHint()
       .build());
     this.serverApiProvider = serverApiProvider;
   }
