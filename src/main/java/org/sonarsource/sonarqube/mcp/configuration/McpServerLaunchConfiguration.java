@@ -348,13 +348,7 @@ public class McpServerLaunchConfiguration {
     if (category == ToolCategory.PROJECTS) {
       return true;
     }
-    
-    // If toolsets is explicitly set, only enable those
-    if (!enabledToolsets.isEmpty()) {
-      return enabledToolsets.contains(category);
-    }
-    // Default: enable all categories
-    return true;
+    return enabledToolsets.contains(category);
   }
 
   public Set<ToolCategory> getEnabledToolsets() {

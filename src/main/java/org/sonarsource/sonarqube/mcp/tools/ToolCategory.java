@@ -58,7 +58,7 @@ public enum ToolCategory {
       return null;
     }
     var normalizedKey = key.trim().toLowerCase(Locale.getDefault());
-    for (ToolCategory category : values()) {
+    for (var category : values()) {
       if (category.key.equals(normalizedKey)) {
         return category;
       }
@@ -72,7 +72,7 @@ public enum ToolCategory {
    */
   public static Set<ToolCategory> parseCategories(@Nullable String categoriesStr) {
     if (categoriesStr == null || categoriesStr.isBlank()) {
-      return Set.of();
+      return all();
     }
     return Arrays.stream(categoriesStr.split(","))
       .map(String::trim)
