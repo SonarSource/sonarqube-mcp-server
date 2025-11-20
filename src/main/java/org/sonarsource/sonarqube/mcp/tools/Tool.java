@@ -24,13 +24,19 @@ import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentExce
 
 public abstract class Tool {
   private final McpSchema.Tool definition;
+  private final ToolCategory category;
 
-  protected Tool(McpSchema.Tool definition) {
+  protected Tool(McpSchema.Tool definition, ToolCategory category) {
     this.definition = definition;
+    this.category = category;
   }
 
   public McpSchema.Tool definition() {
     return definition;
+  }
+
+  public ToolCategory getCategory() {
+    return category;
   }
 
   public abstract Result execute(Arguments arguments);

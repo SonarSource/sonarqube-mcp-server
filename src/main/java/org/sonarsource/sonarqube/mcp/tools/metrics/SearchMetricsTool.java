@@ -20,6 +20,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.response.SearchMetricsResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class SearchMetricsTool extends Tool {
 
@@ -37,7 +38,8 @@ public class SearchMetricsTool extends Tool {
       .addNumberProperty(PAGE_PROPERTY, "1-based page number (default: 1)")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size. Must be greater than 0 and less than or equal to 500 (default: 100)")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.MEASURES);
     this.serverApiProvider = serverApiProvider;
   }
 

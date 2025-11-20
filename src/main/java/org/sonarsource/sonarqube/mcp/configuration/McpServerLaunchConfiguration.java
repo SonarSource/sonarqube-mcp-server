@@ -21,11 +21,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static java.util.Objects.requireNonNull;
 
@@ -40,6 +42,9 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_TOKEN = "SONARQUBE_TOKEN";
   private static final String SONARQUBE_IDE_PORT_ENV = "SONARQUBE_IDE_PORT";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
+  
+  // Tool category configuration
+  private static final String SONARQUBE_TOOLSETS = "SONARQUBE_TOOLSETS";
   
   // HTTP/HTTPS transport configuration
   private static final String SONARQUBE_TRANSPORT = "SONARQUBE_TRANSPORT";
@@ -89,6 +94,9 @@ public class McpServerLaunchConfiguration {
   private final String httpsTruststoreType;
   @Nullable
   private final AuthMode authMode;
+  
+  // Tool category configuration
+  private final Set<ToolCategory> enabledToolsets;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -137,6 +145,10 @@ public class McpServerLaunchConfiguration {
     this.httpsTruststoreType = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTPS_TRUSTSTORE_TYPE, DEFAULT_KEYSTORE_TYPE);
     
     this.authMode = parseAuthMode(environment);
+    
+    // Parse tool category configuration
+    var toolsetsStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOOLSETS, null);
+    this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
   }
 
   @NotNull
@@ -322,6 +334,25 @@ public class McpServerLaunchConfiguration {
     }
     // Stdio mode: No HTTP authentication, AuthenticationFilter not registered
     return null;
+  }
+
+  /**
+   * Determines if a tool category should be enabled based on configuration.
+   * Rules:
+   * 1. PROJECTS toolset is always enabled (required to find project keys)
+   * 2. If SONARQUBE_TOOLSETS is set, only those toolsets (plus PROJECTS) are enabled
+   * 3. If SONARQUBE_TOOLSETS is not set, all toolsets are enabled (default)
+   */
+  public boolean isToolCategoryEnabled(ToolCategory category) {
+    // PROJECTS is always enabled as it's required to find project keys
+    if (category == ToolCategory.PROJECTS) {
+      return true;
+    }
+    return enabledToolsets.contains(category);
+  }
+
+  public Set<ToolCategory> getEnabledToolsets() {
+    return Set.copyOf(enabledToolsets);
   }
 
 }

@@ -478,6 +478,49 @@ You should add the following variable when running the MCP Server:
 | `STORAGE_PATH`       | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using Docker |
 | `SONARQUBE_IDE_PORT` | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                      |
 
+### Selective Tool Enablement
+
+By default, all tools are enabled. You can selectively enable specific toolsets to reduce context overhead and focus on specific functionality.
+
+| Environment variable   | Description                                                                                                       |
+|------------------------|-------------------------------------------------------------------------------------------------------------------|
+| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, all tools are enabled. **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. |
+
+<details>
+
+**<summary>Available Toolsets</summary>**
+
+| Toolset            | Key                 | Description                                                          |
+|--------------------|---------------------|----------------------------------------------------------------------|
+| **Analysis**       | `analysis`          | Code analysis tools (analyze code snippets and files)                |
+| **Issues**         | `issues`            | Search and manage SonarQube issues                                   |
+| **Projects**       | `projects`          | Browse and search SonarQube projects                                 |
+| **Quality Gates**  | `quality-gates`     | Access quality gates and their status                                |
+| **Rules**          | `rules`             | Browse and search SonarQube rules                                    |
+| **Sources**        | `sources`           | Access source code and SCM information                               |
+| **Measures**       | `measures`          | Retrieve metrics and measures (includes both measures and metrics tools) |
+| **Languages**      | `languages`         | List supported programming languages                                 |
+| **Portfolios**     | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                 |
+| **System**         | `system`            | System administration tools (Server only)                            |
+| **Webhooks**       | `webhooks`          | Manage webhooks                                                      |
+| **Dependency Risks**| `dependency-risks` | Analyze dependency risks and security issues (SCA)                   |
+
+#### Example
+
+**Enable analysis, issues, and quality gates toolsets (using Docker with SonarQube Cloud):**
+
+```bash
+docker run -i --name sonarqube-mcp-server --rm \
+  -e SONARQUBE_TOKEN="<token>" \
+  -e SONARQUBE_ORG="<org>" \
+  -e SONARQUBE_TOOLSETS="analysis,issues,quality-gates" \
+  mcp/sonarqube
+```
+
+Note: The `projects` toolset is always enabled automatically, so you don't need to include it in `SONARQUBE_TOOLSETS`.
+
+</details>
+
 #### SonarQube Cloud
 
 To enable full functionality, the following environment variables must be set before starting the server:

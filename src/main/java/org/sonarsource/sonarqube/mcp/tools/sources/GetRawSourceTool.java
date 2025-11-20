@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.sources;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class GetRawSourceTool extends Tool {
 
@@ -38,7 +39,8 @@ public class GetRawSourceTool extends Tool {
       .addStringProperty(BRANCH_PROPERTY, "Branch key (e.g. feature/my_branch)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")
       .setReadOnlyHint()
-      .build());
+      .build(),
+      ToolCategory.SOURCES);
     this.serverApiProvider = serverApiProvider;
   }
 
