@@ -100,10 +100,12 @@ class ToolCategoryTest {
   }
 
   @Test
-  void should_return_empty_set_for_null_or_empty_string() {
-    assertThat(ToolCategory.parseCategories(null)).isEmpty();
-    assertThat(ToolCategory.parseCategories("")).isEmpty();
-    assertThat(ToolCategory.parseCategories("   ")).isEmpty();
+  void should_return_all_categories_for_null_or_empty_string() {
+    var allCategories = ToolCategory.all();
+
+    assertThat(ToolCategory.parseCategories(null)).isEqualTo(allCategories);
+    assertThat(ToolCategory.parseCategories("")).isEqualTo(allCategories);
+    assertThat(ToolCategory.parseCategories("   ")).isEqualTo(allCategories);
   }
 
   @Test

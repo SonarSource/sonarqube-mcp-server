@@ -230,12 +230,4 @@ class McpServerLaunchConfigurationTest {
     );
   }
 
-  @Test
-  void should_return_empty_set_when_no_toolsets_config_is_set(@TempDir Path tempDir) {
-    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
-    var configuration = new McpServerLaunchConfiguration(arg);
-
-    assertThat(configuration.getEnabledToolsets()).isEmpty();
-  }
-
 }
