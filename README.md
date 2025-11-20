@@ -485,6 +485,7 @@ By default, all tools are enabled. You can selectively enable specific toolsets 
 | Environment variable   | Description                                                                                                       |
 |------------------------|-------------------------------------------------------------------------------------------------------------------|
 | `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, all tools are enabled. **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. |
+| `SONARQUBE_READ_ONLY`  | When set to `true`, enables read-only mode which disables all write operations (changing issue status, creating webhooks, toggling automatic analysis). All read-only tools remain available. Default: `false`. |
 
 <details>
 
@@ -518,6 +519,16 @@ docker run -i --name sonarqube-mcp-server --rm \
 ```
 
 Note: The `projects` toolset is always enabled automatically, so you don't need to include it in `SONARQUBE_TOOLSETS`.
+
+**Enable read-only mode (using Docker with SonarQube Cloud):**
+
+```bash
+docker run -i --name sonarqube-mcp-server --rm \
+  -e SONARQUBE_TOKEN="<token>" \
+  -e SONARQUBE_ORG="<org>" \
+  -e SONARQUBE_READ_ONLY="true" \
+  mcp/sonarqube
+```
 
 </details>
 

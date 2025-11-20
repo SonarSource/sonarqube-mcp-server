@@ -230,4 +230,53 @@ class McpServerLaunchConfigurationTest {
     );
   }
 
+  // Read-only mode tests
+
+  @Test
+  void should_not_enable_read_only_mode_by_default(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isReadOnlyMode()).isFalse();
+  }
+
+  @Test
+  void should_enable_read_only_mode_when_set_to_true(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "org",
+      "SONARQUBE_READ_ONLY", "true"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isReadOnlyMode()).isTrue();
+  }
+
+  @Test
+  void should_not_enable_read_only_mode_when_set_to_false(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "org",
+      "SONARQUBE_READ_ONLY", "false"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isReadOnlyMode()).isFalse();
+  }
+
+  @Test
+  void should_parse_read_only_mode_case_insensitively(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "org",
+      "SONARQUBE_READ_ONLY", "TRUE"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isReadOnlyMode()).isTrue();
+  }
+
 }

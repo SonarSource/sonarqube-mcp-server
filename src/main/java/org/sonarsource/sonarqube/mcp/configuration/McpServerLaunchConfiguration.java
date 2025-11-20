@@ -45,6 +45,7 @@ public class McpServerLaunchConfiguration {
   
   // Tool category configuration
   private static final String SONARQUBE_TOOLSETS = "SONARQUBE_TOOLSETS";
+  private static final String SONARQUBE_READ_ONLY = "SONARQUBE_READ_ONLY";
   
   // HTTP/HTTPS transport configuration
   private static final String SONARQUBE_TRANSPORT = "SONARQUBE_TRANSPORT";
@@ -97,6 +98,7 @@ public class McpServerLaunchConfiguration {
   
   // Tool category configuration
   private final Set<ToolCategory> enabledToolsets;
+  private final boolean isReadOnlyMode;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -149,6 +151,8 @@ public class McpServerLaunchConfiguration {
     // Parse tool category configuration
     var toolsetsStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOOLSETS, null);
     this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
+
+    this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
   }
 
   @NotNull
@@ -353,6 +357,14 @@ public class McpServerLaunchConfiguration {
 
   public Set<ToolCategory> getEnabledToolsets() {
     return Set.copyOf(enabledToolsets);
+  }
+
+  /**
+   * Returns whether the server is running in read-only mode.
+   * When enabled, only tools marked with readOnlyHint will be available.
+   */
+  public boolean isReadOnlyMode() {
+    return isReadOnlyMode;
   }
 
 }
