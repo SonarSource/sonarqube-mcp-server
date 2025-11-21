@@ -203,12 +203,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListPortfoliosTool(this, mcpConfiguration.isSonarCloud()),
       new SearchDependencyRisksTool(this, sonarQubeVersionChecker)));
       
-    // Filter tools based on enabled categories
+    // Filter tools based on enabled categories and read-only mode
     this.supportedTools.addAll(allTools.stream()
       .filter(tool -> mcpConfiguration.isToolCategoryEnabled(tool.getCategory()))
+      .filter(tool -> !mcpConfiguration.isReadOnlyMode() || tool.definition().annotations().readOnlyHint())
       .toList());
       
-    LOG.info("Loaded " + this.supportedTools.size() + " tools after category filtering");
+    var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
+    LOG.info("Loaded " + this.supportedTools.size() + " tools after " + filterReason);
   }
 
   public void start() {
@@ -264,6 +266,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.info("URL: " + mcpConfiguration.getSonarQubeUrl());
     if (mcpConfiguration.isSonarCloud() && mcpConfiguration.getSonarqubeOrg() != null) {
       LOG.info("Organization: " + mcpConfiguration.getSonarqubeOrg());
+    }
+    if (mcpConfiguration.isReadOnlyMode()) {
+      LOG.info("Mode: READ-ONLY (write operations disabled)");
     }
     LOG.info("Tools loaded: " + supportedTools.size());
     LOG.info("========================================");
