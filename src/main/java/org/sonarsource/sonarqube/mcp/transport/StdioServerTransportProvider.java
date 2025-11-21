@@ -91,8 +91,12 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
    * Returns false when running tests to avoid terminating the test runner.
    */
   private static boolean shouldExitOnStdinEof() {
+    return shouldExitOnStdinEof(Thread.currentThread().getStackTrace());
+  }
+
+  static boolean shouldExitOnStdinEof(StackTraceElement[] stackTrace) {
     // Check if we're running in test mode
-    var stackTrace = Thread.currentThread().getStackTrace();
+    // Common indicators: JUnit, Gradle test runner, Maven Surefire
     for (var element : stackTrace) {
       if (element.getClassName().startsWith("org.junit.")) {
         return false;
