@@ -60,7 +60,7 @@ class ReadOnlyModeTest {
 
     var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
 
-    // All tools should be included write tools
+    // Both read-only and write tools should be included
     assertThat(toolNames).contains(
       ChangeIssueStatusTool.TOOL_NAME,
       CreateWebhookTool.TOOL_NAME,
@@ -77,7 +77,7 @@ class ReadOnlyModeTest {
 
     var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
 
-    // All tools should be included by default (read-only mode disabled)
+    // Both read-only and write tools should be included
     assertThat(toolNames).contains(
       ChangeIssueStatusTool.TOOL_NAME,
       CreateWebhookTool.TOOL_NAME,
