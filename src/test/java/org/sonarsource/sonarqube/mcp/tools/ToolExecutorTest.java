@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
@@ -35,7 +36,9 @@ class ToolExecutorTest {
   @BeforeEach
   void prepare() {
     mockBackendService = mock(BackendService.class);
-    toolExecutor = new ToolExecutor(mockBackendService);
+    // Create a completed future for tests (simulating completed initialization)
+    CompletableFuture<Void> initializationFuture = CompletableFuture.completedFuture(null);
+    toolExecutor = new ToolExecutor(mockBackendService, initializationFuture);
   }
 
   @Test

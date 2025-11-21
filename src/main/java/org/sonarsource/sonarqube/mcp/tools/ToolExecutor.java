@@ -17,6 +17,10 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
@@ -26,10 +30,13 @@ import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 
 public class ToolExecutor {
   private static final McpLogger LOG = McpLogger.getInstance();
+  private static final int INITIALIZATION_TIMEOUT_SECONDS = 300; // 5 minutes
   private final BackendService backendService;
+  private final CompletableFuture<Void> initializationFuture;
 
-  public ToolExecutor(BackendService backendService) {
+  public ToolExecutor(BackendService backendService, CompletableFuture<Void> initializationFuture) {
     this.backendService = backendService;
+    this.initializationFuture = initializationFuture;
   }
 
   public McpSchema.CallToolResult execute(Tool tool, McpSchema.CallToolRequest toolRequest) {
@@ -39,9 +46,24 @@ public class ToolExecutor {
     var startTime = System.currentTimeMillis();
     Tool.Result result;
     try {
+      // Wait for initialization to complete before executing the tool
+      if (!initializationFuture.isDone()) {
+        LOG.info("Waiting for server initialization to complete before executing tool: " + toolName);
+      }
+      initializationFuture.get(INITIALIZATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      
       result = tool.execute(new Tool.Arguments(toolRequest.arguments()));
       var executionTime = System.currentTimeMillis() - startTime;
       LOG.info("Tool completed: " + toolName + " (execution time: " + executionTime + "ms)");
+    } catch (TimeoutException e) {
+      var executionTime = System.currentTimeMillis() - startTime;
+      result = Tool.Result.failure("Server initialization is taking longer than expected. Please try again in a moment.");
+      LOG.error("Tool failed due to initialization timeout: " + toolName + " (execution time: " + executionTime + "ms)", e);
+    } catch (ExecutionException e) {
+      var executionTime = System.currentTimeMillis() - startTime;
+      result = Tool.Result.failure("Server initialization failed: " + e.getCause().getMessage() + 
+        ". Please check the server logs for more details.");
+      LOG.error("Tool failed due to initialization error: " + toolName + " (execution time: " + executionTime + "ms)", e);
     } catch (Exception e) {
       var executionTime = System.currentTimeMillis() - startTime;
       var message = switch (e) {
