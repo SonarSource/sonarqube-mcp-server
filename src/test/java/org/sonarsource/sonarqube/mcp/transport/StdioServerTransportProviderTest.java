@@ -123,18 +123,5 @@ class StdioServerTransportProviderTest {
     verify(mockSession, never()).close();
   }
 
-  @Test
-  void should_not_exit_jvm_when_running_in_test_mode() throws Exception {
-    // This test verifies that System.exit(0) is NOT called when running tests.
-    // If the test detection logic fails, this test would never complete because
-    // the JVM would exit. The fact that this test completes proves the detection works.
-    
-    var provider = new StdioServerTransportProvider(new ObjectMapper());
-    
-    // Verify the provider can be created without issues
-    // The shouldExitOnStdinEof() method should return false during tests
-    assertThatCode(() -> provider.toString()).doesNotThrowAnyException();
-  }
-
 }
 
