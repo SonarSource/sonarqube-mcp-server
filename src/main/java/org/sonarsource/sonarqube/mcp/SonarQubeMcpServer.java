@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -28,6 +29,9 @@ import io.modelcontextprotocol.spec.McpStreamableServerTransportProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
@@ -96,6 +100,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private McpSyncServer syncServer;
   private volatile boolean isShutdown = false;
   private boolean logFileLocationLogged;
+  private final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
 
   public static void main(String[] args) {
     new SonarQubeMcpServer(System.getenv()).start();
@@ -124,31 +129,122 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       this.transportProvider = new StdioServerTransportProvider(new ObjectMapper());
     }
 
-    initializeServices();
+    initializeBasicServices();
   }
 
-  private void initializeServices() {
+
+
+  public void start() {
+    // Start HTTP server if enabled
+    if (httpServerManager != null) {
+      LOG.info("Starting HTTP server on " + mcpConfiguration.getHttpHost() + ":" + mcpConfiguration.getHttpPort() + "...");
+      httpServerManager.startServer().join();
+      LOG.info("HTTP server started");
+    }
+
+    // Build and start MCP server immediately with NO tools
+    // Tools will be added dynamically once background initialization completes
+    Function<Object, McpSyncServer> serverBuilder = provider -> {
+      var builder = switch (provider) {
+        case McpServerTransportProvider p -> McpServer.sync(p);
+        case McpStreamableServerTransportProvider p -> McpServer.sync(p);
+        default -> throw new IllegalArgumentException("Unsupported transport provider type: " + provider.getClass().getName());
+      };
+      return builder
+        .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
+        .instructions("Transform your code quality workflow with SonarQube integration. " +
+          "Analyze code, monitor project health, investigate issues, and understand quality gates. " +
+          "Note: Tools are being loaded in the background and will be available shortly.")
+        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
+        // Start with no tools - they will be added dynamically after initialization
+        .build();
+    };
+
+    syncServer = serverBuilder.apply(transportProvider);
+
+    Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+
+    logInitialization();
+
+    // Start background initialization in a separate thread
+    CompletableFuture.runAsync(this::initializeBackgroundServices)
+      .exceptionally(ex -> {
+        LOG.error("Fatal error during background initialization", ex);
+        return null;
+      });
+  }
+
+  /**
+   * Quick initialization - only creates basic services needed for configuration validation.
+   * Heavy operations (version check, plugin download, backend init) are deferred to background.
+   */
+  private void initializeBasicServices() {
     this.backendService = new BackendService(mcpConfiguration);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
-    this.toolExecutor = new ToolExecutor(backendService);
+    this.toolExecutor = new ToolExecutor(backendService, initializationFuture);
 
-    PluginsSynchronizer pluginsSynchronizer;
+    // Create ServerApi and SonarQubeVersionChecker early (doesn't make network calls yet)
+    // This allows initTools() to reference sonarQubeVersionChecker before background init completes
     if (mcpConfiguration.isHttpEnabled()) {
       var initServerApi = createServerApiWithToken(mcpConfiguration.getSonarQubeToken());
       this.sonarQubeVersionChecker = new SonarQubeVersionChecker(initServerApi);
-      pluginsSynchronizer = new PluginsSynchronizer(initServerApi, mcpConfiguration.getStoragePath());
     } else {
       this.serverApi = initializeServerApi(mcpConfiguration);
       this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-      pluginsSynchronizer = new PluginsSynchronizer(serverApi, mcpConfiguration.getStoragePath());
     }
-    sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
-    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
-    backendService.initialize(analyzers);
-    backendService.notifyTransportModeUsed();
-
-    LOG.info("Startup initialization completed");
   }
+
+  /**
+   * Heavy initialization that runs in background after the server has started.
+   * Downloads analyzers, checks version, initializes the backend, and dynamically loads tools.
+   */
+  private void initializeBackgroundServices() {
+    try {
+      sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
+
+      PluginsSynchronizer pluginsSynchronizer;
+      if (mcpConfiguration.isHttpEnabled()) {
+        var initServerApi = createServerApiWithToken(mcpConfiguration.getSonarQubeToken());
+        pluginsSynchronizer = new PluginsSynchronizer(initServerApi, mcpConfiguration.getStoragePath());
+      } else {
+        pluginsSynchronizer = new PluginsSynchronizer(Objects.requireNonNull(serverApi), mcpConfiguration.getStoragePath());
+      }
+      var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+
+      backendService.initialize(analyzers);
+      backendService.notifyTransportModeUsed();
+
+      // Load and register tools dynamically
+      LOG.info("Loading tools...");
+      initTools();
+      notifyToolsLoaded();
+
+      initializationFuture.complete(null);
+      LOG.info("Background initialization completed successfully");
+    } catch (Exception e) {
+      LOG.error("Background initialization failed", e);
+      initializationFuture.completeExceptionally(e);
+      throw e;
+    }
+  }
+
+  /**
+   * Notifies connected clients about newly loaded tools.
+   * This may fail if no client is connected yet (common during startup or in tests).
+   * Failure is acceptable as clients will discover tools via listTools() when they connect.
+   */
+  private void notifyToolsLoaded() {
+    try {
+      for (var tool : supportedTools) {
+        syncServer.addTool(toSpec(tool));
+      }
+      syncServer.notifyToolsListChanged();
+      LOG.info(supportedTools.size() + " tools loaded and registered");
+    } catch (Exception e) {
+      LOG.info(supportedTools.size() + " tools loaded (client notification deferred)");
+    }
+  }
+
   private void initTools() {
     var allTools = new ArrayList<Tool>();
     
@@ -213,37 +309,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.info("Loaded " + this.supportedTools.size() + " tools after " + filterReason);
   }
 
-  public void start() {
-    initTools();
-
-    if (httpServerManager != null) {
-      LOG.info("Starting HTTP server on " + mcpConfiguration.getHttpHost() + ":" + mcpConfiguration.getHttpPort() + "...");
-      httpServerManager.startServer().join();
-      LOG.info("HTTP server started");
-    }
-
-    Function<Object, McpSyncServer> serverBuilder = provider -> {
-      var builder = switch (provider) {
-        case McpServerTransportProvider p -> McpServer.sync(p);
-        case McpStreamableServerTransportProvider p -> McpServer.sync(p);
-        default -> throw new IllegalArgumentException("Unsupported transport provider type: " + provider.getClass().getName());
-      };
-      return builder
-        .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
-        .instructions("Transform your code quality workflow with SonarQube integration. " +
-          "Analyze code, monitor project health, investigate issues, and understand quality gates.")
-        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
-        .tools(supportedTools.stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
-        .build();
-    };
-
-    syncServer = serverBuilder.apply(transportProvider);
-
-    Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-
-    logInitialization();
-  }
-
   private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
     return new McpServerFeatures.SyncToolSpecification.Builder()
       .tool(tool.definition())
@@ -259,7 +324,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var sonarQubeType = mcpConfiguration.isSonarCloud() ? "SonarQube Cloud" : "SonarQube Server";
 
     LOG.info("========================================");
-    LOG.info("SonarQube MCP Server Startup Configuration:");
+    LOG.info("SonarQube MCP Server Started:");
     LOG.info("Transport: " + transportType +
       (mcpConfiguration.isHttpEnabled() ? (" (" + mcpConfiguration.getHttpHost() + ":" + mcpConfiguration.getHttpPort() + ")") : ""));
     LOG.info("Instance: " + sonarQubeType);
@@ -270,7 +335,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (mcpConfiguration.isReadOnlyMode()) {
       LOG.info("Mode: READ-ONLY (write operations disabled)");
     }
-    LOG.info("Tools loaded: " + supportedTools.size());
+    LOG.info("Status: Server ready - tools loading in background");
     LOG.info("========================================");
   }
 
@@ -365,7 +430,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
     this.transportProvider = transportProvider;
     this.httpServerManager = httpServerManager;
-    initializeServices();
+    initializeBasicServices();
   }
 
   // Package-private getters for testing
@@ -375,6 +440,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   public List<Tool> getSupportedTools() {
     return List.copyOf(supportedTools);
+  }
+
+  /**
+   * For testing: wait for background initialization to complete.
+   * This ensures tools are fully loaded before tests proceed.
+   */
+  @VisibleForTesting
+  public void waitForInitialization() throws ExecutionException, InterruptedException {
+    initializationFuture.get();
   }
 
 }
