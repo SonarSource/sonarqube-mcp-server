@@ -30,7 +30,7 @@ import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 
 public class ToolExecutor {
   private static final McpLogger LOG = McpLogger.getInstance();
-  private static final int INITIALIZATION_TIMEOUT_SECONDS = 300; // 5 minutes
+  private static final int INITIALIZATION_TIMEOUT_SECONDS = 30;
   private final BackendService backendService;
   private final CompletableFuture<Void> initializationFuture;
 
@@ -45,38 +45,68 @@ public class ToolExecutor {
     
     var startTime = System.currentTimeMillis();
     Tool.Result result;
+    
     try {
-      // Wait for initialization to complete before executing the tool
-      if (!initializationFuture.isDone()) {
-        LOG.info("Waiting for server initialization to complete before executing tool: " + toolName);
-      }
-      initializationFuture.get(INITIALIZATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      
+      waitForInitialization(toolName);
       result = tool.execute(new Tool.Arguments(toolRequest.arguments()));
-      var executionTime = System.currentTimeMillis() - startTime;
-      LOG.info("Tool completed: " + toolName + " (execution time: " + executionTime + "ms)");
-    } catch (TimeoutException e) {
-      var executionTime = System.currentTimeMillis() - startTime;
-      result = Tool.Result.failure("Server initialization is taking longer than expected. Please try again in a moment.");
-      LOG.error("Tool failed due to initialization timeout: " + toolName + " (execution time: " + executionTime + "ms)", e);
-    } catch (ExecutionException e) {
-      var executionTime = System.currentTimeMillis() - startTime;
-      result = Tool.Result.failure("Server initialization failed: " + e.getCause().getMessage() + 
-        ". Please check the server logs for more details.");
-      LOG.error("Tool failed due to initialization error: " + toolName + " (execution time: " + executionTime + "ms)", e);
+      logSuccess(toolName, startTime);
+    } catch (TimeoutException | ExecutionException e) {
+      result = handleInitializationError(e, toolName, startTime);
     } catch (Exception e) {
-      var executionTime = System.currentTimeMillis() - startTime;
-      var message = switch (e) {
-        case UnauthorizedException ex -> ex.getMessage() + ". Please verify your token is valid and has the correct permissions.";
-        case ForbiddenException ex -> ex.getMessage() + ". Please verify your token has the required permissions for this operation.";
-        case NotFoundException ex -> ex.getMessage() + ". Please verify your token is valid and the requested resource exists.";
-        case ResponseErrorException responseErrorException -> responseErrorException.getResponseError().getMessage();
-        default -> e.getMessage();
-      };
-      result = Tool.Result.failure("An error occurred during the tool execution: " + message);
-      LOG.error("Tool failed: " + toolName + " (execution time: " + executionTime + "ms)", e);
+      result = handleExecutionError(e, toolName, startTime);
     }
+    
     backendService.notifyToolCalled("mcp_" + tool.definition().name(), !result.isError());
     return result.toCallToolResult();
   }
+
+  private void waitForInitialization(String toolName) throws ExecutionException, InterruptedException, TimeoutException {
+    if (!initializationFuture.isDone()) {
+      LOG.info("Waiting for server initialization to complete before executing tool: " + toolName);
+    }
+    initializationFuture.get(INITIALIZATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+  }
+
+  private void logSuccess(String toolName, long startTime) {
+    var executionTime = System.currentTimeMillis() - startTime;
+    LOG.info("Tool completed: " + toolName + " (execution time: " + executionTime + "ms)");
+  }
+
+  private Tool.Result handleInitializationError(Exception e, String toolName, long startTime) {
+    var executionTime = System.currentTimeMillis() - startTime;
+    String errorMessage;
+    
+    if (e instanceof TimeoutException) {
+      errorMessage = "Server initialization is taking longer than expected. Please try again in a moment.";
+      LOG.error("Tool failed due to initialization timeout: " + toolName + " (execution time: " + executionTime + "ms)", e);
+    } else {
+      errorMessage = "Server initialization failed: " + e.getCause().getMessage() +
+        ". Please check the server logs for more details.";
+      LOG.error("Tool failed due to initialization error: " + toolName + " (execution time: " + executionTime + "ms)", e);
+    }
+    
+    return Tool.Result.failure(errorMessage);
+  }
+
+  private Tool.Result handleExecutionError(Exception e, String toolName, long startTime) {
+    var executionTime = System.currentTimeMillis() - startTime;
+    var message = formatErrorMessage(e);
+    LOG.error("Tool failed: " + toolName + " (execution time: " + executionTime + "ms)", e);
+    return Tool.Result.failure("An error occurred during the tool execution: " + message);
+  }
+
+  private String formatErrorMessage(Exception e) {
+    return switch (e) {
+      case UnauthorizedException ex -> 
+        ex.getMessage() + ". Please verify your token is valid and has the correct permissions.";
+      case ForbiddenException ex -> 
+        ex.getMessage() + ". Please verify your token has the required permissions for this operation.";
+      case NotFoundException ex -> 
+        ex.getMessage() + ". Please verify your token is valid and the requested resource exists.";
+      case ResponseErrorException responseErrorException -> 
+        responseErrorException.getResponseError().getMessage();
+      default -> e.getMessage();
+    };
+  }
+
 }
