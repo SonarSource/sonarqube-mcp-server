@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import reactor.core.publisher.Mono;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -121,6 +122,42 @@ class StdioServerTransportProviderTest {
     assertThatCode(() -> result.block(Duration.ofSeconds(7))).doesNotThrowAnyException();
     verify(mockSession, times(1)).closeGracefully();
     verify(mockSession, never()).close();
+  }
+
+  @Test
+  void shouldExitOnStdinEof_should_return_true_for_production_stack_trace() {
+    // Simulate a production stack trace with no test frameworks
+    var stackTrace = new StackTraceElement[] {
+      new StackTraceElement("com.example.MyApp", "main", "MyApp.java", 10),
+      new StackTraceElement("com.example.MyService", "start", "MyService.java", 20),
+      new StackTraceElement("java.lang.Thread", "run", "Thread.java", 100)
+    };
+
+    boolean result = StdioServerTransportProvider.shouldExitOnStdinEof(stackTrace);
+
+    assertThat(result).isTrue();
+  }
+
+  @Test
+  void shouldExitOnStdinEof_should_return_false_when_junit_in_stack_trace() {
+    // Simulate a test stack trace with JUnit
+    var stackTrace = new StackTraceElement[] {
+      new StackTraceElement("org.junit.jupiter.engine.execution.ExecutableInvoker", "invoke", "ExecutableInvoker.java", 20)
+    };
+
+    boolean result = StdioServerTransportProvider.shouldExitOnStdinEof(stackTrace);
+
+    assertThat(result).isFalse();
+  }
+
+  @Test
+  void shouldExitOnStdinEof_should_return_true_for_empty_stack_trace() {
+    // Edge case: empty stack trace
+    var stackTrace = new StackTraceElement[] {};
+
+    boolean result = StdioServerTransportProvider.shouldExitOnStdinEof(stackTrace);
+
+    assertThat(result).isTrue();
   }
 
 }

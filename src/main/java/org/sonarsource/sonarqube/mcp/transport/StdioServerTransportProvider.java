@@ -72,22 +72,45 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
   private final Sinks.One<Void> inboundReady = Sinks.one();
 
   /**
-   * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
-   * System streams. Will call System.exit(0) when stdin closes (for Docker containers).
+   * Flag to indicate if we should call System.exit(0) on stdin EOF.
+   * False during tests.
+   */
+  private final boolean shouldExitOnEof;
+
+  /**
+   * Creates a new StdioServerTransportProvider with the specified ObjectMapper and system streams.
+   * Will call System.exit(0) when stdin closes, unless running in test mode.
    */
   public StdioServerTransportProvider(ObjectMapper objectMapper) {
-    this(new JacksonMcpJsonMapper(objectMapper), System.in, System.out);
+    this(new JacksonMcpJsonMapper(objectMapper), System.in, System.out, shouldExitOnStdinEof());
+  }
+
+  private static boolean shouldExitOnStdinEof() {
+    return shouldExitOnStdinEof(Thread.currentThread().getStackTrace());
+  }
+
+  static boolean shouldExitOnStdinEof(StackTraceElement[] stackTrace) {
+    // Check if we're running in test mode
+    for (var element : stackTrace) {
+      if (element.getClassName().startsWith("org.junit.")) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
-   * streams. Automatically detects if custom streams are used (tests) to disable System.exit().
-   *
-   * @param jsonMapper   The JsonMapper to use for JSON serialization/deserialization
-   * @param inputStream  The input stream to read from
-   * @param outputStream The output stream to write to
+   * streams. Custom streams disable System.exit() behavior (used for testing).
    */
   public StdioServerTransportProvider(McpJsonMapper jsonMapper, InputStream inputStream, OutputStream outputStream) {
+    this(jsonMapper, inputStream, outputStream, false);
+  }
+
+  /**
+   * Private constructor with explicit control over System.exit behavior.
+   */
+  private StdioServerTransportProvider(McpJsonMapper jsonMapper, InputStream inputStream, OutputStream outputStream, boolean shouldExitOnEof) {
     Assert.notNull(jsonMapper, "The JsonMapper can not be null");
     Assert.notNull(inputStream, "The InputStream can not be null");
     Assert.notNull(outputStream, "The OutputStream can not be null");
@@ -95,6 +118,7 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
     this.jsonMapper = jsonMapper;
     this.inputStream = inputStream;
     this.outputStream = outputStream;
+    this.shouldExitOnEof = shouldExitOnEof;
   }
 
   @Override
@@ -267,6 +291,13 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
               session.close();
             }
             inboundSink.tryEmitComplete();
+            
+            // When stdin closes (EOF detected) in production, terminate the JVM to ensure we exit properly.
+            // In test mode, this is disabled to avoid terminating the test runner.
+            if (shouldExitOnEof) {
+              logger.info("stdin closed (EOF detected) - terminating process");
+              System.exit(0);
+            }
           }
         });
       }
