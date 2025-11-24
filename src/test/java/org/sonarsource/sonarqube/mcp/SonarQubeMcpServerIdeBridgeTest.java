@@ -59,7 +59,7 @@ class SonarQubeMcpServerIdeBridgeTest {
 
     harness.prepareMockWebServer(environment);
 
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), null, environment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), null), null, environment);
     server.start();
 
     var supportedTools = server.getSupportedTools();
@@ -78,7 +78,7 @@ class SonarQubeMcpServerIdeBridgeTest {
 
     harness.prepareMockWebServer(environment);
 
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), null, environment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), null), null, environment);
     server.start();
 
     var supportedTools = server.getSupportedTools();
