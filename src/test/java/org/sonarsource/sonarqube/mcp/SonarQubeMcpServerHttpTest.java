@@ -77,9 +77,12 @@ class SonarQubeMcpServerHttpTest {
 
     harness.prepareMockWebServer(environment);
 
-    var stdioServer = new SonarQubeMcpServer(environment);
+    var stdioServer = new SonarQubeMcpServer(
+        new StdioServerTransportProvider(new ObjectMapper(), null),
+        null,
+        environment);
     stdioServer.start();
-    stdioServer.waitForInitialization(); // Wait for tools to load
+    stdioServer.waitForInitialization();
     var stdioTools = stdioServer.getSupportedTools().stream()
         .map(tool -> tool.definition().name())
         .sorted()
@@ -88,15 +91,16 @@ class SonarQubeMcpServerHttpTest {
     environment.put("SONARQUBE_TRANSPORT", "http");
     var httpServer = new SonarQubeMcpServer(environment);
     httpServer.start();
-    httpServer.waitForInitialization(); // Wait for tools to load
+    httpServer.waitForInitialization();
     var httpTools = httpServer.getSupportedTools().stream()
         .map(tool -> tool.definition().name())
         .sorted()
         .toList();
-    
+
+    assertThat(stdioTools).isNotEmpty();
     assertThat(httpTools)
-      .isEqualTo(stdioTools)
-      .isNotEmpty();
+      .isNotEmpty()
+      .isEqualTo(stdioTools);
   }
 
   @SonarQubeMcpServerTest
