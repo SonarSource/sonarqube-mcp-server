@@ -37,7 +37,7 @@ class StdioServerTransportProviderTest {
    * We need to use reflection to set the session field directly to avoid the background threads.
    */
   private StdioServerTransportProvider createProviderWithMockSession(McpServerSession mockSession) throws Exception {
-    var provider = new StdioServerTransportProvider(new ObjectMapper());
+    var provider = new StdioServerTransportProvider(new ObjectMapper(), null);
     var sessionField = StdioServerTransportProvider.class.getDeclaredField("session");
     sessionField.setAccessible(true);
     sessionField.set(provider, mockSession);
@@ -46,7 +46,7 @@ class StdioServerTransportProviderTest {
 
   @Test
   void closeGracefully_should_return_empty_mono_when_session_is_null() {
-    var provider = new StdioServerTransportProvider(new ObjectMapper());
+    var provider = new StdioServerTransportProvider(new ObjectMapper(), null);
 
     var result = provider.closeGracefully();
 

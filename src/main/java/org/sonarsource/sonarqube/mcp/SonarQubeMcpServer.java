@@ -121,7 +121,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       this.transportProvider = httpServerManager.getTransportProvider();
     } else {
       this.httpServerManager = null;
-      this.transportProvider = new StdioServerTransportProvider(new ObjectMapper());
+      this.transportProvider = new StdioServerTransportProvider(new ObjectMapper(), this::shutdown);
     }
 
     initializeServices();

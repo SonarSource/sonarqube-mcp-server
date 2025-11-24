@@ -104,7 +104,7 @@ class SonarQubeMcpServerHttpTest {
 
     harness.prepareMockWebServer(environment);
 
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper()), null, environment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), null), null, environment);
     
     assertThat(server.getMcpConfiguration().isHttpEnabled()).isFalse();
   }

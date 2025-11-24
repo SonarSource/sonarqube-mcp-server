@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -71,23 +72,29 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
 
   private final Sinks.One<Void> inboundReady = Sinks.one();
 
+  private final Runnable shutdownCallback;
+
   /**
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
-   * System streams. Will call System.exit(0) when stdin closes (for Docker containers).
+   * System streams. Will call shutdown callback when stdin closes (for Docker containers).
    */
-  public StdioServerTransportProvider(ObjectMapper objectMapper) {
-    this(new JacksonMcpJsonMapper(objectMapper), System.in, System.out);
+  public StdioServerTransportProvider(ObjectMapper objectMapper, Runnable shutdownCallback) {
+    this(new JacksonMcpJsonMapper(objectMapper), System.in, System.out, shutdownCallback);
   }
 
   /**
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
-   * streams. Automatically detects if custom streams are used (tests) to disable System.exit().
+   * streams. Automatically detects if custom streams are used (tests) to disable shutdown callback.
    *
    * @param jsonMapper   The JsonMapper to use for JSON serialization/deserialization
    * @param inputStream  The input stream to read from
    * @param outputStream The output stream to write to
    */
   public StdioServerTransportProvider(McpJsonMapper jsonMapper, InputStream inputStream, OutputStream outputStream) {
+    this(jsonMapper, inputStream, outputStream, null);
+  }
+
+  private StdioServerTransportProvider(McpJsonMapper jsonMapper, InputStream inputStream, OutputStream outputStream, @Nullable Runnable shutdownCallback) {
     Assert.notNull(jsonMapper, "The JsonMapper can not be null");
     Assert.notNull(inputStream, "The InputStream can not be null");
     Assert.notNull(outputStream, "The OutputStream can not be null");
@@ -95,6 +102,7 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
     this.jsonMapper = jsonMapper;
     this.inputStream = inputStream;
     this.outputStream = outputStream;
+    this.shutdownCallback = shutdownCallback;
   }
 
   @Override
@@ -267,6 +275,16 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
               session.close();
             }
             inboundSink.tryEmitComplete();
+            
+            // Trigger graceful shutdown when stdin closes if environment variable is set (avoid stale containers)
+            if (shutdownCallback != null) {
+              logger.info("stdin closed (EOF detected) - initiating graceful shutdown");
+              try {
+                shutdownCallback.run();
+              } catch (Exception e) {
+                logger.error("Error during graceful shutdown", e);
+              }
+            }
           }
         });
       }
