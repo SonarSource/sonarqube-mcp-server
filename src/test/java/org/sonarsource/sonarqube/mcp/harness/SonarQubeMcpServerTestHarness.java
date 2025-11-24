@@ -55,7 +55,6 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     "SONARQUBE_TOKEN", "token");
   private final List<McpSyncClient> clients = new ArrayList<>();
   private Path tempStoragePath;
-  private final List<SonarQubeMcpServer> servers = new ArrayList<>();
   private final MockWebServer mockSonarQubeServer = new MockWebServer();
 
   @Override
@@ -72,15 +71,6 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   public void afterEach(ExtensionContext context) {
     clients.forEach(McpSyncClient::closeGracefully);
     clients.clear();
-    servers.forEach(server -> {
-      try {
-        server.shutdown();
-      } catch (Exception e) {
-        // Log error but continue cleanup
-        System.err.println("Error shutting down server: " + e.getMessage());
-      }
-    });
-    servers.clear();
     cleanupTempStoragePath();
     mockSonarQubeServer.stop();
   }
@@ -142,7 +132,6 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       .loggingConsumer(SonarQubeMcpServerTestHarness::printLogs).build();
     client.initialize();
     this.clients.add(client);
-    this.servers.add(server);
     return new SonarQubeMcpTestClient(client);
   }
 
