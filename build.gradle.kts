@@ -78,6 +78,7 @@ configurations {
 
 dependencies {
 	implementation(libs.mcp.server)
+	implementation(libs.context.propagation)
 	implementation(libs.sonarlint.java.client.utils)
 	implementation(libs.sonarlint.rpc.java.client)
 	implementation(libs.sonarlint.rpc.impl)

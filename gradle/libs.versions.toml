@@ -15,6 +15,7 @@ commons-text = "1.14.0"
 ayza = "10.0.2"
 logback = "1.5.21"
 jetty = "12.1.4"
+context-propagation = "1.1.1"
 jsonschema-generator = "4.38.0"
 
 junit = "5.14.1"
@@ -35,6 +36,7 @@ mcp-server = { module = "io.modelcontextprotocol.sdk:mcp", version.ref = "mcp-se
 commons-langs3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
 ayza = { module = "io.github.hakky54:ayza", version.ref = "ayza" }
+context-propagation = { module = "io.micrometer:context-propagation", version.ref = "context-propagation" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 jsonschema-generator = { module = "com.github.victools:jsonschema-generator", version.ref = "jsonschema-generator" }
 jsonschema-module-jackson = { module = "com.github.victools:jsonschema-module-jackson", version.ref = "jsonschema-generator" }

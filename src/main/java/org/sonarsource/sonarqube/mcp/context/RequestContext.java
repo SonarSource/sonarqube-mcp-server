@@ -27,6 +27,14 @@ package org.sonarsource.sonarqube.mcp.context;
  * <p>
  * <b>IMPORTANT:</b> Context must be properly cleaned up after request processing to avoid
  * thread pool contamination and memory leaks.
+ * <p>
+ * <b>Note on Thread Safety:</b> This class uses InheritableThreadLocal which only propagates
+ * context when new threads are created, not when threads are reused from a pool. For proper
+ * context propagation across Reactor's boundedElastic scheduler, see
+ * {@link RequestContextThreadLocalAccessor} which integrates with Micrometer Context Propagation.
+ *
+ * @see RequestContextThreadLocalAccessor
+ * @see <a href="https://github.com/modelcontextprotocol/java-sdk/issues/704">MCP Java SDK Issue #704</a>
  */
 public record RequestContext(String sonarQubeToken) {
 
@@ -47,6 +55,16 @@ public record RequestContext(String sonarQubeToken) {
   }
 
   /**
+   * Set the request context directly for the current thread.
+   * This is used by {@link RequestContextThreadLocalAccessor} during context restoration.
+   *
+   * @param context the RequestContext to set
+   */
+  public static void setContext(RequestContext context) {
+    CONTEXT.set(context);
+  }
+
+  /**
    * Clear the request context for the current thread.
    * This MUST be called after request processing completes to avoid memory leaks
    * and thread pool contamination.
@@ -56,4 +74,3 @@ public record RequestContext(String sonarQubeToken) {
   }
 
 }
-

@@ -37,6 +37,7 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
+import org.sonarsource.sonarqube.mcp.context.ContextPropagationInitializer;
 import org.sonarsource.sonarqube.mcp.context.RequestContext;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -105,6 +106,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
 
   public static void main(String[] args) {
+    // Initialize context propagation before any Reactor schedulers are created
+    // See https://github.com/modelcontextprotocol/java-sdk/issues/704
+    ContextPropagationInitializer.initialize();
+
     new SonarQubeMcpServer(System.getenv()).start();
   }
 
