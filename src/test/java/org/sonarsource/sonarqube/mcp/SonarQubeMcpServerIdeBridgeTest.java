@@ -50,7 +50,7 @@ class SonarQubeMcpServerIdeBridgeTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_add_bridge_related_tools_when_ide_bridge_is_available(SonarQubeMcpServerTestHarness harness) {
+  void should_add_bridge_related_tools_when_ide_bridge_is_available(SonarQubeMcpServerTestHarness harness) throws Exception {
     var environment = new HashMap<String, String>();
     environment.put("SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_TOKEN", "test-token");
@@ -61,6 +61,7 @@ class SonarQubeMcpServerIdeBridgeTest {
 
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), null), null, environment);
     server.start();
+    server.waitForInitialization();
 
     var supportedTools = server.getSupportedTools();
     assertThat(supportedTools)
@@ -70,7 +71,7 @@ class SonarQubeMcpServerIdeBridgeTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_add_analysis_tool_when_ide_bridge_is_not_available(SonarQubeMcpServerTestHarness harness) {
+  void should_add_analysis_tool_when_ide_bridge_is_not_available(SonarQubeMcpServerTestHarness harness) throws Exception {
     var environment = new HashMap<String, String>();
     environment.put("SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_TOKEN", "test-token");
@@ -80,6 +81,7 @@ class SonarQubeMcpServerIdeBridgeTest {
 
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), null), null, environment);
     server.start();
+    server.waitForInitialization();
 
     var supportedTools = server.getSupportedTools();
     assertThat(supportedTools)

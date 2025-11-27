@@ -72,13 +72,17 @@ class SonarQubeMcpServerHttpTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_have_same_tools_regardless_of_transport(SonarQubeMcpServerTestHarness harness) {
+  void should_have_same_tools_regardless_of_transport(SonarQubeMcpServerTestHarness harness) throws Exception {
     var environment = createTestEnvironment(harness.getMockSonarQubeServer().baseUrl());
 
     harness.prepareMockWebServer(environment);
 
-    var stdioServer = new SonarQubeMcpServer(environment);
+    var stdioServer = new SonarQubeMcpServer(
+        new StdioServerTransportProvider(new ObjectMapper(), null),
+        null,
+        environment);
     stdioServer.start();
+    stdioServer.waitForInitialization();
     var stdioTools = stdioServer.getSupportedTools().stream()
         .map(tool -> tool.definition().name())
         .sorted()
@@ -87,14 +91,16 @@ class SonarQubeMcpServerHttpTest {
     environment.put("SONARQUBE_TRANSPORT", "http");
     var httpServer = new SonarQubeMcpServer(environment);
     httpServer.start();
+    httpServer.waitForInitialization();
     var httpTools = httpServer.getSupportedTools().stream()
         .map(tool -> tool.definition().name())
         .sorted()
         .toList();
-    
+
+    assertThat(stdioTools).isNotEmpty();
     assertThat(httpTools)
-      .isEqualTo(stdioTools)
-      .isNotEmpty();
+      .isNotEmpty()
+      .isEqualTo(stdioTools);
   }
 
   @SonarQubeMcpServerTest

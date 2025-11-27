@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -49,6 +50,8 @@ import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 
 public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements AfterEachCallback, BeforeEachCallback {
   private static final Map<String, String> DEFAULT_ENV_TEMPLATE = Map.of(
@@ -132,6 +135,25 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       .loggingConsumer(SonarQubeMcpServerTestHarness::printLogs).build();
     client.initialize();
     this.clients.add(client);
+    
+    // Wait for background initialization to complete before returning
+    // This ensures tools are fully loaded and available for tests
+    try {
+      server.waitForInitialization();
+    } catch (Exception e) {
+      throw new RuntimeException("Server initialization failed", e);
+    }
+    
+    // Wait for client transport to be ready to handle requests
+    // Tool notifications are asynchronous and may still be propagating through the transport
+    await().atMost(2, SECONDS)
+      .pollInterval(10, TimeUnit.MILLISECONDS)
+      .ignoreExceptions()
+      .until(() -> {
+        client.listTools();
+        return true;
+      });
+    
     return new SonarQubeMcpTestClient(client);
   }
 

@@ -29,7 +29,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
@@ -161,7 +160,7 @@ class SearchDependencyRisksToolTests {
   class WithSonarCloudServer {
 
     @SonarQubeMcpServerTest
-    void it_should_find_tool_even_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
+    void it_should_not_find_tool_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(ScaApi.FEATURE_ENABLED_PATH + "?organization=org").willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
           {
@@ -173,26 +172,11 @@ class SearchDependencyRisksToolTests {
         "SONARQUBE_ORG", "org"));
 
       assertThat(mcpClient.listTools())
+        .isNotEmpty()
         .extracting(McpSchema.Tool::name)
-        .contains(SearchDependencyRisksTool.TOOL_NAME);
+        .doesNotContain(SearchDependencyRisksTool.TOOL_NAME);
     }
 
-    @SonarQubeMcpServerTest
-    void it_should_return_an_error_if_the_sca_feature_is_disabled(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(ScaApi.FEATURE_ENABLED_PATH + "?organization=org").willReturn(aResponse().withResponseBody(
-        Body.fromJsonBytes("""
-          {
-            "enabled": false
-          }
-          """.getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
-        "SONARQUBE_ORG", "org"));
-
-      var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
-
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available in your SonarQube Cloud organization because Advanced Security is not enabled.", true));
-    }
   }
 
   @Nested
@@ -206,18 +190,6 @@ class SearchDependencyRisksToolTests {
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
       assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
-    }
-
-    @SonarQubeMcpServerTest
-    void it_should_return_an_error_if_the_sca_feature_is_disabled(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(FeaturesApi.FEATURES_LIST_PATH).willReturn(okJson("""
-          [""]
-          """)));
-      var mcpClient = harness.newClient();
-
-      var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
-
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available for SonarQube Server because Advanced Security is not enabled.", true));
     }
 
     @SonarQubeMcpServerTest
@@ -239,7 +211,7 @@ class SearchDependencyRisksToolTests {
     }
 
     @SonarQubeMcpServerTest
-    void it_should_find_tool_even_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
+    void it_should_not_find_tool_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(FeaturesApi.FEATURES_LIST_PATH).willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
           ["prioritized-rules","from-sonarqube-update","multiple-alm"]
@@ -248,8 +220,9 @@ class SearchDependencyRisksToolTests {
       var mcpClient = harness.newClient();
 
       assertThat(mcpClient.listTools())
+        .isNotEmpty()
         .extracting(McpSchema.Tool::name)
-        .contains(SearchDependencyRisksTool.TOOL_NAME);
+        .doesNotContain(SearchDependencyRisksTool.TOOL_NAME);
     }
 
     @SonarQubeMcpServerTest
