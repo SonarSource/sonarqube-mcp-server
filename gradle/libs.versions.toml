@@ -15,7 +15,7 @@ commons-text = "1.14.0"
 ayza = "10.0.2"
 logback = "1.5.21"
 jetty = "12.1.4"
-context-propagation = "1.1.1"
+context-propagation = "1.2.0"
 jsonschema-generator = "4.38.0"
 
 junit = "5.14.1"
