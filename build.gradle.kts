@@ -21,7 +21,9 @@ val pluginName = "sonarqube-mcp-server"
 val mainClassName = "org.sonarsource.sonarqube.mcp.SonarQubeMcpServer"
 
 // The environment variables ARTIFACTORY_PRIVATE_USERNAME and ARTIFACTORY_PRIVATE_PASSWORD are used on CI env
-// On local box, please add artifactoryUsername and artifactoryPassword to ~/.gradle/gradle.properties
+// On local box, please add artifactoryUrl, artifactoryUsername and artifactoryPassword to ~/.gradle/gradle.properties
+val artifactoryUrl = System.getenv("ARTIFACTORY_URL")
+	?: (if (project.hasProperty("artifactoryUrl")) project.property("artifactoryUrl").toString() else "")
 val artifactoryUsername = System.getenv("ARTIFACTORY_PRIVATE_USERNAME")
 	?: (if (project.hasProperty("artifactoryUsername")) project.property("artifactoryUsername").toString() else "")
 val artifactoryPassword = System.getenv("ARTIFACTORY_PRIVATE_PASSWORD")
@@ -34,19 +36,15 @@ java {
 }
 
 repositories {
-	maven("https://repox.jfrog.io/repox/sonarsource") {
-		if (artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
+	if (artifactoryUrl.isNotEmpty() && artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
+		maven("$artifactoryUrl/sonarsource") {
 			credentials {
 				username = artifactoryUsername
 				password = artifactoryPassword
 			}
 		}
-	}
-	mavenCentral {
-		content {
-			// avoid dependency confusion
-			excludeGroupByRegex("com\\.sonarsource.*")
-		}
+	} else {
+		mavenCentral()
 	}
 }
 
