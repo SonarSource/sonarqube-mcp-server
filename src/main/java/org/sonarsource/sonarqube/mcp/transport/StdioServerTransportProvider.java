@@ -122,7 +122,7 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
   public Mono<Void> notifyClients(String method, Object params) {
     if (this.session == null) {
       return Mono.error(McpError.builder(McpSchema.ErrorCodes.INTERNAL_ERROR)
-        .message("No session to close")
+        .message("No active session to notify clients")
         .build());
     }
     return this.session.sendNotification(method, params)
