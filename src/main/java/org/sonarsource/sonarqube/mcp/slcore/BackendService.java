@@ -109,7 +109,7 @@ public class BackendService {
 
   public CompletableFuture<AnalyzeFilesResponse> analyzeFilesAndTrack(UUID analysisId, List<URI> filesToAnalyze, Long startTime) {
     return backendFuture.thenComposeAsync(server -> server.getAnalysisService().analyzeFilesAndTrack(
-      new AnalyzeFilesAndTrackParams(PROJECT_ID, analysisId, filesToAnalyze, Map.of(), false, startTime)));
+      new AnalyzeFilesAndTrackParams(PROJECT_ID, analysisId, filesToAnalyze, Map.of(), false)));
   }
 
   public void addFile(ClientFileDto clientFileDto) {

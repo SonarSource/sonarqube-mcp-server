@@ -99,6 +99,10 @@ dependencies {
 }
 
 tasks {
+	withType<JavaCompile> {
+		options.compilerArgs.add("-Xlint:deprecation")
+	}
+	
 	test {
 		useJUnitPlatform()
 		systemProperty("TELEMETRY_DISABLED", "true")
