@@ -748,6 +748,43 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 </details>
 
+## External MCP Servers Integration
+
+The SonarQube MCP Server can integrate with other MCP servers running on the same machine, exposing their tools through the SonarQube MCP Server interface.
+
+### Configuration
+
+Set the `SONARQUBE_EXTERNAL_SERVERS` environment variable to either:
+- A path to a JSON configuration file
+- A JSON string directly
+
+**Example configuration file (`external-servers.json`):**
+
+```json
+[
+  {
+    "name": "filesystem",
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+    "env": {}
+  }
+]
+```
+
+**Using with Docker:**
+
+```bash
+docker run -i --name sonarqube-mcp-server --rm \
+  -e SONARQUBE_TOKEN="<token>" \
+  -e SONARQUBE_ORG="<org>" \
+  -e SONARQUBE_EXTERNAL_SERVERS='[{"name":"filesystem","command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","/tmp"],"env":{}}]' \
+  mcp/sonarqube
+```
+
+**Tool Naming**: Tools from external servers are prefixed with the server name (e.g., `filesystem_read_file`, `weather_get_forecast`).
+
+For detailed documentation, see [docs/external-mcp-servers.md](docs/external-mcp-servers.md).
+
 ## Tools
 
 ### Analysis

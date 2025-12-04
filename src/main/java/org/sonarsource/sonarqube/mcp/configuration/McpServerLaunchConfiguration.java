@@ -69,6 +69,9 @@ public class McpServerLaunchConfiguration {
   // HTTP authentication configuration
   private static final String SONARQUBE_HTTP_AUTH_MODE = "SONARQUBE_HTTP_AUTH_MODE";
 
+  // External MCP servers configuration
+  private static final String SONARQUBE_EXTERNAL_SERVERS = "SONARQUBE_EXTERNAL_SERVERS";
+
   private final Path storagePath;
   private final String hostMachineAddress;
   private final String sonarqubeUrl;
@@ -99,6 +102,9 @@ public class McpServerLaunchConfiguration {
   // Tool category configuration
   private final Set<ToolCategory> enabledToolsets;
   private final boolean isReadOnlyMode;
+  
+  // External MCP servers configuration
+  private final String externalServersConfig;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -153,6 +159,9 @@ public class McpServerLaunchConfiguration {
     this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
 
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
+    
+    // Parse external MCP servers configuration (JSON file path or JSON string)
+    this.externalServersConfig = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_EXTERNAL_SERVERS, null);
   }
 
   @NotNull
@@ -365,6 +374,16 @@ public class McpServerLaunchConfiguration {
    */
   public boolean isReadOnlyMode() {
     return isReadOnlyMode;
+  }
+  
+  /**
+   * Get the external MCP servers configuration.
+   * This can be a path to a JSON file or a JSON string directly.
+   * Format: [{"name":"weather","command":"npx","args":["-y","@modelcontextprotocol/server-everything"],"env":{"KEY":"VALUE"}}]
+   */
+  @CheckForNull
+  public String getExternalServersConfig() {
+    return externalServersConfig;
   }
 
 }

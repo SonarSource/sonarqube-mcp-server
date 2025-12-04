@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
@@ -407,19 +406,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     isShutdown = true;
 
-    // Wait for background initialization to complete or cancel it
-    if (!initializationFuture.isDone()) {
-      LOG.info("Waiting for background initialization to complete before shutdown...");
-      try {
-        initializationFuture.get(30, java.util.concurrent.TimeUnit.SECONDS);
-      } catch (TimeoutException | ExecutionException e) {
-        LOG.warn("Background initialization did not complete within 30 seconds, proceeding with shutdown");
-        initializationFuture.cancel(true);
-      } catch (Exception e) {
-        LOG.error("Background initialization failed or was interrupted", e);
-      }
-    }
-
     // Stop HTTP server if running
     if (httpServerManager != null) {
       try {
@@ -432,9 +418,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
 
     try {
-      if (httpClientProvider != null) {
-        httpClientProvider.shutdown();
-      }
+      httpClientProvider.shutdown();
     } catch (Exception e) {
       LOG.error("Error shutting down HTTP client", e);
     }
