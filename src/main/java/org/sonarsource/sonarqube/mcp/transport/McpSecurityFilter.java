@@ -25,6 +25,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Set;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -36,14 +37,11 @@ public class McpSecurityFilter implements Filter {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   
-  // Allowed origins for localhost deployments
-  private static final Set<String> ALLOWED_LOCALHOST_ORIGINS = Set.of(
-    "http://localhost",
-    "http://127.0.0.1",
-    "http://[::1]",
-    "https://localhost",
-    "https://127.0.0.1",
-    "https://[::1]"
+  // Allowed hosts for localhost deployments (exact match only)
+  private static final Set<String> ALLOWED_LOCALHOST_HOSTS = Set.of(
+    "localhost",
+    "127.0.0.1",
+    "[::1]"
   );
 
   private final String hostBinding;
@@ -119,11 +117,34 @@ public class McpSecurityFilter implements Filter {
     
     // For localhost bindings, only allow localhost origins
     if ("127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding)) {
-      return ALLOWED_LOCALHOST_ORIGINS.stream().anyMatch(origin::startsWith);
+      return isLocalhostOrigin(origin);
     }
     
     // For other specific host bindings, be restrictive
     return false;
+  }
+  
+  /**
+   * Check if the origin is a valid localhost origin.
+   * Parses the URL to extract the host and checks for exact match.
+   */
+  private static boolean isLocalhostOrigin(String origin) {
+    try {
+      var uri = URI.create(origin);
+      var host = uri.getHost();
+      var scheme = uri.getScheme();
+      
+      // Must be http or https
+      if (!"http".equals(scheme) && !"https".equals(scheme)) {
+        return false;
+      }
+      
+      // Host must exactly match allowed localhost hosts
+      return host != null && ALLOWED_LOCALHOST_HOSTS.contains(host);
+    } catch (IllegalArgumentException e) {
+      LOG.warn("Rejected malformed origin: " + origin);
+      return false;
+    }
   }
 
 }

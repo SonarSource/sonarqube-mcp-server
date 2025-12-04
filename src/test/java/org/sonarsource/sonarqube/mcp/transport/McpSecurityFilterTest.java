@@ -77,6 +77,33 @@ class McpSecurityFilterTest {
     verify(filterChain, never()).doFilter(any(), any());
   }
 
+  @Test
+  void should_reject_subdomain_bypass_attack_localhost() throws Exception {
+    // SECURITY: localhost.evil.com should NOT be allowed just because it starts with "localhost"
+    var filter = new McpSecurityFilter("127.0.0.1");
+    when(request.getHeader("Origin")).thenReturn("http://localhost.evil.com");
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    assertThat(responseWriter.toString()).hasToString("Origin not allowed");
+    verify(filterChain, never()).doFilter(any(), any());
+  }
+
+  @Test
+  void should_reject_subdomain_bypass_attack_127() throws Exception {
+    // SECURITY: 127.0.0.1.evil.com should NOT be allowed
+    var filter = new McpSecurityFilter("127.0.0.1");
+    when(request.getHeader("Origin")).thenReturn("http://127.0.0.1.evil.com");
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain, never()).doFilter(any(), any());
+  }
+
   @ParameterizedTest(name = "[{index}] hostBinding={0}, origin={1}")
   @MethodSource("allowedOriginScenarios")
   void should_accept_allowed_origins(String hostBinding, String origin, String method) throws Exception {
