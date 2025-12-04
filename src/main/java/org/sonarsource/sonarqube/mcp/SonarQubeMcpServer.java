@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.context.RequestContext;
@@ -326,8 +327,20 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     return new McpServerFeatures.SyncToolSpecification.Builder()
       .tool(tool.definition())
       .callHandler((exchange, toolRequest) -> {
-        logLogFileLocation(exchange);
-        return toolExecutor.execute(tool, toolRequest);
+        // Set session ID in RequestContext so get() can look up the token from SessionTokenStore
+        if (mcpConfiguration.isHttpEnabled()) {
+          var sessionId = exchange.sessionId();
+          RequestContext.set(sessionId);
+        }
+        
+        try {
+          logLogFileLocation(exchange);
+          return toolExecutor.execute(tool, toolRequest);
+        } finally {
+          if (mcpConfiguration.isHttpEnabled()) {
+            RequestContext.clear();
+          }
+        }
       })
       .build();
   }
@@ -363,12 +376,21 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * Get ServerApi instance for the current request context.
    * - In stdio mode: Returns the global ServerApi instance created at startup
-   * - In HTTP mode: Creates a new ServerApi instance using the token from RequestContext
+   * - In HTTP mode: Creates a new ServerApi instance using the token looked up from SessionTokenStore
    */
   @Override
   public ServerApi get() {
     if (mcpConfiguration.isHttpEnabled()) {
-      return createServerApiWithToken(RequestContext.current().sonarQubeToken());
+      var ctx = RequestContext.current();
+      if (ctx == null) {
+        throw new IllegalStateException("No request context - session ID required for HTTP mode");
+      }
+      var sessionId = ctx.sessionId();
+      var token = SessionTokenStore.getInstance().getToken(sessionId);
+      if (token == null) {
+        throw new IllegalStateException("No token found for session: " + sessionId);
+      }
+      return createServerApiWithToken(token);
     } else {
       if (serverApi == null) {
         throw new IllegalStateException("ServerApi not initialized");
@@ -428,6 +450,13 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         LOG.info("HTTP server stopped");
       } catch (Exception e) {
         LOG.error("Error shutting down HTTP server", e);
+      }
+      
+      // Clean up session token store (only used in HTTP mode)
+      try {
+        SessionTokenStore.getInstance().shutdown();
+      } catch (Exception e) {
+        LOG.error("Error shutting down session token store", e);
       }
     }
 
