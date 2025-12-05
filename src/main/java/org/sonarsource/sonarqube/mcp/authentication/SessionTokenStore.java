@@ -80,12 +80,11 @@ public class SessionTokenStore {
    * For existing sessions, validates that the token matches and refreshes the TTL.
    */
   public boolean setTokenIfValid(String sessionId, String token) {
-    var newEntry = new SessionEntry(token, Instant.now());
     var result = new AtomicBoolean(true);
     sessionTokens.compute(sessionId, (key, existing) -> {
       if (existing == null) {
         // New session - store the entry
-        return newEntry;
+        return new SessionEntry(token, Instant.now());
       }
       // Existing session - validate token matches
       if (existing.token().equals(token)) {
