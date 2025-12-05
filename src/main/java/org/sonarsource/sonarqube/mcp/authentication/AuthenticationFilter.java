@@ -16,8 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
-import jakarta.servlet.AsyncEvent;
-import jakarta.servlet.AsyncListener;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -27,7 +25,6 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import org.sonarsource.sonarqube.mcp.context.RequestContext;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
@@ -69,65 +66,39 @@ public class AuthenticationFilter implements Filter {
       throws IOException, ServletException {
     var httpRequest = (HttpServletRequest) req;
     var httpResponse = (HttpServletResponse) resp;
+    var sessionId = httpRequest.getHeader("Mcp-Session-Id");
 
     if ("OPTIONS".equals(httpRequest.getMethod())) {
       filterChain.doFilter(req, resp);
       return;
     }
 
-    try {
-      // Clear any existing context (from previous request on same thread) before setting new one
-      RequestContext.clear();
+    if (authMode == AuthMode.TOKEN) {
+      var token = extractToken(httpRequest);
 
-      if (authMode == AuthMode.TOKEN) {
-        var token = extractToken(httpRequest);
-
-        if (token == null || token.isBlank()) {
-          LOG.warn("Missing or empty SonarQube token from " + httpRequest.getRemoteAddr());
-          sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via SONARQUBE_TOKEN header.");
-          return;
-        }
-
-        RequestContext.set(token);
-
-        filterChain.doFilter(req, resp);
-
-        if (httpRequest.isAsyncStarted()) {
-          httpRequest.getAsyncContext().addListener(new AsyncListener() {
-            @Override
-            public void onComplete(AsyncEvent event) {
-              RequestContext.clear();
-            }
-            @Override
-            public void onTimeout(AsyncEvent event) {
-              RequestContext.clear();
-            }
-            @Override
-            public void onError(AsyncEvent event) {
-              RequestContext.clear();
-            }
-            @Override
-            public void onStartAsync(AsyncEvent event) {
-              // No action needed - context already set
-            }
-          });
-        } else {
-          // Synchronous request - clear immediately
-          RequestContext.clear();
-        }
-        return;
-      }
-      
-      if (authMode == AuthMode.OAUTH) {
-        sendUnauthorizedResponse(httpResponse, "OAuth authentication not yet implemented");
+      if (token == null || token.isBlank()) {
+        LOG.warn("Missing or empty SonarQube token from " + httpRequest.getRemoteAddr());
+        sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via SONARQUBE_TOKEN header.");
         return;
       }
 
-      sendUnauthorizedResponse(httpResponse, "Unsupported authentication mode");
-    } catch (Exception e) {
-      RequestContext.clear();
-      throw e;
+      // Token is stored in SessionTokenStore and looked up by session ID during tool execution.
+      if (sessionId != null && !sessionId.isBlank() && !SessionTokenStore.getInstance().setTokenIfValid(sessionId, token)) {
+        // Token doesn't match the bound session
+        sendForbiddenResponse(httpResponse);
+        return;
+      }
+
+      filterChain.doFilter(req, resp);
+      return;
     }
+    
+    if (authMode == AuthMode.OAUTH) {
+      sendUnauthorizedResponse(httpResponse, "OAuth authentication not yet implemented");
+      return;
+    }
+
+    sendUnauthorizedResponse(httpResponse, "Unsupported authentication mode");
   }
 
   @Override
@@ -161,6 +132,17 @@ public class AuthenticationFilter implements Filter {
     var errorJson = String.format(
       "{\"error\":\"unauthorized\",\"error_description\":\"%s\"}", 
       message
+    );
+    response.getWriter().write(errorJson);
+  }
+
+  private static void sendForbiddenResponse(HttpServletResponse response) throws IOException {
+    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+    response.setContentType("application/json");
+
+    var errorJson = String.format(
+      "{\"error\":\"forbidden\",\"error_description\":\"%s\"}",
+      "Token does not match session binding. Access denied."
     );
     response.getWriter().write(errorJson);
   }

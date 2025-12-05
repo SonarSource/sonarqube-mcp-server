@@ -21,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -44,6 +45,11 @@ class AuthenticationFilterTest {
     filterChain = mock(FilterChain.class);
     responseWriter = new StringWriter();
     when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
+  }
+
+  @AfterEach
+  void tearDown() {
+    SessionTokenStore.getInstance().clear();
   }
 
   @Test
@@ -126,6 +132,99 @@ class AuthenticationFilterTest {
     assertThat(responseJson)
       .contains("\"error\":\"unauthorized\"")
       .contains("\"error_description\":");
+  }
+
+  @Test
+  void should_allow_request_without_session_id() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("valid-token");
+    when(request.getHeader("Mcp-Session-Id")).thenReturn(null);
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+  }
+
+  @Test
+  void should_allow_request_with_blank_session_id() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("valid-token");
+    when(request.getHeader("Mcp-Session-Id")).thenReturn("   ");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+  }
+
+  @Test
+  void should_allow_new_session_with_token() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("user-token");
+    when(request.getHeader("Mcp-Session-Id")).thenReturn("new-session-123");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    // Token should be stored in SessionTokenStore
+    assertThat(SessionTokenStore.getInstance().getToken("new-session-123")).isEqualTo("user-token");
+  }
+
+  @Test
+  void should_allow_same_token_for_existing_session() throws Exception {
+    // First request establishes the session binding
+    SessionTokenStore.getInstance().setTokenIfValid("existing-session", "original-token");
+
+    var filter = new AuthenticationFilter(AuthMode.TOKEN);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("original-token");
+    when(request.getHeader("Mcp-Session-Id")).thenReturn("existing-session");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+  }
+
+  @Test
+  void should_reject_session_hijacking_attempt() throws Exception {
+    // First request establishes the session binding with original token
+    SessionTokenStore.getInstance().setTokenIfValid("victim-session", "victim-token");
+
+    var filter = new AuthenticationFilter(AuthMode.TOKEN);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("attacker-token");
+    when(request.getHeader("Mcp-Session-Id")).thenReturn("victim-session");
+    when(request.getRemoteAddr()).thenReturn("attacker-ip");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain, never()).doFilter(request, response);
+    var responseJson = responseWriter.toString();
+    assertThat(responseJson)
+      .contains("\"error\":\"forbidden\"")
+      .contains("Token does not match session binding");
+  }
+
+  @Test
+  void should_return_unauthorized_for_oauth_mode() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.OAUTH);
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    verify(filterChain, never()).doFilter(request, response);
+    var responseJson = responseWriter.toString();
+    assertThat(responseJson)
+      .contains("\"error\":\"unauthorized\"")
+      .contains("OAuth authentication not yet implemented");
   }
 
 }

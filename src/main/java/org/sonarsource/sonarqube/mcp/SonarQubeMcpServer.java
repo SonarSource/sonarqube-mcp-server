@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.context.RequestContext;
@@ -326,8 +327,20 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     return new McpServerFeatures.SyncToolSpecification.Builder()
       .tool(tool.definition())
       .callHandler((exchange, toolRequest) -> {
-        logLogFileLocation(exchange);
-        return toolExecutor.execute(tool, toolRequest);
+        // Set session ID in RequestContext so get() can look up the token from SessionTokenStore
+        if (mcpConfiguration.isHttpEnabled()) {
+          var sessionId = exchange.sessionId();
+          RequestContext.set(sessionId);
+        }
+        
+        try {
+          logLogFileLocation(exchange);
+          return toolExecutor.execute(tool, toolRequest);
+        } finally {
+          if (mcpConfiguration.isHttpEnabled()) {
+            RequestContext.clear();
+          }
+        }
       })
       .build();
   }
@@ -363,12 +376,21 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * Get ServerApi instance for the current request context.
    * - In stdio mode: Returns the global ServerApi instance created at startup
-   * - In HTTP mode: Creates a new ServerApi instance using the token from RequestContext
+   * - In HTTP mode: Creates a new ServerApi instance using the token looked up from SessionTokenStore
    */
   @Override
   public ServerApi get() {
     if (mcpConfiguration.isHttpEnabled()) {
-      return createServerApiWithToken(RequestContext.current().sonarQubeToken());
+      var ctx = RequestContext.current();
+      if (ctx == null) {
+        throw new IllegalStateException("No request context - session ID required for HTTP mode");
+      }
+      var sessionId = ctx.sessionId();
+      var token = SessionTokenStore.getInstance().getToken(sessionId);
+      if (token == null) {
+        throw new IllegalStateException("No token found for session: " + sessionId);
+      }
+      return createServerApiWithToken(token);
     } else {
       if (serverApi == null) {
         throw new IllegalStateException("ServerApi not initialized");
@@ -407,44 +429,69 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     isShutdown = true;
 
-    // Wait for background initialization to complete or cancel it
-    if (!initializationFuture.isDone()) {
-      LOG.info("Waiting for background initialization to complete before shutdown...");
-      try {
-        initializationFuture.get(30, java.util.concurrent.TimeUnit.SECONDS);
-      } catch (TimeoutException | ExecutionException e) {
-        LOG.warn("Background initialization did not complete within 30 seconds, proceeding with shutdown");
-        initializationFuture.cancel(true);
-      } catch (Exception e) {
-        LOG.error("Background initialization failed or was interrupted", e);
-      }
-    }
+    awaitBackgroundInitialization();
+    shutdownHttpServer();
+    shutdownHttpClient();
+    shutdownMcpServer();
+    shutdownBackend();
+  }
 
-    // Stop HTTP server if running
-    if (httpServerManager != null) {
-      try {
-        LOG.info("Stopping HTTP server...");
-        httpServerManager.stopServer().join();
-        LOG.info("HTTP server stopped");
-      } catch (Exception e) {
-        LOG.error("Error shutting down HTTP server", e);
-      }
+  private void awaitBackgroundInitialization() {
+    if (initializationFuture.isDone()) {
+      return;
     }
-
+    LOG.info("Waiting for background initialization to complete before shutdown...");
     try {
-      if (httpClientProvider != null) {
-        httpClientProvider.shutdown();
-      }
+      initializationFuture.get(30, java.util.concurrent.TimeUnit.SECONDS);
+    } catch (TimeoutException | ExecutionException e) {
+      LOG.warn("Background initialization did not complete within 30 seconds, proceeding with shutdown");
+      initializationFuture.cancel(true);
+    } catch (Exception e) {
+      LOG.error("Background initialization failed or was interrupted", e);
+    }
+  }
+
+  private void shutdownHttpServer() {
+    if (httpServerManager == null) {
+      return;
+    }
+    try {
+      LOG.info("Stopping HTTP server...");
+      httpServerManager.stopServer().join();
+      LOG.info("HTTP server stopped");
+    } catch (Exception e) {
+      LOG.error("Error shutting down HTTP server", e);
+    }
+    try {
+      SessionTokenStore.getInstance().shutdown();
+    } catch (Exception e) {
+      LOG.error("Error shutting down session token store", e);
+    }
+  }
+
+  private void shutdownHttpClient() {
+    if (httpClientProvider == null) {
+      return;
+    }
+    try {
+      httpClientProvider.shutdown();
     } catch (Exception e) {
       LOG.error("Error shutting down HTTP client", e);
     }
+  }
+
+  private void shutdownMcpServer() {
+    if (syncServer == null) {
+      return;
+    }
     try {
-      if (syncServer != null) {
-        syncServer.closeGracefully();
-      }
+      syncServer.closeGracefully();
     } catch (Exception e) {
       LOG.error("Error shutting down MCP server", e);
     }
+  }
+
+  private void shutdownBackend() {
     try {
       backendService.shutdown();
     } catch (Exception e) {

@@ -14,12 +14,13 @@
 
 ## Overview
 
-The SonarQube MCP Server supports two transport modes:
+The SonarQube MCP Server supports three transport modes:
 
-- **Stdio Transport**: Direct process communication (stdin/stdout)
-- **HTTP Transport**: Network-based communication using MCP Streamable HTTP specification
+- **Stdio Transport** (Recommended for local development): Direct process communication (stdin/stdout)
+- **HTTP Transport** (Not recommended): Unencrypted network communication
+- **HTTPS Transport** (Recommended for production): Secure network-based communication with TLS encryption
 
-This document focuses on the **HTTP Transport** and its authentication mechanism.
+This document focuses on the **HTTP/HTTPS Transport** and its authentication mechanism.
 
 ---
 
@@ -56,7 +57,7 @@ This document focuses on the **HTTP Transport** and its authentication mechanism
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │            MCP Tool Execution                       │
-│        (uses token from RequestContext)             │
+│     (looks up token from SessionTokenStore)         │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -76,7 +77,11 @@ This document focuses on the **HTTP Transport** and its authentication mechanism
 
 #### `RequestContext`
 - **Location**: `org.sonarsource.sonarqube.mcp.context.RequestContext`
-- **Purpose**: Thread-local storage for request-scoped data
+- **Purpose**: Thread-local storage for session ID during tool execution
+
+#### `SessionTokenStore`
+- **Location**: `org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore`
+- **Purpose**: Secure session-to-token mapping store (prevents session hijacking)
 
 ---
 
@@ -104,11 +109,13 @@ Clients configure the HTTP endpoint with authentication:
 ```
 1. Client sends HTTP POST with token header
    └─> SONARQUBE_TOKEN: squ_abc123
+   └─> Mcp-Session-Id: session-uuid
 
 2. AuthenticationFilter intercepts request
    ├─> Extract token from SONARQUBE_TOKEN header
    ├─> Validate token presence
-   ├─> Store in RequestContext (InheritableThreadLocal)
+   ├─> Store/validate session-token binding in SessionTokenStore
+   │   (prevents session hijacking - token must match for existing sessions)
    └─> Pass to next filter
 
 3. McpSecurityFilter validates security
@@ -118,17 +125,18 @@ Clients configure the HTTP endpoint with authentication:
 
 4. MCP SDK servlet processes request
    ├─> Parse JSON-RPC message
-   ├─> Dispatch to tool (async, new thread)
-   └─> Child thread inherits RequestContext
+   └─> Dispatch to tool handler
 
-5. Tool execution
-   ├─> Retrieve token from RequestContext
+5. Tool execution handler
+   ├─> Get session ID from MCP exchange
+   ├─> Set session ID in RequestContext
+   ├─> Execute tool
+
+6. Tool execution (ServerApiProvider.get())
+   ├─> Get session ID from RequestContext
+   ├─> Look up token from SessionTokenStore by session ID
    ├─> Create ServerApi with client's token
    └─> Call SonarQube API
-
-6. Async completion
-   ├─> AsyncListener triggered
-   └─> RequestContext cleared
 ```
 
 ### 3. Authentication Modes
@@ -148,58 +156,48 @@ Clients configure the HTTP endpoint with authentication:
 
 ## Token Propagation
 
-### Problem: Async Processing and ThreadLocal
+### Problem: Async Processing, ThreadLocal, and Session Hijacking
 
-The MCP SDK servlet uses **async processing** with **worker threads** to handle tool execution. This creates a challenge for `ThreadLocal` storage:
+The MCP SDK servlet uses **async processing** with **worker threads** to handle tool execution. This creates challenges:
 
-```
-Request Thread (Filter)          Worker Thread (Tool)
-      │                                 │
-      ├─ Set RequestContext             │
-      ├─ doFilter() ──────────────> Async dispatch
-      └─ finally { clear() }            │
-         [Context cleared!]              │
-                                         ├─ Tool.execute()
-                                         └─ RequestContext.get() ❌ NULL!
-```
+1. **ThreadLocal leakage**: Worker threads from thread pools may have stale inherited ThreadLocal values
+2. **Session hijacking**: Without proper binding, a malicious client could steal another user's session
 
-### Solution 1: InheritableThreadLocal
+### Solution: SessionTokenStore
+
+Instead of relying on ThreadLocal for token storage, we use a `ConcurrentHashMap`-based store that maps session IDs to tokens:
 
 ```java
-private static final ThreadLocal<RequestContext> CONTEXT = new InheritableThreadLocal<>();
+// SessionTokenStore - the source of truth
+private final ConcurrentHashMap<String, String> sessionTokens = new ConcurrentHashMap<>();
 ```
 
-`InheritableThreadLocal` automatically propagates values from parent thread to child threads:
+The flow is:
 
 ```
-Request Thread                   Worker Thread
-      │                                │
-      ├─ Set RequestContext            │
-      ├─ doFilter() ──────────────> Inherit context ✓
-      │                                │
-      │                                ├─ Tool.execute()
-      │                                └─ RequestContext.get() ✓ Has token!
-      │                                   │
-      └─ [Wait for async completion]     └─ Complete
-         │
-         └─ AsyncListener.onComplete()
-            └─ RequestContext.clear() ✓
+1. HTTP Request arrives
+   └─> Filter extracts token and session ID
+   └─> SessionTokenStore.setTokenIfValid(sessionId, token)
+       ├─> New session: stores token, returns true
+       └─> Existing session: validates token matches, returns true/false
+           (token mismatch = hijacking attempt → 403 Forbidden)
+
+2. Tool Execution Handler
+   └─> Gets session ID from MCP exchange
+   └─> Sets session ID in RequestContext (ThreadLocal)
+
+3. ServerApiProvider.get()
+   └─> Gets session ID from RequestContext
+   └─> Looks up token from SessionTokenStore
+   └─> Creates ServerApi with the correct token
 ```
 
-### Solution 2: AsyncListener for Cleanup
+### Why This Design?
 
-The filter registers an `AsyncListener` to clean up the context **after** async processing completes.
-
-This ensures:
-1. Token is available during entire request processing
-2. Context is properly cleaned up to prevent memory leaks
-3. No thread pool contamination
-
-### Why Not Store in Servlet Request Attributes?
-
-Servlet request attributes don't propagate to worker threads either.
-
-`InheritableThreadLocal` is the Java standard pattern for this use case.
+1. **Session-token binding**: A session can only be used with the token that created it
+2. **No ThreadLocal contamination**: Tokens are never stored in ThreadLocal, only session IDs
+3. **Explicit lookup**: Token is always looked up by session ID at point of use
+4. **Thread-safe**: ConcurrentHashMap handles concurrent access correctly
 
 ---
 
@@ -212,8 +210,9 @@ Servlet request attributes don't propagate to worker threads either.
 **Mitigation**: `McpSecurityFilter` validates `Origin` header:
 
 **Allowed Origins**:
-- When bound to `127.0.0.1`: Only `http://localhost`, `http://127.0.0.1`, etc.
-- When bound to `0.0.0.0`: All origins allowed (less secure, logs warning)
+- When bound to `127.0.0.1` (default): Only `http://localhost`, `http://127.0.0.1`, etc.
+
+> ⚠️ **Important**: The server defaults to binding to `127.0.0.1` (localhost) for security. This is the recommended configuration. Binding to other interfaces is not supported for production use.
 
 ### Token Security
 

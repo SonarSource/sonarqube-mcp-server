@@ -19,16 +19,16 @@ package org.sonarsource.sonarqube.mcp.context;
 /**
  * Thread-local context for storing request-scoped information.
  * <p>
- * In HTTP mode, this stores the client's SonarQube token extracted from the Authorization header.
- * In stdio mode, this is not used (token comes from server configuration).
+ * In HTTP mode, this stores the MCP session ID. The actual token is stored in
+ * {@link org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore} and looked up
+ * by session ID when needed.
  * <p>
- * This enables tools to access per-request authentication credentials without having direct
- * access to the HTTP servlet request.
+ * In stdio mode, this is not used (token comes from server configuration).
  * <p>
  * <b>IMPORTANT:</b> Context must be properly cleaned up after request processing to avoid
  * thread pool contamination and memory leaks.
  */
-public record RequestContext(String sonarQubeToken) {
+public record RequestContext(String sessionId) {
 
   private static final ThreadLocal<RequestContext> CONTEXT = new InheritableThreadLocal<>();
 
@@ -38,18 +38,15 @@ public record RequestContext(String sonarQubeToken) {
 
   /**
    * Set the request context for the current thread.
-   * This should be called by the transport layer at the start of request processing.
-   *
-   * @param sonarQubeToken the client's SonarQube token (from header)
+   * This should be called by the tool execution handler with the session ID from the MCP exchange.
    */
-  public static void set(String sonarQubeToken) {
-    CONTEXT.set(new RequestContext(sonarQubeToken));
+  public static void set(String sessionId) {
+    CONTEXT.set(new RequestContext(sessionId));
   }
 
   /**
    * Clear the request context for the current thread.
-   * This MUST be called after request processing completes to avoid memory leaks
-   * and thread pool contamination.
+   * This MUST be called after request processing completes to avoid memory leak and thread pool contamination.
    */
   public static void clear() {
     CONTEXT.remove();
