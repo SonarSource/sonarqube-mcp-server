@@ -19,7 +19,13 @@ package org.sonarsource.sonarqube.mcp.log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * MCP-specific logger that outputs to both:
+ * - STDERR: for MCP clients (the MCP protocol uses STDERR for diagnostic logs, STDOUT is reserved for JSON-RPC messages)
+ * - Log file: via SLF4J/Logback for persistence and debugging
+ */
 public class McpLogger {
+
   private static final Logger LOG = LoggerFactory.getLogger(McpLogger.class);
   private static final McpLogger INSTANCE = new McpLogger();
 
@@ -29,13 +35,22 @@ public class McpLogger {
 
   public void info(String message) {
     LOG.info(message);
+    logToStderr("INFO", message);
   }
 
   public void warn(String message) {
     LOG.warn(message);
+    logToStderr("WARN", message);
   }
 
   public void error(String message, Throwable throwable) {
     LOG.error(message, throwable);
+    logToStderr("ERROR", message);
+    throwable.printStackTrace(System.err);
   }
+
+  private static void logToStderr(String level, String message) {
+    System.err.println(level + " SonarQube MCP Server - " + message);
+  }
+
 }
