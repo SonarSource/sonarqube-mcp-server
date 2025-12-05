@@ -8,7 +8,9 @@ It also supports the analysis of code snippet directly within the agent context.
 
 ## Quick setup
 
-The simplest method is to rely on our Docker image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below if you want to build it locally.
+The simplest method is to rely on our container image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below if you want to build it locally.
+
+> **Note:** While the examples below use `docker`, any OCI-compatible container runtime works (e.g., Podman, nerdctl). Simply replace `docker` with your preferred tool.
 
 <details>
 
@@ -397,7 +399,7 @@ For example, with SonarQube Cloud:
 }
 ```
 
-> When running the MCP server in Docker on Linux, the container cannot access the SonarQube for IDE embedded server running on localhost. To allow the container to connect to the SonarQube for IDE server, add the `--network=host` option to your Docker run command.
+> When running the MCP server in a container on Linux, the container cannot access the SonarQube for IDE embedded server running on localhost. To allow the container to connect to the SonarQube for IDE server, add the `--network=host` option to your container run command.
 
 ## Build
 
@@ -461,7 +463,7 @@ You should add the following variable when running the MCP Server:
 
 | Environment variable | Description                                                                                                                                                                                    |
 |----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `STORAGE_PATH`       | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using Docker |
+| `STORAGE_PATH`       | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using the container image |
 | `SONARQUBE_IDE_PORT` | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                      |
 
 ### Selective Tool Enablement
@@ -622,13 +624,13 @@ docker run -p 8443:8443 \
 
 ### Custom Certificates
 
-If your SonarQube Server uses a self-signed certificate or a certificate from a private Certificate Authority (CA), you can add custom certificates to the Docker container that will automatically be installed.
+If your SonarQube Server uses a self-signed certificate or a certificate from a private Certificate Authority (CA), you can add custom certificates to the container that will automatically be installed.
 
 <details>
 
 **<summary>Configuration</summary>**
 
-#### Using Docker Volume Mount
+#### Using Volume Mount
 
 Mount a directory containing your certificates when running the container:
 
