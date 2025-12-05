@@ -136,10 +136,6 @@ public class AuthenticationFilter implements Filter {
     response.getWriter().write(errorJson);
   }
 
-  /**
-   * Send 403 Forbidden response for session hijacking attempts.
-   * Per MCP Security Best Practices: reject requests where token doesn't match session binding.
-   */
   private static void sendForbiddenResponse(HttpServletResponse response) throws IOException {
     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
     response.setContentType("application/json");

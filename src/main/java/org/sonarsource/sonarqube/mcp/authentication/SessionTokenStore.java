@@ -22,16 +22,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
-import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
  * Thread-safe store for session-to-token mappings with TTL-based expiration.
- * <p>
- * This store is the key to preventing session hijacking. Instead of relying on
- * InheritableThreadLocal (which can leak tokens across requests when threads are
- * reused from pools), we store tokens by session ID and look them up at execution time.
- * <p>
  * Sessions are automatically expired after a period of inactivity to prevent
  * memory leaks and ensure stale sessions are cleaned up.
  * <p>
@@ -48,20 +43,21 @@ public class SessionTokenStore {
   private static final Duration SESSION_TTL = Duration.ofHours(1);
   private static final Duration CLEANUP_INTERVAL = Duration.ofMinutes(5);
   private static final SessionTokenStore INSTANCE = new SessionTokenStore();
-  
-  /** Session entry with token and last access timestamp */
+
+  /**
+   * Session entry with token and last access timestamp
+   */
   private record SessionEntry(String token, Instant lastAccess) {
     SessionEntry touch() {
       return new SessionEntry(token, Instant.now());
     }
   }
-  
+
   // Maps sessionId → SessionEntry (token + last access time)
   private final ConcurrentHashMap<String, SessionEntry> sessionTokens = new ConcurrentHashMap<>();
   private final ScheduledExecutorService cleanupScheduler;
 
   private SessionTokenStore() {
-    // Start background cleanup task
     cleanupScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
       var thread = new Thread(r, "session-cleanup");
       thread.setDaemon(true);
@@ -82,16 +78,10 @@ public class SessionTokenStore {
   /**
    * Store the token for a NEW session only.
    * For existing sessions, validates that the token matches and refreshes the TTL.
-   * 
-   * @param sessionId The MCP session ID
-   * @param token The token from the request
-   * @return true if token was stored/matches, false if token mismatch (hijacking attempt)
    */
   public boolean setTokenIfValid(String sessionId, String token) {
     var newEntry = new SessionEntry(token, Instant.now());
-    
-    // Use compute to atomically check-and-set or validate
-    var result = new boolean[]{true};
+    var result = new AtomicBoolean(true);
     sessionTokens.compute(sessionId, (key, existing) -> {
       if (existing == null) {
         // New session - store the entry
@@ -103,31 +93,28 @@ public class SessionTokenStore {
         return existing.touch();
       }
       // Token mismatch
-      result[0] = false;
-      return existing; // Keep existing entry unchanged
+      result.set(false);
+      return existing;
     });
-    
-    return result[0];
+
+    return result.get();
   }
 
   /**
    * Get the token for a session, refreshing its TTL.
    * Called by tool execution to get the correct token.
-   * 
-   * @param sessionId The MCP session ID
-   * @return The token, or null if session not found or expired
    */
   @Nullable
   public String getToken(String sessionId) {
     var entry = sessionTokens.computeIfPresent(sessionId, (key, existing) -> {
       // Check if expired
       if (isExpired(existing)) {
-        return null; // Remove expired entry
+        return null;
       }
       // Refresh TTL on access
       return existing.touch();
     });
-    
+
     return entry != null ? entry.token() : null;
   }
 
@@ -157,21 +144,13 @@ public class SessionTokenStore {
     }
     clear();
   }
-  
-  private boolean isExpired(SessionEntry entry) {
+
+  private static boolean isExpired(SessionEntry entry) {
     return Duration.between(entry.lastAccess(), Instant.now()).compareTo(SESSION_TTL) > 0;
   }
-  
+
   private void cleanupExpiredSessions() {
-    var expiredCount = 0;
-    var iterator = sessionTokens.entrySet().iterator();
-    while (iterator.hasNext()) {
-      var entry = iterator.next();
-      if (isExpired(entry.getValue())) {
-        iterator.remove();
-        expiredCount++;
-      }
-    }
+    sessionTokens.entrySet().removeIf(entry -> isExpired(entry.getValue()));
   }
 
 }

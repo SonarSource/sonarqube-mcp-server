@@ -14,12 +14,13 @@
 
 ## Overview
 
-The SonarQube MCP Server supports two transport modes:
+The SonarQube MCP Server supports three transport modes:
 
-- **Stdio Transport**: Direct process communication (stdin/stdout)
-- **HTTP Transport**: Network-based communication using MCP Streamable HTTP specification
+- **Stdio Transport** (Recommended for local development): Direct process communication (stdin/stdout)
+- **HTTP Transport** (Not recommended): Unencrypted network communication
+- **HTTPS Transport** (Recommended for production): Secure network-based communication with TLS encryption
 
-This document focuses on the **HTTP Transport** and its authentication mechanism.
+This document focuses on the **HTTP/HTTPS Transport** and its authentication mechanism.
 
 ---
 
@@ -209,8 +210,9 @@ The flow is:
 **Mitigation**: `McpSecurityFilter` validates `Origin` header:
 
 **Allowed Origins**:
-- When bound to `127.0.0.1`: Only `http://localhost`, `http://127.0.0.1`, etc.
-- When bound to `0.0.0.0`: All origins allowed (less secure, logs warning)
+- When bound to `127.0.0.1` (default): Only `http://localhost`, `http://127.0.0.1`, etc.
+
+> ⚠️ **Important**: The server defaults to binding to `127.0.0.1` (localhost) for security. This is the recommended configuration. Binding to other interfaces is not supported for production use.
 
 ### Token Security
 

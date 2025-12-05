@@ -556,8 +556,8 @@ Connecting your SonarQube MCP Server with your SonarQube Cloud **US** instance r
 
 The SonarQube MCP Server supports three transport modes:
 
-#### 1. **Stdio** (Default - Single User)
-Default mode for single-user setups via command-line tools or MCP clients.
+#### 1. **Stdio** (Default - Recommended for Local Development)
+The recommended mode for local development and single-user setups, used by all MCP clients.
 
 **Example - Docker with SonarQube Cloud:**
 ```json
@@ -575,49 +575,29 @@ Default mode for single-user setups via command-line tools or MCP clients.
 }
 ```
 
-#### 2. **HTTP** (Multi-User - Recommended for Local Development)
-Enables multiple clients to connect to a shared server. Each client provides their own token.
+#### 2. **HTTP**
+Unencrypted HTTP transport. Use HTTPS instead for multi-user deployments.
+
+> ⚠️ **Not Recommended:** Use **Stdio** for local development or **HTTPS** for multi-user production deployments.
 
 | Environment variable | Description                                                      | Default         |
 |----------------------|------------------------------------------------------------------|-----------------|
 | `SONARQUBE_TRANSPORT`| Set to `http` to enable HTTP transport                           | Not set (stdio) |
 | `SONARQUBE_HTTP_PORT`| Port number (1024-65535)                                         | `8080`          |
-| `SONARQUBE_HTTP_HOST`| Host to bind (`127.0.0.1` for localhost, `0.0.0.0` for Docker) | `127.0.0.1`     |
-
-**Example - Docker with SonarQube Cloud:**
-```bash
-docker run --name sonarqube-mcp-server -p 8080:8080 \
-  -e SONARQUBE_TRANSPORT=http \
-  -e SONARQUBE_HTTP_HOST=0.0.0.0 \
-  -e SONARQUBE_TOKEN="<init-token>" \
-  -e SONARQUBE_ORG="<your-org>" \
-  mcp/sonarqube
-```
-
-**Client Configuration:**
-```json
-{
-  "mcpServers": {
-    "sonarqube-http": {
-      "url": "http://127.0.0.1:8080/mcp",
-      "headers": {
-        "SONARQUBE_TOKEN": "<your-token>"
-      }
-    }
-  }
-}
-```
+| `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)                | `127.0.0.1`     |
 
 **Note:** In HTTP(S) mode, each client sends their own token via the `SONARQUBE_TOKEN` header. The server's `SONARQUBE_TOKEN` is only used for initialization.
 
-#### 3. **HTTPS** (Multi-User - Production)
-Same as HTTP but with TLS encryption. Requires SSL certificates.
+#### 3. **HTTPS** (Recommended for Multi-User Production Deployments)
+Secure multi-user transport with TLS encryption. Requires SSL certificates.
+
+> ✅ **Recommended for Production:** Use HTTPS when deploying the MCP server for multiple users. The server binds to `127.0.0.1` (localhost) by default for security.
 
 | Environment variable | Description                                                      | Default         |
 |----------------------|------------------------------------------------------------------|-----------------|
 | `SONARQUBE_TRANSPORT`| Set to `https` to enable HTTPS transport                         | Not set (stdio) |
 | `SONARQUBE_HTTP_PORT`| Port number (typically 8443 for HTTPS)                          | `8080`          |
-| `SONARQUBE_HTTP_HOST`| Host to bind (`127.0.0.1` for localhost, `0.0.0.0` for Docker) | `127.0.0.1`     |
+| `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)               | `127.0.0.1`     |
 
 **SSL Certificate Configuration (Optional):**
 
@@ -632,7 +612,6 @@ Same as HTTP but with TLS encryption. Requires SSL certificates.
 docker run --name sonarqube-mcp-server -p 8443:8443 \
   -v $(pwd)/keystore.p12:/etc/ssl/mcp/keystore.p12:ro \
   -e SONARQUBE_TRANSPORT=https \
-  -e SONARQUBE_HTTP_HOST=0.0.0.0 \
   -e SONARQUBE_HTTP_PORT=8443 \
   -e SONARQUBE_TOKEN="<init-token>" \
   -e SONARQUBE_ORG="<your-org>" \
@@ -644,7 +623,7 @@ docker run --name sonarqube-mcp-server -p 8443:8443 \
 {
   "mcpServers": {
     "sonarqube-https": {
-      "url": "https://127.0.0.1:8443/mcp",
+      "url": "https://your-server:8443/mcp",
       "headers": {
         "SONARQUBE_TOKEN": "<your-token>"
       }
@@ -653,7 +632,7 @@ docker run --name sonarqube-mcp-server -p 8443:8443 \
 }
 ```
 
-**Note:** For local development, use HTTP instead of HTTPS to avoid certificate issues. For production deployments with proper SSL certificates from a trusted CA, use HTTPS.
+**Note:** For local development, use Stdio transport instead (the default). HTTPS is intended for multi-user production deployments with proper SSL certificates.
 
 ### Custom Certificates
 

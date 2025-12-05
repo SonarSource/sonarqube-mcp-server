@@ -39,8 +39,6 @@ public record RequestContext(String sessionId) {
   /**
    * Set the request context for the current thread.
    * This should be called by the tool execution handler with the session ID from the MCP exchange.
-   *
-   * @param sessionId the MCP session ID
    */
   public static void set(String sessionId) {
     CONTEXT.set(new RequestContext(sessionId));
@@ -48,8 +46,7 @@ public record RequestContext(String sessionId) {
 
   /**
    * Clear the request context for the current thread.
-   * This MUST be called after request processing completes to avoid memory leaks
-   * and thread pool contamination.
+   * This MUST be called after request processing completes to avoid memory leak and thread pool contamination.
    */
   public static void clear() {
     CONTEXT.remove();
