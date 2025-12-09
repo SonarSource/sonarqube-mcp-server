@@ -177,7 +177,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
           "plugins": [
             {
               "key": "php",
-              "filename": "sonar-php-plugin-3.52.0.15197.jar",
+              "filename": "sonar-php-plugin-3.53.0.15220.jar",
               "sonarLintSupported": true
             }
           ]
@@ -185,7 +185,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       """)));
     try {
       mockSonarQubeServer.stubFor(get(PluginsApi.DOWNLOAD_PLUGINS_PATH + "?plugin=php")
-        .willReturn(aResponse().withBody(Files.readAllBytes(Paths.get("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.52.0.15197.jar")))));
+        .willReturn(aResponse().withBody(Files.readAllBytes(Paths.get("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.53.0.15220.jar")))));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
