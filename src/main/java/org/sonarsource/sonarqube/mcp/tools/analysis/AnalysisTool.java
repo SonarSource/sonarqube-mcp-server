@@ -86,9 +86,7 @@ public class AnalysisTool extends Tool {
         sonarLanguage);
       var clientFileDto = backendService.toClientFileDto(tmpFile, codeSnippet, mapSonarLanguageToLanguage(sonarLanguage));
       backendService.addFile(clientFileDto);
-      var startTime = System.currentTimeMillis();
-      var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri()), startTime).get(30,
-        TimeUnit.SECONDS);
+      var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri())).get(30, TimeUnit.SECONDS);
       var toolResponse = buildStructuredContent(response);
       return Tool.Result.success(toolResponse);
     } catch (IOException | ExecutionException | TimeoutException e) {

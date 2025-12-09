@@ -71,7 +71,7 @@ public class BackendService {
   public static final String PROJECT_ID = "sonarqube-mcp-server";
   private static final McpLogger LOG = McpLogger.getInstance();
 
-  private final CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
+  private CompletableFuture<SonarLintRpcServer> backendFuture = new CompletableFuture<>();
   private final Path storagePath;
   private final Path logFilePath;
   private final String appVersion;
@@ -80,6 +80,7 @@ public class BackendService {
   private boolean isTelemetryEnabled;
   private ClientJsonRpcLauncher clientLauncher;
   private McpTransportMode transportMode;
+  private volatile boolean isInitialized = false;
 
   public BackendService(McpServerLaunchConfiguration mcpConfiguration) {
     this.storagePath = mcpConfiguration.getStoragePath();
@@ -107,9 +108,9 @@ public class BackendService {
     this.appName = appName;
   }
 
-  public CompletableFuture<AnalyzeFilesResponse> analyzeFilesAndTrack(UUID analysisId, List<URI> filesToAnalyze, Long startTime) {
+  public CompletableFuture<AnalyzeFilesResponse> analyzeFilesAndTrack(UUID analysisId, List<URI> filesToAnalyze) {
     return backendFuture.thenComposeAsync(server -> server.getAnalysisService().analyzeFilesAndTrack(
-      new AnalyzeFilesAndTrackParams(PROJECT_ID, analysisId, filesToAnalyze, Map.of(), false, startTime)));
+      new AnalyzeFilesAndTrackParams(PROJECT_ID, analysisId, filesToAnalyze, Map.of(), false)));
   }
 
   public void addFile(ClientFileDto clientFileDto) {
@@ -178,6 +179,7 @@ public class BackendService {
       var backend = clientLauncher.getServerProxy();
       initRpcServer(backend, analyzers).get(1, TimeUnit.MINUTES);
       backendFuture.complete(backend);
+      isInitialized = true;
       LOG.info("Backend service initialized");
       projectOpened();
     } catch (InterruptedException e) {
@@ -185,6 +187,51 @@ public class BackendService {
     } catch (Exception e) {
       backendFuture.cancel(true);
     }
+  }
+
+  /**
+   * Restarts the backend with new analyzers. This shuts down the current backend
+   * and initializes a new one with the provided analyzers.
+   */
+  public void restartWithAnalyzers(AnalyzersAndLanguagesEnabled analyzers) {
+    if (!isInitialized) {
+      LOG.info("Backend not yet initialized, initializing with analyzers");
+      initialize(analyzers);
+      return;
+    }
+
+    LOG.info("Restarting backend with new analyzers...");
+    try {
+      // Shut down current backend
+      var currentBackend = backendFuture.getNow(null);
+      if (currentBackend != null) {
+        currentBackend.shutdown().get(10, TimeUnit.SECONDS);
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.error("Interrupted while shutting down backend for restart", e);
+      return;
+    } catch (Exception e) {
+      LOG.warn("Error during backend shutdown for restart, proceeding anyway: " + e.getMessage());
+    }
+
+    // Close the old launcher
+    try {
+      if (clientLauncher != null) {
+        clientLauncher.close();
+      }
+    } catch (Exception e) {
+      LOG.warn("Error closing launcher during restart: " + e.getMessage());
+    }
+
+    // Reset state for clean restart
+    clientLauncher = null;
+    isInitialized = false;
+    backendFuture = new CompletableFuture<>();
+
+    // Initialize with new analyzers
+    initialize(analyzers);
+    LOG.info("Backend restarted with new analyzers");
   }
 
   private CompletableFuture<Void> initRpcServer(SonarLintRpcServer rpcServer, AnalyzersAndLanguagesEnabled analyzersInStorage) {

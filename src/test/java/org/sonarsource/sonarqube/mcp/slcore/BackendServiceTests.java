@@ -77,9 +77,8 @@ class BackendServiceTests {
   @Test
   void should_analyze_files_and_track() {
     var analysisId = UUID.randomUUID();
-    var startTime = System.currentTimeMillis();
 
-    service.analyzeFilesAndTrack(analysisId, List.of(), startTime);
+    service.analyzeFilesAndTrack(analysisId, List.of());
 
     var captor = ArgumentCaptor.forClass(AnalyzeFilesAndTrackParams.class);
     verify(analysisRpcService, timeout(1000)).analyzeFilesAndTrack(captor.capture());
