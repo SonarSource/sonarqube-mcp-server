@@ -27,14 +27,17 @@ import io.modelcontextprotocol.spec.McpServerTransportProvider;
 import io.modelcontextprotocol.spec.McpServerTransportProviderBase;
 import io.modelcontextprotocol.spec.McpStreamableServerTransportProvider;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
@@ -151,7 +154,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
         .instructions("Transform your code quality workflow with SonarQube integration. " +
           "Analyze code, monitor project health, investigate issues, and understand quality gates. " +
-          "Note: Tools are being loaded in the background and will be available shortly.")
+          "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.")
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
         .tools(filterForEnabledTools(supportedTools).stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
         .build();
@@ -170,15 +173,16 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   /**
-   * Quick operations only - heavy operations (plugin download, backend init) are deferred to background.
+   * Initializes all services and loads all tools synchronously.
+   * The backend is initialized immediately (without analyzers) so that tools can be registered.
+   * Analyzers are downloaded in the background and the backend is restarted with them later.
    */
   private void initializeBasicServicesAndTools() {
     this.backendService = new BackendService(mcpConfiguration);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     this.toolExecutor = new ToolExecutor(backendService, initializationFuture);
 
-    // Create ServerApi and SonarQubeVersionChecker early (doesn't make network calls yet)
-    // This allows initTools() to reference sonarQubeVersionChecker before background init completes
+    // Create ServerApi and SonarQubeVersionChecker
     if (mcpConfiguration.isHttpEnabled()) {
       var initServerApi = createServerApiWithToken(mcpConfiguration.getSonarQubeToken());
       this.sonarQubeVersionChecker = new SonarQubeVersionChecker(initServerApi);
@@ -190,13 +194,23 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
+
+    // Initialize backend immediately with empty analyzers so we can check IDE bridge availability
+    backendService.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
+    backendService.notifyTransportModeUsed();
+
+    // Load backend-dependent tools (including IDE bridge check) now that backend is ready
+    loadBackendDependentTools();
   }
 
   /**
-   * Heavy initialization that runs in background after the server has started.
+   * Downloads analyzers in background and restarts the backend with them.
+   * Tools are already loaded synchronously during startup.
    */
   private void initializeBackgroundServices() {
     try {
+      logInitialization();
+
       PluginsSynchronizer pluginsSynchronizer;
       if (mcpConfiguration.isHttpEnabled()) {
         var initServerApi = createServerApiWithToken(mcpConfiguration.getSonarQubeToken());
@@ -204,20 +218,16 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       } else {
         pluginsSynchronizer = new PluginsSynchronizer(Objects.requireNonNull(serverApi), mcpConfiguration.getStoragePath());
       }
+
+      LOG.info("Downloading analyzers in background...");
       var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
-      // Logging before will not work as backend is not initialized
-      backendService.initialize(analyzers);
-      backendService.notifyTransportModeUsed();
-
-      logInitialization();
-
-      // Load backend-dependent tools AFTER backend is ready
-      LOG.info("Loading backend-dependent tools...");
-      loadBackendDependentTools();
+      // Restart backend with the downloaded analyzers
+      LOG.info("Restarting backend with downloaded analyzers...");
+      backendService.restartWithAnalyzers(analyzers);
 
       initializationFuture.complete(null);
-      LOG.info("Background initialization completed successfully");
+      LOG.info("Background initialization completed successfully - analyzers are now available");
     } catch (Exception e) {
       LOG.error("Background initialization failed", e);
       initializationFuture.completeExceptionally(e);
@@ -267,29 +277,26 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   /**
-   * Loads tools that REQUIRE the backend service to be initialized.
-   * These are loaded AFTER plugin synchronization and backend initialization.
-   * This includes analysis tools (which need analyzers) and tools that interact with the backend.
+   * Loads tools that depend on the backend service or IDE bridge.
+   * This is called during startup after the backend is initialized (with empty analyzers).
+   * The IDE bridge availability check is done here so that analysis tools can be registered.
    */
   private void loadBackendDependentTools() {
-    var dependentTools = new ArrayList<Tool>();
     boolean useIdeBridge = false;
     if (!mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeIdePort() != null) {
       var sonarqubeIdeBridgeClient = initializeBridgeClient(mcpConfiguration);
       if (sonarqubeIdeBridgeClient.isAvailable()) {
         LOG.info("SonarQube for IDE integration detected");
         backendService.notifySonarQubeIdeIntegration();
-        dependentTools.add(new AnalyzeFileListTool(sonarqubeIdeBridgeClient));
-        dependentTools.add(new ToggleAutomaticAnalysisTool(sonarqubeIdeBridgeClient));
+        supportedTools.add(new AnalyzeFileListTool(sonarqubeIdeBridgeClient));
+        supportedTools.add(new ToggleAutomaticAnalysisTool(sonarqubeIdeBridgeClient));
         useIdeBridge = true;
       }
     }
     if (!useIdeBridge) {
       LOG.info("Standard analysis mode (no IDE bridge)");
-      dependentTools.add(new AnalysisTool(backendService, this));
+      supportedTools.add(new AnalysisTool(backendService, this));
     }
-
-    registerAndNotifyBatch(dependentTools);
     var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
     LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);
   }
@@ -299,28 +306,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       .filter(tool -> mcpConfiguration.isToolCategoryEnabled(tool.getCategory()))
       .filter(tool -> !mcpConfiguration.isReadOnlyMode() || tool.definition().annotations().readOnlyHint())
       .toList();
-  }
-
-  /**
-   * Registers a batch of tools after filtering based on configuration.
-   */
-  private void registerAndNotifyBatch(List<Tool> tools) {
-    var filteredTools = filterForEnabledTools(tools);
-    
-    this.supportedTools.addAll(filteredTools);
-    
-    if (filteredTools.isEmpty()) {
-      return;
-    }
-    
-    try {
-      for (var tool : filteredTools) {
-        syncServer.addTool(toSpec(tool));
-      }
-      syncServer.notifyToolsListChanged();
-    } catch (Exception e) {
-      // Ignore - this can happen if the client is not ready, he will get the list later during handshake
-    }
   }
 
   private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
