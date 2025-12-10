@@ -4,11 +4,6 @@
     "namespace": "context",
     "command": "uv",
     "args": ["run", "sonar-code-context-mcp"],
-    "env": {},
-    "restart": {
-      "enabled": true,
-      "maxAttempts": 3,
-      "backoffSeconds": [2, 5, 10]
-    }
+    "env": {}
   }
 ]

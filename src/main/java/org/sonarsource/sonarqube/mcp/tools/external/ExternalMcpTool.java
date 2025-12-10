@@ -22,12 +22,9 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 /**
- * Proxy tool that forwards requests to an integrated MCP component.
- * This allows tools from other components to be exposed through the SonarQube MCP server
+ * Proxy tool that forwards requests to an external MCP server.
+ * This allows tools from other MCP servers to be exposed through the SonarQube MCP server
  * as if they were native tools.
- * 
- * The internal architecture (providers, external servers) is not exposed to users.
- * Users see these as regular SonarQube tools.
  */
 public class ExternalMcpTool extends Tool {
   
@@ -39,12 +36,12 @@ public class ExternalMcpTool extends Tool {
   private final String originalToolName;
   
   /**
-   * Create a proxy tool for an integrated MCP component tool.
+   * Create a proxy tool for an external MCP server tool.
    * 
    * @param prefixedName The prefixed tool name (e.g., "context_get_code")
-   * @param serverId The internal ID of the component (not user-visible)
-   * @param originalToolName The original tool name on the component
-   * @param originalTool The original tool definition from the component
+   * @param serverId The internal ID of the server
+   * @param originalToolName The original tool name on the external server
+   * @param originalTool The original tool definition from the external server
    * @param clientManager The client manager to use for executing the tool
    */
   public ExternalMcpTool(
@@ -64,11 +61,10 @@ public class ExternalMcpTool extends Tool {
     String prefixedName,
     McpSchema.Tool originalTool
   ) {
-    // Use original description without exposing internal architecture
     var title = originalTool.title() != null ? originalTool.title() : originalTool.name();
     var description = originalTool.description() != null 
       ? originalTool.description()
-      : "SonarQube tool";
+      : "External tool";
     
     return new McpSchema.Tool(
       prefixedName,
@@ -84,7 +80,7 @@ public class ExternalMcpTool extends Tool {
   @Override
   public Result execute(Arguments arguments) {
     try {
-      // Forward the request to the component
+      // Forward the request to the external server
       var result = clientManager.executeTool(
         serverId,
         originalToolName,
@@ -92,54 +88,38 @@ public class ExternalMcpTool extends Tool {
       );
       
       // Convert the CallToolResult to our Tool.Result format
-      if (result.isError()) {
+      if (Boolean.TRUE.equals(result.isError())) {
         return Result.failure(formatContent(result.content()));
       } else {
-        // Since we're proxying, return the result directly
+        // Proxy the result directly
         return new Result(result);
       }
-      
-    } catch (McpClientManager.ProviderUnavailableException e) {
-      // User-friendly error - don't expose internal details
-      return Result.failure(UNAVAILABLE_MESSAGE);
     } catch (Exception e) {
-      // Generic error - don't expose internal details
       return Result.failure(UNAVAILABLE_MESSAGE);
     }
   }
   
   private String formatContent(Object content) {
     if (content instanceof java.util.List<?> contentList) {
-      // Handle list of content items
       var sb = new StringBuilder();
       for (var item : contentList) {
-        if (item instanceof McpSchema.TextContent textContent) {
-          sb.append(textContent.text());
-        } else if (item instanceof McpSchema.ImageContent imageContent) {
-          sb.append("[Image: ").append(imageContent.mimeType()).append("]");
-        } else if (item instanceof McpSchema.ResourceContents resourceContents) {
-          sb.append("[Resource: ").append(resourceContents.uri()).append("]");
-        } else {
-          sb.append(item.toString());
+        switch (item) {
+          case McpSchema.TextContent textContent -> sb.append(textContent.text());
+          case McpSchema.ImageContent imageContent -> sb.append("[Image: ").append(imageContent.mimeType()).append("]");
+          case McpSchema.ResourceContents resourceContents -> sb.append("[Resource: ").append(resourceContents.uri()).append("]");
+          default -> sb.append(item);
         }
         sb.append("\n");
       }
       return sb.toString().trim();
     }
-    return content != null ? content.toString() : "";
+    return content.toString();
   }
-  
-  /**
-   * Get the internal server ID this tool belongs to.
-   * This is for internal use only and not exposed to users.
-   */
+
   public String getServerId() {
     return serverId;
   }
-  
-  /**
-   * Get the original tool name on the component.
-   */
+
   public String getOriginalToolName() {
     return originalToolName;
   }

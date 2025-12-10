@@ -39,20 +39,39 @@ External MCP servers are configured using the `SONARQUBE_EXTERNAL_SERVERS` envir
 
 ### Configuration Fields
 
-- **name** (required): A unique identifier for the external server
+- **name** (required): A unique internal identifier for the external server
+- **namespace** (optional): The prefix used for tool names. If not specified, defaults to the `name` value
 - **command** (required): The command to execute to start the server
 - **args** (optional): Array of command-line arguments
 - **env** (optional): Environment variables to pass to the server process
 
 ## Tool Naming Convention
 
-Tools from external servers are prefixed with the server name to avoid naming conflicts:
+Tools from external servers are prefixed with the namespace to avoid naming conflicts:
 
 Original tool: `get_forecast`
-Server name: `weather`
+Namespace: `weather`
 Exposed tool: `weather_get_forecast`
 
-The tool description will also be prefixed with `[External: weather]` to indicate its source.
+### Using Namespace for Custom Prefixes
+
+You can use the `namespace` field to customize the tool prefix independently of the internal server name:
+
+```json
+[
+  {
+    "name": "code-context-service",
+    "namespace": "context",
+    "command": "uv",
+    "args": ["run", "sonar-code-context-mcp"]
+  }
+]
+```
+
+This allows you to:
+- Use descriptive internal names for logging and debugging
+- Keep tool prefixes short and user-friendly
+- Change the internal identifier without affecting tool names visible to users
 
 ## Usage Example
 

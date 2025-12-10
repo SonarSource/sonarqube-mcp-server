@@ -40,12 +40,7 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
  *     "namespace": "user-visible-prefix",
  *     "command": "/path/to/server",
  *     "args": ["arg1", "arg2"],
- *     "env": {"KEY": "VALUE"},
- *     "restart": {
- *       "enabled": true,
- *       "maxAttempts": 3,
- *       "backoffSeconds": [2, 5, 10]
- *     }
+ *     "env": {"KEY": "VALUE"}
  *   }
  * ]
  * </pre>
@@ -106,22 +101,7 @@ public class ExternalServerConfigParser {
     var command = (String) configMap.get("command");
     var args = (List<String>) configMap.getOrDefault("args", Collections.emptyList());
     var env = (Map<String, String>) configMap.getOrDefault("env", Collections.emptyMap());
-    var restartConfig = parseRestartConfig((Map<String, Object>) configMap.get("restart"));
     
-    return new ExternalMcpServerConfig(name, namespace, command, args, env, restartConfig);
-  }
-  
-  @SuppressWarnings("unchecked")
-  @CheckForNull
-  private static ExternalMcpServerConfig.RestartConfig parseRestartConfig(@CheckForNull Map<String, Object> restartMap) {
-    if (restartMap == null) {
-      return null; // Will use default
-    }
-    
-    var enabled = (Boolean) restartMap.getOrDefault("enabled", true);
-    var maxAttempts = ((Number) restartMap.getOrDefault("maxAttempts", 3)).intValue();
-    var backoffSeconds = (List<Integer>) restartMap.getOrDefault("backoffSeconds", List.of(2, 5, 10));
-    
-    return new ExternalMcpServerConfig.RestartConfig(enabled, maxAttempts, backoffSeconds);
+    return new ExternalMcpServerConfig(name, namespace, command, args, env);
   }
 }
