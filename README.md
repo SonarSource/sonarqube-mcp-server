@@ -130,7 +130,7 @@ GitHub Copilot coding agent can leverage the SonarQube MCP server directly in yo
 
 To add the secrets to your Copilot environment, follow the Copilot [documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp#setting-up-a-copilot-environment-for-copilot-coding-agent). Only secrets with names prefixed with **COPILOT_MCP_** will be available to your MCP configuration.
 
-In your GitHub repository, navigate under **Settings -> Code & automation -> Copilot -> Coding agent**, and add the following configuration in the MCP configuration section:
+In your GitHub repository, navigate under **Settings -> Copilot -> Coding agent**, and add the following configuration in the MCP configuration section:
 
 * To connect with SonarQube Cloud:
 
