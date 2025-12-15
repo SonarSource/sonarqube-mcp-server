@@ -26,6 +26,7 @@ public class SearchIssuesTool extends Tool {
 
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
   public static final String PROJECTS_PROPERTY = "projects";
+  public static final String BRANCH_PROPERTY = "branch";
   public static final String PULL_REQUEST_ID_PROPERTY = "pullRequestId";
   public static final String SEVERITIES_PROPERTY = "severities";
   public static final String PAGE_PROPERTY = "p";
@@ -39,6 +40,7 @@ public class SearchIssuesTool extends Tool {
       .setTitle("Search SonarQube Issues in Projects")
       .setDescription("Search for SonarQube issues in my organization's projects.")
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
+      .addStringProperty(BRANCH_PROPERTY, "The branch to analyze for issues")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
       .addArrayProperty(SEVERITIES_PROPERTY, "string", "An optional list of severities to filter by, separated by a comma. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
@@ -52,11 +54,12 @@ public class SearchIssuesTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var projects = arguments.getOptionalStringList(PROJECTS_PROPERTY);
+    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
     var pullRequestId = arguments.getOptionalString(PULL_REQUEST_ID_PROPERTY);
     var severities = arguments.getOptionalStringList(SEVERITIES_PROPERTY);
     var page = arguments.getOptionalInteger(PAGE_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
-    var response = serverApiProvider.get().issuesApi().search(projects, pullRequestId, severities, page, pageSize);
+    var response = serverApiProvider.get().issuesApi().search(projects, branch, pullRequestId, severities, page, pageSize);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }
