@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.harness;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,7 +60,7 @@ public class InMemoryClientTransport implements McpClientTransport {
   public InMemoryClientTransport(InputStream inputStream, OutputStream outputStream) {
     this.inputStream = inputStream;
     this.outputStream = outputStream;
-    this.objectMapper = new ObjectMapper();
+    this.objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     this.mcpJsonMapper = new JacksonMcpJsonMapper(this.objectMapper);
     this.isClosing = false;
     this.stdErrorHandler = error -> log("STDERR Message received: " + error);

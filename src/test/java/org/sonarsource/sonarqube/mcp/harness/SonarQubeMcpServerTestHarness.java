@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.harness;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.http.Body;
 import io.modelcontextprotocol.client.McpClient;
@@ -127,7 +128,8 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     }
     prepareMockWebServer(environment);
 
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new JacksonMcpJsonMapper(new ObjectMapper()), clientToServerInputStream, serverToClientOutputStream),
+    var objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new JacksonMcpJsonMapper(objectMapper), clientToServerInputStream, serverToClientOutputStream),
       null, environment);
     server.start();
 
