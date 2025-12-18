@@ -103,7 +103,7 @@ class ListPortfoliosToolTests {
         ListPortfoliosTool.TOOL_NAME,
         Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 404 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 404 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true").build());
     }
 
     @SonarQubeMcpServerTest
@@ -117,7 +117,7 @@ class ListPortfoliosToolTests {
         ListPortfoliosTool.TOOL_NAME,
         Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true").build());
     }
 
     @SonarQubeMcpServerTest
@@ -247,7 +247,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(ListPortfoliosTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Either 'enterpriseId' must be provided or 'favorite' must be true", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Either 'enterpriseId' must be provided or 'favorite' must be true").build());
     }
 
     @SonarQubeMcpServerTest
@@ -263,7 +263,7 @@ class ListPortfoliosToolTests {
           ListPortfoliosTool.FAVORITE_PROPERTY, "true",
           ListPortfoliosTool.DRAFT_PROPERTY, "true"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Parameters 'favorite' and 'draft' cannot both be true at the same time", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Parameters 'favorite' and 'draft' cannot both be true at the same time").build());
     }
 
     @SonarQubeMcpServerTest
@@ -302,7 +302,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(ListPortfoliosTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden").build());
     }
 
     @SonarQubeMcpServerTest

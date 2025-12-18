@@ -75,7 +75,7 @@ class GetRawSourceToolTests {
 
       var result = mcpClient.callTool(GetRawSourceTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: key").build());
     }
   }
 
@@ -93,7 +93,7 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to retrieve source code: SonarQube answered with Forbidden").build());
     }
 
     @SonarQubeMcpServerTest
@@ -107,8 +107,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/NonExistent.php"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
-          harness.getMockSonarQubeServer().baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"), true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder()
+          .isError(true)
+          .addTextContent("Failed to retrieve source code: SonarQube answered with Error 404 on " +
+          harness.getMockSonarQubeServer().baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"))
+          .build());
     }
 
     @SonarQubeMcpServerTest
@@ -257,7 +260,7 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to retrieve source code: SonarQube answered with Forbidden").build());
     }
 
     @SonarQubeMcpServerTest
@@ -269,8 +272,11 @@ class GetRawSourceToolTests {
         GetRawSourceTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/NonExistent.php"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve source code: SonarQube answered with Error 404 on " +
-          harness.getMockSonarQubeServer().baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"), true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder()
+          .isError(true)
+          .addTextContent("Failed to retrieve source code: SonarQube answered with Error 404 on " +
+          harness.getMockSonarQubeServer().baseUrl() + "/api/sources/raw?key=" + urlEncode("my_project:src/foo/NonExistent.php"))
+          .build());
     }
 
     @SonarQubeMcpServerTest

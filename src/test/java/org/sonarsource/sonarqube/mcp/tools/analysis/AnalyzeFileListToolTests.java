@@ -124,7 +124,7 @@ class AnalyzeFileListToolTests {
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java", "file2.java")
       ))).toCallToolResult();
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.").build());
     }
   }
 
@@ -144,7 +144,7 @@ class AnalyzeFileListToolTests {
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java")
       ))).toCallToolResult();
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to request analysis of the list of files. Check logs for details.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to request analysis of the list of files. Check logs for details.").build());
     }
 
     @Test

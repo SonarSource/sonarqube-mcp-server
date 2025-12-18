@@ -105,9 +105,10 @@ class SystemPingToolTests {
 
       var result = mcpClient.callTool(SystemPingTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult(
-        "An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/ping",
-        true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder()
+        .isError(true)
+        .addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/system/ping")
+        .build());
     }
 
     @SonarQubeMcpServerTest
