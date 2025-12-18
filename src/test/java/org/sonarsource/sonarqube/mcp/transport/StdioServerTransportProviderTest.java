@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.transport;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpServerSession;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
@@ -37,7 +36,7 @@ class StdioServerTransportProviderTest {
    * We need to use reflection to set the session field directly to avoid the background threads.
    */
   private StdioServerTransportProvider createProviderWithMockSession(McpServerSession mockSession) throws Exception {
-    var provider = new StdioServerTransportProvider(new ObjectMapper(), null);
+    var provider = new StdioServerTransportProvider(null);
     var sessionField = StdioServerTransportProvider.class.getDeclaredField("session");
     sessionField.setAccessible(true);
     sessionField.set(provider, mockSession);
@@ -46,7 +45,7 @@ class StdioServerTransportProviderTest {
 
   @Test
   void closeGracefully_should_return_empty_mono_when_session_is_null() {
-    var provider = new StdioServerTransportProvider(new ObjectMapper(), null);
+    var provider = new StdioServerTransportProvider(null);
 
     var result = provider.closeGracefully();
 
