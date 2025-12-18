@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -78,7 +77,7 @@ class SonarQubeMcpServerHttpTest {
     harness.prepareMockWebServer(environment);
 
     var stdioServer = new SonarQubeMcpServer(
-        new StdioServerTransportProvider(new ObjectMapper(), null),
+        new StdioServerTransportProvider(null),
         null,
         environment);
     stdioServer.start();
@@ -110,7 +109,7 @@ class SonarQubeMcpServerHttpTest {
 
     harness.prepareMockWebServer(environment);
 
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(new ObjectMapper(), null), null, environment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
     
     assertThat(server.getMcpConfiguration().isHttpEnabled()).isFalse();
   }

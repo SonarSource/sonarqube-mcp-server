@@ -16,8 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -133,8 +131,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       this.transportProvider = httpServerManager.getTransportProvider();
     } else {
       this.httpServerManager = null;
-      var objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-      this.transportProvider = new StdioServerTransportProvider(objectMapper, this::shutdown);
+      this.transportProvider = new StdioServerTransportProvider(this::shutdown);
     }
 
     initializeBasicServicesAndTools();
