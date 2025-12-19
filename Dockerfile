@@ -33,6 +33,7 @@ RUN apk add --no-cache \
         ca-certificates \
         nodejs=~22 \
         npm \
+        git \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
         mkdir -p /home/appuser/.sonarlint ./storage && \
@@ -41,6 +42,7 @@ RUN apk add --no-cache \
         chmod 0440 /etc/sudoers.d/appuser
 
 COPY --from=builder --chown=appuser:appgroup --chmod=755 /app/sonarqube-mcp-server.jar /app/sonarqube-mcp-server.jar
+COPY --from=builder --chown=appuser:appgroup --chmod=755 /app/sonar-code-context-mcp /app/binaries/sonar-code-context-mcp
 COPY --chown=appuser:appgroup --chmod=755 scripts/install-certificates.sh /usr/local/bin/install-certificates
 
 USER appuser

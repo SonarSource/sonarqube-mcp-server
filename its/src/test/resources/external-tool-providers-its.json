@@ -1,0 +1,10 @@
+[
+  {
+    "name": "caas",
+    "namespace": "context",
+    "command": "/app/binaries/sonar-code-context-mcp",
+    "args": [],
+    "env": {}
+  }
+]
+
