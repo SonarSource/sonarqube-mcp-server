@@ -1,0 +1,9 @@
+[
+  {
+    "name": "caas",
+    "namespace": "context",
+    "command": "uv",
+    "args": ["run", "sonar-code-context-mcp"],
+    "env": {}
+  }
+]
