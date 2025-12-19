@@ -40,8 +40,8 @@ External tool providers are defined in `/external-tool-providers.json` (bundled 
   {
     "name": "caas",
     "namespace": "context",
-    "command": "uv",
-    "args": ["run", "sonar-code-context-mcp"],
+    "command": "/app/binaries/sonar-code-context-mcp",
+    "args": [],
     "env": {}
   }
 ]

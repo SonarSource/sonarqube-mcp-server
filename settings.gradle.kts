@@ -1,5 +1,7 @@
 rootProject.name = "sonarqube-mcp-server"
 
+include("its")
+
 plugins {
     id("com.gradle.develocity") version "3.18.2"
     id("com.gradle.common-custom-user-data-gradle-plugin") version "2.2.1"
