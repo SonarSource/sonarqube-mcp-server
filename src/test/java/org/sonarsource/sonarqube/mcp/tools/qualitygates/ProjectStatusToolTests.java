@@ -123,7 +123,7 @@ class ProjectStatusToolTests {
 
       var result = mcpClient.callTool(ProjectStatusTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Either 'analysisId', 'projectId' or 'projectKey' must be provided", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Either 'analysisId', 'projectId' or 'projectKey' must be provided").build());
     }
 
     @SonarQubeMcpServerTest
@@ -135,7 +135,7 @@ class ProjectStatusToolTests {
         ProjectStatusTool.TOOL_NAME,
         Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "123", ProjectStatusTool.BRANCH_PROPERTY, "branch"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Project ID doesn't work with branches or pull requests", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Project ID doesn't work with branches or pull requests").build());
     }
 
     @SonarQubeMcpServerTest
@@ -149,7 +149,7 @@ class ProjectStatusToolTests {
         ProjectStatusTool.TOOL_NAME,
         Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "12345"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/project_status?analysisId=12345", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/project_status?analysisId=12345").build());
     }
 
     @SonarQubeMcpServerTest
@@ -377,7 +377,7 @@ class ProjectStatusToolTests {
         ProjectStatusTool.TOOL_NAME,
         Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.").build());
     }
 
     @SonarQubeMcpServerTest

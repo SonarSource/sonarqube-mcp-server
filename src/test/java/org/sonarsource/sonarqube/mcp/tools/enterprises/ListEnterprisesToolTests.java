@@ -123,7 +123,7 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden").build());
     }
 
     @SonarQubeMcpServerTest
@@ -135,7 +135,7 @@ class ListEnterprisesToolTests {
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/enterprises").build());
     }
 
     @SonarQubeMcpServerTest
