@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.issues;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
@@ -263,6 +264,63 @@ class SearchIssuesToolTests {
         SearchIssuesTool.TOOL_NAME,
         Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"},
           SearchIssuesTool.SEVERITIES_PROPERTY, new String[] {"HIGH", "BLOCKER"}));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_filter_by_issue_statuses(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2&issueStatuses=OPEN,CONFIRMED&organization=org")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"},
+          SearchIssuesTool.ISSUE_STATUSES_PROPERTY, new String[] {"OPEN", "CONFIRMED"}));
 
       assertResultEquals(result, """
         {
@@ -693,6 +751,62 @@ class SearchIssuesToolTests {
     }
 
     @SonarQubeMcpServerTest
+    void it_should_filter_by_issue_statuses(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2&issueStatuses=OPEN,CONFIRMED")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"},
+          SearchIssuesTool.ISSUE_STATUSES_PROPERTY, new String[] {"OPEN", "CONFIRMED"}));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
     void it_should_return_issues_from_a_branch(SonarQubeMcpServerTestHarness harness) {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
@@ -717,6 +831,61 @@ class SearchIssuesToolTests {
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
         Map.of(SearchIssuesTool.BRANCH_PROPERTY, "feature/my-branch"));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_issues_from_specific_files(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?files=src%2Fmain%2FMyFile.java")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.FILES_PROPERTY, List.of("src/main/MyFile.java")));
 
       assertResultEquals(result, """
         {

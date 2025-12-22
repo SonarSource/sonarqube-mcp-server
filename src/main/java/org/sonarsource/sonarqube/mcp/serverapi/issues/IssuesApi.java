@@ -36,9 +36,9 @@ public class IssuesApi {
     this.helper = helper;
   }
 
-  public SearchResponse search(@Nullable List<String> projects, @Nullable String branch, @Nullable String pullRequestId, @Nullable List<String> severities,
-    @Nullable Integer page, @Nullable Integer pageSize) {
-    try (var response = helper.get(buildPath(projects, branch, pullRequestId, severities, page, pageSize))) {
+  public SearchResponse search(@Nullable List<String> projects, @Nullable String branch, @Nullable List<String> files, @Nullable String pullRequestId,
+    @Nullable List<String> severities, @Nullable List<String> issueStatuses, @Nullable Integer page, @Nullable Integer pageSize) {
+    try (var response = helper.get(buildPath(projects, branch, files, pullRequestId, severities, issueStatuses, page, pageSize))) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }
@@ -50,13 +50,15 @@ public class IssuesApi {
     response.close();
   }
 
-  private String buildPath(@Nullable List<String> projects, @Nullable String branch, @Nullable String pullRequestId, @Nullable List<String> severities,
-    @Nullable Integer page, @Nullable Integer pageSize) {
+  private String buildPath(@Nullable List<String> projects, @Nullable String branch, @Nullable List<String> files, @Nullable String pullRequestId,
+    @Nullable List<String> severities, @Nullable List<String> issueStatuses, @Nullable Integer page, @Nullable Integer pageSize) {
     var builder = new UrlBuilder(SEARCH_PATH)
       .addParam("projects", projects)
       .addParam("branch", branch)
+      .addParam("files", files)
       .addParam("pullRequest", pullRequestId)
       .addParam("impactSeverities", severities)
+      .addParam("issueStatuses", issueStatuses)
       .addParam("p", page)
       .addParam("ps", pageSize)
       .addParam("organization", helper.getOrganization());
