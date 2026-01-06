@@ -40,7 +40,7 @@ public class SearchIssuesTool extends Tool {
       .setTitle("Search SonarQube Issues in Projects")
       .setDescription("Search for SonarQube issues in my organization's projects.")
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
-      .addStringProperty(BRANCH_PROPERTY, "The branch to analyze for issues")
+      .addStringProperty(BRANCH_PROPERTY, "The branch to search for issues")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
       .addArrayProperty(SEVERITIES_PROPERTY, "string", "An optional list of severities to filter by, separated by a comma. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
