@@ -27,12 +27,12 @@ import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.ee10.servlet.FilterHolder;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -46,7 +46,7 @@ public class HttpServerTransportProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String MCP_ENDPOINT = "/mcp";
-  
+
   private final int port;
   private final String host;
   private final AuthMode authMode;
@@ -74,9 +74,9 @@ public class HttpServerTransportProvider {
    * @param httpsTruststorePassword Truststore password (optional)
    * @param httpsTruststoreType Truststore type (optional)
    */
-  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean httpsEnabled, 
-      Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
-      Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType) {
+  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean httpsEnabled,
+    Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
+    Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType) {
     this.port = port;
     this.host = host;
     this.authMode = authMode;
@@ -89,26 +89,27 @@ public class HttpServerTransportProvider {
     this.httpsTruststoreType = httpsTruststoreType;
 
     this.mcpTransportProvider = HttpServletStreamableServerTransportProvider.builder()
-        .mcpEndpoint(MCP_ENDPOINT)
-        .keepAliveInterval(Duration.ofSeconds(30))
-        .build();
-    
+      .mcpEndpoint(MCP_ENDPOINT)
+      .keepAliveInterval(Duration.ofSeconds(30))
+      .jsonMapper(McpJsonMappers.DEFAULT)
+      .build();
+
     var protocol = httpsEnabled ? "https" : "http";
     LOG.info("Created " + protocol.toUpperCase(Locale.getDefault()) + " transport provider for "
       + protocol + "://" + host + ":" + port + MCP_ENDPOINT + " with authentication: " + authMode);
-    
+
     // Warn about security risk when binding to all interfaces
     if ("0.0.0.0".equals(host)) {
       LOG.warn("SECURITY WARNING: MCP HTTP server is configured to bind to all network interfaces (0.0.0.0). " +
-                  "This exposes the server to your entire network. " +
-                  "For local development, consider using 127.0.0.1 instead.");
+        "This exposes the server to your entire network. " +
+        "For local development, consider using 127.0.0.1 instead.");
     }
-    
+
     // Warn about HTTP without HTTPS
     if (!httpsEnabled) {
       LOG.warn("SECURITY WARNING: MCP server is using HTTP without SSL/TLS encryption. " +
-                  "Tokens and data will be transmitted in plain text. " +
-                  "For production use, consider enabling HTTPS with SONARQUBE_HTTPS_ENABLED=true.");
+        "Tokens and data will be transmitted in plain text. " +
+        "For production use, consider enabling HTTPS with SONARQUBE_HTTPS_ENABLED=true.");
     }
   }
 
@@ -146,7 +147,7 @@ public class HttpServerTransportProvider {
     // Create Jetty server
     httpServer = new Server();
     ServerConnector connector;
-    
+
     if (httpsEnabled) {
       // Configure HTTPS with SSL/TLS
       var sslContextFactory = new SslContextFactory.Server();
@@ -158,7 +159,7 @@ public class HttpServerTransportProvider {
       // Plain HTTP connector
       connector = new ServerConnector(httpServer);
     }
-    
+
     connector.setHost(host);
     connector.setPort(port);
     httpServer.addConnector(connector);
@@ -196,7 +197,7 @@ public class HttpServerTransportProvider {
 
     return CompletableFuture.runAsync(() -> {
       LOG.info("Stopping MCP HTTP server...");
-      
+
       try {
         httpServer.stop();
         httpServer = null;
@@ -222,8 +223,8 @@ public class HttpServerTransportProvider {
    * @return Configured SSLContext
    */
   private static SSLContext configureSsl(Path keystorePath, String keystorePassword, String keystoreType,
-      Path truststorePath, String truststorePassword, String truststoreType) {
-    
+    Path truststorePath, String truststorePassword, String truststoreType) {
+
     var sslFactoryBuilder = SSLFactory.builder()
       .withDefaultTrustMaterial();
 
@@ -243,7 +244,7 @@ public class HttpServerTransportProvider {
       LOG.info("Configuring SSL with truststore: " + truststorePath + " (type: " + truststoreType + ")");
       sslFactoryBuilder.withInflatableTrustMaterial(truststorePath, truststorePassword.toCharArray(), truststoreType, null);
     }
-    
+
     return sslFactoryBuilder.build().getSslContext();
   }
 

@@ -19,6 +19,9 @@ package org.sonarsource.sonarqube.mcp.transport;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import io.modelcontextprotocol.spec.DefaultMcpStreamableServerSessionFactory;
+import io.modelcontextprotocol.spec.McpSchema;
+import io.modelcontextprotocol.spec.McpStreamableServerSession;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -26,11 +29,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import reactor.core.publisher.Mono;
 
 class HttpServerTransportIntegrationTest {
 
@@ -118,6 +123,45 @@ class HttpServerTransportIntegrationTest {
 
       // Server should respond
       assertThat(response.statusCode()).isBetween(200, 599);
+    }
+  }
+
+  @Test
+  void should_allow_unknown_properties() throws Exception {
+    httpServer.startServer().join();
+    httpServer.getTransportProvider().setSessionFactory(new DefaultMcpStreamableServerSessionFactory(Duration.ofSeconds(2), new McpStreamableServerSession.InitRequestHandler() {
+      @Override
+      public Mono<McpSchema.InitializeResult> handle(McpSchema.InitializeRequest initializeRequest) {
+        return Mono.empty();
+      }
+    }, Map.of(), Map.of()));
+
+    // Wait for server to be ready
+    await().atMost(5, TimeUnit.SECONDS).until(() -> isServerRunning(httpServer.getServerUrl()));
+
+    try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
+      var request = HttpRequest.newBuilder()
+        .uri(URI.create(httpServer.getServerUrl()))
+        .header("Accept", "text/event-stream, application/json")
+        .header("SONARQUBE_TOKEN", "XXX")
+        .POST(HttpRequest.BodyPublishers.ofString("""
+          {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "capabilities": {
+                "elicitation": {
+                  "XXX": {}
+                }
+              }
+            }
+          }"""))
+        .build();
+
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      assertThat(response.statusCode()).isBetween(200, 299);
     }
   }
 

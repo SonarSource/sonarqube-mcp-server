@@ -16,13 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.harness;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
-import io.modelcontextprotocol.util.Assert;
 import jakarta.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -40,6 +37,8 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
+import static org.sonarsource.sonarqube.mcp.transport.McpJsonMappers.DEFAULT;
+
 /**
  * This class is heavily inspired by the {@link io.modelcontextprotocol.client.transport.StdioClientTransport} class. We just removed the logic to start the server process.
  */
@@ -48,8 +47,7 @@ public class InMemoryClientTransport implements McpClientTransport {
   private final OutputStream outputStream;
   private final Sinks.Many<McpSchema.JSONRPCMessage> inboundSink;
   private final Sinks.Many<McpSchema.JSONRPCMessage> outboundSink;
-  private final ObjectMapper objectMapper;
-  private final JacksonMcpJsonMapper mcpJsonMapper;
+  private final JacksonMcpJsonMapper mcpJsonMapper = DEFAULT;
   private final Scheduler inboundScheduler;
   private final Scheduler outboundScheduler;
   private final Scheduler errorScheduler;
@@ -60,11 +58,8 @@ public class InMemoryClientTransport implements McpClientTransport {
   public InMemoryClientTransport(InputStream inputStream, OutputStream outputStream) {
     this.inputStream = inputStream;
     this.outputStream = outputStream;
-    this.objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    this.mcpJsonMapper = new JacksonMcpJsonMapper(this.objectMapper);
     this.isClosing = false;
     this.stdErrorHandler = error -> log("STDERR Message received: " + error);
-    Assert.notNull(objectMapper, "The ObjectMapper can not be null");
     this.inboundSink = Sinks.many().unicast().onBackpressureBuffer();
     this.outboundSink = Sinks.many().unicast().onBackpressureBuffer();
     this.errorSink = Sinks.many().unicast().onBackpressureBuffer();
@@ -147,7 +142,7 @@ public class InMemoryClientTransport implements McpClientTransport {
     this.handleOutbound(messages -> messages.publishOn(this.outboundScheduler).handle((message, s) -> {
       if (message != null && !this.isClosing) {
         try {
-          String jsonMessage = this.objectMapper.writeValueAsString(message);
+          String jsonMessage = this.mcpJsonMapper.writeValueAsString(message);
           jsonMessage = jsonMessage.replace("\r\n", "\\n").replace("\n", "\\n").replace("\r", "\\n");
           OutputStream os = this.outputStream;
           synchronized (os) {
@@ -214,7 +209,7 @@ public class InMemoryClientTransport implements McpClientTransport {
   @Override
   public <T> T unmarshalFrom(Object data, TypeRef<T> typeRef) {
     // Convert TypeRef to TypeReference for Jackson compatibility
-    return this.objectMapper.convertValue(data, this.objectMapper.getTypeFactory().constructType(typeRef.getType()));
+    return mcpJsonMapper.getObjectMapper().convertValue(data, mcpJsonMapper.getObjectMapper().getTypeFactory().constructType(typeRef.getType()));
   }
 
   private static void log(String message) {

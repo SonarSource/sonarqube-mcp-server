@@ -16,11 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.transport;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.json.McpJsonMapper;
-import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
+import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.JSONRPCMessage;
@@ -61,7 +58,7 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
 
   private static final Logger logger = LoggerFactory.getLogger(StdioServerTransportProvider.class);
 
-  private final McpJsonMapper jsonMapper;
+  private static final McpJsonMapper jsonMapper = McpJsonMappers.DEFAULT;
 
   private final InputStream inputStream;
 
@@ -80,8 +77,7 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
    * System streams. Will call shutdown callback when stdin closes (for Docker containers).
    */
   public StdioServerTransportProvider(Runnable shutdownCallback) {
-    this(new JacksonMcpJsonMapper(new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)),
-      System.in, System.out, shutdownCallback);
+    this(System.in, System.out, shutdownCallback);
   }
 
   /**
@@ -92,16 +88,13 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
    * @param outputStream The output stream to write to
    */
   public StdioServerTransportProvider(InputStream inputStream, OutputStream outputStream) {
-    this(new JacksonMcpJsonMapper(new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)),
-      inputStream, outputStream, null);
+    this(inputStream, outputStream, null);
   }
 
-  private StdioServerTransportProvider(McpJsonMapper jsonMapper, InputStream inputStream, OutputStream outputStream, @Nullable Runnable shutdownCallback) {
-    Assert.notNull(jsonMapper, "The JsonMapper can not be null");
+  private StdioServerTransportProvider(InputStream inputStream, OutputStream outputStream, @Nullable Runnable shutdownCallback) {
     Assert.notNull(inputStream, "The InputStream can not be null");
     Assert.notNull(outputStream, "The OutputStream can not be null");
 
-    this.jsonMapper = jsonMapper;
     this.inputStream = inputStream;
     this.outputStream = outputStream;
     this.shutdownCallback = shutdownCallback;
@@ -134,7 +127,7 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
     if (this.session == null) {
       return Mono.empty();
     }
-    
+
     return this.session.closeGracefully()
       .timeout(Duration.ofSeconds(10), Mono.fromRunnable(() -> {
         logger.warn("closeGracefully() timed out after 10 seconds; proceeding with forced shutdown");
@@ -277,7 +270,7 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
               session.close();
             }
             inboundSink.tryEmitComplete();
-            
+
             // Trigger graceful shutdown when stdin closes if environment variable is set (avoid stale containers)
             if (shutdownCallback != null) {
               logger.info("stdin closed (EOF detected) - initiating graceful shutdown");
