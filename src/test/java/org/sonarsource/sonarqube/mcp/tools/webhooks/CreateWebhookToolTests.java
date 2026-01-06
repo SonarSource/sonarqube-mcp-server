@@ -91,7 +91,7 @@ class CreateWebhookToolTests {
         CreateWebhookTool.TOOL_NAME,
         Map.of(CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: name", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: name").build());
     }
 
     @SonarQubeMcpServerTest
@@ -102,7 +102,7 @@ class CreateWebhookToolTests {
         CreateWebhookTool.TOOL_NAME,
         Map.of(CreateWebhookTool.NAME_PROPERTY, "Test Webhook"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: url", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: url").build());
     }
   }
 
@@ -120,7 +120,7 @@ class CreateWebhookToolTests {
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
           CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.").build());
     }
 
     @SonarQubeMcpServerTest
@@ -219,7 +219,7 @@ class CreateWebhookToolTests {
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
           CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.").build());
     }
 
     @SonarQubeMcpServerTest
@@ -288,7 +288,7 @@ class CreateWebhookToolTests {
           CreateWebhookTool.NAME_PROPERTY, "Test Webhook",
           CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/webhooks/create", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/webhooks/create").build());
     }
   }
 

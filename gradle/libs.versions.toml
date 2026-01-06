@@ -1,5 +1,5 @@
 [versions]
-sonarlint-core = "10.38.0.83993"
+sonarlint-core = "10.40.0.84108"
 
 sonarqube = "6.1.0.5360"
 
@@ -9,7 +9,7 @@ cyclonedx-plugin = "1.10.0"
 
 sonar-php = "3.53.0.15220"
 
-mcp-server = "0.16.0"
+mcp-server = "0.17.0"
 commons-lang3 = "3.20.0"
 commons-text = "1.14.0"
 ayza = "10.0.2"

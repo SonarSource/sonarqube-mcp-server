@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.transport;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.json.McpJsonMapper;
@@ -78,20 +79,21 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
    * System streams. Will call shutdown callback when stdin closes (for Docker containers).
    */
-  public StdioServerTransportProvider(ObjectMapper objectMapper, Runnable shutdownCallback) {
-    this(new JacksonMcpJsonMapper(objectMapper), System.in, System.out, shutdownCallback);
+  public StdioServerTransportProvider(Runnable shutdownCallback) {
+    this(new JacksonMcpJsonMapper(new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)),
+      System.in, System.out, shutdownCallback);
   }
 
   /**
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
    * streams. Automatically detects if custom streams are used (tests) to disable shutdown callback.
    *
-   * @param jsonMapper   The JsonMapper to use for JSON serialization/deserialization
    * @param inputStream  The input stream to read from
    * @param outputStream The output stream to write to
    */
-  public StdioServerTransportProvider(McpJsonMapper jsonMapper, InputStream inputStream, OutputStream outputStream) {
-    this(jsonMapper, inputStream, outputStream, null);
+  public StdioServerTransportProvider(InputStream inputStream, OutputStream outputStream) {
+    this(new JacksonMcpJsonMapper(new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)),
+      inputStream, outputStream, null);
   }
 
   private StdioServerTransportProvider(McpJsonMapper jsonMapper, InputStream inputStream, OutputStream outputStream, @Nullable Runnable shutdownCallback) {

@@ -128,7 +128,7 @@ public class AnalysisToolTests {
         Map.of(AnalysisTool.LANGUAGE_PROPERTY, ""));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: codeSnippet", true));
+        .isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: codeSnippet").build());
     }
   }
 

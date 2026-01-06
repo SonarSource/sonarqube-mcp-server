@@ -104,7 +104,7 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/languages/list", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/languages/list").build());
     }
 
     @SonarQubeMcpServerTest
@@ -177,7 +177,7 @@ class ListLanguagesToolTests {
 
       var result = mcpClient.callTool(ListLanguagesTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.").build());
     }
 
     @SonarQubeMcpServerTest
