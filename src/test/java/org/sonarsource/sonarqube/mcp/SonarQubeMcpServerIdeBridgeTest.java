@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.harness.MockWebServer;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.tools.analysis.AnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
@@ -64,7 +64,7 @@ class SonarQubeMcpServerIdeBridgeTest {
 
     var supportedTools = server.getSupportedTools();
     assertThat(supportedTools)
-      .noneMatch(AnalysisTool.class::isInstance)
+      .noneMatch(AnalyzeCodeSnippetTool.class::isInstance)
       .anyMatch(AnalyzeFileListTool.class::isInstance)
       .anyMatch(ToggleAutomaticAnalysisTool.class::isInstance);
   }
@@ -84,7 +84,7 @@ class SonarQubeMcpServerIdeBridgeTest {
 
     var supportedTools = server.getSupportedTools();
     assertThat(supportedTools)
-      .anyMatch(AnalysisTool.class::isInstance)
+      .anyMatch(AnalyzeCodeSnippetTool.class::isInstance)
       .noneMatch(AnalyzeFileListTool.class::isInstance)
       .noneMatch(ToggleAutomaticAnalysisTool.class::isInstance);
   }
