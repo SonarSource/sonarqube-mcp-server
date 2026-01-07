@@ -32,14 +32,15 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
+import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool.TOOL_NAME;
 
-public class AnalysisToolTests {
+public class AnalyzeCodeSnippetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
-    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(AnalysisTool.TOOL_NAME)).findFirst().orElseThrow();
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(TOOL_NAME)).findFirst().orElseThrow();
 
     assertThat(tool.annotations()).isNotNull();
     assertThat(tool.annotations().readOnlyHint()).isTrue();
@@ -124,8 +125,8 @@ public class AnalysisToolTests {
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
-        AnalysisTool.TOOL_NAME,
-        Map.of(AnalysisTool.LANGUAGE_PROPERTY, ""));
+        TOOL_NAME,
+        Map.of(AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, ""));
 
       assertThat(result)
         .isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: codeSnippet").build());
@@ -141,10 +142,10 @@ public class AnalysisToolTests {
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
-        AnalysisTool.TOOL_NAME,
+        TOOL_NAME,
         Map.of(
-          AnalysisTool.SNIPPET_PROPERTY, "",
-          AnalysisTool.LANGUAGE_PROPERTY, ""));
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, "",
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, ""));
 
       assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
     }
@@ -155,12 +156,12 @@ public class AnalysisToolTests {
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
-        AnalysisTool.TOOL_NAME,
+        TOOL_NAME,
         Map.of(
-          AnalysisTool.SNIPPET_PROPERTY, """
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
             // TODO just do it
             """,
-          AnalysisTool.LANGUAGE_PROPERTY, "php"));
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
 
       assertResultEquals(result, """
         {
@@ -186,13 +187,13 @@ public class AnalysisToolTests {
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
-        AnalysisTool.TOOL_NAME,
+        TOOL_NAME,
         Map.of(
-          AnalysisTool.PROJECT_KEY_PROPERTY, "projectKey",
-          AnalysisTool.SNIPPET_PROPERTY, """
+          AnalyzeCodeSnippetTool.PROJECT_KEY_PROPERTY, "projectKey",
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
             // TODO just do it
             """,
-          AnalysisTool.LANGUAGE_PROPERTY, "php"));
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
 
       assertResultEquals(result, """
         {
@@ -220,12 +221,12 @@ public class AnalysisToolTests {
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
-        AnalysisTool.TOOL_NAME,
+        TOOL_NAME,
         Map.of(
-          AnalysisTool.SNIPPET_PROPERTY, """
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
             // TODO just do it
             """,
-          AnalysisTool.LANGUAGE_PROPERTY, "php"));
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
 
       assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
     }

@@ -23,12 +23,14 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.StandaloneRuleConfigDto;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
@@ -40,7 +42,10 @@ import static java.util.stream.Collectors.toMap;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.mapSonarLanguageToLanguage;
 
-public class AnalysisTool extends Tool {
+public class AnalyzeCodeSnippetTool extends Tool {
+
+  private static final McpLogger LOG = McpLogger.getInstance();
+  private static final int INITIALIZATION_TIMEOUT_SECONDS = 30;
 
   public static final String TOOL_NAME = "analyze_code_snippet";
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
@@ -50,8 +55,10 @@ public class AnalysisTool extends Tool {
   private final BackendService backendService;
   private final ServerApiProvider serverApiProvider;
 
-  public AnalysisTool(BackendService backendService, ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(AnalysisToolResponse.class)
+  private final CompletableFuture<Void> initializationFuture;
+
+  public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider, CompletableFuture<Void> initializationFuture) {
+    super(SchemaToolBuilder.forOutput(AnalyzeCodeSnippetToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Code File Analysis")
       .setDescription("Analyze a file or code snippet with SonarQube analyzers to identify code quality and security issues. " +
@@ -64,10 +71,23 @@ public class AnalysisTool extends Tool {
       ToolCategory.ANALYSIS);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
+    this.initializationFuture = initializationFuture;
   }
 
   @Override
   public Result execute(Arguments arguments) {
+    var startTime = System.currentTimeMillis();
+    try {
+      if (!initializationFuture.isDone()) {
+        LOG.info("Waiting for plugins download to complete before executing " + TOOL_NAME);
+      }
+      initializationFuture.get(INITIALIZATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    } catch (TimeoutException | ExecutionException e) {
+      return handleInitializationError(e, startTime);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return handleInitializationError(e, startTime);
+    }
     var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
     var codeSnippet = arguments.getStringOrThrow(SNIPPET_PROPERTY);
     var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
@@ -139,30 +159,44 @@ public class AnalysisTool extends Tool {
     Files.deleteIfExists(tempFile);
   }
 
-  public AnalysisToolResponse buildStructuredContent(AnalyzeFilesResponse response) {
+  public AnalyzeCodeSnippetToolResponse buildStructuredContent(AnalyzeFilesResponse response) {
     var issues = response.getRawIssues().stream()
       .map(issue -> {
-        AnalysisToolResponse.TextRange textRange = null;
+        AnalyzeCodeSnippetToolResponse.TextRange textRange = null;
         if (issue.getTextRange() != null) {
-          textRange = new AnalysisToolResponse.TextRange(
+          textRange = new AnalyzeCodeSnippetToolResponse.TextRange(
             issue.getTextRange().getStartLine(),
-            issue.getTextRange().getEndLine()
-          );
+            issue.getTextRange().getEndLine());
         }
-        
-        return new AnalysisToolResponse.Issue(
+
+        return new AnalyzeCodeSnippetToolResponse.Issue(
           issue.getRuleKey(),
           issue.getPrimaryMessage(),
           issue.getSeverity().toString(),
           issue.getCleanCodeAttribute().name(),
           issue.getImpacts().toString(),
           !issue.getQuickFixes().isEmpty(),
-          textRange
-        );
+          textRange);
       })
       .toList();
 
-    return new AnalysisToolResponse(issues, response.getRawIssues().size());
+    return new AnalyzeCodeSnippetToolResponse(issues, response.getRawIssues().size());
+  }
+
+  private static Tool.Result handleInitializationError(Exception e, long startTime) {
+    var executionTime = System.currentTimeMillis() - startTime;
+    String errorMessage;
+
+    if (e instanceof TimeoutException) {
+      errorMessage = "Server initialization is taking longer than expected. Please try again in a moment.";
+      LOG.error("Tool failed due to initialization timeout: " + TOOL_NAME + " (execution time: " + executionTime + "ms)", e);
+    } else {
+      errorMessage = "Server initialization failed: " + e.getCause().getMessage() +
+        ". Please check the server logs for more details.";
+      LOG.error("Tool failed due to initialization error: " + TOOL_NAME + " (execution time: " + executionTime + "ms)", e);
+    }
+
+    return Tool.Result.failure(errorMessage);
   }
 
 }
