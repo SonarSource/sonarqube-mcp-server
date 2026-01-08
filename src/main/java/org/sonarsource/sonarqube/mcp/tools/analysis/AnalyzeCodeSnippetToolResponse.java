@@ -22,7 +22,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record AnalysisToolResponse(
+public record AnalyzeCodeSnippetToolResponse(
   @JsonPropertyDescription("List of issues found in the code snippet") List<Issue> issues,
   @JsonPropertyDescription("Total number of issues") int issueCount
 ) {
