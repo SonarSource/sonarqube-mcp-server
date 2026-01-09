@@ -96,7 +96,7 @@ public class SchemaToolBuilder {
   }
 
   public SchemaToolBuilder addEnumProperty(String propertyName, String[] items, String description) {
-    var content = Map.of(TYPE_PROPERTY_NAME, "array", DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of("enum", items));
+    var content = Map.of(TYPE_PROPERTY_NAME, "array", DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, "string", "enum", items));
     properties.put(propertyName, content);
     return this;
   }
