@@ -52,7 +52,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
-import org.sonarsource.sonarqube.mcp.tools.analysis.AnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
@@ -179,7 +179,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void initializeBasicServicesAndTools() {
     this.backendService = new BackendService(mcpConfiguration);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
-    this.toolExecutor = new ToolExecutor(backendService, initializationFuture);
+    this.toolExecutor = new ToolExecutor(backendService);
 
     // Create ServerApi and SonarQubeVersionChecker
     if (mcpConfiguration.isHttpEnabled()) {
@@ -294,7 +294,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (!useIdeBridge) {
       LOG.info("Standard analysis mode (no IDE bridge)");
-      supportedTools.add(new AnalysisTool(backendService, this));
+      supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture));
     }
     var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
     LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);
