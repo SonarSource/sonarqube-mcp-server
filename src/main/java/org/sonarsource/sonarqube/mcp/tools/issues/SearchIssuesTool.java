@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
+import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -25,13 +26,16 @@ import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 public class SearchIssuesTool extends Tool {
 
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
+
   public static final String PROJECTS_PROPERTY = "projects";
   public static final String BRANCH_PROPERTY = "branch";
   public static final String PULL_REQUEST_ID_PROPERTY = "pullRequestId";
   public static final String SEVERITIES_PROPERTY = "severities";
+  public static final String IMPACT_SOFTWARE_QUALITIES_PROPERTY = "impactSoftwareQualities";
+  public static final String ISSUE_STATUSES_PROPERTY = "issueStatuses";
+  public static final String ISSUE_KEY_PROPERTY = "issueKey";
   public static final String PAGE_PROPERTY = "p";
   public static final String PAGE_SIZE_PROPERTY = "ps";
-
   private final ServerApiProvider serverApiProvider;
 
   public SearchIssuesTool(ServerApiProvider serverApiProvider) {
@@ -40,9 +44,15 @@ public class SearchIssuesTool extends Tool {
       .setTitle("Search SonarQube Issues in Projects")
       .setDescription("Search for SonarQube issues in my organization's projects.")
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
-      .addStringProperty(BRANCH_PROPERTY, "The branch to search for issues")
+      .addStringProperty(BRANCH_PROPERTY, "The branch name to search for issues in")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
-      .addArrayProperty(SEVERITIES_PROPERTY, "string", "An optional list of severities to filter by, separated by a comma. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER")
+      .addArrayProperty(SEVERITIES_PROPERTY, "string", "An optional list of severities to filter by, separated by a comma." +
+        " Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER")
+      .addArrayProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, "string", "An optional list of software qualities to filter by." +
+        " Possible values: MAINTAINABILITY, RELIABILITY, SECURITY")
+      .addArrayProperty(ISSUE_STATUSES_PROPERTY, "string", "An optional list of issue statuses to filter by." +
+        " Possible values: OPEN, CONFIRMED, FALSE_POSITIVE, ACCEPTED, FIXED, IN_SANDBOX. IN_SANDBOX value is valid only for SonarQube Server, but not SonarQube Cloud.")
+      .addStringProperty(ISSUE_KEY_PROPERTY, "An optional issue key to fetch a specific issue")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
@@ -53,15 +63,24 @@ public class SearchIssuesTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var projects = arguments.getOptionalStringList(PROJECTS_PROPERTY);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
-    var pullRequestId = arguments.getOptionalString(PULL_REQUEST_ID_PROPERTY);
-    var severities = arguments.getOptionalStringList(SEVERITIES_PROPERTY);
-    var page = arguments.getOptionalInteger(PAGE_PROPERTY);
-    var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
-    var response = serverApiProvider.get().issuesApi().search(projects, branch, pullRequestId, severities, page, pageSize);
+    var searchParams = extractSearchParams(arguments);
+    var response = serverApiProvider.get().issuesApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
+  }
+
+  private static IssuesApi.SearchParams extractSearchParams(Tool.Arguments arguments) {
+    return new IssuesApi.SearchParams(
+      arguments.getOptionalStringList(PROJECTS_PROPERTY),
+      arguments.getOptionalString(BRANCH_PROPERTY),
+      arguments.getOptionalString(PULL_REQUEST_ID_PROPERTY),
+      arguments.getOptionalStringList(SEVERITIES_PROPERTY),
+      arguments.getOptionalStringList(IMPACT_SOFTWARE_QUALITIES_PROPERTY),
+      arguments.getOptionalStringList(ISSUE_STATUSES_PROPERTY),
+      arguments.getOptionalString(ISSUE_KEY_PROPERTY),
+      arguments.getOptionalInteger(PAGE_PROPERTY),
+      arguments.getOptionalInteger(PAGE_SIZE_PROPERTY)
+    );
   }
 
   private static SearchIssuesToolResponse buildStructuredContent(SearchResponse response) {

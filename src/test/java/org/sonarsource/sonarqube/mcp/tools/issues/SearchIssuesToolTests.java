@@ -1039,6 +1039,174 @@ class SearchIssuesToolTests {
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
     }
+
+    @SonarQubeMcpServerTest
+    void it_should_filter_by_impact_software_qualities(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?impactSoftwareQualities=MAINTAINABILITY,SECURITY")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.IMPACT_SOFTWARE_QUALITIES_PROPERTY, new String[] {"MAINTAINABILITY", "SECURITY"}));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_filter_by_multiple_issue_statuses_as_comma_separated_list(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      // Verify that multiple statuses are passed as comma-separated string in URL
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?issueStatuses=OPEN,CONFIRMED,FALSE_POSITIVE")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.ISSUE_STATUSES_PROPERTY, new String[] {"OPEN", "CONFIRMED", "FALSE_POSITIVE"}));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      // The test passes only if the URL was correctly formed with comma-separated statuses
+      // because we stubbed the exact URL: "?issueStatuses=OPEN,CONFIRMED,FALSE_POSITIVE"
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_fetch_issue_by_key(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?issues=issueKey1")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.ISSUE_KEY_PROPERTY, "issueKey1"));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
   }
 
   private static String generateIssue(String issueKey, String ruleName, String projectName) {

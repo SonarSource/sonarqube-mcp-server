@@ -36,9 +36,20 @@ public class IssuesApi {
     this.helper = helper;
   }
 
-  public SearchResponse search(@Nullable List<String> projects, @Nullable String branch, @Nullable String pullRequestId, @Nullable List<String> severities,
-    @Nullable Integer page, @Nullable Integer pageSize) {
-    try (var response = helper.get(buildPath(projects, branch, pullRequestId, severities, page, pageSize))) {
+  public record SearchParams(
+    @Nullable List<String> projects,
+    @Nullable String branch,
+    @Nullable String pullRequestId,
+    @Nullable List<String> severities,
+    @Nullable List<String> impactSoftwareQualities,
+    @Nullable List<String> issueStatuses,
+    @Nullable String issueKey,
+    @Nullable Integer page,
+    @Nullable Integer pageSize
+  ) {}
+
+  public SearchResponse search(SearchParams params) {
+    try (var response = helper.get(buildIssueSearchPath(params))) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }
@@ -50,15 +61,17 @@ public class IssuesApi {
     response.close();
   }
 
-  private String buildPath(@Nullable List<String> projects, @Nullable String branch, @Nullable String pullRequestId, @Nullable List<String> severities,
-    @Nullable Integer page, @Nullable Integer pageSize) {
+  private String buildIssueSearchPath(SearchParams params) {
     var builder = new UrlBuilder(SEARCH_PATH)
-      .addParam("projects", projects)
-      .addParam("branch", branch)
-      .addParam("pullRequest", pullRequestId)
-      .addParam("impactSeverities", severities)
-      .addParam("p", page)
-      .addParam("ps", pageSize)
+      .addParam("projects", params.projects())
+      .addParam("branch", params.branch())
+      .addParam("pullRequest", params.pullRequestId())
+      .addParam("impactSeverities", params.severities())
+      .addParam("impactSoftwareQualities", params.impactSoftwareQualities())
+      .addParam("issueStatuses", params.issueStatuses())
+      .addParam("issues", params.issueKey())
+      .addParam("p", params.page())
+      .addParam("ps", params.pageSize())
       .addParam("organization", helper.getOrganization());
     return builder.build();
   }

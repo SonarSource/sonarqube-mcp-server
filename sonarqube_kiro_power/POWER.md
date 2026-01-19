@@ -81,8 +81,21 @@ analyze_code_snippet({
 search_sonar_issues_in_projects({
   projects: ["my-project"],
   severities: ["HIGH", "BLOCKER"],
+  impactSoftwareQualities: ["SECURITY", "RELIABILITY"],
   p: 1,
   ps: 100
+});
+
+// Filter by issue status
+search_sonar_issues_in_projects({
+  projects: ["my-project"],
+  issueStatuses: ["OPEN", "CONFIRMED"],
+  branch: "main"
+});
+
+// Get a specific issue by key
+search_sonar_issues_in_projects({
+  issueKey: "AYz123abc"
 });
 ```
 
@@ -197,7 +210,8 @@ const analysis = analyze_code_snippet({
 const issues = search_sonar_issues_in_projects({
   projects: ["my-project"],
   pullRequestId: "123",
-  severities: ["HIGH", "BLOCKER"]
+  severities: ["HIGH", "BLOCKER"],
+  impactSoftwareQualities: ["SECURITY", "RELIABILITY"]
 });
 
 // Step 2: Review each issue
@@ -239,7 +253,8 @@ const qgStatus = get_project_quality_gate_status({
 // Step 3: Search for unresolved issues
 const issues = search_sonar_issues_in_projects({
   projects: ["my-project"],
-  severities: ["HIGH", "BLOCKER"]
+  severities: ["HIGH", "BLOCKER"],
+  issueStatuses: ["OPEN", "CONFIRMED"]
 });
 
 // Step 4: Generate report or alert if thresholds exceeded
