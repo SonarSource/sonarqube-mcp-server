@@ -46,7 +46,7 @@ public class SearchIssuesTool extends Tool {
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of file paths to search issues by")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
       .addArrayProperty(SEVERITIES_PROPERTY, "string", "An optional list of severities to filter by, separated by a comma. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER")
-      .addArrayProperty(ISSUE_STATUSES_PROPERTY, "string", "An optional list of issue statuses to filter by. Possible values: OPEN, CONFIRMED, FALSE_POSITIVE, ACCEPTED, FIXED")
+      .addArrayProperty(ISSUE_STATUSES_PROPERTY, "string", "An optional list of issue statuses to search by. Possible values: OPEN, CONFIRMED, FALSE_POSITIVE, ACCEPTED, FIXED")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
