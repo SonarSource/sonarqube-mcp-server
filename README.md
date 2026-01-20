@@ -741,6 +741,7 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects.
   - `projects` - Optional list of Sonar projects - _String[]_
+  - `branch` - The branch to search for issues - _String_
   - `pullRequestId` - Optional Pull Request's identifier - _String_
   - `severities` - Optional list of severities to filter by. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER - _String[]_
   - `p` - Optional page number (default: 1) - _Integer_
