@@ -94,7 +94,7 @@ class SystemLogsToolTests {
 
       var result = mcpClient.callTool(SystemLogsTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.").build());
     }
 
     @SonarQubeMcpServerTest
@@ -105,7 +105,7 @@ class SystemLogsToolTests {
         SystemLogsTool.TOOL_NAME,
         Map.of(SystemLogsTool.NAME_PROPERTY, "foo"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Invalid log name. Possible values: access, app, ce, deprecation, es, web", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Invalid log name. Possible values: access, app, ce, deprecation, es, web").build());
     }
 
     @SonarQubeMcpServerTest

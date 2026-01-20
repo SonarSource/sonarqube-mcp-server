@@ -99,7 +99,7 @@ class GetScmInfoToolTests {
 
       var result = mcpClient.callTool(GetScmInfoTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: key").build());
     }
 
   }
@@ -117,7 +117,7 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to retrieve SCM information: SonarQube answered with Forbidden").build());
     }
 
     @SonarQubeMcpServerTest
@@ -311,7 +311,7 @@ class GetScmInfoToolTests {
         GetScmInfoTool.TOOL_NAME,
         Map.of("key", "my_project:src/foo/Bar.php"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to retrieve SCM information: SonarQube answered with Forbidden", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to retrieve SCM information: SonarQube answered with Forbidden").build());
     }
 
     @SonarQubeMcpServerTest

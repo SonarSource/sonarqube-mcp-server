@@ -1,12 +1,12 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.SonarSource/sonarqube-mcp-server",
   "description": "An MCP server that enables integration with SonarQube Server or Cloud for code quality and security.",
   "repository": {
     "url": "https://github.com/SonarSource/sonarqube-mcp-server",
     "source": "github"
   },
-  "version": "1.4.0",
+  "version": "1.6.0",
   "packages": [
     {
       "registryType": "oci",

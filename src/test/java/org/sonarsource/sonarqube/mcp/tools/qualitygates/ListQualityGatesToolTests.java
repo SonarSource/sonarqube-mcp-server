@@ -155,7 +155,7 @@ class ListQualityGatesToolTests {
 
       var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/list?organization=org").build());
     }
 
     @SonarQubeMcpServerTest
@@ -286,7 +286,7 @@ class ListQualityGatesToolTests {
 
       var result = mcpClient.callTool(ListQualityGatesTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.").build());
     }
 
     @SonarQubeMcpServerTest

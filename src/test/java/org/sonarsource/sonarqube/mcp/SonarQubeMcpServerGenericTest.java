@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -43,7 +42,7 @@ class SonarQubeMcpServerGenericTest {
     harness.prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(
-      new StdioServerTransportProvider(new ObjectMapper(), null),
+      new StdioServerTransportProvider(null),
       null,
       environment);
     server.start();
@@ -107,7 +106,7 @@ class SonarQubeMcpServerGenericTest {
     harness.prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(
-      new StdioServerTransportProvider(new ObjectMapper(), null),
+      new StdioServerTransportProvider(null),
       null,
       environment);
     server.start();
@@ -124,7 +123,7 @@ class SonarQubeMcpServerGenericTest {
     harness.prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(
-      new StdioServerTransportProvider(new ObjectMapper(), null),
+      new StdioServerTransportProvider(null),
       null,
       environment);
 

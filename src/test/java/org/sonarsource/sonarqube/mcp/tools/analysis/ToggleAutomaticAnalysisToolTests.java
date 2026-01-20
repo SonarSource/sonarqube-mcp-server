@@ -99,7 +99,7 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.").build());
     }
   }
 
@@ -153,7 +153,7 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to enable automatic analysis.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to enable automatic analysis.").build());
     }
 
     @Test
@@ -164,7 +164,7 @@ class ToggleAutomaticAnalysisToolTests {
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
       ))).toCallToolResult();
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Failed to toggle automatic analysis. Check logs for details.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to toggle automatic analysis. Check logs for details.").build());
     }
   }
 

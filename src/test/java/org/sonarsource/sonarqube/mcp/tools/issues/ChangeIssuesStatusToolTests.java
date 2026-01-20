@@ -87,7 +87,7 @@ class ChangeIssuesStatusToolTests {
         Map.of("status", new String[] {"accept"}));
 
       assertThat(result)
-        .isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: key", true));
+        .isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: key").build());
     }
 
     @SonarQubeMcpServerTest
@@ -98,7 +98,7 @@ class ChangeIssuesStatusToolTests {
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: status", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: status").build());
     }
 
     @SonarQubeMcpServerTest
@@ -111,7 +111,7 @@ class ChangeIssuesStatusToolTests {
           "key", "k",
           "status", new String[] {"yolo"}));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Status is unknown: yolo", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Status is unknown: yolo").build());
     }
 
   }
@@ -130,7 +130,7 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"accept"}));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.").build());
     }
 
     @SonarQubeMcpServerTest

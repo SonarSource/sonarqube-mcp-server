@@ -189,7 +189,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.").build());
     }
 
     @SonarQubeMcpServerTest
@@ -198,7 +198,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("An error occurred during the tool execution: Missing required argument: projectKey", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: projectKey").build());
     }
 
     @SonarQubeMcpServerTest
@@ -207,7 +207,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project"));
 
-      assertThat(result).isEqualTo(new McpSchema.CallToolResult("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.", true));
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.").build());
     }
 
     @SonarQubeMcpServerTest

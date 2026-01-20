@@ -13,8 +13,7 @@ The simplest method is to rely on our container image hosted at [mcp/sonarqube](
 > **Note:** While the examples below use `docker`, any OCI-compatible container runtime works (e.g., Podman, nerdctl). Simply replace `docker` with your preferred tool.
 
 <details>
-
-**<summary>Claude Code</summary>**
+<summary>Claude Code</summary>
 
 * To connect with SonarQube Cloud:
 
@@ -27,8 +26,7 @@ The simplest method is to rely on our container image hosted at [mcp/sonarqube](
 </details>
 
 <details>
-
-**<summary>Codex CLI</summary>**
+<summary>Codex CLI</summary>
 
 In `~/.codex/config.toml`, add the following configuration:
 
@@ -53,8 +51,7 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>
 </details>
 
 <details>
-
-**<summary>Cursor</summary>**
+<summary>Cursor</summary>
 
 * To connect with SonarQube Cloud:
 
@@ -67,8 +64,7 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>
 </details>
 
 <details>
-
-**<summary>Gemini CLI</summary>**
+<summary>Gemini CLI</summary>
 
 You can install our MCP server extension by using the following command:
 
@@ -87,8 +83,7 @@ Once installed, the extension will be installed under `<home>/.gemini/extensions
 </details>
 
 <details>
-
-**<summary>GitHub Copilot CLI</summary>**
+<summary>GitHub Copilot CLI</summary>
 
 After starting Copilot CLI, run the following command to add the SonarQube MCP server:
 
@@ -123,14 +118,13 @@ The configuration file is located at `~/.copilot/mcp-config.json`.
 </details>
 
 <details>
-
-**<summary>GitHub Copilot coding agent</summary>**
+<summary>GitHub Copilot coding agent</summary>
 
 GitHub Copilot coding agent can leverage the SonarQube MCP server directly in your CI/CD.
 
 To add the secrets to your Copilot environment, follow the Copilot [documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp#setting-up-a-copilot-environment-for-copilot-coding-agent). Only secrets with names prefixed with **COPILOT_MCP_** will be available to your MCP configuration.
 
-In your GitHub repository, navigate under **Settings -> Code & automation -> Copilot -> Coding agent**, and add the following configuration in the MCP configuration section:
+In your GitHub repository, navigate under **Settings -> Copilot -> Coding agent**, and add the following configuration in the MCP configuration section:
 
 * To connect with SonarQube Cloud:
 
@@ -191,8 +185,7 @@ In your GitHub repository, navigate under **Settings -> Code & automation -> Cop
 </details>
 
 <details>
-
-**<summary>Kiro</summary>**
+<summary>Kiro</summary>
 
 Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if it already exists), add the following configuration:
 
@@ -255,8 +248,7 @@ Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if 
 </details>
 
 <details>
-
-**<summary>VS Code</summary>**
+<summary>VS Code</summary>
 
 You can use the following buttons to simplify the installation process within VS Code.
 
@@ -267,8 +259,7 @@ You can use the following buttons to simplify the installation process within VS
 </details>
 
 <details>
-
-**<summary>Windsurf</summary>**
+<summary>Windsurf</summary>
 
 SonarQube MCP Server is available as a Windsurf plugin. Follow these instructions:
 
@@ -280,8 +271,7 @@ SonarQube MCP Server is available as a Windsurf plugin. Follow these instruction
 </details>
 
 <details>
-
-**<summary>Zed</summary>**
+<summary>Zed</summary>
 
 Navigate to the **Extensions** view in Zed and search for **SonarQube MCP Server**.
 When installing the extension, you will be prompted to provide the necessary environment variables:
@@ -476,8 +466,7 @@ By default, all tools are enabled. You can selectively enable specific toolsets 
 | `SONARQUBE_READ_ONLY`  | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`.                                     |
 
 <details>
-
-**<summary>Available Toolsets</summary>**
+<summary>Available Toolsets</summary>
 
 | Toolset            | Key                 | Description                                                          |
 |--------------------|---------------------|----------------------------------------------------------------------|
@@ -627,8 +616,7 @@ docker run -p 8443:8443 \
 If your SonarQube Server uses a self-signed certificate or a certificate from a private Certificate Authority (CA), you can add custom certificates to the container that will automatically be installed.
 
 <details>
-
-**<summary>Configuration</summary>**
+<summary>Configuration</summary>
 
 #### Using Volume Mount
 
@@ -683,8 +671,7 @@ When using custom certificates, you can modify your MCP configuration to mount t
 The SonarQube MCP Server supports HTTP proxies through standard Java proxy system properties.
 
 <details>
-
-**<summary>Configuration</summary>**
+<summary>Configuration</summary>
 
 #### Configuring Proxy Settings
 
