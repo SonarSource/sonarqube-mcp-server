@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
@@ -31,6 +32,30 @@ import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.asser
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ChangeIssuesStatusToolTests {
+
+  @SonarQubeMcpServerTest
+  void it_should_validate_input_schema(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ChangeIssueStatusTool.TOOL_NAME)).findFirst().orElseThrow();
+
+    assertThat(tool.inputSchema()).isEqualTo(new McpSchema.JsonSchema(
+      "object",
+      Map.of(
+        "key", Map.of(
+          "description", "The key of the issue which status should be changed",
+          "type", "string"),
+        "status", Map.of(
+          "type", "array",
+          "description", "The new status of the issue",
+          "items", Map.of(
+            "enum", List.of("accept", "falsepositive", "reopen"),
+            "type", "string"))),
+      List.of("key", "status"),
+      false,
+      Map.of(),
+      Map.of()));
+  }
 
   @SonarQubeMcpServerTest
   void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
@@ -98,7 +123,8 @@ class ChangeIssuesStatusToolTests {
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k"));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: status").build());
+      assertThat(result)
+        .isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: status").build());
     }
 
     @SonarQubeMcpServerTest
@@ -130,7 +156,9 @@ class ChangeIssuesStatusToolTests {
         Map.of("key", "k",
           "status", new String[] {"accept"}));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.").build());
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true)
+        .addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.")
+        .build());
     }
 
     @SonarQubeMcpServerTest
