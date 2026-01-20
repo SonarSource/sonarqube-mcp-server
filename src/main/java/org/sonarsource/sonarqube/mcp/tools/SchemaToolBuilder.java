@@ -28,6 +28,13 @@ public class SchemaToolBuilder {
   private static final String DESCRIPTION_KEY_NAME = "description";
   private static final String TYPE_PROPERTY_NAME = "type";
   private static final String ITEMS_PROPERTY_NAME = "items";
+
+  private static final String ARRAY_TYPE = "array";
+  private static final String BOOLEAN_TYPE = "boolean";
+  private static final String NUMBER_TYPE = "number";
+  private static final String OBJECT_TYPE = "object";
+  private static final String STRING_TYPE = "string";
+
   private final Map<String, Object> properties;
   private final List<String> requiredProperties;
   private final Map<String, Object> outputSchemaFromClass;
@@ -66,7 +73,7 @@ public class SchemaToolBuilder {
   }
 
   public SchemaToolBuilder addStringProperty(String propertyName, String description) {
-    var content = Map.of(TYPE_PROPERTY_NAME, "string", DESCRIPTION_KEY_NAME, description);
+    var content = Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
     return this;
   }
@@ -78,25 +85,25 @@ public class SchemaToolBuilder {
   }
 
   public SchemaToolBuilder addBooleanProperty(String propertyName, String description) {
-    var content = Map.of(TYPE_PROPERTY_NAME, "boolean", DESCRIPTION_KEY_NAME, description);
+    var content = Map.of(TYPE_PROPERTY_NAME, BOOLEAN_TYPE, DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
     return this;
   }
 
   public SchemaToolBuilder addNumberProperty(String propertyName, String description) {
-    var content = Map.of(TYPE_PROPERTY_NAME, "number", DESCRIPTION_KEY_NAME, description);
+    var content = Map.of(TYPE_PROPERTY_NAME, NUMBER_TYPE, DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
     return this;
   }
 
   public SchemaToolBuilder addArrayProperty(String propertyName, String itemsType, String description) {
-    var content = Map.of(TYPE_PROPERTY_NAME, "array", DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, itemsType));
+    var content = Map.of(TYPE_PROPERTY_NAME, ARRAY_TYPE, DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, itemsType));
     properties.put(propertyName, content);
     return this;
   }
 
   public SchemaToolBuilder addEnumProperty(String propertyName, String[] items, String description) {
-    var content = Map.of(TYPE_PROPERTY_NAME, "array", DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of("enum", items));
+    var content = Map.of(TYPE_PROPERTY_NAME, ARRAY_TYPE, DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, "enum", items));
     properties.put(propertyName, content);
     return this;
   }
@@ -124,7 +131,7 @@ public class SchemaToolBuilder {
       throw new IllegalStateException("Cannot set a required property that does not exist.");
     }
 
-    var jsonSchema = new McpSchema.JsonSchema("object", properties, requiredProperties, false, Collections.emptyMap(),
+    var jsonSchema = new McpSchema.JsonSchema(OBJECT_TYPE, properties, requiredProperties, false, Collections.emptyMap(),
       Collections.emptyMap());
 
     var toolAnnotations = new McpSchema.ToolAnnotations(
@@ -133,9 +140,8 @@ public class SchemaToolBuilder {
       false,
       false,
       true,
-      null
-    );
-    
+      null);
+
     return new McpSchema.Tool(name, title, description, jsonSchema, outputSchemaFromClass, toolAnnotations, null);
   }
 }
