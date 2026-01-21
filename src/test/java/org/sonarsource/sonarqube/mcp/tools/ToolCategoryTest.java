@@ -36,6 +36,7 @@ class ToolCategoryTest {
     assertThat(ToolCategory.SYSTEM.getKey()).isEqualTo("system");
     assertThat(ToolCategory.WEBHOOKS.getKey()).isEqualTo("webhooks");
     assertThat(ToolCategory.DEPENDENCY_RISKS.getKey()).isEqualTo("dependency-risks");
+    assertThat(ToolCategory.EXTERNAL.getKey()).isEqualTo("external");
   }
 
   @Test
@@ -124,13 +125,14 @@ class ToolCategoryTest {
       ToolCategory.PORTFOLIOS,
       ToolCategory.SYSTEM,
       ToolCategory.WEBHOOKS,
-      ToolCategory.DEPENDENCY_RISKS
+      ToolCategory.DEPENDENCY_RISKS,
+      ToolCategory.EXTERNAL
     );
   }
 
   @Test
-  void should_have_exactly_12_categories() {
-    assertThat(ToolCategory.values()).hasSize(12);
+  void should_have_exactly_13_categories() {
+    assertThat(ToolCategory.values()).hasSize(13);
   }
 }
 
