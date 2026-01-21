@@ -24,6 +24,8 @@ assertj = "3.27.6"
 awaitility = "4.3.0"
 wiremock = "3.13.2"
 
+testcontainers = "1.21.4"
+
 [libraries]
 sonarlint-java-client-utils = { module = "org.sonarsource.sonarlint.core:sonarlint-java-client-utils", version.ref = "sonarlint-core" }
 sonarlint-rpc-java-client = { module = "org.sonarsource.sonarlint.core:sonarlint-rpc-java-client", version.ref = "sonarlint-core" }
@@ -49,6 +51,9 @@ mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
 wiremock-jetty12 = { module = "org.wiremock:wiremock-jetty12", version.ref = "wiremock" }
+
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 
 [bundles]
 sonar-analyzers = ["sonar-php"]

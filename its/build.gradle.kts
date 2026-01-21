@@ -32,20 +32,15 @@ repositories {
 
 dependencies {
     testImplementation(project(":"))
-    
-    // MCP SDK - needed explicitly for test compilation
-    testImplementation("io.modelcontextprotocol.sdk:mcp:0.16.0")
-    
+
     // Testcontainers
-    testImplementation("org.testcontainers:testcontainers:1.21.4")
-    testImplementation("org.testcontainers:junit-jupiter:1.21.4")
-    
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.jupiter)
+
     // Test frameworks
-    testImplementation("org.assertj:assertj-core:3.24.2")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
-    testImplementation("org.slf4j:slf4j-api:2.0.9")
-    testRuntimeOnly("ch.qos.logback:logback-classic:1.4.14")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(libs.assertj)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.launcher)
 }
 
 tasks.test {

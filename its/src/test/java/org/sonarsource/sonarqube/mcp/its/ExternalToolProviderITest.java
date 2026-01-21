@@ -17,9 +17,11 @@
 package org.sonarsource.sonarqube.mcp.its;
 
 import java.time.Duration;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.MountableFile;
 
@@ -33,35 +35,70 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - Has correct permissions
  * - Can execute in the target environment (Alpine Linux)
  * <p>
- * Note: Currently disabled due to container startup issues.
- * Binary deployment is validated within HttpTransportITest.
+ * Note: Tests are only enabled when the sonar-code-context-mcp binary exists in resources.
  */
-@Disabled("Container startup issues - binary deployment is tested in HttpTransportITest")
 @Testcontainers
+@EnabledIf("isBinaryAvailable")
 class ExternalToolProviderITest {
+  
+  private static final String BINARY_PATH = "binaries/sonar-code-context-mcp";
 
-  @org.testcontainers.junit.jupiter.Container
-  private static final GenericContainer<?> externalProviderContainer =
-    new GenericContainer<>("alpine/git:latest") // Using alpine/git as a base for musl libc
-      .withCopyToContainer(
-        MountableFile.forClasspathResource("binaries/sonar-code-context-mcp"),
-        "/app/sonar-code-context-mcp"
-      )
-      .withCommand("tail", "-f", "/dev/null") // Keep container running
-      .withStartupTimeout(Duration.ofSeconds(120));
-
-  @Test
-  void should_binary_be_present_and_executable_in_container() throws Exception {
-    org.testcontainers.containers.Container.ExecResult lsResult = externalProviderContainer.execInContainer("ls", "-l", "/app");
-    assertThat(lsResult.getStdout()).contains("sonar-code-context-mcp");
-    assertThat(lsResult.getStdout()).containsPattern("-rwxr-xr-x.*sonar-code-context-mcp"); // Check execute permissions
-    assertThat(lsResult.getExitCode()).isZero();
+  static boolean isBinaryAvailable() {
+    return ExternalToolProviderITest.class.getClassLoader().getResource(BINARY_PATH) != null;
   }
 
+  @Container
+  private static final GenericContainer<?> stdioServerContainer = createStdioServerContainer();
+
   @Test
-  void should_binary_start_without_immediate_crash_in_container() throws Exception {
-    org.testcontainers.containers.Container.ExecResult execResult = externalProviderContainer.execInContainer("/app/sonar-code-context-mcp", "--version");
-    assertThat(execResult.getExitCode()).isZero();
-    assertThat(execResult.getStdout()).contains("sonar-code-context-mcp");
+  void should_successfully_connect_to_cag_external_provider_when_given_enough_time() {
+    assertThat(stdioServerContainer.isRunning()).isTrue();
+
+    assertThat(stdioServerContainer.getLogs())
+      .contains("Loading external tool providers configuration")
+      .contains("Successfully loaded and validated 1 external tool provider(s)")
+      .contains("Initializing 1 external tool provider(s)")
+      .contains("Connecting to 'caas' (namespace: context)")
+      .contains("Connected to 'caas' - discovered 1 tool(s)")
+      .contains("MCP client manager initialization completed. 1/1 server(s) connected")
+      .contains("Loaded 1 external tool(s) from 1/1 provider(s)");
   }
+
+  private static GenericContainer<?> createStdioServerContainer() {
+    var jarPath = System.getProperty("sonarqube.mcp.jar.path");
+    if (jarPath == null || jarPath.isEmpty()) {
+      throw new IllegalStateException("sonarqube.mcp.jar.path system property not set");
+    }
+
+    var sonarqubeToken = System.getenv("SONARCLOUD_IT_TOKEN");
+    if (sonarqubeToken == null || sonarqubeToken.isEmpty()) {
+      throw new IllegalStateException("SONARCLOUD_IT_TOKEN must be set");
+    }
+
+    var container = new GenericContainer<>("eclipse-temurin:21-jre-alpine")
+      .withCopyFileToContainer(MountableFile.forHostPath(jarPath), "/app/server.jar")
+        .withCopyFileToContainer(
+          MountableFile.forClasspathResource(BINARY_PATH, 0755),
+          "/app/binaries/sonar-code-context-mcp"
+        )
+        .withCopyFileToContainer(
+          MountableFile.forClasspathResource("external-tool-providers-its.json"),
+          "/app/external-tool-providers.json"
+        )
+        .withEnv("STORAGE_PATH", "/app/storage")
+      .withEnv("SONARQUBE_TOKEN", sonarqubeToken)
+      .withEnv("SONARQUBE_ORG", "sonarlint-it")
+      .withEnv("SONARQUBE_CLOUD_URL", "https://sc-staging.io")
+        .withCommand("sh", "-c",
+          "apk add --no-cache git nodejs npm && " +
+            "mkdir -p /app/storage && " +
+            "tail -f /dev/null | java -Dexternal.tools.config.path=/app/external-tool-providers.json -jar /app/server.jar"
+        )
+        .withStartupTimeout(Duration.ofMinutes(3))
+        .waitingFor(Wait.forLogMessage(".*SonarQube MCP Server Started.*", 1).withStartupTimeout(Duration.ofMinutes(3)));
+
+      container.withLogConsumer(outputFrame -> System.out.print("[STDIO-Container] " + outputFrame.getUtf8String()));
+      return container;
+    }
+
 }
