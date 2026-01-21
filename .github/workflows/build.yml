@@ -39,7 +39,6 @@ jobs:
           use-develocity: true
 
   integration:
-    needs: [ build ]
     runs-on: github-ubuntu-latest-m
     name: IT - ${{ matrix.name }}
     strategy:
