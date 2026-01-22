@@ -17,8 +17,8 @@
 package org.sonarsource.sonarqube.mcp.its;
 
 import java.time.Duration;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -38,14 +38,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Note: Tests are only enabled when the sonar-code-context-mcp binary exists in resources.
  */
 @Testcontainers
-@EnabledIf("isBinaryAvailable")
+@Disabled("Waiting for a way to download the binary")
 class ExternalToolProviderITest {
   
   private static final String BINARY_PATH = "binaries/sonar-code-context-mcp";
-
-  static boolean isBinaryAvailable() {
-    return ExternalToolProviderITest.class.getClassLoader().getResource(BINARY_PATH) != null;
-  }
 
   @Container
   private static final GenericContainer<?> stdioServerContainer = createStdioServerContainer();
