@@ -192,7 +192,7 @@ class ExternalServerConfigParserTest {
       Arguments.of(
         "invalid json syntax",
         "{ invalid json }",
-        "Failed to parse JSON"
+        "Failed to parse configuration"
       ),
       Arguments.of(
         "missing required field name",
@@ -204,7 +204,7 @@ class ExternalServerConfigParserTest {
           }
         ]
         """,
-        "Configuration validation failed"
+        "Failed to parse configuration"
       ),
       Arguments.of(
         "missing required field namespace",
@@ -216,7 +216,7 @@ class ExternalServerConfigParserTest {
           }
         ]
         """,
-        "Configuration validation failed"
+        "Failed to parse configuration"
       ),
       Arguments.of(
         "missing required field command",
@@ -228,7 +228,7 @@ class ExternalServerConfigParserTest {
           }
         ]
         """,
-        "Configuration validation failed"
+        "Failed to parse configuration"
       ),
       Arguments.of(
         "name is blank",
@@ -241,7 +241,7 @@ class ExternalServerConfigParserTest {
           }
         ]
         """,
-        "Configuration validation failed"
+        "name cannot be null or blank"
       ),
       Arguments.of(
         "namespace is blank",
@@ -254,43 +254,7 @@ class ExternalServerConfigParserTest {
           }
         ]
         """,
-        "Configuration validation failed"
-      ),
-      Arguments.of(
-        "duplicate names",
-        """
-        [
-          {
-            "name": "server",
-            "namespace": "ns1",
-            "command": "node"
-          },
-          {
-            "name": "server",
-            "namespace": "ns2",
-            "command": "python"
-          }
-        ]
-        """,
-        "Configuration validation failed"
-      ),
-      Arguments.of(
-        "duplicate namespaces",
-        """
-        [
-          {
-            "name": "server1",
-            "namespace": "shared",
-            "command": "node"
-          },
-          {
-            "name": "server2",
-            "namespace": "shared",
-            "command": "python"
-          }
-        ]
-        """,
-        "Configuration validation failed"
+        "namespace cannot be null or blank"
       ),
       Arguments.of(
         "config has invalid field type",
@@ -304,7 +268,7 @@ class ExternalServerConfigParserTest {
           }
         ]
         """,
-        "Configuration validation failed"
+        "Failed to parse configuration"
       )
     );
   }

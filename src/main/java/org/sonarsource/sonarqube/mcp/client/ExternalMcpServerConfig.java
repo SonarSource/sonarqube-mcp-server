@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.client;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 public record ExternalMcpServerConfig(String name, String namespace, String command, List<String> args, Map<String, String> env) {
@@ -34,18 +33,6 @@ public record ExternalMcpServerConfig(String name, String namespace, String comm
     }
     args = List.copyOf(args);
     env = Map.copyOf(env);
-  }
-
-  public String getServerId() {
-    return sanitizeIdentifier(name);
-  }
-
-  public String getToolNamespace() {
-    return sanitizeIdentifier(namespace);
-  }
-
-  private static String sanitizeIdentifier(String value) {
-    return value.toLowerCase(Locale.getDefault()).replaceAll("[^a-z0-9_-]", "_");
   }
 
 }

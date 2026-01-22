@@ -31,10 +31,10 @@ External tool providers are defined in `/external-tool-providers.json` (bundled 
 ```json
 [
   {
-    "name": "caas",
-    "namespace": "context",
-    "command": "uv",
-    "args": ["run", "sonar-code-context-mcp"],
+    "name": "my-provider",
+    "namespace": "myprovider",
+    "command": "node",
+    "args": ["path/to/mcp-server.js"],
     "env": {}
   }
 ]
