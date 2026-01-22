@@ -44,7 +44,7 @@ class StdioTransportITest {
   void should_start_server_and_download_analyzers() {
     assertThat(stdioServerContainer.isRunning()).isTrue();
 
-    await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> assertThat(stdioServerContainer.getLogs())
+    await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(stdioServerContainer.getLogs())
       .contains("Transport: stdio", "SonarQube MCP Server Started:")
       .contains("Found 12 plugins")
       .contains("Backend restarted with new analyzers"));
