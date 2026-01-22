@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ExternalMcpServerConfigTest {
@@ -50,34 +49,6 @@ class ExternalMcpServerConfigTest {
     assertThatThrownBy(() -> new ExternalMcpServerConfig("server", "namespace", "  ", emptyList, emptyMap))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("External MCP server command cannot be null or blank");
-  }
-
-  @Test
-  void getServerId_should_normalize_name() {
-    var config = new ExternalMcpServerConfig("My-Server_123", "namespace", "npx", List.of(), Map.of());
-    
-    assertThat(config.getServerId()).isEqualTo("my-server_123");
-  }
-
-  @Test
-  void getServerId_should_replace_special_characters() {
-    var config = new ExternalMcpServerConfig("Server!@#$%", "namespace", "npx", List.of(), Map.of());
-    
-    assertThat(config.getServerId()).isEqualTo("server_____");
-  }
-
-  @Test
-  void getToolNamespace_should_normalize_namespace() {
-    var config = new ExternalMcpServerConfig("server", "My-Namespace_123", "npx", List.of(), Map.of());
-    
-    assertThat(config.getToolNamespace()).isEqualTo("my-namespace_123");
-  }
-
-  @Test
-  void getToolNamespace_should_replace_special_characters() {
-    var config = new ExternalMcpServerConfig("server", "Namespace!@#", "npx", List.of(), Map.of());
-    
-    assertThat(config.getToolNamespace()).isEqualTo("namespace___");
   }
 
 }

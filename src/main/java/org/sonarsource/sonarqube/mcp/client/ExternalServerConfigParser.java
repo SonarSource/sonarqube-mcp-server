@@ -69,31 +69,14 @@ public class ExternalServerConfigParser {
   static ParseResult parseAndValidateJson(String json) {
     try {
       var rawConfigs = OBJECT_MAPPER.readValue(json, new TypeReference<List<Map<String, Object>>>() {});
-      
-      // Validate the raw configuration
-      var validationResult = UnifiedConfigValidator.validateConfig(rawConfigs);
-      if (!validationResult.isValid()) {
-        LOG.warn("External tool providers configuration from external-tool-providers.json failed validation:");
-        for (String error : validationResult.errors()) {
-          LOG.warn("  - " + error);
-        }
-        return ParseResult.failure("Configuration validation failed: " + validationResult.message());
-      }
-      
-      // Parse into strongly-typed objects
       var configs = rawConfigs.stream()
         .map(ExternalServerConfigParser::parseServerConfig)
         .toList();
       
-      LOG.info("Successfully loaded and validated " + configs.size() + " external tool provider(s) from external-tool-providers.json");
+      LOG.info("Successfully loaded " + configs.size() + " external tool provider(s)");
       return ParseResult.success(configs);
-    } catch (IOException e) {
-      var error = "Failed to parse JSON from external-tool-providers.json: " + e.getMessage();
-      LOG.error(error, e);
-      return ParseResult.failure(error);
-    } catch (IllegalArgumentException e) {
-      // Thrown by ExternalMcpServerConfig constructor if validation fails
-      var error = "Invalid configuration in external-tool-providers.json: " + e.getMessage();
+    } catch (Exception e) {
+      var error = "Failed to parse configuration: " + e.getMessage();
       LOG.error(error, e);
       return ParseResult.failure(error);
     }

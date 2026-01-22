@@ -61,9 +61,9 @@ public class McpClientManager {
   }
   
   private void initializeClient(ExternalMcpServerConfig config) {
-    var serverId = config.getServerId();
+    var serverName = config.name();
     try {
-      LOG.info("Connecting to '" + config.name() + "' (namespace: " + config.getToolNamespace() + ")");
+      LOG.info("Connecting to '" + config.name() + "' (namespace: " + config.namespace() + ")");
       
       // Build server parameters for STDIO transport
       var serverParamsBuilder = ServerParameters.builder(config.command());
@@ -98,20 +98,20 @@ public class McpClientManager {
       var tools = listToolsResult.tools();
       
       LOG.info("Connected to '" + config.name() + "' - discovered " + tools.size() + " tool(s)");
-      clients.put(serverId, client);
-      serverTools.put(serverId, tools);
-      tools.forEach(tool -> LOG.debug("  - " + config.getToolNamespace() + "_" + tool.name()));
+      clients.put(serverName, client);
+      serverTools.put(serverName, tools);
+      tools.forEach(tool -> LOG.debug("  - " + config.namespace() + "_" + tool.name()));
     } catch (Exception e) {
       LOG.error("Failed to initialize '" + config.name() + "': " + e.getMessage(), e);
-      serverErrors.put(serverId, e.getMessage());
+      serverErrors.put(serverName, e.getMessage());
     }
   }
 
   public Map<String, ToolMapping> getAllExternalTools() {
     var allTools = new HashMap<String, ToolMapping>();
     for (var config : serverConfigs) {
-      var serverId = config.getServerId();
-      var namespace = config.getToolNamespace();
+      var serverId = config.name();
+      var namespace = config.namespace();
       var tools = serverTools.getOrDefault(serverId, List.of());
       tools.forEach(tool -> allTools.put(namespace + "_" + tool.name(), new ToolMapping(serverId, namespace, tool.name(), tool)));
     }
