@@ -62,9 +62,6 @@ jobs:
         with:
           secrets: |
             development/team/sonarlint/kv/data/sonarcloud-it token | SONARCLOUD_IT_TOKEN;
-      - uses: SonarSource/ci-github-actions/build-gradle@v1
-        with:
-          artifactory-reader-role: private-reader
       - name: Run Integration Tests
         env:
           SONARCLOUD_IT_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).SONARCLOUD_IT_TOKEN || '' }}
