@@ -52,7 +52,7 @@ public class SearchIssuesTool extends Tool {
         " Possible values: MAINTAINABILITY, RELIABILITY, SECURITY")
       .addArrayProperty(ISSUE_STATUSES_PROPERTY, "string", "An optional list of issue statuses to filter by." +
         " Possible values: OPEN, CONFIRMED, FALSE_POSITIVE, ACCEPTED, FIXED, IN_SANDBOX. IN_SANDBOX value is valid only for SonarQube Server, but not SonarQube Cloud.")
-      .addStringProperty(ISSUE_KEY_PROPERTY, "An optional issue key to fetch a specific issue")
+      .addArrayProperty(ISSUE_KEY_PROPERTY, "string", "An optional list of issue keys to fetch specific issues")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
@@ -77,7 +77,7 @@ public class SearchIssuesTool extends Tool {
       arguments.getOptionalStringList(SEVERITIES_PROPERTY),
       arguments.getOptionalStringList(IMPACT_SOFTWARE_QUALITIES_PROPERTY),
       arguments.getOptionalStringList(ISSUE_STATUSES_PROPERTY),
-      arguments.getOptionalString(ISSUE_KEY_PROPERTY),
+      arguments.getOptionalStringList(ISSUE_KEY_PROPERTY),
       arguments.getOptionalInteger(PAGE_PROPERTY),
       arguments.getOptionalInteger(PAGE_SIZE_PROPERTY)
     );

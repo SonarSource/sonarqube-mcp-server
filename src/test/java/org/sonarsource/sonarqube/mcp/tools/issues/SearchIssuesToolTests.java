@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.issues;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
@@ -1177,7 +1178,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.ISSUE_KEY_PROPERTY, "issueKey1"));
+        Map.of(SearchIssuesTool.ISSUE_KEY_PROPERTY, List.of("issueKey1")));
 
       assertResultEquals(result, """
         {

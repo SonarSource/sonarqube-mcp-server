@@ -43,7 +43,7 @@ public class IssuesApi {
     @Nullable List<String> severities,
     @Nullable List<String> impactSoftwareQualities,
     @Nullable List<String> issueStatuses,
-    @Nullable String issueKey,
+    @Nullable List<String> issueKeys,
     @Nullable Integer page,
     @Nullable Integer pageSize
   ) {}
@@ -69,7 +69,7 @@ public class IssuesApi {
       .addParam("impactSeverities", params.severities())
       .addParam("impactSoftwareQualities", params.impactSoftwareQualities())
       .addParam("issueStatuses", params.issueStatuses())
-      .addParam("issues", params.issueKey())
+      .addParam("issues", params.issueKeys())
       .addParam("p", params.page())
       .addParam("ps", params.pageSize())
       .addParam("organization", helper.getOrganization());
