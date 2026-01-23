@@ -76,7 +76,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     assertThat(tools)
       .isNotEmpty()
@@ -99,7 +99,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     assertThat(tools).hasSize(2);
     
@@ -124,7 +124,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     assertThat(tools)
       .isNotEmpty()
@@ -145,7 +145,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     var tool1 = tools.stream()
       .filter(t -> t.definition().name().equals("test_test_tool_1"))
@@ -179,7 +179,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     assertThat(tools).hasSize(4);
 
@@ -209,7 +209,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     assertThat(tools).hasSize(2);
     assertThat(tools.stream().map(t -> t.definition().name())).allMatch(name -> name.startsWith("good_"));
@@ -228,7 +228,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     // The test server includes the TEST_ENV_VAR in the tool description
     var tool1 = tools.stream()
@@ -253,7 +253,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     var tool1 = (ExternalMcpTool) tools.stream()
       .filter(t -> t.definition().name().equals("test_test_tool_1"))
@@ -286,7 +286,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     var tool2 = (ExternalMcpTool) tools.stream()
       .filter(t -> t.definition().name().equals("test_test_tool_2"))
@@ -324,7 +324,7 @@ class ExternalToolsLoaderMediumTest {
     ));
 
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     assertThat(tools).isEmpty();
   }
@@ -333,7 +333,20 @@ class ExternalToolsLoaderMediumTest {
     try {
       // Create a temporary config file
       testConfigFile = Files.createTempFile("external-tools-test-", ".json");
-      OBJECT_MAPPER.writeValue(testConfigFile.toFile(), configs);
+      
+      // Ensure all configs have supportedTransports if not already set
+      var configsWithTransports = configs.stream()
+        .map(config -> {
+          if (!config.containsKey("supportedTransports")) {
+            var mutableConfig = new java.util.HashMap<>(config);
+            mutableConfig.put("supportedTransports", List.of("stdio"));
+            return mutableConfig;
+          }
+          return config;
+        })
+        .toList();
+      
+      OBJECT_MAPPER.writeValue(testConfigFile.toFile(), configsWithTransports);
       System.setProperty("external.tools.config.path", testConfigFile.toString());
     } catch (IOException e) {
       throw new RuntimeException("Failed to create test configuration", e);

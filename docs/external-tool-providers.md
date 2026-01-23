@@ -35,7 +35,10 @@ External tool providers are defined in `/external-tool-providers.json` (bundled 
     "namespace": "myprovider",
     "command": "node",
     "args": ["path/to/mcp-server.js"],
-    "env": {}
+    "env": {
+      "NODE_ENV": "production"
+    },
+    "supportedTransports": ["stdio"]
   }
 ]
 ```
@@ -46,6 +49,7 @@ External tool providers are defined in `/external-tool-providers.json` (bundled 
 - `command` (required): Executable command to start the provider
 - `args` (optional): Command-line arguments
 - `env` (optional): Environment variables (merged with parent process environment; config values override parent values)
+- `supportedTransports` (required): Array of transport modes supported by this provider. Valid values: `"stdio"`, `"http"`. Providers are only loaded if they support the server's current transport mode.
 
 ### Tool Namespacing
 
@@ -58,11 +62,12 @@ External tools are prefixed with their namespace to avoid conflicts:
 
 ### Production Behavior
 
-The server **always attempts to load all configured providers** at startup:
+The server loads compatible providers at startup based on transport mode:
 
 1. Parse `external-tool-providers.json`
 2. Validate configuration
-3. For each provider:
+3. Filter providers by transport compatibility (skip providers that don't support current transport mode)
+4. For each compatible provider:
    - Attempt to execute the command
    - If successful: connect, discover tools, integrate them
    - If failed: log warning, continue without that provider
@@ -92,7 +97,8 @@ Edit `src/main/resources/external-tool-providers.json`:
     "args": ["path/to/mcp-server.js"],
     "env": {
       "NODE_ENV": "production"
-    }
+    },
+    "supportedTransports": ["stdio"]
   }
 ]
 ```

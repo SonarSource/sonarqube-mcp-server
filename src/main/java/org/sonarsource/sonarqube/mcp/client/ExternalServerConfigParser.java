@@ -25,6 +25,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -89,8 +90,17 @@ public class ExternalServerConfigParser {
     var command = (String) configMap.get("command");
     var args = (List<String>) configMap.getOrDefault("args", Collections.emptyList());
     var env = (Map<String, String>) configMap.getOrDefault("env", Collections.emptyMap());
+
+    var supportedTransportsRaw = (List<String>) configMap.get("supportedTransports");
+    if (supportedTransportsRaw == null || supportedTransportsRaw.isEmpty()) {
+      throw new IllegalArgumentException("External MCP server 'supportedTransports' is required and must not be empty");
+    }
     
-    return new ExternalMcpServerConfig(name, namespace, command, args, env);
+    var supportedTransports = supportedTransportsRaw.stream()
+      .map(TransportMode::fromString)
+      .collect(Collectors.toSet());
+    
+    return new ExternalMcpServerConfig(name, namespace, command, args, env, supportedTransports);
   }
 
   @VisibleForTesting

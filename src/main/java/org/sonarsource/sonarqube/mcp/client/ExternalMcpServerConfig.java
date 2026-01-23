@@ -18,8 +18,9 @@ package org.sonarsource.sonarqube.mcp.client;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-public record ExternalMcpServerConfig(String name, String namespace, String command, List<String> args, Map<String, String> env) {
+public record ExternalMcpServerConfig(String name, String namespace, String command, List<String> args, Map<String, String> env, Set<TransportMode> supportedTransports) {
 
   public ExternalMcpServerConfig {
     if (name.isBlank()) {
@@ -33,6 +34,15 @@ public record ExternalMcpServerConfig(String name, String namespace, String comm
     }
     args = List.copyOf(args);
     env = Map.copyOf(env);
+    supportedTransports = Set.copyOf(supportedTransports);
+    
+    if (supportedTransports.isEmpty()) {
+      throw new IllegalArgumentException("External MCP server must support at least one transport mode");
+    }
+  }
+
+  public boolean supportsTransport(TransportMode transportMode) {
+    return supportedTransports.contains(transportMode);
   }
 
 }

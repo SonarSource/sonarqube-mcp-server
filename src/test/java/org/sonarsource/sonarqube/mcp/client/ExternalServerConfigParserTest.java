@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ExternalServerConfigParserTest {
-  
+
   @Test
   void parseServerConfig_should_parse_config_with_all_fields() {
     var configMap = Map.<String, Object>of(
@@ -37,7 +37,8 @@ class ExternalServerConfigParserTest {
       "namespace", "test",
       "command", "npx",
       "args", List.of("arg1", "arg2"),
-      "env", Map.of("KEY1", "value1", "KEY2", "value2")
+      "env", Map.of("KEY1", "value1", "KEY2", "value2"),
+      "supportedTransports", List.of("stdio", "http")
     );
 
     var config = ExternalServerConfigParser.parseServerConfig(configMap);
@@ -47,6 +48,7 @@ class ExternalServerConfigParserTest {
     assertThat(config.command()).isEqualTo("npx");
     assertThat(config.args()).containsExactly("arg1", "arg2");
     assertThat(config.env()).containsEntry("KEY1", "value1").containsEntry("KEY2", "value2");
+    assertThat(config.supportedTransports()).containsExactlyInAnyOrder(TransportMode.STDIO, TransportMode.HTTP);
   }
 
   @Test
@@ -54,7 +56,8 @@ class ExternalServerConfigParserTest {
     var configMap = Map.<String, Object>of(
       "name", "minimal-server",
       "namespace", "minimal",
-      "command", "node"
+      "command", "node",
+      "supportedTransports", List.of("stdio")
     );
 
     var config = ExternalServerConfigParser.parseServerConfig(configMap);
@@ -64,6 +67,7 @@ class ExternalServerConfigParserTest {
     assertThat(config.command()).isEqualTo("node");
     assertThat(config.args()).isEmpty();
     assertThat(config.env()).isEmpty();
+    assertThat(config.supportedTransports()).containsExactly(TransportMode.STDIO);
   }
 
   @Test
@@ -71,7 +75,8 @@ class ExternalServerConfigParserTest {
     var configMap = Map.<String, Object>of(
       "name", "  ",
       "namespace", "ns",
-      "command", "node"
+      "command", "node",
+      "supportedTransports", List.of("stdio")
     );
 
     assertThatThrownBy(() -> ExternalServerConfigParser.parseServerConfig(configMap))
@@ -84,7 +89,8 @@ class ExternalServerConfigParserTest {
     var configMap = Map.<String, Object>of(
       "name", "server",
       "namespace", "  ",
-      "command", "node"
+      "command", "node",
+      "supportedTransports", List.of("stdio")
     );
 
     assertThatThrownBy(() -> ExternalServerConfigParser.parseServerConfig(configMap))
@@ -97,7 +103,8 @@ class ExternalServerConfigParserTest {
     var configMap = Map.<String, Object>of(
       "name", "server",
       "namespace", "ns",
-      "command", "  "
+      "command", "  ",
+      "supportedTransports", List.of("stdio")
     );
 
     assertThatThrownBy(() -> ExternalServerConfigParser.parseServerConfig(configMap))
@@ -107,11 +114,12 @@ class ExternalServerConfigParserTest {
 
   @Test
   void parseServerConfig_should_handle_empty_args_list() {
-    var configMap = Map.<String, Object>of(
+    var configMap = Map.of(
       "name", "server",
       "namespace", "ns",
       "command", "node",
-      "args", Collections.emptyList()
+      "args", Collections.emptyList(),
+      "supportedTransports", List.of("stdio")
     );
 
     var config = ExternalServerConfigParser.parseServerConfig(configMap);
@@ -121,18 +129,19 @@ class ExternalServerConfigParserTest {
 
   @Test
   void parseServerConfig_should_handle_empty_env_map() {
-    var configMap = Map.<String, Object>of(
+    var configMap = Map.of(
       "name", "server",
       "namespace", "ns",
       "command", "node",
-      "env", Collections.emptyMap()
+      "env", Collections.emptyMap(),
+      "supportedTransports", List.of("stdio")
     );
 
     var config = ExternalServerConfigParser.parseServerConfig(configMap);
 
     assertThat(config.env()).isEmpty();
   }
-  
+
   @Test
   void parseAndValidateJson_should_parse_valid_json_with_multiple_configs() {
     var json = """
@@ -146,13 +155,15 @@ class ExternalServerConfigParserTest {
             "VAR1": "value1",
             "VAR2": "value2",
             "VAR3": "value3"
-          }
+          },
+          "supportedTransports": ["stdio", "http"]
         },
         {
           "name": "server2",
           "namespace": "ns2",
           "command": "python",
-          "args": ["-m", "server"]
+          "args": ["-m", "server"],
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -197,77 +208,79 @@ class ExternalServerConfigParserTest {
       Arguments.of(
         "missing required field name",
         """
-        [
-          {
-            "namespace": "ns1",
-            "command": "node"
-          }
-        ]
-        """,
+          [
+            {
+              "namespace": "ns1",
+              "command": "node"
+            }
+          ]
+          """,
         "Failed to parse configuration"
       ),
       Arguments.of(
         "missing required field namespace",
         """
-        [
-          {
-            "name": "server1",
-            "command": "node"
-          }
-        ]
-        """,
+          [
+            {
+              "name": "server1",
+              "command": "node"
+            }
+          ]
+          """,
         "Failed to parse configuration"
       ),
       Arguments.of(
         "missing required field command",
         """
-        [
-          {
-            "name": "server1",
-            "namespace": "ns1"
-          }
-        ]
-        """,
+          [
+            {
+              "name": "server1",
+              "namespace": "ns1"
+            }
+          ]
+          """,
         "Failed to parse configuration"
       ),
       Arguments.of(
         "name is blank",
         """
-        [
-          {
-            "name": "  ",
-            "namespace": "ns1",
-            "command": "node"
-          }
-        ]
-        """,
+          [
+            {
+              "name": "  ",
+              "namespace": "ns1",
+              "command": "node",
+              "supportedTransports": ["stdio"]
+            }
+          ]
+          """,
         "name cannot be null or blank"
       ),
       Arguments.of(
         "namespace is blank",
         """
-        [
-          {
-            "name": "server1",
-            "namespace": "  ",
-            "command": "node"
-          }
-        ]
-        """,
+          [
+            {
+              "name": "server1",
+              "namespace": "  ",
+              "command": "node",
+              "supportedTransports": ["stdio"]
+            }
+          ]
+          """,
         "namespace cannot be null or blank"
       ),
       Arguments.of(
         "config has invalid field type",
         """
-        [
-          {
-            "name": "server",
-            "namespace": "ns",
-            "command": "node",
-            "args": "should-be-array"
-          }
-        ]
-        """,
+          [
+            {
+              "name": "server",
+              "namespace": "ns",
+              "command": "node",
+              "args": "should-be-array"
+            }
+          ]
+          """,
         "Failed to parse configuration"
       )
     );
@@ -281,6 +294,7 @@ class ExternalServerConfigParserTest {
           "name": "server",
           "namespace": "ns",
           "command": "node",
+          "supportedTransports": ["stdio"],
           "extra_field": "should be ignored",
           "another_unknown": 123
         }
@@ -302,7 +316,8 @@ class ExternalServerConfigParserTest {
           "name": "server",
           "namespace": "ns",
           "command": "cmd",
-          "args": ["first", "second", "third", "fourth"]
+          "args": ["first", "second", "third", "fourth"],
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -311,6 +326,61 @@ class ExternalServerConfigParserTest {
 
     assertThat(result.success()).isTrue();
     assertThat(result.configs().getFirst().args()).containsExactly("first", "second", "third", "fourth");
+  }
+
+  @Test
+  void parseServerConfig_should_throw_when_supported_transports_is_missing() {
+    var configMap = Map.<String, Object>of(
+      "name", "server",
+      "namespace", "ns",
+      "command", "node"
+    );
+
+    assertThatThrownBy(() -> ExternalServerConfigParser.parseServerConfig(configMap))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("External MCP server 'supportedTransports' is required and must not be empty");
+  }
+
+  @Test
+  void parseServerConfig_should_throw_when_supported_transports_is_empty() {
+    var configMap = Map.<String, Object>of(
+      "name", "server",
+      "namespace", "ns",
+      "command", "node",
+      "supportedTransports", List.of()
+    );
+
+    assertThatThrownBy(() -> ExternalServerConfigParser.parseServerConfig(configMap))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("External MCP server 'supportedTransports' is required and must not be empty");
+  }
+
+  @Test
+  void parseServerConfig_should_throw_when_supported_transports_has_invalid_value() {
+    var configMap = Map.<String, Object>of(
+      "name", "server",
+      "namespace", "ns",
+      "command", "node",
+      "supportedTransports", List.of("invalid")
+    );
+
+    assertThatThrownBy(() -> ExternalServerConfigParser.parseServerConfig(configMap))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("Invalid transport mode: 'invalid'");
+  }
+
+  @Test
+  void parseServerConfig_should_parse_mixed_case_transport_modes() {
+    var configMap = Map.<String, Object>of(
+      "name", "server",
+      "namespace", "ns",
+      "command", "node",
+      "supportedTransports", List.of("STDIO", "Http")
+    );
+
+    var config = ExternalServerConfigParser.parseServerConfig(configMap);
+
+    assertThat(config.supportedTransports()).containsExactlyInAnyOrder(TransportMode.STDIO, TransportMode.HTTP);
   }
 
 }

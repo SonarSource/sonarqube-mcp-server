@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.client;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,8 +49,8 @@ class McpClientManagerTest {
   @Test
   void getTotalCount_should_match_config_count() {
     var configs = List.of(
-      new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of()),
-      new ExternalMcpServerConfig("server2", "server2", "uv", List.of(), Map.of())
+      new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO)),
+      new ExternalMcpServerConfig("server2", "server2", "uv", List.of(), Map.of(), Set.of(TransportMode.STDIO))
     );
 
     var manager = new McpClientManager(configs);
@@ -59,7 +60,7 @@ class McpClientManagerTest {
 
   @Test
   void getAllExternalTools_should_return_empty_map_before_initialization() {
-    var configs = List.of(new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of()));
+    var configs = List.of(new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO)));
 
     var manager = new McpClientManager(configs);
 
@@ -100,7 +101,7 @@ class McpClientManagerTest {
 
   @Test
   void executeTool_should_include_error_message_for_failed_server() {
-    var configs = List.of(new ExternalMcpServerConfig("failing-server", "failing-server", "/non/existent/command", List.of(), Map.of()));
+    var configs = List.of(new ExternalMcpServerConfig("failing-server", "failing-server", "/non/existent/command", List.of(), Map.of(), Set.of(TransportMode.STDIO)));
     var manager = new McpClientManager(configs);
 
     manager.initialize();

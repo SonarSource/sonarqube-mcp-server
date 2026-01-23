@@ -32,11 +32,12 @@ public class ExternalToolsLoader {
   /**
    * 1. Parses the configuration from external-tool-providers.json
    * 2. Validates the configuration
-   * 3. Connects to each external tool provider
-   * 4. Discovers tools from connected providers
-   * 5. Creates tool wrappers for integration
+   * 3. Filters providers based on current transport mode
+   * 4. Connects to each compatible external tool provider
+   * 5. Discovers tools from connected providers
+   * 6. Creates tool wrappers for integration
    */
-  public List<Tool> loadExternalTools() {
+  public List<Tool> loadExternalTools(TransportMode currentTransportMode) {
     var parseResult = ExternalServerConfigParser.parse();
     
     if (!parseResult.success()) {
@@ -45,16 +46,33 @@ public class ExternalToolsLoader {
       return List.of();
     }
     
-    var configs = parseResult.configs();
-    if (configs.isEmpty()) {
+    var allConfigs = parseResult.configs();
+    if (allConfigs.isEmpty()) {
       LOG.info("No external tool providers configured");
       return List.of();
     }
+
+    // Filter configs based on transport compatibility
+    var compatibleConfigs = allConfigs.stream().filter(config -> {
+        if (config.supportsTransport(currentTransportMode)) {
+          return true;
+        } else {
+          LOG.info("Skipping external provider '" + config.name() + "' - " +
+            "does not support " + currentTransportMode.toConfigString() + " transport (supports: " + config.supportedTransports() + ")");
+          return false;
+        }
+      })
+      .toList();
     
-    LOG.info("Initializing " + configs.size() + " external tool provider(s)...");
+    if (compatibleConfigs.isEmpty()) {
+      LOG.info("No external tool providers compatible with " + currentTransportMode.toConfigString() + " transport (total configured: " + allConfigs.size() + ")");
+      return List.of();
+    }
+    
+    LOG.info("Initializing " + compatibleConfigs.size() + " external tool provider(s) compatible with " + currentTransportMode.toConfigString() + " transport...");
     
     try {
-      mcpClientManager = new McpClientManager(configs);
+      mcpClientManager = new McpClientManager(compatibleConfigs);
       mcpClientManager.initialize();
 
       var externalTools = mcpClientManager.getAllExternalTools();

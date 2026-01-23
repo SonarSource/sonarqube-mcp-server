@@ -36,7 +36,7 @@ class ExternalToolsLoaderTest {
   @Test
   void loadExternalTools_should_return_empty_when_no_providers_configured() {
     loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    var tools = loader.loadExternalTools(TransportMode.STDIO);
 
     assertThat(tools).isEmpty();
   }
@@ -44,7 +44,7 @@ class ExternalToolsLoaderTest {
   @Test
   void shutdown_should_not_fail_when_called_multiple_times() {
     loader = new ExternalToolsLoader();
-    loader.loadExternalTools();
+    loader.loadExternalTools(TransportMode.STDIO);
 
     assertThatCode(() -> {
       loader.shutdown();
@@ -58,8 +58,8 @@ class ExternalToolsLoaderTest {
     var loader1 = new ExternalToolsLoader();
     var loader2 = new ExternalToolsLoader();
 
-    var tools1 = loader1.loadExternalTools();
-    var tools2 = loader2.loadExternalTools();
+    var tools1 = loader1.loadExternalTools(TransportMode.STDIO);
+    var tools2 = loader2.loadExternalTools(TransportMode.HTTP);
 
     assertThat(tools1).isNotNull().isEmpty();
     assertThat(tools2).isNotNull().isEmpty();
@@ -72,11 +72,11 @@ class ExternalToolsLoaderTest {
   void loadExternalTools_after_shutdown_should_work() {
     loader = new ExternalToolsLoader();
     
-    var tools1 = loader.loadExternalTools();
+    var tools1 = loader.loadExternalTools(TransportMode.STDIO);
     loader.shutdown();
     
     // Loading again after shutdown should still work
-    var tools2 = loader.loadExternalTools();
+    var tools2 = loader.loadExternalTools(TransportMode.STDIO);
     
     assertThat(tools1).isNotNull();
     assertThat(tools2).isNotNull();
