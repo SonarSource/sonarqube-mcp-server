@@ -39,6 +39,7 @@ public class IssuesApi {
   public record SearchParams(
     @Nullable List<String> projects,
     @Nullable String branch,
+    @Nullable List<String> files,
     @Nullable String pullRequestId,
     @Nullable List<String> severities,
     @Nullable List<String> impactSoftwareQualities,
@@ -65,6 +66,7 @@ public class IssuesApi {
     var builder = new UrlBuilder(SEARCH_PATH)
       .addParam("projects", params.projects())
       .addParam("branch", params.branch())
+      .addParam("components", params.files())
       .addParam("pullRequest", params.pullRequestId())
       .addParam("impactSeverities", params.severities())
       .addParam("impactSoftwareQualities", params.impactSoftwareQualities())
