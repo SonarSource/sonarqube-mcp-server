@@ -35,7 +35,7 @@ The user should provide the following environment variables:
 - "List all bugs in my codebase"
 - "Find all blocker issues in my codebase"
 
-**What to do:** Use `search_sonar_issues_in_projects`. You can filter by project, branch, issue type, severity, etc.
+**What to do:** Use `search_sonar_issues_in_projects`. You can filter by project, software quality (MAINTAINABILITY, RELIABILITY, SECURITY), severity, issue status, branch, pull request, or search for a specific issue by key.
 
 ### Code Snippet Analysis
 **Example user requests:**
