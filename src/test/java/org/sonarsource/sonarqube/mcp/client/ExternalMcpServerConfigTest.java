@@ -31,7 +31,7 @@ class ExternalMcpServerConfigTest {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
     var defaultTransports = Set.of(TransportMode.STDIO);
-    assertThatThrownBy(() -> new ExternalMcpServerConfig("  ", "namespace", "npx", emptyList, emptyMap, defaultTransports))
+    assertThatThrownBy(() -> new ExternalMcpServerConfig("  ", "namespace", "npx", emptyList, emptyMap, defaultTransports, null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("External MCP server name cannot be null or blank");
   }
@@ -41,7 +41,7 @@ class ExternalMcpServerConfigTest {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
     var defaultTransports = Set.of(TransportMode.STDIO);
-    assertThatThrownBy(() -> new ExternalMcpServerConfig("server", "  ", "npx", emptyList, emptyMap, defaultTransports))
+    assertThatThrownBy(() -> new ExternalMcpServerConfig("server", "  ", "npx", emptyList, emptyMap, defaultTransports, null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("External MCP server namespace cannot be null or blank");
   }
@@ -51,7 +51,7 @@ class ExternalMcpServerConfigTest {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
     var defaultTransports = Set.of(TransportMode.STDIO);
-    assertThatThrownBy(() -> new ExternalMcpServerConfig("server", "namespace", "  ", emptyList, emptyMap, defaultTransports))
+    assertThatThrownBy(() -> new ExternalMcpServerConfig("server", "namespace", "  ", emptyList, emptyMap, defaultTransports, null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("External MCP server command cannot be null or blank");
   }
@@ -62,24 +62,31 @@ class ExternalMcpServerConfigTest {
     var emptyMap = Map.<String, String>of();
     var emptyTransports = Set.<TransportMode>of();
 
-    assertThatThrownBy(() -> new ExternalMcpServerConfig("server", "namespace", "npx", emptyList, emptyMap, emptyTransports))
+    assertThatThrownBy(() -> new ExternalMcpServerConfig("server", "namespace", "npx", emptyList, emptyMap, emptyTransports, null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("External MCP server must support at least one transport mode");
   }
 
   @Test
   void supportsTransport_should_return_true_for_supported_transport() {
-    var config = new ExternalMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO, TransportMode.HTTP));
-    
+    var config = new ExternalMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO, TransportMode.HTTP), null);
+
     assertThat(config.supportsTransport(TransportMode.STDIO)).isTrue();
     assertThat(config.supportsTransport(TransportMode.HTTP)).isTrue();
   }
 
   @Test
   void supportsTransport_should_return_false_for_unsupported_transport() {
-    var config = new ExternalMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO));
-    
+    var config = new ExternalMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), null);
+
     assertThat(config.supportsTransport(TransportMode.HTTP)).isFalse();
+  }
+
+  @Test
+  void constructor_should_accept_instructions() {
+    var config = new ExternalMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), "Use these tools for testing");
+
+    assertThat(config.instructions()).isEqualTo("Use these tools for testing");
   }
 
 }

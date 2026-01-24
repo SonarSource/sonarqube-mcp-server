@@ -19,8 +19,17 @@ package org.sonarsource.sonarqube.mcp.client;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 
-public record ExternalMcpServerConfig(String name, String namespace, String command, List<String> args, Map<String, String> env, Set<TransportMode> supportedTransports) {
+public record ExternalMcpServerConfig(
+  String name,
+  String namespace,
+  String command,
+  List<String> args,
+  Map<String, String> env,
+  Set<TransportMode> supportedTransports,
+  @Nullable String instructions
+) {
 
   public ExternalMcpServerConfig {
     if (name.isBlank()) {

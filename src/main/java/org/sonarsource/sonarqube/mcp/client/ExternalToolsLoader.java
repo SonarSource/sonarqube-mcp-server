@@ -97,6 +97,28 @@ public class ExternalToolsLoader {
     }
   }
 
+  public static String composeInstructions(String baseInstructions, List<ExternalMcpServerConfig> configs) {
+    if (configs.isEmpty()) {
+      return baseInstructions;
+    }
+    
+    var builder = new StringBuilder(baseInstructions);
+    var hasProviderInstructions = configs.stream().anyMatch(c -> c.instructions() != null && !c.instructions().isBlank());
+    
+    if (hasProviderInstructions) {
+      builder.append("\n\n## External Tool Providers\n");
+
+      configs.stream()
+        .filter(c -> c.instructions() != null && !c.instructions().isBlank())
+        .forEach(c -> {
+          builder.append("\n### ").append(c.name()).append(" (").append(c.namespace()).append("_*)");
+          builder.append("\n").append(c.instructions());
+        });
+    }
+    
+    return builder.toString();
+  }
+
   public void shutdown() {
     if (mcpClientManager != null) {
       try {
