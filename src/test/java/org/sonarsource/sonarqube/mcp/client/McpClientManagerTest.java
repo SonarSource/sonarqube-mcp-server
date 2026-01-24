@@ -49,8 +49,8 @@ class McpClientManagerTest {
   @Test
   void getTotalCount_should_match_config_count() {
     var configs = List.of(
-      new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO)),
-      new ExternalMcpServerConfig("server2", "server2", "uv", List.of(), Map.of(), Set.of(TransportMode.STDIO))
+      new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), null),
+      new ExternalMcpServerConfig("server2", "server2", "uv", List.of(), Map.of(), Set.of(TransportMode.STDIO), null)
     );
 
     var manager = new McpClientManager(configs);
@@ -60,7 +60,7 @@ class McpClientManagerTest {
 
   @Test
   void getAllExternalTools_should_return_empty_map_before_initialization() {
-    var configs = List.of(new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO)));
+    var configs = List.of(new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), null));
 
     var manager = new McpClientManager(configs);
 
@@ -101,7 +101,7 @@ class McpClientManagerTest {
 
   @Test
   void executeTool_should_include_error_message_for_failed_server() {
-    var configs = List.of(new ExternalMcpServerConfig("failing-server", "failing-server", "/non/existent/command", List.of(), Map.of(), Set.of(TransportMode.STDIO)));
+    var configs = List.of(new ExternalMcpServerConfig("failing-server", "failing-server", "/non/existent/command", List.of(), Map.of(), Set.of(TransportMode.STDIO), null));
     var manager = new McpClientManager(configs);
 
     manager.initialize();

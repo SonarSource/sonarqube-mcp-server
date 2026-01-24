@@ -100,7 +100,9 @@ public class ExternalServerConfigParser {
       .map(TransportMode::fromString)
       .collect(Collectors.toSet());
     
-    return new ExternalMcpServerConfig(name, namespace, command, args, env, supportedTransports);
+    var instructions = (String) configMap.get("instructions");
+    
+    return new ExternalMcpServerConfig(name, namespace, command, args, env, supportedTransports, instructions);
   }
 
   @VisibleForTesting

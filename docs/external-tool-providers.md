@@ -50,6 +50,7 @@ External tool providers are defined in `/external-tool-providers.json` (bundled 
 - `args` (optional): Command-line arguments
 - `env` (optional): Environment variables (merged with parent process environment; config values override parent values)
 - `supportedTransports` (required): Array of transport modes supported by this provider. Valid values: `"stdio"`, `"http"`. Providers are only loaded if they support the server's current transport mode.
+- `instructions` (optional): Brief instructions to help AI assistants use this provider's tools effectively. These are automatically appended to the server's base instructions.
 
 ### Tool Namespacing
 
@@ -98,7 +99,8 @@ Edit `src/main/resources/external-tool-providers.json`:
     "env": {
       "NODE_ENV": "production"
     },
-    "supportedTransports": ["stdio"]
+    "supportedTransports": ["stdio"],
+    "instructions": "Before analyzing code issues, always use myprovider_my_tool to retrieve relevant code snippets."
   }
 ]
 ```

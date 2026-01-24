@@ -33,12 +33,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
+import org.sonarsource.sonarqube.mcp.client.ExternalServerConfigParser;
 import org.sonarsource.sonarqube.mcp.client.ExternalToolsLoader;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
@@ -86,6 +88,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String SONARQUBE_MCP_SERVER_NAME = "sonarqube-mcp-server";
+  private static final String BASE_INSTRUCTIONS = "Transform your code quality workflow with SonarQube integration. " +
+    "Analyze code, monitor project health, investigate issues, and understand quality gates. " +
+    "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.";
 
   private BackendService backendService;
   private ToolExecutor toolExecutor;
@@ -94,6 +99,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private final List<Tool> supportedTools = new ArrayList<>();
   private final McpServerLaunchConfiguration mcpConfiguration;
   private HttpClientProvider httpClientProvider;
+  private String composedInstructions = BASE_INSTRUCTIONS;
   
   /**
    * ServerApi instance.
@@ -154,9 +160,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       };
       return builder
         .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
-        .instructions("Transform your code quality workflow with SonarQube integration. " +
-          "Analyze code, monitor project health, investigate issues, and understand quality gates. " +
-          "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.")
+        .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
         .tools(filterForEnabledTools(supportedTools).stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
         .build();
@@ -311,6 +315,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     supportedTools.addAll(externalTools);
     var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
     LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);
+    
+    // Compose instructions with external provider contributions
+    var parseResult = ExternalServerConfigParser.parse();
+    if (parseResult.success() && !parseResult.configs().isEmpty()) {
+      composedInstructions = ExternalToolsLoader.composeInstructions(BASE_INSTRUCTIONS, parseResult.configs());
+    } else {
+      composedInstructions = BASE_INSTRUCTIONS;
+    }
   }
 
   private List<Tool> filterForEnabledTools(List<Tool> toolsToFilter) {
@@ -446,7 +458,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     LOG.info("Waiting for background initialization to complete before shutdown...");
     try {
-      initializationFuture.get(30, java.util.concurrent.TimeUnit.SECONDS);
+      initializationFuture.get(30, TimeUnit.SECONDS);
     } catch (TimeoutException | ExecutionException e) {
       LOG.warn("Background initialization did not complete within 30 seconds, proceeding with shutdown");
       initializationFuture.cancel(true);
