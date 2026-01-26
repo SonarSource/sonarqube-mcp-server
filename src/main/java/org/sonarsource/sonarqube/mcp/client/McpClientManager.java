@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.tools.ToolNameValidator;
 import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 
 /**
@@ -100,7 +101,7 @@ public class McpClientManager {
       LOG.info("Connected to '" + config.name() + "' - discovered " + tools.size() + " tool(s)");
       clients.put(serverName, client);
       serverTools.put(serverName, tools);
-      tools.forEach(tool -> LOG.debug("  - " + config.namespace() + "_" + tool.name()));
+      tools.forEach(tool -> LOG.debug(" - " + config.namespace() + "/" + tool.name()));
     } catch (Exception e) {
       LOG.error("Failed to initialize '" + config.name() + "': " + e.getMessage(), e);
       serverErrors.put(serverName, e.getMessage());
@@ -113,7 +114,15 @@ public class McpClientManager {
       var serverId = config.name();
       var namespace = config.namespace();
       var tools = serverTools.getOrDefault(serverId, List.of());
-      tools.forEach(tool -> allTools.put(namespace + "_" + tool.name(), new ToolMapping(serverId, namespace, tool.name(), tool)));
+      tools.forEach(tool -> {
+        var namespacedToolName = namespace + "/" + tool.name();
+        try {
+          ToolNameValidator.validate(namespacedToolName);
+          allTools.put(namespacedToolName, new ToolMapping(serverId, namespace, tool.name(), tool));
+        } catch (IllegalArgumentException e) {
+          LOG.error("Skipping tool with invalid name from server '" + serverId + "': " + e.getMessage(), e);
+        }
+      });
     }
     return allTools;
   }

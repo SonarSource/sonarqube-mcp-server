@@ -42,17 +42,27 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 
 **Fields:**
 - `name` (required): Human-readable server name (for logging)
-- `namespace` (required): Tool name prefix (e.g., tool `analyze` becomes `context_analyze`)
+- `namespace` (required): Tool name prefix (e.g., tool `analyze` becomes `context/analyze`)
 - `command` (required): Executable command to start the MCP server
 - `args` (optional): Command-line arguments
 - `env` (optional): Environment variables (merged with parent process environment; config values override parent values)
 
 ### Tool Namespacing
 
-Proxied tools are prefixed with their namespace to avoid conflicts:
+Proxied tools are prefixed with their namespace to avoid conflicts with the main server's tools, following the [MCP SEP-986 naming convention](https://modelcontextprotocol.io/community/seps/986-specify-format-for-tool-names):
 - Server namespace: `context`
 - Original tool name: `analyze_code`
-- Exposed name: `context_analyze_code`
+- Exposed name: `context/analyze_code`
+
+**Tool Name Validation:**
+
+All tool names (both proxied and internal) are validated according to MCP SEP-986:
+- **Length:** 1-64 characters
+- **Allowed characters:** Alphanumeric (a-z, A-Z, 0-9), underscore (_), dash (-), dot (.), forward slash (/)
+- **Case-sensitive:** `getUser`, `GetUser`, and `GETUSER` are different tool names
+- **No spaces or special characters:** Spaces, commas, @, #, etc. are not allowed
+
+If a proxied server exposes a tool with an invalid name, it will be automatically skipped with an error logged.
 
 ## Auto-Discovery
 

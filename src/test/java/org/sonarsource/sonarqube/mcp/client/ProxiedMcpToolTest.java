@@ -55,7 +55,7 @@ class ProxiedMcpToolTest {
   @Test
   void constructor_should_create_tool_with_correct_definition() {
     var tool = new ProxiedMcpTool(
-      "weather_get_weather",
+      "weather/get_weather",
       "weather",
       "get_weather",
       originalTool,
@@ -63,28 +63,28 @@ class ProxiedMcpToolTest {
     );
 
     var definition = tool.definition();
-    assertThat(definition.name()).isEqualTo("weather_get_weather");
+    assertThat(definition.name()).isEqualTo("weather/get_weather");
     assertThat(definition.title()).isEqualTo("Get Weather");
     assertThat(definition.description()).isEqualTo("Get the current weather for a location");
   }
 
   @Test
   void getCategory_should_return_external() {
-    var tool = new ProxiedMcpTool("weather_get_weather", "weather", "get_weather", originalTool, clientManager);
+    var tool = new ProxiedMcpTool("weather/get_weather", "weather", "get_weather", originalTool, clientManager);
 
     assertThat(tool.getCategory()).isEqualTo(ToolCategory.EXTERNAL);
   }
 
   @Test
   void getOriginalToolName_should_return_original_name() {
-    var tool = new ProxiedMcpTool("weather_get_weather", "weather", "get_weather", originalTool, clientManager);
+    var tool = new ProxiedMcpTool("weather/get_weather", "weather", "get_weather", originalTool, clientManager);
 
     assertThat(tool.getOriginalToolName()).isEqualTo("get_weather");
   }
 
   @Test
   void execute_should_handle_error_result_from_proxied_server() throws Exception {
-    var tool = new ProxiedMcpTool("weather_get_weather", "weather", "get_weather", originalTool, clientManager);
+    var tool = new ProxiedMcpTool("weather/get_weather", "weather", "get_weather", originalTool, clientManager);
 
     var errorResult = McpSchema.CallToolResult.builder()
       .isError(true)
@@ -104,7 +104,7 @@ class ProxiedMcpToolTest {
 
   @Test
   void execute_should_ignore_image_content_in_error_result() throws Exception {
-    var tool = new ProxiedMcpTool("image_tool", "img", "process_image", originalTool, clientManager);
+    var tool = new ProxiedMcpTool("img/process_image", "img", "process_image", originalTool, clientManager);
 
     var imageContent = new McpSchema.ImageContent(
       null,

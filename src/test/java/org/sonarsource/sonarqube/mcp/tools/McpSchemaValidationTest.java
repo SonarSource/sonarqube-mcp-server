@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +26,7 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 class McpSchemaValidationTest {
 
@@ -61,12 +63,23 @@ class McpSchemaValidationTest {
       assertThat(tool.name())
         .as("Tool '%s' name should not be null or empty", tool.name())
         .isNotNull()
-        .isNotEmpty()
-        .as("Tool '%s' name should follow snake_case convention (lowercase letters, numbers, underscores)", tool.name())
-        .matches("^[a-z][a-z0-9_]*[a-z0-9]$")
-        .as("Tool '%s' name should not start or end with underscore", tool.name())
-        .doesNotStartWith("_")
-        .doesNotEndWith("_");
+        .isNotEmpty();
+      
+      // Proxied tools (containing /) follow SEP-986 and may use different conventions
+      if (tool.name().contains("/")) {
+        // Validate proxied tools according to SEP-986
+        assertThatCode(() -> ToolNameValidator.validate(tool.name()))
+          .as("Proxied tool '%s' should follow MCP SEP-986 naming convention", tool.name())
+          .doesNotThrowAnyException();
+      } else {
+        // Internal tools follow snake_case convention
+        assertThat(tool.name())
+          .as("Internal tool '%s' name should follow snake_case convention (lowercase letters, numbers, underscores)", tool.name())
+          .matches("^[a-z][a-z0-9_]*[a-z0-9]$")
+          .as("Internal tool '%s' name should not start or end with underscore", tool.name())
+          .doesNotStartWith("_")
+          .doesNotEndWith("_");
+      }
     }
   }
 
@@ -76,9 +89,13 @@ class McpSchemaValidationTest {
     var tools = client.listTools();
     
     for (var tool : tools) {
-      assertThat(tool.name())
-        .as("Tool '%s' name should match the required regex pattern", tool.name())
-        .matches("^[a-z_][a-z0-9_]{1,126}$");
+      // Proxied tools (containing /) may not follow telemetry snake_case requirements
+      // as they follow SEP-986 which allows more characters
+      if (!tool.name().contains("/")) {
+        assertThat(tool.name())
+          .as("Internal tool '%s' name should match the telemetry regex pattern", tool.name())
+          .matches("^[a-z_][a-z0-9_]{1,126}$");
+      }
     }
   }
 
@@ -221,11 +238,11 @@ class McpSchemaValidationTest {
                   .as("Enum property '%s' in tool '%s' should have enum values", property.getKey(), schema.name())
                   .satisfiesAnyOf(
                     ev -> assertThat(ev).isInstanceOf(Object[].class),
-                    ev -> assertThat(ev).isInstanceOf(java.util.List.class)
+                    ev -> assertThat(ev).isInstanceOf(List.class)
                   );
                 
-                var enumList = enumValues instanceof Object[] arr ? java.util.Arrays.asList(arr) : 
-                              enumValues instanceof java.util.List<?> list ? list : java.util.List.of();
+                var enumList = enumValues instanceof Object[] arr ? Arrays.asList(arr) :
+                              enumValues instanceof List<?> list ? list : List.of();
                 assertThat(enumList)
                   .as("Enum property '%s' in tool '%s' should have at least one value", property.getKey(), schema.name())
                   .isNotEmpty();
@@ -294,12 +311,15 @@ class McpSchemaValidationTest {
     for (var tool : tools) {
       var toolName = tool.name();
 
-      var hasActionWord = toolName.contains("get") || toolName.contains("search") ||
-        toolName.contains("change") || toolName.contains("list") ||
-        toolName.contains("create") || toolName.contains("update") ||
-        toolName.contains("delete") || toolName.contains("show") ||
-        toolName.contains("analyze") || toolName.contains("ping") ||
-        toolName.contains("toggle");
+      // For proxied tools, check the part after the namespace separator
+      var nameToCheck = toolName.contains("/") ? toolName.substring(toolName.indexOf("/") + 1) : toolName;
+      
+      var hasActionWord = nameToCheck.contains("get") || nameToCheck.contains("search") ||
+        nameToCheck.contains("change") || nameToCheck.contains("list") ||
+        nameToCheck.contains("create") || nameToCheck.contains("update") ||
+        nameToCheck.contains("delete") || nameToCheck.contains("show") ||
+        nameToCheck.contains("analyze") || nameToCheck.contains("ping") ||
+        nameToCheck.contains("toggle");
 
       assertThat(hasActionWord)
         .as("Tool name '%s' should contain an action word (get, search, change, list, etc.)", toolName)
