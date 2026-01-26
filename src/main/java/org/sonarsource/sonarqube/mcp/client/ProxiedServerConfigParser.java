@@ -28,52 +28,52 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
-public class ExternalServerConfigParser {
+public class ProxiedServerConfigParser {
   
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final String DEFAULT_CONFIG_RESOURCE = "/external-tool-providers.json";
+  private static final String DEFAULT_CONFIG_RESOURCE = "/proxied-mcp-servers.json";
   
-  private ExternalServerConfigParser() {
+  private ProxiedServerConfigParser() {
     // Utility class
   }
 
   /**
-   * Parse external tool provider configuration from the bundled configuration file.
-   * The configuration file must be located at /external-tool-providers.json in the classpath (bundled in JAR).
+   * Parse proxied MCP server configuration from the bundled configuration file.
+   * The configuration file must be located at /proxied-mcp-servers.json in the classpath (bundled in JAR).
    * <p>
-   * For testing purposes, a system property "external.tools.config.path" can be set to override the default location.
+   * For testing purposes, a system property "proxied.mcp.servers.config.path" can be set to override the default location.
    */
   public static ParseResult parse() {
     // Check for test config override
-    var testConfigPath = System.getProperty("external.tools.config.path");
+    var testConfigPath = System.getProperty("proxied.mcp.servers.config.path");
     if (testConfigPath != null) {
       return parseFromFile(testConfigPath);
     }
     
-    try (var inputStream = ExternalServerConfigParser.class.getResourceAsStream(DEFAULT_CONFIG_RESOURCE)) {
+    try (var inputStream = ProxiedServerConfigParser.class.getResourceAsStream(DEFAULT_CONFIG_RESOURCE)) {
       if (inputStream == null) {
-        LOG.info("No external tool providers configuration found at " + DEFAULT_CONFIG_RESOURCE);
+        LOG.info("No proxied MCP servers configuration found at " + DEFAULT_CONFIG_RESOURCE);
         return ParseResult.success(Collections.emptyList());
       }
       
-      LOG.info("Loading external tool providers configuration from bundled resource: " + DEFAULT_CONFIG_RESOURCE);
+      LOG.info("Loading proxied MCP servers configuration from bundled resource: " + DEFAULT_CONFIG_RESOURCE);
       var json = new String(inputStream.readAllBytes());
-      return parseAndValidateJson(json);
+      return parseAndValidateProxiedConfig(json);
     } catch (IOException e) {
-      LOG.error("Failed to load external tool providers configuration: " + e.getMessage(), e);
+      LOG.error("Failed to load proxied MCP servers configuration: " + e.getMessage(), e);
       return ParseResult.failure("Failed to load bundled configuration: " + e.getMessage());
     }
   }
-  
-  static ParseResult parseAndValidateJson(String json) {
+
+  static ParseResult parseAndValidateProxiedConfig(String json) {
     try {
       var rawConfigs = OBJECT_MAPPER.readValue(json, new TypeReference<List<Map<String, Object>>>() {});
       var configs = rawConfigs.stream()
-        .map(ExternalServerConfigParser::parseServerConfig)
+        .map(ProxiedServerConfigParser::parseServerConfig)
         .toList();
-      
-      LOG.info("Successfully loaded " + configs.size() + " external tool provider(s)");
+
+      LOG.info("Successfully loaded " + configs.size() + " proxied MCP server(s)");
       return ParseResult.success(configs);
     } catch (Exception e) {
       var error = "Failed to parse configuration: " + e.getMessage();
@@ -83,30 +83,30 @@ public class ExternalServerConfigParser {
   }
   
   @SuppressWarnings("unchecked")
-  static ExternalMcpServerConfig parseServerConfig(Map<String, Object> configMap) {
+  static ProxiedMcpServerConfig parseServerConfig(Map<String, Object> configMap) {
     var name = (String) configMap.get("name");
     var namespace = (String) configMap.get("namespace");
     var command = (String) configMap.get("command");
     var args = (List<String>) configMap.getOrDefault("args", Collections.emptyList());
     var env = (Map<String, String>) configMap.getOrDefault("env", Collections.emptyMap());
-    
-    return new ExternalMcpServerConfig(name, namespace, command, args, env);
+
+    return new ProxiedMcpServerConfig(name, namespace, command, args, env);
   }
 
   @VisibleForTesting
   static ParseResult parseFromFile(String filePath) {
     try {
-      LOG.info("Loading external tool providers configuration from file: " + filePath);
+      LOG.info("Loading proxied MCP servers configuration from file: " + filePath);
       var json = new String(Files.readAllBytes(Paths.get(filePath)));
-      return parseAndValidateJson(json);
+      return parseAndValidateProxiedConfig(json);
     } catch (IOException e) {
-      LOG.error("Failed to load external tool providers configuration from file: " + e.getMessage(), e);
+      LOG.error("Failed to load proxied MCP servers configuration from file: " + e.getMessage(), e);
       return ParseResult.failure("Failed to load configuration from file: " + e.getMessage());
     }
   }
 
-  public record ParseResult(boolean success, List<ExternalMcpServerConfig> configs, @Nullable String error) {
-    public static ParseResult success(List<ExternalMcpServerConfig> configs) {
+  public record ParseResult(boolean success, List<ProxiedMcpServerConfig> configs, @Nullable String error) {
+    public static ParseResult success(List<ProxiedMcpServerConfig> configs) {
       return new ParseResult(true, configs, null);
     }
     

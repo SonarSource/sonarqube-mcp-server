@@ -59,7 +59,7 @@ license {
 		)
 	)
     excludes(
-        listOf("**/*.jar", "**/*.png", "**/README", "**/logback.xml", "**/external-tool-providers.json")
+        listOf("**/*.jar", "**/*.png", "**/README", "**/logback.xml", "**/proxied-mcp-servers.json")
     )
     strictCheck = true
 }

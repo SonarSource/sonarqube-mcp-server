@@ -126,7 +126,7 @@ public abstract class Tool {
     
     /**
      * Get the underlying map of arguments.
-     * Used for forwarding arguments to external MCP servers.
+     * Used for forwarding arguments to proxied MCP servers.
      */
     public Map<String, Object> toMap() {
       return Map.copyOf(argumentsMap);

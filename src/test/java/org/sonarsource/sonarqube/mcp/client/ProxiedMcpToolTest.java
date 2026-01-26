@@ -23,7 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.external.ExternalMcpTool;
+import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -31,7 +31,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class ExternalMcpToolTest {
+class ProxiedMcpToolTest {
 
   private McpClientManager clientManager;
   private McpSchema.Tool originalTool;
@@ -54,7 +54,7 @@ class ExternalMcpToolTest {
 
   @Test
   void constructor_should_create_tool_with_correct_definition() {
-    var tool = new ExternalMcpTool(
+    var tool = new ProxiedMcpTool(
       "weather_get_weather",
       "weather",
       "get_weather",
@@ -70,21 +70,21 @@ class ExternalMcpToolTest {
 
   @Test
   void getCategory_should_return_external() {
-    var tool = new ExternalMcpTool("weather_get_weather", "weather", "get_weather", originalTool, clientManager);
+    var tool = new ProxiedMcpTool("weather_get_weather", "weather", "get_weather", originalTool, clientManager);
 
     assertThat(tool.getCategory()).isEqualTo(ToolCategory.EXTERNAL);
   }
 
   @Test
   void getOriginalToolName_should_return_original_name() {
-    var tool = new ExternalMcpTool("weather_get_weather", "weather", "get_weather", originalTool, clientManager);
+    var tool = new ProxiedMcpTool("weather_get_weather", "weather", "get_weather", originalTool, clientManager);
 
     assertThat(tool.getOriginalToolName()).isEqualTo("get_weather");
   }
 
   @Test
-  void execute_should_handle_error_result_from_external_server() throws Exception {
-    var tool = new ExternalMcpTool("weather_get_weather", "weather", "get_weather", originalTool, clientManager);
+  void execute_should_handle_error_result_from_proxied_server() throws Exception {
+    var tool = new ProxiedMcpTool("weather_get_weather", "weather", "get_weather", originalTool, clientManager);
 
     var errorResult = McpSchema.CallToolResult.builder()
       .isError(true)
@@ -104,7 +104,7 @@ class ExternalMcpToolTest {
 
   @Test
   void execute_should_ignore_image_content_in_error_result() throws Exception {
-    var tool = new ExternalMcpTool("image_tool", "img", "process_image", originalTool, clientManager);
+    var tool = new ProxiedMcpTool("image_tool", "img", "process_image", originalTool, clientManager);
 
     var imageContent = new McpSchema.ImageContent(
       null,

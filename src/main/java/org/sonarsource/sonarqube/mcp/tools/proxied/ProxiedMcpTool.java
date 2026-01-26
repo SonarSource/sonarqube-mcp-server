@@ -14,7 +14,7 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.tools.external;
+package org.sonarsource.sonarqube.mcp.tools.proxied;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
@@ -22,7 +22,7 @@ import org.sonarsource.sonarqube.mcp.client.McpClientManager;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
-public class ExternalMcpTool extends Tool {
+public class ProxiedMcpTool extends Tool {
   
   private static final String UNAVAILABLE_MESSAGE = "This feature is temporarily unavailable. Please try again later.";
   
@@ -30,7 +30,7 @@ public class ExternalMcpTool extends Tool {
   private final String serverId;
   private final String originalToolName;
 
-  public ExternalMcpTool(String prefixedName, String serverId, String originalToolName, McpSchema.Tool originalTool,
+  public ProxiedMcpTool(String prefixedName, String serverId, String originalToolName, McpSchema.Tool originalTool,
     McpClientManager clientManager) {
     super(createProxyDefinition(prefixedName, originalTool), ToolCategory.EXTERNAL);
     this.serverId = serverId;
@@ -40,7 +40,7 @@ public class ExternalMcpTool extends Tool {
   
   private static McpSchema.Tool createProxyDefinition(String prefixedName, McpSchema.Tool originalTool) {
     var title = originalTool.title() != null ? originalTool.title() : originalTool.name();
-    var description = originalTool.description() != null ? originalTool.description() : "External tool";
+    var description = originalTool.description() != null ? originalTool.description() : "Proxied MCP tool";
     
     return new McpSchema.Tool(
       prefixedName,
@@ -56,7 +56,7 @@ public class ExternalMcpTool extends Tool {
   @Override
   public Result execute(Arguments arguments) {
     try {
-      // Forward the request to the external server
+      // Forward the request to the proxied MCP server
       var result = clientManager.executeTool(
         serverId,
         originalToolName,

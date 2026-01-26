@@ -31,7 +31,7 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 
 /**
- * Manages connections to external MCP servers.
+ * Manages connections to proxied MCP servers.
  * This allows the SonarQube MCP server to act as a client to other MCP servers
  * and expose their tools through the SonarQube MCP server.
  */
@@ -40,13 +40,13 @@ public class McpClientManager {
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(30);
   
-  private final List<ExternalMcpServerConfig> serverConfigs;
+  private final List<ProxiedMcpServerConfig> serverConfigs;
   private final Map<String, McpSyncClient> clients = new ConcurrentHashMap<>();
   private final Map<String, List<McpSchema.Tool>> serverTools = new ConcurrentHashMap<>();
   private final Map<String, String> serverErrors = new ConcurrentHashMap<>();
   private volatile boolean initialized = false;
   
-  public McpClientManager(List<ExternalMcpServerConfig> serverConfigs) {
+  public McpClientManager(List<ProxiedMcpServerConfig> serverConfigs) {
     this.serverConfigs = List.copyOf(serverConfigs);
   }
 
@@ -60,7 +60,7 @@ public class McpClientManager {
     LOG.info("MCP client manager initialization completed. " + getConnectedCount() + "/" + serverConfigs.size() + " server(s) connected");
   }
   
-  private void initializeClient(ExternalMcpServerConfig config) {
+  private void initializeClient(ProxiedMcpServerConfig config) {
     var serverName = config.name();
     try {
       LOG.info("Connecting to '" + config.name() + "' (namespace: " + config.namespace() + ")");
@@ -107,7 +107,7 @@ public class McpClientManager {
     }
   }
 
-  public Map<String, ToolMapping> getAllExternalTools() {
+  public Map<String, ToolMapping> getAllProxiedTools() {
     var allTools = new HashMap<String, ToolMapping>();
     for (var config : serverConfigs) {
       var serverId = config.name();

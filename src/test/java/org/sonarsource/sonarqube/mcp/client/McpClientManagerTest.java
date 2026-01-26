@@ -48,8 +48,8 @@ class McpClientManagerTest {
   @Test
   void getTotalCount_should_match_config_count() {
     var configs = List.of(
-      new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of()),
-      new ExternalMcpServerConfig("server2", "server2", "uv", List.of(), Map.of())
+      new ProxiedMcpServerConfig("server1", "server1", "npx", List.of(), Map.of()),
+      new ProxiedMcpServerConfig("server2", "server2", "uv", List.of(), Map.of())
     );
 
     var manager = new McpClientManager(configs);
@@ -58,13 +58,13 @@ class McpClientManagerTest {
   }
 
   @Test
-  void getAllExternalTools_should_return_empty_map_before_initialization() {
-    var configs = List.of(new ExternalMcpServerConfig("server1", "server1", "npx", List.of(), Map.of()));
+  void getAllProxiedTools_should_return_empty_map_before_initialization() {
+    var configs = List.of(new ProxiedMcpServerConfig("server1", "server1", "npx", List.of(), Map.of()));
 
     var manager = new McpClientManager(configs);
 
     // Before initialization, no tools discovered
-    assertThat(manager.getAllExternalTools()).isEmpty();
+    assertThat(manager.getAllProxiedTools()).isEmpty();
   }
 
   @Test
@@ -100,7 +100,7 @@ class McpClientManagerTest {
 
   @Test
   void executeTool_should_include_error_message_for_failed_server() {
-    var configs = List.of(new ExternalMcpServerConfig("failing-server", "failing-server", "/non/existent/command", List.of(), Map.of()));
+    var configs = List.of(new ProxiedMcpServerConfig("failing-server", "failing-server", "/non/existent/command", List.of(), Map.of()));
     var manager = new McpClientManager(configs);
 
     manager.initialize();

@@ -28,7 +28,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class ExternalServerConfigParserTest {
+class ProxiedServerConfigParserTest {
   
   @Test
   void parseServerConfig_should_parse_config_with_all_fields() {
@@ -40,7 +40,7 @@ class ExternalServerConfigParserTest {
       "env", Map.of("KEY1", "value1", "KEY2", "value2")
     );
 
-    var config = ExternalServerConfigParser.parseServerConfig(configMap);
+    var config = ProxiedServerConfigParser.parseServerConfig(configMap);
 
     assertThat(config.name()).isEqualTo("test-server");
     assertThat(config.namespace()).isEqualTo("test");
@@ -57,7 +57,7 @@ class ExternalServerConfigParserTest {
       "command", "node"
     );
 
-    var config = ExternalServerConfigParser.parseServerConfig(configMap);
+    var config = ProxiedServerConfigParser.parseServerConfig(configMap);
 
     assertThat(config.name()).isEqualTo("minimal-server");
     assertThat(config.namespace()).isEqualTo("minimal");
@@ -74,9 +74,9 @@ class ExternalServerConfigParserTest {
       "command", "node"
     );
 
-    assertThatThrownBy(() -> ExternalServerConfigParser.parseServerConfig(configMap))
+    assertThatThrownBy(() -> ProxiedServerConfigParser.parseServerConfig(configMap))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("External MCP server name cannot be null or blank");
+      .hasMessage("Proxied MCP server name cannot be null or blank");
   }
 
   @Test
@@ -87,9 +87,9 @@ class ExternalServerConfigParserTest {
       "command", "node"
     );
 
-    assertThatThrownBy(() -> ExternalServerConfigParser.parseServerConfig(configMap))
+    assertThatThrownBy(() -> ProxiedServerConfigParser.parseServerConfig(configMap))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("External MCP server namespace cannot be null or blank");
+      .hasMessage("Proxied MCP server namespace cannot be null or blank");
   }
 
   @Test
@@ -100,9 +100,9 @@ class ExternalServerConfigParserTest {
       "command", "  "
     );
 
-    assertThatThrownBy(() -> ExternalServerConfigParser.parseServerConfig(configMap))
+    assertThatThrownBy(() -> ProxiedServerConfigParser.parseServerConfig(configMap))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("External MCP server command cannot be null or blank");
+      .hasMessage("Proxied MCP server command cannot be null or blank");
   }
 
   @Test
@@ -114,7 +114,7 @@ class ExternalServerConfigParserTest {
       "args", Collections.emptyList()
     );
 
-    var config = ExternalServerConfigParser.parseServerConfig(configMap);
+    var config = ProxiedServerConfigParser.parseServerConfig(configMap);
 
     assertThat(config.args()).isEmpty();
   }
@@ -128,13 +128,13 @@ class ExternalServerConfigParserTest {
       "env", Collections.emptyMap()
     );
 
-    var config = ExternalServerConfigParser.parseServerConfig(configMap);
+    var config = ProxiedServerConfigParser.parseServerConfig(configMap);
 
     assertThat(config.env()).isEmpty();
   }
   
   @Test
-  void parseAndValidateJson_should_parse_valid_json_with_multiple_configs() {
+  void parseAndValidateJson_should_parse_valid_proxiedConfig_with_multiple_configs() {
     var json = """
       [
         {
@@ -157,7 +157,7 @@ class ExternalServerConfigParserTest {
       ]
       """;
 
-    var result = ExternalServerConfigParser.parseAndValidateJson(json);
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
     assertThat(result.success()).isTrue();
     assertThat(result.configs()).hasSize(2);
@@ -167,10 +167,10 @@ class ExternalServerConfigParserTest {
   }
 
   @Test
-  void parseAndValidateJson_should_handle_empty_json_array() {
+  void parseAndValidateJson_should_handle_empty_proxiedConfig_array() {
     var json = "[]";
 
-    var result = ExternalServerConfigParser.parseAndValidateJson(json);
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
     assertThat(result.success()).isTrue();
     assertThat(result.configs()).isEmpty();
@@ -179,8 +179,8 @@ class ExternalServerConfigParserTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("invalidJsonTestCases")
-  void parseAndValidateJson_should_fail_on_invalid_input(String testName, String json, String expectedErrorSubstring) {
-    var result = ExternalServerConfigParser.parseAndValidateJson(json);
+  void parseAndValidateProxiedConfig_should_fail_on_invalid_input(String testName, String json, String expectedErrorSubstring) {
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
     assertThat(result.success()).isFalse();
     assertThat(result.configs()).isEmpty();
@@ -274,7 +274,7 @@ class ExternalServerConfigParserTest {
   }
 
   @Test
-  void parseAndValidateJson_should_handle_extra_unknown_fields() {
+  void parseAndValidateProxiedConfig_should_handle_extra_unknown_fields() {
     var json = """
       [
         {
@@ -287,7 +287,7 @@ class ExternalServerConfigParserTest {
       ]
       """;
 
-    var result = ExternalServerConfigParser.parseAndValidateJson(json);
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
     assertThat(result.success()).isTrue();
     assertThat(result.configs()).hasSize(1);
@@ -295,7 +295,7 @@ class ExternalServerConfigParserTest {
   }
 
   @Test
-  void parseAndValidateJson_should_preserve_arg_order() {
+  void parseAndValidateProxiedConfig_should_preserve_arg_order() {
     var json = """
       [
         {
@@ -307,7 +307,7 @@ class ExternalServerConfigParserTest {
       ]
       """;
 
-    var result = ExternalServerConfigParser.parseAndValidateJson(json);
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
     assertThat(result.success()).isTrue();
     assertThat(result.configs().getFirst().args()).containsExactly("first", "second", "third", "fourth");

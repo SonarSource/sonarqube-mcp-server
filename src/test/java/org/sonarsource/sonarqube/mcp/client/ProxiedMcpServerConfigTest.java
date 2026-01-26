@@ -22,33 +22,33 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class ExternalMcpServerConfigTest {
+class ProxiedMcpServerConfigTest {
 
   @Test
   void constructor_should_throw_when_name_is_blank() {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
-    assertThatThrownBy(() -> new ExternalMcpServerConfig("  ", "namespace", "npx", emptyList, emptyMap))
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("  ", "namespace", "npx", emptyList, emptyMap))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("External MCP server name cannot be null or blank");
+      .hasMessage("Proxied MCP server name cannot be null or blank");
   }
 
   @Test
   void constructor_should_throw_when_namespace_is_blank() {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
-    assertThatThrownBy(() -> new ExternalMcpServerConfig("server", "  ", "npx", emptyList, emptyMap))
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "  ", "npx", emptyList, emptyMap))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("External MCP server namespace cannot be null or blank");
+      .hasMessage("Proxied MCP server namespace cannot be null or blank");
   }
 
   @Test
   void constructor_should_throw_when_command_is_blank() {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
-    assertThatThrownBy(() -> new ExternalMcpServerConfig("server", "namespace", "  ", emptyList, emptyMap))
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "namespace", "  ", emptyList, emptyMap))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("External MCP server command cannot be null or blank");
+      .hasMessage("Proxied MCP server command cannot be null or blank");
   }
 
 }

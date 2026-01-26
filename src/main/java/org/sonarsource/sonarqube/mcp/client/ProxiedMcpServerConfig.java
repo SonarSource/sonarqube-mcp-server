@@ -19,17 +19,17 @@ package org.sonarsource.sonarqube.mcp.client;
 import java.util.List;
 import java.util.Map;
 
-public record ExternalMcpServerConfig(String name, String namespace, String command, List<String> args, Map<String, String> env) {
+public record ProxiedMcpServerConfig(String name, String namespace, String command, List<String> args, Map<String, String> env) {
 
-  public ExternalMcpServerConfig {
+  public ProxiedMcpServerConfig {
     if (name.isBlank()) {
-      throw new IllegalArgumentException("External MCP server name cannot be null or blank");
+      throw new IllegalArgumentException("Proxied MCP server name cannot be null or blank");
     }
     if (namespace.isBlank()) {
-      throw new IllegalArgumentException("External MCP server namespace cannot be null or blank");
+      throw new IllegalArgumentException("Proxied MCP server namespace cannot be null or blank");
     }
     if (command.isBlank()) {
-      throw new IllegalArgumentException("External MCP server command cannot be null or blank");
+      throw new IllegalArgumentException("Proxied MCP server command cannot be null or blank");
     }
     args = List.copyOf(args);
     env = Map.copyOf(env);

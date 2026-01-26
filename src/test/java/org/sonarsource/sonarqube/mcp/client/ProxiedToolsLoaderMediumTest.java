@@ -29,25 +29,25 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.external.ExternalMcpTool;
+import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for ExternalToolsLoader that use a real test MCP server.
+ * Integration tests for ProxiedToolsLoader that use a real test MCP server.
  * These tests require Python 3.
  */
-class ExternalToolsLoaderMediumTest {
+class ProxiedToolsLoaderMediumTest {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static Path testConfigFile;
   private static Path testServerScript;
   
-  private ExternalToolsLoader loader;
+  private ProxiedToolsLoader loader;
 
   @BeforeAll
   static void setupTestEnvironment() {
-    var resourceUrl = ExternalToolsLoaderMediumTest.class.getResource("/test-mcp-server.py");
+    var resourceUrl = ProxiedToolsLoaderMediumTest.class.getResource("/test-mcp-server.py");
     if (resourceUrl != null) {
       testServerScript = Paths.get(resourceUrl.getPath());
     }
@@ -64,7 +64,7 @@ class ExternalToolsLoaderMediumTest {
   }
 
   @Test
-  void loadExternalTools_should_discover_and_load_tools_from_test_server() {
+  void loadProxiedTools_should_discover_and_load_tools_from_test_server() {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
@@ -75,8 +75,8 @@ class ExternalToolsLoaderMediumTest {
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
     assertThat(tools)
       .isNotEmpty()
@@ -87,24 +87,24 @@ class ExternalToolsLoaderMediumTest {
   }
 
   @Test
-  void loadExternalTools_should_apply_namespace_prefix_to_tool_names() {
+  void loadProxiedTools_should_apply_namespace_prefix_to_tool_names() {
     createTestConfig(List.of(
       Map.of(
-        "name", "my-provider",
-        "namespace", "myprovider",
+        "name", "my-server",
+        "namespace", "myserver",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of()
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
     assertThat(tools).hasSize(2);
     
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("myprovider_test_tool_1"))
+      .filter(t -> t.definition().name().equals("myserver_test_tool_1"))
       .findFirst();
     
     assertThat(tool1).isPresent();
@@ -112,7 +112,7 @@ class ExternalToolsLoaderMediumTest {
   }
 
   @Test
-  void loadExternalTools_should_create_external_tools_with_correct_category() {
+  void loadProxiedTools_should_create_proxied_tools_with_correct_category() {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
@@ -123,17 +123,17 @@ class ExternalToolsLoaderMediumTest {
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
     assertThat(tools)
       .isNotEmpty()
       .allMatch(t -> t.getCategory() == ToolCategory.EXTERNAL)
-      .allMatch(ExternalMcpTool.class::isInstance);
+      .allMatch(ProxiedMcpTool.class::isInstance);
   }
 
   @Test
-  void loadExternalTools_should_preserve_tool_metadata() {
+  void loadProxiedTools_should_preserve_tool_metadata() {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
@@ -144,8 +144,8 @@ class ExternalToolsLoaderMediumTest {
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
     var tool1 = tools.stream()
       .filter(t -> t.definition().name().equals("test_test_tool_1"))
@@ -160,47 +160,47 @@ class ExternalToolsLoaderMediumTest {
   }
 
   @Test
-  void loadExternalTools_should_handle_multiple_providers() {
+  void loadProxiedTools_should_handle_multiple_servers() {
     createTestConfig(List.of(
       Map.of(
-        "name", "provider1",
-        "namespace", "p1",
+        "name", "server1",
+        "namespace", "s1",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of()
       ),
       Map.of(
-        "name", "provider2",
-        "namespace", "p2",
+        "name", "server2",
+        "namespace", "s2",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of()
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
     assertThat(tools).hasSize(4);
 
     var toolNames = tools.stream().map(t -> t.definition().name()).toList();
     assertThat(toolNames)
-      .contains("p1_test_tool_1", "p1_test_tool_2")
-      .contains("p2_test_tool_1", "p2_test_tool_2");
+      .contains("s1_test_tool_1", "s1_test_tool_2")
+      .contains("s2_test_tool_1", "s2_test_tool_2");
   }
 
   @Test
-  void loadExternalTools_should_gracefully_handle_failed_provider() {
+  void loadProxiedTools_should_gracefully_handle_failed_server() {
     createTestConfig(List.of(
       Map.of(
-        "name", "good-provider",
+        "name", "good-server",
         "namespace", "good",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of()
       ),
       Map.of(
-        "name", "bad-provider",
+        "name", "bad-server",
         "namespace", "bad",
         "command", "/non/existent/command",
         "args", List.of(),
@@ -208,15 +208,15 @@ class ExternalToolsLoaderMediumTest {
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
     assertThat(tools).hasSize(2);
     assertThat(tools.stream().map(t -> t.definition().name())).allMatch(name -> name.startsWith("good_"));
   }
 
   @Test
-  void loadExternalTools_should_pass_config_env_to_external_provider() {
+  void loadProxiedTools_should_pass_config_env_to_proxied_server() {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
@@ -227,8 +227,8 @@ class ExternalToolsLoaderMediumTest {
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
     // The test server includes the TEST_ENV_VAR in the tool description
     var tool1 = tools.stream()
@@ -241,7 +241,7 @@ class ExternalToolsLoaderMediumTest {
   }
 
   @Test
-  void external_tools_should_be_executable() {
+  void proxied_tools_should_be_executable() {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
@@ -252,10 +252,10 @@ class ExternalToolsLoaderMediumTest {
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
-    var tool1 = (ExternalMcpTool) tools.stream()
+    var tool1 = (ProxiedMcpTool) tools.stream()
       .filter(t -> t.definition().name().equals("test_test_tool_1"))
       .findFirst()
       .orElseThrow();
@@ -274,7 +274,7 @@ class ExternalToolsLoaderMediumTest {
   }
 
   @Test
-  void external_tools_should_handle_required_parameters() {
+  void proxied_tools_should_handle_required_parameters() {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
@@ -285,10 +285,10 @@ class ExternalToolsLoaderMediumTest {
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
-    var tool2 = (ExternalMcpTool) tools.stream()
+    var tool2 = (ProxiedMcpTool) tools.stream()
       .filter(t -> t.definition().name().equals("test_test_tool_2"))
       .findFirst()
       .orElseThrow();
@@ -305,17 +305,17 @@ class ExternalToolsLoaderMediumTest {
   }
 
   @Test
-  void loadExternalTools_should_return_empty_when_all_providers_fail() {
+  void loadProxiedTools_should_return_empty_when_all_servers_fail() {
     createTestConfig(List.of(
       Map.of(
-        "name", "bad-provider-1",
+        "name", "bad-server-1",
         "namespace", "bad1",
         "command", "/non/existent/command1",
         "args", List.of(),
         "env", Map.of()
       ),
       Map.of(
-        "name", "bad-provider-2",
+        "name", "bad-server-2",
         "namespace", "bad2",
         "command", "/non/existent/command2",
         "args", List.of(),
@@ -323,8 +323,8 @@ class ExternalToolsLoaderMediumTest {
       )
     ));
 
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
     assertThat(tools).isEmpty();
   }
@@ -332,9 +332,9 @@ class ExternalToolsLoaderMediumTest {
   private void createTestConfig(List<Map<String, Object>> configs) {
     try {
       // Create a temporary config file
-      testConfigFile = Files.createTempFile("external-tools-test-", ".json");
+      testConfigFile = Files.createTempFile("proxied-mcp-servers-test-", ".json");
       OBJECT_MAPPER.writeValue(testConfigFile.toFile(), configs);
-      System.setProperty("external.tools.config.path", testConfigFile.toString());
+      System.setProperty("proxied.mcp.servers.config.path", testConfigFile.toString());
     } catch (IOException e) {
       throw new RuntimeException("Failed to create test configuration", e);
     }

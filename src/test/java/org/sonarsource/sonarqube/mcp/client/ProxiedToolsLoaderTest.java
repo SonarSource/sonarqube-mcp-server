@@ -22,9 +22,9 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-class ExternalToolsLoaderTest {
+class ProxiedToolsLoaderTest {
 
-  private ExternalToolsLoader loader;
+  private ProxiedToolsLoader loader;
 
   @AfterEach
   void cleanup() {
@@ -34,17 +34,17 @@ class ExternalToolsLoaderTest {
   }
 
   @Test
-  void loadExternalTools_should_return_empty_when_no_providers_configured() {
-    loader = new ExternalToolsLoader();
-    var tools = loader.loadExternalTools();
+  void loadProxiedTools_should_return_empty_when_no_servers_configured() {
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools();
 
     assertThat(tools).isEmpty();
   }
 
   @Test
   void shutdown_should_not_fail_when_called_multiple_times() {
-    loader = new ExternalToolsLoader();
-    loader.loadExternalTools();
+    loader = new ProxiedToolsLoader();
+    loader.loadProxiedTools();
 
     assertThatCode(() -> {
       loader.shutdown();
@@ -55,11 +55,11 @@ class ExternalToolsLoaderTest {
 
   @Test
   void multiple_loaders_should_work_independently() {
-    var loader1 = new ExternalToolsLoader();
-    var loader2 = new ExternalToolsLoader();
+    var loader1 = new ProxiedToolsLoader();
+    var loader2 = new ProxiedToolsLoader();
 
-    var tools1 = loader1.loadExternalTools();
-    var tools2 = loader2.loadExternalTools();
+    var tools1 = loader1.loadProxiedTools();
+    var tools2 = loader2.loadProxiedTools();
 
     assertThat(tools1).isNotNull().isEmpty();
     assertThat(tools2).isNotNull().isEmpty();
@@ -69,14 +69,14 @@ class ExternalToolsLoaderTest {
   }
 
   @Test
-  void loadExternalTools_after_shutdown_should_work() {
-    loader = new ExternalToolsLoader();
+  void loadProxiedTools_after_shutdown_should_work() {
+    loader = new ProxiedToolsLoader();
     
-    var tools1 = loader.loadExternalTools();
+    var tools1 = loader.loadProxiedTools();
     loader.shutdown();
     
     // Loading again after shutdown should still work
-    var tools2 = loader.loadExternalTools();
+    var tools2 = loader.loadProxiedTools();
     
     assertThat(tools1).isNotNull();
     assertThat(tools2).isNotNull();
