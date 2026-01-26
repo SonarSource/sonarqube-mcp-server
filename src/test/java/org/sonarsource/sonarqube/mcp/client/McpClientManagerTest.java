@@ -79,11 +79,12 @@ class McpClientManagerTest {
   @Test
   void executeTool_should_throw_when_server_not_connected() {
     var manager = new McpClientManager(List.of());
+    var emptyMap = Map.<String, Object>of();
 
     manager.initialize();
 
-    assertThatThrownBy(() -> manager.executeTool("unknown", "tool", Map.of()))
-      .isInstanceOf(McpClientManager.ProviderUnavailableException.class)
+    assertThatThrownBy(() -> manager.executeTool("unknown", "tool", emptyMap))
+      .isInstanceOf(IllegalStateException.class)
       .hasMessage("Service connection not established");
   }
 
@@ -102,11 +103,12 @@ class McpClientManagerTest {
   void executeTool_should_include_error_message_for_failed_server() {
     var configs = List.of(new ProxiedMcpServerConfig("failing-server", "failing-server", "/non/existent/command", List.of(), Map.of()));
     var manager = new McpClientManager(configs);
+    var emptyMap = Map.<String, Object>of();
 
     manager.initialize();
 
-    assertThatThrownBy(() -> manager.executeTool("failing-server", "tool", Map.of()))
-      .isInstanceOf(McpClientManager.ProviderUnavailableException.class)
+    assertThatThrownBy(() -> manager.executeTool("failing-server", "tool", emptyMap))
+      .isInstanceOf(IllegalStateException.class)
       .hasMessageContaining("Service unavailable");
   }
 

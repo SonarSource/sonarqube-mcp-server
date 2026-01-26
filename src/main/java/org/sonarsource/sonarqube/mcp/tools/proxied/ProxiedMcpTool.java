@@ -19,12 +19,13 @@ package org.sonarsource.sonarqube.mcp.tools.proxied;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.client.McpClientManager;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 public class ProxiedMcpTool extends Tool {
   
-  private static final String UNAVAILABLE_MESSAGE = "This feature is temporarily unavailable. Please try again later.";
+  private static final McpLogger LOG = McpLogger.getInstance();
   
   private final McpClientManager clientManager;
   private final String serverId;
@@ -69,7 +70,9 @@ public class ProxiedMcpTool extends Tool {
         return new Result(result);
       }
     } catch (Exception e) {
-      return Result.failure(UNAVAILABLE_MESSAGE);
+      var errorMessage = "Failed to execute proxied tool '" + originalToolName + "' on server '" + serverId + "': " + e.getMessage();
+      LOG.error(errorMessage, e);
+      return Result.failure(errorMessage);
     }
   }
   

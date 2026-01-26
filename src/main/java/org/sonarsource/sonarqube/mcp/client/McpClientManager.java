@@ -122,22 +122,17 @@ public class McpClientManager {
     return clients.containsKey(serverId);
   }
 
-  public McpSchema.CallToolResult executeTool(String serverId, String toolName, Map<String, Object> arguments) throws ProviderUnavailableException {
+  public McpSchema.CallToolResult executeTool(String serverId, String toolName, Map<String, Object> arguments) throws IllegalStateException {
     var client = clients.get(serverId);
     if (client == null) {
       var errorMsg = serverErrors.get(serverId);
-      throw new ProviderUnavailableException(errorMsg != null ? ("Service unavailable: " + errorMsg) : "Service connection not established");
+      throw new IllegalStateException(errorMsg != null ? ("Service unavailable: " + errorMsg) : "Service connection not established");
     }
     
     LOG.debug("Executing tool: " + toolName);
-    
-    try {
-      var request = new McpSchema.CallToolRequest(toolName, arguments);
-      return client.callTool(request);
-    } catch (Exception e) {
-      LOG.error("Tool execution failed for '" + toolName + "': " + e.getMessage(), e);
-      throw new ProviderUnavailableException("Tool execution failed. Please try again later.");
-    }
+
+    var request = new McpSchema.CallToolRequest(toolName, arguments);
+    return client.callTool(request);
   }
 
   public void shutdown() {
@@ -178,11 +173,5 @@ public class McpClientManager {
   }
 
   public record ToolMapping(String serverId, String namespace, String originalToolName, McpSchema.Tool tool) {}
-
-  public static class ProviderUnavailableException extends Exception {
-    public ProviderUnavailableException(String message) {
-      super(message);
-    }
-  }
 
 }
