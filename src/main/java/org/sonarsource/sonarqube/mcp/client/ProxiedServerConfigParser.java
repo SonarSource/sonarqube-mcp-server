@@ -20,7 +20,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -47,25 +46,34 @@ public class ProxiedServerConfigParser {
    * For testing purposes, a system property "proxied.mcp.servers.config.path" can be set to override the default location.
    */
   public static ParseResult parse() {
-    // Check for test config override
+    String json;
+    String source;
+    
     var testConfigPath = System.getProperty("proxied.mcp.servers.config.path");
     if (testConfigPath != null) {
-      return parseFromFile(testConfigPath);
-    }
-    
-    try (var inputStream = ProxiedServerConfigParser.class.getResourceAsStream(DEFAULT_CONFIG_RESOURCE)) {
-      if (inputStream == null) {
-        LOG.info("No proxied MCP servers configuration found at " + DEFAULT_CONFIG_RESOURCE);
-        return ParseResult.success(Collections.emptyList());
+      try {
+        json = new String(Files.readAllBytes(Paths.get(testConfigPath)));
+        source = "file: " + testConfigPath;
+      } catch (IOException e) {
+        LOG.error("Failed to load proxied MCP servers configuration from file: " + e.getMessage(), e);
+        return ParseResult.failure("Failed to load configuration from file: " + e.getMessage());
       }
-      
-      LOG.info("Loading proxied MCP servers configuration from bundled resource: " + DEFAULT_CONFIG_RESOURCE);
-      var json = new String(inputStream.readAllBytes());
-      return parseAndValidateProxiedConfig(json);
-    } catch (IOException e) {
-      LOG.error("Failed to load proxied MCP servers configuration: " + e.getMessage(), e);
-      return ParseResult.failure("Failed to load bundled configuration: " + e.getMessage());
+    } else {
+      try (var inputStream = ProxiedServerConfigParser.class.getResourceAsStream(DEFAULT_CONFIG_RESOURCE)) {
+        if (inputStream == null) {
+          LOG.info("No proxied MCP servers configuration found at " + DEFAULT_CONFIG_RESOURCE);
+          return ParseResult.success(Collections.emptyList());
+        }
+        json = new String(inputStream.readAllBytes());
+        source = "bundled resource: " + DEFAULT_CONFIG_RESOURCE;
+      } catch (IOException e) {
+        LOG.error("Failed to load proxied MCP servers configuration: " + e.getMessage(), e);
+        return ParseResult.failure("Failed to load bundled configuration: " + e.getMessage());
+      }
     }
+
+    LOG.info("Loading proxied MCP servers configuration from " + source);
+    return parseAndValidateProxiedConfig(json);
   }
 
   static ParseResult parseAndValidateProxiedConfig(String json) {
@@ -95,17 +103,6 @@ public class ProxiedServerConfigParser {
     );
   }
 
-  @VisibleForTesting
-  static ParseResult parseFromFile(String filePath) {
-    try {
-      LOG.info("Loading proxied MCP servers configuration from file: " + filePath);
-      var json = new String(Files.readAllBytes(Paths.get(filePath)));
-      return parseAndValidateProxiedConfig(json);
-    } catch (IOException e) {
-      LOG.error("Failed to load proxied MCP servers configuration from file: " + e.getMessage(), e);
-      return ParseResult.failure("Failed to load configuration from file: " + e.getMessage());
-    }
-  }
 
   /**
    * JSON DTO record for deserializing server configuration from JSON.
