@@ -16,9 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,22 +23,31 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProxiedServerConfigParserTest {
   
   @Test
-  void parseServerConfig_should_parse_config_with_all_fields() {
-    var configMap = Map.<String, Object>of(
-      "name", "test-server",
-      "namespace", "test",
-      "command", "npx",
-      "args", List.of("arg1", "arg2"),
-      "env", Map.of("KEY1", "value1", "KEY2", "value2")
-    );
+  void parseAndValidateProxiedConfig_should_parse_config_with_all_fields() {
+    var json = """
+      [
+        {
+          "name": "test-server",
+          "namespace": "test",
+          "command": "npx",
+          "args": ["arg1", "arg2"],
+          "env": {
+            "KEY1": "value1",
+            "KEY2": "value2"
+          }
+        }
+      ]
+      """;
 
-    var config = ProxiedServerConfigParser.parseServerConfig(configMap);
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs()).hasSize(1);
+    var config = result.configs().getFirst();
     assertThat(config.name()).isEqualTo("test-server");
     assertThat(config.namespace()).isEqualTo("test");
     assertThat(config.command()).isEqualTo("npx");
@@ -50,15 +56,22 @@ class ProxiedServerConfigParserTest {
   }
 
   @Test
-  void parseServerConfig_should_parse_config_with_only_required_fields() {
-    var configMap = Map.<String, Object>of(
-      "name", "minimal-server",
-      "namespace", "minimal",
-      "command", "node"
-    );
+  void parseAndValidateProxiedConfig_should_parse_config_with_only_required_fields() {
+    var json = """
+      [
+        {
+          "name": "minimal-server",
+          "namespace": "minimal",
+          "command": "node"
+        }
+      ]
+      """;
 
-    var config = ProxiedServerConfigParser.parseServerConfig(configMap);
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs()).hasSize(1);
+    var config = result.configs().getFirst();
     assertThat(config.name()).isEqualTo("minimal-server");
     assertThat(config.namespace()).isEqualTo("minimal");
     assertThat(config.command()).isEqualTo("node");
@@ -67,70 +80,95 @@ class ProxiedServerConfigParserTest {
   }
 
   @Test
-  void parseServerConfig_should_throw_when_name_is_blank() {
-    var configMap = Map.<String, Object>of(
-      "name", "  ",
-      "namespace", "ns",
-      "command", "node"
-    );
+  void parseAndValidateProxiedConfig_should_throw_when_name_is_blank() {
+    var json = """
+      [
+        {
+          "name": "  ",
+          "namespace": "ns",
+          "command": "node"
+        }
+      ]
+      """;
 
-    assertThatThrownBy(() -> ProxiedServerConfigParser.parseServerConfig(configMap))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("Proxied MCP server name cannot be null or blank");
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(result.success()).isFalse();
+    assertThat(result.error()).contains("Proxied MCP server name cannot be null or blank");
   }
 
   @Test
-  void parseServerConfig_should_throw_when_namespace_is_blank() {
-    var configMap = Map.<String, Object>of(
-      "name", "server",
-      "namespace", "  ",
-      "command", "node"
-    );
+  void parseAndValidateProxiedConfig_should_throw_when_namespace_is_blank() {
+    var json = """
+      [
+        {
+          "name": "server",
+          "namespace": "  ",
+          "command": "node"
+        }
+      ]
+      """;
 
-    assertThatThrownBy(() -> ProxiedServerConfigParser.parseServerConfig(configMap))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("Proxied MCP server namespace cannot be null or blank");
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(result.success()).isFalse();
+    assertThat(result.error()).contains("Proxied MCP server namespace cannot be null or blank");
   }
 
   @Test
-  void parseServerConfig_should_throw_when_command_is_blank() {
-    var configMap = Map.<String, Object>of(
-      "name", "server",
-      "namespace", "ns",
-      "command", "  "
-    );
+  void parseAndValidateProxiedConfig_should_throw_when_command_is_blank() {
+    var json = """
+      [
+        {
+          "name": "server",
+          "namespace": "ns",
+          "command": "  "
+        }
+      ]
+      """;
 
-    assertThatThrownBy(() -> ProxiedServerConfigParser.parseServerConfig(configMap))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("Proxied MCP server command cannot be null or blank");
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(result.success()).isFalse();
+    assertThat(result.error()).contains("Proxied MCP server command cannot be null or blank");
   }
 
   @Test
-  void parseServerConfig_should_handle_empty_args_list() {
-    var configMap = Map.<String, Object>of(
-      "name", "server",
-      "namespace", "ns",
-      "command", "node",
-      "args", Collections.emptyList()
-    );
+  void parseAndValidateProxiedConfig_should_handle_empty_args_list() {
+    var json = """
+      [
+        {
+          "name": "server",
+          "namespace": "ns",
+          "command": "node",
+          "args": []
+        }
+      ]
+      """;
 
-    var config = ProxiedServerConfigParser.parseServerConfig(configMap);
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
-    assertThat(config.args()).isEmpty();
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs().getFirst().args()).isEmpty();
   }
 
   @Test
-  void parseServerConfig_should_handle_empty_env_map() {
-    var configMap = Map.<String, Object>of(
-      "name", "server",
-      "namespace", "ns",
-      "command", "node",
-      "env", Collections.emptyMap()
-    );
+  void parseAndValidateProxiedConfig_should_handle_empty_env_map() {
+    var json = """
+      [
+        {
+          "name": "server",
+          "namespace": "ns",
+          "command": "node",
+          "env": {}
+        }
+      ]
+      """;
 
-    var config = ProxiedServerConfigParser.parseServerConfig(configMap);
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
-    assertThat(config.env()).isEmpty();
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs().getFirst().env()).isEmpty();
   }
   
   @Test
@@ -229,32 +267,6 @@ class ProxiedServerConfigParserTest {
         ]
         """,
         "Failed to parse configuration"
-      ),
-      Arguments.of(
-        "name is blank",
-        """
-        [
-          {
-            "name": "  ",
-            "namespace": "ns1",
-            "command": "node"
-          }
-        ]
-        """,
-        "name cannot be null or blank"
-      ),
-      Arguments.of(
-        "namespace is blank",
-        """
-        [
-          {
-            "name": "server1",
-            "namespace": "  ",
-            "command": "node"
-          }
-        ]
-        """,
-        "namespace cannot be null or blank"
       ),
       Arguments.of(
         "config has invalid field type",

@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -68,9 +70,10 @@ public class ProxiedServerConfigParser {
 
   static ParseResult parseAndValidateProxiedConfig(String json) {
     try {
-      var rawConfigs = OBJECT_MAPPER.readValue(json, new TypeReference<List<Map<String, Object>>>() {});
-      var configs = rawConfigs.stream()
-        .map(ProxiedServerConfigParser::parseServerConfig)
+      var jsonConfigs = OBJECT_MAPPER.readValue(json, new TypeReference<List<JsonServerConfig>>() {});
+
+      var configs = jsonConfigs.stream()
+        .map(ProxiedServerConfigParser::toProxiedMcpServerConfig)
         .toList();
 
       LOG.info("Successfully loaded " + configs.size() + " proxied MCP server(s)");
@@ -82,15 +85,14 @@ public class ProxiedServerConfigParser {
     }
   }
   
-  @SuppressWarnings("unchecked")
-  static ProxiedMcpServerConfig parseServerConfig(Map<String, Object> configMap) {
-    var name = (String) configMap.get("name");
-    var namespace = (String) configMap.get("namespace");
-    var command = (String) configMap.get("command");
-    var args = (List<String>) configMap.getOrDefault("args", Collections.emptyList());
-    var env = (Map<String, String>) configMap.getOrDefault("env", Collections.emptyMap());
-
-    return new ProxiedMcpServerConfig(name, namespace, command, args, env);
+  private static ProxiedMcpServerConfig toProxiedMcpServerConfig(JsonServerConfig jsonConfig) {
+    return new ProxiedMcpServerConfig(
+      jsonConfig.name(),
+      jsonConfig.namespace(),
+      jsonConfig.command(),
+      jsonConfig.args() != null ? jsonConfig.args() : Collections.emptyList(),
+      jsonConfig.env() != null ? jsonConfig.env() : Collections.emptyMap()
+    );
   }
 
   @VisibleForTesting
@@ -104,6 +106,20 @@ public class ProxiedServerConfigParser {
       return ParseResult.failure("Failed to load configuration from file: " + e.getMessage());
     }
   }
+
+  /**
+   * JSON DTO record for deserializing server configuration from JSON.
+   * Jackson will use this to parse the JSON directly into a type-safe record.
+   * Unknown properties are ignored to allow for forward compatibility.
+   */
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record JsonServerConfig(
+    @JsonProperty("name") String name,
+    @JsonProperty("namespace") String namespace,
+    @JsonProperty("command") String command,
+    @JsonProperty("args") @Nullable List<String> args,
+    @JsonProperty("env") @Nullable Map<String, String> env
+  ) {}
 
   public record ParseResult(boolean success, List<ProxiedMcpServerConfig> configs, @Nullable String error) {
     public static ParseResult success(List<ProxiedMcpServerConfig> configs) {
