@@ -20,13 +20,13 @@ group = "org.sonarsource.sonarqube.mcp.server"
 val pluginName = "sonarqube-mcp-server"
 val mainClassName = "org.sonarsource.sonarqube.mcp.SonarQubeMcpServer"
 
-// The environment variables ARTIFACTORY_PRIVATE_USERNAME and ARTIFACTORY_PRIVATE_PASSWORD are used on CI env
+// The environment variables ARTIFACTORY_USER and ARTIFACTORY_ACCESS_TOKEN are used on CI env
 // On local box, please add artifactoryUrl, artifactoryUsername and artifactoryPassword to ~/.gradle/gradle.properties
 val artifactoryUrl = System.getenv("ARTIFACTORY_URL")
 	?: (if (project.hasProperty("artifactoryUrl")) project.property("artifactoryUrl").toString() else "")
-val artifactoryUsername = System.getenv("ARTIFACTORY_PRIVATE_USERNAME")
+val artifactoryUsername = System.getenv("ARTIFACTORY_USER")
 	?: (if (project.hasProperty("artifactoryUsername")) project.property("artifactoryUsername").toString() else "")
-val artifactoryPassword = System.getenv("ARTIFACTORY_PRIVATE_PASSWORD")
+val artifactoryPassword = System.getenv("ARTIFACTORY_ACCESS_TOKEN")
 	?: (if (project.hasProperty("artifactoryPassword")) project.property("artifactoryPassword").toString() else "")
 
 java {

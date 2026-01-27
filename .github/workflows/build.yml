@@ -26,9 +26,11 @@ jobs:
     name: Build
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
       - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
         with:
           version: 2025.7.12
+
       - uses: SonarSource/ci-github-actions/build-gradle@v1
         with:
           deploy-pull-request: true
@@ -37,6 +39,45 @@ jobs:
           sonar-platform: sqc-eu
           gradle-args: ":cyclonedxBom jacocoTestReport"
           use-develocity: true
+
+  integration:
+    runs-on: github-ubuntu-latest-m
+    name: IT - ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: STDIO
+            test_class: StdioTransportITest
+          - name: HTTP
+            test_class: HttpTransportITest
+          - name: ProxiedServer
+            test_class: ProxiedServerITest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+        with:
+          version: 2025.7.12
+
+      - name: Vault (SonarCloud IT token)
+        id: secrets-sc
+        uses: SonarSource/vault-action-wrapper@320bd31b03e5dacaac6be51bbbb15adf7caccc32 # v3.1.0
+        with:
+          secrets: |
+            development/team/sonarlint/kv/data/sonarcloud-it token | SONARCLOUD_IT_TOKEN;
+            development/kv/data/repox url | ARTIFACTORY_URL;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader username | ARTIFACTORY_USER;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
+
+      - name: Run Integration Tests
+        env:
+          SONARCLOUD_IT_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).SONARCLOUD_IT_TOKEN || '' }}
+          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL }}
+          ARTIFACTORY_USER: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_ACCESS_TOKEN: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+        run: |
+          ./gradlew :its:integrationTest --tests "*${{ matrix.test_class }}" --info
 
   promote:
     needs: [build]
