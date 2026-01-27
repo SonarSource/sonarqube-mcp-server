@@ -1,0 +1,16 @@
+# Build output
+build/
+bin/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Test outputs
+test-results/
+
