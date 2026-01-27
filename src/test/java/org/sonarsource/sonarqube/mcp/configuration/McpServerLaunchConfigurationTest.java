@@ -31,6 +31,7 @@ class McpServerLaunchConfigurationTest {
   @AfterEach
   void cleanup() {
     System.clearProperty("SONARQUBE_URL");
+    System.clearProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED");
   }
 
   @Test
@@ -351,6 +352,55 @@ class McpServerLaunchConfigurationTest {
 
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
     assertThat(configuration.isSonarCloud()).isTrue();
+  }
+
+  // Advanced analysis enabled tests
+
+  @Test
+  void should_not_enable_advanced_analysis_by_default(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isAdvancedAnalysisEnabled()).isFalse();
+  }
+
+  @Test
+  void should_enable_advanced_analysis_when_system_property_is_true(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "org"
+    );
+    System.setProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED", "true");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isAdvancedAnalysisEnabled()).isTrue();
+  }
+
+  @Test
+  void should_not_enable_advanced_analysis_when_system_property_is_false(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "org"
+    );
+    System.setProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED", "false");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isAdvancedAnalysisEnabled()).isFalse();
+  }
+
+  @Test
+  void should_parse_advanced_analysis_enabled_case_insensitively(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "org"
+    );
+    System.setProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED", "TRUE");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isAdvancedAnalysisEnabled()).isTrue();
   }
 
 }

@@ -58,6 +58,7 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
+import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
@@ -205,11 +206,20 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     backendService.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
     backendService.notifyTransportModeUsed();
 
-    // Load backend-dependent tools (including IDE bridge check) now that backend is ready
-    loadBackendDependentTools();
-    
     // Initialize proxied MCP servers and load their tools synchronously
     loadProxiedServerTools();
+
+    if (mcpConfiguration.isAdvancedAnalysisEnabled() && mcpConfiguration.isSonarCloud()) {
+      LOG.info("Advanced analysis mode enabled");
+      loadAdvancedAnalysisTools();
+    } else {
+      if (mcpConfiguration.isAdvancedAnalysisEnabled() && !mcpConfiguration.isSonarCloud()) {
+        LOG.warn("SONARQUBE_ADVANCED_ANALYSIS_ENABLED is set but advanced analysis is only available on SonarCloud. Falling back to standard analysis.");
+      }
+      loadBackendDependentTools();
+    }
+
+    logToolsLoaded();
   }
 
   /**
@@ -285,6 +295,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
+  private void loadAdvancedAnalysisTools() {
+    supportedTools.add(new RunAdvancedCodeAnalysisTool());
+  }
+
   /**
    * Loads tools that depend on the backend service or IDE bridge.
    * This is called during startup after the backend is initialized (with empty analyzers).
@@ -306,6 +320,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.info("Standard analysis mode (no IDE bridge)");
       supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture));
     }
+  }
+
+  private void logToolsLoaded() {
+    var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
+    LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);
   }
 
   private void loadProxiedServerTools() {
