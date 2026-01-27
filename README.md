@@ -456,6 +456,12 @@ You should add the following variable when running the MCP Server:
 | `STORAGE_PATH`       | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using the container image |
 | `SONARQUBE_IDE_PORT` | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                                   |
 
+### Advanced Analysis
+
+| Environment variable | Description |
+|----------------------|-------------|
+| `SONARQUBE_ADVANCED_ANALYSIS_ENABLED` | When set to `true` on SonarQube Cloud, enables the advanced analysis tool `run_advanced_code_analysis`. When enabled, it replaces all local analysis tools (`analyze_code_snippet`, `analyze_file_list`, `toggle_automatic_analysis`). On SonarQube Server, the flag is ignored and the server falls back to standard analysis. Default: `false`. |
+
 ### Selective Tool Enablement
 
 By default, all tools are enabled. You can selectively enable specific toolsets to reduce context overhead and focus on specific functionality.
@@ -470,7 +476,7 @@ By default, all tools are enabled. You can selectively enable specific toolsets 
 
 | Toolset            | Key                 | Description                                                          |
 |--------------------|---------------------|----------------------------------------------------------------------|
-| **Analysis**       | `analysis`          | Code analysis tools (analyze code snippets and files)                |
+| **Analysis**       | `analysis`          | Code analysis tools (local analysis and advanced analysis)           |
 | **Issues**         | `issues`            | Search and manage SonarQube issues                                   |
 | **Projects**       | `projects`          | Browse and search SonarQube projects                                 |
 | **Quality Gates**  | `quality-gates`     | Access quality gates and their status                                |

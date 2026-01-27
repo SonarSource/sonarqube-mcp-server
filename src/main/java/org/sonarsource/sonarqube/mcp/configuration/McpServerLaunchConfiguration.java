@@ -47,6 +47,9 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_TOOLSETS = "SONARQUBE_TOOLSETS";
   private static final String SONARQUBE_READ_ONLY = "SONARQUBE_READ_ONLY";
   
+  // Advanced analysis configuration
+  private static final String SONARQUBE_ADVANCED_ANALYSIS_ENABLED = "SONARQUBE_ADVANCED_ANALYSIS_ENABLED";
+  
   // HTTP/HTTPS transport configuration
   private static final String SONARQUBE_TRANSPORT = "SONARQUBE_TRANSPORT";
   private static final String SONARQUBE_HTTP_PORT = "SONARQUBE_HTTP_PORT";
@@ -99,6 +102,9 @@ public class McpServerLaunchConfiguration {
   // Tool category configuration
   private final Set<ToolCategory> enabledToolsets;
   private final boolean isReadOnlyMode;
+  
+  // Advanced analysis configuration
+  private final boolean isAdvancedAnalysisEnabled;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -153,6 +159,8 @@ public class McpServerLaunchConfiguration {
     this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
 
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
+
+    this.isAdvancedAnalysisEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ADVANCED_ANALYSIS_ENABLED, "false"));
   }
 
   @NotNull
@@ -365,6 +373,14 @@ public class McpServerLaunchConfiguration {
    */
   public boolean isReadOnlyMode() {
     return isReadOnlyMode;
+  }
+
+  /**
+   * Returns whether advanced analysis is enabled.
+   * When enabled on SonarCloud, replaces all local analysis tools with the advanced analysis tool.
+   */
+  public boolean isAdvancedAnalysisEnabled() {
+    return isAdvancedAnalysisEnabled;
   }
 
 }
