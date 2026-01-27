@@ -20,7 +20,7 @@ jsonschema-generator = "4.38.0"
 junit = "5.14.2"
 junit-launcher = "1.14.2"
 mockito = "5.21.0"
-assertj = "3.27.6"
+assertj = "3.27.7"
 awaitility = "4.3.0"
 wiremock = "3.13.2"
 
