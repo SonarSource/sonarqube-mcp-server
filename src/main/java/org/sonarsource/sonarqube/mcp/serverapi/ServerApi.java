@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisHubApi;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.EnterprisesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
@@ -37,10 +38,16 @@ public class ServerApi {
 
   private final ServerApiHelper helper;
   private final boolean isSonarCloud;
+  private final boolean isMocksEnabled;
 
   public ServerApi(ServerApiHelper helper, boolean isSonarCloud) {
+    this(helper, isSonarCloud, false);
+  }
+
+  public ServerApi(ServerApiHelper helper, boolean isSonarCloud, boolean isMocksEnabled) {
     this.helper = helper;
     this.isSonarCloud = isSonarCloud;
+    this.isMocksEnabled = isMocksEnabled;
   }
 
   public QualityGatesApi qualityGatesApi() {
@@ -105,6 +112,10 @@ public class ServerApi {
 
   public FeaturesApi featuresApi() {
     return new FeaturesApi(helper);
+  }
+
+  public A3sAnalysisHubApi a3sAnalysisHubApi() {
+    return new A3sAnalysisHubApi(helper, isMocksEnabled);
   }
 
   public boolean isSonarQubeCloud() {

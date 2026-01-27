@@ -291,7 +291,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   private void loadAdvancedAnalysisTools() {
-    supportedTools.add(new RunAdvancedCodeAnalysisTool());
+    supportedTools.add(new RunAdvancedCodeAnalysisTool(this));
   }
 
   /**
@@ -423,7 +423,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var url = mcpConfiguration.getSonarQubeUrl();
     var httpClient = httpClientProvider.getHttpClient(token);
     var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization), httpClient);
-    return new ServerApi(serverApiHelper, mcpConfiguration.isSonarCloud());
+    return new ServerApi(serverApiHelper, mcpConfiguration.isSonarCloud(), mcpConfiguration.isMocksEnabled());
   }
 
   private SonarQubeIdeBridgeClient initializeBridgeClient(McpServerLaunchConfiguration mcpConfiguration) {
