@@ -28,6 +28,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -47,7 +48,7 @@ class HttpServerTransportIntegrationTest {
     // Use a random available port for testing
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false,
-      java.nio.file.Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
   }
 
   @AfterEach
@@ -169,7 +170,7 @@ class HttpServerTransportIntegrationTest {
   void should_use_custom_host_and_port() {
     var customPort = findAvailablePort();
     var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1", AuthMode.TOKEN, false,
-      java.nio.file.Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
 
     try {
       customServer.startServer().join();

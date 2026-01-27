@@ -58,10 +58,10 @@ license {
 			"form" to "XML_STYLE"
 		)
 	)
-	excludes(
-		listOf("**/*.jar", "**/*.png", "**/README", "**/logback.xml")
-	)
-	strictCheck = true
+    excludes(
+        listOf("**/*.jar", "**/*.png", "**/README", "**/logback.xml", "**/proxied-mcp-servers.json")
+    )
+    strictCheck = true
 }
 
 val mockitoAgent = configurations.create("mockitoAgent")

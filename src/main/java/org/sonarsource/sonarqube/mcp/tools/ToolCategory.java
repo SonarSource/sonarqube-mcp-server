@@ -40,7 +40,8 @@ public enum ToolCategory {
   PORTFOLIOS("portfolios"),
   SYSTEM("system"),
   WEBHOOKS("webhooks"),
-  DEPENDENCY_RISKS("dependency-risks");
+  DEPENDENCY_RISKS("dependency-risks"),
+  EXTERNAL("external");
 
   private final String key;
 

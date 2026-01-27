@@ -38,3 +38,8 @@ out/
 
 ### MCP Registry ###
 .mcpregistry*
+
+# Sonar Code Context configuration (track settings.json but ignore other files)
+!.sonar-code-context/
+.sonar-code-context/*
+!.sonar-code-context/settings.json

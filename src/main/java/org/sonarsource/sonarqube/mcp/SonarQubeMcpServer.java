@@ -39,6 +39,7 @@ import javax.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
+import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.context.RequestContext;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
@@ -106,6 +107,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private volatile boolean isShutdown = false;
   private boolean logFileLocationLogged;
   private final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
+  private ProxiedToolsLoader proxiedToolsLoader;
 
   public static void main(String[] args) {
     new SonarQubeMcpServer(System.getenv()).start();
@@ -200,6 +202,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     // Load backend-dependent tools (including IDE bridge check) now that backend is ready
     loadBackendDependentTools();
+    
+    // Initialize proxied MCP servers and load their tools synchronously
+    loadProxiedServerTools();
   }
 
   /**
@@ -296,6 +301,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.info("Standard analysis mode (no IDE bridge)");
       supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture));
     }
+  }
+
+  private void loadProxiedServerTools() {
+    proxiedToolsLoader = new ProxiedToolsLoader();
+    var proxiedTools = proxiedToolsLoader.loadProxiedTools();
+    supportedTools.addAll(proxiedTools);
     var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
     LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);
   }
@@ -414,10 +425,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     isShutdown = true;
 
     awaitBackgroundInitialization();
+    shutdownProxiedServers();
     shutdownHttpServer();
     shutdownHttpClient();
     shutdownMcpServer();
     shutdownBackend();
+  }
+  
+  private void shutdownProxiedServers() {
+    if (proxiedToolsLoader != null) {
+      proxiedToolsLoader.shutdown();
+    }
   }
 
   private void awaitBackgroundInitialization() {

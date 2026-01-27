@@ -123,6 +123,14 @@ public abstract class Tool {
     public List<String> getOptionalStringList(String argumentName) {
       return (List<String>) argumentsMap.get(argumentName);
     }
+    
+    /**
+     * Get the underlying map of arguments.
+     * Used for forwarding arguments to proxied MCP servers.
+     */
+    public Map<String, Object> toMap() {
+      return Map.copyOf(argumentsMap);
+    }
   }
 
   public static class Result {
