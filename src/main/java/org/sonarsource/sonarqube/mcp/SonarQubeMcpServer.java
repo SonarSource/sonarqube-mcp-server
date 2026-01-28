@@ -288,7 +288,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   private void loadAdvancedAnalysisTools() {
-    supportedTools.add(new RunAdvancedCodeAnalysisTool());
+    supportedTools.add(new RunAdvancedCodeAnalysisTool(this));
   }
 
   /**

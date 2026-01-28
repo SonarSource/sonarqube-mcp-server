@@ -31,6 +31,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -100,6 +101,45 @@ class ServerApiTests {
 
     var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
     assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test: Kaboom");
+  }
+
+  @Test
+  void postApiSubdomain_should_return_response_on_success() {
+    sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse()
+      .withStatus(HttpStatus.SC_OK)
+      .withBody("{\"result\": \"ok\"}")));
+
+    try (var response = serverApiHelper.postApiSubdomain("/api/test", "application/json", "{\"data\": \"test\"}")) {
+      assertThat(response.isSuccessful()).isTrue();
+      assertThat(response.bodyAsString()).isEqualTo("{\"result\": \"ok\"}");
+    }
+  }
+
+  @Test
+  void postApiSubdomain_should_throw_on_unauthorized_response() {
+    sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse().withStatus(HttpStatus.SC_UNAUTHORIZED)));
+
+    var exception = assertThrows(UnauthorizedException.class,
+      () -> serverApiHelper.postApiSubdomain("/api/test", "application/json", "{}"));
+    assertThat(exception).hasMessage("SonarQube answered with Not authorized. Please check server credentials.");
+  }
+
+  @Test
+  void postApiSubdomain_should_throw_on_forbidden_response() {
+    sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+
+    var exception = assertThrows(ForbiddenException.class,
+      () -> serverApiHelper.postApiSubdomain("/api/test", "application/json", "{}"));
+    assertThat(exception).hasMessage("SonarQube answered with Forbidden");
+  }
+
+  @Test
+  void postApiSubdomain_should_throw_on_internal_error_response() {
+    sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+
+    var exception = assertThrows(ServerInternalErrorException.class,
+      () -> serverApiHelper.postApiSubdomain("/api/test", "application/json", "{}"));
+    assertThat(exception).hasMessage("SonarQube answered with Error 500 on " + sonarqubeMock.baseUrl() + "/api/test");
   }
 
 }

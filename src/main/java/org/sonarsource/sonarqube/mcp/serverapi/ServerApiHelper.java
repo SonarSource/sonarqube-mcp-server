@@ -103,6 +103,24 @@ public class ServerApiHelper {
     return client.getAsync(buildApiSubdomainUrl(relativePath)).join();
   }
 
+  /**
+   * Execute POST using the API subdomain (api.sonarcloud.io)
+   */
+  public HttpClient.Response postApiSubdomain(String path, String contentType, String body) {
+    var response = rawPostApiSubdomain(path, contentType, body);
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
+  /**
+   * Execute raw POST using the API subdomain (api.sonarcloud.io)
+   */
+  public HttpClient.Response rawPostApiSubdomain(String relativePath, String contentType, String body) {
+    return client.postAsync(buildApiSubdomainUrl(relativePath), contentType, body).join();
+  }
+
   private String buildEndpointUrl(String relativePath) {
     return concat(endpointParams.baseUrl(), relativePath);
   }
