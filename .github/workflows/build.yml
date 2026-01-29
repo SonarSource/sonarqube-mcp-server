@@ -40,8 +40,12 @@ jobs:
           artifactory-reader-role: private-reader
           artifactory-deployer-role: qa-deployer
           sonar-platform: sqc-eu
-          gradle-args: ":cyclonedxBom jacocoTestReport"
+          gradle-args: :cyclonedxBom jacocoTestReport
           use-develocity: true
+
+      - name: Set project version output
+        id: set_version
+        run: echo "project-version=${PROJECT_VERSION}" >> $GITHUB_OUTPUT
 
   integration:
     needs: [build]
