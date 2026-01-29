@@ -16,13 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.its;
 
-import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.MountableFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -61,40 +58,15 @@ class HttpTransportITest {
   }
 
   private static GenericContainer<?> createHttpServerContainer() {
-    var jarPath = System.getProperty("sonarqube.mcp.jar.path");
-    if (jarPath == null || jarPath.isEmpty()) {
-      throw new IllegalStateException("sonarqube.mcp.jar.path system property not set");
-    }
-
-    var sonarqubeToken = System.getenv("SONARCLOUD_IT_TOKEN");
-    if (sonarqubeToken == null || sonarqubeToken.isEmpty()) {
-      throw new IllegalStateException("SONARCLOUD_IT_TOKEN must be set");
-    }
-
-    var container = new GenericContainer<>("eclipse-temurin:21-jre-alpine")
-      .withExposedPorts(MCP_HTTP_PORT)
-      .withCopyFileToContainer(MountableFile.forHostPath(jarPath), "/app/server.jar")
-      .withCopyFileToContainer(
-        MountableFile.forClasspathResource("empty-proxied-mcp-servers-its.json"),
-        "/app/proxied-mcp-servers.json"
-      )
-      .withEnv("STORAGE_PATH", "/app/storage")
-      .withEnv("SONARQUBE_TOKEN", sonarqubeToken)
-      .withEnv("SONARQUBE_ORG", "sonarlint-it")
-      .withEnv("SONARQUBE_CLOUD_URL", "https://sc-staging.io")
+    return McpServerTestContainers.builder()
+      .withExposedPort(MCP_HTTP_PORT)
       .withEnv("SONARQUBE_TRANSPORT", "http")
       .withEnv("SONARQUBE_HTTP_PORT", String.valueOf(MCP_HTTP_PORT))
       .withEnv("SONARQUBE_HTTP_HOST", "0.0.0.0")
-      .withCommand("sh", "-c",
-        "apk add --no-cache wget git nodejs npm && " +
-          "mkdir -p /app/storage && " +
-          "tail -f /dev/null | java -Dproxied.mcp.servers.config.path=/app/proxied-mcp-servers.json -jar /app/server.jar"
-      )
-      .withStartupTimeout(Duration.ofMinutes(4))
-      .waitingFor(Wait.forLogMessage(".*started.*", 1).withStartupTimeout(Duration.ofMinutes(4)));
-
-    container.withLogConsumer(outputFrame -> System.out.print("[HTTP-Container] " + outputFrame.getUtf8String()));
-    return container;
+      .withAdditionalApkPackages("wget", "git", "nodejs", "npm")
+      .withWaitLogMessage(".*started.*")
+      .withLogPrefix("HTTP-Container")
+      .build();
   }
 
 }
