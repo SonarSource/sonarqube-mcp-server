@@ -25,7 +25,7 @@ jobs:
     runs-on: sonar-s-public  # Public repository runner
     name: Build
     outputs:
-      PROJECT_VERSION: ${{ steps.set_version.outputs.PROJECT_VERSION }}
+      PROJECT_VERSION: ${{ steps.build-step.outputs.project-version }}
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
@@ -33,14 +33,8 @@ jobs:
         with:
           version: 2025.7.12
 
-      - name: Get project version
-        id: set_version
-        run: |
-          PROJECT_VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
-          echo "PROJECT_VERSION=${PROJECT_VERSION}" >> $GITHUB_OUTPUT
-          echo "Project version: ${PROJECT_VERSION}"
-
-      - uses: SonarSource/ci-github-actions/build-gradle@v1
+      - id: build-step
+        uses: SonarSource/ci-github-actions/build-gradle@v1
         with:
           deploy-pull-request: true
           artifactory-reader-role: private-reader
