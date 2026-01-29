@@ -53,15 +53,28 @@ tasks.register<Test>("integrationTest") {
     description = "Runs integration tests for proxied MCP servers using Testcontainers"
     group = "verification"
     
-    // Ensure main JAR is built before running integration tests
-    dependsOn(":jar")
+    // Check if we should use a downloaded JAR from environment variable
+    val downloadedJarPath = System.getenv("DOWNLOADED_JAR_PATH")
+    
+    // Only build the JAR if we're not using a downloaded one
+    if (downloadedJarPath.isNullOrEmpty()) {
+        dependsOn(":jar")
+    }
     
     useJUnitPlatform()
     
     // Pass the JAR path as a system property to the tests
     doFirst {
-        val jarTask = project(":").tasks.named<Jar>("jar").get()
-        systemProperty("sonarqube.mcp.jar.path", jarTask.archiveFile.get().asFile.absolutePath)
+        val jarPath = if (!downloadedJarPath.isNullOrEmpty()) {
+            println("Using downloaded JAR from: $downloadedJarPath")
+            downloadedJarPath
+        } else {
+            val jarTask = project(":").tasks.named<Jar>("jar").get()
+            val path = jarTask.archiveFile.get().asFile.absolutePath
+            println("Using locally built JAR from: $path")
+            path
+        }
+        systemProperty("sonarqube.mcp.jar.path", jarPath)
     }
 
     testLogging {
