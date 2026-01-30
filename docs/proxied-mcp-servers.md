@@ -35,7 +35,8 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
     "namespace": "myserver",
     "command": "node",
     "args": ["path/to/mcp-server.js"],
-    "env": {}
+    "env": {},
+    "supportedTransports": ["stdio"]
   }
 ]
 ```
@@ -46,6 +47,8 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 - `command` (required): Executable command to start the MCP server
 - `args` (optional): Command-line arguments
 - `env` (optional): Environment variables (merged with parent process environment; config values override parent values)
+- `supportedTransports` (required): Array of transport modes supported by this provider. Valid values: `"stdio"`, `"http"`. Providers are only loaded if they support the server's current transport mode.
+- `instructions` (optional): Brief instructions to help AI assistants use this provider's tools effectively. These are automatically appended to the server's base instructions.
 
 ### Tool Namespacing
 
@@ -58,7 +61,7 @@ Proxied tools are prefixed with their namespace to avoid conflicts with the main
 
 All tool names (both proxied and internal) are validated according to MCP SEP-986:
 - **Length:** 1-64 characters
-- **Allowed characters:** Alphanumeric (a-z, A-Z, 0-9), underscore (_), dash (-), dot (.), forward slash (/)
+- **Allowed characters:** Alphanumeric (a-z, A-Z, 0-9), underscore (_), dash (-)
 - **Case-sensitive:** `getUser`, `GetUser`, and `GETUSER` are different tool names
 - **No spaces or special characters:** Spaces, commas, @, #, etc. are not allowed
 
@@ -72,10 +75,11 @@ The server **always attempts to load all configured proxied servers** at startup
 
 1. Parse `proxied-mcp-servers.json`
 2. Validate configuration
-3. For each proxied server:
-   - Attempt to execute the command
-   - If successful: connect, discover tools, integrate them
-   - If failed: log warning, continue without that server
+3. Filter proxied servers by transport compatibility (skip servers that don't support current transport mode)
+4. For each proxied server:
+    - Attempt to execute the command
+    - If successful: connect, discover tools, integrate them
+    - If failed: log warning, continue without that server
 
 **Example output:**
 ```
@@ -102,7 +106,9 @@ Edit `src/main/resources/proxied-mcp-servers.json`:
     "args": ["path/to/mcp-server.js"],
     "env": {
       "NODE_ENV": "production"
-    }
+    },
+    "supportedTransports": ["stdio"],
+    "instructions": "Before analyzing code issues, always use myprovider_my_tool to retrieve relevant code snippets."
   }
 ]
 ```

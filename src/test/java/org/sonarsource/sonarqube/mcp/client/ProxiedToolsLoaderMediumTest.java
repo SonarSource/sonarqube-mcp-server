@@ -145,7 +145,8 @@ class ProxiedToolsLoaderMediumTest {
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of(),
-        "supportedTransports", Set.of("stdio")
+        "supportedTransports", Set.of("stdio"),
+        "instructions", "Server's instructions"
       )
     ));
 
@@ -233,7 +234,8 @@ class ProxiedToolsLoaderMediumTest {
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of("TEST_ENV_VAR", "config_value"),
-        "supportedTransports", Set.of("stdio")
+        "supportedTransports", Set.of("stdio"),
+        "instructions", "Server's instructions"
       )
     ));
 
@@ -325,7 +327,8 @@ class ProxiedToolsLoaderMediumTest {
         "command", "/non/existent/command1",
         "args", List.of(),
         "env", Map.of(),
-        "supportedTransports", Set.of("stdio")
+        "supportedTransports", Set.of("stdio"),
+        "instructions", "Server's instructions"
       ),
       Map.of(
         "name", "bad-server-2",

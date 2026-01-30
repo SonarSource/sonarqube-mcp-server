@@ -96,6 +96,20 @@ public class ProxiedToolsLoader {
     }
   }
 
+  public static String composeInstructions(String baseInstructions, List<ProxiedMcpServerConfig> configs) {
+    if (configs.isEmpty()) {
+      return baseInstructions;
+    }
+    
+    var builder = new StringBuilder(baseInstructions);
+
+    configs.stream()
+      .filter(c -> c.instructions() != null && !c.instructions().isBlank())
+      .forEach(c -> builder.append(" ").append(c.instructions()));
+    
+    return builder.toString();
+  }
+
   public void shutdown() {
     if (mcpClientManager != null) {
       try {

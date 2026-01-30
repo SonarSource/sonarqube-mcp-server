@@ -16,6 +16,9 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -410,6 +413,13 @@ class ProxiedServerConfigParserTest {
     var config = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
 
     assertThat(config.configs().getFirst().supportedTransports()).containsExactlyInAnyOrder(TransportMode.STDIO, TransportMode.HTTP);
+  }
+
+  @Test
+  void constructor_should_accept_instructions() {
+    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), "Use these tools for testing");
+
+    assertThat(config.instructions()).isEqualTo("Use these tools for testing");
   }
 
 }
