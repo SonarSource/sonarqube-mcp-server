@@ -96,12 +96,13 @@ public class ProxiedServerConfigParser {
   
   private static ProxiedMcpServerConfig toProxiedMcpServerConfig(JsonServerConfig jsonConfig) {
     return new ProxiedMcpServerConfig(
-      jsonConfig.name(),
-      jsonConfig.namespace(),
-      jsonConfig.command(),
-      jsonConfig.args() != null ? jsonConfig.args() : Collections.emptyList(),
-      jsonConfig.env() != null ? jsonConfig.env() : Collections.emptyMap(),
-      jsonConfig.supportedTransports
+      jsonConfig.name,
+      jsonConfig.namespace,
+      jsonConfig.command,
+      jsonConfig.args != null ? jsonConfig.args : Collections.emptyList(),
+      jsonConfig.env != null ? jsonConfig.env : Collections.emptyMap(),
+      jsonConfig.supportedTransports,
+      jsonConfig.instructions
     );
   }
 
@@ -117,7 +118,8 @@ public class ProxiedServerConfigParser {
     @JsonProperty("command") String command,
     @JsonProperty("args") @Nullable List<String> args,
     @JsonProperty("env") @Nullable Map<String, String> env,
-    @JsonProperty("supportedTransports") Set<TransportMode> supportedTransports
+    @JsonProperty("supportedTransports") Set<TransportMode> supportedTransports,
+    @JsonProperty("instructions") @Nullable String instructions
   ) {}
 
   public record ParseResult(boolean success, List<ProxiedMcpServerConfig> configs, @Nullable String error) {
