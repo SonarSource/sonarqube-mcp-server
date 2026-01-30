@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.serverapi.a3s;
 
 import com.google.gson.Gson;
-import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -29,105 +28,15 @@ public class A3sAnalysisHubApi {
   private static final Gson GSON = new Gson();
 
   private final ServerApiHelper helper;
-  private final boolean useMockResponse;
 
-  public A3sAnalysisHubApi(ServerApiHelper helper, boolean useMockResponse) {
+  public A3sAnalysisHubApi(ServerApiHelper helper) {
     this.helper = helper;
-    this.useMockResponse = useMockResponse;
   }
 
   public AnalysisResponse analyze(AnalysisCreationRequest request) {
-    if (useMockResponse) {
-      return createMockResponse(request);
-    }
-
     var requestBody = GSON.toJson(request);
     try (var response = helper.postApiSubdomain(ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
       return GSON.fromJson(response.bodyAsString(), AnalysisResponse.class);
     }
-  }
-
-  private static AnalysisResponse createMockResponse(AnalysisCreationRequest request) {
-    var textRange = new AnalysisResponse.TextRange(10, 15, 4, 25);
-    var flowTextRange1 = new AnalysisResponse.TextRange(5, 5, 0, 30);
-    var flowTextRange2 = new AnalysisResponse.TextRange(10, 10, 4, 25);
-
-    var flowLocation1 = new AnalysisResponse.Location(
-      flowTextRange1,
-      "Variable 'data' is assigned here",
-      request.filePath()
-    );
-    var flowLocation2 = new AnalysisResponse.Location(
-      flowTextRange2,
-      "Potential null dereference here",
-      request.filePath()
-    );
-
-    var dataFlow = new AnalysisResponse.Flow(
-      "DATA",
-      "Data flow leading to potential null pointer dereference",
-      List.of(flowLocation1, flowLocation2)
-    );
-
-    var executionFlowLocation1 = new AnalysisResponse.Location(
-      new AnalysisResponse.TextRange(3, 3, 0, 40),
-      "Method entry point",
-      request.filePath()
-    );
-    var executionFlowLocation2 = new AnalysisResponse.Location(
-      new AnalysisResponse.TextRange(7, 7, 4, 35),
-      "Condition evaluated",
-      request.filePath()
-    );
-    var executionFlowLocation3 = new AnalysisResponse.Location(
-      new AnalysisResponse.TextRange(10, 10, 4, 25),
-      "Issue location reached",
-      request.filePath()
-    );
-
-    var executionFlow = new AnalysisResponse.Flow(
-      "EXECUTION",
-      "Execution path through the code",
-      List.of(executionFlowLocation1, executionFlowLocation2, executionFlowLocation3)
-    );
-
-    var issue1 = new AnalysisResponse.Issue(
-      "7a2f5c8d-9e3b-4a1c-bf72-83a892472f22",
-      request.filePath(),
-      "Possible null pointer dereference of 'data'. This variable was assigned null on line 5.",
-      "java:S2259",
-      textRange,
-      List.of(dataFlow, executionFlow)
-    );
-
-    var issue2TextRange = new AnalysisResponse.TextRange(25, 25, 8, 45);
-    var issue2 = new AnalysisResponse.Issue(
-      "8b3f6d9e-0f4c-5b2d-cg83-94b903583g33",
-      request.filePath(),
-      "Remove this unused private method 'unusedHelper'.",
-      "java:S1144",
-      issue2TextRange,
-      List.of()
-    );
-
-    var issues = List.of(issue1, issue2);
-
-    var patchResult = new AnalysisResponse.PatchResult(
-      List.of(),
-      List.of(issue1),
-      List.of("old-issue-id-that-was-fixed")
-    );
-
-    var errors = List.of(
-      new AnalysisResponse.AnalysisError("SERVICE_CALL_ERROR", "Error while calling language analysis service"),
-      new AnalysisResponse.AnalysisError("PARSE_ERROR", "Failed to parse analysis input")
-    );
-
-    return new AnalysisResponse(
-      "57f08a8b-4a6e-4c64-bf72-83a892472f22",
-      issues,
-      patchResult,
-      errors
-    );
   }
 }

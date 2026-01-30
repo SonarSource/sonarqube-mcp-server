@@ -38,12 +38,10 @@ public class ServerApi {
 
   private final ServerApiHelper helper;
   private final boolean isSonarCloud;
-  private final boolean isMocksEnabled;
 
-  public ServerApi(ServerApiHelper helper, boolean isSonarCloud, boolean isMocksEnabled) {
+  public ServerApi(ServerApiHelper helper, boolean isSonarCloud) {
     this.helper = helper;
     this.isSonarCloud = isSonarCloud;
-    this.isMocksEnabled = isMocksEnabled;
   }
 
   public QualityGatesApi qualityGatesApi() {
@@ -111,7 +109,7 @@ public class ServerApi {
   }
 
   public A3sAnalysisHubApi a3sAnalysisHubApi() {
-    return new A3sAnalysisHubApi(helper, isMocksEnabled);
+    return new A3sAnalysisHubApi(helper);
   }
 
   public boolean isSonarQubeCloud() {

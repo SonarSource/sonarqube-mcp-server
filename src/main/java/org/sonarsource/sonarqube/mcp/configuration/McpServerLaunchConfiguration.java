@@ -50,9 +50,6 @@ public class McpServerLaunchConfiguration {
   // Advanced analysis configuration
   private static final String SONARQUBE_ADVANCED_ANALYSIS_ENABLED = "SONARQUBE_ADVANCED_ANALYSIS_ENABLED";
   
-  // Mock responses configuration (for development/testing)
-  private static final String ENABLE_MOCKS = "ENABLE_MOCKS";
-  
   // HTTP/HTTPS transport configuration
   private static final String SONARQUBE_TRANSPORT = "SONARQUBE_TRANSPORT";
   private static final String SONARQUBE_HTTP_PORT = "SONARQUBE_HTTP_PORT";
@@ -108,9 +105,6 @@ public class McpServerLaunchConfiguration {
   
   // Advanced analysis configuration
   private final boolean isAdvancedAnalysisEnabled;
-  
-  // Mock responses configuration
-  private final boolean isMocksEnabled;
 
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
@@ -167,8 +161,6 @@ public class McpServerLaunchConfiguration {
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
 
     this.isAdvancedAnalysisEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ADVANCED_ANALYSIS_ENABLED, "false"));
-
-    this.isMocksEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, ENABLE_MOCKS, "false"));
   }
 
   @NotNull
@@ -389,14 +381,6 @@ public class McpServerLaunchConfiguration {
    */
   public boolean isAdvancedAnalysisEnabled() {
     return isAdvancedAnalysisEnabled;
-  }
-
-  /**
-   * Returns whether mock responses are enabled for development/testing.
-   * When enabled, API clients may return mock responses instead of calling real APIs.
-   */
-  public boolean isMocksEnabled() {
-    return isMocksEnabled;
   }
 
 }
