@@ -114,6 +114,33 @@ class RunAdvancedCodeAnalysisToolTests {
       .build());
   }
 
+  @SonarQubeMcpServerTest
+  void it_should_surface_analysis_errors_in_response(SonarQubeMcpServerTestHarness harness) {
+    stubAnalysisResponse(harness, RESPONSE_WITH_ERRORS);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "organizationKey", "my-org",
+        "projectKey", "my-project",
+        "filePath", "src/Main.java",
+        "fileContent", "class Main {}"
+      ));
+
+    assertResultEquals(result, """
+      {
+        "issues" : [ ],
+        "errors" : [ {
+          "code" : "SERVICE_CALL_ERROR",
+          "message" : "Error while calling language analysis service"
+        }, {
+          "code" : "PARSE_ERROR",
+          "message" : "Failed to parse analysis input"
+        } ]
+      }""");
+  }
+
   private static void stubAnalysisResponse(SonarQubeMcpServerTestHarness harness, String responseBody) {
     harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisHubApi.ANALYSES_PATH)
       .willReturn(aResponse()
@@ -231,6 +258,24 @@ class RunAdvancedCodeAnalysisToolTests {
         ],
         "closedIssues": ["old-issue-1", "old-issue-2"]
       }
+    }
+    """;
+
+  private static final String RESPONSE_WITH_ERRORS = """
+    {
+      "id": "analysis-1",
+      "issues": [],
+      "patchResult": null,
+      "errors": [
+        {
+          "code": "SERVICE_CALL_ERROR",
+          "message": "Error while calling language analysis service"
+        },
+        {
+          "code": "PARSE_ERROR",
+          "message": "Failed to parse analysis input"
+        }
+      ]
     }
     """;
 

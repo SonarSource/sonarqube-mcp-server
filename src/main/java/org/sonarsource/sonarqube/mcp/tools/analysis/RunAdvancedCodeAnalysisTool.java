@@ -90,7 +90,14 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       );
     }
 
-    return new RunAdvancedCodeAnalysisToolResponse(issues, patchResult);
+    List<RunAdvancedCodeAnalysisToolResponse.AnalysisError> errors = null;
+    if (response.errors() != null && !response.errors().isEmpty()) {
+      errors = response.errors().stream()
+        .map(error -> new RunAdvancedCodeAnalysisToolResponse.AnalysisError(error.code(), error.message()))
+        .toList();
+    }
+
+    return new RunAdvancedCodeAnalysisToolResponse(issues, patchResult, errors);
   }
 
   private static RunAdvancedCodeAnalysisToolResponse.Issue mapIssue(AnalysisResponse.Issue issue) {

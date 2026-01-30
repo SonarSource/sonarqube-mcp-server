@@ -112,10 +112,22 @@ public class A3sAnalysisHubApi {
 
     var issues = List.of(issue1, issue2);
 
+    var patchResult = new AnalysisResponse.PatchResult(
+      List.of(),
+      List.of(issue1),
+      List.of("old-issue-id-that-was-fixed")
+    );
+
+    var errors = List.of(
+      new AnalysisResponse.AnalysisError("SERVICE_CALL_ERROR", "Error while calling language analysis service"),
+      new AnalysisResponse.AnalysisError("PARSE_ERROR", "Failed to parse analysis input")
+    );
+
     return new AnalysisResponse(
       "57f08a8b-4a6e-4c64-bf72-83a892472f22",
       issues,
-      null
+      patchResult,
+      errors
     );
   }
 }

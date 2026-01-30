@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.a3s.response;
 import java.util.List;
 import javax.annotation.Nullable;
 
-public record AnalysisResponse(String id, List<Issue> issues, @Nullable PatchResult patchResult) {
+public record AnalysisResponse(String id, List<Issue> issues, @Nullable PatchResult patchResult, @Nullable List<AnalysisError> errors) {
 
   public record Issue(String id, String filePath, String message, String rule, @Nullable TextRange textRange, @Nullable List<Flow> flows) {
   }
@@ -34,5 +34,8 @@ public record AnalysisResponse(String id, List<Issue> issues, @Nullable PatchRes
   }
 
   public record PatchResult(List<Issue> newIssues, List<Issue> matchedIssues, List<String> closedIssues) {
+  }
+
+  public record AnalysisError(String code, String message) {
   }
 }
