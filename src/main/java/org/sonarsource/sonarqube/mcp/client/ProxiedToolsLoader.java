@@ -32,11 +32,12 @@ public class ProxiedToolsLoader {
   /**
    * 1. Parses the configuration from proxied-mcp-servers.json
    * 2. Validates the configuration
-   * 3. Connects to each proxied MCP server
-   * 4. Discovers tools from connected servers
-   * 5. Creates tool wrappers for integration
+   * 3. Filters providers based on current transport mode
+   * 4. Connects to each proxied MCP server
+   * 5. Discovers tools from connected servers
+   * 6. Creates tool wrappers for integration
    */
-  public List<Tool> loadProxiedTools() {
+  public List<Tool> loadProxiedTools(TransportMode currentTransportMode) {
     var parseResult = ProxiedServerConfigParser.parse();
     
     if (!parseResult.success()) {
@@ -44,17 +45,34 @@ public class ProxiedToolsLoader {
       LOG.warn("Continuing without proxied MCP servers");
       return List.of();
     }
-    
-    var configs = parseResult.configs();
-    if (configs.isEmpty()) {
+
+    var allConfigs = parseResult.configs();
+    if (allConfigs.isEmpty()) {
       LOG.info("No proxied MCP servers configured");
       return List.of();
     }
+
+    // Filter configs based on transport compatibility
+    var compatibleConfigs = allConfigs.stream().filter(config -> {
+        if (config.supportsTransport(currentTransportMode)) {
+          return true;
+        } else {
+          LOG.info("Skipping proxied MCP server '" + config.name() + "' - " +
+            "does not support " + currentTransportMode.toConfigString() + " transport (supports: " + config.supportedTransports() + ")");
+          return false;
+        }
+      })
+      .toList();
+
+    if (compatibleConfigs.isEmpty()) {
+      LOG.info("No external tool providers compatible with " + currentTransportMode.toConfigString() + " transport (total configured: " + allConfigs.size() + ")");
+      return List.of();
+    }
     
-    LOG.info("Initializing " + configs.size() + " proxied MCP server(s)...");
+    LOG.info("Initializing " + compatibleConfigs.size() + " proxied MCP server(s)...");
     
     try {
-      mcpClientManager = new McpClientManager(configs);
+      mcpClientManager = new McpClientManager(compatibleConfigs);
       mcpClientManager.initialize();
 
       var tools = mcpClientManager.getAllProxiedTools().entrySet().stream()

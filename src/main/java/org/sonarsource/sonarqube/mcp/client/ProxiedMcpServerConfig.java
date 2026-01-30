@@ -18,8 +18,10 @@ package org.sonarsource.sonarqube.mcp.client;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-public record ProxiedMcpServerConfig(String name, String namespace, String command, List<String> args, Map<String, String> env) {
+public record ProxiedMcpServerConfig(String name, String namespace, String command, List<String> args, Map<String, String> env,
+                                     Set<TransportMode> supportedTransports) {
 
   public ProxiedMcpServerConfig {
     if (name.isBlank()) {
@@ -33,6 +35,14 @@ public record ProxiedMcpServerConfig(String name, String namespace, String comma
     }
     args = List.copyOf(args);
     env = Map.copyOf(env);
+    supportedTransports = Set.copyOf(supportedTransports);
+    if (supportedTransports.isEmpty()) {
+      throw new IllegalArgumentException("Proxied MCP server must support at least one transport mode");
+    }
+  }
+
+  public boolean supportsTransport(TransportMode transportMode) {
+    return supportedTransports.contains(transportMode);
   }
 
 }

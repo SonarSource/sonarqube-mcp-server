@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -71,12 +72,13 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools)
       .isNotEmpty()
@@ -94,12 +96,13 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "myserver",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).hasSize(2);
     
@@ -119,12 +122,13 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools)
       .isNotEmpty()
@@ -140,12 +144,13 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool1 = tools.stream()
       .filter(t -> t.definition().name().equals("test/test_tool_1"))
@@ -167,19 +172,21 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "s1",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       ),
       Map.of(
         "name", "server2",
         "namespace", "s2",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).hasSize(4);
 
@@ -197,19 +204,21 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "good",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       ),
       Map.of(
         "name", "bad-server",
         "namespace", "bad",
         "command", "/non/existent/command",
         "args", List.of(),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).hasSize(2);
     assertThat(tools.stream().map(t -> t.definition().name())).allMatch(name -> name.startsWith("good/"));
@@ -223,12 +232,13 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of("TEST_ENV_VAR", "config_value")
+        "env", Map.of("TEST_ENV_VAR", "config_value"),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     // The test server includes the TEST_ENV_VAR in the tool description
     var tool1 = tools.stream()
@@ -248,12 +258,13 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool1 = (ProxiedMcpTool) tools.stream()
       .filter(t -> t.definition().name().equals("test/test_tool_1"))
@@ -281,12 +292,13 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool2 = (ProxiedMcpTool) tools.stream()
       .filter(t -> t.definition().name().equals("test/test_tool_2"))
@@ -312,19 +324,21 @@ class ProxiedToolsLoaderMediumTest {
         "namespace", "bad1",
         "command", "/non/existent/command1",
         "args", List.of(),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       ),
       Map.of(
         "name", "bad-server-2",
         "namespace", "bad2",
         "command", "/non/existent/command2",
         "args", List.of(),
-        "env", Map.of()
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
       )
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).isEmpty();
   }
