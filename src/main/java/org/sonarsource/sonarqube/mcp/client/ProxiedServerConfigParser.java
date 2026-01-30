@@ -26,6 +26,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -99,10 +100,10 @@ public class ProxiedServerConfigParser {
       jsonConfig.namespace(),
       jsonConfig.command(),
       jsonConfig.args() != null ? jsonConfig.args() : Collections.emptyList(),
-      jsonConfig.env() != null ? jsonConfig.env() : Collections.emptyMap()
+      jsonConfig.env() != null ? jsonConfig.env() : Collections.emptyMap(),
+      jsonConfig.supportedTransports
     );
   }
-
 
   /**
    * JSON DTO record for deserializing server configuration from JSON.
@@ -115,7 +116,8 @@ public class ProxiedServerConfigParser {
     @JsonProperty("namespace") String namespace,
     @JsonProperty("command") String command,
     @JsonProperty("args") @Nullable List<String> args,
-    @JsonProperty("env") @Nullable Map<String, String> env
+    @JsonProperty("env") @Nullable Map<String, String> env,
+    @JsonProperty("supportedTransports") Set<TransportMode> supportedTransports
   ) {}
 
   public record ParseResult(boolean success, List<ProxiedMcpServerConfig> configs, @Nullable String error) {

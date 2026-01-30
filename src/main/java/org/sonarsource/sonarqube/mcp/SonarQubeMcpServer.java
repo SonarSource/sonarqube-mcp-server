@@ -40,6 +40,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.context.RequestContext;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
@@ -305,7 +306,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private void loadProxiedServerTools() {
     proxiedToolsLoader = new ProxiedToolsLoader();
-    var proxiedTools = proxiedToolsLoader.loadProxiedTools();
+    var currentTransportMode = mcpConfiguration.isHttpEnabled() ? TransportMode.HTTP : TransportMode.STDIO;
+    var proxiedTools = proxiedToolsLoader.loadProxiedTools(currentTransportMode);
     supportedTools.addAll(proxiedTools);
     var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
     LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);

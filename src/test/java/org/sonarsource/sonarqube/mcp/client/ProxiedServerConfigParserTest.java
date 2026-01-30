@@ -38,7 +38,8 @@ class ProxiedServerConfigParserTest {
           "env": {
             "KEY1": "value1",
             "KEY2": "value2"
-          }
+          },
+          "supportedTransports": ["stdio", "http"]
         }
       ]
       """;
@@ -53,6 +54,7 @@ class ProxiedServerConfigParserTest {
     assertThat(config.command()).isEqualTo("npx");
     assertThat(config.args()).containsExactly("arg1", "arg2");
     assertThat(config.env()).containsEntry("KEY1", "value1").containsEntry("KEY2", "value2");
+    assertThat(config.supportedTransports()).containsExactlyInAnyOrder(TransportMode.STDIO, TransportMode.HTTP);
   }
 
   @Test
@@ -62,7 +64,8 @@ class ProxiedServerConfigParserTest {
         {
           "name": "minimal-server",
           "namespace": "minimal",
-          "command": "node"
+          "command": "node",
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -77,6 +80,7 @@ class ProxiedServerConfigParserTest {
     assertThat(config.command()).isEqualTo("node");
     assertThat(config.args()).isEmpty();
     assertThat(config.env()).isEmpty();
+    assertThat(config.supportedTransports()).containsExactly(TransportMode.STDIO);
   }
 
   @Test
@@ -86,7 +90,8 @@ class ProxiedServerConfigParserTest {
         {
           "name": "  ",
           "namespace": "ns",
-          "command": "node"
+          "command": "node",
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -104,7 +109,8 @@ class ProxiedServerConfigParserTest {
         {
           "name": "server",
           "namespace": "  ",
-          "command": "node"
+          "command": "node",
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -122,7 +128,8 @@ class ProxiedServerConfigParserTest {
         {
           "name": "server",
           "namespace": "ns",
-          "command": "  "
+          "command": "  ",
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -141,7 +148,8 @@ class ProxiedServerConfigParserTest {
           "name": "server",
           "namespace": "ns",
           "command": "node",
-          "args": []
+          "args": [],
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -160,7 +168,8 @@ class ProxiedServerConfigParserTest {
           "name": "server",
           "namespace": "ns",
           "command": "node",
-          "env": {}
+          "env": {},
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -184,13 +193,15 @@ class ProxiedServerConfigParserTest {
             "VAR1": "value1",
             "VAR2": "value2",
             "VAR3": "value3"
-          }
+          },
+          "supportedTransports": ["stdio", "http"]
         },
         {
           "name": "server2",
           "namespace": "ns2",
           "command": "python",
-          "args": ["-m", "server"]
+          "args": ["-m", "server"],
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -293,6 +304,7 @@ class ProxiedServerConfigParserTest {
           "name": "server",
           "namespace": "ns",
           "command": "node",
+          "supportedTransports": ["stdio"],
           "extra_field": "should be ignored",
           "another_unknown": 123
         }
@@ -314,7 +326,8 @@ class ProxiedServerConfigParserTest {
           "name": "server",
           "namespace": "ns",
           "command": "cmd",
-          "args": ["first", "second", "third", "fourth"]
+          "args": ["first", "second", "third", "fourth"],
+          "supportedTransports": ["stdio"]
         }
       ]
       """;
@@ -323,6 +336,80 @@ class ProxiedServerConfigParserTest {
 
     assertThat(result.success()).isTrue();
     assertThat(result.configs().getFirst().args()).containsExactly("first", "second", "third", "fourth");
+  }
+
+  @Test
+  void parseServerConfig_should_fail_when_supported_transports_is_missing() {
+    var json = """
+      [
+        {
+          "name": "server",
+          "namespace": "ns",
+          "command": "node"
+        }
+      ]
+      """;
+
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(result.success()).isFalse();
+    assertThat(result.error()).contains("Failed to parse configuration");
+  }
+
+  @Test
+  void parseServerConfig_should_fail_when_supported_transports_is_empty() {
+    var json = """
+      [
+        {
+          "name": "server",
+          "namespace": "ns",
+          "command": "node",
+          "supportedTransports": []
+        }
+      ]
+      """;
+
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(result.success()).isFalse();
+    assertThat(result.error()).contains("Proxied MCP server must support at least one transport mode");
+  }
+
+  @Test
+  void parseServerConfig_should_fail_when_supported_transports_has_invalid_value() {
+    var json = """
+      [
+        {
+          "name": "server",
+          "namespace": "ns",
+          "command": "node",
+          "supportedTransports": ["invalid"]
+        }
+      ]
+      """;
+
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(result.success()).isFalse();
+    assertThat(result.error()).contains("Invalid transport mode: 'invalid'");
+  }
+
+  @Test
+  void parseServerConfig_should_parse_mixed_case_transport_modes() {
+    var json = """
+      [
+        {
+          "name": "server",
+          "namespace": "ns",
+          "command": "node",
+          "supportedTransports": ["STDIO", "Http"]
+        }
+      ]
+      """;
+
+    var config = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(config.configs().getFirst().supportedTransports()).containsExactlyInAnyOrder(TransportMode.STDIO, TransportMode.HTTP);
   }
 
 }

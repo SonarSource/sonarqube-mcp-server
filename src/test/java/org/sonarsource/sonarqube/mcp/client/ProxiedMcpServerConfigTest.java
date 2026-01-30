@@ -18,9 +18,11 @@ package org.sonarsource.sonarqube.mcp.client;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 class ProxiedMcpServerConfigTest {
 
@@ -28,7 +30,8 @@ class ProxiedMcpServerConfigTest {
   void constructor_should_throw_when_name_is_blank() {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
-    assertThatThrownBy(() -> new ProxiedMcpServerConfig("  ", "namespace", "npx", emptyList, emptyMap))
+    var defaultTransports = Set.of(TransportMode.STDIO);
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("  ", "namespace", "npx", emptyList, emptyMap, defaultTransports))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Proxied MCP server name cannot be null or blank");
   }
@@ -37,7 +40,8 @@ class ProxiedMcpServerConfigTest {
   void constructor_should_throw_when_namespace_is_blank() {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
-    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "  ", "npx", emptyList, emptyMap))
+    var defaultTransports = Set.of(TransportMode.STDIO);
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "  ", "npx", emptyList, emptyMap, defaultTransports))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Proxied MCP server namespace cannot be null or blank");
   }
@@ -46,9 +50,36 @@ class ProxiedMcpServerConfigTest {
   void constructor_should_throw_when_command_is_blank() {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
-    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "namespace", "  ", emptyList, emptyMap))
+    var defaultTransports = Set.of(TransportMode.STDIO);
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "namespace", "  ", emptyList, emptyMap, defaultTransports))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Proxied MCP server command cannot be null or blank");
+  }
+
+  @Test
+  void constructor_should_throw_when_supported_transports_is_empty() {
+    var emptyList = List.<String>of();
+    var emptyMap = Map.<String, String>of();
+    var emptyTransports = Set.<TransportMode>of();
+
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "namespace", "npx", emptyList, emptyMap, emptyTransports))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Proxied MCP server must support at least one transport mode");
+  }
+
+  @Test
+  void supportsTransport_should_return_true_for_supported_transport() {
+    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO, TransportMode.HTTP));
+
+    assertThat(config.supportsTransport(TransportMode.STDIO)).isTrue();
+    assertThat(config.supportsTransport(TransportMode.HTTP)).isTrue();
+  }
+
+  @Test
+  void supportsTransport_should_return_false_for_unsupported_transport() {
+    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO));
+
+    assertThat(config.supportsTransport(TransportMode.HTTP)).isFalse();
   }
 
 }
