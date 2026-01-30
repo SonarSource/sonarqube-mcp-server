@@ -28,15 +28,12 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
 
   public static final String TOOL_NAME = "run_advanced_code_analysis";
 
-  public static final String ORGANIZATION_ID_PROPERTY = "organizationId";
   public static final String ORGANIZATION_KEY_PROPERTY = "organizationKey";
-  public static final String PROJECT_ID_PROPERTY = "projectId";
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
-  public static final String BRANCH_ID_PROPERTY = "branchId";
   public static final String BRANCH_NAME_PROPERTY = "branchName";
+  public static final String PARENT_BRANCH_NAME_PROPERTY = "parentBranchName";
   public static final String FILE_PATH_PROPERTY = "filePath";
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
-  public static final String PATCH_CONTENT_PROPERTY = "patchContent";
   public static final String FILE_SCOPE_PROPERTY = "fileScope";
 
   private final ServerApiProvider serverApiProvider;
@@ -45,17 +42,13 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     super(SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Advanced Code Analysis")
-      .setDescription("Run advanced code analysis remotely using SonarQube Cloud advanced analysis. " +
-        "Analyzes a single file and optionally a patch to detect new, matched, and closed issues.")
-      .addStringProperty(ORGANIZATION_ID_PROPERTY, "The unique identifier (UUID) of the organization. Either organizationId or organizationKey is required.")
-      .addStringProperty(ORGANIZATION_KEY_PROPERTY, "The key of the organization. Either organizationId or organizationKey is required.")
-      .addStringProperty(PROJECT_ID_PROPERTY, "The unique identifier (UUID) of the project. Either projectId or projectKey is required.")
-      .addStringProperty(PROJECT_KEY_PROPERTY, "The key of the project. Either projectId or projectKey is required.")
-      .addStringProperty(BRANCH_ID_PROPERTY, "The unique identifier of the branch to retrieve the latest analysis context.")
+      .setDescription("Run advanced code analysis on SonarQube Cloud for a single file.")
+      .addRequiredStringProperty(ORGANIZATION_KEY_PROPERTY, "The key of the organization.")
+      .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The key of the project.")
       .addStringProperty(BRANCH_NAME_PROPERTY, "The branch name to retrieve the latest analysis context.")
+      .addStringProperty(PARENT_BRANCH_NAME_PROPERTY, "The parent branch name to retrieve the latest analysis context.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
       .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The original content of the file to analyze.")
-      .addStringProperty(PATCH_CONTENT_PROPERTY, "The patch content to apply (unified diff format).")
       .addStringProperty(FILE_SCOPE_PROPERTY, "Defines in which scope the file originates from: 'MAIN' or 'TEST'. Defaults to 'MAIN'.")
       .setReadOnlyHint()
       .build(),
@@ -65,38 +58,20 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
-    validateRequiredIdentifiers(arguments);
     var request = extractRequest(arguments);
     var response = serverApiProvider.get().a3sAnalysisHubApi().analyze(request);
     var toolResponse = buildStructuredContent(response);
     return Result.success(toolResponse);
   }
 
-  private static void validateRequiredIdentifiers(Arguments arguments) {
-    var orgId = arguments.getOptionalString(ORGANIZATION_ID_PROPERTY);
-    var orgKey = arguments.getOptionalString(ORGANIZATION_KEY_PROPERTY);
-    if (orgId == null && orgKey == null) {
-      throw new IllegalArgumentException("Either organizationId or organizationKey is required");
-    }
-
-    var projectId = arguments.getOptionalString(PROJECT_ID_PROPERTY);
-    var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
-    if (projectId == null && projectKey == null) {
-      throw new IllegalArgumentException("Either projectId or projectKey is required");
-    }
-  }
-
   private static AnalysisCreationRequest extractRequest(Arguments arguments) {
     return new AnalysisCreationRequest(
-      arguments.getOptionalString(ORGANIZATION_ID_PROPERTY),
-      arguments.getOptionalString(ORGANIZATION_KEY_PROPERTY),
-      arguments.getOptionalString(PROJECT_ID_PROPERTY),
-      arguments.getOptionalString(PROJECT_KEY_PROPERTY),
-      arguments.getOptionalString(BRANCH_ID_PROPERTY),
+      arguments.getStringOrThrow(ORGANIZATION_KEY_PROPERTY),
+      arguments.getStringOrThrow(PROJECT_KEY_PROPERTY),
       arguments.getOptionalString(BRANCH_NAME_PROPERTY),
+      arguments.getOptionalString(PARENT_BRANCH_NAME_PROPERTY),
       arguments.getStringOrThrow(FILE_PATH_PROPERTY),
       arguments.getStringOrThrow(FILE_CONTENT_PROPERTY),
-      arguments.getOptionalString(PATCH_CONTENT_PROPERTY),
       arguments.getOptionalString(FILE_SCOPE_PROPERTY)
     );
   }

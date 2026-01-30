@@ -23,7 +23,6 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisHubApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
@@ -51,44 +50,6 @@ class RunAdvancedCodeAnalysisToolTests {
         assertThat(annotations.readOnlyHint()).isTrue();
         assertThat(annotations.openWorldHint()).isTrue();
       });
-  }
-
-  @SonarQubeMcpServerTest
-  void it_should_return_an_error_if_organization_identifier_is_missing(SonarQubeMcpServerTestHarness harness) {
-    stubAnalysisResponse(harness, SIMPLE_RESPONSE);
-    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
-
-    var result = mcpClient.callTool(
-      RunAdvancedCodeAnalysisTool.TOOL_NAME,
-      Map.of(
-        "projectKey", "my-project",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
-      ));
-
-    assertThat(result).isEqualTo(McpSchema.CallToolResult.builder()
-      .isError(true)
-      .addTextContent("An error occurred during the tool execution: Either organizationId or organizationKey is required")
-      .build());
-  }
-
-  @SonarQubeMcpServerTest
-  void it_should_return_an_error_if_project_identifier_is_missing(SonarQubeMcpServerTestHarness harness) {
-    stubAnalysisResponse(harness, SIMPLE_RESPONSE);
-    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
-
-    var result = mcpClient.callTool(
-      RunAdvancedCodeAnalysisTool.TOOL_NAME,
-      Map.of(
-        "organizationKey", "my-org",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
-      ));
-
-    assertThat(result).isEqualTo(McpSchema.CallToolResult.builder()
-      .isError(true)
-      .addTextContent("An error occurred during the tool execution: Either projectId or projectKey is required")
-      .build());
   }
 
   @SonarQubeMcpServerTest
@@ -133,37 +94,6 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_return_patch_result_when_provided(SonarQubeMcpServerTestHarness harness) {
-    stubAnalysisResponse(harness, RESPONSE_WITH_PATCH_RESULT);
-    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
-
-    var result = mcpClient.callTool(
-      RunAdvancedCodeAnalysisTool.TOOL_NAME,
-      Map.of(
-        "organizationKey", "my-org",
-        "projectKey", "my-project",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}",
-        "patchContent", "++class Main2 {}"
-      ));
-
-    assertResultEquals(result, """
-      {
-        "issues" : [ ],
-        "patchResult" : {
-          "newIssues" : [ {
-            "id" : "new-issue-1",
-            "filePath" : "src/Main.java",
-            "message" : "New issue introduced",
-            "rule" : "java:S1234"
-          } ],
-          "matchedIssues" : [ ],
-          "closedIssues" : [ "old-issue-1" ]
-        }
-      }""");
-  }
-
-  @SonarQubeMcpServerTest
   void it_should_return_an_error_on_api_failure(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisHubApi.ANALYSES_PATH)
       .willReturn(aResponse().withStatus(403)));
@@ -184,28 +114,6 @@ class RunAdvancedCodeAnalysisToolTests {
       .build());
   }
 
-  @SonarQubeMcpServerTest
-  void it_should_accept_organization_id_instead_of_key(SonarQubeMcpServerTestHarness harness) {
-    harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisHubApi.ANALYSES_PATH)
-      .withRequestBody(containing("\"organizationId\":\"org-uuid\""))
-      .willReturn(aResponse()
-        .withStatus(200)
-        .withHeader("Content-Type", "application/json")
-        .withBody(SIMPLE_RESPONSE)));
-    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
-
-    var result = mcpClient.callTool(
-      RunAdvancedCodeAnalysisTool.TOOL_NAME,
-      Map.of(
-        "organizationId", "org-uuid",
-        "projectKey", "my-project",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
-      ));
-
-    assertThat(result.isError()).isFalse();
-  }
-
   private static void stubAnalysisResponse(SonarQubeMcpServerTestHarness harness, String responseBody) {
     harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisHubApi.ANALYSES_PATH)
       .willReturn(aResponse()
@@ -221,6 +129,41 @@ class RunAdvancedCodeAnalysisToolTests {
       "patchResult": null
     }
     """;
+
+  @SonarQubeMcpServerTest
+  void it_should_return_patch_result_when_server_calculates_it(SonarQubeMcpServerTestHarness harness) {
+    stubAnalysisResponse(harness, RESPONSE_WITH_PATCH_RESULT);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "organizationKey", "my-org",
+        "projectKey", "my-project",
+        "filePath", "src/Main.java",
+        "fileContent", "class Main {}"
+      ));
+
+    assertResultEquals(result, """
+      {
+        "issues" : [ ],
+        "patchResult" : {
+          "newIssues" : [ {
+            "id" : "new-issue-1",
+            "filePath" : "src/Main.java",
+            "message" : "New issue introduced",
+            "rule" : "java:S1234"
+          } ],
+          "matchedIssues" : [ {
+            "id" : "matched-issue-1",
+            "filePath" : "src/Main.java",
+            "message" : "Existing issue still present",
+            "rule" : "java:S5678"
+          } ],
+          "closedIssues" : [ "old-issue-1", "old-issue-2" ]
+        }
+      }""");
+  }
 
   private static final String RESPONSE_WITH_FLOWS = """
     {
@@ -276,9 +219,19 @@ class RunAdvancedCodeAnalysisToolTests {
             "flows": []
           }
         ],
-        "matchedIssues": [],
-        "closedIssues": ["old-issue-1"]
+        "matchedIssues": [
+          {
+            "id": "matched-issue-1",
+            "filePath": "src/Main.java",
+            "message": "Existing issue still present",
+            "rule": "java:S5678",
+            "textRange": null,
+            "flows": []
+          }
+        ],
+        "closedIssues": ["old-issue-1", "old-issue-2"]
       }
     }
     """;
+
 }

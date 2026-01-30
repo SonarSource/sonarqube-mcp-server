@@ -22,15 +22,12 @@ import javax.annotation.Nullable;
  * Request body for POST /a3s-analysishub/analyses
  */
 public record AnalysisCreationRequest(
-  @Nullable String organizationId,
-  @Nullable String organizationKey,
-  @Nullable String projectId,
-  @Nullable String projectKey,
-  @Nullable String branchId,
+  String organizationKey,
+  String projectKey,
   @Nullable String branchName,
+  @Nullable String parentBranchName,
   String filePath,
   String fileContent,
-  @Nullable String patchContent,
   @Nullable String fileScope
 ) {
 }

@@ -40,10 +40,6 @@ public class ServerApi {
   private final boolean isSonarCloud;
   private final boolean isMocksEnabled;
 
-  public ServerApi(ServerApiHelper helper, boolean isSonarCloud) {
-    this(helper, isSonarCloud, false);
-  }
-
   public ServerApi(ServerApiHelper helper, boolean isSonarCloud, boolean isMocksEnabled) {
     this.helper = helper;
     this.isSonarCloud = isSonarCloud;

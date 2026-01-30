@@ -112,38 +112,10 @@ public class A3sAnalysisHubApi {
 
     var issues = List.of(issue1, issue2);
 
-    AnalysisResponse.PatchResult patchResult = null;
-    if (request.patchContent() != null && !request.patchContent().isEmpty()) {
-      var newIssueTextRange = new AnalysisResponse.TextRange(30, 32, 0, 15);
-      var newIssue = new AnalysisResponse.Issue(
-        "9c4g7e0f-1g5d-6c3e-dh94-05c014694h44",
-        request.filePath(),
-        "Add a nested comment explaining why this method is empty.",
-        "java:S1186",
-        newIssueTextRange,
-        List.of()
-      );
-
-      var matchedIssue = new AnalysisResponse.Issue(
-        "7a2f5c8d-9e3b-4a1c-bf72-83a892472f22",
-        request.filePath(),
-        "Possible null pointer dereference of 'data'. This variable was assigned null on line 5.",
-        "java:S2259",
-        textRange,
-        List.of(dataFlow, executionFlow)
-      );
-
-      patchResult = new AnalysisResponse.PatchResult(
-        List.of(newIssue),
-        List.of(matchedIssue),
-        List.of("old-issue-id-that-was-fixed")
-      );
-    }
-
     return new AnalysisResponse(
       "57f08a8b-4a6e-4c64-bf72-83a892472f22",
       issues,
-      patchResult
+      null
     );
   }
 }
