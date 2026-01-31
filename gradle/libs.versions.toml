@@ -1,7 +1,7 @@
 [versions]
-sonarlint-core = "10.43.0.84213"
+sonarlint-core = "10.43.0.84255"
 
-sonarqube = "6.1.0.5360"
+sonarqube = "7.2.2.6593"
 
 license-plugin = "0.16.1"
 artifactory-plugin = "5.2.5"
@@ -9,12 +9,12 @@ cyclonedx-plugin = "1.10.0"
 
 sonar-php = "3.54.0.15452"
 
-mcp-server = "0.17.0"
+mcp-server = "0.17.2"
 commons-lang3 = "3.20.0"
 commons-text = "1.14.0"
 ayza = "10.0.3"
-logback = "1.5.25"
-jetty = "12.1.5"
+logback = "1.5.26"
+jetty = "12.1.6"
 jsonschema-generator = "4.38.0"
 
 junit = "5.14.2"
