@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.a3s.request;
 import javax.annotation.Nullable;
 
 /**
- * Request body for POST /a3s-analysishub/analyses
+ * Request body for POST /a3s-analysis/analyses
  */
 public record AnalysisCreationRequest(
   String organizationKey,

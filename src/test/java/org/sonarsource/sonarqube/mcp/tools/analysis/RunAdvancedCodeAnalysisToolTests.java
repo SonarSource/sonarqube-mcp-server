@@ -20,7 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisHubApi;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -95,7 +95,7 @@ class RunAdvancedCodeAnalysisToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_return_an_error_on_api_failure(SonarQubeMcpServerTestHarness harness) {
-    harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisHubApi.ANALYSES_PATH)
+    harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisApi.ANALYSES_PATH)
       .willReturn(aResponse().withStatus(403)));
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
@@ -142,7 +142,7 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   private static void stubAnalysisResponse(SonarQubeMcpServerTestHarness harness, String responseBody) {
-    harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisHubApi.ANALYSES_PATH)
+    harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisApi.ANALYSES_PATH)
       .willReturn(aResponse()
         .withStatus(200)
         .withHeader("Content-Type", "application/json")

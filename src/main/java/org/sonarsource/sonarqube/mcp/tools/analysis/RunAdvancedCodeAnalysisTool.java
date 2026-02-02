@@ -59,7 +59,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   @Override
   public Result execute(Arguments arguments) {
     var request = extractRequest(arguments);
-    var response = serverApiProvider.get().a3sAnalysisHubApi().analyze(request);
+    var response = serverApiProvider.get().a3sAnalysisApi().analyze(request);
     var toolResponse = buildStructuredContent(response);
     return Result.success(toolResponse);
   }
