@@ -5,7 +5,7 @@ RUN apk update &&  \
 
 WORKDIR /app
 
-ADD https://github.com/SonarSource/sonarqube-mcp-server/releases/download/1.7.0.1765/sonarqube-mcp-server-1.7.0.1765.jar ./sonarqube-mcp-server.jar
+ADD https://github.com/SonarSource/sonarqube-mcp-server/releases/download/1.8.0.1862/sonarqube-mcp-server-1.8.0.1862.jar ./sonarqube-mcp-server.jar
 
 RUN jdeps --ignore-missing-deps -q  \
     --recursive  \
