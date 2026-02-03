@@ -94,6 +94,30 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_allow_issues_without_file_path(SonarQubeMcpServerTestHarness harness) {
+    stubAnalysisResponse(harness, RESPONSE_WITHOUT_FILE_PATH);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "organizationKey", "my-org",
+        "projectKey", "my-project",
+        "filePath", "src/Main.java",
+        "fileContent", "class Main {}"
+      ));
+
+    assertResultEquals(result, """
+      {
+        "issues" : [ {
+          "id" : "issue-1",
+          "message" : "Add a 'package-info.java' file",
+          "rule" : "java:S1228"
+        } ]
+      }""");
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_return_an_error_on_api_failure(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisApi.ANALYSES_PATH)
       .willReturn(aResponse().withStatus(403)));
@@ -274,6 +298,19 @@ class RunAdvancedCodeAnalysisToolTests {
         {
           "code": "PARSE_ERROR",
           "message": "Failed to parse analysis input"
+        }
+      ]
+    }
+    """;
+
+  private static final String RESPONSE_WITHOUT_FILE_PATH = """
+    {
+      "id": "analysis-1",
+      "issues": [
+        {
+          "id": "issue-1",
+          "message": "Add a 'package-info.java' file",
+          "rule": "java:S1228"
         }
       ]
     }

@@ -30,7 +30,7 @@ public record RunAdvancedCodeAnalysisToolResponse(
 
   public record Issue(
     @JsonPropertyDescription("Unique identifier of the issue") String id,
-    @JsonPropertyDescription("Project-relative path of the file containing the issue") String filePath,
+    @JsonPropertyDescription("Project-relative path of the file containing the issue") @Nullable String filePath,
     @JsonPropertyDescription("Primary message of the issue") String message,
     @JsonPropertyDescription("The rule key (e.g., java:S1854)") String rule,
     @JsonPropertyDescription("Location of the issue in the source file") @Nullable TextRange textRange,

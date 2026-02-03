@@ -45,7 +45,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .setDescription("Run advanced code analysis on SonarQube Cloud for a single file.")
       .addRequiredStringProperty(ORGANIZATION_KEY_PROPERTY, "The key of the organization.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The key of the project.")
-      .addStringProperty(BRANCH_NAME_PROPERTY, "The branch name to retrieve the latest analysis context.")
+      .addStringProperty(BRANCH_NAME_PROPERTY, "The branch name to retrieve the latest analysis context. Although it is not required, it is highly recommended to provide it.")
       .addStringProperty(PARENT_BRANCH_NAME_PROPERTY, "The parent branch name to retrieve the latest analysis context.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
       .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The original content of the file to analyze.")
