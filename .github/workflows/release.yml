@@ -15,4 +15,5 @@ jobs:
       contents: write
     uses: SonarSource/gh-action_release/.github/workflows/main.yaml@v6
     with:
+      publishToBinaries: true
       slackChannel: squad-ide-mcp-server
