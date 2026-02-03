@@ -131,6 +131,29 @@ class SonarQubeMcpServerGenericTest {
     server.shutdown();
   }
 
+  @SonarQubeMcpServerTest
+  void should_skip_analyzer_download_when_analysis_tools_disabled(SonarQubeMcpServerTestHarness harness) throws Exception {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    // Disable ANALYSIS tools by only enabling PROJECTS
+    environment.put("SONARQUBE_TOOLSETS", "projects");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    // Wait for background initialization to complete
+    server.waitForInitialization();
+
+    // Server should start successfully without downloading analyzers
+    assertThat(server.getMcpConfiguration().isToolCategoryEnabled(org.sonarsource.sonarqube.mcp.tools.ToolCategory.ANALYSIS)).isFalse();
+    assertThat(server.getMcpConfiguration().isToolCategoryEnabled(org.sonarsource.sonarqube.mcp.tools.ToolCategory.PROJECTS)).isTrue();
+
+    server.shutdown();
+  }
+
   private Map<String, String> createStdioEnvironment(String baseUrl) {
     var environment = new HashMap<String, String>();
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir"));
