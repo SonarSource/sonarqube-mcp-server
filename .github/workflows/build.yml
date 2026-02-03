@@ -85,25 +85,9 @@ jobs:
           echo "Using project version: ${PROJECT_VERSION}"
           DOWNLOAD_URL="${ARTIFACTORY_URL}/sonarsource-public-qa/org/sonarsource/sonarqube/mcp/server/sonarqube-mcp-server/${PROJECT_VERSION}/sonarqube-mcp-server-${PROJECT_VERSION}.jar"
           
-          # Retry logic to handle Artifactory propagation delays
-          MAX_ATTEMPTS=2
-          RETRY_DELAY=5
-          for attempt in $(seq 1 $MAX_ATTEMPTS); do
-            echo "Download attempt $attempt of $MAX_ATTEMPTS..."
-            if curl -fsSL -u "${ARTIFACTORY_PRIVATE_USERNAME}:${ARTIFACTORY_PRIVATE_PASSWORD}" \
-              -o sonarqube-mcp-server.jar \
-              "${DOWNLOAD_URL}"; then
-              echo "Download successful"
-              break
-            fi
-            if [ $attempt -eq $MAX_ATTEMPTS ]; then
-              echo "All download attempts failed"
-              exit 1
-            fi
-            echo "Download failed, retrying in ${RETRY_DELAY}s..."
-            sleep $RETRY_DELAY
-            RETRY_DELAY=$((RETRY_DELAY * 2))
-          done
+          curl -fsSL -u "${ARTIFACTORY_PRIVATE_USERNAME}:${ARTIFACTORY_PRIVATE_PASSWORD}" \
+            -o sonarqube-mcp-server.jar \
+            "${DOWNLOAD_URL}"
           
           mkdir -p ${GITHUB_WORKSPACE}/downloaded-plugin
           mv sonarqube-mcp-server.jar ${GITHUB_WORKSPACE}/downloaded-plugin/
@@ -119,7 +103,7 @@ jobs:
           ./gradlew :its:integrationTest --tests "*${{ matrix.test_class }}" --info
 
   promote:
-    needs: [build]
+    needs: [build, integration]
     runs-on: github-ubuntu-latest-s  # Public repository runner
     name: Promote
     steps:
