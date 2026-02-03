@@ -121,13 +121,12 @@ public class McpServerLaunchConfiguration {
     
     // Determine if this is SonarQube Cloud (presence of ORG indicates SQC)
     this.isSonarCloud = this.sonarqubeOrg != null;
-    
-    // Apply smart defaults based on mode
+
     if (this.isSonarCloud) {
-      // Cloud mode: default to sonarcloud.io if URL not provided
+      // SQC: default to sonarcloud.io if URL not provided
       this.sonarqubeUrl = sonarqubeUrlFromEnv != null ? sonarqubeUrlFromEnv : "https://sonarcloud.io";
     } else {
-      // Server mode: URL is required
+      // SQS: URL is required
       if (sonarqubeUrlFromEnv == null) {
         throw new IllegalArgumentException("SONARQUBE_URL environment variable or property must be set when using SonarQube Server");
       }
