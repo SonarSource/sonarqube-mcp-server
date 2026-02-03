@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
-import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisHubApi;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.EnterprisesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
@@ -108,8 +108,12 @@ public class ServerApi {
     return new FeaturesApi(helper);
   }
 
-  public A3sAnalysisHubApi a3sAnalysisHubApi() {
-    return new A3sAnalysisHubApi(helper);
+  public A3sAnalysisApi a3sAnalysisApi() {
+    return new A3sAnalysisApi(helper);
+  }
+
+  public String getOrganization() {
+    return helper.getOrganization();
   }
 
   public boolean isSonarQubeCloud() {

@@ -21,15 +21,15 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
 
-public class A3sAnalysisHubApi {
+public class A3sAnalysisApi {
 
-  public static final String ANALYSES_PATH = "/a3s-analysishub/analyses";
+  public static final String ANALYSES_PATH = "/a3s-analysis/analyses";
   private static final String JSON_CONTENT_TYPE = "application/json";
   private static final Gson GSON = new Gson();
 
   private final ServerApiHelper helper;
 
-  public A3sAnalysisHubApi(ServerApiHelper helper) {
+  public A3sAnalysisApi(ServerApiHelper helper) {
     this.helper = helper;
   }
 

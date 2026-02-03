@@ -211,7 +211,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     if (mcpConfiguration.isAdvancedAnalysisEnabled() && mcpConfiguration.isSonarCloud()) {
       LOG.info("Advanced analysis mode enabled");
-      loadAdvancedAnalysisTools();
+      supportedTools.add(new RunAdvancedCodeAnalysisTool(this));
     } else {
       if (mcpConfiguration.isAdvancedAnalysisEnabled() && !mcpConfiguration.isSonarCloud()) {
         LOG.warn("SONARQUBE_ADVANCED_ANALYSIS_ENABLED is set but advanced analysis is only available on SonarCloud. Falling back to standard analysis.");
@@ -293,10 +293,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (scaSupportedOnSQC || scaSupportedOnSQS) {
       supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker));
     }
-  }
-
-  private void loadAdvancedAnalysisTools() {
-    supportedTools.add(new RunAdvancedCodeAnalysisTool(this));
   }
 
   /**

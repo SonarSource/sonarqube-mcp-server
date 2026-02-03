@@ -21,7 +21,7 @@ import javax.annotation.Nullable;
 
 public record AnalysisResponse(String id, List<Issue> issues, @Nullable PatchResult patchResult, @Nullable List<AnalysisError> errors) {
 
-  public record Issue(String id, String filePath, String message, String rule, @Nullable TextRange textRange, @Nullable List<Flow> flows) {
+  public record Issue(String id, @Nullable String filePath, String message, String rule, @Nullable TextRange textRange, @Nullable List<Flow> flows) {
   }
 
   public record TextRange(Integer startLine, Integer endLine, Integer startOffset, Integer endOffset) {
