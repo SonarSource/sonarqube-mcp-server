@@ -74,7 +74,8 @@ class McpServerLaunchConfigurationTest {
 
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("SONARQUBE_URL environment variable or property must be set when using SonarQube Server");
+      .hasMessage("SONARQUBE_URL must be set when connecting to SonarQube Server. " +
+        "SONARQUBE_ORG is not defined, so a connection to SonarQube Server was assumed.");
   }
 
   @Test
@@ -297,11 +298,11 @@ class McpServerLaunchConfigurationTest {
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
       "SONARQUBE_ORG", "my-org",
-      "SONARQUBE_URL", "https://sonarcloud.us"
+      "SONARQUBE_URL", "https://sonarqube.us"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.us");
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
     assertThat(configuration.isSonarCloud()).isTrue();
     assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
   }
@@ -327,11 +328,11 @@ class McpServerLaunchConfigurationTest {
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
       "SONARQUBE_ORG", "my-org",
-      "SONARQUBE_CLOUD_URL", "https://sonarcloud.us"
+      "SONARQUBE_CLOUD_URL", "https://sonarqube.us"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.us");
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
     assertThat(configuration.isSonarCloud()).isTrue();
     assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
   }
@@ -343,12 +344,12 @@ class McpServerLaunchConfigurationTest {
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
       "SONARQUBE_ORG", "my-org",
-      "SONARQUBE_URL", "https://sonarcloud.us",
+      "SONARQUBE_URL", "https://sonarqube.us",
       "SONARQUBE_CLOUD_URL", "https://sonarcloud.io"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.us");
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
     assertThat(configuration.isSonarCloud()).isTrue();
   }
 

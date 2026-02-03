@@ -513,16 +513,16 @@ docker run -i --rm \
 
 To enable full functionality, the following environment variables must be set before starting the server:
 
-| Environment variable  | Description                                                                                                           | Required |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------|----------|
-| `SONARQUBE_TOKEN`     | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/)     | Yes      |
-| `SONARQUBE_ORG`       | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                                  | Yes      |
-| `SONARQUBE_URL`       | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarCloud US: `https://sonarcloud.us` | No       |
+| Environment variable  | Description                                                                                                               | Required |
+|-----------------------|---------------------------------------------------------------------------------------------------------------------------|----------|
+| `SONARQUBE_TOKEN`     | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/)         | Yes      |
+| `SONARQUBE_ORG`       | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                                      | Yes      |
+| `SONARQUBE_URL`       | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarQube Cloud US: `https://sonarqube.us` | No       |
 
 **Examples:**
 
-- **SonarCloud EU (default)**: Only `SONARQUBE_TOKEN` and `SONARQUBE_ORG` are needed
-- **SonarCloud US**: Set `SONARQUBE_TOKEN`, `SONARQUBE_ORG`, and `SONARQUBE_URL=https://sonarcloud.us`
+- **SonarQube Cloud**: Only `SONARQUBE_TOKEN` and `SONARQUBE_ORG` are needed
+- **SonarQube Cloud US**: Set `SONARQUBE_TOKEN`, `SONARQUBE_ORG`, and `SONARQUBE_URL=https://sonarqube.us`
 
 #### SonarQube Server
 

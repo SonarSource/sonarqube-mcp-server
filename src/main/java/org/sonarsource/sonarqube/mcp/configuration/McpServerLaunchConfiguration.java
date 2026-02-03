@@ -128,7 +128,9 @@ public class McpServerLaunchConfiguration {
     } else {
       // SQS: URL is required
       if (sonarqubeUrlFromEnv == null) {
-        throw new IllegalArgumentException("SONARQUBE_URL environment variable or property must be set when using SonarQube Server");
+        throw new IllegalArgumentException("SONARQUBE_URL must be set when connecting to SonarQube Server. " +
+          "SONARQUBE_ORG is not defined, so a connection to SonarQube Server was assumed."
+        );
       }
       this.sonarqubeUrl = sonarqubeUrlFromEnv;
     }
