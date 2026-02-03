@@ -17,6 +17,8 @@
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -28,13 +30,13 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
 
   public static final String TOOL_NAME = "run_advanced_code_analysis";
 
-  public static final String ORGANIZATION_KEY_PROPERTY = "organizationKey";
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
   public static final String BRANCH_NAME_PROPERTY = "branchName";
-  public static final String PARENT_BRANCH_NAME_PROPERTY = "parentBranchName";
   public static final String FILE_PATH_PROPERTY = "filePath";
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
   public static final String FILE_SCOPE_PROPERTY = "fileScope";
+
+  private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ServerApiProvider serverApiProvider;
 
@@ -42,11 +44,9 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     super(SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Advanced Code Analysis")
-      .setDescription("Run advanced code analysis on SonarQube Cloud for a single file.")
-      .addRequiredStringProperty(ORGANIZATION_KEY_PROPERTY, "The key of the organization.")
+      .setDescription("Run advanced code analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The key of the project.")
-      .addStringProperty(BRANCH_NAME_PROPERTY, "The branch name to retrieve the latest analysis context.")
-      .addStringProperty(PARENT_BRANCH_NAME_PROPERTY, "The parent branch name to retrieve the latest analysis context.")
+      .addStringProperty(BRANCH_NAME_PROPERTY, "Branch name used to retrieve the latest analysis context. Provide whenever possible; omitting it can reduce accuracy.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
       .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The original content of the file to analyze.")
       .addStringProperty(FILE_SCOPE_PROPERTY, "Defines in which scope the file originates from: 'MAIN' or 'TEST'. Defaults to 'MAIN'.")
@@ -58,18 +58,31 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
-    var request = extractRequest(arguments);
-    var response = serverApiProvider.get().a3sAnalysisHubApi().analyze(request);
+    var serverApi = serverApiProvider.get();
+    var organizationKey = serverApi.getOrganization();
+    if (organizationKey == null) {
+      throw new IllegalStateException("run_advanced_code_analysis requires an organization to be configured in MCP (SONARQUBE_ORG).");
+    }
+    if (arguments.getOptionalString(BRANCH_NAME_PROPERTY) == null) {
+      LOG.warn("run_advanced_code_analysis called without branchName; analysis may use default/stale context and be less accurate.");
+    }
+    var request = extractRequest(arguments, organizationKey);
+    var response = serverApi.a3sAnalysisApi().analyze(request);
+    if (response.errors() != null && !response.errors().isEmpty()) {
+      var errorMessage = response.errors().stream()
+        .map(AnalysisResponse.AnalysisError::message)
+        .collect(Collectors.joining(", "));
+      return Result.failure("An error occurred during the tool execution: " + errorMessage);
+    }
     var toolResponse = buildStructuredContent(response);
     return Result.success(toolResponse);
   }
 
-  private static AnalysisCreationRequest extractRequest(Arguments arguments) {
+  private static AnalysisCreationRequest extractRequest(Arguments arguments, String organizationKey) {
     return new AnalysisCreationRequest(
-      arguments.getStringOrThrow(ORGANIZATION_KEY_PROPERTY),
+      organizationKey,
       arguments.getStringOrThrow(PROJECT_KEY_PROPERTY),
       arguments.getOptionalString(BRANCH_NAME_PROPERTY),
-      arguments.getOptionalString(PARENT_BRANCH_NAME_PROPERTY),
       arguments.getStringOrThrow(FILE_PATH_PROPERTY),
       arguments.getStringOrThrow(FILE_CONTENT_PROPERTY),
       arguments.getOptionalString(FILE_SCOPE_PROPERTY)
@@ -90,14 +103,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       );
     }
 
-    List<RunAdvancedCodeAnalysisToolResponse.AnalysisError> errors = null;
-    if (response.errors() != null && !response.errors().isEmpty()) {
-      errors = response.errors().stream()
-        .map(error -> new RunAdvancedCodeAnalysisToolResponse.AnalysisError(error.code(), error.message()))
-        .toList();
-    }
-
-    return new RunAdvancedCodeAnalysisToolResponse(issues, patchResult, errors);
+    return new RunAdvancedCodeAnalysisToolResponse(issues, patchResult);
   }
 
   private static RunAdvancedCodeAnalysisToolResponse.Issue mapIssue(AnalysisResponse.Issue issue) {

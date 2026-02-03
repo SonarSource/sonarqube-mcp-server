@@ -458,6 +458,8 @@ You should add the following variable when running the MCP Server:
 
 ### Advanced Analysis
 
+> **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud users with access enabled. If your organization does not have access, enabling it will not provide any additional functionality.
+
 | Environment variable | Description |
 |----------------------|-------------|
 | `SONARQUBE_ADVANCED_ANALYSIS_ENABLED` | When set to `true` on SonarQube Cloud, enables the advanced analysis tool `run_advanced_code_analysis`. When enabled, it replaces all local analysis tools (`analyze_code_snippet`, `analyze_file_list`, `toggle_automatic_analysis`). On SonarQube Server, the flag is ignored and the server falls back to standard analysis. Default: `false`. |

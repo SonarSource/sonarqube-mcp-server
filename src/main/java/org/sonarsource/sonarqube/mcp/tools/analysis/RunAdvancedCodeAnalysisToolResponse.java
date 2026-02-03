@@ -24,13 +24,12 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record RunAdvancedCodeAnalysisToolResponse(
   @JsonPropertyDescription("List of issues found in the analysis") List<Issue> issues,
-  @JsonPropertyDescription("Result of analyzing a patch, showing new, matched, and closed issues") @Nullable PatchResult patchResult,
-  @JsonPropertyDescription("Errors returned by the analysis service, if any") @Nullable List<AnalysisError> errors
+  @JsonPropertyDescription("Result of analyzing a patch, showing new, matched, and closed issues") @Nullable PatchResult patchResult
 ) {
 
   public record Issue(
     @JsonPropertyDescription("Unique identifier of the issue") String id,
-    @JsonPropertyDescription("Project-relative path of the file containing the issue") String filePath,
+    @JsonPropertyDescription("Project-relative path of the file containing the issue") @Nullable String filePath,
     @JsonPropertyDescription("Primary message of the issue") String message,
     @JsonPropertyDescription("The rule key (e.g., java:S1854)") String rule,
     @JsonPropertyDescription("Location of the issue in the source file") @Nullable TextRange textRange,
@@ -65,9 +64,4 @@ public record RunAdvancedCodeAnalysisToolResponse(
   ) {
   }
 
-  public record AnalysisError(
-    @JsonPropertyDescription("Error code indicating the type of failure") String code,
-    @JsonPropertyDescription("Human-readable error message") String message
-  ) {
-  }
 }

@@ -20,7 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisHubApi;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -60,7 +60,6 @@ class RunAdvancedCodeAnalysisToolTests {
     var result = mcpClient.callTool(
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
-        "organizationKey", "my-org",
         "projectKey", "my-project",
         "filePath", "src/Main.java",
         "fileContent", "class Main {}"
@@ -94,15 +93,37 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_allow_issues_without_file_path(SonarQubeMcpServerTestHarness harness) {
+    stubAnalysisResponse(harness, RESPONSE_WITHOUT_FILE_PATH);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "projectKey", "my-project",
+        "filePath", "src/Main.java",
+        "fileContent", "class Main {}"
+      ));
+
+    assertResultEquals(result, """
+      {
+        "issues" : [ {
+          "id" : "issue-1",
+          "message" : "Add a 'package-info.java' file",
+          "rule" : "java:S1228"
+        } ]
+      }""");
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_return_an_error_on_api_failure(SonarQubeMcpServerTestHarness harness) {
-    harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisHubApi.ANALYSES_PATH)
+    harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisApi.ANALYSES_PATH)
       .willReturn(aResponse().withStatus(403)));
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
     var result = mcpClient.callTool(
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
-        "organizationKey", "my-org",
         "projectKey", "my-project",
         "filePath", "src/Main.java",
         "fileContent", "class Main {}"
@@ -122,27 +143,19 @@ class RunAdvancedCodeAnalysisToolTests {
     var result = mcpClient.callTool(
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
-        "organizationKey", "my-org",
         "projectKey", "my-project",
         "filePath", "src/Main.java",
         "fileContent", "class Main {}"
       ));
 
-    assertResultEquals(result, """
-      {
-        "issues" : [ ],
-        "errors" : [ {
-          "code" : "SERVICE_CALL_ERROR",
-          "message" : "Error while calling language analysis service"
-        }, {
-          "code" : "PARSE_ERROR",
-          "message" : "Failed to parse analysis input"
-        } ]
-      }""");
+    assertThat(result).isEqualTo(McpSchema.CallToolResult.builder()
+      .isError(true)
+      .addTextContent("An error occurred during the tool execution: Error while calling language analysis service, Failed to parse analysis input")
+      .build());
   }
 
   private static void stubAnalysisResponse(SonarQubeMcpServerTestHarness harness, String responseBody) {
-    harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisHubApi.ANALYSES_PATH)
+    harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisApi.ANALYSES_PATH)
       .willReturn(aResponse()
         .withStatus(200)
         .withHeader("Content-Type", "application/json")
@@ -165,7 +178,6 @@ class RunAdvancedCodeAnalysisToolTests {
     var result = mcpClient.callTool(
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
-        "organizationKey", "my-org",
         "projectKey", "my-project",
         "filePath", "src/Main.java",
         "fileContent", "class Main {}"
@@ -274,6 +286,19 @@ class RunAdvancedCodeAnalysisToolTests {
         {
           "code": "PARSE_ERROR",
           "message": "Failed to parse analysis input"
+        }
+      ]
+    }
+    """;
+
+  private static final String RESPONSE_WITHOUT_FILE_PATH = """
+    {
+      "id": "analysis-1",
+      "issues": [
+        {
+          "id": "issue-1",
+          "message": "Add a 'package-info.java' file",
+          "rule": "java:S1228"
         }
       ]
     }
