@@ -45,7 +45,7 @@ The server supports both SonarQube Cloud and on-premises SonarQube Server instan
 
 **For SonarQube Cloud:**
 - Use your organization key from [SonarQube Cloud Organizations](https://sonarcloud.io/account/organizations)
-- Connect to the US instance by setting `SONARQUBE_CLOUD_URL` if needed
+- Connect to the US instance by setting `SONARQUBE_URL=https://sonarcloud.us`
 - Token should have appropriate permissions for the projects you want to analyze
 
 **For SonarQube Server:**

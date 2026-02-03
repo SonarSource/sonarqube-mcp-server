@@ -69,12 +69,12 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_if_sonarqube_cloud_org_is_missing(@TempDir Path tempDir) {
+  void should_throw_error_if_sonarqube_server_url_is_missing(@TempDir Path tempDir) {
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
 
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("SONARQUBE_ORG environment variable must be set when using SonarQube Cloud");
+      .hasMessage("SONARQUBE_URL environment variable or property must be set when using SonarQube Server");
   }
 
   @Test
@@ -277,6 +277,79 @@ class McpServerLaunchConfigurationTest {
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.isReadOnlyMode()).isTrue();
+  }
+
+  // Simplified configuration tests
+
+  @Test
+  void should_use_sonarcloud_io_when_org_is_set_without_url(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "my-org");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
+  }
+
+  @Test
+  void should_use_custom_url_when_org_and_url_are_both_set(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "my-org",
+      "SONARQUBE_URL", "https://sonarcloud.us"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.us");
+    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
+  }
+
+  @Test
+  void should_use_server_mode_when_only_url_is_set(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_URL", "https://my-server.com"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://my-server.com");
+    assertThat(configuration.isSonarCloud()).isFalse();
+    assertThat(configuration.getSonarqubeOrg()).isNull();
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void should_support_deprecated_sonarqube_cloud_url_for_backward_compatibility(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "my-org",
+      "SONARQUBE_CLOUD_URL", "https://sonarcloud.us"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.us");
+    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void should_prefer_sonarqube_url_over_deprecated_cloud_url(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "my-org",
+      "SONARQUBE_URL", "https://sonarcloud.us",
+      "SONARQUBE_CLOUD_URL", "https://sonarcloud.io"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.us");
+    assertThat(configuration.isSonarCloud()).isTrue();
   }
 
 }

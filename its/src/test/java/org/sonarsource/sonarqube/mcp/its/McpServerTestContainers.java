@@ -71,7 +71,7 @@ class McpServerTestContainers {
       envVars.put("STORAGE_PATH", "/app/storage");
       envVars.put("SONARQUBE_TOKEN", getSonarCloudToken());
       envVars.put("SONARQUBE_ORG", "sonarlint-it");
-      envVars.put("SONARQUBE_CLOUD_URL", "https://sc-staging.io");
+      envVars.put("SONARQUBE_URL", "https://sc-staging.io");
     }
 
     ContainerBuilder withProxiedServersConfig(String resourcePath) {

@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
+import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
@@ -87,10 +88,10 @@ class SystemInfoToolTests {
     @SonarQubeMcpServerTest
     void it_should_not_be_available_for_sonarcloud(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl(),
         "SONARQUBE_ORG", "org"));
 
-      var exception = assertThrows(io.modelcontextprotocol.spec.McpError.class, () -> mcpClient.callTool(SystemInfoTool.TOOL_NAME));
+      var exception = assertThrows(McpError.class, () -> mcpClient.callTool(SystemInfoTool.TOOL_NAME));
 
       assertThat(exception.getMessage()).isEqualTo("Unknown tool: invalid_tool_name");
     }

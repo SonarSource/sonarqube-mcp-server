@@ -168,7 +168,7 @@ class SearchDependencyRisksToolTests {
           }
           """.getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl(),
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl(),
         "SONARQUBE_ORG", "org"));
 
       assertThat(mcpClient.listTools())

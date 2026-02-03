@@ -513,21 +513,27 @@ docker run -i --rm \
 
 To enable full functionality, the following environment variables must be set before starting the server:
 
-| Environment variable  | Description                                                                                                     |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOKEN`     | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/) |
-| `SONARQUBE_ORG`       | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                            |
+| Environment variable  | Description                                                                                                           | Required |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------|----------|
+| `SONARQUBE_TOKEN`     | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/)     | Yes      |
+| `SONARQUBE_ORG`       | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                                  | Yes      |
+| `SONARQUBE_URL`       | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarCloud US: `https://sonarcloud.us` | No       |
 
-Connecting your SonarQube MCP Server with your SonarQube Cloud **US** instance requires the use of the environment variable `SONARQUBE_CLOUD_URL`.
+**Examples:**
+
+- **SonarCloud EU (default)**: Only `SONARQUBE_TOKEN` and `SONARQUBE_ORG` are needed
+- **SonarCloud US**: Set `SONARQUBE_TOKEN`, `SONARQUBE_ORG`, and `SONARQUBE_URL=https://sonarcloud.us`
 
 #### SonarQube Server
 
-| Environment variable | Description                                                                                                                                 |
-|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOKEN`     | Your SonarQube Server **USER** [token](https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token) |
-| `SONARQUBE_URL`       | Your SonarQube Server URL                                                                                                                   |
+| Environment variable | Description                                                                                                                                 | Required |
+|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------|----------|
+| `SONARQUBE_TOKEN`     | Your SonarQube Server **USER** [token](https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token) | Yes      |
+| `SONARQUBE_URL`       | Your SonarQube Server URL                                                                                                                   | Yes      |
 
 > ⚠️ Connection to SonarQube Server requires a token of type **USER** and will not function properly if project tokens or global tokens are used.
+
+> 💡 **Configuration Tip**: The presence of `SONARQUBE_ORG` determines whether you're connecting to SonarQube Cloud or Server. If `SONARQUBE_ORG` is set, SonarQube Cloud is used; otherwise, SonarQube Server is used.
 
 ### Transport Modes
 
