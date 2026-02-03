@@ -116,12 +116,9 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     var environment = new HashMap<>(DEFAULT_ENV_TEMPLATE);
     environment.put("STORAGE_PATH", tempStoragePath.toString());
     environment.putAll(overriddenEnv);
-    // Only set SONARQUBE_URL if not already set and not using SonarQube Cloud (no SONARQUBE_ORG)
-    if (!environment.containsKey("SONARQUBE_URL") && !environment.containsKey("SONARQUBE_ORG")) {
+    // Only set SONARQUBE_URL if not already set
+    if (!environment.containsKey("SONARQUBE_URL")) {
       environment.put("SONARQUBE_URL", mockSonarQubeServer.baseUrl());
-    } else if (environment.containsKey("SONARQUBE_ORG") && !environment.containsKey("SONARQUBE_URL")) {
-      // For SonarQube Cloud tests, set the URL to the cloud URL (which will default to SonarQube Cloud URL in config)
-      environment.put("SONARQUBE_CLOUD_URL", mockSonarQubeServer.baseUrl());
     }
     prepareMockWebServer(environment);
 

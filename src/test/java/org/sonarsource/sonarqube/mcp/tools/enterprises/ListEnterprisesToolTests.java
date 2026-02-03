@@ -42,7 +42,7 @@ class ListEnterprisesToolTests {
     harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.ENTERPRISES_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
     var mcpClient = harness.newClient(Map.of(
       "SONARQUBE_ORG", "org",
-      "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+      "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListEnterprisesTool.TOOL_NAME)).findFirst().orElseThrow();
 
@@ -119,7 +119,7 @@ class ListEnterprisesToolTests {
       harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.ENTERPRISES_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
@@ -131,7 +131,7 @@ class ListEnterprisesToolTests {
       harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.ENTERPRISES_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
@@ -145,7 +145,7 @@ class ListEnterprisesToolTests {
           Body.fromJsonBytes("[]".getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
@@ -164,7 +164,7 @@ class ListEnterprisesToolTests {
           Body.fromJsonBytes(generateEnterprisesResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
 
@@ -193,7 +193,7 @@ class ListEnterprisesToolTests {
           Body.fromJsonBytes(generateFilteredEnterprisesResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListEnterprisesTool.TOOL_NAME,

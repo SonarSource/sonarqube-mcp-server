@@ -97,7 +97,7 @@ class ListPortfoliosToolTests {
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
@@ -111,7 +111,7 @@ class ListPortfoliosToolTests {
       harness.getMockSonarQubeServer().stubFor(get(EnterprisesApi.PORTFOLIOS_PATH + "?favorite=true").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
@@ -127,7 +127,7 @@ class ListPortfoliosToolTests {
           Body.fromJsonBytes(generateEmptyCloudResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
@@ -153,7 +153,7 @@ class ListPortfoliosToolTests {
           Body.fromJsonBytes(generateCloudResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
@@ -197,7 +197,7 @@ class ListPortfoliosToolTests {
           Body.fromJsonBytes(generateCloudResponse().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
@@ -243,7 +243,7 @@ class ListPortfoliosToolTests {
     void it_should_fail_when_neither_enterpriseId_nor_favorite_is_provided(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(ListPortfoliosTool.TOOL_NAME);
 
@@ -254,7 +254,7 @@ class ListPortfoliosToolTests {
     void it_should_fail_when_both_favorite_and_draft_are_true(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
@@ -274,7 +274,7 @@ class ListPortfoliosToolTests {
         )));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org",
-        "SONARQUBE_CLOUD_URL", harness.getMockSonarQubeServer().baseUrl()));
+        "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl()));
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,

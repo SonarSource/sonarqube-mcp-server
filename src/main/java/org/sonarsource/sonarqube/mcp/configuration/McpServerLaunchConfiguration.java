@@ -36,6 +36,7 @@ public class McpServerLaunchConfiguration {
   private static final String APP_NAME = "SonarQube MCP Server";
 
   private static final String STORAGE_PATH = "STORAGE_PATH";
+  @Deprecated(forRemoval = true)
   private static final String SONARQUBE_CLOUD_URL = "SONARQUBE_CLOUD_URL";
   private static final String SONARQUBE_URL = "SONARQUBE_URL";
   private static final String SONARQUBE_ORG = "SONARQUBE_ORG";
@@ -107,9 +108,32 @@ public class McpServerLaunchConfiguration {
     }
     this.storagePath = Paths.get(storagePathString);
     this.hostMachineAddress = resolveHostMachineAddress();
-    var sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, "https://sonarcloud.io");
-    this.sonarqubeUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, sonarqubeCloudUrl);
+    
+    // Read configuration values
     this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
+    var sonarqubeUrlFromEnv = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, null);
+    
+    // Check for deprecated SONARQUBE_CLOUD_URL (backward compatibility)
+    var sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, null);
+    if (sonarqubeCloudUrl != null && sonarqubeUrlFromEnv == null) {
+      sonarqubeUrlFromEnv = sonarqubeCloudUrl;
+    }
+    
+    // Determine if this is SonarQube Cloud (presence of ORG indicates SQC)
+    this.isSonarCloud = this.sonarqubeOrg != null;
+
+    if (this.isSonarCloud) {
+      // SQC: default to sonarcloud.io if URL not provided
+      this.sonarqubeUrl = sonarqubeUrlFromEnv != null ? sonarqubeUrlFromEnv : "https://sonarcloud.io";
+    } else {
+      // SQS: URL is required
+      if (sonarqubeUrlFromEnv == null) {
+        throw new IllegalArgumentException("SONARQUBE_URL must be set when connecting to SonarQube Server. " +
+          "SONARQUBE_ORG is not defined, so a connection to SonarQube Server was assumed."
+        );
+      }
+      this.sonarqubeUrl = sonarqubeUrlFromEnv;
+    }
 
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
     if (sonarqubeToken == null) {
@@ -117,12 +141,6 @@ public class McpServerLaunchConfiguration {
     }
 
     this.sonarqubeIdePort = parsePortValue(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_IDE_PORT_ENV, null));
-
-    this.isSonarCloud = requireNonNull(sonarqubeCloudUrl).equals(this.sonarqubeUrl);
-
-    if (this.isSonarCloud && this.sonarqubeOrg == null) {
-      throw new IllegalArgumentException("SONARQUBE_ORG environment variable must be set when using SonarQube Cloud");
-    }
 
     this.appVersion = fetchAppVersion();
     this.userAgent = APP_NAME + " " + appVersion;
