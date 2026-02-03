@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import java.util.List;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -36,6 +37,8 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
   public static final String FILE_SCOPE_PROPERTY = "fileScope";
 
+  private static final McpLogger LOG = McpLogger.getInstance();
+
   private final ServerApiProvider serverApiProvider;
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider) {
@@ -45,7 +48,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .setDescription("Run advanced code analysis on SonarQube Cloud for a single file.")
       .addRequiredStringProperty(ORGANIZATION_KEY_PROPERTY, "The key of the organization.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The key of the project.")
-      .addStringProperty(BRANCH_NAME_PROPERTY, "The branch name to retrieve the latest analysis context. Although it is not required, it is highly recommended to provide it.")
+      .addStringProperty(BRANCH_NAME_PROPERTY, "Branch name used to retrieve the latest analysis context. Provide whenever possible; omitting it can reduce accuracy.")
       .addStringProperty(PARENT_BRANCH_NAME_PROPERTY, "The parent branch name to retrieve the latest analysis context.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
       .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The original content of the file to analyze.")
@@ -58,6 +61,9 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
+    if (arguments.getOptionalString(BRANCH_NAME_PROPERTY) == null) {
+      LOG.warn("run_advanced_code_analysis called without branchName; analysis may use default/stale context and be less accurate.");
+    }
     var request = extractRequest(arguments);
     var response = serverApiProvider.get().a3sAnalysisApi().analyze(request);
     var toolResponse = buildStructuredContent(response);
