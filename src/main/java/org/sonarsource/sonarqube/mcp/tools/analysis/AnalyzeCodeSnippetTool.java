@@ -51,6 +51,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
   public static final String SNIPPET_PROPERTY = "codeSnippet";
   public static final String LANGUAGE_PROPERTY = "language";
+  public static final String SCOPE_PROPERTY = "scope";
 
   private final BackendService backendService;
   private final ServerApiProvider serverApiProvider;
@@ -66,6 +67,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
       .addRequiredStringProperty(SNIPPET_PROPERTY, "Code snippet or full file content")
       .addStringProperty(LANGUAGE_PROPERTY, "Language of the code snippet")
+      .addStringProperty(SCOPE_PROPERTY, "Scope of the file: MAIN or TEST (default: MAIN)")
       .setReadOnlyHint()
       .build(),
       ToolCategory.ANALYSIS);
@@ -91,11 +93,14 @@ public class AnalyzeCodeSnippetTool extends Tool {
     var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
     var codeSnippet = arguments.getStringOrThrow(SNIPPET_PROPERTY);
     var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
+    var scope = arguments.getOptionalString(SCOPE_PROPERTY);
 
     var sonarLanguage = getSonarLanguageFromInput(language);
     if (sonarLanguage == null) {
       sonarLanguage = SonarLanguage.SECRETS;
     }
+
+    var isTest = "TEST".equalsIgnoreCase(scope);
 
     applyRulesFromProject(projectKey);
 
@@ -104,7 +109,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
     try {
       tmpFile = createTemporaryFileForLanguage(analysisId.toString(), backendService.getWorkDir(), codeSnippet,
         sonarLanguage);
-      var clientFileDto = backendService.toClientFileDto(tmpFile, codeSnippet, mapSonarLanguageToLanguage(sonarLanguage));
+      var clientFileDto = backendService.toClientFileDto(tmpFile, codeSnippet, mapSonarLanguageToLanguage(sonarLanguage), isTest);
       backendService.addFile(clientFileDto);
       var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri())).get(30, TimeUnit.SECONDS);
       var toolResponse = buildStructuredContent(response);

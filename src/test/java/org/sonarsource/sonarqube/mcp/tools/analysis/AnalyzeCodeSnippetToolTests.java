@@ -250,6 +250,56 @@ class AnalyzeCodeSnippetToolTests {
 
       assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
     }
+
+    @SonarQubeMcpServerTest
+    void it_should_accept_scope_parameter_with_main_value(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        TOOL_NAME,
+        Map.of(
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
+            // TODO just do it
+            """,
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php",
+          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, "MAIN"));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "ruleKey" : "php:S1135",
+            "primaryMessage" : "Complete the task associated to this \\"TODO\\" comment.",
+            "severity" : "INFO",
+            "cleanCodeAttribute" : "COMPLETE",
+            "impacts" : "{MAINTAINABILITY=INFO}",
+            "hasQuickFixes" : false,
+            "textRange" : {
+              "startLine" : 1,
+              "endLine" : 1
+            }
+          } ],
+          "issueCount" : 1
+        }""");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_accept_scope_parameter_with_test_value(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        TOOL_NAME,
+        Map.of(
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
+            // TODO just do it
+            """,
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php",
+          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, "TEST"));
+
+      assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
+    }
+
   }
 
   private void mockServerRules(SonarQubeMcpServerTestHarness harness, @Nullable String projectKey, List<String> activeRuleKeys) {

@@ -2,7 +2,7 @@
 name: "sonarqube"
 displayName: "SonarQube Code Quality & Security"
 description: "Integrate with SonarQube for code quality analysis, security scanning, and technical debt management - detect bugs, vulnerabilities, and code smells"
-keywords: ["sonarqube","issues","code-quality","security","analysis","quality-gates","vulnerabilities"]
+keywords: [ "sonarqube","issues","code-quality","security","analysis","quality-gates","vulnerabilities" ]
 author: "Sonar"
 ---
 
@@ -10,9 +10,13 @@ author: "Sonar"
 
 ## Overview
 
-Integrate with SonarQube Server or Cloud to analyze code quality, detect security vulnerabilities, and manage technical debt. This power provides seamless access to SonarQube's comprehensive code analysis platform, enabling you to detect bugs, security vulnerabilities, code smells, and enforce quality standards throughout your development workflow.
+Integrate with SonarQube Server or Cloud to analyze code quality, detect security vulnerabilities, and manage technical debt. This power
+provides seamless access to SonarQube's comprehensive code analysis platform, enabling you to detect bugs, security vulnerabilities, code
+smells, and enforce quality standards throughout your development workflow.
 
-SonarQube supports 30+ programming languages and provides actionable insights to help teams write cleaner, safer, and more maintainable code. Use it to analyze code snippets on-the-fly, search for issues, track quality metrics, and ensure your projects meet quality gate standards before deployment.
+SonarQube supports 30+ programming languages and provides actionable insights to help teams write cleaner, safer, and more maintainable
+code. Use it to analyze code snippets on-the-fly, search for issues, track quality metrics, and ensure your projects meet quality gate
+standards before deployment.
 
 **Key capabilities:**
 
@@ -25,7 +29,8 @@ SonarQube supports 30+ programming languages and provides actionable insights to
 - **Dependency Risks**: Identify vulnerabilities in third-party dependencies (SCA)
 - **Project Management**: Browse projects, portfolios, and quality status
 
-**Authentication**: Requires a SonarQube user token. For SonarQube Cloud, you'll also need your organization key. For SonarQube Server, you'll need your server URL.
+**Authentication**: Requires a SonarQube user token. For SonarQube Cloud, you'll also need your organization key. For SonarQube Server,
+you'll need your server URL.
 
 ## Available MCP Servers
 
@@ -44,11 +49,13 @@ The server supports both SonarQube Cloud and on-premises SonarQube Server instan
 ### Integration Approach
 
 **For SonarQube Cloud:**
+
 - Use your organization key from [SonarQube Cloud Organizations](https://sonarcloud.io/account/organizations)
 - Connect to the US instance by setting `SONARQUBE_URL=https://sonarqube.us`
 - Token should have appropriate permissions for the projects you want to analyze
 
 **For SonarQube Server:**
+
 - Always use USER tokens (not project or global tokens)
 - Ensure your SonarQube Server is accessible from your development environment
 - For self-signed certificates, mount custom certificates using volume mounts
@@ -60,9 +67,10 @@ The server supports both SonarQube Cloud and on-premises SonarQube Server instan
 ```javascript
 // Analyze TypeScript code
 analyze_code_snippet({
-  codeSnippet: "function foo() { console.log('test'); }",
-  language: "typescript",
-  projectKey: "my-project"
+    codeSnippet: "function foo() { console.log('test'); }",
+    language: "typescript",
+    scope: "MAIN",
+    projectKey: "my-project"
 });
 ```
 
@@ -79,29 +87,30 @@ analyze_code_snippet({
 ```javascript
 // Search for high-severity security issues
 search_sonar_issues_in_projects({
-  projects: ["my-project"],
-  severities: ["HIGH", "BLOCKER"],
-  impactSoftwareQualities: ["SECURITY", "RELIABILITY"],
-  p: 1,
-  ps: 100
+    projects: ["my-project"],
+    severities: ["HIGH", "BLOCKER"],
+    impactSoftwareQualities: ["SECURITY", "RELIABILITY"],
+    p: 1,
+    ps: 100
 });
 
 // Filter by issue status
 search_sonar_issues_in_projects({
-  projects: ["my-project"],
-  issueStatuses: ["OPEN", "CONFIRMED"],
-  branch: "main"
+    projects: ["my-project"],
+    issueStatuses: ["OPEN", "CONFIRMED"],
+    branch: "main"
 });
 
 // Get a specific issue by key
 search_sonar_issues_in_projects({
-  issueKey: "AYz123abc"
+    issueKey: "AYz123abc"
 });
 ```
 
 **Managing Issue Status:**
 
 Before marking issues as false positives:
+
 1. Read the rule description carefully with `show_rule`
 2. Understand why the rule exists
 3. Consider if there's a better way to write the code
@@ -109,25 +118,28 @@ Before marking issues as false positives:
 5. Discuss with team if uncertain
 
 Use `change_sonar_issue_status` appropriately:
+
 - `accept` - Acknowledged, will be addressed later
 - `falsepositive` - Not actually an issue (document why)
 - `reopen` - Previously closed but needs reconsideration
 
 ### Quality Gates
 
-Quality gates are **release readiness indicators** that enforce minimum quality standards and prevent regression. Never bypass failed quality gates without team discussion.
+Quality gates are **release readiness indicators** that enforce minimum quality standards and prevent regression. Never bypass failed
+quality gates without team discussion.
 
 **Check quality gate status** before merging:
 
 ```javascript
 // Check quality gate for a pull request
 get_project_quality_gate_status({
-  projectKey: "my-project",
-  pullRequest: "123"
+    projectKey: "my-project",
+    pullRequest: "123"
 });
 ```
 
 **Best practices**:
+
 - Understand which conditions failed and why
 - Fix issues rather than relaxing gate conditions
 - Configure gates to be strict but achievable
@@ -136,6 +148,7 @@ get_project_quality_gate_status({
 ### Essential Metrics
 
 **Code Quality Metrics:**
+
 - `ncloc` - Lines of code
 - `bugs` - Number of bug issues
 - `vulnerabilities` - Security vulnerabilities
@@ -144,11 +157,13 @@ get_project_quality_gate_status({
 - `sqale_rating` - Maintainability rating (A-E)
 
 **Test Coverage:**
+
 - `coverage` - Overall coverage percentage
 - `line_coverage` / `branch_coverage` - Coverage by type
 - `uncovered_lines` - Lines without tests
 
 **Complexity:**
+
 - `complexity` - Cyclomatic complexity
 - `cognitive_complexity` - Code understandability
 - `duplicated_lines_density` - Duplication percentage
@@ -166,7 +181,8 @@ docker run -i --rm \
   mcp/sonarqube
 ```
 
-Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`, `dependency-risks`. Note: `projects` is always enabled.
+Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`,
+`dependency-risks`. Note: `projects` is always enabled.
 
 **Read-Only Mode** - Disable write operations for safer exploration:
 
@@ -185,7 +201,7 @@ docker run -i --rm \
 ```javascript
 // Step 1: Analyze the code snippet
 const analysis = analyze_code_snippet({
-  codeSnippet: `
+    codeSnippet: `
     function calculateTotal(items) {
       var total = 0;
       for (var i = 0; i < items.length; i++) {
@@ -194,8 +210,8 @@ const analysis = analyze_code_snippet({
       return total;
     }
   `,
-  language: "javascript",
-  projectKey: "my-project"
+    language: "javascript",
+    projectKey: "my-project"
 });
 
 // Step 2: Review detected issues
@@ -208,22 +224,22 @@ const analysis = analyze_code_snippet({
 ```javascript
 // Step 1: Search for issues in the pull request
 const issues = search_sonar_issues_in_projects({
-  projects: ["my-project"],
-  pullRequestId: "123",
-  severities: ["HIGH", "BLOCKER"],
-  impactSoftwareQualities: ["SECURITY", "RELIABILITY"]
+    projects: ["my-project"],
+    pullRequestId: "123",
+    severities: ["HIGH", "BLOCKER"],
+    impactSoftwareQualities: ["SECURITY", "RELIABILITY"]
 });
 
 // Step 2: Review each issue
 for (const issue of issues) {
-  const rule = show_rule({ key: issue.rule });
-  // Understand the rule and remediation
+    const rule = show_rule({key: issue.rule});
+    // Understand the rule and remediation
 }
 
 // Step 3: Check quality gate status
 const qgStatus = get_project_quality_gate_status({
-  projectKey: "my-project",
-  pullRequest: "123"
+    projectKey: "my-project",
+    pullRequest: "123"
 });
 
 // Step 4: Determine if PR can be merged
@@ -234,27 +250,27 @@ const qgStatus = get_project_quality_gate_status({
 ```javascript
 // Step 1: Get project measures
 const measures = get_component_measures({
-  projectKey: "my-project",
-  metricKeys: [
-    "ncloc",
-    "coverage",
-    "bugs",
-    "vulnerabilities",
-    "code_smells",
-    "sqale_index"
-  ]
+    projectKey: "my-project",
+    metricKeys: [
+        "ncloc",
+        "coverage",
+        "bugs",
+        "vulnerabilities",
+        "code_smells",
+        "sqale_index"
+    ]
 });
 
 // Step 2: Check quality gate status
 const qgStatus = get_project_quality_gate_status({
-  projectKey: "my-project"
+    projectKey: "my-project"
 });
 
 // Step 3: Search for unresolved issues
 const issues = search_sonar_issues_in_projects({
-  projects: ["my-project"],
-  severities: ["HIGH", "BLOCKER"],
-  issueStatuses: ["OPEN", "CONFIRMED"]
+    projects: ["my-project"],
+    severities: ["HIGH", "BLOCKER"],
+    issueStatuses: ["OPEN", "CONFIRMED"]
 });
 
 // Step 4: Generate report or alert if thresholds exceeded
@@ -265,8 +281,8 @@ const issues = search_sonar_issues_in_projects({
 ```javascript
 // Step 1: Search for dependency risks (requires Server 2025.4+ Enterprise with Advanced Security)
 const risks = search_dependency_risks({
-  projectKey: "my-project",
-  branchKey: "main"
+    projectKey: "my-project",
+    branchKey: "main"
 });
 
 // Step 2: Review high-severity vulnerabilities
@@ -276,7 +292,8 @@ const risks = search_dependency_risks({
 
 ## Configuration
 
-**Authentication Required**: 
+**Authentication Required**:
+
 - **For SonarQube Cloud**: User token + organization key
 - **For SonarQube Server**: User token + server URL
 
