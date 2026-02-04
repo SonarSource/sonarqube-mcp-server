@@ -721,6 +721,7 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 - **analyze_code_snippet** - Analyze a file or code snippet with SonarQube analyzers to identify code quality and security issues. Specify the language of the snippet to improve analysis accuracy.
   - `codeSnippet` - Code snippet or full file content - _Required String_
   - `language` - Optional language of the code snippet - _String_
+  - `scope` - Optional scope of the file: MAIN or TEST (default: MAIN) - _String_
 
 **When integration with SonarQube for IDE is enabled:**
 - **analyze_file_list** - Analyze files in the current working directory using SonarQube for IDE. This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.

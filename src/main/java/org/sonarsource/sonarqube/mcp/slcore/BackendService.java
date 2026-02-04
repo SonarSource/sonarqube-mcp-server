@@ -118,8 +118,8 @@ public class BackendService {
     backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(clientFileDto), List.of(), List.of())));
   }
 
-  public ClientFileDto toClientFileDto(Path filePath, String content, @Nullable Language language) {
-    return new ClientFileDto(filePath.toUri(), filePath, PROJECT_ID, false, Charset.defaultCharset().toString(), filePath,
+  public ClientFileDto toClientFileDto(Path filePath, String content, @Nullable Language language, boolean isTest) {
+    return new ClientFileDto(filePath.toUri(), filePath, PROJECT_ID, isTest, Charset.defaultCharset().toString(), filePath,
       content, language, true);
   }
 
