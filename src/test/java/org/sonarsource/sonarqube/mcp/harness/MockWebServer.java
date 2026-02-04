@@ -53,6 +53,12 @@ public class MockWebServer {
       .toList();
   }
 
+  public boolean hasReceivedInstalledPluginsRequest() {
+    return mockServer.getServeEvents().getRequests()
+      .stream()
+      .anyMatch(event -> event.getRequest().getUrl().contains("/api/plugins/installed"));
+  }
+
   public StubMapping stubFor(MappingBuilder mappingBuilder) {
     return mockServer.stubFor(mappingBuilder);
   }

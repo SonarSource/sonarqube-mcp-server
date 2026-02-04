@@ -55,6 +55,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
@@ -89,9 +90,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String SONARQUBE_MCP_SERVER_NAME = "sonarqube-mcp-server";
-  private static final String BASE_INSTRUCTIONS = "Transform your code quality workflow with SonarQube integration. " +
+  private static final String BASE_INSTRUCTIONS_WITH_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
     "Analyze code, monitor project health, investigate issues, and understand quality gates. " +
     "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.";
+  private static final String BASE_INSTRUCTIONS_WITHOUT_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
+    "Monitor project health, investigate issues, and understand quality gates.";
 
   private BackendService backendService;
   private ToolExecutor toolExecutor;
@@ -100,7 +103,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private final List<Tool> supportedTools = new ArrayList<>();
   private final McpServerLaunchConfiguration mcpConfiguration;
   private HttpClientProvider httpClientProvider;
-  private String composedInstructions = BASE_INSTRUCTIONS;
+  private String composedInstructions;
   
   /**
    * ServerApi instance.
@@ -225,10 +228,18 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * Downloads analyzers in background and restarts the backend with them.
    * Tools are already loaded synchronously during startup.
+   * Skips analyzer download if ANALYSIS tools are disabled.
    */
   private void initializeBackgroundServices() {
     try {
       logInitialization();
+
+      // Check if ANALYSIS tools are enabled before downloading analyzers
+      if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)) {
+        LOG.info("Analysis tools are disabled - skipping analyzers download");
+        initializationFuture.complete(null);
+        return;
+      }
 
       PluginsSynchronizer pluginsSynchronizer;
       if (mcpConfiguration.isHttpEnabled()) {
@@ -331,12 +342,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
     LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);
     
+    // Select base instructions based on whether ANALYSIS tools are enabled
+    var baseInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS) 
+      ? BASE_INSTRUCTIONS_WITH_ANALYSIS 
+      : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
+    
     // Compose instructions with external provider contributions
     var parseResult = ProxiedServerConfigParser.parse();
     if (parseResult.success() && !parseResult.configs().isEmpty()) {
-      composedInstructions = ProxiedToolsLoader.composeInstructions(BASE_INSTRUCTIONS, parseResult.configs());
+      composedInstructions = ProxiedToolsLoader.composeInstructions(baseInstructions, parseResult.configs());
     } else {
-      composedInstructions = BASE_INSTRUCTIONS;
+      composedInstructions = baseInstructions;
     }
   }
 

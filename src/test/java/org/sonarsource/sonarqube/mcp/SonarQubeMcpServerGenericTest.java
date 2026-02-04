@@ -131,6 +131,65 @@ class SonarQubeMcpServerGenericTest {
     server.shutdown();
   }
 
+  @SonarQubeMcpServerTest
+  void should_skip_analyzer_download_when_analysis_tools_disabled(SonarQubeMcpServerTestHarness harness) throws Exception {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TOOLSETS", "projects");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    server.waitForInitialization();
+
+    // Verify that no analyzer synchronization was attempted
+    assertThat(harness.getMockSonarQubeServer().hasReceivedInstalledPluginsRequest()).isFalse();
+
+    var config = server.getMcpConfiguration();
+    var enabledToolNames = server.getSupportedTools().stream()
+      .filter(tool -> config.isToolCategoryEnabled(tool.getCategory()))
+      .map(tool -> tool.definition().name())
+      .toList();
+    assertThat(enabledToolNames)
+      .isNotEmpty()
+      .doesNotContain("analyze_code_snippet")
+      .doesNotContain("analyze_file_list");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_download_analyzers_when_analysis_tools_enabled(SonarQubeMcpServerTestHarness harness) throws Exception {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    // Explicitly enable ANALYSIS tools (default behavior)
+    environment.put("SONARQUBE_TOOLSETS", "analysis,issues,projects,quality-gates");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    server.waitForInitialization();
+
+    // Verify that analyzer synchronization was attempted
+    assertThat(harness.getMockSonarQubeServer().hasReceivedInstalledPluginsRequest()).isTrue();
+
+    var config = server.getMcpConfiguration();
+    var enabledToolNames = server.getSupportedTools().stream()
+      .filter(tool -> config.isToolCategoryEnabled(tool.getCategory()))
+      .map(tool -> tool.definition().name())
+      .toList();
+    assertThat(enabledToolNames)
+      .contains("analyze_code_snippet");
+
+    server.shutdown();
+  }
+
   private Map<String, String> createStdioEnvironment(String baseUrl) {
     var environment = new HashMap<String, String>();
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir"));
