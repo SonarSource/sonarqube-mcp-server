@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SearchMyProjectsToolResponse(
-  @JsonPropertyDescription("List of projects found in the organization") List<Project> projects,
+  @JsonPropertyDescription("List of projects found") List<Project> projects,
   @JsonPropertyDescription("Pagination information for the results") Paging paging
 ) {
   

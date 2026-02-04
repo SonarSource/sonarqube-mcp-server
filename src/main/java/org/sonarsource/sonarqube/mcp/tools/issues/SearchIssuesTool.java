@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
@@ -39,11 +40,20 @@ public class SearchIssuesTool extends Tool {
   public static final String PAGE_SIZE_PROPERTY = "ps";
   private final ServerApiProvider serverApiProvider;
 
-  public SearchIssuesTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
+  public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
+    super(createToolDefinition(isSonarCloud),
+      ToolCategory.ISSUES);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
+    var scope = isSonarCloud ? "my organization's projects" : "my projects";
+    var description = "Search for SonarQube issues in " + scope + ".";
+    
+    return SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues in Projects")
-      .setDescription("Search for SonarQube issues in my organization's projects.")
+      .setDescription(description)
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
       .addStringProperty(BRANCH_PROPERTY, "The branch name to search for issues in")
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of component keys (files, directories, modules) to filter issues")
@@ -58,9 +68,7 @@ public class SearchIssuesTool extends Tool {
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.ISSUES);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override
