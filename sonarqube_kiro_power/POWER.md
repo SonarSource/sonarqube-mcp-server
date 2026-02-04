@@ -10,13 +10,9 @@ author: "Sonar"
 
 ## Overview
 
-Integrate with SonarQube Server or Cloud to analyze code quality, detect security vulnerabilities, and manage technical debt. This power
-provides seamless access to SonarQube's comprehensive code analysis platform, enabling you to detect bugs, security vulnerabilities, code
-smells, and enforce quality standards throughout your development workflow.
+Integrate with SonarQube Server or Cloud to analyze code quality, detect security vulnerabilities, and manage technical debt. This power provides seamless access to SonarQube's comprehensive code analysis platform, enabling you to detect bugs, security vulnerabilities, code smells, and enforce quality standards throughout your development workflow.
 
-SonarQube supports 30+ programming languages and provides actionable insights to help teams write cleaner, safer, and more maintainable
-code. Use it to analyze code snippets on-the-fly, search for issues, track quality metrics, and ensure your projects meet quality gate
-standards before deployment.
+SonarQube supports 30+ programming languages and provides actionable insights to help teams write cleaner, safer, and more maintainable code. Use it to analyze code snippets on-the-fly, search for issues, track quality metrics, and ensure your projects meet quality gate standards before deployment.
 
 **Key capabilities:**
 
@@ -29,8 +25,7 @@ standards before deployment.
 - **Dependency Risks**: Identify vulnerabilities in third-party dependencies (SCA)
 - **Project Management**: Browse projects, portfolios, and quality status
 
-**Authentication**: Requires a SonarQube user token. For SonarQube Cloud, you'll also need your organization key. For SonarQube Server,
-you'll need your server URL.
+**Authentication**: Requires a SonarQube user token. For SonarQube Cloud, you'll also need your organization key. For SonarQube Server, you'll need your server URL.
 
 ## Available MCP Servers
 
@@ -125,8 +120,7 @@ Use `change_sonar_issue_status` appropriately:
 
 ### Quality Gates
 
-Quality gates are **release readiness indicators** that enforce minimum quality standards and prevent regression. Never bypass failed
-quality gates without team discussion.
+Quality gates are **release readiness indicators** that enforce minimum quality standards and prevent regression. Never bypass failed quality gates without team discussion.
 
 **Check quality gate status** before merging:
 
@@ -181,8 +175,7 @@ docker run -i --rm \
   mcp/sonarqube
 ```
 
-Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`,
-`dependency-risks`. Note: `projects` is always enabled.
+Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`, `dependency-risks`. Note: `projects` is always enabled.
 
 **Read-Only Mode** - Disable write operations for safer exploration:
 
