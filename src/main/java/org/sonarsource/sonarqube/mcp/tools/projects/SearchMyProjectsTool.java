@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.projects;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -32,18 +33,25 @@ public class SearchMyProjectsTool extends Tool {
 
   private final ServerApiProvider serverApiProvider;
 
-  public SearchMyProjectsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
+  public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
+    super(createToolDefinition(isSonarCloud),
+      ToolCategory.PROJECTS);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
+    var scope = isSonarCloud ? "organization" : "instance";
+    var description = "Find SonarQube projects in your " + scope + ". Supports searching by project name or key. The response is paginated.";
+
+    return SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
-      .setDescription("Find SonarQube projects. Supports searching by project name or key. The response is paginated.")
+      .setDescription(description)
       .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 500.")
       .addStringProperty(SEARCH_QUERY_PROPERTY, "An optional search query to filter projects by name (partial match) or key (exact match).")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.PROJECTS);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override

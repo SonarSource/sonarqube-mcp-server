@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -31,20 +32,27 @@ public class CreateWebhookTool extends Tool {
 
   private final ServerApiProvider serverApiProvider;
 
-  public CreateWebhookTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(CreateWebhookToolResponse.class)
+  public CreateWebhookTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
+    super(createToolDefinition(isSonarCloud),
+      ToolCategory.WEBHOOKS);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
+    var scope = isSonarCloud ? "organization or project" : "instance or project";
+    var description = "Create a new webhook for the " + scope + ". " +
+      "Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
+    
+    return SchemaToolBuilder.forOutput(CreateWebhookToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Create SonarQube Webhook")
-      .setDescription("Create a new webhook for the SonarQube organization or project. " +
-        "Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
+      .setDescription(description)
       .addRequiredStringProperty(NAME_PROPERTY, "Name displayed in the administration console of webhooks (max 100 chars)")
       .addRequiredStringProperty(URL_PROPERTY, "Server endpoint that will receive the webhook payload (max 512 chars)")
       .addStringProperty(PROJECT_PROPERTY, "The key of the project that will own the webhook (max 400 chars)")
       .addStringProperty(SECRET_PROPERTY, "If provided, secret will be used as the key to generate the HMAC hex digest value " +
         "in the 'X-Sonar-Webhook-HMAC-SHA256' header (16-200 chars)")
-      .build(),
-      ToolCategory.WEBHOOKS);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override
