@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
  */
 public enum ToolCategory {
   ANALYSIS("analysis"),
+  COVERAGE("coverage"),
   ISSUES("issues"),
   PROJECTS("projects"),
   QUALITY_GATES("quality-gates"),
