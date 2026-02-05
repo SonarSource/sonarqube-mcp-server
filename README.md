@@ -731,6 +731,17 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 - **toggle_automatic_analysis** - Enable or disable SonarQube for IDE automatic analysis. When enabled, SonarQube for IDE will automatically analyze files as they are modified in the working directory. When disabled, automatic analysis is turned off.
     - `enabled` - Enable or disable the automatic analysis - _Required Boolean_
 
+**When advanced analysis is enabled (`SONARQUBE_ADVANCED_ANALYSIS_ENABLED=true`):**
+
+> **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud users with access enabled.
+
+- **run_advanced_code_analysis** - Run advanced code analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.
+    - `projectKey` - The key of the project - _Required String_
+    - `branchName` - Branch name used to retrieve the latest analysis context - _Required String_
+    - `filePath` - Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java') - _Required String_
+    - `fileContent` - The original content of the file to analyze - _Required String_
+    - `fileScope` - Defines in which scope the file originates from: 'MAIN' or 'TEST' (default: MAIN) - _String_
+
 ### Dependency Risks
 
 **Note: Dependency risks are only available when connecting to SonarQube Server 2025.4 Enterprise or higher with SonarQube Advanced Security enabled.**
