@@ -35,6 +35,7 @@ public enum ToolCategory {
   QUALITY_GATES("quality-gates"),
   RULES("rules"),
   SOURCES("sources"),
+  DUPLICATIONS("duplications"),
   MEASURES("measures"),
   LANGUAGES("languages"),
   PORTFOLIOS("portfolios"),

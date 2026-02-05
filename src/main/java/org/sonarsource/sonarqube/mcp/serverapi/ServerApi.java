@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.serverapi;
 
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.duplications.DuplicationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.EnterprisesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
@@ -78,6 +79,10 @@ public class ServerApi {
 
   public SourcesApi sourcesApi() {
     return new SourcesApi(helper);
+  }
+
+  public DuplicationsApi duplicationsApi() {
+    return new DuplicationsApi(helper);
   }
 
   public SystemApi systemApi() {
