@@ -61,6 +61,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
+        "branchName", "main",
         "filePath", "src/Main.java",
         "fileContent", "class Main {}"
       ));
@@ -101,6 +102,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
+        "branchName", "main",
         "filePath", "src/Main.java",
         "fileContent", "class Main {}"
       ));
@@ -125,6 +127,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
+        "branchName", "main",
         "filePath", "src/Main.java",
         "fileContent", "class Main {}"
       ));
@@ -144,6 +147,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
+        "branchName", "main",
         "filePath", "src/Main.java",
         "fileContent", "class Main {}"
       ));
@@ -179,6 +183,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
+        "branchName", "main",
         "filePath", "src/Main.java",
         "fileContent", "class Main {}"
       ));

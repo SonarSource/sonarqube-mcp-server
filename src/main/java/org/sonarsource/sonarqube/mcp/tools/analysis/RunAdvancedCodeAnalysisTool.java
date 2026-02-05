@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -36,17 +35,15 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
   public static final String FILE_SCOPE_PROPERTY = "fileScope";
 
-  private static final McpLogger LOG = McpLogger.getInstance();
-
   private final ServerApiProvider serverApiProvider;
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider) {
     super(SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Advanced Code Analysis")
-      .setDescription("Run advanced code analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.")
+      .setDescription("Run advanced code analysis on SonarQube Cloud for a single file.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The key of the project.")
-      .addStringProperty(BRANCH_NAME_PROPERTY, "Branch name used to retrieve the latest analysis context. Provide whenever possible; omitting it can reduce accuracy.")
+      .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "Branch name used to retrieve the latest analysis context.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
       .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The original content of the file to analyze.")
       .addStringProperty(FILE_SCOPE_PROPERTY, "Defines in which scope the file originates from: 'MAIN' or 'TEST'. Defaults to 'MAIN'.")
@@ -62,9 +59,6 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     var organizationKey = serverApi.getOrganization();
     if (organizationKey == null) {
       throw new IllegalStateException("run_advanced_code_analysis requires an organization to be configured in MCP (SONARQUBE_ORG).");
-    }
-    if (arguments.getOptionalString(BRANCH_NAME_PROPERTY) == null) {
-      LOG.warn("run_advanced_code_analysis called without branchName; analysis may use default/stale context and be less accurate.");
     }
     var request = extractRequest(arguments, organizationKey);
     var response = serverApi.a3sAnalysisApi().analyze(request);
@@ -82,7 +76,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     return new AnalysisCreationRequest(
       organizationKey,
       arguments.getStringOrThrow(PROJECT_KEY_PROPERTY),
-      arguments.getOptionalString(BRANCH_NAME_PROPERTY),
+      arguments.getStringOrThrow(BRANCH_NAME_PROPERTY),
       arguments.getStringOrThrow(FILE_PATH_PROPERTY),
       arguments.getStringOrThrow(FILE_CONTENT_PROPERTY),
       arguments.getOptionalString(FILE_SCOPE_PROPERTY)
