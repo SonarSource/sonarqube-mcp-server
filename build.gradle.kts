@@ -103,6 +103,8 @@ tasks {
 		useJUnitPlatform()
 		systemProperty("TELEMETRY_DISABLED", "true")
 		systemProperty("sonarqube.mcp.server.version", project.version)
+		// Reduce MCP client timeout for tests to speed up failure scenarios
+		systemProperty("mcp.client.timeout.seconds", "2")
 		doNotTrackState("Tests should always run")
 		maxHeapSize = "2g"
 		jvmArgs("-javaagent:${mockitoAgent.asPath}", "-XX:MaxMetaspaceSize=512m")

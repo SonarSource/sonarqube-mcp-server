@@ -58,6 +58,7 @@ class ProxiedToolsLoaderMediumTest {
   void cleanup() throws IOException {
     if (loader != null) {
       loader.shutdown();
+      loader = null;
     }
     if (testConfigFile != null && Files.exists(testConfigFile)) {
       Files.deleteIfExists(testConfigFile);

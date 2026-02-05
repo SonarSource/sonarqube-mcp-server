@@ -33,7 +33,9 @@ import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -51,16 +53,46 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 
-public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements AfterEachCallback, BeforeEachCallback {
+public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements AfterEachCallback, BeforeEachCallback, BeforeAllCallback, AfterAllCallback {
   private static final Map<String, String> DEFAULT_ENV_TEMPLATE = Map.of(
     "SONARQUBE_TOKEN", "token");
   private final List<McpSyncClient> clients = new ArrayList<>();
   private Path tempStoragePath;
   private final MockWebServer mockSonarQubeServer = new MockWebServer();
+  
+  // Shared plugin directory across all tests in a class to avoid expensive copying
+  private static Path sharedPluginDirectory;
+  private static final Object PLUGIN_DIR_LOCK = new Object();
 
   @Override
   public SonarQubeMcpServerTestHarness resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
     return this;
+  }
+
+  @Override
+  public void beforeAll(ExtensionContext context) throws Exception {
+    // Create shared plugin directory once per test class
+    synchronized (PLUGIN_DIR_LOCK) {
+      if (sharedPluginDirectory == null) {
+        sharedPluginDirectory = Files.createTempDirectory("sonarqube-mcp-test-plugins-shared");
+        FileUtils.copyDirectoryToDirectory(Paths.get("build/sonarqube-mcp-server/plugins").toFile(), sharedPluginDirectory.toFile());
+      }
+    }
+  }
+
+  @Override
+  public void afterAll(ExtensionContext context) {
+    // Clean up shared plugin directory after all tests in the class
+    synchronized (PLUGIN_DIR_LOCK) {
+      if (sharedPluginDirectory != null && Files.exists(sharedPluginDirectory)) {
+        try {
+          FileUtils.deleteDirectory(sharedPluginDirectory.toFile());
+        } catch (IOException e) {
+          // Ignore cleanup errors
+        }
+        sharedPluginDirectory = null;
+      }
+    }
   }
 
   @Override
@@ -101,7 +133,16 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     } else {
       try {
         tempStoragePath = Files.createTempDirectory("sonarqube-mcp-test-storage-" + UUID.randomUUID());
-        FileUtils.copyDirectoryToDirectory(Paths.get("build/sonarqube-mcp-server/plugins").toFile(), tempStoragePath.toFile());
+        // Use symbolic link to shared plugin directory instead of copying
+        synchronized (PLUGIN_DIR_LOCK) {
+          if (sharedPluginDirectory != null) {
+            var targetPluginsDir = tempStoragePath.resolve("plugins");
+            var sourcePluginsDir = sharedPluginDirectory.resolve("plugins");
+            if (Files.exists(sourcePluginsDir)) {
+              Files.createSymbolicLink(targetPluginsDir, sourcePluginsDir);
+            }
+          }
+        }
       } catch (IOException e) {
         throw new RuntimeException("Failed to create temporary storage directory", e);
       }
