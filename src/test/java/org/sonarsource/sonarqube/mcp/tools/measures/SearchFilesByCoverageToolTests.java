@@ -135,7 +135,7 @@ class SearchFilesByCoverageToolTests {
             "description": "List of files with coverage information, sorted by coverage (ascending)"
           }
         },
-        "required": ["projectKey", "totalFiles", "filesReturned", "pageIndex", "pageSize", "files"]
+        "required": ["files", "filesReturned", "pageIndex", "pageSize", "projectKey", "totalFiles"]
       }
       """);
   }
@@ -205,7 +205,7 @@ class SearchFilesByCoverageToolTests {
     void it_should_return_files_sorted_by_coverage(SonarQubeMcpServerTestHarness harness) {
       // Mock project-level metrics
       harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=my_project&metricKeys=coverage" +
-        "%2Clines_to_cover%2Cuncovered_lines&additionalFields=metrics")
+        ",lines_to_cover,uncovered_lines&additionalFields=metrics")
         .willReturn(aResponse().withBody("""
           {
             "component": {
@@ -223,7 +223,7 @@ class SearchFilesByCoverageToolTests {
 
       // Mock component tree
       harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_TREE_PATH + "?component=my_project&metricKeys=coverage" +
-        "%2Cline_coverage%2Cbranch_coverage%2Clines_to_cover%2Cuncovered_lines%2Cconditions_to_cover%2Cuncovered_conditions&qualifiers" +
+        ",line_coverage,branch_coverage,lines_to_cover,uncovered_lines,conditions_to_cover,uncovered_conditions&qualifiers" +
         "=FIL&strategy=all&s=metric&metricSort=coverage&asc=true&p=1&ps=100")
         .willReturn(aResponse().withBody("""
           {
@@ -296,7 +296,7 @@ class SearchFilesByCoverageToolTests {
     void it_should_filter_files_by_min_coverage(SonarQubeMcpServerTestHarness harness) {
       // Mock project metrics
       harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=my_project&metricKeys=coverage" +
-        "%2Clines_to_cover%2Cuncovered_lines&additionalFields=metrics")
+        ",lines_to_cover,uncovered_lines&additionalFields=metrics")
         .willReturn(aResponse().withBody("""
           {
             "component": {
@@ -310,7 +310,7 @@ class SearchFilesByCoverageToolTests {
 
       // Mock component tree
       harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_TREE_PATH + "?component=my_project&metricKeys=coverage" +
-        "%2Cline_coverage%2Cbranch_coverage%2Clines_to_cover%2Cuncovered_lines%2Cconditions_to_cover%2Cuncovered_conditions&qualifiers" +
+        ",line_coverage,branch_coverage,lines_to_cover,uncovered_lines,conditions_to_cover,uncovered_conditions&qualifiers" +
         "=FIL&strategy=all&s=metric&metricSort=coverage&asc=true&p=1&ps=100")
         .willReturn(aResponse().withBody("""
           {
@@ -350,7 +350,7 @@ class SearchFilesByCoverageToolTests {
     @SonarQubeMcpServerTest
     void it_should_handle_branch_parameter(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=my_project&branch=" + urlEncode("feature" +
-        "/my_branch") + "&metricKeys=coverage%2Clines_to_cover%2Cuncovered_lines&additionalFields=metrics")
+        "/my_branch") + "&metricKeys=coverage,lines_to_cover,uncovered_lines&additionalFields=metrics")
         .willReturn(aResponse().withBody("""
           {
             "component": {"key": "my_project", "name": "My Project", "qualifier": "TRK", "measures": []}
@@ -358,8 +358,8 @@ class SearchFilesByCoverageToolTests {
           """)));
 
       harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_TREE_PATH + "?component=my_project&branch=" + urlEncode("feature" +
-        "/my_branch") + "&metricKeys=coverage%2Cline_coverage%2Cbranch_coverage%2Clines_to_cover%2Cuncovered_lines%2Cconditions_to_cover" +
-        "%2Cuncovered_conditions&qualifiers=FIL&strategy=all&s=metric&metricSort=coverage&asc=true&p=1&ps=100")
+        "/my_branch") + "&metricKeys=coverage,line_coverage,branch_coverage,lines_to_cover,uncovered_lines,conditions_to_cover" +
+        ",uncovered_conditions&qualifiers=FIL&strategy=all&s=metric&metricSort=coverage&asc=true&p=1&ps=100")
         .willReturn(aResponse().withBody("""
           {
             "components": [],
