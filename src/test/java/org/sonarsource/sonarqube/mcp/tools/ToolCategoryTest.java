@@ -120,6 +120,7 @@ class ToolCategoryTest {
       ToolCategory.QUALITY_GATES,
       ToolCategory.RULES,
       ToolCategory.SOURCES,
+      ToolCategory.DUPLICATIONS,
       ToolCategory.MEASURES,
       ToolCategory.LANGUAGES,
       ToolCategory.PORTFOLIOS,
@@ -132,7 +133,7 @@ class ToolCategoryTest {
 
   @Test
   void should_have_exactly_13_categories() {
-    assertThat(ToolCategory.values()).hasSize(13);
+    assertThat(ToolCategory.values()).hasSize(14);
   }
 }
 
