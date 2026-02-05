@@ -75,6 +75,7 @@ import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
 import org.sonarsource.sonarqube.mcp.tools.duplications.GetDuplicationsTool;
+import org.sonarsource.sonarqube.mcp.tools.duplications.SearchDuplicatedFilesTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemHealthTool;
@@ -306,6 +307,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new CreateWebhookTool(this, mcpConfiguration.isSonarCloud()),
       new ListWebhooksTool(this, mcpConfiguration.isSonarCloud()),
       new GetDuplicationsTool(this),
+      new SearchDuplicatedFilesTool(this),
       new ListPortfoliosTool(this, mcpConfiguration.isSonarCloud())));
 
     var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();

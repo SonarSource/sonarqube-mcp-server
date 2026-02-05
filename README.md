@@ -892,6 +892,14 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 ### Duplications
 
+- **search_duplicated_files** - Search for files with code duplications in a SonarQube project. By default, automatically fetches all duplicated files across all pages (up to 10,000 files max). Returns only files with duplications.
+  - `projectKey` - Project key - _Required String_
+  - `branch` - Optional branch key - _String_
+  - `pullRequest` - Optional pull request id - _String_
+  - `pageSize` - Optional number of results per page for manual pagination (max: 500). If not specified, auto-fetches all duplicated files - _Integer_
+  - `pageIndex` - Optional page number for manual pagination (starts at 1). If not specified, auto-fetches all duplicated files - _Integer_
+
+
 - **get_duplications** - Get duplications for a file. Require Browse permission on file's project.
   - `key` - File key - _Required String_
   - `branch` - Optional branch key - _String_
