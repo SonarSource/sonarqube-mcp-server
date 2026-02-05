@@ -37,7 +37,8 @@ public record SearchMyProjectsToolResponse(
   public record Paging(
     @JsonPropertyDescription("Current page index (1-based)") int pageIndex,
     @JsonPropertyDescription("Number of items per page") int pageSize,
-    @JsonPropertyDescription("Total number of items across all pages") int total
+    @JsonPropertyDescription("Total number of items across all pages") int total,
+    @JsonPropertyDescription("Whether there are more pages available") boolean hasNextPage
   ) {}
 }
 
