@@ -73,7 +73,7 @@ class StdioServerTransportProviderTest {
 
     var result = provider.closeGracefully();
 
-    assertThatCode(() -> result.block(Duration.ofSeconds(12))).doesNotThrowAnyException();
+    assertThatCode(() -> result.block(Duration.ofSeconds(11))).doesNotThrowAnyException();
     verify(mockSession, times(1)).closeGracefully();
     verify(mockSession, times(1)).close(); // Should be force-closed
   }
@@ -102,7 +102,7 @@ class StdioServerTransportProviderTest {
 
     var result = provider.closeGracefully();
 
-    assertThatCode(() -> result.block(Duration.ofSeconds(12))).doesNotThrowAnyException();
+    assertThatCode(() -> result.block(Duration.ofSeconds(11))).doesNotThrowAnyException();
     verify(mockSession, times(1)).closeGracefully();
     verify(mockSession, times(1)).close();
   }
@@ -111,13 +111,13 @@ class StdioServerTransportProviderTest {
   void closeGracefully_should_complete_immediately_if_session_closes_in_5_seconds() throws Exception {
     var mockSession = mock(McpServerSession.class);
     when(mockSession.closeGracefully()).thenReturn(
-      Mono.delay(Duration.ofSeconds(5)).then()
+      Mono.delay(Duration.ofMillis(500)).then()
     );
     var provider = createProviderWithMockSession(mockSession);
 
     var result = provider.closeGracefully();
 
-    assertThatCode(() -> result.block(Duration.ofSeconds(7))).doesNotThrowAnyException();
+    assertThatCode(() -> result.block(Duration.ofSeconds(1))).doesNotThrowAnyException();
     verify(mockSession, times(1)).closeGracefully();
     verify(mockSession, never()).close();
   }
