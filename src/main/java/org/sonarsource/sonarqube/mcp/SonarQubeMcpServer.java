@@ -228,7 +228,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * Downloads analyzers in background and restarts the backend with them.
    * Tools are already loaded synchronously during startup.
-   * Skips analyzer download if ANALYSIS tools are disabled.
+   * Skips analyzer download if ANALYSIS tools are disabled or advanced analysis mode is enabled.
    */
   private void initializeBackgroundServices() {
     try {
@@ -237,6 +237,13 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       // Check if ANALYSIS tools are enabled before downloading analyzers
       if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)) {
         LOG.info("Analysis tools are disabled - skipping analyzers download");
+        initializationFuture.complete(null);
+        return;
+      }
+
+      // Skip analyzer download when advanced analysis mode is enabled (no local analysis)
+      if (mcpConfiguration.isAdvancedAnalysisEnabled() && mcpConfiguration.isSonarCloud()) {
+        LOG.info("Advanced analysis mode enabled - skipping analyzers download (no local analysis needed)");
         initializationFuture.complete(null);
         return;
       }
