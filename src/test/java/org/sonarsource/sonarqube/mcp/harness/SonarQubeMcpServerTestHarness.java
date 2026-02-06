@@ -56,6 +56,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   private static final Map<String, String> DEFAULT_ENV_TEMPLATE = Map.of(
     "SONARQUBE_TOKEN", "token");
   private final List<McpSyncClient> clients = new ArrayList<>();
+  private final List<SonarQubeMcpServer> servers = new ArrayList<>();
   private Path tempStoragePath;
   private final MockWebServer mockSonarQubeServer = new MockWebServer();
   
@@ -93,6 +94,8 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   public void afterEach(ExtensionContext context) {
     clients.forEach(McpSyncClient::closeGracefully);
     clients.clear();
+    servers.forEach(SonarQubeMcpServer::shutdown);
+    servers.clear();
     cleanupTempStoragePath();
     mockSonarQubeServer.stop();
     pluginsEnabled = false;
@@ -171,6 +174,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(clientToServerInputStream, serverToClientOutputStream),
       null, environment);
     server.start();
+    this.servers.add(server);
 
     var client = McpClient.sync(new InMemoryClientTransport(serverToClientInputStream, clientToServerOutputStream))
       .loggingConsumer(SonarQubeMcpServerTestHarness::printLogs).build();
