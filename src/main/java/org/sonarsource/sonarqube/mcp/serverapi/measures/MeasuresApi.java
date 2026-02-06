@@ -43,22 +43,19 @@ public class MeasuresApi {
     }
   }
 
-  public ComponentTreeResponse getComponentTree(@Nullable String component, @Nullable String branch,
-    @Nullable List<String> metricKeys, @Nullable String pullRequest, @Nullable String qualifiers,
-    @Nullable String strategy, @Nullable String sort, @Nullable String metricSort, @Nullable Boolean asc, 
-    @Nullable Integer pageIndex, @Nullable Integer pageSize) {
+  public ComponentTreeResponse getComponentTree(ComponentTreeParams params) {
     var url = new UrlBuilder(COMPONENT_TREE_PATH)
-      .addParam("component", component)
-      .addParam("branch", branch)
-      .addParam("metricKeys", metricKeys)
-      .addParam("pullRequest", pullRequest)
-      .addParam("qualifiers", qualifiers)
-      .addParam("strategy", strategy)
-      .addParam("s", sort)
-      .addParam("metricSort", metricSort)
-      .addParam("asc", asc)
-      .addParam("p", pageIndex)
-      .addParam("ps", pageSize)
+      .addParam("component", params.component())
+      .addParam("branch", params.branch())
+      .addParam("metricKeys", params.metricKeys())
+      .addParam("pullRequest", params.pullRequest())
+      .addParam("qualifiers", params.qualifiers())
+      .addParam("strategy", params.strategy())
+      .addParam("s", params.sort())
+      .addParam("metricSort", params.metricSort())
+      .addParam("asc", params.asc())
+      .addParam("p", params.pageIndex())
+      .addParam("ps", params.pageSize())
       .build();
 
     try (var response = helper.get(url)) {

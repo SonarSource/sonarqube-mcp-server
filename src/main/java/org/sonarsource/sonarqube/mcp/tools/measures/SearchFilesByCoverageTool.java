@@ -37,6 +37,11 @@ public class SearchFilesByCoverageTool extends Tool {
   public static final String PAGE_INDEX_PROPERTY = "pageIndex";
   public static final String PAGE_SIZE_PROPERTY = "pageSize";
 
+  // Metric keys
+  private static final String METRIC_COVERAGE = "coverage";
+  private static final String METRIC_LINES_TO_COVER = "lines_to_cover";
+  private static final String METRIC_UNCOVERED_LINES = "uncovered_lines";
+
   private final ServerApiProvider serverApiProvider;
 
   public SearchFilesByCoverageTool(ServerApiProvider serverApiProvider) {
@@ -86,29 +91,29 @@ public class SearchFilesByCoverageTool extends Tool {
     // First, get project-level metrics for summary
     var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(
       projectKey, branch,
-      List.of("coverage", "lines_to_cover", "uncovered_lines"),
+      List.of(METRIC_COVERAGE, METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES),
       pullRequest
     );
 
     // Then get the file tree with coverage metrics
-    var metricKeys = List.of("coverage", "line_coverage", "branch_coverage",
-      "lines_to_cover", "uncovered_lines",
+    var metricKeys = List.of(METRIC_COVERAGE, "line_coverage", "branch_coverage",
+      METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES,
       "conditions_to_cover", "uncovered_conditions");
 
-    var treeResponse = serverApiProvider.get().measuresApi().getComponentTree(
-      projectKey, branch, metricKeys, pullRequest,
-      // Only files
-      "FIL",
-      // All files in tree
-      "all",
-      // Sort by metric
-      "metric",
-      // Sort by coverage metric specifically
-      "coverage",
-      // Ascending order (worst coverage first)
-      true,
-      actualPageIndex, actualPageSize
+    var params = new org.sonarsource.sonarqube.mcp.serverapi.measures.ComponentTreeParams(
+      projectKey,
+      branch,
+      metricKeys,
+      pullRequest,
+      "FIL", // Only files
+      "all", // All files in tree
+      "metric", // Sort by metric
+      METRIC_COVERAGE, // Sort by coverage metric specifically
+      true, // Ascending order (worst coverage first)
+      actualPageIndex,
+      actualPageSize
     );
+    var treeResponse = serverApiProvider.get().measuresApi().getComponentTree(params);
 
     var toolResponse = buildStructuredContent(projectKey, treeResponse, projectMetrics, minCoverage, maxCoverage, actualPageIndex, actualPageSize);
     return Tool.Result.success(toolResponse);
@@ -130,9 +135,9 @@ public class SearchFilesByCoverageTool extends Tool {
         .collect(Collectors.toMap(ComponentMeasuresResponse.Measure::metric, ComponentMeasuresResponse.Measure::value));
 
       projectSummary = new SearchFilesByCoverageToolResponse.ProjectSummary(
-        parseDouble(measuresMap.get("coverage")),
-        parseInteger(measuresMap.get("lines_to_cover")),
-        parseInteger(measuresMap.get("uncovered_lines"))
+        parseDouble(measuresMap.get(METRIC_COVERAGE)),
+        parseInteger(measuresMap.get(METRIC_LINES_TO_COVER)),
+        parseInteger(measuresMap.get(METRIC_UNCOVERED_LINES))
       );
     }
 
@@ -145,11 +150,11 @@ public class SearchFilesByCoverageTool extends Tool {
             ComponentTreeResponse.Measure::value
           )) : Map.<String, String>of();
 
-        var coverage = parseDouble(measures.get("coverage"));
+        var coverage = parseDouble(measures.get(METRIC_COVERAGE));
         var lineCoverage = parseDouble(measures.get("line_coverage"));
         var branchCoverage = parseDouble(measures.get("branch_coverage"));
-        var linesToCover = parseInteger(measures.get("lines_to_cover"));
-        var uncoveredLines = parseInteger(measures.get("uncovered_lines"));
+        var linesToCover = parseInteger(measures.get(METRIC_LINES_TO_COVER));
+        var uncoveredLines = parseInteger(measures.get(METRIC_UNCOVERED_LINES));
         var conditionsToCover = parseInteger(measures.get("conditions_to_cover"));
         var uncoveredConditions = parseInteger(measures.get("uncovered_conditions"));
 
