@@ -476,20 +476,21 @@ By default, all tools are enabled. You can selectively enable specific toolsets 
 <details>
 <summary>Available Toolsets</summary>
 
-| Toolset            | Key                 | Description                                                              |
-|--------------------|---------------------|--------------------------------------------------------------------------|
-| **Analysis**       | `analysis`          | Code analysis tools (local analysis and advanced remote analysis)        |
-| **Issues**         | `issues`            | Search and manage SonarQube issues                                       |
-| **Projects**       | `projects`          | Browse and search SonarQube projects                                     |
-| **Quality Gates**  | `quality-gates`     | Access quality gates and their status                                    |
-| **Rules**          | `rules`             | Browse and search SonarQube rules                                        |
-| **Sources**        | `sources`           | Access source code and SCM information                                   |
-| **Measures**       | `measures`          | Retrieve metrics and measures (includes both measures and metrics tools) |
-| **Languages**      | `languages`         | List supported programming languages                                     |
-| **Portfolios**     | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                     |
-| **System**         | `system`            | System administration tools (Server only)                                |
-| **Webhooks**       | `webhooks`          | Manage webhooks                                                          |
-| **Dependency Risks**| `dependency-risks` | Analyze dependency risks and security issues (SCA)                       |
+| Toolset              | Key                | Description                                                              |
+|----------------------|--------------------|--------------------------------------------------------------------------|
+| **Analysis**         | `analysis`         | Code analysis tools (local analysis and advanced remote analysis)        |
+| **Issues**           | `issues`           | Search and manage SonarQube issues                                       |
+| **Projects**         | `projects`         | Browse and search SonarQube projects                                     |
+| **Quality Gates**    | `quality-gates`    | Access quality gates and their status                                    |
+| **Rules**            | `rules`            | Browse and search SonarQube rules                                        |
+| **Sources**          | `sources`          | Access source code and SCM information                                   |
+| **Duplications**     | `duplications`     | Find code duplications across projects                                   |
+| **Measures**         | `measures`         | Retrieve metrics and measures (includes both measures and metrics tools) |
+| **Languages**        | `languages`        | List supported programming languages                                     |
+| **Portfolios**       | `portfolios`       | Manage portfolios and enterprises (Cloud and Server)                     |
+| **System**           | `system`           | System administration tools (Server only)                                |
+| **Webhooks**         | `webhooks`         | Manage webhooks                                                          |
+| **Dependency Risks** | `dependency-risks` | Analyze dependency risks and security issues (SCA)                       |
 
 #### Examples
 
@@ -839,6 +840,21 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **show_rule** - Shows detailed information about a SonarQube rule.
   - `key` - Rule key - _Required String_
+
+### Duplications
+
+- **search_duplicated_files** - Search for files with code duplications in a SonarQube project. By default, automatically fetches all duplicated files across all pages (up to 10,000 files max). Returns only files with duplications.
+  - `projectKey` - Project key - _Required String_
+  - `branch` - Optional branch key - _String_
+  - `pullRequest` - Optional pull request id - _String_
+  - `pageSize` - Optional number of results per page for manual pagination (max: 500). If not specified, auto-fetches all duplicated files - _Integer_
+  - `pageIndex` - Optional page number for manual pagination (starts at 1). If not specified, auto-fetches all duplicated files - _Integer_
+
+
+- **get_duplications** - Get duplications for a file. Require Browse permission on file's project.
+  - `key` - File key - _Required String_
+  - `branch` - Optional branch key - _String_
+  - `pullRequest` - Optional pull request id - _String_
 
 ### Sources
 

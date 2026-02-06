@@ -80,10 +80,8 @@ public class BlockingQueueInputStream extends InputStream {
   @Override
   public void close() {
     this.closed.set(true);
-    try {
-      this.blockingQueue.put(-1);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
+    // Use offer instead of put to avoid blocking if queue is full
+    // The closed flag is sufficient to signal EOF to readers
+    this.blockingQueue.offer(-1);
   }
 }
