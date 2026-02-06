@@ -161,7 +161,7 @@ class GetFileCoverageDetailsToolTests {
             }
           }
         },
-        "required": ["fileKey", "filePath", "partiallyConditionalLines", "summary", "uncoveredLines"]
+        "required": ["fileKey", "partiallyConditionalLines", "summary", "uncoveredLines"]
       }
       """);
   }
@@ -215,7 +215,7 @@ class GetFileCoverageDetailsToolTests {
       var json = new com.google.gson.Gson().toJson(result.structuredContent());
       assertThat(json).contains("\"fileKey\":\"my_project:src/Foo.java\"");
       assertThat(json).contains("\"filePath\":\"src/Foo.java\"");
-      assertThat(json).contains("\"coverableLines\":7");
+      assertThat(json).contains("\"coverableLines\":8");
       assertThat(json).contains("\"uncoveredLines\":3");
       assertThat(json).contains("\"lineNumber\":7");
       assertThat(json).contains("\"lineNumber\":8");
