@@ -100,16 +100,21 @@ public class SearchFilesByCoverageTool extends Tool {
       METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES,
       "conditions_to_cover", "uncovered_conditions");
 
+    // Only files
+    // All files in tree
+    // Sort by metric
+    // Sort by coverage metric specifically
+    // Ascending order (worst coverage first)
     var params = new org.sonarsource.sonarqube.mcp.serverapi.measures.ComponentTreeParams(
       projectKey,
       branch,
       metricKeys,
       pullRequest,
-      "FIL", // Only files
-      "all", // All files in tree
-      "metric", // Sort by metric
-      METRIC_COVERAGE, // Sort by coverage metric specifically
-      true, // Ascending order (worst coverage first)
+      "FIL",
+      "all",
+      "metric",
+      METRIC_COVERAGE,
+      true,
       actualPageIndex,
       actualPageSize
     );
