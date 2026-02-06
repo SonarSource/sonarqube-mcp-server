@@ -21,6 +21,18 @@ import javax.annotation.Nullable;
 
 /**
  * Parameters for the component tree API call.
+ *
+ * @param component Component key
+ * @param branch Branch key
+ * @param metricKeys Comma-separated list of metric keys
+ * @param pullRequest Pull request id
+ * @param qualifiers Comma-separated list of component qualifiers. Filter the results with the specified qualifiers. Possible values are: BRC, DIR, FIL, TRK, UTS
+ * @param strategy Strategy to select children: 'children' returns direct children, 'all' returns all descendants, 'leaves' returns only leaves
+ * @param sort Sort field. Can be 'metric', 'name', 'path', or 'qualifier'
+ * @param metricSort Metric key to sort by when sort='metric'
+ * @param asc Whether to sort in ascending order
+ * @param pageIndex Page number (1-indexed)
+ * @param pageSize Page size
  */
 public record ComponentTreeParams(
   @Nullable String component,
