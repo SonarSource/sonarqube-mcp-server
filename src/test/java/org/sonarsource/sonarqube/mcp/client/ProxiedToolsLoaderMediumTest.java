@@ -63,6 +63,8 @@ class ProxiedToolsLoaderMediumTest {
     if (testConfigFile != null && Files.exists(testConfigFile)) {
       Files.deleteIfExists(testConfigFile);
     }
+    // Clear the system property to prevent it from affecting other tests
+    System.clearProperty("proxied.mcp.servers.config.path");
   }
 
   @Test
