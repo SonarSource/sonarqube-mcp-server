@@ -64,7 +64,7 @@ public class MeasuresApi {
     }
   }
 
-  private static String buildPath(@Nullable String component, @Nullable String branch, 
+  private static String buildPath(@Nullable String component, @Nullable String branch,
     @Nullable List<String> metricKeys, @Nullable String pullRequest) {
     return new UrlBuilder(COMPONENT_PATH)
       .addParam("component", component)

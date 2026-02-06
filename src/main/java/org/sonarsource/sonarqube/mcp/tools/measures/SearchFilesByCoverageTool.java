@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
+import org.sonarsource.sonarqube.mcp.serverapi.measures.ComponentTreeParams;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentTreeResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -89,10 +90,8 @@ public class SearchFilesByCoverageTool extends Tool {
     var actualPageSize = (pageSize != null && pageSize > 0) ? Math.min(pageSize, 500) : 100;
 
     // First, get project-level metrics for summary
-    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(
-      projectKey, branch,
-      List.of(METRIC_COVERAGE, METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES),
-      pullRequest
+    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch,
+      List.of(METRIC_COVERAGE, METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES), pullRequest
     );
 
     // Then get the file tree with coverage metrics
@@ -100,19 +99,18 @@ public class SearchFilesByCoverageTool extends Tool {
       METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES,
       "conditions_to_cover", "uncovered_conditions");
 
-    // Only files
-    // All files in tree
-    // Sort by metric
-    // Sort by coverage metric specifically
-    // Ascending order (worst coverage first)
-    var params = new org.sonarsource.sonarqube.mcp.serverapi.measures.ComponentTreeParams(
+    var params = new ComponentTreeParams(
       projectKey,
       branch,
       metricKeys,
       pullRequest,
+      // Only files
       "FIL",
+      // All files in tree
       "all",
+      // All files in tree
       "metric",
+      // Sort by coverage metric specifically
       METRIC_COVERAGE,
       true,
       actualPageIndex,
@@ -124,15 +122,8 @@ public class SearchFilesByCoverageTool extends Tool {
     return Tool.Result.success(toolResponse);
   }
 
-  private static SearchFilesByCoverageToolResponse buildStructuredContent(
-    String projectKey,
-    ComponentTreeResponse treeResponse,
-    ComponentMeasuresResponse projectMetrics,
-    Integer minCoverage,
-    Integer maxCoverage,
-    int pageIndex,
-    int pageSize) {
-
+  private static SearchFilesByCoverageToolResponse buildStructuredContent(String projectKey, ComponentTreeResponse treeResponse, ComponentMeasuresResponse projectMetrics,
+    Integer minCoverage, Integer maxCoverage, int pageIndex, int pageSize) {
     // Build project summary from project metrics
     SearchFilesByCoverageToolResponse.ProjectSummary projectSummary = null;
     if (projectMetrics != null && projectMetrics.component() != null && projectMetrics.component().measures() != null) {
