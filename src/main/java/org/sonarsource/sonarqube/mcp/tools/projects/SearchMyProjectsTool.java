@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.projects;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -29,16 +30,23 @@ public class SearchMyProjectsTool extends Tool {
 
   private final ServerApiProvider serverApiProvider;
 
-  public SearchMyProjectsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
-      .setName(TOOL_NAME)
-      .setTitle("Search My SonarQube Projects")
-      .setDescription("Find SonarQube projects. The response is paginated.")
-      .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
-      .setReadOnlyHint()
-      .build(),
+  public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
+    super(createToolDefinition(isSonarCloud),
       ToolCategory.PROJECTS);
     this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
+    var scope = isSonarCloud ? "organization" : "instance";
+    var description = "Find SonarQube projects in your " + scope + ". The response is paginated.";
+
+    return SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
+      .setName(TOOL_NAME)
+      .setTitle("Search My SonarQube Projects")
+      .setDescription(description)
+      .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
+      .setReadOnlyHint()
+      .build();
   }
 
   @Override
