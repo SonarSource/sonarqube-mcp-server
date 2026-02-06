@@ -22,10 +22,12 @@ import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentTreeResponse;
 
 public class MeasuresApi {
 
   public static final String COMPONENT_PATH = "/api/measures/component";
+  public static final String COMPONENT_TREE_PATH = "/api/measures/component_tree";
 
   private final ServerApiHelper helper;
 
@@ -41,7 +43,28 @@ public class MeasuresApi {
     }
   }
 
-  private static String buildPath(@Nullable String component, @Nullable String branch, 
+  public ComponentTreeResponse getComponentTree(ComponentTreeParams params) {
+    var url = new UrlBuilder(COMPONENT_TREE_PATH)
+      .addParam("component", params.component())
+      .addParam("branch", params.branch())
+      .addParam("metricKeys", params.metricKeys())
+      .addParam("pullRequest", params.pullRequest())
+      .addParam("qualifiers", params.qualifiers())
+      .addParam("strategy", params.strategy())
+      .addParam("s", params.sort())
+      .addParam("metricSort", params.metricSort())
+      .addParam("asc", params.asc())
+      .addParam("p", params.pageIndex())
+      .addParam("ps", params.pageSize())
+      .build();
+
+    try (var response = helper.get(url)) {
+      var responseStr = response.bodyAsString();
+      return new Gson().fromJson(responseStr, ComponentTreeResponse.class);
+    }
+  }
+
+  private static String buildPath(@Nullable String component, @Nullable String branch,
     @Nullable List<String> metricKeys, @Nullable String pullRequest) {
     return new UrlBuilder(COMPONENT_PATH)
       .addParam("component", component)

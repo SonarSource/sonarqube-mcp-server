@@ -21,11 +21,13 @@ import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.ScmResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.sources.response.SourceLinesResponse;
 
 public class SourcesApi {
 
   public static final String SOURCES_RAW_PATH = "/api/sources/raw";
   public static final String SOURCES_SCM_PATH = "/api/sources/scm";
+  public static final String SOURCES_LINES_PATH = "/api/sources/lines";
 
   private final ServerApiHelper helper;
 
@@ -56,6 +58,22 @@ public class SourcesApi {
     try (var response = helper.get(url)) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, ScmResponse.class);
+    }
+  }
+
+  public SourceLinesResponse getSourceLines(String key, @Nullable String branch, 
+    @Nullable String pullRequest, @Nullable Integer from, @Nullable Integer to) {
+    var url = new UrlBuilder(SOURCES_LINES_PATH)
+      .addParam("key", key)
+      .addParam("branch", branch)
+      .addParam("pullRequest", pullRequest)
+      .addParam("from", from)
+      .addParam("to", to)
+      .build();
+
+    try (var response = helper.get(url)) {
+      var responseStr = response.bodyAsString();
+      return new Gson().fromJson(responseStr, SourceLinesResponse.class);
     }
   }
 
