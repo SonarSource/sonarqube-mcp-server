@@ -78,7 +78,7 @@ public class SearchDuplicatedFilesTool extends Tool {
     var requestedPageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
 
     // If user explicitly provided pagination parameters, use single-page mode
-    boolean manualPagination = requestedPageSize != null || requestedPageIndex != null;
+    var manualPagination = requestedPageSize != null || requestedPageIndex != null;
 
     if (manualPagination) {
       return executeSinglePage(projectKey, branch, pullRequest, requestedPageSize != null ? requestedPageSize : DEFAULT_PAGE_SIZE,
@@ -89,8 +89,7 @@ public class SearchDuplicatedFilesTool extends Tool {
     return executeAutoFetch(projectKey, branch, pullRequest);
   }
 
-  private Tool.Result executeSinglePage(String projectKey, @Nullable String branch, @Nullable String pullRequest, int pageSize,
-    int pageIndex) {
+  private Tool.Result executeSinglePage(String projectKey, @Nullable String branch, @Nullable String pullRequest, int pageSize, int pageIndex) {
     if (pageSize <= 0 || pageSize > MAX_PAGE_SIZE) {
       return Tool.Result.failure("Page size must be between 1 and " + MAX_PAGE_SIZE);
     }
@@ -98,27 +97,24 @@ public class SearchDuplicatedFilesTool extends Tool {
       return Tool.Result.failure("Page index must be greater than 0");
     }
 
-    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch, DUPLICATION_METRIC_KEYS,
-      pullRequest);
-
-    var componentTree = serverApiProvider.get().measuresApi().getComponentTree(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest,
-      FILE_QUALIFIER, pageSize, pageIndex, STRATEGY);
+    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest);
+    var componentTree = serverApiProvider.get().measuresApi().getComponentTree(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest, FILE_QUALIFIER, pageSize,
+      pageIndex, STRATEGY);
 
     var response = buildStructuredContent(componentTree, projectMetrics);
     return Tool.Result.success(response);
   }
 
   private Tool.Result executeAutoFetch(String projectKey, @Nullable String branch, @Nullable String pullRequest) {
-    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch, DUPLICATION_METRIC_KEYS,
-      pullRequest);
+    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest);
 
     var allDuplicatedFiles = new ArrayList<ComponentTreeResponse.Component>();
-    int currentPage = 1;
+    var currentPage = 1;
     var shouldContinue = true;
 
     while (currentPage <= MAX_PAGES_TO_FETCH && shouldContinue) {
-      var componentTree = serverApiProvider.get().measuresApi().getComponentTree(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest
-        , FILE_QUALIFIER, MAX_PAGE_SIZE, currentPage, STRATEGY);
+      var componentTree = serverApiProvider.get().measuresApi().getComponentTree(projectKey, branch, DUPLICATION_METRIC_KEYS,
+        pullRequest, FILE_QUALIFIER, MAX_PAGE_SIZE, currentPage, STRATEGY);
 
       if (componentTree.components().isEmpty()) {
         shouldContinue = false;
@@ -144,22 +140,18 @@ public class SearchDuplicatedFilesTool extends Tool {
     return Tool.Result.success(response);
   }
 
-  private static SearchDuplicatedFilesToolResponse buildStructuredContent(ComponentTreeResponse componentTree,
-    ComponentMeasuresResponse projectMetrics) {
+  private static SearchDuplicatedFilesToolResponse buildStructuredContent(ComponentTreeResponse componentTree, ComponentMeasuresResponse projectMetrics) {
 
     var duplicatedFiles = componentTree.components().stream().filter(SearchDuplicatedFilesTool::hasDuplications).map(component -> {
       var duplicatedLines = getMeasureValue(component, DUPLICATED_LINES_METRIC);
       var duplicatedBlocks = getMeasureValue(component, DUPLICATED_BLOCKS_METRIC);
       var duplicatedLinesDensity = getMeasureStringValue(component, DUPLICATED_LINES_DENSITY_METRIC);
 
-      return new SearchDuplicatedFilesToolResponse.DuplicatedFile(component.key(), component.name(), component.path(), duplicatedLines,
-        duplicatedBlocks, duplicatedLinesDensity);
+      return new SearchDuplicatedFilesToolResponse.DuplicatedFile(component.key(), component.name(), component.path(), duplicatedLines, duplicatedBlocks, duplicatedLinesDensity);
     }).toList();
 
-    var paging = new SearchDuplicatedFilesToolResponse.Paging(componentTree.paging().pageIndex(), componentTree.paging().pageSize(),
-      componentTree.paging().total());
-
-    SearchDuplicatedFilesToolResponse.Summary summary = buildSummary(projectMetrics);
+    var paging = new SearchDuplicatedFilesToolResponse.Paging(componentTree.paging().pageIndex(), componentTree.paging().pageSize(), componentTree.paging().total());
+    var summary = buildSummary(projectMetrics);
 
     return new SearchDuplicatedFilesToolResponse(duplicatedFiles, paging, summary);
   }
@@ -171,8 +163,7 @@ public class SearchDuplicatedFilesTool extends Tool {
       var duplicatedBlocks = getMeasureValue(component, DUPLICATED_BLOCKS_METRIC);
       var duplicatedLinesDensity = getMeasureStringValue(component, DUPLICATED_LINES_DENSITY_METRIC);
 
-      return new SearchDuplicatedFilesToolResponse.DuplicatedFile(component.key(), component.name(), component.path(), duplicatedLines,
-        duplicatedBlocks, duplicatedLinesDensity);
+      return new SearchDuplicatedFilesToolResponse.DuplicatedFile(component.key(), component.name(), component.path(), duplicatedLines, duplicatedBlocks, duplicatedLinesDensity);
     }).toList();
 
     // Build paging information - show total duplicated files, not all files
