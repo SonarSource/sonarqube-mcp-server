@@ -28,7 +28,6 @@ public class SearchMyProjectsTool extends Tool {
   public static final String PAGE_PROPERTY = "page";
   public static final String PAGE_SIZE_PROPERTY = "pageSize";
   public static final String SEARCH_QUERY_PROPERTY = "q";
-  public static final int DEFAULT_PAGE_SIZE = 500;
   public static final int MAX_PAGE_SIZE = 500;
 
   private final ServerApiProvider serverApiProvider;
@@ -50,7 +49,7 @@ public class SearchMyProjectsTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);
-    var pageSize = arguments.getIntOrDefault(PAGE_SIZE_PROPERTY, DEFAULT_PAGE_SIZE);
+    var pageSize = arguments.getIntOrDefault(PAGE_SIZE_PROPERTY, MAX_PAGE_SIZE);
     var searchQuery = arguments.getOptionalString(SEARCH_QUERY_PROPERTY);
     
     if (pageSize <= 0 || pageSize > MAX_PAGE_SIZE) {
