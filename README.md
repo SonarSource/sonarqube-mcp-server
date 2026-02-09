@@ -12,27 +12,49 @@ The simplest method is to rely on our container image hosted at [mcp/sonarqube](
 
 > **Note:** While the examples below use `docker`, any OCI-compatible container runtime works (e.g., Podman, nerdctl). Simply replace `docker` with your preferred tool.
 
+### Security Best Practices
+
+> 🔒 **Important**: Your SonarQube token is a sensitive credential. Follow these security practices:
+
+**When using CLI commands:**
+- **Avoid hardcoding tokens** in command-line arguments - they get saved in shell history
+- **Use environment variables** - set tokens in environment variables before running commands
+
+**When using configuration files:**
+- **Never commit tokens** to version control
+- **Use environment variable substitution** in config files when possible
+
 <details>
 <summary>Claude Code</summary>
 
 * To connect with SonarQube Cloud:
 
-`claude mcp add sonarqube --env SONARQUBE_TOKEN=<token> --env SONARQUBE_ORG=<org> -- docker run -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube`
+```bash
+claude mcp add sonarqube \
+  --env SONARQUBE_TOKEN=$SONAR_TOKEN \
+  --env SONARQUBE_ORG=$SONAR_ORG \
+  -- docker run -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube
+```
 
 * To connect with SonarQube Server:
 
-`claude mcp add sonarqube --env SONARQUBE_TOKEN=<token> --env SONARQUBE_URL=<url> -- docker run -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_URL mcp/sonarqube`
+```bash
+claude mcp add sonarqube \
+  --env SONARQUBE_TOKEN=$SONAR_USER_TOKEN \
+  --env SONARQUBE_URL=$SONAR_URL \
+  -- docker run -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_URL mcp/sonarqube
+```
 
 </details>
 
 <details>
 <summary>Codex CLI</summary>
 
-In `~/.codex/config.toml`, add the following configuration:
+Manually edit the configuration file at `~/.codex/config.toml` and add the following configuration:
 
 * To connect with SonarQube Cloud:
 
-```
+```toml
 [mcp_servers.sonarqube]
 command = "docker"
 args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"]
@@ -41,7 +63,7 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_USER_TOKEN>", "SONARQUBE_ORG" = "<YOUR_ORG>" 
 
 * To connect with SonarQube Server:
 
-```
+```toml
 [mcp_servers.sonarqube]
 command = "docker"
 args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_URL", "mcp/sonarqube"]
@@ -68,15 +90,21 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>
 
 You can install our MCP server extension by using the following command:
 
-`gemini extensions install https://github.com/SonarSource/sonarqube-mcp-server`
+```bash
+gemini extensions install https://github.com/SonarSource/sonarqube-mcp-server
+```
 
 You will need to set the required environment variables before starting Gemini:
 
-```
-SONARQUBE_TOKEN="<token>"
-SONARQUBE_ORG="<org>" // For SonarQube Cloud, empty otherwise
-SONARQUBE_URL="<url>" // For SonarQube Server, empty otherwise
-```
+**Environment Variables Required:**
+
+* **For SonarQube Cloud:**
+  - `SONARQUBE_TOKEN` - Your SonarQube Cloud token
+  - `SONARQUBE_ORG` - Your organization key
+
+* **For SonarQube Server:**
+  - `SONARQUBE_TOKEN` - Your SonarQube Server USER token
+  - `SONARQUBE_URL` - Your SonarQube Server URL
 
 Once installed, the extension will be installed under `<home>/.gemini/extensions/sonarqube-mcp-server/gemini-extension.json`.
 
@@ -87,7 +115,9 @@ Once installed, the extension will be installed under `<home>/.gemini/extensions
 
 After starting Copilot CLI, run the following command to add the SonarQube MCP server:
 
-`/mcp add`
+```bash
+/mcp add
+```
 
 You will have to provide different information about the MCP server, you can use tab to navigate between fields.
 
@@ -108,7 +138,7 @@ Tools: *
 Server Name: sonarqube
 Server Type: Local (Press 1)
 Command: docker
-Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
+Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_URL, mcp/sonarqube
 Environment Variables: SONARQUBE_TOKEN=<YOUR_USER_TOKEN>,SONARQUBE_URL=<YOUR_SERVER_URL>
 Tools: *
 ```
