@@ -263,10 +263,10 @@ You can use the following buttons to simplify the installation process within VS
 
 SonarQube MCP Server is available as a Windsurf plugin. Follow these instructions:
 
-1. Click on the `Plugins` button at the top right of the Cascade view
-2. Search for `sonarqube` on the Plugin store
-3. Click `Install`
-4. Add the required SonarQube token. Then add the organization key if you want to connect with SonarQube Cloud, or the SonarQube URL if you want to connect to SonarQube Server or Community Build.
+1. Open Windsurf **Settings** > **Cascade** > **MCP Servers** and select **Open MCP Marketplace** 
+2. Search for `sonarqube` on the Cascade MCP Marketplace
+3. Choose the **SonarQube MCP Server** and select **Install**
+4. Add the required SonarQube User token. Then add the organization key if you want to connect with SonarQube Cloud, or the SonarQube URL if you want to connect to SonarQube Server or Community Build.
 
 </details>
 
