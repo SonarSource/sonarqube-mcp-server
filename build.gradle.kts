@@ -166,6 +166,7 @@ artifactory {
 	clientConfig.isIncludeEnvVars = true
 	clientConfig.envVarsExcludePatterns = "*password*,*PASSWORD*,*secret*,*MAVEN_CMD_LINE_ARGS*,sun.java.command,*token*,*TOKEN*,*LOGIN*,*login*,*key*,*KEY*,*PASSPHRASE*,*signing*"
 	clientConfig.info.addEnvironmentProperty("PROJECT_VERSION", version.toString())
+	clientConfig.info.addEnvironmentProperty("ARTIFACTS_TO_PUBLISH", "org.sonarsource.sonarqube.mcp.server:sonarqube-mcp-server:jar")
 	clientConfig.info.addEnvironmentProperty("ARTIFACTS_TO_DOWNLOAD", "")
 	setContextUrl(System.getenv("ARTIFACTORY_URL"))
 	publish {
