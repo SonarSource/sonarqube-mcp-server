@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.components;
 
 import com.google.gson.Gson;
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
@@ -31,11 +32,15 @@ public class ComponentsApi {
     this.helper = helper;
   }
 
-  public SearchResponse searchProjectsInMyOrg(int page) {
+  public SearchResponse searchProjects(int page, @Nullable Integer pageSize, @Nullable String searchQuery) {
     var builder = new UrlBuilder(COMPONENTS_SEARCH_PATH)
-      .addParam("p", Integer.toString(page));
-    if (helper.getOrganization() != null) {
-      builder.addParam("organization", helper.getOrganization());
+      .addParam("p", page)
+      .addParam("ps", pageSize)
+      .addParam("q", searchQuery);
+
+    var organization = helper.getOrganization();
+    if (organization != null) {
+      builder.addParam("organization", organization);
     } else {
       builder.addParam("qualifiers", "TRK");
     }

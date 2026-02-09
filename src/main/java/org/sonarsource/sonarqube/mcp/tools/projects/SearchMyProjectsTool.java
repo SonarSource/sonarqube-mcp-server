@@ -26,6 +26,9 @@ public class SearchMyProjectsTool extends Tool {
 
   public static final String TOOL_NAME = "search_my_sonarqube_projects";
   public static final String PAGE_PROPERTY = "page";
+  public static final String PAGE_SIZE_PROPERTY = "pageSize";
+  public static final String SEARCH_QUERY_PROPERTY = "q";
+  public static final int MAX_PAGE_SIZE = 500;
 
   private final ServerApiProvider serverApiProvider;
 
@@ -33,8 +36,10 @@ public class SearchMyProjectsTool extends Tool {
     super(SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
-      .setDescription("Find SonarQube projects. The response is paginated.")
+      .setDescription("Find SonarQube projects. Supports searching by project name or key. The response is paginated.")
       .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
+      .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 500.")
+      .addStringProperty(SEARCH_QUERY_PROPERTY, "An optional search query to filter projects by name (partial match) or key (exact match).")
       .setReadOnlyHint()
       .build(),
       ToolCategory.PROJECTS);
@@ -44,7 +49,14 @@ public class SearchMyProjectsTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);
-    var projects = serverApiProvider.get().componentsApi().searchProjectsInMyOrg(page);
+    var pageSize = arguments.getIntOrDefault(PAGE_SIZE_PROPERTY, MAX_PAGE_SIZE);
+    var searchQuery = arguments.getOptionalString(SEARCH_QUERY_PROPERTY);
+    
+    if (pageSize <= 0 || pageSize > MAX_PAGE_SIZE) {
+      return Tool.Result.failure("Page size must be greater than 0 and less than or equal to " + MAX_PAGE_SIZE);
+    }
+    
+    var projects = serverApiProvider.get().componentsApi().searchProjects(page, pageSize, searchQuery);
     var toolResponse = buildStructuredContent(projects);
     return Tool.Result.success(toolResponse);
   }
@@ -55,10 +67,12 @@ public class SearchMyProjectsTool extends Tool {
       .toList();
 
     var paging = response.paging();
+    var hasNextPage = (paging.pageIndex() * paging.pageSize()) < paging.total();
     var pagingResponse = new SearchMyProjectsToolResponse.Paging(
       paging.pageIndex(),
       paging.pageSize(),
-      paging.total()
+      paging.total(),
+      hasNextPage
     );
 
     return new SearchMyProjectsToolResponse(projects, pagingResponse);
