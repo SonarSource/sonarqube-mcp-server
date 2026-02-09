@@ -72,12 +72,22 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
 
   private final Runnable shutdownCallback;
 
+  private final Duration gracefulShutdownTimeout;
+
   /**
    * Creates a new StdioServerTransportProvider with the specified ObjectMapper and
    * System streams. Will call shutdown callback when stdin closes (for Docker containers).
    */
   public StdioServerTransportProvider(Runnable shutdownCallback) {
     this(System.in, System.out, shutdownCallback);
+  }
+
+  /**
+   * Creates a new StdioServerTransportProvider with custom timeout for System streams.
+   * Useful for testing to reduce test execution time.
+   */
+  public StdioServerTransportProvider(@Nullable Runnable shutdownCallback, Duration gracefulShutdownTimeout) {
+    this(System.in, System.out, shutdownCallback, gracefulShutdownTimeout);
   }
 
   /**
@@ -88,16 +98,22 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
    * @param outputStream The output stream to write to
    */
   public StdioServerTransportProvider(InputStream inputStream, OutputStream outputStream) {
-    this(inputStream, outputStream, null);
+    this(inputStream, outputStream, null, Duration.ofSeconds(10));
   }
 
   private StdioServerTransportProvider(InputStream inputStream, OutputStream outputStream, @Nullable Runnable shutdownCallback) {
+    this(inputStream, outputStream, shutdownCallback, Duration.ofSeconds(10));
+  }
+
+  private StdioServerTransportProvider(InputStream inputStream, OutputStream outputStream, @Nullable Runnable shutdownCallback, Duration gracefulShutdownTimeout) {
     Assert.notNull(inputStream, "The InputStream can not be null");
     Assert.notNull(outputStream, "The OutputStream can not be null");
+    Assert.notNull(gracefulShutdownTimeout, "The gracefulShutdownTimeout can not be null");
 
     this.inputStream = inputStream;
     this.outputStream = outputStream;
     this.shutdownCallback = shutdownCallback;
+    this.gracefulShutdownTimeout = gracefulShutdownTimeout;
   }
 
   @Override
@@ -129,8 +145,8 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
     }
 
     return this.session.closeGracefully()
-      .timeout(Duration.ofSeconds(10), Mono.fromRunnable(() -> {
-        logger.warn("closeGracefully() timed out after 10 seconds; proceeding with forced shutdown");
+      .timeout(gracefulShutdownTimeout, Mono.fromRunnable(() -> {
+        logger.warn("closeGracefully() timed out after {} seconds; proceeding with forced shutdown", gracefulShutdownTimeout.getSeconds());
         try {
           if (this.session != null) {
             this.session.close();

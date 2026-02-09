@@ -159,7 +159,7 @@ class AnalyzeCodeSnippetToolTests {
     @SonarQubeMcpServerTest
     void it_should_find_no_issues_in_an_empty_file(SonarQubeMcpServerTestHarness harness) {
       mockServerRules(harness, null, List.of("php:S1135"));
-      var mcpClient = harness.newClient();
+      var mcpClient = harness.withPlugins().newClient();
 
       var result = mcpClient.callTool(
         TOOL_NAME,
@@ -173,7 +173,7 @@ class AnalyzeCodeSnippetToolTests {
     @SonarQubeMcpServerTest
     void it_should_find_an_issues_in_a_php_file_when_rule_enabled_in_default_quality_profile(SonarQubeMcpServerTestHarness harness) {
       mockServerRules(harness, null, List.of("php:S1135"));
-      var mcpClient = harness.newClient();
+      var mcpClient = harness.withPlugins().newClient();
 
       var result = mcpClient.callTool(
         TOOL_NAME,
@@ -204,7 +204,7 @@ class AnalyzeCodeSnippetToolTests {
     @SonarQubeMcpServerTest
     void it_should_find_an_issues_in_a_php_file_when_rule_enabled_in_project_quality_profile(SonarQubeMcpServerTestHarness harness) {
       mockServerRules(harness, "projectKey", List.of("php:S1135"));
-      var mcpClient = harness.newClient();
+      var mcpClient = harness.withPlugins().newClient();
 
       var result = mcpClient.callTool(
         TOOL_NAME,
@@ -238,7 +238,7 @@ class AnalyzeCodeSnippetToolTests {
     @SonarQubeMcpServerTest
     void it_should_find_no_issues_if_rule_is_not_active(SonarQubeMcpServerTestHarness harness) {
       mockServerRules(harness, null, List.of());
-      var mcpClient = harness.newClient();
+      var mcpClient = harness.withPlugins().newClient();
 
       var result = mcpClient.callTool(
         TOOL_NAME,
@@ -254,7 +254,7 @@ class AnalyzeCodeSnippetToolTests {
     @SonarQubeMcpServerTest
     void it_should_accept_scope_parameter_with_main_value(SonarQubeMcpServerTestHarness harness) {
       mockServerRules(harness, null, List.of("php:S1135"));
-      var mcpClient = harness.newClient();
+      var mcpClient = harness.withPlugins().newClient();
 
       var result = mcpClient.callTool(
         TOOL_NAME,
@@ -286,7 +286,7 @@ class AnalyzeCodeSnippetToolTests {
     @SonarQubeMcpServerTest
     void it_should_accept_scope_parameter_with_test_value(SonarQubeMcpServerTestHarness harness) {
       mockServerRules(harness, null, List.of("php:S1135"));
-      var mcpClient = harness.newClient();
+      var mcpClient = harness.withPlugins().newClient();
 
       var result = mcpClient.callTool(
         TOOL_NAME,

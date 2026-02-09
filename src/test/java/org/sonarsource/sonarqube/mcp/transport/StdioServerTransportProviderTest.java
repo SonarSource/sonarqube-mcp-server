@@ -34,9 +34,10 @@ class StdioServerTransportProviderTest {
   /**
    * Helper to create a provider with a mock session without starting the internal transport.
    * We need to use reflection to set the session field directly to avoid the background threads.
+   * Uses a shorter timeout (1 second) for faster test execution.
    */
   private StdioServerTransportProvider createProviderWithMockSession(McpServerSession mockSession) throws Exception {
-    var provider = new StdioServerTransportProvider(null);
+    var provider = new StdioServerTransportProvider(null, Duration.ofSeconds(1));
     var sessionField = StdioServerTransportProvider.class.getDeclaredField("session");
     sessionField.setAccessible(true);
     sessionField.set(provider, mockSession);
@@ -66,14 +67,14 @@ class StdioServerTransportProviderTest {
   }
 
   @Test
-  void closeGracefully_should_timeout_and_force_close_after_10_seconds() throws Exception {
+  void closeGracefully_should_timeout_and_force_close_after_configured_timeout() throws Exception {
     var mockSession = mock(McpServerSession.class);
     when(mockSession.closeGracefully()).thenReturn(Mono.never());
     var provider = createProviderWithMockSession(mockSession);
 
     var result = provider.closeGracefully();
 
-    assertThatCode(() -> result.block(Duration.ofSeconds(12))).doesNotThrowAnyException();
+    assertThatCode(() -> result.block(Duration.ofSeconds(2))).doesNotThrowAnyException();
     verify(mockSession, times(1)).closeGracefully();
     verify(mockSession, times(1)).close(); // Should be force-closed
   }
@@ -102,7 +103,7 @@ class StdioServerTransportProviderTest {
 
     var result = provider.closeGracefully();
 
-    assertThatCode(() -> result.block(Duration.ofSeconds(12))).doesNotThrowAnyException();
+    assertThatCode(() -> result.block(Duration.ofSeconds(2))).doesNotThrowAnyException();
     verify(mockSession, times(1)).closeGracefully();
     verify(mockSession, times(1)).close();
   }
@@ -111,13 +112,13 @@ class StdioServerTransportProviderTest {
   void closeGracefully_should_complete_immediately_if_session_closes_in_5_seconds() throws Exception {
     var mockSession = mock(McpServerSession.class);
     when(mockSession.closeGracefully()).thenReturn(
-      Mono.delay(Duration.ofSeconds(5)).then()
+      Mono.delay(Duration.ofMillis(500)).then()
     );
     var provider = createProviderWithMockSession(mockSession);
 
     var result = provider.closeGracefully();
 
-    assertThatCode(() -> result.block(Duration.ofSeconds(7))).doesNotThrowAnyException();
+    assertThatCode(() -> result.block(Duration.ofSeconds(1))).doesNotThrowAnyException();
     verify(mockSession, times(1)).closeGracefully();
     verify(mockSession, never()).close();
   }

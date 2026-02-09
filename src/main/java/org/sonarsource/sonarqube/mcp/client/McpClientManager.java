@@ -39,7 +39,8 @@ import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 public class McpClientManager {
   
   private static final McpLogger LOG = McpLogger.getInstance();
-  private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(30);
+  private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(
+    Integer.parseInt(System.getProperty("mcp.client.timeout.seconds", "30")));
   
   private final List<ProxiedMcpServerConfig> serverConfigs;
   private final Map<String, McpSyncClient> clients = new ConcurrentHashMap<>();

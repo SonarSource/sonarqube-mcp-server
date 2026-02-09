@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -51,16 +52,36 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 
-public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements AfterEachCallback, BeforeEachCallback {
+public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements AfterEachCallback, BeforeEachCallback, AfterAllCallback {
   private static final Map<String, String> DEFAULT_ENV_TEMPLATE = Map.of(
     "SONARQUBE_TOKEN", "token");
   private final List<McpSyncClient> clients = new ArrayList<>();
   private Path tempStoragePath;
   private final MockWebServer mockSonarQubeServer = new MockWebServer();
+  
+  // Shared plugin directory across all tests in a class to avoid expensive copying
+  private static Path sharedPluginDirectory;
+  private static final Object PLUGIN_DIR_LOCK = new Object();
+  private boolean pluginsEnabled = false;
 
   @Override
   public SonarQubeMcpServerTestHarness resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
     return this;
+  }
+
+  @Override
+  public void afterAll(ExtensionContext context) {
+    // Clean up shared plugin directory after all tests in the class
+    synchronized (PLUGIN_DIR_LOCK) {
+      if (sharedPluginDirectory != null && Files.exists(sharedPluginDirectory)) {
+        try {
+          FileUtils.deleteDirectory(sharedPluginDirectory.toFile());
+        } catch (IOException e) {
+          // Ignore cleanup errors
+        }
+        sharedPluginDirectory = null;
+      }
+    }
   }
 
   @Override
@@ -74,21 +95,42 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     clients.clear();
     cleanupTempStoragePath();
     mockSonarQubeServer.stop();
+    pluginsEnabled = false;
   }
 
   private void cleanupTempStoragePath() {
-    if (tempStoragePath != null && Files.exists(tempStoragePath)) {
+    // Don't delete the shared plugin directory - it's cleaned up in afterAll
+    if (tempStoragePath != null && !tempStoragePath.equals(sharedPluginDirectory) && Files.exists(tempStoragePath)) {
       try {
         Files.delete(tempStoragePath);
       } catch (IOException e) {
         // Ignore cleanup errors
       }
-      tempStoragePath = null;
     }
+    tempStoragePath = null;
   }
 
   public MockWebServer getMockSonarQubeServer() {
     return mockSonarQubeServer;
+  }
+
+  public SonarQubeMcpServerTestHarness withPlugins() {
+    this.pluginsEnabled = true;
+    ensureSharedPluginDirectoryExists();
+    return this;
+  }
+
+  private void ensureSharedPluginDirectoryExists() {
+    synchronized (PLUGIN_DIR_LOCK) {
+      if (sharedPluginDirectory == null) {
+        try {
+          sharedPluginDirectory = Files.createTempDirectory("sonarqube-mcp-test-plugins-shared");
+          FileUtils.copyDirectoryToDirectory(Paths.get("build/sonarqube-mcp-server/plugins").toFile(), sharedPluginDirectory.toFile());
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to create shared plugin directory", e);
+        }
+      }
+    }
   }
 
   public SonarQubeMcpTestClient newClient() {
@@ -100,8 +142,12 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       tempStoragePath = Paths.get(overriddenEnv.get("STORAGE_PATH"));
     } else {
       try {
-        tempStoragePath = Files.createTempDirectory("sonarqube-mcp-test-storage-" + UUID.randomUUID());
-        FileUtils.copyDirectoryToDirectory(Paths.get("build/sonarqube-mcp-server/plugins").toFile(), tempStoragePath.toFile());
+        if (pluginsEnabled && sharedPluginDirectory != null) {
+          tempStoragePath = sharedPluginDirectory;
+        } else {
+          // For tests without plugins, create a minimal temp directory
+          tempStoragePath = Files.createTempDirectory("sonarqube-mcp-test-storage-" + UUID.randomUUID());
+        }
       } catch (IOException e) {
         throw new RuntimeException("Failed to create temporary storage directory", e);
       }
@@ -167,22 +213,33 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
               "status": "UP"
             }""", version).getBytes(StandardCharsets.UTF_8)))));
     }
-    mockSonarQubeServer.stubFor(get(PluginsApi.INSTALLED_PLUGINS_PATH).willReturn(okJson("""
-      {
-          "plugins": [
-            {
-              "key": "php",
-              "filename": "sonar-php-plugin-3.54.0.15452.jar",
-              "sonarLintSupported": true
-            }
-          ]
-        }
-      """)));
-    try {
-      mockSonarQubeServer.stubFor(get(PluginsApi.DOWNLOAD_PLUGINS_PATH + "?plugin=php")
-        .willReturn(aResponse().withBody(Files.readAllBytes(Paths.get("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.54.0.15452.jar")))));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    
+    // Only set up plugin stubs if plugins are enabled for this test
+    if (pluginsEnabled) {
+      mockSonarQubeServer.stubFor(get(PluginsApi.INSTALLED_PLUGINS_PATH).willReturn(okJson("""
+        {
+            "plugins": [
+              {
+                "key": "php",
+                "filename": "sonar-php-plugin-3.54.0.15452.jar",
+                "sonarLintSupported": true
+              }
+            ]
+          }
+        """)));
+      try {
+        mockSonarQubeServer.stubFor(get(PluginsApi.DOWNLOAD_PLUGINS_PATH + "?plugin=php")
+          .willReturn(aResponse().withBody(Files.readAllBytes(Paths.get("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.54.0.15452.jar")))));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      // Return empty plugin list when plugins are not enabled
+      mockSonarQubeServer.stubFor(get(PluginsApi.INSTALLED_PLUGINS_PATH).willReturn(okJson("""
+        {
+            "plugins": []
+          }
+        """)));
     }
 
     // Configure SCA feature check based on server type
