@@ -5,7 +5,7 @@ RUN apk update &&  \
 
 WORKDIR /app
 
-ADD https://github.com/SonarSource/sonarqube-mcp-server/releases/download/1.9.0.1909/sonarqube-mcp-server-1.9.0.1909.jar ./sonarqube-mcp-server.jar
+COPY sonarqube-mcp-server.jar ./sonarqube-mcp-server.jar
 
 RUN jdeps --ignore-missing-deps -q  \
     --recursive  \
@@ -49,7 +49,7 @@ COPY --chown=appuser:appgroup requirements.txt /app/requirements.txt
 RUN python3 -m pip install --no-cache-dir --break-system-packages --user -r /app/requirements.txt
 
 # Copy sonar-code-context-mcp binary
-COPY --chown=appuser:appgroup --chmod=755 src/main/resources/sonar-code-context-mcp /home/appuser/.local/bin/sonar-code-context-mcp
+COPY --chown=appuser:appgroup --chmod=755 sonar-code-context-mcp /home/appuser/.local/bin/sonar-code-context-mcp
 
 # Ensure the installed binary is in PATH
 ENV PATH="/home/appuser/.local/bin:${PATH}"
