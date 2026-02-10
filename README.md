@@ -934,6 +934,114 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 - **list_webhooks** - List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.
   - `projectKey` - Optional project key to list project-specific webhooks - _String_
 
+## Example Prompts
+
+Once you've set up the SonarQube MCP Server, here are some example prompts for common real-world scenarios:
+
+<details>
+<summary>Fixing a Failing Quality Gate</summary>
+
+```
+My quality gate is failing for my project. Can you help me understand why and fix the most critical issues?
+```
+
+```
+The quality gate on my feature branch is red. What do I need to fix to get it passing before I can merge to main?
+```
+
+</details>
+
+<details>
+<summary>Pre-Release and Pre-Merge Checks</summary>
+
+```
+I'm about to merge my pull request <#247> for the <web-app> project. Can you check if there are any quality issues I should address first?
+```
+
+```
+We're deploying to production tomorrow. Can you check the quality gate status and alert me to any critical issues in this branch?
+```
+
+</details>
+
+<details>
+<summary>Improving Code Quality</summary>
+
+```
+I want to reduce technical debt in my project. What are the top issues I should prioritize?
+```
+
+```
+Our code coverage dropped below 70%. Can you identify which files have the lowest coverage and help me improve it?
+```
+
+</details>
+
+<details>
+<summary>Understanding and Fixing Issues</summary>
+
+```
+I have 15 new code smells in my latest commit. Can you explain what they are and help me fix them?
+```
+
+```
+SonarQube flagged a critical security vulnerability in <AuthController.java>. What's the issue and how do I fix it?
+```
+
+</details>
+
+<details>
+<summary>Security and Dependency Management</summary>
+
+```
+We need to pass a security audit. Can you check all our projects for security vulnerabilities and create a prioritized list of what needs to be fixed?
+```
+
+```
+Are there any known vulnerabilities in our dependencies? Check this project for dependency risks.
+```
+
+</details>
+
+<details>
+<summary>Code Review Assistance</summary>
+
+```
+I just wrote this authentication function. Can you analyze it for security issues and code quality problems before I commit?
+```
+
+```
+Review the changes in <src/database/migrations> for any potential bugs or security issues.
+```
+
+</details>
+
+<details>
+<summary>Project Health Monitoring</summary>
+
+```
+Give me a health report for my project: quality gate status, number of bugs, security hotspots, and code coverage.
+```
+
+```
+Compare code quality between our main branch and the develop branch. Are we introducing new issues?
+```
+
+</details>
+
+<details>
+<summary>Team Collaboration</summary>
+
+```
+What are the most common rule violations across all our projects? We might need to update our coding standards.
+```
+
+```
+Show me all the issues that were marked as false positives in the last month. Are we seeing patterns that suggest our rules need adjustment?
+```
+
+</details>
+
 ## Troubleshooting
 
 Applications logs will be written to the `STORAGE_PATH/logs/mcp.log` file.
