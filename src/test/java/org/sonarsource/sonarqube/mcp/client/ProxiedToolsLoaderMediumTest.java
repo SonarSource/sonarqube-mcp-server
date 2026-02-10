@@ -86,7 +86,7 @@ class ProxiedToolsLoaderMediumTest {
       .hasSize(2);
 
     var toolNames = tools.stream().map(t -> t.definition().name()).toList();
-    assertThat(toolNames).containsExactlyInAnyOrder("test/test_tool_1", "test/test_tool_2");
+    assertThat(toolNames).containsExactlyInAnyOrder("test_test_tool_1", "test_test_tool_2");
   }
 
   @Test
@@ -108,7 +108,7 @@ class ProxiedToolsLoaderMediumTest {
     assertThat(tools).hasSize(2);
     
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("myserver/test_tool_1"))
+      .filter(t -> t.definition().name().equals("myserver_test_tool_1"))
       .findFirst();
     
     assertThat(tool1).isPresent();
@@ -155,7 +155,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -194,8 +194,8 @@ class ProxiedToolsLoaderMediumTest {
 
     var toolNames = tools.stream().map(t -> t.definition().name()).toList();
     assertThat(toolNames)
-      .contains("s1/test_tool_1", "s1/test_tool_2")
-      .contains("s2/test_tool_1", "s2/test_tool_2");
+      .contains("s1_test_tool_1", "s1_test_tool_2")
+      .contains("s2_test_tool_1", "s2_test_tool_2");
   }
 
   @Test
@@ -223,7 +223,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).hasSize(2);
-    assertThat(tools.stream().map(t -> t.definition().name())).allMatch(name -> name.startsWith("good/"));
+    assertThat(tools.stream().map(t -> t.definition().name())).allMatch(name -> name.startsWith("good_"));
   }
 
   @Test
@@ -245,7 +245,7 @@ class ProxiedToolsLoaderMediumTest {
 
     // The test server includes the TEST_ENV_VAR in the tool description
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -270,7 +270,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool1 = (ProxiedMcpTool) tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -304,7 +304,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool2 = (ProxiedMcpTool) tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_2"))
+      .filter(t -> t.definition().name().equals("test_test_tool_2"))
       .findFirst()
       .orElseThrow();
 
