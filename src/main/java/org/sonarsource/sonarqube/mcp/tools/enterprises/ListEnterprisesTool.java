@@ -38,7 +38,7 @@ public class ListEnterprisesTool extends Tool {
   private static McpSchema.Tool createToolDefinition() {
     return SchemaToolBuilder.forOutput(ListEnterprisesToolResponse.class)
       .setName(TOOL_NAME)
-      .setTitle("List SonarQube Enterprises")
+      .setTitle("List SonarQube Cloud Enterprises")
       .setDescription("List the enterprises available in SonarQube Cloud that you have access to. " +
         "Use this tool to discover enterprise IDs that can be used with other tools.")
       .addStringProperty(ENTERPRISE_KEY_PROPERTY, "Optional enterprise key to filter results")

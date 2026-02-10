@@ -291,8 +291,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     supportedTools.addAll(List.of(
       new ChangeIssueStatusTool(this),
-      new SearchMyProjectsTool(this),
-      new SearchIssuesTool(this),
+      new SearchMyProjectsTool(this, mcpConfiguration.isSonarCloud()),
+      new SearchIssuesTool(this, mcpConfiguration.isSonarCloud()),
       new ProjectStatusTool(this),
       new ShowRuleTool(this),
       new ListRuleRepositoriesTool(this),
@@ -302,8 +302,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new SearchMetricsTool(this),
       new GetScmInfoTool(this),
       new GetRawSourceTool(this),
-      new CreateWebhookTool(this),
-      new ListWebhooksTool(this),
+      new CreateWebhookTool(this, mcpConfiguration.isSonarCloud()),
+      new ListWebhooksTool(this, mcpConfiguration.isSonarCloud()),
       new ListPortfoliosTool(this, mcpConfiguration.isSonarCloud())));
 
     var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();

@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
@@ -30,16 +31,23 @@ public class ListWebhooksTool extends Tool {
 
   private final ServerApiProvider serverApiProvider;
 
-  public ListWebhooksTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ListWebhooksToolResponse.class)
-      .setName(TOOL_NAME)
-      .setTitle("List SonarQube Webhooks")
-      .setDescription("List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.")
-      .addStringProperty(PROJECT_PROPERTY, "Optional project key to list project-specific webhooks")
-      .setReadOnlyHint()
-      .build(),
+  public ListWebhooksTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
+    super(createToolDefinition(isSonarCloud),
       ToolCategory.WEBHOOKS);
     this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
+    var scope = isSonarCloud ? "organization or project" : "instance or project";
+    var description = "List all webhooks for the " + scope + ". Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
+
+    return SchemaToolBuilder.forOutput(ListWebhooksToolResponse.class)
+      .setName(TOOL_NAME)
+      .setTitle("List SonarQube Webhooks")
+      .setDescription(description)
+      .addStringProperty(PROJECT_PROPERTY, "Optional project key to list project-specific webhooks")
+      .setReadOnlyHint()
+      .build();
   }
 
   @Override

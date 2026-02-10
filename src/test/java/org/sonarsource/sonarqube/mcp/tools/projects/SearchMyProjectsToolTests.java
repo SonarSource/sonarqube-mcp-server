@@ -80,7 +80,7 @@ class SearchMyProjectsToolTests {
                "description":"Pagination information for the results"
             },
             "projects":{
-               "description":"List of projects found in the organization",
+               "description":"List of projects found",
                "type":"array",
                "items":{
                   "type":"object",
