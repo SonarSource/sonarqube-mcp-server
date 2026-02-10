@@ -28,9 +28,22 @@ public class McpLogger {
 
   private static final Logger LOG = LoggerFactory.getLogger(McpLogger.class);
   private static final McpLogger INSTANCE = new McpLogger();
+  private static final String SONARQUBE_DEBUG_ENABLED = "SONARQUBE_DEBUG_ENABLED";
 
   public static McpLogger getInstance() {
     return INSTANCE;
+  }
+
+  public static boolean isDebugEnabled() {
+    return resolveDebugEnabled();
+  }
+
+  private static boolean resolveDebugEnabled() {
+    var envValue = System.getenv(SONARQUBE_DEBUG_ENABLED);
+    if (envValue != null) {
+      return "true".equalsIgnoreCase(envValue);
+    }
+    return "true".equalsIgnoreCase(System.getProperty(SONARQUBE_DEBUG_ENABLED));
   }
 
   public void info(String message) {
@@ -39,7 +52,10 @@ public class McpLogger {
   }
 
   public void debug(String message) {
-    LOG.debug(message);
+    if (isDebugEnabled()) {
+      LOG.debug(message);
+      logToStderr("DEBUG", message);
+    }
   }
 
   public void warn(String message) {

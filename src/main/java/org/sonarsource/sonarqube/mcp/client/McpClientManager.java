@@ -135,8 +135,8 @@ public class McpClientManager {
       var errorMsg = serverErrors.get(serverId);
       throw new IllegalStateException(errorMsg != null ? ("Service unavailable: " + errorMsg) : "Service connection not established");
     }
-    
-    LOG.debug("Executing tool: " + toolName);
+
+    LOG.info("Executing tool: " + toolName);
 
     var request = new McpSchema.CallToolRequest(toolName, arguments);
     return client.callTool(request);

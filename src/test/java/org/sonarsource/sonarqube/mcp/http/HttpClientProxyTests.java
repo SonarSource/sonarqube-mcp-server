@@ -18,11 +18,14 @@ package org.sonarsource.sonarqube.mcp.http;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -47,6 +50,8 @@ class HttpClientProxyTests {
     .build();
 
   private ProxySelector originalProxySelector;
+  private PrintStream originalErr;
+  private ByteArrayOutputStream errBuffer;
 
   @AfterEach
   void tearDown() {
@@ -54,12 +59,18 @@ class HttpClientProxyTests {
     if (originalProxySelector != null) {
       ProxySelector.setDefault(originalProxySelector);
     }
+    if (originalErr != null) {
+      System.setErr(originalErr);
+      originalErr = null;
+      errBuffer = null;
+    }
     // Clear proxy system properties
     System.clearProperty("http.proxyHost");
     System.clearProperty("http.proxyPort");
     System.clearProperty("https.proxyHost");
     System.clearProperty("https.proxyPort");
     System.clearProperty("http.nonProxyHosts");
+    System.clearProperty("SONARQUBE_DEBUG_ENABLED");
   }
 
   @Test
@@ -138,6 +149,31 @@ class HttpClientProxyTests {
     assertThatThrownBy(httpClient::join)
       .as("Request should fail when proxy is unreachable, proving proxy is being used")
       .isInstanceOf(CompletionException.class);
+  }
+
+  @Test
+  void should_log_proxy_settings_when_elevated_debug_enabled() {
+    System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
+    System.setProperty("http.proxyHost", "proxy.local");
+    System.setProperty("http.proxyPort", "3128");
+    System.setProperty("https.proxyHost", "proxy.local");
+    System.setProperty("https.proxyPort", "3129");
+
+    originalErr = System.err;
+    errBuffer = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+
+    var provider = new HttpClientProvider(USER_AGENT);
+    provider.logConnectionSettings();
+
+    var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
+    assertThat(stderrOutput)
+      .contains("SSL/TLS - OS: ")
+      .contains("SSL/TLS configured - protocol: ")
+      .contains("Proxy selector: ")
+      .contains("HTTP proxy: proxy.local:3128")
+      .contains("HTTPS proxy: proxy.local:3129")
+      .contains("HTTP client user agent: " + USER_AGENT);
   }
 
   /**

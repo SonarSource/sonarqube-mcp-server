@@ -16,6 +16,9 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -25,6 +28,8 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -50,6 +55,57 @@ class SonarQubeMcpServerGenericTest {
     var serverApi = server.get();
 
     assertThat(serverApi).isNotNull();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_log_sanitized_config_when_elevated_debug_enabled(SonarQubeMcpServerTestHarness harness) {
+    System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
+    var originalErr = System.err;
+    var errBuffer = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+
+    try {
+      var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+      harness.prepareMockWebServer(environment);
+
+      var server = new SonarQubeMcpServer(
+        new StdioServerTransportProvider(null),
+        null,
+        environment);
+      server.start();
+      var configuration = server.getMcpConfiguration();
+
+      assertThat(System.getProperty("os.name")).isNotNull().isNotEmpty();
+      assertThat(configuration.getUserAgent()).isNotNull().isNotEmpty();
+      assertThat(configuration.getEnabledToolsets().toString()).isNotNull().isNotEmpty();
+      assertThat(configuration.getAppVersion()).isNotNull().isNotEmpty();
+      assertThat(configuration.getStoragePath().toString()).isNotNull().isNotEmpty();
+      assertThat(configuration.getLogFilePath().toAbsolutePath().toString()).isNotNull().isNotEmpty();
+
+      await().atMost(2, SECONDS).untilAsserted(() -> {
+        var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
+        var proxySelector = java.net.ProxySelector.getDefault();
+        var proxySelectorName = proxySelector != null ? proxySelector.getClass().getName() : "none";
+        assertThat(stderrOutput)
+          .contains("SSL/TLS - OS: " + System.getProperty("os.name"))
+          .contains("SSL/TLS configured - protocol: TLS")
+          .contains("Proxy selector: " + proxySelectorName)
+          .contains("HTTP client user agent: " + configuration.getUserAgent())
+          .contains("Enabled toolsets: " + configuration.getEnabledToolsets())
+          .contains("Advanced analysis: false")
+          .contains("Telemetry enabled: false")
+          .contains("App version: " + configuration.getAppVersion())
+          .contains("Storage path: " + configuration.getStoragePath())
+          .contains("Log file: " + configuration.getLogFilePath().toAbsolutePath())
+          .contains("IDE port: " + (configuration.getSonarQubeIdePort() != null ? configuration.getSonarQubeIdePort() : "not set"))
+          .contains("================================");
+      });
+
+      server.shutdown();
+    } finally {
+      System.clearProperty("SONARQUBE_DEBUG_ENABLED");
+      System.setErr(originalErr);
+    }
   }
 
   @SonarQubeMcpServerTest

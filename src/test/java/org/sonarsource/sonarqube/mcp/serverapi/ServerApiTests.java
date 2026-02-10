@@ -17,7 +17,11 @@
 package org.sonarsource.sonarqube.mcp.serverapi;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import org.apache.hc.core5.http.HttpStatus;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -41,6 +45,8 @@ class ServerApiTests {
 
   private static final String USER_AGENT = "SonarQube MCP tests";
   private ServerApiHelper serverApiHelper;
+  private PrintStream originalErr;
+  private ByteArrayOutputStream errBuffer;
 
   @RegisterExtension
   static WireMockExtension sonarqubeMock = WireMockExtension.newInstance()
@@ -53,6 +59,16 @@ class ServerApiTests {
     var httpClient = httpClientProvider.getHttpClient("token");
 
     serverApiHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "org"), httpClient);
+  }
+
+  @AfterEach
+  void tearDown() {
+    System.clearProperty("SONARQUBE_DEBUG_ENABLED");
+    if (originalErr != null) {
+      System.setErr(originalErr);
+      originalErr = null;
+      errBuffer = null;
+    }
   }
 
   @Test
@@ -117,6 +133,23 @@ class ServerApiTests {
 
     var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
     assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test");
+  }
+
+  @Test
+  void it_should_log_error_response_code() {
+    System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
+    originalErr = System.err;
+    errBuffer = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+
+    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"errors\": [{\"msg\": \"Missing permission\",\"code\":\"insufficient_privileges\"}]}", HttpStatus.SC_FORBIDDEN)));
+
+    assertThrows(ForbiddenException.class, () -> serverApiHelper.get("/test"));
+
+    var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
+    assertThat(stderrOutput)
+      .contains("HTTP error - URL: " + sonarqubeMock.baseUrl() + "/test")
+      .contains("status: 403");
   }
 
   @Test

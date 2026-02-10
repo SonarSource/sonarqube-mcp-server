@@ -414,6 +414,21 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     LOG.info("Status: Server ready - tools loading in background");
     LOG.info("========================================");
+
+    logDebugDetails();
+  }
+
+  private void logDebugDetails() {
+    LOG.debug("=== Debug Level Configuration Details ===");
+    httpClientProvider.logConnectionSettings();
+    LOG.debug("Enabled toolsets: " + mcpConfiguration.getEnabledToolsets());
+    LOG.debug("Advanced analysis: " + mcpConfiguration.isAdvancedAnalysisEnabled());
+    LOG.debug("Telemetry enabled: " + mcpConfiguration.isTelemetryEnabled());
+    LOG.debug("App version: " + mcpConfiguration.getAppVersion());
+    LOG.debug("Storage path: " + mcpConfiguration.getStoragePath());
+    LOG.debug("Log file: " + mcpConfiguration.getLogFilePath().toAbsolutePath());
+    LOG.debug("IDE port: " + (mcpConfiguration.getSonarQubeIdePort() != null ? mcpConfiguration.getSonarQubeIdePort() : "not set"));
+    LOG.debug("================================");
   }
 
   private void logLogFileLocation(McpSyncServerExchange exchange) {
