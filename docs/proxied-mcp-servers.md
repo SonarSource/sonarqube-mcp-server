@@ -43,7 +43,7 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 
 **Fields:**
 - `name` (required): Human-readable server name (for logging)
-- `namespace` (required): Tool name prefix (e.g., tool `analyze` becomes `context/analyze`)
+- `namespace` (required): Tool name prefix (e.g., tool `analyze` becomes `context_analyze`)
 - `command` (required): Executable command to start the MCP server
 - `args` (optional): Command-line arguments
 - `env` (optional): Environment variables (merged with parent process environment; config values override parent values)
@@ -52,10 +52,10 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 
 ### Tool Namespacing
 
-Proxied tools are prefixed with their namespace to avoid conflicts with the main server's tools, following the [MCP SEP-986 naming convention](https://modelcontextprotocol.io/community/seps/986-specify-format-for-tool-names):
+Proxied tools are prefixed with their namespace to avoid conflicts with the main server's tools:
 - Server namespace: `context`
 - Original tool name: `analyze_code`
-- Exposed name: `context/analyze_code`
+- Exposed name: `context_analyze_code`
 
 **Tool Name Validation:**
 
@@ -90,6 +90,21 @@ INFO: Loaded 5 proxied tool(s) from 1/2 server(s)
 ```
 
 **Key principle:** The server never fails to start due to proxied server issues. It gracefully degrades and continues with available servers.
+
+### Logging
+
+Diagnostic logs from proxied MCP servers are automatically captured and logged:
+
+**Standard Error (stderr) Logging:**
+- According to MCP protocol, servers send diagnostic logs to stderr
+- The SonarQube MCP server captures and logs stderr from all proxied servers at INFO level
+- All logs are prefixed with the server name (e.g., `[sonar-cag] <log message>`)
+- This allows you to see what's happening inside proxied servers for debugging
+
+**Controlling Log Output:**
+- Use the `logback.xml` configuration to filter logs by logger name or level
+- Stderr output is logged via the `org.sonarsource.sonarqube.mcp.client.McpClientManager` logger
+- Example: Set `<logger name="org.sonarsource.sonarqube.mcp.client.McpClientManager" level="DEBUG"/>` to see all proxied server output
 
 ## Adding a New Proxied Server
 

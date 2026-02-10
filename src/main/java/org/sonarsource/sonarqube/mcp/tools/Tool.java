@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
@@ -125,11 +126,16 @@ public abstract class Tool {
     }
     
     /**
-     * Get the underlying map of arguments.
+     * Get the underlying map of arguments, excluding null values and 'ctx'.
      * Used for forwarding arguments to proxied MCP servers.
+     * - Null values are filtered out because Map.copyOf() doesn't allow them.
+     * - 'ctx' is filtered out because FastMCP auto-injects it (Context parameter).
      */
     public Map<String, Object> toMap() {
-      return Map.copyOf(argumentsMap);
+      return argumentsMap.entrySet().stream()
+        .filter(entry -> entry.getValue() != null)
+        .filter(entry -> !"ctx".equals(entry.getKey()))
+        .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
   }
 

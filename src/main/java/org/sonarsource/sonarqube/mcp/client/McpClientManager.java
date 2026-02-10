@@ -40,7 +40,7 @@ public class McpClientManager {
   
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(
-    Integer.parseInt(System.getProperty("mcp.client.timeout.seconds", "30")));
+    Integer.parseInt(System.getProperty("mcp.client.timeout.seconds", "60")));
   
   private final List<ProxiedMcpServerConfig> serverConfigs;
   private final Map<String, McpSyncClient> clients = new ConcurrentHashMap<>();
@@ -67,12 +67,6 @@ public class McpClientManager {
     try {
       LOG.info("Connecting to '" + config.name() + "' (namespace: " + config.namespace() + ")");
       
-      // Build server parameters for STDIO transport
-      var serverParamsBuilder = ServerParameters.builder(config.command());
-      if (!config.args().isEmpty()) {
-        serverParamsBuilder.args(config.args());
-      }
-      
       // Merge parent process environment with config-specific environment
       // Config environment takes precedence over parent environment
       var parentEnv = System.getenv();
@@ -81,12 +75,18 @@ public class McpClientManager {
         LOG.debug("Merging " + config.env().size() + " config environment variable(s) for '" + config.name() + "'");
         mergedEnv.putAll(config.env());
       }
-      serverParamsBuilder.env(mergedEnv);
 
-      var serverParams = serverParamsBuilder.build();
+      var serverParams = ServerParameters.builder(config.command())
+        .args(config.args())
+        .env(mergedEnv)
+        .build();
+      
       var transport = new StdioClientTransport(serverParams, McpJsonMappers.DEFAULT);
+      // Capture stderr output from the proxied server process
+      transport.setStdErrorHandler(stderrLine -> LOG.info("[" + config.name() + "] " + stderrLine));
 
       var client = McpClient.sync(transport)
+        .initializationTimeout(Duration.ofMinutes(1))
         .requestTimeout(DEFAULT_REQUEST_TIMEOUT)
         .capabilities(McpSchema.ClientCapabilities.builder()
           .roots(false)
@@ -102,7 +102,7 @@ public class McpClientManager {
       LOG.info("Connected to '" + config.name() + "' - discovered " + tools.size() + " tool(s)");
       clients.put(serverName, client);
       serverTools.put(serverName, tools);
-      tools.forEach(tool -> LOG.debug(" - " + config.namespace() + "/" + tool.name()));
+      tools.forEach(tool -> LOG.debug(" - " + config.namespace() + "_" + tool.name()));
     } catch (Exception e) {
       LOG.error("Failed to initialize '" + config.name() + "': " + e.getMessage(), e);
       serverErrors.put(serverName, e.getMessage());
@@ -116,7 +116,7 @@ public class McpClientManager {
       var namespace = config.namespace();
       var tools = serverTools.getOrDefault(serverId, List.of());
       tools.forEach(tool -> {
-        var namespacedToolName = namespace + "/" + tool.name();
+        var namespacedToolName = namespace + "_" + tool.name();
         try {
           ToolNameValidator.validate(namespacedToolName);
           allTools.put(namespacedToolName, new ToolMapping(serverId, namespace, tool.name(), tool));

@@ -45,6 +45,11 @@ def receive_message():
 
 def handle_initialize(request):
     """Handle the initialize request"""
+    # Log to stderr (diagnostic logs per MCP protocol)
+    sys.stderr.write("INFO: Test MCP server initializing\n")
+    sys.stderr.write("WARNING: This is a test warning message\n")
+    sys.stderr.flush()
+    
     send_message({
         "jsonrpc": "2.0",
         "id": request.get("id"),
@@ -63,6 +68,10 @@ def handle_initialize(request):
 
 def handle_list_tools(request):
     """Handle the tools/list request"""
+    # Log to stderr (diagnostic logs per MCP protocol)
+    sys.stderr.write("INFO: Listing available tools\n")
+    sys.stderr.flush()
+    
     # Read environment variable to test environment inheritance
     test_env_var = os.environ.get("TEST_ENV_VAR", "not_set")
     
@@ -114,6 +123,10 @@ def handle_call_tool(request):
     tool_name = params.get("name")
     arguments = params.get("arguments", {})
     
+    # Log to stderr (diagnostic logs per MCP protocol)
+    sys.stderr.write(f"INFO: Executing tool '{tool_name}' with arguments: {arguments}\n")
+    sys.stderr.flush()
+    
     if tool_name == "test_tool_1":
         input_value = arguments.get("input", "no input")
         test_env_var = os.environ.get("TEST_ENV_VAR", "not_set")
@@ -157,6 +170,10 @@ def handle_call_tool(request):
 
 def main():
     """Main server loop"""
+    # Log to stderr on startup (diagnostic logs per MCP protocol)
+    sys.stderr.write("INFO: Test MCP server starting up\n")
+    sys.stderr.flush()
+    
     while True:
         message = receive_message()
         if message is None:
