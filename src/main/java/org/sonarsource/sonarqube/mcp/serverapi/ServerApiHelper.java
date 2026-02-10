@@ -26,12 +26,16 @@ import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 
 public class ServerApiHelper {
+
+  private static final McpLogger LOG = McpLogger.getInstance();
+  private static final int MAX_LOGGED_BODY_CHARS = 1000;
 
   private final HttpClient client;
   private final EndpointParams endpointParams;
@@ -149,11 +153,13 @@ public class ServerApiHelper {
 
   public static RuntimeException handleError(HttpClient.Response toBeClosed) {
     try (var failedResponse = toBeClosed) {
+      var responseBody = failedResponse.bodyAsString();
+      LOG.debug("HTTP error - URL: " + failedResponse.url() + ", status: " + failedResponse.code());
       if (failedResponse.code() == HttpURLConnection.HTTP_UNAUTHORIZED) {
         return new UnauthorizedException("Not authorized. Please check server credentials.");
       }
       if (failedResponse.code() == HttpURLConnection.HTTP_FORBIDDEN) {
-        var jsonError = tryParseAsJsonError(failedResponse);
+        var jsonError = tryParseAsJsonError(responseBody);
         // Details are in response content
         return new ForbiddenException(jsonError != null ? jsonError : "Forbidden");
       }
@@ -164,7 +170,7 @@ public class ServerApiHelper {
         return new ServerInternalErrorException(formatHttpFailedResponse(failedResponse, null));
       }
 
-      var errorMsg = tryParseAsJsonError(failedResponse);
+      var errorMsg = tryParseAsJsonError(responseBody);
 
       return new IllegalStateException(formatHttpFailedResponse(failedResponse, errorMsg));
     }
@@ -174,9 +180,18 @@ public class ServerApiHelper {
     return "Error " + failedResponse.code() + " on " + failedResponse.url() + (errorMsg != null ? (": " + errorMsg) : "");
   }
 
+  private static String truncate(@Nullable String value) {
+    if (value == null) {
+      return "";
+    }
+    if (value.length() <= MAX_LOGGED_BODY_CHARS) {
+      return value;
+    }
+    return value.substring(0, MAX_LOGGED_BODY_CHARS) + "... [truncated, total length: " + value.length() + "]";
+  }
+
   @CheckForNull
-  private static String tryParseAsJsonError(HttpClient.Response response) {
-    var content = response.bodyAsString();
+  private static String tryParseAsJsonError(String content) {
     if (StringUtils.isBlank(content)) {
       return null;
     }

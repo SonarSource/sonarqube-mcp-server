@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import java.net.ProxySelector;
-import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.hc.client5.http.config.TlsConfig;
@@ -29,26 +28,49 @@ import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 public class HttpClientProvider {
 
+  private static final McpLogger LOG = McpLogger.getInstance();
   private final CloseableHttpAsyncClient httpClient;
+  private final String userAgent;
+  private final String sslProtocol;
+  private final int trustedCertificates;
+  private final String proxySelector;
 
   public HttpClientProvider(String userAgent) {
+    this.userAgent = userAgent;
+    var sslFactoryBuilder = SSLFactory.builder()
+      .withDefaultTrustMaterial();
+    if (!SystemUtils.IS_OS_WINDOWS) {
+      sslFactoryBuilder.withSystemTrustMaterial();
+    }
+    var sslFactory = sslFactoryBuilder.build();
+    var sslContext = sslFactory.getSslContext();
+    this.sslProtocol = sslContext.getProtocol();
+    this.trustedCertificates = sslFactory.getTrustedCertificates().size();
+
     var asyncConnectionManager = PoolingAsyncClientConnectionManagerBuilder.create()
-      .setTlsStrategy(new DefaultClientTlsStrategy(configureSsl()))
+      .setTlsStrategy(new DefaultClientTlsStrategy(sslContext))
       .setDefaultTlsConfig(TlsConfig.custom()
         // Force HTTP/1 since we know SQ/SC don't support HTTP/2 ATM
         .setVersionPolicy(HttpVersionPolicy.FORCE_HTTP_1)
         .build())
       .build();
-    this.httpClient = HttpAsyncClients.custom()
+
+    var defaultProxySelector = ProxySelector.getDefault();
+    this.proxySelector = defaultProxySelector != null ? defaultProxySelector.getClass().getName() : "none";
+
+    var httpClientBuilder = HttpAsyncClients.custom()
       .setConnectionManager(asyncConnectionManager)
       .addResponseInterceptorFirst(new RedirectInterceptor())
       .setUserAgent(userAgent)
-      .setRoutePlanner(new SystemDefaultRoutePlanner(ProxySelector.getDefault()))
-      .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider())
-      .build();
+      .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
+    if (defaultProxySelector != null) {
+      httpClientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(defaultProxySelector));
+    }
+    this.httpClient = httpClientBuilder.build();
 
     httpClient.start();
   }
@@ -65,13 +87,26 @@ public class HttpClientProvider {
     httpClient.close(CloseMode.IMMEDIATE);
   }
 
-  private static SSLContext configureSsl() {
-    var sslFactoryBuilder = SSLFactory.builder()
-      .withDefaultTrustMaterial();
-    if (!SystemUtils.IS_OS_WINDOWS) {
-      sslFactoryBuilder.withSystemTrustMaterial();
+  public void logConnectionSettings() {
+    if (!McpLogger.isDebugEnabled()) {
+      return;
     }
-    return sslFactoryBuilder.build().getSslContext();
+    LOG.debug("SSL/TLS - OS: " + System.getProperty("os.name"));
+    LOG.debug("SSL/TLS configured - protocol: " + sslProtocol
+      + ", trusted certificates: " + trustedCertificates);
+    LOG.debug("Proxy selector: " + proxySelector);
+    var httpProxy = System.getProperty("http.proxyHost");
+    var httpsProxy = System.getProperty("https.proxyHost");
+    if (httpProxy != null) {
+      LOG.debug("HTTP proxy: " + httpProxy + ":" + System.getProperty("http.proxyPort", "80"));
+    }
+    if (httpsProxy != null) {
+      LOG.debug("HTTPS proxy: " + httpsProxy + ":" + System.getProperty("https.proxyPort", "443"));
+    }
+    if (httpProxy == null && httpsProxy == null) {
+      LOG.debug("No proxy system properties configured");
+    }
+    LOG.debug("HTTP client user agent: " + userAgent);
   }
 
 }
