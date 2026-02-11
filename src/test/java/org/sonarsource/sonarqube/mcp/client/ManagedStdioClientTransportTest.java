@@ -372,7 +372,7 @@ class ManagedStdioClientTransportTest {
     
     assertThat(thrown)
       .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("Failed to start server process");
+      .hasMessageContaining("Failed to start process");
   }
 
   @Test

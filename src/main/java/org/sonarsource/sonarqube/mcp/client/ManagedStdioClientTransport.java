@@ -39,18 +39,23 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Custom MCP client transport that manages the lifecycle of stdio-based proxied servers.
- * This implementation spawns the server process and ensures proper cleanup on shutdown,
- * which is critical for containerized environments to avoid stale containers.
+ * Extended implementation of the MCP Stdio client transport that ensures proper process
+ * lifecycle management for proxied MCP servers.
  * 
- * Inspired by the SDK's StdioClientTransport but with explicit process management
- * and configurable termination timeouts.
+ * <p>This implementation is based on the SDK's {@code StdioClientTransport} but adds
+ * explicit process termination with configurable timeouts to ensure child processes
+ * are properly cleaned up when the parent container shuts down.
+ * 
+ * <p>The SDK's implementation uses {@code process.destroy()} and waits for exit, but
+ * doesn't handle cases where processes don't respond to SIGTERM. This implementation
+ * adds a timeout and fallback to {@code destroyForcibly()} to guarantee cleanup.
+ * 
+ * @see io.modelcontextprotocol.client.transport.StdioClientTransport
  */
 public class ManagedStdioClientTransport implements McpClientTransport {
   
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final Duration PROCESS_TERMINATION_TIMEOUT = Duration.ofSeconds(5);
-  private static final String PROCESS_PREFIX = "Process for '";
   
   private final String serverName;
   private final ServerParameters serverParams;
@@ -63,7 +68,7 @@ public class ManagedStdioClientTransport implements McpClientTransport {
   private final Scheduler errorScheduler;
   
   private volatile boolean isClosing;
-  private volatile Process serverProcess;
+  private Process process;
   private Consumer<String> stdErrorHandler;
 
   public ManagedStdioClientTransport(String serverName, ServerParameters serverParams, McpJsonMapper mapper) {
@@ -71,7 +76,7 @@ public class ManagedStdioClientTransport implements McpClientTransport {
     this.serverParams = serverParams;
     this.mapper = mapper;
     this.isClosing = false;
-    this.stdErrorHandler = error -> LOG.debug("[" + serverName + "] STDERR: " + error);
+    this.stdErrorHandler = error -> LOG.info("[" + serverName + "] STDERR: " + error);
     
     this.inboundSink = Sinks.many().unicast().onBackpressureBuffer();
     this.outboundSink = Sinks.many().unicast().onBackpressureBuffer();
@@ -87,36 +92,46 @@ public class ManagedStdioClientTransport implements McpClientTransport {
 
   @Override
   public Mono<Void> connect(Function<Mono<McpSchema.JSONRPCMessage>, Mono<McpSchema.JSONRPCMessage>> handler) {
-    return Mono.fromRunnable(() -> {
-      try {
-        startServerProcess();
-        handleIncomingMessages(handler);
-        handleIncomingErrors();
-        startInboundProcessing();
-        startOutboundProcessing();
-        startErrorProcessing();
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to start server process for '" + serverName + "'", e);
-      }
-    }).subscribeOn(Schedulers.boundedElastic()).then();
-  }
+    return Mono.<Void>fromRunnable(() -> {
+      LOG.info("MCP server '" + serverName + "' starting");
+      handleIncomingMessages(handler);
+      handleIncomingErrors();
 
-  private void startServerProcess() throws IOException {
-    var processBuilder = new ProcessBuilder();
-    processBuilder.command().add(serverParams.getCommand());
-    processBuilder.command().addAll(serverParams.getArgs());
-    
-    if (!serverParams.getEnv().isEmpty()) {
+      // Build command list
+      var fullCommand = new java.util.ArrayList<String>();
+      fullCommand.add(serverParams.getCommand());
+      fullCommand.addAll(serverParams.getArgs());
+
+      // Start the process
+      ProcessBuilder processBuilder = new ProcessBuilder();
+      processBuilder.command(fullCommand);
       processBuilder.environment().putAll(serverParams.getEnv());
-    }
-    
-    LOG.debug("Starting process for '" + serverName + "': " + processBuilder.command());
-    serverProcess = processBuilder.start();
+
+      try {
+        this.process = processBuilder.start();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to start process with command: " + fullCommand, e);
+      }
+
+      // Validate process streams
+      if (this.process.getInputStream() == null || this.process.getOutputStream() == null) {
+        this.process.destroy();
+        throw new RuntimeException("Process input or output stream is null");
+      }
+
+      // Start processing threads
+      startInboundProcessing();
+      startOutboundProcessing();
+      startErrorProcessing();
+      LOG.info("MCP server '" + serverName + "' started");
+    }).subscribeOn(Schedulers.boundedElastic());
   }
 
   private void handleIncomingMessages(Function<Mono<McpSchema.JSONRPCMessage>, Mono<McpSchema.JSONRPCMessage>> handler) {
     inboundSink.asFlux()
-      .flatMap(message -> Mono.just(message).transform(handler))
+      .flatMap(message -> Mono.just(message)
+        .transform(handler)
+        .contextWrite(ctx -> ctx.put("observation", "myObservation")))
       .subscribe();
   }
 
@@ -133,27 +148,27 @@ public class ManagedStdioClientTransport implements McpClientTransport {
 
   private void startInboundProcessing() {
     inboundScheduler.schedule(() -> {
-      try (var reader = new BufferedReader(new InputStreamReader(serverProcess.getInputStream()))) {
+      try (BufferedReader processReader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
         String line;
-        while (!isClosing && (line = reader.readLine()) != null) {
+        while (!isClosing && (line = processReader.readLine()) != null) {
           try {
-            var message = McpSchema.deserializeJsonRpcMessage(mapper, line);
+            McpSchema.JSONRPCMessage message = McpSchema.deserializeJsonRpcMessage(mapper, line);
             if (!inboundSink.tryEmitNext(message).isSuccess()) {
               if (!isClosing) {
-                LOG.warn("Failed to enqueue inbound message for '" + serverName + "'");
+                LOG.error("Failed to enqueue inbound message: " + message);
               }
               break;
             }
           } catch (Exception e) {
             if (!isClosing) {
-              LOG.error("Error processing inbound message for '" + serverName + "': " + line, e);
+              LOG.error("Error processing inbound message for line: " + line, e);
             }
             break;
           }
         }
       } catch (IOException e) {
         if (!isClosing) {
-          LOG.error("Error reading from '" + serverName + "' process", e);
+          LOG.error("Error reading from input stream", e);
         }
       } finally {
         isClosing = true;
@@ -179,9 +194,12 @@ public class ManagedStdioClientTransport implements McpClientTransport {
 
   private void writeMessageToProcess(McpSchema.JSONRPCMessage message) throws IOException {
     String jsonMessage = mapper.writeValueAsString(message);
+    // Escape any embedded newlines in the JSON message as per spec:
+    // https://spec.modelcontextprotocol.io/specification/basic/transports/#stdio
+    // - Messages are delimited by newlines, and MUST NOT contain embedded newlines.
     jsonMessage = jsonMessage.replace("\r\n", "\\n").replace("\n", "\\n").replace("\r", "\\n");
     
-    OutputStream os = serverProcess.getOutputStream();
+    var os = process.getOutputStream();
     synchronized (os) {
       os.write(jsonMessage.getBytes(StandardCharsets.UTF_8));
       os.write("\n".getBytes(StandardCharsets.UTF_8));
@@ -189,7 +207,7 @@ public class ManagedStdioClientTransport implements McpClientTransport {
     }
   }
 
-  private void handleOutbound(Function<Flux<McpSchema.JSONRPCMessage>, Flux<McpSchema.JSONRPCMessage>> consumer) {
+  protected void handleOutbound(Function<Flux<McpSchema.JSONRPCMessage>, Flux<McpSchema.JSONRPCMessage>> consumer) {
     consumer.apply(outboundSink.asFlux())
       .doOnComplete(() -> {
         isClosing = true;
@@ -197,7 +215,7 @@ public class ManagedStdioClientTransport implements McpClientTransport {
       })
       .doOnError(e -> {
         if (!isClosing) {
-          LOG.error("Error in outbound processing for '" + serverName + "'", e);
+          LOG.error("Error in outbound processing", e);
           isClosing = true;
           outboundSink.tryEmitComplete();
         }
@@ -207,133 +225,118 @@ public class ManagedStdioClientTransport implements McpClientTransport {
 
   private void startErrorProcessing() {
     errorScheduler.schedule(() -> {
-      try (var reader = new BufferedReader(new InputStreamReader(serverProcess.getErrorStream()))) {
+      try (BufferedReader processErrorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
         String line;
-        while (!isClosing && (line = reader.readLine()) != null) {
-          if (!errorSink.tryEmitNext(line).isSuccess()) {
+        while (!isClosing && (line = processErrorReader.readLine()) != null) {
+          try {
+            if (!errorSink.tryEmitNext(line).isSuccess()) {
+              if (!isClosing) {
+                LOG.error("Failed to emit error message");
+              }
+              break;
+            }
+          } catch (Exception e) {
             if (!isClosing) {
-              LOG.warn("Failed to enqueue error message for '" + serverName + "'");
+              LOG.error("Error processing error message", e);
             }
             break;
           }
         }
       } catch (IOException e) {
         if (!isClosing) {
-          LOG.error("Error reading stderr from '" + serverName + "' process", e);
+          LOG.error("Error reading from error stream", e);
         }
       } finally {
+        isClosing = true;
         errorSink.tryEmitComplete();
       }
     });
   }
 
+  /**
+   * Gracefully closes the transport by terminating the process and cleaning up resources.
+   * 
+   * <p>This method extends the SDK's approach by adding a timeout-based termination:
+   * <ol>
+   *   <li>Complete all sinks to stop accepting new messages</li>
+   *   <li>Wait 100ms for pending messages to process</li>
+   *   <li>Send SIGTERM via {@code process.destroy()}</li>
+   *   <li>Wait up to 5 seconds for graceful termination</li>
+   *   <li>If timeout expires, force termination with {@code destroyForcibly()}</li>
+   *   <li>Dispose all schedulers</li>
+   * </ol>
+   * 
+   * @return A Mono that completes when the transport is closed
+   */
   @Override
   public Mono<Void> closeGracefully() {
-    return Mono.<Void>fromRunnable(() -> {
+    return Mono.fromRunnable(() -> {
       isClosing = true;
-      LOG.debug("Initiating graceful shutdown for '" + serverName + "'");
+      LOG.debug("Initiating graceful shutdown");
+    })
+    .then(Mono.<Void>defer(() -> {
+      // First complete all sinks to stop accepting new messages
       inboundSink.tryEmitComplete();
       outboundSink.tryEmitComplete();
       errorSink.tryEmitComplete();
-    })
-    .then(Mono.delay(Duration.ofMillis(100)))
-    .then(Mono.<Void>fromRunnable(() -> {
-      closeStreams();
-      terminateServerProcess();
-      disposeSchedulers();
-      LOG.info("Graceful shutdown completed for '" + serverName + "'");
+
+      // Give a short time for any pending messages to be processed
+      return Mono.delay(Duration.ofMillis(100)).then();
     }))
-    .onErrorResume(e -> {
-      LOG.error("Error during graceful close of '" + serverName + "': " + e.getMessage(), e);
-      terminateServerProcess();
+    .then(Mono.defer(() -> {
+      LOG.debug("Sending TERM to process");
+      if (this.process != null) {
+        this.process.destroy();
+        
+        // Wait for graceful termination with timeout
+        return Mono.fromFuture(process.onExit())
+          .timeout(PROCESS_TERMINATION_TIMEOUT, Mono.fromRunnable(() -> {
+            LOG.warn("Process '" + serverName + "' did not terminate gracefully within " + 
+              PROCESS_TERMINATION_TIMEOUT.getSeconds() + " seconds, forcing termination");
+            this.process.destroyForcibly();
+          }).then(Mono.fromFuture(process.onExit())))
+          .onErrorResume(e -> {
+            // If anything goes wrong, force destroy
+            if (this.process != null && this.process.isAlive()) {
+              this.process.destroyForcibly();
+            }
+            return Mono.empty();
+          });
+      } else {
+        LOG.warn("Process not started");
+        return Mono.<Process>empty();
+      }
+    }))
+    .doOnNext(proc -> {
+      if (proc.exitValue() != 0) {
+        LOG.warn("Process '" + serverName + "' terminated with code " + proc.exitValue());
+      } else {
+        LOG.info("MCP server process '" + serverName + "' stopped");
+      }
+    })
+    .onErrorResume(InterruptedException.class, e -> {
+      Thread.currentThread().interrupt();
+      LOG.warn("Interrupted while terminating process '" + serverName + "', forcing shutdown");
+      if (this.process != null) {
+        this.process.destroyForcibly();
+      }
       return Mono.empty();
     })
+    .then(Mono.fromRunnable(() -> {
+      try {
+        // The Threads are blocked on readLine so disposeGracefully would not
+        // interrupt them, therefore we issue an async hard dispose.
+        inboundScheduler.dispose();
+        errorScheduler.dispose();
+        outboundScheduler.dispose();
+
+        LOG.debug("Graceful shutdown completed");
+      } catch (Exception e) {
+        LOG.error("Error during graceful shutdown", e);
+      }
+    }))
+    .then()
     .subscribeOn(Schedulers.boundedElastic());
-  }
-
-  private void closeStreams() {
-    if (serverProcess != null) {
-      try {
-        serverProcess.getInputStream().close();
-      } catch (Exception e) {
-        LOG.debug("Error closing stdin for '" + serverName + "': " + e.getMessage());
-      }
-      try {
-        serverProcess.getOutputStream().close();
-      } catch (Exception e) {
-        LOG.debug("Error closing stdout for '" + serverName + "': " + e.getMessage());
-      }
-      try {
-        serverProcess.getErrorStream().close();
-      } catch (Exception e) {
-        LOG.debug("Error closing stderr for '" + serverName + "': " + e.getMessage());
-      }
-    }
-  }
-
-  private void terminateServerProcess() {
-    if (serverProcess == null) {
-      LOG.debug("No process to terminate for '" + serverName + "'");
-      return;
-    }
-
-    if (!serverProcess.isAlive()) {
-      LOG.debug(PROCESS_PREFIX + serverName + "' already terminated");
-      return;
-    }
-
-    try {
-      LOG.info("Terminating " + PROCESS_PREFIX + serverName + "'");
-      
-      // First, try graceful termination
-      serverProcess.destroy();
-
-      // Wait for graceful termination with timeout
-      boolean terminated = serverProcess.waitFor(
-        PROCESS_TERMINATION_TIMEOUT.toMillis(), 
-        TimeUnit.MILLISECONDS
-      );
-
-      if (!terminated) {
-        LOG.warn(PROCESS_PREFIX + serverName + "' did not terminate gracefully within " + 
-          PROCESS_TERMINATION_TIMEOUT.getSeconds() + " seconds, forcing termination");
-        serverProcess.destroyForcibly();
-        
-        // Wait a bit for forced termination
-        serverProcess.waitFor(2, TimeUnit.SECONDS);
-      }
-
-      int exitCode = serverProcess.exitValue();
-      LOG.info(PROCESS_PREFIX + serverName + "' terminated with exit code: " + exitCode);
-      
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOG.warn("Interrupted while terminating " + PROCESS_PREFIX + serverName + "', forcing shutdown");
-      serverProcess.destroyForcibly();
-    } catch (Exception e) {
-      LOG.error("Error terminating " + PROCESS_PREFIX + serverName + "': " + e.getMessage(), e);
-      forceDestroyProcess();
-    }
-  }
-
-  private void forceDestroyProcess() {
-    if (serverProcess != null) {
-      try {
-        serverProcess.destroyForcibly();
-      } catch (Exception ex) {
-        LOG.error("Failed to forcibly destroy process for '" + serverName + "': " + ex.getMessage());
-      }
-    }
-  }
-
-  private void disposeSchedulers() {
-    try {
-      inboundScheduler.dispose();
-      outboundScheduler.dispose();
-      errorScheduler.dispose();
-    } catch (Exception e) {
-      LOG.error("Error disposing schedulers for '" + serverName + "': " + e.getMessage());
-    }
   }
 
   @Override
