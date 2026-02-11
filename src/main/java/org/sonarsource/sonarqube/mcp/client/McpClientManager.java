@@ -74,25 +74,7 @@ public class McpClientManager {
       }
       
       // Build environment variables: explicit values from config + inherited from parent
-      var filteredEnv = new HashMap<String, String>();
-      var parentEnv = System.getenv();
-      
-      // Add explicit values from config
-      if (!config.env().isEmpty()) {
-        filteredEnv.putAll(config.env());
-      }
-      
-      // Add inherited variables from parent environment
-      if (!config.inherits().isEmpty()) {
-        for (var inheritKey : config.inherits()) {
-          if (parentEnv.containsKey(inheritKey)) {
-            // Only inherit if not already explicitly set in config
-            filteredEnv.putIfAbsent(inheritKey, parentEnv.get(inheritKey));
-          } else {
-            LOG.warn("Cannot inherit '" + inheritKey + "' for '" + config.name() + "': variable not found in parent environment");
-          }
-        }
-      }
+      var filteredEnv = buildEnvironmentVariables(config, System.getenv());
       
       LOG.debug("Passing " + filteredEnv.size() + " environment variable(s) to '" + config.name() + "' (" + 
         config.env().size() + " explicit, " + config.inherits().size() + " inherited)");
@@ -195,6 +177,33 @@ public class McpClientManager {
   @VisibleForTesting
   Map<String, McpSyncClient> getClients() {
     return Map.copyOf(clients);
+  }
+
+  /**
+   * Builds the environment variables map for a proxied server by combining explicit values from config and inherited values from parent environment.
+   */
+  @VisibleForTesting
+  Map<String, String> buildEnvironmentVariables(ProxiedMcpServerConfig config, Map<String, String> parentEnv) {
+    var filteredEnv = new HashMap<String, String>();
+    
+    // Add explicit values from config
+    if (!config.env().isEmpty()) {
+      filteredEnv.putAll(config.env());
+    }
+    
+    // Add inherited variables from parent environment
+    if (!config.inherits().isEmpty()) {
+      for (var inheritKey : config.inherits()) {
+        if (parentEnv.containsKey(inheritKey)) {
+          // Only inherit if not already explicitly set in config
+          filteredEnv.putIfAbsent(inheritKey, parentEnv.get(inheritKey));
+        } else {
+          LOG.warn("Cannot inherit '" + inheritKey + "' for '" + config.name() + "': variable not found in parent environment");
+        }
+      }
+    }
+    
+    return filteredEnv;
   }
 
   public record ToolMapping(String serverId, String namespace, String originalToolName, McpSchema.Tool tool) {}

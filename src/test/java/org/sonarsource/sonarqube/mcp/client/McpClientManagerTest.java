@@ -113,4 +113,76 @@ class McpClientManagerTest {
       .hasMessageContaining("Service unavailable");
   }
 
+  @Test
+  void buildEnvironmentVariables_should_include_explicit_values_from_config() {
+    var manager = new McpClientManager(List.of());
+    var config = new ProxiedMcpServerConfig("server", "ns", "cmd", List.of(), 
+      Map.of("EXPLICIT_VAR1", "value1", "EXPLICIT_VAR2", "value2"), 
+      List.of(), Set.of(TransportMode.STDIO), null);
+    var parentEnv = Map.of("PARENT_VAR", "parent_value");
+
+    var result = manager.buildEnvironmentVariables(config, parentEnv);
+
+    assertThat(result)
+      .hasSize(2)
+      .containsEntry("EXPLICIT_VAR1", "value1")
+      .containsEntry("EXPLICIT_VAR2", "value2")
+      .doesNotContainKey("PARENT_VAR");
+  }
+
+  @Test
+  void buildEnvironmentVariables_should_inherit_variables_from_parent() {
+    var manager = new McpClientManager(List.of());
+    var config = new ProxiedMcpServerConfig("server", "ns", "cmd", List.of(), 
+      Map.of(), 
+      List.of("INHERITED_VAR1", "INHERITED_VAR2"), 
+      Set.of(TransportMode.STDIO), null);
+    var parentEnv = Map.of(
+      "INHERITED_VAR1", "inherited_value1",
+      "INHERITED_VAR2", "inherited_value2",
+      "NOT_INHERITED", "should_not_appear"
+    );
+
+    var result = manager.buildEnvironmentVariables(config, parentEnv);
+
+    assertThat(result)
+      .hasSize(2)
+      .containsEntry("INHERITED_VAR1", "inherited_value1")
+      .containsEntry("INHERITED_VAR2", "inherited_value2")
+      .doesNotContainKey("NOT_INHERITED");
+  }
+
+  @Test
+  void buildEnvironmentVariables_should_prioritize_explicit_values_over_inherited() {
+    var manager = new McpClientManager(List.of());
+    var config = new ProxiedMcpServerConfig("server", "ns", "cmd", List.of(), 
+      Map.of("OVERRIDE_VAR", "explicit_value"), 
+      List.of("OVERRIDE_VAR"), 
+      Set.of(TransportMode.STDIO), null);
+    var parentEnv = Map.of("OVERRIDE_VAR", "parent_value");
+
+    var result = manager.buildEnvironmentVariables(config, parentEnv);
+
+    assertThat(result)
+      .hasSize(1)
+      .containsEntry("OVERRIDE_VAR", "explicit_value");
+  }
+
+  @Test
+  void buildEnvironmentVariables_should_skip_inherited_var_not_in_parent() {
+    var manager = new McpClientManager(List.of());
+    var config = new ProxiedMcpServerConfig("server", "ns", "cmd", List.of(), 
+      Map.of(), 
+      List.of("MISSING_VAR", "EXISTING_VAR"), 
+      Set.of(TransportMode.STDIO), null);
+    var parentEnv = Map.of("EXISTING_VAR", "existing_value");
+
+    var result = manager.buildEnvironmentVariables(config, parentEnv);
+
+    assertThat(result)
+      .hasSize(1)
+      .containsEntry("EXISTING_VAR", "existing_value")
+      .doesNotContainKey("MISSING_VAR");
+  }
+
 }
