@@ -20,7 +20,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.ServerParameters;
-import io.modelcontextprotocol.client.transport.StdioClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.time.Duration;
 import java.util.HashMap;
@@ -106,7 +105,7 @@ public class McpClientManager {
         .env(mergedEnv)
         .build();
       
-      var transport = new StdioClientTransport(serverParams, McpJsonMappers.DEFAULT);
+      var transport = new ManagedStdioClientTransport(config.name(), serverParams, McpJsonMappers.DEFAULT);
       transport.setStdErrorHandler(stderrLine -> logProxiedServerOutput(config.name(), stderrLine));
 
       var client = McpClient.sync(transport)
