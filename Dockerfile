@@ -59,6 +59,7 @@ COPY --chown=appuser:appgroup --chmod=755 scripts/install-certificates.sh /usr/l
 
 WORKDIR /app
 ENV STORAGE_PATH=/app/storage
+ENV SONARQUBE_TOOLSETS=external
 LABEL io.modelcontextprotocol.server.name="io.github.SonarSource/sonarqube-mcp-server"
 
 ENTRYPOINT ["/bin/sh", "-c", "/usr/local/bin/install-certificates && exec java -jar /app/sonarqube-mcp-server.jar"]

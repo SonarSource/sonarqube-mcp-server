@@ -25,6 +25,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -62,10 +63,34 @@ public class McpClientManager {
     LOG.info("MCP client manager initialization completed. " + getConnectedCount() + "/" + serverConfigs.size() + " server(s) connected");
   }
   
+  /**
+   * Logs output from a proxied server, attempting to preserve the original log level.
+   * Parses common log level patterns from the stderr line and routes to appropriate log level.
+   */
+  @VisibleForTesting
+  static void logProxiedServerOutput(String serverName, String stderrLine) {
+    var prefixedLine = "[" + serverName + "] " + stderrLine;
+
+    var upperLine = stderrLine.toUpperCase(Locale.getDefault());
+    
+    if (upperLine.contains("| DEBUG")) {
+      LOG.debug(prefixedLine);
+    } else if (upperLine.contains("| ERROR")) {
+      LOG.error(prefixedLine);
+    } else if (upperLine.contains("| WARN")) {
+      LOG.warn(prefixedLine);
+    } else if (upperLine.contains("| INFO")) {
+      LOG.info(prefixedLine);
+    } else {
+      // Default to INFO for unrecognized formats
+      LOG.info(prefixedLine);
+    }
+  }
+  
   private void initializeClient(ProxiedMcpServerConfig config) {
     var serverName = config.name();
     try {
-      LOG.info("Connecting to '" + config.name() + "' (namespace: " + config.namespace() + ")");
+      LOG.info("Connecting to '" + config.name() + "'");
       
       // Merge parent process environment with config-specific environment
       // Config environment takes precedence over parent environment
@@ -82,8 +107,7 @@ public class McpClientManager {
         .build();
       
       var transport = new StdioClientTransport(serverParams, McpJsonMappers.DEFAULT);
-      // Capture stderr output from the proxied server process
-      transport.setStdErrorHandler(stderrLine -> LOG.info("[" + config.name() + "] " + stderrLine));
+      transport.setStdErrorHandler(stderrLine -> logProxiedServerOutput(config.name(), stderrLine));
 
       var client = McpClient.sync(transport)
         .initializationTimeout(Duration.ofMinutes(1))
@@ -102,7 +126,7 @@ public class McpClientManager {
       LOG.info("Connected to '" + config.name() + "' - discovered " + tools.size() + " tool(s)");
       clients.put(serverName, client);
       serverTools.put(serverName, tools);
-      tools.forEach(tool -> LOG.debug(" - " + config.namespace() + "_" + tool.name()));
+      tools.forEach(tool -> LOG.debug(" - " + tool.name()));
     } catch (Exception e) {
       LOG.error("Failed to initialize '" + config.name() + "': " + e.getMessage(), e);
       serverErrors.put(serverName, e.getMessage());
@@ -116,10 +140,9 @@ public class McpClientManager {
       var namespace = config.namespace();
       var tools = serverTools.getOrDefault(serverId, List.of());
       tools.forEach(tool -> {
-        var namespacedToolName = namespace + "_" + tool.name();
         try {
-          ToolNameValidator.validate(namespacedToolName);
-          allTools.put(namespacedToolName, new ToolMapping(serverId, namespace, tool.name(), tool));
+          ToolNameValidator.validate(tool.name());
+          allTools.put(tool.name(), new ToolMapping(serverId, namespace, tool.name(), tool));
         } catch (IllegalArgumentException e) {
           LOG.error("Skipping tool with invalid name from server '" + serverId + "': " + e.getMessage(), e);
         }

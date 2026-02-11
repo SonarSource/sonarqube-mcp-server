@@ -31,20 +31,20 @@ public class ProxiedMcpTool extends Tool {
   private final String serverId;
   private final String originalToolName;
 
-  public ProxiedMcpTool(String prefixedName, String serverId, String originalToolName, McpSchema.Tool originalTool,
+  public ProxiedMcpTool(String toolName, String serverId, String originalToolName, McpSchema.Tool originalTool,
     McpClientManager clientManager) {
-    super(createProxyDefinition(prefixedName, originalTool), ToolCategory.EXTERNAL);
+    super(createProxyDefinition(toolName, originalTool), ToolCategory.EXTERNAL);
     this.serverId = serverId;
     this.originalToolName = originalToolName;
     this.clientManager = clientManager;
   }
   
-  private static McpSchema.Tool createProxyDefinition(String prefixedName, McpSchema.Tool originalTool) {
+  private static McpSchema.Tool createProxyDefinition(String toolName, McpSchema.Tool originalTool) {
     var title = originalTool.title() != null ? originalTool.title() : originalTool.name();
     var description = originalTool.description() != null ? originalTool.description() : "Proxied MCP tool";
     
     return new McpSchema.Tool(
-      prefixedName,
+      toolName,
       title,
       description,
       originalTool.inputSchema(),

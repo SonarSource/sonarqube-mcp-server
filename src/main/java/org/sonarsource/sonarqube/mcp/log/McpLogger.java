@@ -52,6 +52,11 @@ public class McpLogger {
     logToStderr("ERROR", message);
     throwable.printStackTrace(System.err);
   }
+  
+  public void error(String message) {
+    LOG.error(message);
+    logToStderr("ERROR", message);
+  }
 
   private static void logToStderr(String level, String message) {
     System.err.println(level + " SonarQube MCP Server - " + message);

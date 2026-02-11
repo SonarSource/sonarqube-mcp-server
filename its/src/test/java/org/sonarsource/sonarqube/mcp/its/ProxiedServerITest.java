@@ -52,7 +52,7 @@ class ProxiedServerITest {
       .contains("Loading proxied MCP servers configuration")
       .contains("Successfully loaded 1 proxied MCP server(s)")
       .contains("Initializing 1 proxied MCP server(s)")
-      .contains("Connecting to 'caas' (namespace: context)")
+      .contains("Connecting to 'caas'")
       .contains("Connected to 'caas' - discovered 1 tool(s)")
       .contains("MCP client manager initialization completed. 1/1 server(s) connected")
       .contains("Loaded 1 proxied tool(s) from 1/1 server(s)");
