@@ -104,6 +104,22 @@ class ServerApiTests {
   }
 
   @Test
+  void it_should_parse_the_message_field_in_the_body_when_there_is_an_error() {
+    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"message\": \"Project sonarcloud-core doesn't have a valid ID\"}", HttpStatus.SC_BAD_REQUEST)));
+
+    var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test: Project sonarcloud-core doesn't have a valid ID");
+  }
+
+  @Test
+  void it_should_ignore_body_when_json_has_no_errors_or_message() {
+    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"status\": \"error\"}", HttpStatus.SC_BAD_REQUEST)));
+
+    var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test");
+  }
+
+  @Test
   void postApiSubdomain_should_return_response_on_success() {
     sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse()
       .withStatus(HttpStatus.SC_OK)
