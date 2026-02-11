@@ -20,9 +20,9 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Nullable;
 
 public record ChangeSecurityHotspotStatusToolResponse(
-  @JsonPropertyDescription( "Whether the operation was successful") boolean success,
-  @JsonPropertyDescription( "Success or error message") String message,
-  @JsonPropertyDescription( "The key of the Security Hotspot that was updated") String hotspotKey,
-  @JsonPropertyDescription( "The new status of the Security Hotspot") String newStatus,
-  @Nullable @JsonPropertyDescription( "The new resolution of the Security Hotspot (if status is REVIEWED)") String newResolution
+  @JsonPropertyDescription("Whether the operation was successful") boolean success,
+  @JsonPropertyDescription("Success or error message") String message,
+  @JsonPropertyDescription("The key of the Security Hotspot that was updated") String hotspotKey,
+  @JsonPropertyDescription("The new status of the Security Hotspot") String newStatus,
+  @Nullable @JsonPropertyDescription("The new resolution of the Security Hotspot (if status is REVIEWED)") String newResolution
 ) {}

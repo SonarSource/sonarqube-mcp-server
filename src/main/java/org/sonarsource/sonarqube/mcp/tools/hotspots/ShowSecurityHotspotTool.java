@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
+import java.util.Collections;
+import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.response.ShowResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -60,7 +62,7 @@ public class ShowSecurityHotspotTool extends Tool {
       );
     }
 
-    var flows = response.flows().stream()
+    List<ShowSecurityHotspotToolResponse.Flow> flows = response.flows() != null ? response.flows().stream()
       .map(flow -> {
         var locations = flow.locations().stream()
           .map(loc -> new ShowSecurityHotspotToolResponse.Location(
@@ -76,9 +78,9 @@ public class ShowSecurityHotspotTool extends Tool {
           .toList();
         return new ShowSecurityHotspotToolResponse.Flow(locations);
       })
-      .toList();
+      .toList() : Collections.emptyList();
 
-    var comments = response.comments().stream()
+    List<ShowSecurityHotspotToolResponse.Comment> comments = response.comments() != null ? response.comments().stream()
       .map(comment -> new ShowSecurityHotspotToolResponse.Comment(
         comment.key(),
         comment.login(),
@@ -87,7 +89,7 @@ public class ShowSecurityHotspotTool extends Tool {
         comment.updatable(),
         comment.createdAt()
       ))
-      .toList();
+      .toList() : Collections.emptyList();
 
     var rule = new ShowSecurityHotspotToolResponse.Rule(
       response.rule().key(),
@@ -101,10 +103,10 @@ public class ShowSecurityHotspotTool extends Tool {
 
     return new ShowSecurityHotspotToolResponse(
       response.key(),
-      response.component(),
-      response.project(),
-      response.securityCategory(),
-      response.vulnerabilityProbability(),
+      response.component().key(),
+      response.project().key(),
+      response.securityCategory() != null ? response.securityCategory() : response.rule().securityCategory(),
+      response.vulnerabilityProbability() != null ? response.vulnerabilityProbability() : response.rule().vulnerabilityProbability(),
       response.status(),
       response.resolution(),
       response.line(),

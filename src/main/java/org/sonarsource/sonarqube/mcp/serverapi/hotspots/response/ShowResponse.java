@@ -16,12 +16,19 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.hotspots.response;
 
+import jakarta.annotation.Nullable;
 import java.util.List;
 
-public record ShowResponse(String key, String component, String project, String securityCategory, String vulnerabilityProbability,
-                           String status, String resolution, Integer line, String message, String assignee, String author,
-                           String creationDate, String updateDate, TextRange textRange, List<Flow> flows, List<Comment> comments,
-                           List<ChangelogEntry> changelog, List<User> users, Rule rule, String canChangeStatus) {
+public record ShowResponse(String key, Component component, Project project, @Nullable String securityCategory, @Nullable String vulnerabilityProbability,
+                           String status, @Nullable String resolution, @Nullable Integer line, String message, @Nullable String assignee, @Nullable String author,
+                           String creationDate, String updateDate, @Nullable TextRange textRange, @Nullable List<Flow> flows, @Nullable List<Comment> comments,
+                           @Nullable List<ChangelogEntry> changelog, @Nullable List<User> users, Rule rule, String canChangeStatus) {
+
+  public record Component(String organization, String key, String qualifier, String name, String longName, String path) {
+  }
+
+  public record Project(String organization, String key, String qualifier, String name, String longName) {
+  }
 
   public record TextRange(Integer startLine, Integer endLine, Integer startOffset, Integer endOffset) {
   }

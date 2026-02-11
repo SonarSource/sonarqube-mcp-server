@@ -167,8 +167,21 @@ class ShowSecurityHotspotToolTests {
     return """
       {
         "key": "%s",
-        "component": "com.example:project:src/main/java/com/example/Service.java",
-        "project": "com.example:project",
+        "component": {
+          "organization": "org",
+          "key": "com.example:project:src/main/java/com/example/Service.java",
+          "qualifier": "FIL",
+          "name": "Service.java",
+          "longName": "src/main/java/com/example/Service.java",
+          "path": "src/main/java/com/example/Service.java"
+        },
+        "project": {
+          "organization": "org",
+          "key": "com.example:project",
+          "qualifier": "TRK",
+          "name": "project",
+          "longName": "project"
+        },
         "securityCategory": "sql-injection",
         "vulnerabilityProbability": "HIGH",
         "status": "TO_REVIEW",
