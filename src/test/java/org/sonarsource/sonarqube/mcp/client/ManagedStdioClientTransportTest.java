@@ -377,6 +377,128 @@ class ManagedStdioClientTransportTest {
 
   @Test
   @EnabledOnOs({OS.LINUX, OS.MAC})
+  void should_handle_interrupted_exception_during_termination() throws Exception {
+    // Create a long-running script
+    var scriptPath = Files.createTempFile("test-long-running-", ".sh");
+    Files.writeString(scriptPath, """
+      #!/bin/sh
+      while true; do
+        sleep 1
+      done
+      """);
+    scriptPath.toFile().setExecutable(true);
+
+    var serverParams = ServerParameters.builder("sh")
+      .args(List.of(scriptPath.toString()))
+      .build();
+
+    var transport = new ManagedStdioClientTransport("long-running-server", serverParams, McpJsonMappers.DEFAULT);
+
+    transport.connect(message -> message).block(Duration.ofSeconds(5));
+
+    // Interrupt the thread during shutdown to trigger InterruptedException handling
+    var shutdownThread = new Thread(() -> {
+      try {
+        Thread.sleep(100); // Let shutdown start
+        Thread.currentThread().interrupt(); // Interrupt ourselves
+        transport.closeGracefully().block(Duration.ofSeconds(20));
+      } catch (Exception e) {
+        // Expected
+      }
+    });
+    
+    shutdownThread.start();
+    shutdownThread.join(25000);
+
+    // Cleanup
+    Files.deleteIfExists(scriptPath);
+    
+    // Thread should complete (even if interrupted)
+    assertThat(shutdownThread.isAlive()).isFalse();
+  }
+
+  @Test
+  @EnabledOnOs({OS.LINUX, OS.MAC})
+  void should_handle_very_stubborn_process_requiring_destroyForcibly() throws Exception {
+    // Create a script that ignores both stdin close and SIGTERM
+    var scriptPath = Files.createTempFile("test-very-stubborn-", ".sh");
+    Files.writeString(scriptPath, """
+      #!/bin/sh
+      # Close stdin
+      exec 0<&-
+      # Trap and ignore SIGTERM
+      trap '' TERM
+      # Run indefinitely
+      while true; do
+        sleep 0.1
+      done
+      """);
+    scriptPath.toFile().setExecutable(true);
+
+    var serverParams = ServerParameters.builder("sh")
+      .args(List.of(scriptPath.toString()))
+      .build();
+
+    var transport = new ManagedStdioClientTransport("very-stubborn-server", serverParams, McpJsonMappers.DEFAULT);
+
+    transport.connect(message -> message).block(Duration.ofSeconds(5));
+
+    // This should timeout on destroy() and use destroyForcibly()
+    // Covers the "did not terminate gracefully" warning path
+    var shutdownResult = transport.closeGracefully().block(Duration.ofSeconds(15));
+
+    // Cleanup
+    Files.deleteIfExists(scriptPath);
+    
+    // Should complete with destroyForcibly
+    assertThat(shutdownResult).isNull();
+  }
+
+  @Test
+  @EnabledOnOs({OS.LINUX, OS.MAC})
+  void should_handle_queue_overflow_on_rapid_messages() throws Exception {
+    // Create a script that floods stdout
+    var scriptPath = Files.createTempFile("test-flood-server-", ".sh");
+    Files.writeString(scriptPath, """
+      #!/bin/sh
+      # Send many messages rapidly to potentially overflow the queue
+      for i in $(seq 1 10000); do
+        echo '{"jsonrpc":"2.0","id":'$i',"result":{"data":"test"}}'
+      done
+      exit 0
+      """);
+    scriptPath.toFile().setExecutable(true);
+
+    var serverParams = ServerParameters.builder("sh")
+      .args(List.of(scriptPath.toString()))
+      .build();
+
+    var transport = new ManagedStdioClientTransport("flood-server", serverParams, McpJsonMappers.DEFAULT);
+
+    var messageCount = new java.util.concurrent.atomic.AtomicInteger(0);
+    
+    // Connect with a slow handler to potentially cause backpressure
+    transport.connect(message -> {
+      messageCount.incrementAndGet();
+      return message;
+    }).block(Duration.ofSeconds(5));
+
+    // Give time for messages to process
+    await().atMost(Duration.ofSeconds(5))
+      .pollInterval(Duration.ofMillis(100))
+      .until(() -> messageCount.get() > 0 || !scriptPath.toFile().exists());
+
+    transport.closeGracefully().block(Duration.ofSeconds(5));
+
+    // Cleanup
+    Files.deleteIfExists(scriptPath);
+    
+    // Should have received at least some messages before any queue issues
+    assertThat(messageCount.get()).isGreaterThan(0);
+  }
+
+  @Test
+  @EnabledOnOs({OS.LINUX, OS.MAC})
   void should_properly_handle_custom_environment_variables() throws Exception {
     // Create a script that outputs an environment variable
     var scriptPath = Files.createTempFile("test-env-server-", ".sh");
