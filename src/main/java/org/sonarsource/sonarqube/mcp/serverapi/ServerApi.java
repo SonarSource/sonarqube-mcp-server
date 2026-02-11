@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.duplications.DuplicationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.EnterprisesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.hotspots.HotspotsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
@@ -59,6 +60,10 @@ public class ServerApi {
 
   public IssuesApi issuesApi() {
     return new IssuesApi(helper);
+  }
+
+  public HotspotsApi hotspotsApi() {
+    return new HotspotsApi(helper);
   }
 
   public RulesApi rulesApi() {

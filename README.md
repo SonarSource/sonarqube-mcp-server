@@ -528,21 +528,22 @@ By default, all tools are enabled. You can selectively enable specific toolsets 
 <details>
 <summary>Available Toolsets</summary>
 
-| Toolset              | Key                | Description                                                              |
-|----------------------|--------------------|--------------------------------------------------------------------------|
-| **Analysis**         | `analysis`         | Code analysis tools (local analysis and advanced remote analysis)        |
-| **Issues**           | `issues`           | Search and manage SonarQube issues                                       |
-| **Projects**         | `projects`         | Browse and search SonarQube projects                                     |
-| **Quality Gates**    | `quality-gates`    | Access quality gates and their status                                    |
-| **Rules**            | `rules`            | Browse and search SonarQube rules                                        |
-| **Sources**          | `sources`          | Access source code and SCM information                                   |
-| **Duplications**     | `duplications`     | Find code duplications across projects                                   |
-| **Measures**         | `measures`         | Retrieve metrics and measures (includes both measures and metrics tools) |
-| **Languages**        | `languages`        | List supported programming languages                                     |
-| **Portfolios**       | `portfolios`       | Manage portfolios and enterprises (Cloud and Server)                     |
-| **System**           | `system`           | System administration tools (Server only)                                |
-| **Webhooks**         | `webhooks`         | Manage webhooks                                                          |
-| **Dependency Risks** | `dependency-risks` | Analyze dependency risks and security issues (SCA)                       |
+| Toolset               | Key                 | Description                                                              |
+|-----------------------|---------------------|--------------------------------------------------------------------------|
+| **Analysis**          | `analysis`          | Code analysis tools (local analysis and advanced remote analysis)        |
+| **Issues**            | `issues`            | Search and manage SonarQube issues                                       |
+| **Security Hotspots** | `security-hotspots` | Search and review Security Hotspots                                      |
+| **Projects**          | `projects`          | Browse and search SonarQube projects                                     |
+| **Quality Gates**     | `quality-gates`     | Access quality gates and their status                                    |
+| **Rules**             | `rules`             | Browse and search SonarQube rules                                        |
+| **Sources**           | `sources`           | Access source code and SCM information                                   |
+| **Duplications**      | `duplications`      | Find code duplications across projects                                   |
+| **Measures**          | `measures`          | Retrieve metrics and measures (includes both measures and metrics tools) |
+| **Languages**         | `languages`         | List supported programming languages                                     |
+| **Portfolios**        | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                     |
+| **System**            | `system`            | System administration tools (Server only)                                |
+| **Webhooks**          | `webhooks`          | Manage webhooks                                                          |
+| **Dependency Risks**  | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                       |
 
 #### Examples
 
@@ -829,6 +830,32 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
   - `p` - Optional page number (default: 1) - _Integer_
   - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
+### Security Hotspots
+
+- **search_security_hotspots** - Search for Security Hotspots in a SonarQube project.
+  - `projectKey` - Project or application key - _String_
+  - `hotspotKeys` - Comma-separated list of specific Security Hotspot keys to retrieve - _String[]_
+  - `branch` - Optional branch key - _String_
+  - `pullRequest` - Optional pull request key - _String_
+  - `files` - Optional list of file paths to filter - _String[]_
+  - `status` - Optional status filter: TO_REVIEW, REVIEWED - _String_
+  - `resolution` - Optional resolution filter: FIXED, SAFE, ACKNOWLEDGED - _String_
+  - `sinceLeakPeriod` - Filter hotspots created since the leak period (new code) - _Boolean_
+  - `onlyMine` - Show only hotspots assigned to me - _Boolean_
+  - `p` - Optional page number (default: 1) - _Integer_
+  - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
+
+
+- **show_security_hotspot** - Get detailed information about a specific Security Hotspot, including rule details, code context, flows, comments, and changelog.
+  - `hotspotKey` - Security Hotspot key - _Required String_
+
+
+- **change_security_hotspot_status** - Review a Security Hotspot by changing its status. When marking as REVIEWED, you must specify a resolution (FIXED, SAFE, or ACKNOWLEDGED).
+  - `hotspotKey` - Security Hotspot key - _Required String_
+  - `status` - New status - _Required Enum {"TO_REVIEW", "REVIEWED"}_
+  - `resolution` - Resolution when status is REVIEWED - _Enum {"FIXED", "SAFE", "ACKNOWLEDGED"}_
+  - `comment` - Optional review comment - _String_
+
 ### Languages
 
 - **list_languages** - List all programming languages supported in this SonarQube instance.
@@ -1039,7 +1066,7 @@ Review the changes in <src/database/migrations> for any potential bugs or securi
 <summary>Project Health Monitoring</summary>
 
 ```
-Give me a health report for my project: quality gate status, number of bugs, security hotspots, and code coverage.
+Give me a health report for my project: quality gate status, number of bugs, Security Hotspots, and code coverage.
 ```
 
 ```

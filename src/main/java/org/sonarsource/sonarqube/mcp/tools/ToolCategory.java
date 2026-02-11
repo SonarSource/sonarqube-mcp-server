@@ -42,6 +42,7 @@ public enum ToolCategory {
   SYSTEM("system"),
   WEBHOOKS("webhooks"),
   DEPENDENCY_RISKS("dependency-risks"),
+  SECURITY_HOTSPOTS("security-hotspots"),
   EXTERNAL("external");
 
   private final String key;

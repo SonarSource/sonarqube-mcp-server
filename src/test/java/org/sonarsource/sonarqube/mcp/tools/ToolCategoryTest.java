@@ -127,13 +127,14 @@ class ToolCategoryTest {
       ToolCategory.SYSTEM,
       ToolCategory.WEBHOOKS,
       ToolCategory.DEPENDENCY_RISKS,
+      ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.EXTERNAL
     );
   }
 
   @Test
-  void should_have_exactly_13_categories() {
-    assertThat(ToolCategory.values()).hasSize(14);
+  void should_have_exactly_14_categories() {
+    assertThat(ToolCategory.values()).hasSize(15);
   }
 }
 
