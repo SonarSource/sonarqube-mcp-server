@@ -17,9 +17,11 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -34,6 +36,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class HttpClientProviderTests {
 
@@ -157,6 +161,17 @@ class HttpClientProviderTests {
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/analyze"))
       .withHeader("Host", equalTo("localhost"))
       .withHeader("Origin", equalTo("http://localhost")));
+  }
+
+  @Test
+  void body_as_string_should_fallback_to_bytes_when_text_is_null() {
+    var response = mock(SimpleHttpResponse.class);
+    when(response.getBodyText()).thenReturn(null);
+    when(response.getBodyBytes()).thenReturn("payload".getBytes(StandardCharsets.UTF_8));
+
+    var underTest = new HttpResponse("http://example.com/api", response);
+
+    assertThat(underTest.bodyAsString()).isEqualTo("payload");
   }
 
 }

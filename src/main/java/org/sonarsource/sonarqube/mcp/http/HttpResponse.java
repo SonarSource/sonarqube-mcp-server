@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.http;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 
 class HttpResponse implements HttpClient.Response {
@@ -37,7 +38,15 @@ class HttpResponse implements HttpClient.Response {
 
   @Override
   public String bodyAsString() {
-    return response.getBodyText();
+    var text = response.getBodyText();
+    if (text != null) {
+      return text;
+    }
+    var bytes = response.getBodyBytes();
+    if (bytes != null) {
+      return new String(bytes, StandardCharsets.UTF_8);
+    }
+    return null;
   }
 
   @Override

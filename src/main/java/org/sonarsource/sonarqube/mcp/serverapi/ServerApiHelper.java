@@ -182,14 +182,20 @@ public class ServerApiHelper {
     }
     var obj = JsonParser.parseString(content).getAsJsonObject();
     var errors = obj.getAsJsonArray("errors");
-    if (errors == null) {
-      return null;
+    if (errors != null) {
+      List<String> errorMessages = new ArrayList<>();
+      for (JsonElement e : errors) {
+        errorMessages.add(e.getAsJsonObject().get("msg").getAsString());
+      }
+      return String.join(", ", errorMessages);
     }
-    List<String> errorMessages = new ArrayList<>();
-    for (JsonElement e : errors) {
-      errorMessages.add(e.getAsJsonObject().get("msg").getAsString());
+    JsonElement messageElement = obj.get("message");
+
+    if (messageElement != null && messageElement.isJsonPrimitive() && !messageElement.isJsonNull()) {
+      return messageElement.getAsJsonPrimitive().getAsString();
     }
-    return String.join(", ", errorMessages);
+
+    return null;
   }
 
 }
