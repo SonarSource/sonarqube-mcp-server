@@ -213,7 +213,6 @@ public class ManagedStdioClientTransport implements McpClientTransport {
       })
       .doOnError(e -> {
         if (!isClosing) {
-          LOG.error("Error in outbound processing", e);
           isClosing = true;
           outboundSink.tryEmitComplete();
         }
@@ -234,9 +233,6 @@ public class ManagedStdioClientTransport implements McpClientTransport {
               break;
             }
           } catch (Exception e) {
-            if (!isClosing) {
-              LOG.error("Error processing error message", e);
-            }
             break;
           }
         }
@@ -302,7 +298,7 @@ public class ManagedStdioClientTransport implements McpClientTransport {
           });
       } else {
         LOG.warn("Process not started");
-        return Mono.<Process>empty();
+        return Mono.empty();
       }
     }))
     .doOnNext(proc -> {
