@@ -4,6 +4,8 @@
     "namespace": "context",
     "command": "/app/binaries/sonar-code-context-mcp",
     "args": [],
-    "env": {}
+    "env": {},
+    "inherits": [],
+    "supportedTransports": ["stdio"]
   }
 ]

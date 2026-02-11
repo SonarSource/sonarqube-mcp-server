@@ -254,6 +254,61 @@ class ProxiedToolsLoaderMediumTest {
   }
 
   @Test
+  void loadProxiedTools_should_inherit_parent_env_when_config_value_is_empty() {
+    createTestConfig(List.of(
+      Map.of(
+        "name", "test-server",
+        "namespace", "test",
+        "command", "python3",
+        "args", List.of(testServerScript.toString()),
+        // Empty string value should trigger inheritance from parent
+        // The PATH environment variable should exist in parent process
+        "env", Map.of("TEST_ENV_VAR", "", "PATH", ""),
+        "supportedTransports", Set.of("stdio")
+      )
+    ));
+
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+
+    // Server should load successfully even with empty env values
+    // If PATH wasn't inherited, python3 command wouldn't be found
+    assertThat(tools).isNotEmpty();
+    var tool1 = tools.stream()
+      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .findFirst()
+      .orElseThrow();
+
+    assertThat(tool1.definition().name()).isEqualTo("test/test_tool_1");
+  }
+
+  @Test
+  void loadProxiedTools_should_use_explicit_value_over_parent_env() {
+    createTestConfig(List.of(
+      Map.of(
+        "name", "test-server",
+        "namespace", "test",
+        "command", "python3",
+        "args", List.of(testServerScript.toString()),
+        // Explicit value should be used, not inherited
+        "env", Map.of("TEST_ENV_VAR", "explicit_value"),
+        "supportedTransports", Set.of("stdio")
+      )
+    ));
+
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+
+    // The test server includes TEST_ENV_VAR in the tool description
+    var tool1 = tools.stream()
+      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .findFirst()
+      .orElseThrow();
+
+    assertThat(tool1.definition().description()).contains("explicit_value");
+  }
+
+  @Test
   void proxied_tools_should_be_executable() {
     createTestConfig(List.of(
       Map.of(

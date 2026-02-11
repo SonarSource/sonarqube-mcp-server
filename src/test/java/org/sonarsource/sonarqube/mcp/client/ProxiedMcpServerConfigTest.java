@@ -31,7 +31,7 @@ class ProxiedMcpServerConfigTest {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
     var defaultTransports = Set.of(TransportMode.STDIO);
-    assertThatThrownBy(() -> new ProxiedMcpServerConfig("  ", "namespace", "npx", emptyList, emptyMap, defaultTransports, "the instructions"))
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("  ", "namespace", "npx", emptyList, emptyMap, emptyList, defaultTransports, "the instructions"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Proxied MCP server name cannot be null or blank");
   }
@@ -41,7 +41,7 @@ class ProxiedMcpServerConfigTest {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
     var defaultTransports = Set.of(TransportMode.STDIO);
-    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "  ", "npx", emptyList, emptyMap, defaultTransports, "the instructions"))
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "  ", "npx", emptyList, emptyMap, emptyList, defaultTransports, "the instructions"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Proxied MCP server namespace cannot be null or blank");
   }
@@ -51,7 +51,7 @@ class ProxiedMcpServerConfigTest {
     var emptyList = List.<String>of();
     var emptyMap = Map.<String, String>of();
     var defaultTransports = Set.of(TransportMode.STDIO);
-    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "namespace", "  ", emptyList, emptyMap, defaultTransports, null))
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "namespace", "  ", emptyList, emptyMap, emptyList, defaultTransports, null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Proxied MCP server command cannot be null or blank");
   }
@@ -62,14 +62,14 @@ class ProxiedMcpServerConfigTest {
     var emptyMap = Map.<String, String>of();
     var emptyTransports = Set.<TransportMode>of();
 
-    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "namespace", "npx", emptyList, emptyMap, emptyTransports, "the instructions"))
+    assertThatThrownBy(() -> new ProxiedMcpServerConfig("server", "namespace", "npx", emptyList, emptyMap, emptyList, emptyTransports, "the instructions"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Proxied MCP server must support at least one transport mode");
   }
 
   @Test
   void supportsTransport_should_return_true_for_supported_transport() {
-    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO, TransportMode.HTTP), "the instructions");
+    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO, TransportMode.HTTP), "the instructions");
 
     assertThat(config.supportsTransport(TransportMode.STDIO)).isTrue();
     assertThat(config.supportsTransport(TransportMode.HTTP)).isTrue();
@@ -77,21 +77,21 @@ class ProxiedMcpServerConfigTest {
 
   @Test
   void supportsTransport_should_return_false_for_unsupported_transport() {
-    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), null);
+    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), null);
 
     assertThat(config.supportsTransport(TransportMode.HTTP)).isFalse();
   }
 
   @Test
   void instructions_should_return_blank_description_when_empty() {
-    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), null);
+    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), null);
 
     assertThat(config.instructions()).isBlank();
   }
 
   @Test
   void instructions_should_return_description() {
-    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), "the instructions");
+    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), "the instructions");
 
     assertThat(config.instructions()).isEqualTo("the instructions");
   }

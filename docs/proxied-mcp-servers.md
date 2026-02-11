@@ -46,7 +46,8 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 - `namespace` (required): Tool name prefix (e.g., tool `analyze` becomes `context/analyze`)
 - `command` (required): Executable command to start the MCP server
 - `args` (optional): Command-line arguments
-- `env` (optional): Environment variables (merged with parent process environment; config values override parent values)
+- `env` (optional): Environment variables with explicit values. These take precedence over inherited variables.
+- `inherits` (optional): Array of environment variable names to inherit from the parent process. Only variables listed here will be inherited.
 - `supportedTransports` (required): Array of transport modes supported by this provider. Valid values: `"stdio"`, `"http"`. Providers are only loaded if they support the server's current transport mode.
 - `instructions` (optional): Brief instructions to help AI assistants use this provider's tools effectively. These are automatically appended to the server's base instructions.
 
@@ -127,13 +128,34 @@ Start the server - the proxied server will auto-discover:
 
 ## Environment Variables
 
-Proxied MCP servers automatically inherit **all environment variables** from the parent SonarQube MCP Server process. This means:
+**Security Note:** Proxied MCP servers use an **explicit allowlist model** for environment variables. Only environment variables explicitly defined in the configuration are passed to proxied servers.
 
-- If the main server has `ABC=xyz` in its environment, proxied servers can access it
-- Config-specific `env` values **override** inherited parent environment variables
-- This allows proxied servers to access secrets and configuration from the main server environment
+This provides security through explicit allowlisting while maintaining flexibility:
+- Environment variables can be set explicitly in the `env` field
+- Environment variables can be inherited from the parent process using the `inherits` field
+- Sensitive credentials (like `SONARQUBE_TOKEN`) are only accessible if explicitly listed
 
-**Example:**
+### How It Works
+
+**Example 1: Explicit values in config**
+```json
+{
+  "name": "my-server",
+  "namespace": "myserver",
+  "command": "python",
+  "args": ["-m", "my_mcp_server"],
+  "env": {
+    "DEBUG": "true",
+    "CUSTOM_VAR": "value"
+  }
+}
+```
+
+The proxied server receives:
+- `DEBUG=true` (explicit value from config)
+- `CUSTOM_VAR=value` (explicit value from config)
+
+**Example 2: Inheriting from parent environment**
 ```json
 {
   "name": "my-server",
@@ -142,28 +164,47 @@ Proxied MCP servers automatically inherit **all environment variables** from the
   "args": ["-m", "my_mcp_server"],
   "env": {
     "DEBUG": "true"
-  }
+  },
+  "inherits": ["SONARQUBE_TOKEN", "SONARQUBE_URL"]
 }
 ```
 
-If the main server is launched with:
-```bash
-export ABC=xyz
-export DEBUG=false
-export ANOTHER_VAR=value
-java -jar sonar-mcp-server.jar
+If the parent process has `SONARQUBE_TOKEN=secret123` and `SONARQUBE_URL=https://sonar.example.com`, the proxied server receives:
+- `DEBUG=true` (explicit value from config)
+- `SONARQUBE_TOKEN=secret123` (inherited from parent)
+- `SONARQUBE_URL=https://sonar.example.com` (inherited from parent)
+
+**Example 3: Overriding inherited values**
+```json
+{
+  "name": "my-server",
+  "namespace": "myserver",
+  "command": "python",
+  "args": ["-m", "my_mcp_server"],
+  "env": {
+    "DEBUG": "true",
+    "API_URL": ""
+  },
+  "inherits": ["API_URL", "API_TOKEN"]
+}
 ```
 
-The proxied MCP server will receive:
-- `ABC=xyz` (inherited from parent)
-- `DEBUG=true` (overridden by config)
-- `ANOTHER_VAR=value` (inherited from parent)
-- Plus all other parent environment variables
+If the parent process has `API_URL=https://prod.example.com` and `API_TOKEN=secret`, the proxied server receives:
+- `DEBUG=true` (explicit value from config)
+- `API_URL=` (empty string - explicit value overrides inherited value)
+- `API_TOKEN=secret` (inherited from parent)
+
+**Note:** Variables not listed in `env` or `inherits` are never passed, even if they exist in the parent environment.
+
+If neither `env` nor `inherits` are specified in the configuration, the proxied server starts with an empty environment.
+
+**Important:** Only list environment variables that the proxied server actually needs. This minimizes the attack surface and prevents accidental credential exposure.
 
 ## Security Considerations
 
 - Configuration file is **bundled in JAR** and cannot be modified at runtime
 - Proxied servers execute with same permissions as main server process
-- Proxied servers inherit the parent process environment, including sensitive variables
-- Config `env` values can override parent environment variables if needed
+- **Environment variable isolation**: Proxied servers only receive environment variables explicitly defined in their configuration
+  - Variables must be either set in the `env` field or listed in the `inherits` field
+  - This explicit allowlist prevents accidental credential leakage to proxied servers
 - Server commands must be trusted (arbitrary command execution)
