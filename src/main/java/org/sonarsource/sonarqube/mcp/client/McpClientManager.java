@@ -73,15 +73,30 @@ public class McpClientManager {
         serverParamsBuilder.args(config.args());
       }
       
-      // Merge parent process environment with config-specific environment
-      // Config environment takes precedence over parent environment
+      // Build environment variables: explicit values from config + inherited from parent
+      var filteredEnv = new HashMap<String, String>();
       var parentEnv = System.getenv();
-      var mergedEnv = new HashMap<>(parentEnv);
+      
+      // Add explicit values from config
       if (!config.env().isEmpty()) {
-        LOG.debug("Merging " + config.env().size() + " config environment variable(s) for '" + config.name() + "'");
-        mergedEnv.putAll(config.env());
+        filteredEnv.putAll(config.env());
       }
-      serverParamsBuilder.env(mergedEnv);
+      
+      // Add inherited variables from parent environment
+      if (!config.inherits().isEmpty()) {
+        for (var inheritKey : config.inherits()) {
+          if (parentEnv.containsKey(inheritKey)) {
+            // Only inherit if not already explicitly set in config
+            filteredEnv.putIfAbsent(inheritKey, parentEnv.get(inheritKey));
+          } else {
+            LOG.warn("Cannot inherit '" + inheritKey + "' for '" + config.name() + "': variable not found in parent environment");
+          }
+        }
+      }
+      
+      LOG.debug("Passing " + filteredEnv.size() + " environment variable(s) to '" + config.name() + "' (" + 
+        config.env().size() + " explicit, " + config.inherits().size() + " inherited)");
+      serverParamsBuilder.env(filteredEnv);
 
       var serverParams = serverParamsBuilder.build();
       var transport = new StdioClientTransport(serverParams, McpJsonMappers.DEFAULT);

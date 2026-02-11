@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -65,7 +66,7 @@ public class ProxiedServerConfigParser {
           LOG.info("No proxied MCP servers configuration found at " + DEFAULT_CONFIG_RESOURCE);
           return ParseResult.success(Collections.emptyList());
         }
-        json = new String(inputStream.readAllBytes());
+        json = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         source = "bundled resource: " + DEFAULT_CONFIG_RESOURCE;
       } catch (IOException e) {
         LOG.error("Failed to load proxied MCP servers configuration: " + e.getMessage(), e);
@@ -101,6 +102,7 @@ public class ProxiedServerConfigParser {
       jsonConfig.command,
       jsonConfig.args != null ? jsonConfig.args : Collections.emptyList(),
       jsonConfig.env != null ? jsonConfig.env : Collections.emptyMap(),
+      jsonConfig.inherits != null ? jsonConfig.inherits : Collections.emptyList(),
       jsonConfig.supportedTransports,
       jsonConfig.instructions
     );
@@ -118,6 +120,7 @@ public class ProxiedServerConfigParser {
     @JsonProperty("command") String command,
     @JsonProperty("args") @Nullable List<String> args,
     @JsonProperty("env") @Nullable Map<String, String> env,
+    @JsonProperty("inherits") @Nullable List<String> inherits,
     @JsonProperty("supportedTransports") Set<TransportMode> supportedTransports,
     @JsonProperty("instructions") @Nullable String instructions
   ) {}

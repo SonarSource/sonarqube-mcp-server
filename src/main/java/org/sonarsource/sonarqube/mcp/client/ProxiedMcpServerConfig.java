@@ -22,7 +22,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 public record ProxiedMcpServerConfig(String name, String namespace, String command, List<String> args, Map<String, String> env,
-                                     Set<TransportMode> supportedTransports, @Nullable String instructions) {
+                                     List<String> inherits, Set<TransportMode> supportedTransports, @Nullable String instructions) {
 
   public ProxiedMcpServerConfig {
     if (name.isBlank()) {
@@ -36,6 +36,7 @@ public record ProxiedMcpServerConfig(String name, String namespace, String comma
     }
     args = List.copyOf(args);
     env = Map.copyOf(env);
+    inherits = List.copyOf(inherits);
     supportedTransports = Set.copyOf(supportedTransports);
     if (supportedTransports.isEmpty()) {
       throw new IllegalArgumentException("Proxied MCP server must support at least one transport mode");

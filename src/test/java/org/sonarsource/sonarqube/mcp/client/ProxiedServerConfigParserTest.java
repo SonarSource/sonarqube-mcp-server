@@ -417,9 +417,75 @@ class ProxiedServerConfigParserTest {
 
   @Test
   void constructor_should_accept_instructions() {
-    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), "Use these tools for testing");
+    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), "Use these tools for testing");
 
     assertThat(config.instructions()).isEqualTo("Use these tools for testing");
   }
 
+  @Test
+  void parseAndValidateProxiedConfig_should_parse_config_with_inherits() {
+    var json = """
+      [
+        {
+          "name": "test-server",
+          "namespace": "test",
+          "command": "npx",
+          "args": ["arg1"],
+          "env": {
+            "EXPLICIT_VAR": "explicit_value"
+          },
+          "inherits": ["INHERITED_VAR1", "INHERITED_VAR2"],
+          "supportedTransports": ["stdio"]
+        }
+      ]
+      """;
+
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs()).hasSize(1);
+    var config = result.configs().getFirst();
+    assertThat(config.env()).containsEntry("EXPLICIT_VAR", "explicit_value");
+    assertThat(config.inherits()).containsExactly("INHERITED_VAR1", "INHERITED_VAR2");
+  }
+
+  @Test
+  void parseAndValidateProxiedConfig_should_handle_empty_inherits() {
+    var json = """
+      [
+        {
+          "name": "test-server",
+          "namespace": "test",
+          "command": "npx",
+          "inherits": [],
+          "supportedTransports": ["stdio"]
+        }
+      ]
+      """;
+
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs().getFirst().inherits()).isEmpty();
+  }
+
+  @Test
+  void parseAndValidateProxiedConfig_should_handle_missing_inherits() {
+    var json = """
+      [
+        {
+          "name": "test-server",
+          "namespace": "test",
+          "command": "npx",
+          "supportedTransports": ["stdio"]
+        }
+      ]
+      """;
+
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
+
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs().getFirst().inherits()).isEmpty();
+  }
+  
 }
