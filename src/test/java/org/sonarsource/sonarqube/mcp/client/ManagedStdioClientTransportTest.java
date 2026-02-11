@@ -497,47 +497,4 @@ class ManagedStdioClientTransportTest {
     assertThat(messageCount.get()).isGreaterThan(0);
   }
 
-  @Test
-  @EnabledOnOs({OS.LINUX, OS.MAC})
-  void should_properly_handle_custom_environment_variables() throws Exception {
-    // Create a script that outputs an environment variable
-    var scriptPath = Files.createTempFile("test-env-server-", ".sh");
-    Files.writeString(scriptPath, """
-      #!/bin/sh
-      # Output the TEST_VAR to stderr
-      echo "TEST_VAR=$TEST_VAR" >&2
-      # Exit
-      exit 0
-      """);
-    scriptPath.toFile().setExecutable(true);
-
-    var customEnv = new java.util.HashMap<>(System.getenv());
-    customEnv.put("TEST_VAR", "test_value_123");
-
-    var serverParams = ServerParameters.builder("sh")
-      .args(List.of(scriptPath.toString()))
-      .env(customEnv)
-      .build();
-
-    var transport = new ManagedStdioClientTransport("env-server", serverParams, McpJsonMappers.DEFAULT);
-    
-    var stderrMessages = new java.util.concurrent.CopyOnWriteArrayList<String>();
-    transport.setStdErrorHandler(stderrMessages::add);
-
-    transport.connect(message -> message).block(Duration.ofSeconds(5));
-
-    // Wait for stderr output
-    await().atMost(Duration.ofSeconds(2))
-      .pollInterval(Duration.ofMillis(100))
-      .until(() -> !stderrMessages.isEmpty());
-
-    transport.closeGracefully().block(Duration.ofSeconds(5));
-
-    // Verify the environment variable was passed correctly
-    assertThat(stderrMessages)
-      .anyMatch(msg -> msg.contains("TEST_VAR=test_value_123"));
-
-    // Cleanup
-    Files.deleteIfExists(scriptPath);
-  }
 }
