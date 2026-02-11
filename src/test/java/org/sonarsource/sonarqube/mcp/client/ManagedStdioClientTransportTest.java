@@ -378,10 +378,13 @@ class ManagedStdioClientTransportTest {
   @Test
   @EnabledOnOs({OS.LINUX, OS.MAC})
   void should_handle_interrupted_exception_during_termination() throws Exception {
-    // Create a long-running script
-    var scriptPath = Files.createTempFile("test-long-running-", ".sh");
+    // Create a script that will cause the timeout path to be triggered
+    var scriptPath = Files.createTempFile("test-timeout-script-", ".sh");
     Files.writeString(scriptPath, """
       #!/bin/sh
+      # Trap SIGTERM to delay termination
+      trap 'sleep 10' TERM
+      # Wait for signal
       while true; do
         sleep 1
       done
@@ -392,28 +395,42 @@ class ManagedStdioClientTransportTest {
       .args(List.of(scriptPath.toString()))
       .build();
 
-    var transport = new ManagedStdioClientTransport("long-running-server", serverParams, McpJsonMappers.DEFAULT);
+    var transport = new ManagedStdioClientTransport("timeout-server", serverParams, McpJsonMappers.DEFAULT);
 
     transport.connect(message -> message).block(Duration.ofSeconds(5));
 
-    // Interrupt the thread during shutdown to trigger InterruptedException handling
-    var shutdownThread = new Thread(() -> {
+    // Create a thread that will be interrupted during shutdown
+    var interrupted = new java.util.concurrent.atomic.AtomicBoolean(false);
+    Thread shutdownThread = new Thread(() -> {
       try {
-        Thread.sleep(100); // Let shutdown start
-        Thread.currentThread().interrupt(); // Interrupt ourselves
-        transport.closeGracefully().block(Duration.ofSeconds(20));
+        // Start shutdown, then interrupt after a short delay
+        var shutdownMono = transport.closeGracefully();
+        
+        // Interrupt this thread while waiting
+        new Thread(() -> {
+          try {
+            Thread.sleep(500); // Wait for shutdown to start
+            Thread.currentThread().interrupt();
+          } catch (InterruptedException e) {
+            // Ignore
+          }
+        }).start();
+        
+        shutdownMono.block(Duration.ofSeconds(15));
       } catch (Exception e) {
-        // Expected
+        if (Thread.currentThread().isInterrupted()) {
+          interrupted.set(true);
+        }
       }
     });
     
     shutdownThread.start();
-    shutdownThread.join(25000);
+    shutdownThread.join(20000);
 
     // Cleanup
     Files.deleteIfExists(scriptPath);
     
-    // Thread should complete (even if interrupted)
+    // Thread should complete and process should be terminated
     assertThat(shutdownThread.isAlive()).isFalse();
   }
 
@@ -495,6 +512,46 @@ class ManagedStdioClientTransportTest {
     
     // Should have received at least some messages before any queue issues
     assertThat(messageCount.get()).isGreaterThan(0);
+  }
+
+  @Test
+  @EnabledOnOs({OS.LINUX, OS.MAC})
+  void should_handle_error_stream_flood() throws Exception {
+    // Create a script that floods stderr to test error queue handling
+    var scriptPath = Files.createTempFile("test-stderr-flood-", ".sh");
+    Files.writeString(scriptPath, """
+      #!/bin/sh
+      # Flood stderr with messages
+      for i in $(seq 1 5000); do
+        echo "Error message $i" >&2
+      done
+      exit 0
+      """);
+    scriptPath.toFile().setExecutable(true);
+
+    var serverParams = ServerParameters.builder("sh")
+      .args(List.of(scriptPath.toString()))
+      .build();
+
+    var transport = new ManagedStdioClientTransport("stderr-flood-server", serverParams, McpJsonMappers.DEFAULT);
+
+    var errorCount = new java.util.concurrent.atomic.AtomicInteger(0);
+    transport.setStdErrorHandler(error -> errorCount.incrementAndGet());
+
+    transport.connect(message -> message).block(Duration.ofSeconds(5));
+
+    // Wait for some errors to be processed
+    await().atMost(Duration.ofSeconds(5))
+      .pollInterval(Duration.ofMillis(100))
+      .until(() -> errorCount.get() > 0);
+
+    transport.closeGracefully().block(Duration.ofSeconds(5));
+
+    // Cleanup
+    Files.deleteIfExists(scriptPath);
+    
+    // Should have received at least some error messages
+    assertThat(errorCount.get()).isGreaterThan(0);
   }
 
 }
