@@ -90,7 +90,7 @@ public class ServerApi {
   }
 
   public PluginsApi pluginsApi() {
-    return new PluginsApi(helper);
+    return new PluginsApi(helper, isSonarCloud);
   }
 
   public ScaApi scaApi() {

@@ -455,10 +455,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     return createServerApiWithToken(token);
   }
   
-  private ServerApi createServerApiWithToken(String token) {
+  private ServerApi createServerApiWithToken(@Nullable String token) {
     var organization = mcpConfiguration.getSonarqubeOrg();
     var url = mcpConfiguration.getSonarQubeUrl();
-    var httpClient = httpClientProvider.getHttpClient(token);
+    var httpClient = token != null ? httpClientProvider.getHttpClient(token) : httpClientProvider.getAnonymousHttpClient();
     var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization), httpClient);
     return new ServerApi(serverApiHelper, mcpConfiguration.isSonarCloud());
   }

@@ -54,11 +54,19 @@ public class HttpClientProvider {
   }
 
   public HttpClient getHttpClient(String sonarqubeCloudToken) {
-    return new HttpClientAdapter(httpClient, sonarqubeCloudToken);
+    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false);
   }
 
+  public HttpClient getAnonymousHttpClient() {
+    return new HttpClientAdapter(httpClient, null, false);
+  }
+
+  /**
+   * Creates an HTTP client for SonarQube for IDE bridge communication.
+   * Bridge client adds special Host and Origin headers for localhost communication.
+   */
   public HttpClient getHttpClientForBridge() {
-    return new HttpClientAdapter(httpClient);
+    return new HttpClientAdapter(httpClient, null, true);
   }
 
   public void shutdown() {
