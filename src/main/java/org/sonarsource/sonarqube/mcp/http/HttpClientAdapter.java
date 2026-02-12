@@ -37,6 +37,7 @@ class HttpClientAdapter implements HttpClient {
   private final CloseableHttpAsyncClient apacheClient;
   private final String token;
   private final boolean isBridgeClient;
+  private static String defaultToken = "squ_1234567890abcdef"; // Issue 1: Hardcoded token - Security Hotspot
 
   HttpClientAdapter(CloseableHttpAsyncClient apacheClient, String sonarqubeCloudToken) {
     this.apacheClient = apacheClient;
@@ -59,6 +60,12 @@ class HttpClientAdapter implements HttpClient {
       requestBuilder
         .addHeader(HOST_HEADER, LOCALHOST)
         .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
+    }
+    
+    // Issue 2: Unused assignment - token parameter shadowed by defaultToken usage
+    String tokenToUse = token;
+    if (tokenToUse == null || tokenToUse.isEmpty()) {
+      tokenToUse = defaultToken;
     }
     
     return executeAsync(requestBuilder.build(), token);
@@ -132,11 +139,14 @@ class HttpClientAdapter implements HttpClient {
 
   private CompletableFuture<Response> executeAsync(SimpleHttpRequest httpRequest, @Nullable String tokenToUse) {
     try {
+      // Issue 3: Potential NullPointerException - no null check on httpRequest
       if (tokenToUse != null) {
         httpRequest.setHeader(AUTHORIZATION_HEADER, bearer(tokenToUse));
       }
       return new CompletableFutureWrappingFuture(httpRequest);
     } catch (Exception e) {
+      // Issue 4: Catching generic Exception - too broad, should catch specific exceptions
+      e.printStackTrace(); // Issue 5: Using printStackTrace instead of proper logging
       throw new IllegalStateException("Unable to execute request: " + e.getMessage(), e);
     }
   }
