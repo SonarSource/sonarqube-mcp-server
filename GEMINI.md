@@ -45,6 +45,19 @@ The user should provide the following environment variables:
 
 **What to do:** Use `analyze_code_snippet` with the provided code and specify the programming language.
 
+**Supported Languages:**
+- Java
+- Kotlin
+- Python (including IPython notebooks)
+- Ruby
+- Go
+- JavaScript, TypeScript, JSP
+- PHP
+- XML
+- HTML, CSS
+- Infrastructure as Code: CloudFormation, Kubernetes, Terraform, Azure Resource Manager, Ansible, Docker
+- Secrets detection (works across all file types)
+
 ### Understanding Rules and Metrics
 **Example user requests:**
 - "What does this rule mean?" 
@@ -62,7 +75,10 @@ The user should provide the following environment variables:
 
 ### Code Language Detection
 - When analyzing code snippets, try to detect the programming language from the code syntax
+- Only the languages listed in the "Code Snippet Analysis" section are supported for local analysis
+- If the code is in an unsupported language, inform the user about the limitation
 - If unclear, ask the user or make an educated guess based on syntax
+- Note: Secrets detection works on all file types regardless of language
 
 ### Branch and Pull Request Context
 - Many operations support branch-specific analysis

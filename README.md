@@ -775,6 +775,8 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
   - `codeSnippet` - Code snippet or full file content - _Required String_
   - `language` - Optional language of the code snippet - _String_
   - `scope` - Optional scope of the file: MAIN or TEST (default: MAIN) - _String_
+  
+  **Supported Languages:** Java, Kotlin, Python, Ruby, Go, JavaScript, TypeScript, JSP, PHP, XML, HTML, CSS, CloudFormation, Kubernetes, Terraform, Azure Resource Manager, Ansible, Docker, Secrets detection
 
 **When integration with SonarQube for IDE is enabled:**
 - **analyze_file_list** - Analyze files in the current working directory using SonarQube for IDE. This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.
