@@ -14,42 +14,23 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.serverapi.measures.response;
+package org.sonarsource.sonarqube.mcp.serverapi.measures;
 
 import java.util.List;
 import javax.annotation.Nullable;
 
-public record ComponentTreeResponse(
-  @Nullable BaseComponent baseComponent,
-  List<Component> components,
-  Paging paging
+public record ComponentTreeParams(
+  @Nullable String component,
+  @Nullable String branch,
+  @Nullable List<String> metricKeys,
+  @Nullable String pullRequest,
+  @Nullable String qualifiers,
+  @Nullable String strategy,
+  @Nullable String sort,
+  @Nullable String metricSort,
+  @Nullable Boolean asc,
+  @Nullable Integer pageIndex,
+  @Nullable Integer pageSize,
+  @Nullable String additionalFields
 ) {
-  
-  public record BaseComponent(
-    String key,
-    String name,
-    String qualifier,
-    @Nullable String description
-  ) {}
-  
-  public record Component(
-    String key,
-    String name,
-    String qualifier,
-    @Nullable String path,
-    @Nullable String language,
-    @Nullable List<Measure> measures
-  ) {}
-  
-  public record Measure(
-    String metric,
-    @Nullable String value,
-    @Nullable Boolean bestValue
-  ) {}
-  
-  public record Paging(
-    int pageIndex,
-    int pageSize,
-    int total
-  ) {}
 }

@@ -43,38 +43,35 @@ public class MeasuresApi {
     }
   }
 
-  private static String buildPath(@Nullable String component, @Nullable String branch, 
+  public ComponentTreeResponse getComponentTree(ComponentTreeParams params) {
+    var url = new UrlBuilder(COMPONENT_TREE_PATH)
+      .addParam("component", params.component())
+      .addParam("branch", params.branch())
+      .addParam("metricKeys", params.metricKeys())
+      .addParam("pullRequest", params.pullRequest())
+      .addParam("qualifiers", params.qualifiers())
+      .addParam("ps", params.pageSize())
+      .addParam("p", params.pageIndex())
+      .addParam("strategy", params.strategy())
+      .addParam("s", params.sort())
+      .addParam("metricSort", params.metricSort())
+      .addParam("asc", params.asc())
+      .addParam("additionalFields", params.additionalFields())
+      .build();
+
+    try (var response = helper.get(url)) {
+      var responseStr = response.bodyAsString();
+      return new Gson().fromJson(responseStr, ComponentTreeResponse.class);
+    }
+  }
+
+  private static String buildPath(@Nullable String component, @Nullable String branch,
     @Nullable List<String> metricKeys, @Nullable String pullRequest) {
     return new UrlBuilder(COMPONENT_PATH)
       .addParam("component", component)
       .addParam("branch", branch)
       .addParam("metricKeys", metricKeys)
       .addParam("pullRequest", pullRequest)
-      .addParam("additionalFields", "metrics")
-      .build();
-  }
-
-  public ComponentTreeResponse getComponentTree(String component, @Nullable String branch,
-    @Nullable List<String> metricKeys, @Nullable String pullRequest, @Nullable String qualifiers,
-    @Nullable Integer pageSize, @Nullable Integer pageIndex, @Nullable String strategy) {
-    try (var response = helper.get(buildComponentTreePath(component, branch, metricKeys, pullRequest, qualifiers, pageSize, pageIndex, strategy))) {
-      var responseStr = response.bodyAsString();
-      return new Gson().fromJson(responseStr, ComponentTreeResponse.class);
-    }
-  }
-
-  private static String buildComponentTreePath(String component, @Nullable String branch,
-    @Nullable List<String> metricKeys, @Nullable String pullRequest, @Nullable String qualifiers,
-    @Nullable Integer pageSize, @Nullable Integer pageIndex, @Nullable String strategy) {
-    return new UrlBuilder(COMPONENT_TREE_PATH)
-      .addParam("component", component)
-      .addParam("branch", branch)
-      .addParam("metricKeys", metricKeys)
-      .addParam("pullRequest", pullRequest)
-      .addParam("qualifiers", qualifiers)
-      .addParam("ps", pageSize)
-      .addParam("p", pageIndex)
-      .addParam("strategy", strategy)
       .addParam("additionalFields", "metrics")
       .build();
   }
