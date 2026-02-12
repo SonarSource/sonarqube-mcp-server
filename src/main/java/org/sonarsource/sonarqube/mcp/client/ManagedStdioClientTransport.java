@@ -221,9 +221,6 @@ public class ManagedStdioClientTransport implements McpClientTransport {
         while (!isClosing && (line = processErrorReader.readLine()) != null) {
           try {
             if (!errorSink.tryEmitNext(line).isSuccess()) {
-              if (!isClosing) {
-                LOG.error("Failed to emit error message");
-              }
               break;
             }
           } catch (Exception e) {
