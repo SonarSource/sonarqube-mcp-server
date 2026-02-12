@@ -25,6 +25,7 @@ class ToolCategoryTest {
   @Test
   void should_have_correct_keys() {
     assertThat(ToolCategory.ANALYSIS.getKey()).isEqualTo("analysis");
+    assertThat(ToolCategory.COVERAGE.getKey()).isEqualTo("coverage");
     assertThat(ToolCategory.ISSUES.getKey()).isEqualTo("issues");
     assertThat(ToolCategory.PROJECTS.getKey()).isEqualTo("projects");
     assertThat(ToolCategory.QUALITY_GATES.getKey()).isEqualTo("quality-gates");
@@ -133,6 +134,7 @@ class ToolCategoryTest {
     
     assertThat(allCategories).containsExactlyInAnyOrder(
       ToolCategory.ANALYSIS,
+      ToolCategory.COVERAGE,
       ToolCategory.ISSUES,
       ToolCategory.PROJECTS,
       ToolCategory.QUALITY_GATES,

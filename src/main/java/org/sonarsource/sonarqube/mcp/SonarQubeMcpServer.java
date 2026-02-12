@@ -70,6 +70,7 @@ import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
 import org.sonarsource.sonarqube.mcp.tools.languages.ListLanguagesTool;
 import org.sonarsource.sonarqube.mcp.tools.measures.GetComponentMeasuresTool;
+import org.sonarsource.sonarqube.mcp.tools.measures.SearchFilesByCoverageTool;
 import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
 import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
@@ -79,6 +80,7 @@ import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
 import org.sonarsource.sonarqube.mcp.tools.duplications.GetDuplicationsTool;
 import org.sonarsource.sonarqube.mcp.tools.duplications.SearchDuplicatedFilesTool;
+import org.sonarsource.sonarqube.mcp.tools.sources.GetFileCoverageDetailsTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemHealthTool;
@@ -109,7 +111,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private final McpServerLaunchConfiguration mcpConfiguration;
   private HttpClientProvider httpClientProvider;
   private String composedInstructions;
-  
+
   /**
    * ServerApi instance.
    * - In stdio mode: created once at startup with the configured token
@@ -117,7 +119,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   @Nullable
   private ServerApi serverApi;
-  
+
   private SonarQubeVersionChecker sonarQubeVersionChecker;
   private McpSyncServer syncServer;
   private volatile boolean isShutdown = false;
@@ -307,6 +309,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListQualityGatesTool(this),
       new ListLanguagesTool(this),
       new GetComponentMeasuresTool(this),
+      new SearchFilesByCoverageTool(this),
+      new GetFileCoverageDetailsTool(this),
       new SearchMetricsTool(this),
       new GetScmInfoTool(this),
       new GetRawSourceTool(this),
@@ -358,12 +362,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     supportedTools.addAll(proxiedTools);
     var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
     LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);
-    
+
     // Select base instructions based on whether ANALYSIS tools are enabled
-    var baseInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS) 
-      ? BASE_INSTRUCTIONS_WITH_ANALYSIS 
+    var baseInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
+      ? BASE_INSTRUCTIONS_WITH_ANALYSIS
       : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
-    
+
     // Compose instructions with external provider contributions
     var parseResult = ProxiedServerConfigParser.parse();
     if (parseResult.success() && !parseResult.configs().isEmpty()) {
@@ -389,7 +393,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
           var sessionId = exchange.sessionId();
           RequestContext.set(sessionId);
         }
-        
+
         try {
           logLogFileLocation(exchange);
           return toolExecutor.execute(tool, toolRequest);
@@ -470,7 +474,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       return serverApi;
     }
   }
-  
+
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
     var token = mcpConfiguration.getSonarQubeToken();
     return createServerApiWithToken(token);
@@ -508,7 +512,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     shutdownMcpServer();
     shutdownBackend();
   }
-  
+
   private void shutdownProxiedServers() {
     if (proxiedToolsLoader != null) {
       proxiedToolsLoader.shutdown();

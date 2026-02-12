@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
+import org.sonarsource.sonarqube.mcp.serverapi.measures.ComponentTreeParams;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentTreeResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -98,8 +99,10 @@ public class SearchDuplicatedFilesTool extends Tool {
     }
 
     var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest);
-    var componentTree = serverApiProvider.get().measuresApi().getComponentTree(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest, FILE_QUALIFIER, pageSize,
-      pageIndex, STRATEGY);
+    
+    var params = new ComponentTreeParams(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest, FILE_QUALIFIER, STRATEGY, null,
+      null, null, pageIndex, pageSize, "metrics");
+    var componentTree = serverApiProvider.get().measuresApi().getComponentTree(params);
 
     var response = buildStructuredContent(componentTree, projectMetrics);
     return Tool.Result.success(response);
@@ -113,8 +116,9 @@ public class SearchDuplicatedFilesTool extends Tool {
     var shouldContinue = true;
 
     while (currentPage <= MAX_PAGES_TO_FETCH && shouldContinue) {
-      var componentTree = serverApiProvider.get().measuresApi().getComponentTree(projectKey, branch, DUPLICATION_METRIC_KEYS,
-        pullRequest, FILE_QUALIFIER, MAX_PAGE_SIZE, currentPage, STRATEGY);
+      var params = new ComponentTreeParams(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest, FILE_QUALIFIER, STRATEGY,
+        null, null, null, currentPage, MAX_PAGE_SIZE, "metrics");
+      var componentTree = serverApiProvider.get().measuresApi().getComponentTree(params);
 
       if (componentTree.components().isEmpty()) {
         shouldContinue = false;

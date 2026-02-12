@@ -544,6 +544,7 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 | **System**            | `system`            | System administration tools (Server only)                                |
 | **Webhooks**          | `webhooks`          | Manage webhooks                                                          |
 | **Dependency Risks**  | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                       |
+| **Coverage**       | `coverage`          | Test coverage analysis and improvement tools                             |
 
 #### Examples
 
@@ -797,6 +798,25 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
     - `filePath` - Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java') - _Required String_
     - `fileContent` - The original content of the file to analyze - _Required String_
     - `fileScope` - Defines in which scope the file originates from: 'MAIN' or 'TEST' (default: MAIN) - _String_
+
+### Coverage
+
+- **search_files_by_coverage** - Search for files in a project sorted by coverage (ascending - worst coverage first). This tool helps identify files that need test coverage improvements.
+  - `projectKey` - The project key to search in - _Required String_
+  - `branch` - Branch key to analyze (e.g. feature/my_branch) - _String_
+  - `pullRequest` - Pull request id to analyze - _String_
+  - `minCoverage` - Minimum coverage threshold (0-100). Only return files with coverage >= this value - _Number_
+  - `maxCoverage` - Maximum coverage threshold (0-100). Only return files with coverage <= this value - _Number_
+  - `pageIndex` - Page index (1-based, default: 1) - _Number_
+  - `pageSize` - Page size (default: 100, max: 500) - _Number_
+
+
+- **get_file_coverage_details** - Get line-by-line coverage information for a specific file, including which exact lines are uncovered and which have partially covered branches. This tool helps identify precisely where to add test coverage. Use after identifying files with low coverage via search_files_by_coverage.
+  - `key` - File key (e.g. my_project:src/foo/Bar.java) - _Required String_
+  - `branch` - Branch key (e.g. feature/my_branch) - _String_
+  - `pullRequest` - Pull request id - _String_
+  - `from` - First line to analyze (1-based, default: 1) - _Number_
+  - `to` - Last line to analyze (inclusive). If not specified, all lines are returned - _Number_
 
 ### Dependency Risks
 
