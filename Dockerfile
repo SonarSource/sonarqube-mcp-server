@@ -56,10 +56,11 @@ ENV PATH="/home/appuser/.local/bin:${PATH}"
 
 COPY --from=builder --chown=appuser:appgroup --chmod=755 /app/sonarqube-mcp-server.jar /app/sonarqube-mcp-server.jar
 COPY --chown=appuser:appgroup --chmod=755 scripts/install-certificates.sh /usr/local/bin/install-certificates
+COPY --chown=appuser:appgroup --chmod=755 scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 
 WORKDIR /app
 ENV STORAGE_PATH=/app/storage
 ENV SONARQUBE_TOOLSETS=external
 LABEL io.modelcontextprotocol.server.name="io.github.SonarSource/sonarqube-mcp-server"
 
-ENTRYPOINT ["/bin/sh", "-c", "/usr/local/bin/install-certificates && exec java -jar /app/sonarqube-mcp-server.jar"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
