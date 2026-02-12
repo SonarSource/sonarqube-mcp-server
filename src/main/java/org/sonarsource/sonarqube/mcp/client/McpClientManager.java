@@ -68,6 +68,10 @@ public class McpClientManager {
    */
   @VisibleForTesting
   static void logProxiedServerOutput(String serverName, String stderrLine) {
+    if (stderrLine.isBlank()) {
+      return;
+    }
+
     var prefixedLine = "[" + serverName + "] " + stderrLine;
 
     var upperLine = stderrLine.toUpperCase(Locale.getDefault());
