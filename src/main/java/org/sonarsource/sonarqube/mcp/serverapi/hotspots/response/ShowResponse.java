@@ -22,7 +22,7 @@ import java.util.List;
 public record ShowResponse(String key, Component component, Project project, @Nullable String securityCategory, @Nullable String vulnerabilityProbability,
                            String status, @Nullable String resolution, @Nullable Integer line, String message, @Nullable String assignee, @Nullable String author,
                            String creationDate, String updateDate, @Nullable TextRange textRange, @Nullable List<Flow> flows, @Nullable List<Comment> comments,
-                           @Nullable List<ChangelogEntry> changelog, @Nullable List<User> users, Rule rule, String canChangeStatus) {
+                           @Nullable List<ChangelogEntry> changelog, @Nullable List<User> users, Rule rule, boolean canChangeStatus) {
 
   public record Component(String organization, String key, String qualifier, String name, String longName, String path) {
   }

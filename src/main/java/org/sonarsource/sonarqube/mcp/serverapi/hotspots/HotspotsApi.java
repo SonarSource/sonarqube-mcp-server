@@ -78,8 +78,9 @@ public class HotspotsApi {
     if (comment != null && !comment.isEmpty()) {
       body.append("&comment=").append(urlEncode(comment));
     }
-    var response = helper.post(CHANGE_STATUS_PATH, FORM_URL_ENCODED_CONTENT_TYPE, body.toString());
-    response.close();
+    try (var ignored = helper.post(CHANGE_STATUS_PATH, FORM_URL_ENCODED_CONTENT_TYPE, body.toString())) {
+      // Response is closed automatically
+    }
   }
 
   private static String buildSearchPath(SearchParams params) {

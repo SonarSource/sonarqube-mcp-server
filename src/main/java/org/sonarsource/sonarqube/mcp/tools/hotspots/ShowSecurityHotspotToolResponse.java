@@ -38,7 +38,7 @@ public record ShowSecurityHotspotToolResponse(
   @JsonPropertyDescription("Code flows showing the path of the security-sensitive code") List<Flow> flows,
   @JsonPropertyDescription("Comments on the Security Hotspot") List<Comment> comments,
   @JsonPropertyDescription("Rule that triggered the Security Hotspot") Rule rule,
-  @JsonPropertyDescription("Whether the current user can change the Security Hotspot status") String canChangeStatus
+  @JsonPropertyDescription("Whether the current user can change the Security Hotspot status") boolean canChangeStatus
 ) {
 
   public record TextRange(

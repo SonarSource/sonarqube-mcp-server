@@ -35,7 +35,7 @@ public class ShowSecurityHotspotTool extends Tool {
     super(SchemaToolBuilder.forOutput(ShowSecurityHotspotToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Show Security Hotspot Details")
-      .setDescription("Get detailed information about a specific Security Hotspot, including rule details, code context, flows, comments, and changelog.")
+      .setDescription("Get detailed information about a specific Security Hotspot, including rule details, code context, flows, and comments.")
       .addRequiredStringProperty(HOTSPOT_KEY_PROPERTY, "The key of the Security Hotspot to retrieve")
       .setReadOnlyHint()
       .build(),

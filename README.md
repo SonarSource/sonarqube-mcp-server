@@ -846,7 +846,7 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
   - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
 
-- **show_security_hotspot** - Get detailed information about a specific Security Hotspot, including rule details, code context, flows, comments, and changelog.
+- **show_security_hotspot** - Get detailed information about a specific Security Hotspot, including rule details, code context, flows, and comments.
   - `hotspotKey` - Security Hotspot key - _Required String_
 
 

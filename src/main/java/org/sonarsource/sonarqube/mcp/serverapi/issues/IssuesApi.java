@@ -58,8 +58,9 @@ public class IssuesApi {
 
   public void doTransition(String issueKey, Transition transition) {
     var body = "issue=" + urlEncode(issueKey) + "&transition=" + urlEncode(transition.getStatus());
-    var response = helper.post("/api/issues/do_transition", FORM_URL_ENCODED_CONTENT_TYPE, body);
-    response.close();
+    try (var ignored = helper.post("/api/issues/do_transition", FORM_URL_ENCODED_CONTENT_TYPE, body)) {
+      // Response is closed automatically
+    }
   }
 
   private String buildIssueSearchPath(SearchParams params) {

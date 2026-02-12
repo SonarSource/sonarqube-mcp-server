@@ -70,7 +70,7 @@ class ChangeSecurityHotspotStatusToolTests {
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
           ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"TO_REVIEW"},
-          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, "SAFE"));
+          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, new String[] {"SAFE"}));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true)
         .addTextContent("Resolution should not be provided when status is TO_REVIEW").build());
@@ -106,7 +106,7 @@ class ChangeSecurityHotspotStatusToolTests {
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
           ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"REVIEWED"},
-          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, "FIXED",
+          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, new String[] {"FIXED"},
           ChangeSecurityHotspotStatusTool.COMMENT_PROPERTY, "Implemented fix using environment variables"));
 
       assertResultEquals(result, """
@@ -131,7 +131,7 @@ class ChangeSecurityHotspotStatusToolTests {
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
           ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"REVIEWED"},
-          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, "SAFE"));
+          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, new String[] {"SAFE"}));
 
       assertResultEquals(result, """
         {
@@ -181,7 +181,7 @@ class ChangeSecurityHotspotStatusToolTests {
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
           ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"REVIEWED"},
-          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, "ACKNOWLEDGED",
+          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, new String[] {"ACKNOWLEDGED"},
           ChangeSecurityHotspotStatusTool.COMMENT_PROPERTY, "Accepted as acceptable risk"));
 
       assertResultEquals(result, """

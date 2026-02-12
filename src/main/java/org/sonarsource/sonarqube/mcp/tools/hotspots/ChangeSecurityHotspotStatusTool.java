@@ -45,7 +45,7 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
         You can optionally add a comment to explain your review decision.""")
       .addRequiredStringProperty(HOTSPOT_KEY_PROPERTY, "The key of the Security Hotspot to update")
       .addRequiredEnumProperty(STATUS_PROPERTY, new String[] {"TO_REVIEW", "REVIEWED"}, "The new status of the Security Hotspot")
-      .addStringProperty(RESOLUTION_PROPERTY, "The resolution when status is REVIEWED. Required if status is REVIEWED. Possible values: FIXED, SAFE, ACKNOWLEDGED")
+      .addEnumProperty(RESOLUTION_PROPERTY, new String[] {"FIXED", "SAFE", "ACKNOWLEDGED"}, "The resolution when status is REVIEWED. Required if status is REVIEWED")
       .addStringProperty(COMMENT_PROPERTY, "An optional comment explaining the review decision")
       .build(),
       ToolCategory.SECURITY_HOTSPOTS);
@@ -55,9 +55,9 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var hotspotKey = arguments.getStringOrThrow(HOTSPOT_KEY_PROPERTY);
-    var statusList = arguments.getStringListOrThrow(STATUS_PROPERTY);
-    var status = statusList.getFirst();
-    var resolution = arguments.getOptionalString(RESOLUTION_PROPERTY);
+    var status = arguments.getStringListOrThrow(STATUS_PROPERTY).getFirst();
+    var resolutionList = arguments.getOptionalStringList(RESOLUTION_PROPERTY);
+    var resolution = resolutionList != null && !resolutionList.isEmpty() ? resolutionList.getFirst() : null;
     var comment = arguments.getOptionalString(COMMENT_PROPERTY);
 
     // Validate that resolution is provided when status is REVIEWED

@@ -103,7 +103,7 @@ class ShowSecurityHotspotToolTests {
             "vulnerabilityDescription" : "Using hardcoded IP addresses makes the code less portable.",
             "fixRecommendations" : "Use configuration files or environment variables instead."
           },
-          "canChangeStatus" : "true"
+          "canChangeStatus" : true
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
@@ -156,7 +156,7 @@ class ShowSecurityHotspotToolTests {
             "vulnerabilityDescription" : "Using hardcoded IP addresses makes the code less portable.",
             "fixRecommendations" : "Use configuration files or environment variables instead."
           },
-          "canChangeStatus" : "true"
+          "canChangeStatus" : true
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
@@ -210,7 +210,7 @@ class ShowSecurityHotspotToolTests {
           "vulnerabilityDescription": "Using hardcoded IP addresses makes the code less portable.",
           "fixRecommendations": "Use configuration files or environment variables instead."
         },
-        "canChangeStatus": "true"
+        "canChangeStatus": true
       }""".formatted(hotspotKey);
   }
 

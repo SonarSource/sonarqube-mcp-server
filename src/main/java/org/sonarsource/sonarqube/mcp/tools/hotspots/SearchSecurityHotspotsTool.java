@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
+import javax.annotation.CheckForNull;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.HotspotsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.response.SearchResponse;
@@ -65,10 +66,30 @@ public class SearchSecurityHotspotsTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
+    var validationError = validateArguments(arguments);
+    if (validationError != null) {
+      return Tool.Result.failure(validationError);
+    }
+    
     var searchParams = extractSearchParams(arguments);
     var response = serverApiProvider.get().hotspotsApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
+  }
+
+  @CheckForNull
+  private static String validateArguments(Tool.Arguments arguments) {
+    var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
+    var hotspotKeys = arguments.getOptionalStringList(HOTSPOT_KEYS_PROPERTY);
+    
+    boolean hasProjectKey = projectKey != null && !projectKey.isEmpty();
+    boolean hasHotspotKeys = hotspotKeys != null && !hotspotKeys.isEmpty();
+    
+    if (!hasProjectKey && !hasHotspotKeys) {
+      return "Either 'projectKey' or 'hotspotKeys' must be provided";
+    }
+    
+    return null;
   }
 
   private static HotspotsApi.SearchParams extractSearchParams(Tool.Arguments arguments) {
