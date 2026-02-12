@@ -353,6 +353,8 @@ Windows: `C:\Program Files\Docker\Docker\resources\bin\docker.exe`
 
 </details>
 
+> 💡 **Tip:** We recommend pulling the latest image regularly or before reporting issues to ensure you have the most up-to-date features and fixes.
+
 ## Manual installation
 
 You can manually install the SonarQube MCP server by copying the following snippet in the MCP servers configuration file:
@@ -1061,6 +1063,26 @@ Show me all the issues that were marked as false positives in the last month. Ar
 ## Troubleshooting
 
 Applications logs will be written to the `STORAGE_PATH/logs/mcp.log` file.
+
+### Common Issues
+
+#### "Feature is not working" or "Missing tools/functionality"
+
+You may be running an outdated Docker image. Docker caches images locally, so you won't automatically receive updates.
+
+**Solution:** Update to the latest version:
+
+```bash
+docker pull mcp/sonarqube:latest
+```
+
+After pulling the latest image, restart your MCP client to use the updated version.
+
+Optionally, add the `--pull=always` flag to your docker run command to always check for and pull the latest version:
+
+```bash
+docker run --pull=always -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube
+```
 
 ## Data and telemetry
 
