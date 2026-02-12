@@ -40,6 +40,7 @@ public class McpLogger {
 
   public void debug(String message) {
     LOG.debug(message);
+    logToStderr("DEBUG", message);
   }
 
   public void warn(String message) {
