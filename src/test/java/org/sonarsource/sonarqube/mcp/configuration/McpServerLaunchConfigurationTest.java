@@ -71,8 +71,36 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_if_sonarqube_token_is_missing(@TempDir Path tempDir) {
+  void should_throw_error_if_sonarqube_token_is_missing_in_stdio_mode(@TempDir Path tempDir) {
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_ORG", "org");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("SONARQUBE_TOKEN environment variable or property must be set");
+  }
+
+  @Test
+  void should_allow_missing_token_in_http_mode_on_sonarcloud(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_ORG", "org",
+      "SONARQUBE_TRANSPORT", "http"
+    );
+
+    var config = new McpServerLaunchConfiguration(arg);
+    
+    assertThat(config.getSonarQubeToken()).isNull();
+    assertThat(config.isHttpEnabled()).isTrue();
+    assertThat(config.isSonarCloud()).isTrue();
+  }
+
+  @Test
+  void should_throw_error_if_sonarqube_token_is_missing_in_http_mode_on_server(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_URL", "https://sonarqube.example.com",
+      "SONARQUBE_TRANSPORT", "http"
+    );
 
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)

@@ -27,13 +27,17 @@ public class PluginsApi {
   public static final String DOWNLOAD_PLUGINS_PATH = "/api/plugins/download";
 
   private final ServerApiHelper helper;
+  private final boolean isSonarCloud;
 
-  public PluginsApi(ServerApiHelper helper) {
+  public PluginsApi(ServerApiHelper helper, boolean isSonarCloud) {
     this.helper = helper;
+    this.isSonarCloud = isSonarCloud;
   }
 
   public InstalledPluginsResponse getInstalled() {
-    try (var response = helper.get(INSTALLED_PLUGINS_PATH)) {
+    // On SonarCloud, plugin endpoints don't require authentication
+    var response = isSonarCloud ? helper.getAnonymous(INSTALLED_PLUGINS_PATH) : helper.get(INSTALLED_PLUGINS_PATH);
+    try (response) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, InstalledPluginsResponse.class);
     }
@@ -41,7 +45,8 @@ public class PluginsApi {
 
   public HttpClient.Response downloadPlugin(String pluginKey) {
     var downloadPath = DOWNLOAD_PLUGINS_PATH + "?plugin=" + pluginKey;
-    return helper.rawGet(downloadPath);
+    // On SonarCloud, plugin endpoints don't require authentication
+    return isSonarCloud ? helper.rawGetAnonymous(downloadPath) : helper.rawGet(downloadPath);
   }
 
 }

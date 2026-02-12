@@ -38,16 +38,10 @@ class HttpClientAdapter implements HttpClient {
   private final String token;
   private final boolean isBridgeClient;
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, String sonarqubeCloudToken) {
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient) {
     this.apacheClient = apacheClient;
     this.token = sonarqubeCloudToken;
-    this.isBridgeClient = false;
-  }
-
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient) {
-    this.apacheClient = apacheClient;
-    this.token = null;
-    this.isBridgeClient = true;
+    this.isBridgeClient = isBridgeClient;
   }
 
   @Override
