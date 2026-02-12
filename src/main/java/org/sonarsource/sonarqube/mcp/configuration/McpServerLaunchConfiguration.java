@@ -369,15 +369,10 @@ public class McpServerLaunchConfiguration {
   /**
    * Determines if a tool category should be enabled based on configuration.
    * Rules:
-   * 1. PROJECTS toolset is always enabled (required to find project keys)
-   * 2. If SONARQUBE_TOOLSETS is set, only those toolsets (plus PROJECTS) are enabled
-   * 3. If SONARQUBE_TOOLSETS is not set, all toolsets are enabled (default)
+   * 1. If SONARQUBE_TOOLSETS is set, only those toolsets are enabled
+   * 2. If SONARQUBE_TOOLSETS is not set, all toolsets are enabled (default)
    */
   public boolean isToolCategoryEnabled(ToolCategory category) {
-    // PROJECTS is always enabled as it's required to find project keys
-    if (category == ToolCategory.PROJECTS) {
-      return true;
-    }
     return enabledToolsets.contains(category);
   }
 
