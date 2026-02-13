@@ -805,7 +805,6 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
   - `projectKey` - The project key to search in - _Required String_
   - `branch` - Branch key to analyze (e.g. feature/my_branch) - _String_
   - `pullRequest` - Pull request id to analyze - _String_
-  - `minCoverage` - Minimum coverage threshold (0-100). Only return files with coverage >= this value - _Number_
   - `maxCoverage` - Maximum coverage threshold (0-100). Only return files with coverage <= this value - _Number_
   - `pageIndex` - Page index (1-based, default: 1) - _Number_
   - `pageSize` - Page size (default: 100, max: 500) - _Number_
@@ -919,6 +918,10 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **search_my_sonarqube_projects** - Find SonarQube projects. The response is paginated.
   - `page` - Optional page number - _String_
+
+
+- **list_pull_requests** - List all pull requests for a project. Use this tool to discover available pull requests before analyzing their coverage, issues, or quality. Returns the pull request key/ID which can be used with other tools (e.g., search_files_by_coverage, get_file_coverage_details).
+  - `projectKey` - Project key (e.g. my_project) - _Required String_
 
 ### Quality Gates
 
