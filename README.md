@@ -544,7 +544,7 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 | **System**            | `system`            | System administration tools (Server only)                                |
 | **Webhooks**          | `webhooks`          | Manage webhooks                                                          |
 | **Dependency Risks**  | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                       |
-| **Coverage**       | `coverage`          | Test coverage analysis and improvement tools                             |
+| **Coverage**          | `coverage`          | Test coverage analysis and improvement tools                             |
 
 #### Examples
 
@@ -803,7 +803,6 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **search_files_by_coverage** - Search for files in a project sorted by coverage (ascending - worst coverage first). This tool helps identify files that need test coverage improvements.
   - `projectKey` - The project key to search in - _Required String_
-  - `branch` - Branch key to analyze (e.g. feature/my_branch) - _String_
   - `pullRequest` - Pull request id to analyze - _String_
   - `maxCoverage` - Maximum coverage threshold (0-100). Only return files with coverage <= this value - _Number_
   - `pageIndex` - Page index (1-based, default: 1) - _Number_
@@ -812,7 +811,6 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **get_file_coverage_details** - Get line-by-line coverage information for a specific file, including which exact lines are uncovered and which have partially covered branches. This tool helps identify precisely where to add test coverage. Use after identifying files with low coverage via search_files_by_coverage.
   - `key` - File key (e.g. my_project:src/foo/Bar.java) - _Required String_
-  - `branch` - Branch key (e.g. feature/my_branch) - _String_
   - `pullRequest` - Pull request id - _String_
   - `from` - First line to analyze (1-based, default: 1) - _Number_
   - `to` - Last line to analyze (inclusive). If not specified, all lines are returned - _Number_
@@ -842,7 +840,6 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects.
   - `projects` - Optional list of Sonar projects - _String[]_
-  - `branch` - Optional branch name to search for issues in - _String_
   - `pullRequestId` - Optional Pull Request's identifier - _String_
   - `severities` - Optional list of severities to filter by. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER - _String[]_
   - `impactSoftwareQualities` - Optional list of software qualities to filter by. Possible values: MAINTAINABILITY, RELIABILITY, SECURITY - _String[]_
@@ -886,7 +883,6 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **get_component_measures** - Get SonarQube measures for a component (project, directory, file).
   - `component` - Optional component key to get measures for - _String_
-  - `branch` - Optional branch to analyze for measures - _String_
   - `metricKeys` - Optional metric keys to retrieve (e.g. ncloc, complexity, violations, coverage) - _String[]_
   - `pullRequest` - Optional pull request identifier to analyze for measures - _String_
 
@@ -927,7 +923,6 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **get_project_quality_gate_status** - Get the Quality Gate Status for the SonarQube project.
   - `analysisId` - Optional analysis ID - _String_
-  - `branch` - Optional branch key - _String_
   - `projectId` - Optional project ID - _String_
   - `projectKey` - Optional project key - _String_
   - `pullRequest` - Optional pull request ID - _String_
@@ -949,7 +944,6 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **search_duplicated_files** - Search for files with code duplications in a SonarQube project. By default, automatically fetches all duplicated files across all pages (up to 10,000 files max). Returns only files with duplications.
   - `projectKey` - Project key - _Required String_
-  - `branch` - Optional branch key - _String_
   - `pullRequest` - Optional pull request id - _String_
   - `pageSize` - Optional number of results per page for manual pagination (max: 500). If not specified, auto-fetches all duplicated files - _Integer_
   - `pageIndex` - Optional page number for manual pagination (starts at 1). If not specified, auto-fetches all duplicated files - _Integer_
@@ -957,14 +951,12 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 - **get_duplications** - Get duplications for a file. Require Browse permission on file's project.
   - `key` - File key - _Required String_
-  - `branch` - Optional branch key - _String_
   - `pullRequest` - Optional pull request id - _String_
 
 ### Sources
 
 - **get_raw_source** - Get source code as raw text from SonarQube. Require 'See Source Code' permission on file.
   - `key` - File key - _Required String_
-  - `branch` - Optional branch key - _String_
   - `pullRequest` - Optional pull request id - _String_
 
 

@@ -127,15 +127,15 @@ class ProjectStatusToolTests {
     }
 
     @SonarQubeMcpServerTest
-    void it_should_show_error_when_no_project_id_and_branch_are_provided(SonarQubeMcpServerTestHarness harness) {
+    void it_should_show_error_when_project_id_and_pull_request_are_provided(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "123", ProjectStatusTool.BRANCH_PROPERTY, "branch"));
+        Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "123", ProjectStatusTool.PULL_REQUEST_PROPERTY, "5461"));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Project ID doesn't work with branches or pull requests").build());
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Project ID doesn't work with pull requests").build());
     }
 
     @SonarQubeMcpServerTest
@@ -312,8 +312,8 @@ class ProjectStatusToolTests {
     }
 
     @SonarQubeMcpServerTest
-    void it_should_return_the_project_status_with_project_key_and_branch(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?branch=" + urlEncode("feature/my-branch") + "&projectKey=pkey")
+    void it_should_return_the_project_status_with_project_key_and_pull_request(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectKey=pkey&pullRequest=5461")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient(Map.of(
@@ -321,7 +321,7 @@ class ProjectStatusToolTests {
 
       var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey", ProjectStatusTool.BRANCH_PROPERTY, "feature/my-branch"));
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey", ProjectStatusTool.PULL_REQUEST_PROPERTY, "5461"));
 
       assertResultEquals(result, """
         {
@@ -485,15 +485,15 @@ class ProjectStatusToolTests {
     }
 
     @SonarQubeMcpServerTest
-    void it_should_return_the_project_status_with_project_key_and_branch(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?branch=" + urlEncode("feature/my-branch") + "&projectKey=pkey")
+    void it_should_return_the_project_status_with_project_key_and_pull_request(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectKey=pkey&pullRequest=5461")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey", ProjectStatusTool.BRANCH_PROPERTY, "feature/my-branch"));
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey", ProjectStatusTool.PULL_REQUEST_PROPERTY, "5461"));
 
       assertResultEquals(result, """
         {

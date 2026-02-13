@@ -33,8 +33,8 @@ public class ListPullRequestsTool extends Tool {
         .setName(TOOL_NAME)
         .setTitle("List Pull Requests")
         .setDescription("List all pull requests for a project. " +
-          "Use this tool to discover available pull requests before analyzing their coverage, issues, or quality. " +
-          "Returns the pull request key/ID which can be used with other tools (e.g., search_files_by_coverage, get_file_coverage_details).")
+          "Use this tool to discover available pull requests and their corresponding branch names before analyzing their coverage, issues, or quality. " +
+          "Returns the pull request key/ID and source branch for each PR, which can be used with other tools that accept a pullRequest parameter.")
         .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)")
         .setReadOnlyHint()
         .build(),

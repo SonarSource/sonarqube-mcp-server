@@ -27,7 +27,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchFilesByCoverageToolTests {
@@ -319,35 +318,6 @@ class SearchFilesByCoverageToolTests {
       assertThat(json).contains("\"filesReturned\":1");
       assertThat(json).contains("my_project:src/Foo.java");
       assertThat(json).doesNotContain("my_project:src/Bar.java");
-    }
-
-    @SonarQubeMcpServerTest
-    void it_should_handle_branch_parameter(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=my_project&branch=" + urlEncode("feature" +
-        "/my_branch") + "&metricKeys=coverage,lines_to_cover,uncovered_lines&additionalFields=metrics")
-        .willReturn(aResponse().withBody("""
-          {
-            "component": {"key": "my_project", "name": "My Project", "qualifier": "TRK", "measures": []}
-          }
-          """)));
-
-      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_TREE_PATH + "?component=my_project&branch=" + urlEncode("feature" +
-        "/my_branch") + "&metricKeys=coverage,line_coverage,branch_coverage,lines_to_cover,uncovered_lines,conditions_to_cover" +
-        ",uncovered_conditions&qualifiers=FIL&ps=100&p=1&strategy=all&s=metric&metricSort=coverage&asc=true")
-        .willReturn(aResponse().withBody("""
-          {
-            "components": [],
-            "paging": {"pageIndex": 1, "pageSize": 100, "total": 0}
-          }
-          """)));
-
-      var mcpClient = harness.newClient(Map.of("SONARQUBE_ORG", "org"));
-
-      var result = mcpClient.callTool(
-        SearchFilesByCoverageTool.TOOL_NAME,
-        Map.of("projectKey", "my_project", "branch", "feature/my_branch"));
-
-      assertThat(result.isError()).isFalse();
     }
   }
 }

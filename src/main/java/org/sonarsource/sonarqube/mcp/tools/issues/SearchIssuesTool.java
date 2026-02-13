@@ -29,7 +29,6 @@ public class SearchIssuesTool extends Tool {
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
 
   public static final String PROJECTS_PROPERTY = "projects";
-  public static final String BRANCH_PROPERTY = "branch";
   public static final String FILES_PROPERTY = "files";
   public static final String PULL_REQUEST_ID_PROPERTY = "pullRequestId";
   public static final String SEVERITIES_PROPERTY = "severities";
@@ -55,7 +54,6 @@ public class SearchIssuesTool extends Tool {
       .setTitle("Search SonarQube Issues in Projects")
       .setDescription(description)
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
-      .addStringProperty(BRANCH_PROPERTY, "The branch name to search for issues in")
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of component keys (files, directories, modules) to filter issues")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
       .addArrayProperty(SEVERITIES_PROPERTY, "string", "An optional list of severities to filter by, separated by a comma." +
@@ -82,7 +80,7 @@ public class SearchIssuesTool extends Tool {
   private static IssuesApi.SearchParams extractSearchParams(Tool.Arguments arguments) {
     return new IssuesApi.SearchParams(
       arguments.getOptionalStringList(PROJECTS_PROPERTY),
-      arguments.getOptionalString(BRANCH_PROPERTY),
+      null,
       arguments.getOptionalStringList(FILES_PROPERTY),
       arguments.getOptionalString(PULL_REQUEST_ID_PROPERTY),
       arguments.getOptionalStringList(SEVERITIES_PROPERTY),
