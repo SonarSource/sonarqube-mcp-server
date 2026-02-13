@@ -76,7 +76,9 @@ public class McpClientManager {
 
     var upperLine = stderrLine.toUpperCase(Locale.getDefault());
     
-    if (upperLine.contains("| DEBUG")) {
+    if (upperLine.contains("| TRACE")) {
+      LOG.trace(prefixedLine);
+    } else if (upperLine.contains("| DEBUG")) {
       LOG.debug(prefixedLine);
     } else if (upperLine.contains("| ERROR")) {
       LOG.error(prefixedLine);

@@ -70,8 +70,8 @@ class ProxiedToolsLoaderMediumTest {
     logAppender.start();
     mcpClientManagerLogger.addAppender(logAppender);
     
-    // Enable DEBUG level to capture all log levels
-    mcpClientManagerLogger.setLevel(Level.DEBUG);
+    // Enable TRACE level to capture all log levels including TRACE
+    mcpClientManagerLogger.setLevel(Level.TRACE);
   }
 
   @AfterEach
@@ -370,6 +370,21 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).isEmpty();
+  }
+
+  @Test
+  void should_parse_TRACE_level_from_proxied_server_logs() {
+    logAppender.list.clear();
+    
+    McpClientManager.logProxiedServerOutput("test-server", "| TRACE Test trace message");
+    
+    var traceLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.TRACE)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+    
+    assertThat(traceLog).isPresent();
+    assertThat(traceLog.get().getFormattedMessage()).contains("| TRACE Test trace message");
   }
 
   @Test

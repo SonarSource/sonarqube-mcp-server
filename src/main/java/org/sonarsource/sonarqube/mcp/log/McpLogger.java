@@ -38,6 +38,11 @@ public class McpLogger {
     logToStderr("INFO", message);
   }
 
+  public void trace(String message) {
+    LOG.trace(message);
+    logToStderr("TRACE", message);
+  }
+
   public void debug(String message) {
     LOG.debug(message);
     logToStderr("DEBUG", message);
