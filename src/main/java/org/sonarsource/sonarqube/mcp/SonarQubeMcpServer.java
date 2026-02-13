@@ -63,6 +63,9 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
+import org.sonarsource.sonarqube.mcp.tools.hotspots.ChangeSecurityHotspotStatusTool;
+import org.sonarsource.sonarqube.mcp.tools.hotspots.SearchSecurityHotspotsTool;
+import org.sonarsource.sonarqube.mcp.tools.hotspots.ShowSecurityHotspotTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
 import org.sonarsource.sonarqube.mcp.tools.languages.ListLanguagesTool;
@@ -295,6 +298,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ChangeIssueStatusTool(this),
       new SearchMyProjectsTool(this, mcpConfiguration.isSonarCloud()),
       new SearchIssuesTool(this, mcpConfiguration.isSonarCloud()),
+      new SearchSecurityHotspotsTool(this),
+      new ShowSecurityHotspotTool(this),
+      new ChangeSecurityHotspotStatusTool(this),
       new ProjectStatusTool(this),
       new ShowRuleTool(this),
       new ListRuleRepositoriesTool(this),
