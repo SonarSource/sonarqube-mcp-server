@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.a3s;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -25,7 +26,9 @@ public class A3sAnalysisApi {
 
   public static final String ANALYSES_PATH = "/a3s-analysis/analyses";
   private static final String JSON_CONTENT_TYPE = "application/json";
-  private static final Gson GSON = new Gson();
+  private static final Gson GSON = new GsonBuilder()
+    .serializeNulls()
+    .create();
 
   private final ServerApiHelper helper;
 
