@@ -121,7 +121,7 @@ class ToolCategoryTest {
       ToolCategory.RULES,
       ToolCategory.DUPLICATIONS,
       ToolCategory.MEASURES,
-      ToolCategory.WEBHOOKS,
+      ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.DEPENDENCY_RISKS,
       ToolCategory.EXTERNAL
     );

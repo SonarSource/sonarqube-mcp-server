@@ -96,7 +96,7 @@ public enum ToolCategory {
       RULES,
       DUPLICATIONS,
       MEASURES,
-      WEBHOOKS,
+      SECURITY_HOTSPOTS,
       DEPENDENCY_RISKS,
       EXTERNAL
     );
