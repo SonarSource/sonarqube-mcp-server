@@ -805,11 +805,11 @@ class SearchIssuesToolTests {
     }
 
     @SonarQubeMcpServerTest
-    void it_should_return_issues_from_a_branch(SonarQubeMcpServerTestHarness harness) {
+    void it_should_return_issues_from_a_pull_request(SonarQubeMcpServerTestHarness harness) {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
       var projectName = "projectName1";
-      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?branch=feature%2Fmy-branch")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?pullRequest=5461")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -828,7 +828,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.BRANCH_PROPERTY, "feature/my-branch"));
+        Map.of(SearchIssuesTool.PULL_REQUEST_ID_PROPERTY, "5461"));
 
       assertResultEquals(result, """
         {

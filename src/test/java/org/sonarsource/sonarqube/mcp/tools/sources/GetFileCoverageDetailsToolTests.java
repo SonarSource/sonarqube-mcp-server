@@ -266,27 +266,6 @@ class GetFileCoverageDetailsToolTests {
     }
 
     @SonarQubeMcpServerTest
-    void it_should_handle_branch_parameter(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_LINES_PATH + "?key=" + urlEncode("my_project:src/Foo.java") +
-        "&branch=" + urlEncode("feature/my_branch"))
-        .willReturn(aResponse().withBody("""
-          {
-            "sources": [
-              {"line": 1, "code": "public class Foo {}", "lineHits": 5, "isNew": false}
-            ]
-          }
-          """)));
-
-      var mcpClient = harness.newClient(Map.of("SONARQUBE_ORG", "org"));
-
-      var result = mcpClient.callTool(
-        GetFileCoverageDetailsTool.TOOL_NAME,
-        Map.of("key", "my_project:src/Foo.java", "branch", "feature/my_branch"));
-
-      assertThat(result.isError()).isFalse();
-    }
-
-    @SonarQubeMcpServerTest
     void it_should_return_an_error_if_file_not_found(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_LINES_PATH + "?key=" + urlEncode("my_project:src/NonExistent.java"))
         .willReturn(aResponse().withStatus(404)));

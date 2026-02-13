@@ -124,6 +124,7 @@ class ToolCategoryTest {
       ToolCategory.MEASURES,
       ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.DEPENDENCY_RISKS,
+      ToolCategory.COVERAGE,
       ToolCategory.EXTERNAL
     );
   }
@@ -153,8 +154,8 @@ class ToolCategoryTest {
   }
 
   @Test
-  void should_have_exactly_15_categories() {
-    assertThat(ToolCategory.values()).hasSize(15);
+  void should_have_exactly_16_categories() {
+    assertThat(ToolCategory.values()).hasSize(16);
   }
 }
 

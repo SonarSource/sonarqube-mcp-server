@@ -26,9 +26,9 @@ public record ListPullRequestsToolResponse(
 ) {
 
   public record PullRequest(
-    @JsonPropertyDescription("Pull request key/ID") String key,
+    @JsonPropertyDescription("Pull request key/ID that can be used with other tools as the pullRequest parameter") String key,
     @JsonPropertyDescription("Pull request title") String title,
-    @JsonPropertyDescription("Source branch name") String branch
+    @JsonPropertyDescription("Source branch name associated with this pull request") String branch
   ) {
   }
 }

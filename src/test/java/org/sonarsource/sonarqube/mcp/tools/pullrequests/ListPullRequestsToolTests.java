@@ -65,7 +65,7 @@ class ListPullRequestsToolTests {
                   "properties":{
                      "key":{
                         "type":"string",
-                        "description":"Pull request key/ID"
+                        "description":"Pull request key/ID that can be used with other tools as the pullRequest parameter"
                      },
                      "title":{
                         "type":"string",
@@ -73,7 +73,7 @@ class ListPullRequestsToolTests {
                      },
                      "branch":{
                         "type":"string",
-                        "description":"Source branch name"
+                        "description":"Source branch name associated with this pull request"
                      }
                   },
                   "required":[

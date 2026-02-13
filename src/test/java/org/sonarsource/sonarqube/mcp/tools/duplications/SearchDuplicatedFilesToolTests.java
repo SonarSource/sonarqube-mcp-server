@@ -27,7 +27,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
@@ -397,85 +396,6 @@ class SearchDuplicatedFilesToolTests {
           },
           "summary" : {
             "totalDuplicatedLines" : 0
-          }
-        }""");
-    }
-
-    @SonarQubeMcpServerTest
-    void it_should_support_branch_parameter(SonarQubeMcpServerTestHarness harness) {
-      var projectMeasuresJson = """
-        {
-          "component": {
-            "key": "my_project",
-            "name": "My Project",
-            "qualifier": "TRK",
-            "measures": [
-              {
-                "metric": "duplicated_lines",
-                "value": "50"
-              }
-            ]
-          }
-        }
-        """;
-
-      var componentTreeJson = """
-        {
-          "paging": {
-            "pageIndex": 1,
-            "pageSize": 500,
-            "total": 1
-          },
-          "baseComponent": {
-            "key": "my_project",
-            "name": "My Project",
-            "qualifier": "TRK"
-          },
-          "components": [
-            {
-              "key": "my_project:src/File.java",
-              "name": "File.java",
-              "qualifier": "FIL",
-              "path": "src/File.java",
-              "measures": [
-                {
-                  "metric": "duplicated_lines",
-                  "value": "50"
-                }
-              ]
-            }
-          ]
-        }
-        """;
-
-      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=my_project&branch=" + urlEncode("feature/my_branch") + "&metricKeys=duplicated_lines,duplicated_blocks,duplicated_lines_density&additionalFields=metrics")
-        .willReturn(aResponse().withBody(projectMeasuresJson).withHeader("Content-Type", "application/json")));
-
-      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_TREE_PATH + "?component=my_project&branch=" + urlEncode("feature/my_branch") + "&metricKeys=duplicated_lines,duplicated_blocks,duplicated_lines_density&qualifiers=FIL&ps=500&p=1&strategy=leaves&additionalFields=metrics")
-        .willReturn(aResponse().withBody(componentTreeJson).withHeader("Content-Type", "application/json")));
-
-      var mcpClient = harness.newClient(Map.of("SONARQUBE_ORG", "org"));
-
-      var result = mcpClient.callTool(
-        SearchDuplicatedFilesTool.TOOL_NAME,
-        Map.of("projectKey", "my_project", "branch", "feature/my_branch"));
-
-      assertThat(result.isError()).isFalse();
-      assertResultEquals(result, """
-        {
-          "files" : [ {
-            "key" : "my_project:src/File.java",
-            "name" : "File.java",
-            "path" : "src/File.java",
-            "duplicatedLines" : 50
-          } ],
-          "paging" : {
-            "pageIndex" : 1,
-            "pageSize" : 1,
-            "total" : 1
-          },
-          "summary" : {
-            "totalDuplicatedLines" : 50
           }
         }""");
     }

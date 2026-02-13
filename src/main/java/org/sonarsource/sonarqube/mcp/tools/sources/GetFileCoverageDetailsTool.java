@@ -27,7 +27,6 @@ public class GetFileCoverageDetailsTool extends Tool {
 
   public static final String TOOL_NAME = "get_file_coverage_details";
   public static final String KEY_PROPERTY = "key";
-  public static final String BRANCH_PROPERTY = "branch";
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
 
   private final ServerApiProvider serverApiProvider;
@@ -41,7 +40,6 @@ public class GetFileCoverageDetailsTool extends Tool {
           "This tool helps identify precisely where to add test coverage. " +
           "Use after identifying files with low coverage via search_files_by_coverage.")
         .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.java)")
-        .addStringProperty(BRANCH_PROPERTY, "Branch key (e.g. feature/my_branch)")
         .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")
         .setReadOnlyHint()
         .build(),
@@ -52,11 +50,10 @@ public class GetFileCoverageDetailsTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
 
     try {
-      var sourceLinesResponse = serverApiProvider.get().sourcesApi().getSourceLines(key, branch, pullRequest, null, null);
+      var sourceLinesResponse = serverApiProvider.get().sourcesApi().getSourceLines(key, null, pullRequest, null, null);
 
       // Extract file path from key (after the colon)
       var filePath = key.contains(":") ? key.substring(key.indexOf(':') + 1) : null;

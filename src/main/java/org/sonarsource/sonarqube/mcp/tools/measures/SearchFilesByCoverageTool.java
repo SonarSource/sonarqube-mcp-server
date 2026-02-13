@@ -31,7 +31,6 @@ public class SearchFilesByCoverageTool extends Tool {
 
   public static final String TOOL_NAME = "search_files_by_coverage";
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
-  public static final String BRANCH_PROPERTY = "branch";
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
   public static final String MAX_COVERAGE_PROPERTY = "maxCoverage";
   public static final String PAGE_INDEX_PROPERTY = "pageIndex";
@@ -51,7 +50,6 @@ public class SearchFilesByCoverageTool extends Tool {
         .setDescription("Search for files in a project sorted by coverage (ascending - worst coverage first). " +
           "This tool helps identify files that need test coverage improvements.")
         .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The project key to search in")
-        .addStringProperty(BRANCH_PROPERTY, "Branch key to analyze (e.g. feature/my_branch)")
         .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id to analyze")
         .addNumberProperty(MAX_COVERAGE_PROPERTY, "Only return files with coverage below this threshold (0-100)")
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Page index (1-based, default: 1)")
@@ -65,7 +63,6 @@ public class SearchFilesByCoverageTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var projectKey = arguments.getStringOrThrow(PROJECT_KEY_PROPERTY);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
     var maxCoverage = arguments.getOptionalInteger(MAX_COVERAGE_PROPERTY);
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
@@ -79,7 +76,7 @@ public class SearchFilesByCoverageTool extends Tool {
     var actualPageSize = (pageSize != null && pageSize > 0) ? Math.min(pageSize, 500) : 100;
 
     // First, get project-level metrics for summary
-    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch,
+    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, null,
       List.of(METRIC_COVERAGE, METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES), pullRequest
     );
 
@@ -90,7 +87,7 @@ public class SearchFilesByCoverageTool extends Tool {
 
     var params = new ComponentTreeParams(
       projectKey,
-      branch,
+      null,
       metricKeys,
       pullRequest,
       // Only files
