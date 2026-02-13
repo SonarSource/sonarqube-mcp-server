@@ -220,7 +220,6 @@ class McpServerLaunchConfigurationTest {
 
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
-    // PROJECTS should only be enabled if explicitly listed in SONARQUBE_TOOLSETS
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isFalse();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isFalse();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.WEBHOOKS)).isFalse();
@@ -243,16 +242,16 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_only_enable_external_tools_when_toolsets_is_external(@TempDir Path tempDir) {
+  void should_only_enable_cag_tools_when_toolsets_is_cag(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
       "SONARQUBE_ORG", "org",
-      "SONARQUBE_TOOLSETS", "external"
+      "SONARQUBE_TOOLSETS", "cag"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.EXTERNAL)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.CAG)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isFalse();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isFalse();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isFalse();

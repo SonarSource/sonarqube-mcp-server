@@ -65,7 +65,7 @@ public class ProxiedToolsLoader {
       .toList();
 
     if (compatibleConfigs.isEmpty()) {
-      LOG.info("No external tool providers compatible with " + currentTransportMode.toConfigString() + " transport (total configured: " + allConfigs.size() + ")");
+      LOG.info("No CAG tool providers compatible with " + currentTransportMode.toConfigString() + " transport (total configured: " + allConfigs.size() + ")");
       return List.of();
     }
     

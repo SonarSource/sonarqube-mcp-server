@@ -60,7 +60,7 @@ COPY --chown=appuser:appgroup --chmod=755 scripts/docker-entrypoint.sh /usr/loca
 
 WORKDIR /app
 ENV STORAGE_PATH=/app/storage
-ENV SONARQUBE_TOOLSETS=external
+ENV SONARQUBE_TOOLSETS=cag
 LABEL io.modelcontextprotocol.server.name="io.github.SonarSource/sonarqube-mcp-server"
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]

@@ -69,10 +69,10 @@ class ProxiedMcpToolTest {
   }
 
   @Test
-  void getCategory_should_return_external() {
+  void getCategory_should_return_cag() {
     var tool = new ProxiedMcpTool("weather/get_weather", "weather", "get_weather", originalTool, clientManager);
 
-    assertThat(tool.getCategory()).isEqualTo(ToolCategory.EXTERNAL);
+    assertThat(tool.getCategory()).isEqualTo(ToolCategory.CAG);
   }
 
   @Test

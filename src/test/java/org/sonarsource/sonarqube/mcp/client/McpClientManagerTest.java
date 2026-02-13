@@ -59,7 +59,7 @@ class McpClientManagerTest {
   }
 
   @Test
-  void getAllExternalTools_should_return_empty_map_before_initialization() {
+  void getAllProxiedTools_should_return_empty_map_before_initialization() {
     var configs = List.of(new ProxiedMcpServerConfig("server1", "server1", "npx", List.of(), Map.of(), Set.of(TransportMode.STDIO), null));
 
     var manager = new McpClientManager(configs);
