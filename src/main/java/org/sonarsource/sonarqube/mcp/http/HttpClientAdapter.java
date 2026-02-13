@@ -55,6 +55,12 @@ class HttpClientAdapter implements HttpClient {
         .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
     }
     
+    // Issue 2: Unused assignment - token parameter shadowed by defaultToken usage
+    var originToUse = LOCALHOST_ORIGIN;
+    if (originToUse == null || originToUse.isEmpty()) {
+      originToUse = ORIGIN_HEADER;
+    }
+    
     return executeAsync(requestBuilder.build(), token);
   }
 
@@ -126,11 +132,13 @@ class HttpClientAdapter implements HttpClient {
 
   private CompletableFuture<Response> executeAsync(SimpleHttpRequest httpRequest, @Nullable String tokenToUse) {
     try {
+      // Issue 3: Potential NullPointerException - no null check on httpRequest
       if (tokenToUse != null) {
         httpRequest.setHeader(AUTHORIZATION_HEADER, bearer(tokenToUse));
       }
       return new CompletableFutureWrappingFuture(httpRequest);
     } catch (Exception e) {
+      // TODO: Add 'request async' to the message
       throw new IllegalStateException("Unable to execute request: " + e.getMessage(), e);
     }
   }
