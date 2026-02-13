@@ -69,6 +69,10 @@ analyze_code_snippet({
 });
 ```
 
+**Supported Languages for Local Code Snippet Analysis:**
+
+The `analyze_code_snippet` tool supports the following languages: Java, Kotlin, Python, Ruby, Go, JavaScript, TypeScript, JSP, PHP, XML, HTML, CSS, CloudFormation, Kubernetes, Terraform, Azure Resource Manager, Ansible, Docker, Secrets detection
+
 ### Issue Management
 
 **Understanding Issue Types:**
@@ -422,10 +426,9 @@ For SonarQube Server:
 **Solution:**
 
 1. Specify correct language parameter
-2. Verify language is supported (use `list_languages`)
-3. Check code snippet is valid syntax
-4. Provide project key for better context
-5. Review MCP server logs at `/app/storage/logs/mcp.log` in the container
+2. Check code snippet is valid syntax
+3. Provide project key for better context
+4. Review MCP server logs at `/app/storage/logs/mcp.log` in the container
 
 ## Tips
 
