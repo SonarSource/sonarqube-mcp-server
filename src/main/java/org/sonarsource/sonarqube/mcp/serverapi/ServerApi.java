@@ -27,6 +27,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.pullrequests.PullRequestsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
@@ -120,6 +121,10 @@ public class ServerApi {
 
   public A3sAnalysisApi a3sAnalysisApi() {
     return new A3sAnalysisApi(helper);
+  }
+
+  public PullRequestsApi pullRequestsApi() {
+    return new PullRequestsApi(helper);
   }
 
   public String getOrganization() {
