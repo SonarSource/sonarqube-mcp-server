@@ -518,11 +518,11 @@ You should add the following variable when running the MCP Server:
 
 ### Selective Tool Enablement
 
-By default, all tools are enabled. You can selectively enable specific toolsets to reduce context overhead and focus on specific functionality.
+By default, only important toolsets are enabled to reduce context overhead. You can enable additional toolsets as needed.
 
 | Environment variable   | Description                                                                                                                                                                                                                                    |
 |------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, all tools are enabled. **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. |
+| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `webhooks`, `dependency-risks`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. |
 | `SONARQUBE_READ_ONLY`  | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`.                                     |
 
 <details>
@@ -546,6 +546,16 @@ By default, all tools are enabled. You can selectively enable specific toolsets 
 | **Dependency Risks**  | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                       |
 
 #### Examples
+
+**Enable low-usage toolsets explicitly (e.g., sources, languages, portfolios, system):**
+
+```bash
+docker run -i --rm \
+  -e SONARQUBE_TOKEN="<token>" \
+  -e SONARQUBE_ORG="<org>" \
+  -e SONARQUBE_TOOLSETS="analysis,issues,quality-gates,sources,languages,portfolios,system" \
+  mcp/sonarqube
+```
 
 **Enable analysis, issues, and quality gates toolsets (using Docker with SonarQube Cloud):**
 

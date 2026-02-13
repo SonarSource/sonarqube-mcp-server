@@ -75,13 +75,31 @@ public enum ToolCategory {
    */
   public static Set<ToolCategory> parseCategories(@Nullable String categoriesStr) {
     if (categoriesStr == null || categoriesStr.isBlank()) {
-      return all();
+      return defaultEnabled();
     }
     return Arrays.stream(categoriesStr.split(","))
       .map(String::trim)
       .map(ToolCategory::fromKey)
       .filter(Objects::nonNull)
       .collect(Collectors.toSet());
+  }
+
+  /**
+   * Returns the default enabled categories when SONARQUBE_TOOLSETS is not provided.
+   */
+  public static Set<ToolCategory> defaultEnabled() {
+    return Set.of(
+      ANALYSIS,
+      ISSUES,
+      PROJECTS,
+      QUALITY_GATES,
+      RULES,
+      DUPLICATIONS,
+      MEASURES,
+      WEBHOOKS,
+      DEPENDENCY_RISKS,
+      EXTERNAL
+    );
   }
 
   public static Set<ToolCategory> all() {
