@@ -57,14 +57,22 @@ The server supports both SonarQube Cloud and on-premises SonarQube Server instan
 
 ### Code Analysis
 
-**Always specify the programming language** when analyzing code snippets to improve accuracy:
+**Always provide complete file content for accurate analysis:**
 
 ```javascript
-// Analyze TypeScript code
+// Analyze entire file - reports all issues
 analyze_code_snippet({
-    codeSnippet: "function foo() { console.log('test'); }",
+    fileContent: `import { Item } from './types';\n\nfunction calculateTotal(items: Item[]) { ... }`,
     language: "typescript",
-    scope: "MAIN",
+    projectKey: "my-project"
+});
+
+// Analyze with snippet filter (RECOMMENDED for generated code)
+// Analyzes complete file but only reports issues in the snippet
+analyze_code_snippet({
+    fileContent: `import { Item } from './types';\n\nfunction calculateTotal(items: Item[]) { return items.reduce((sum, item) => sum + item.price, 0); }`,
+    codeSnippet: "function calculateTotal(items: Item[]) { return items.reduce((sum, item) => sum + item.price, 0); }",
+    language: "typescript",
     projectKey: "my-project"
 });
 ```
@@ -193,20 +201,25 @@ docker run -i --rm \
 
 ## Common Workflows
 
-### Workflow 1: Analyze Code Snippet Before Committing
+### Workflow 1: Analyze Generated Code Before Using It
 
 ```javascript
-// Step 1: Analyze the code snippet
+// Step 1: Agent reads the existing file
+const originalContent = readFile("/workspace/src/utils.js");
+
+// Step 2: Agent generates a new method
+const newMethod = `
+function calculateTotal(items) {
+  return items.reduce((sum, item) => sum + item.price, 0);
+}`;
+
+// Step 3: Agent creates updated content with the new method
+const updatedContent = originalContent + "\n" + newMethod;
+
+// Step 4: Analyze just the generated method with full file context
 const analysis = analyze_code_snippet({
-    codeSnippet: `
-    function calculateTotal(items) {
-      var total = 0;
-      for (var i = 0; i < items.length; i++) {
-        total += items[i].price;
-      }
-      return total;
-    }
-  `,
+    fileContent: updatedContent,
+    codeSnippet: newMethod,
     language: "javascript",
     projectKey: "my-project"
 });
