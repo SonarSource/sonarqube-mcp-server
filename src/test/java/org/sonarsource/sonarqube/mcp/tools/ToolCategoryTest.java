@@ -101,12 +101,30 @@ class ToolCategoryTest {
   }
 
   @Test
-  void should_return_all_categories_for_null_or_empty_string() {
-    var allCategories = ToolCategory.all();
+  void should_return_default_enabled_categories_for_null_or_empty_string() {
+    var defaultCategories = ToolCategory.defaultEnabled();
 
-    assertThat(ToolCategory.parseCategories(null)).isEqualTo(allCategories);
-    assertThat(ToolCategory.parseCategories("")).isEqualTo(allCategories);
-    assertThat(ToolCategory.parseCategories("   ")).isEqualTo(allCategories);
+    assertThat(ToolCategory.parseCategories(null)).isEqualTo(defaultCategories);
+    assertThat(ToolCategory.parseCategories("")).isEqualTo(defaultCategories);
+    assertThat(ToolCategory.parseCategories("   ")).isEqualTo(defaultCategories);
+  }
+
+  @Test
+  void should_return_default_enabled_categories() {
+    var defaultCategories = ToolCategory.defaultEnabled();
+
+    assertThat(defaultCategories).containsExactlyInAnyOrder(
+      ToolCategory.ANALYSIS,
+      ToolCategory.ISSUES,
+      ToolCategory.PROJECTS,
+      ToolCategory.QUALITY_GATES,
+      ToolCategory.RULES,
+      ToolCategory.DUPLICATIONS,
+      ToolCategory.MEASURES,
+      ToolCategory.SECURITY_HOTSPOTS,
+      ToolCategory.DEPENDENCY_RISKS,
+      ToolCategory.EXTERNAL
+    );
   }
 
   @Test

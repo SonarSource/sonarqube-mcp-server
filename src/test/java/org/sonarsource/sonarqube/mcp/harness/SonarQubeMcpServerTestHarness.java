@@ -26,12 +26,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -45,6 +47,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -53,8 +56,13 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 
 public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<SonarQubeMcpServerTestHarness> implements AfterEachCallback, BeforeEachCallback, AfterAllCallback {
+  private static final String ALL_TOOLSETS = Arrays.stream(ToolCategory.values())
+    .map(ToolCategory::getKey)
+    .collect(Collectors.joining(","));
+
   private static final Map<String, String> DEFAULT_ENV_TEMPLATE = Map.of(
-    "SONARQUBE_TOKEN", "token");
+    "SONARQUBE_TOKEN", "token",
+    "SONARQUBE_TOOLSETS", ALL_TOOLSETS);
   private final List<McpSyncClient> clients = new ArrayList<>();
   private final List<SonarQubeMcpServer> servers = new ArrayList<>();
   private Path tempStoragePath;

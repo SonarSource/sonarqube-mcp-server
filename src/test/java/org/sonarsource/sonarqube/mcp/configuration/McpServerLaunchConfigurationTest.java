@@ -199,7 +199,7 @@ class McpServerLaunchConfigurationTest {
   // Tool category tests
 
   @Test
-  void should_enable_all_categories_by_default(@TempDir Path tempDir) {
+  void should_enable_only_important_categories_by_default(@TempDir Path tempDir) {
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
     var configuration = new McpServerLaunchConfiguration(arg);
 
@@ -208,13 +208,16 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.QUALITY_GATES)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isTrue();
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.SOURCES)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.SOURCES)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.DUPLICATIONS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.MEASURES)).isTrue();
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.LANGUAGES)).isTrue();
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.PORTFOLIOS)).isTrue();
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.SYSTEM)).isTrue();
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.WEBHOOKS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.LANGUAGES)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.PORTFOLIOS)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.SYSTEM)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.WEBHOOKS)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.SECURITY_HOTSPOTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.EXTERNAL)).isTrue();
   }
 
   @Test
