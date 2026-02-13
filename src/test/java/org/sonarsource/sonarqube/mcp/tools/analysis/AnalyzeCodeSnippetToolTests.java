@@ -141,7 +141,7 @@ class AnalyzeCodeSnippetToolTests {
   @Nested
   class MissingPrerequisite {
     @SonarQubeMcpServerTest
-    void it_should_return_an_error_if_codeSnippet_is_missing(SonarQubeMcpServerTestHarness harness) {
+    void it_should_return_an_error_if_fileContent_is_missing(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(
@@ -149,7 +149,7 @@ class AnalyzeCodeSnippetToolTests {
         Map.of(AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, ""));
 
       assertThat(result)
-        .isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: codeSnippet").build());
+        .isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: fileContent").build());
     }
   }
 
@@ -157,14 +157,14 @@ class AnalyzeCodeSnippetToolTests {
   class Connected {
 
     @SonarQubeMcpServerTest
-    void it_should_find_no_issues_in_an_empty_file(SonarQubeMcpServerTestHarness harness) {
+    void it_should_find_no_issues_in_empty_content(SonarQubeMcpServerTestHarness harness) {
       mockServerRules(harness, null, List.of("php:S1135"));
       var mcpClient = harness.withPlugins().newClient();
 
       var result = mcpClient.callTool(
         TOOL_NAME,
         Map.of(
-          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, "",
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, "",
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, ""));
 
       assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
@@ -178,7 +178,7 @@ class AnalyzeCodeSnippetToolTests {
       var result = mcpClient.callTool(
         TOOL_NAME,
         Map.of(
-          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, """
             // TODO just do it
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
@@ -210,7 +210,7 @@ class AnalyzeCodeSnippetToolTests {
         TOOL_NAME,
         Map.of(
           AnalyzeCodeSnippetTool.PROJECT_KEY_PROPERTY, "projectKey",
-          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, """
             // TODO just do it
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
@@ -243,7 +243,7 @@ class AnalyzeCodeSnippetToolTests {
       var result = mcpClient.callTool(
         TOOL_NAME,
         Map.of(
-          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, """
             // TODO just do it
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
@@ -259,7 +259,7 @@ class AnalyzeCodeSnippetToolTests {
       var result = mcpClient.callTool(
         TOOL_NAME,
         Map.of(
-          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, """
             // TODO just do it
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php",
@@ -291,13 +291,142 @@ class AnalyzeCodeSnippetToolTests {
       var result = mcpClient.callTool(
         TOOL_NAME,
         Map.of(
-          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, """
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, """
             // TODO just do it
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php",
           AnalyzeCodeSnippetTool.SCOPE_PROPERTY, "TEST"));
 
       assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_analyze_file_content(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var mcpClient = harness.withPlugins().newClient();
+
+      var result = mcpClient.callTool(
+        TOOL_NAME,
+        Map.of(
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, "// TODO just do it\n",
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "ruleKey" : "php:S1135",
+            "primaryMessage" : "Complete the task associated to this \\"TODO\\" comment.",
+            "severity" : "INFO",
+            "cleanCodeAttribute" : "COMPLETE",
+            "impacts" : "{MAINTAINABILITY=INFO}",
+            "hasQuickFixes" : false,
+            "textRange" : {
+              "startLine" : 1,
+              "endLine" : 1
+            }
+          } ],
+          "issueCount" : 1
+        }""");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_analyze_snippet_with_file_context_and_filter_issues(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var mcpClient = harness.withPlugins().newClient();
+
+      var fileContent = """
+        <?php
+        // TODO existing issue line 2
+        function foo() {
+          // TODO new issue in snippet
+          $x = 1;
+          return true;
+        }
+        // TODO another issue line 8
+        """;
+
+      // Analyze only the snippet (tool will auto-detect it's at lines 4-5)
+      var result = mcpClient.callTool(
+        TOOL_NAME,
+        Map.of(
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, fileContent,
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, "  // TODO new issue in snippet\n  $x = 1;",
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
+
+      // Should only report the issue in the snippet (line 4), not the ones outside
+      var resultStr = result.content().getFirst().toString();
+      assertThat(resultStr).contains("\"issueCount\" : 1");
+      assertThat(resultStr).contains("\"startLine\" : 4");
+      assertThat(resultStr).contains("Complete the task associated to this");
+      // Should not contain issues from line 2 or line 8
+      assertThat(resultStr).doesNotContain("\"startLine\" : 2");
+      assertThat(resultStr).doesNotContain("\"startLine\" : 8");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_auto_detect_snippet_location(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var mcpClient = harness.withPlugins().newClient();
+
+      var fileContent = """
+        <?php
+        function foo() {
+          // TODO implement this
+          return null;
+        }
+        """;
+
+      var result = mcpClient.callTool(
+        TOOL_NAME,
+        Map.of(
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, fileContent,
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, "  // TODO implement this",
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
+
+      assertThat(result.isError()).isFalse();
+      var resultStr = result.content().getFirst().toString();
+      assertThat(resultStr).contains("\"issueCount\" : 1");
+      assertThat(resultStr).contains("\"startLine\" : 3");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_error_when_snippet_not_found_in_file(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var mcpClient = harness.withPlugins().newClient();
+
+      var result = mcpClient.callTool(
+        TOOL_NAME,
+        Map.of(
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, "<?php\necho 'hello';\n",
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, "// This line does not exist in the file",
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
+
+      assertThat(result.isError()).isTrue();
+      assertThat(result.toString()).contains("Could not find the provided code snippet");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_handle_windows_line_endings(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var mcpClient = harness.withPlugins().newClient();
+
+      // File content with Windows line endings (\r\n)
+      var fileContent = "<?php\r\n// TODO existing issue\r\nfunction foo() {\r\n  // TODO snippet issue\r\n  return true;\r\n}\r\n";
+      
+      // Snippet with Unix line endings (\n) - should still match
+      var snippet = "  // TODO snippet issue\n  return true;";
+
+      var result = mcpClient.callTool(
+        TOOL_NAME,
+        Map.of(
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, fileContent,
+          AnalyzeCodeSnippetTool.SNIPPET_PROPERTY, snippet,
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
+
+      assertThat(result.isError()).isFalse();
+      var resultStr = result.content().getFirst().toString();
+      assertThat(resultStr).contains("\"issueCount\" : 1");
+      assertThat(resultStr).contains("\"startLine\" : 4");
     }
 
   }
