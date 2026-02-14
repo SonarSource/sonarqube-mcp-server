@@ -172,7 +172,7 @@ get_project_quality_gate_status({
 
 ```bash
 # For code analysis workflow
-docker run -i --rm \
+docker run --init --pull=always -i --rm \
   -e SONARQUBE_TOOLSETS="analysis,issues,quality-gates" \
   -e SONARQUBE_TOKEN="<token>" \
   -e SONARQUBE_ORG="<org>" \
@@ -184,7 +184,7 @@ Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `
 **Read-Only Mode** - Disable write operations for safer exploration:
 
 ```bash
-docker run -i --rm \
+docker run --init --pull=always -i --rm \
   -e SONARQUBE_READ_ONLY="true" \
   -e SONARQUBE_TOKEN="<token>" \
   -e SONARQUBE_ORG="<org>" \
@@ -323,6 +323,8 @@ For SonarQube Cloud:
       "command": "docker",
       "args": [
         "run",
+        "--init",
+        "--pull=always",
         "-i",
         "--rm",
         "-e",
@@ -349,6 +351,8 @@ For SonarQube Server:
       "command": "docker",
       "args": [
         "run",
+        "--init",
+        "--pull=always",
         "-i",
         "--rm",
         "-e",
