@@ -16,6 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
@@ -27,7 +31,9 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
@@ -45,6 +51,8 @@ class ProxiedToolsLoaderMediumTest {
   private static Path testServerScript;
   
   private ProxiedToolsLoader loader;
+  private ListAppender<ILoggingEvent> logAppender;
+  private Logger mcpClientManagerLogger;
 
   @BeforeAll
   static void setupTestEnvironment() {
@@ -52,6 +60,18 @@ class ProxiedToolsLoaderMediumTest {
     if (resourceUrl != null) {
       testServerScript = Paths.get(resourceUrl.getPath());
     }
+  }
+
+  @BeforeEach
+  void setupLogCapture() {
+    // Set up log capture for McpLogger to test log level parsing
+    mcpClientManagerLogger = (Logger) LoggerFactory.getLogger("org.sonarsource.sonarqube.mcp.log.McpLogger");
+    logAppender = new ListAppender<>();
+    logAppender.start();
+    mcpClientManagerLogger.addAppender(logAppender);
+    
+    // Enable TRACE level to capture all log levels including TRACE
+    mcpClientManagerLogger.setLevel(Level.TRACE);
   }
 
   @AfterEach
@@ -62,6 +82,10 @@ class ProxiedToolsLoaderMediumTest {
     }
     if (testConfigFile != null && Files.exists(testConfigFile)) {
       Files.deleteIfExists(testConfigFile);
+    }
+    if (mcpClientManagerLogger != null && logAppender != null) {
+      mcpClientManagerLogger.detachAppender(logAppender);
+      logAppender.stop();
     }
   }
 
@@ -86,11 +110,11 @@ class ProxiedToolsLoaderMediumTest {
       .hasSize(2);
 
     var toolNames = tools.stream().map(t -> t.definition().name()).toList();
-    assertThat(toolNames).containsExactlyInAnyOrder("test_test_tool_1", "test_test_tool_2");
+    assertThat(toolNames).containsExactlyInAnyOrder("test_tool_1", "test_tool_2");
   }
 
   @Test
-  void loadProxiedTools_should_apply_namespace_prefix_to_tool_names() {
+  void loadProxiedTools_should_not_apply_namespace_prefix_to_tool_names() {
     createTestConfig(List.of(
       Map.of(
         "name", "my-server",
@@ -108,7 +132,7 @@ class ProxiedToolsLoaderMediumTest {
     assertThat(tools).hasSize(2);
     
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("myserver_test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_tool_1"))
       .findFirst();
     
     assertThat(tool1).isPresent();
@@ -133,7 +157,7 @@ class ProxiedToolsLoaderMediumTest {
 
     assertThat(tools)
       .isNotEmpty()
-      .allMatch(t -> t.getCategory() == ToolCategory.EXTERNAL)
+      .allMatch(t -> t.getCategory() == ToolCategory.CAG)
       .allMatch(ProxiedMcpTool.class::isInstance);
   }
 
@@ -155,7 +179,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("test_test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -190,12 +214,12 @@ class ProxiedToolsLoaderMediumTest {
     loader = new ProxiedToolsLoader();
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
-    assertThat(tools).hasSize(4);
+    // Note: Without namespace prefixing, we'll only get 2 tools since both servers expose the same tool names
+    // The second server's tools will overwrite the first server's tools in the map
+    assertThat(tools).hasSize(2);
 
     var toolNames = tools.stream().map(t -> t.definition().name()).toList();
-    assertThat(toolNames)
-      .contains("s1_test_tool_1", "s1_test_tool_2")
-      .contains("s2_test_tool_1", "s2_test_tool_2");
+    assertThat(toolNames).containsExactlyInAnyOrder("test_tool_1", "test_tool_2");
   }
 
   @Test
@@ -223,7 +247,8 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).hasSize(2);
-    assertThat(tools.stream().map(t -> t.definition().name())).allMatch(name -> name.startsWith("good_"));
+    var toolNames = tools.stream().map(t -> t.definition().name()).toList();
+    assertThat(toolNames).containsExactlyInAnyOrder("test_tool_1", "test_tool_2");
   }
 
   @Test
@@ -245,7 +270,7 @@ class ProxiedToolsLoaderMediumTest {
 
     // The test server includes the TEST_ENV_VAR in the tool description
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("test_test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -270,7 +295,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool1 = (ProxiedMcpTool) tools.stream()
-      .filter(t -> t.definition().name().equals("test_test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -304,7 +329,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool2 = (ProxiedMcpTool) tools.stream()
-      .filter(t -> t.definition().name().equals("test_test_tool_2"))
+      .filter(t -> t.definition().name().equals("test_tool_2"))
       .findFirst()
       .orElseThrow();
 
@@ -345,6 +370,95 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).isEmpty();
+  }
+
+  @Test
+  void should_parse_TRACE_level_from_proxied_server_logs() {
+    logAppender.list.clear();
+    
+    McpClientManager.logProxiedServerOutput("test-server", "| TRACE Test trace message");
+    
+    var traceLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.TRACE)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+    
+    assertThat(traceLog).isPresent();
+    assertThat(traceLog.get().getFormattedMessage()).contains("| TRACE Test trace message");
+  }
+
+  @Test
+  void should_parse_DEBUG_level_from_proxied_server_logs() {
+    logAppender.list.clear();
+    
+    McpClientManager.logProxiedServerOutput("test-server", "| DEBUG Test debug message");
+    
+    var debugLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.DEBUG)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+    
+    assertThat(debugLog).isPresent();
+    assertThat(debugLog.get().getFormattedMessage()).contains("| DEBUG Test debug message");
+  }
+
+  @Test
+  void should_parse_INFO_level_from_proxied_server_logs() {
+    logAppender.list.clear();
+    
+    McpClientManager.logProxiedServerOutput("test-server", "| INFO Test info message");
+    
+    var infoLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.INFO)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+    
+    assertThat(infoLog).isPresent();
+    assertThat(infoLog.get().getFormattedMessage()).contains("| INFO Test info message");
+  }
+
+  @Test
+  void should_parse_WARN_level_from_proxied_server_logs() {
+    logAppender.list.clear();
+    
+    McpClientManager.logProxiedServerOutput("test-server", "| WARN Test warning message");
+    
+    var warnLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.WARN)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+    
+    assertThat(warnLog).isPresent();
+    assertThat(warnLog.get().getFormattedMessage()).contains("| WARN Test warning message");
+  }
+
+  @Test
+  void should_parse_ERROR_level_from_proxied_server_logs() {
+    logAppender.list.clear();
+    
+    McpClientManager.logProxiedServerOutput("test-server", "| ERROR Test error message");
+    
+    var errorLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.ERROR)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+    
+    assertThat(errorLog).isPresent();
+    assertThat(errorLog.get().getFormattedMessage()).contains("| ERROR Test error message");
+  }
+
+  @Test
+  void should_default_to_INFO_for_unrecognized_log_format() {
+    logAppender.list.clear();
+    
+    McpClientManager.logProxiedServerOutput("test-server", "Some random log without level");
+    
+    var infoLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.INFO)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+    
+    assertThat(infoLog).isPresent();
   }
 
   private void createTestConfig(List<Map<String, Object>> configs) {

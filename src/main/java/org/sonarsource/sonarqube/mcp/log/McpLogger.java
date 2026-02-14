@@ -38,8 +38,14 @@ public class McpLogger {
     logToStderr("INFO", message);
   }
 
+  public void trace(String message) {
+    LOG.trace(message);
+    logToStderr("TRACE", message);
+  }
+
   public void debug(String message) {
     LOG.debug(message);
+    logToStderr("DEBUG", message);
   }
 
   public void warn(String message) {
@@ -51,6 +57,11 @@ public class McpLogger {
     LOG.error(message, throwable);
     logToStderr("ERROR", message);
     throwable.printStackTrace(System.err);
+  }
+  
+  public void error(String message) {
+    LOG.error(message);
+    logToStderr("ERROR", message);
   }
 
   private static void logToStderr(String level, String message) {

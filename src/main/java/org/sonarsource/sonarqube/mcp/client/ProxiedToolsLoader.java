@@ -65,7 +65,7 @@ public class ProxiedToolsLoader {
       .toList();
 
     if (compatibleConfigs.isEmpty()) {
-      LOG.info("No external tool providers compatible with " + currentTransportMode.toConfigString() + " transport (total configured: " + allConfigs.size() + ")");
+      LOG.info("No CAG tool providers compatible with " + currentTransportMode.toConfigString() + " transport (total configured: " + allConfigs.size() + ")");
       return List.of();
     }
     
@@ -77,7 +77,7 @@ public class ProxiedToolsLoader {
 
       var tools = mcpClientManager.getAllProxiedTools().entrySet().stream()
         .map(e -> (Tool) new ProxiedMcpTool(
-          e.getKey(),
+          e.getValue().originalToolName(),
           e.getValue().serverId(),
           e.getValue().originalToolName(),
           e.getValue().tool(),

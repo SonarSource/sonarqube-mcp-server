@@ -5,7 +5,7 @@ RUN apk update &&  \
 
 WORKDIR /app
 
-ADD https://github.com/SonarSource/sonarqube-mcp-server/releases/download/1.9.0.1909/sonarqube-mcp-server-1.9.0.1909.jar ./sonarqube-mcp-server.jar
+COPY sonarqube-mcp-server.jar ./sonarqube-mcp-server.jar
 
 RUN jdeps --ignore-missing-deps -q  \
     --recursive  \
@@ -34,19 +34,33 @@ RUN apk add --no-cache \
         git \
         nodejs=~24 \
         npm \
+        python3=~3.12 \
+        py3-pip \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
-        mkdir -p /home/appuser/.sonarlint ./storage && \
-        chown -R appuser:appgroup /home/appuser ./storage && \
+        mkdir -p /home/appuser/.sonarlint /app/storage && \
+        chown -R appuser:appgroup /home/appuser /app/storage && \
         echo "appuser ALL=(ALL) NOPASSWD: /usr/sbin/update-ca-certificates" > /etc/sudoers.d/appuser && \
         chmod 0440 /etc/sudoers.d/appuser
 
+# Install Python dependencies for sonar-code-context
+USER appuser
+COPY --chown=appuser:appgroup requirements.txt /app/requirements.txt
+RUN python3 -m pip install --no-cache-dir --break-system-packages --user -r /app/requirements.txt
+
+# Copy sonar-code-context-mcp binary
+COPY --chown=appuser:appgroup --chmod=755 sonar-code-context-mcp /home/appuser/.local/bin/sonar-code-context-mcp
+
+# Ensure the installed binary is in PATH
+ENV PATH="/home/appuser/.local/bin:${PATH}"
+
 COPY --from=builder --chown=appuser:appgroup --chmod=755 /app/sonarqube-mcp-server.jar /app/sonarqube-mcp-server.jar
 COPY --chown=appuser:appgroup --chmod=755 scripts/install-certificates.sh /usr/local/bin/install-certificates
+COPY --chown=appuser:appgroup --chmod=755 scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 
-USER appuser
 WORKDIR /app
-ENV STORAGE_PATH=./storage
+ENV STORAGE_PATH=/app/storage
+ENV SONARQUBE_TOOLSETS=cag
 LABEL io.modelcontextprotocol.server.name="io.github.SonarSource/sonarqube-mcp-server"
 
-ENTRYPOINT ["/bin/sh", "-c", "/usr/local/bin/install-certificates && exec java -jar /app/sonarqube-mcp-server.jar"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
