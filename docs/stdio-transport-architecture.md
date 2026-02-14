@@ -60,7 +60,7 @@ This document focuses on the **Stdio Transport**.
 
 ```
 1. MCP Client reads configuration
-   ├─> Command: docker run -i --rm mcp/sonarqube
+   ├─> Command: docker run --init --pull=always -i --rm mcp/sonarqube
    ├─> Environment: SONARQUBE_TOKEN, SONARQUBE_ORG
    └─> Spawn child process
 
