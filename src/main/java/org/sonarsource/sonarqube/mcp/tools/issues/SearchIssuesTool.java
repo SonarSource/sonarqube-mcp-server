@@ -88,7 +88,8 @@ public class SearchIssuesTool extends Tool {
       arguments.getOptionalStringList(ISSUE_STATUSES_PROPERTY),
       arguments.getOptionalStringList(ISSUE_KEY_PROPERTY),
       arguments.getOptionalInteger(PAGE_PROPERTY),
-      arguments.getOptionalInteger(PAGE_SIZE_PROPERTY)
+      arguments.getOptionalInteger(PAGE_SIZE_PROPERTY),
+      null
     );
   }
 

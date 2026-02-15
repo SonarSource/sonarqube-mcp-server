@@ -46,7 +46,8 @@ public class IssuesApi {
     @Nullable List<String> issueStatuses,
     @Nullable List<String> issueKeys,
     @Nullable Integer page,
-    @Nullable Integer pageSize
+    @Nullable Integer pageSize,
+    @Nullable Boolean inNewCodePeriod
   ) {}
 
   public SearchResponse search(SearchParams params) {
@@ -64,8 +65,17 @@ public class IssuesApi {
   }
 
   private String buildIssueSearchPath(SearchParams params) {
-    var builder = new UrlBuilder(SEARCH_PATH)
-      .addParam("projects", params.projects())
+    var builder = new UrlBuilder(SEARCH_PATH);
+    
+    // When inNewCodePeriod=true, use componentKeys instead of projects (API requirement)
+    var projects = params.projects();
+    if (Boolean.TRUE.equals(params.inNewCodePeriod()) && projects != null && !projects.isEmpty()) {
+      builder.addParam("componentKeys", projects.getFirst());
+    } else {
+      builder.addParam("projects", projects);
+    }
+    
+    builder
       .addParam("branch", params.branch())
       .addParam("components", params.files())
       .addParam("pullRequest", params.pullRequestId())
@@ -75,6 +85,7 @@ public class IssuesApi {
       .addParam("issues", params.issueKeys())
       .addParam("p", params.page())
       .addParam("ps", params.pageSize())
+      .addParam("inNewCodePeriod", params.inNewCodePeriod())
       .addParam("organization", helper.getOrganization());
     return builder.build();
   }
