@@ -44,8 +44,7 @@ public record SearchDependencyRisksToolResponse(
     @JsonPropertyDescription("Package version") String version,
     @JsonPropertyDescription("Package manager (npm, maven, etc.)") String packageManager,
     @JsonPropertyDescription("Whether this dependency was newly introduced") @Nullable Boolean newlyIntroduced,
-    @JsonPropertyDescription("Direct dependency summary") @Nullable Boolean directSummary,
-    @JsonPropertyDescription("Production scope summary") @Nullable Boolean productionScopeSummary
+    @JsonPropertyDescription("Direct dependency summary") @Nullable Boolean directSummary
   ) {}
   
   public record Assignee(

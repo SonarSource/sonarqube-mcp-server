@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record GetDuplicationsToolResponse(
+  public record GetDuplicationsToolResponse(
   @JsonPropertyDescription("List of duplication groups found") List<Duplication> duplications,
   @JsonPropertyDescription("Map of file references to file information") List<FileInfo> files
 ) {
@@ -33,16 +33,13 @@ public record GetDuplicationsToolResponse(
   public record Block(
     @JsonPropertyDescription("Starting line number") int from,
     @JsonPropertyDescription("Number of lines") int size,
-    @JsonPropertyDescription("File reference") String fileRef,
     @JsonPropertyDescription("File name") String fileName,
-    @JsonPropertyDescription("File key") String fileKey,
-    @JsonPropertyDescription("Project name") String projectName
+    @JsonPropertyDescription("File key") String fileKey
   ) {}
 
   public record FileInfo(
     @JsonPropertyDescription("File key") String key,
-    @JsonPropertyDescription("File name") String name,
-    @JsonPropertyDescription("Project name") String projectName
+    @JsonPropertyDescription("File name") String name
   ) {}
 
 }

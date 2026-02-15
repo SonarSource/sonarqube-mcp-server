@@ -41,7 +41,8 @@ public class SearchMyProjectsTool extends Tool {
 
   private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
     var scope = isSonarCloud ? "organization" : "instance";
-    var description = "Find SonarQube projects in your " + scope + ". Supports searching by project name or key. The response is paginated.";
+    var description = "Find SonarQube projects in your " + scope + ". Supports searching by project name or key. " +
+      "Use this first when projectKey is unknown - most other tools require the project key from this response.";
 
     return SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
       .setName(TOOL_NAME)

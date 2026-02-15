@@ -39,12 +39,7 @@ public record GetComponentMeasuresToolResponse(
   
   public record Measure(
     @JsonPropertyDescription("Metric key") String metric,
-    @JsonPropertyDescription("Measure value") @Nullable String value,
-    @JsonPropertyDescription("Historical period values") @Nullable List<Period> periods
-  ) {}
-  
-  public record Period(
-    @JsonPropertyDescription("Period value") String value
+    @JsonPropertyDescription("Measure value") @Nullable String value
   ) {}
   
   public record Metric(
@@ -53,8 +48,6 @@ public record GetComponentMeasuresToolResponse(
     @JsonPropertyDescription("Metric description") String description,
     @JsonPropertyDescription("Metric domain/category") String domain,
     @JsonPropertyDescription("Metric value type") String type,
-    @JsonPropertyDescription("Whether higher values are better") boolean higherValuesAreBetter,
-    @JsonPropertyDescription("Whether this is a qualitative metric") boolean qualitative,
     @JsonPropertyDescription("Whether the metric is hidden") boolean hidden,
     @JsonPropertyDescription("Whether this is a custom metric") boolean custom
   ) {}

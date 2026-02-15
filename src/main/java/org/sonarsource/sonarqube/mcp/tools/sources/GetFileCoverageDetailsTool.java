@@ -34,7 +34,7 @@ public class GetFileCoverageDetailsTool extends Tool {
   public GetFileCoverageDetailsTool(ServerApiProvider serverApiProvider) {
     super(SchemaToolBuilder.forOutput(GetFileCoverageDetailsToolResponse.class)
         .setName(TOOL_NAME)
-        .setTitle("Get File Coverage Details")
+        .setTitle("Get SonarQube File Coverage Details")
         .setDescription("Get complete line-by-line coverage information for a file, " +
           "including which exact lines are uncovered and which have partially covered branches. " +
           "This tool helps identify precisely where to add test coverage. " +

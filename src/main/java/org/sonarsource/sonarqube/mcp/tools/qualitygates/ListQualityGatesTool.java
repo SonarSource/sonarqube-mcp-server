@@ -32,7 +32,7 @@ public class ListQualityGatesTool extends Tool {
     super(SchemaToolBuilder.forOutput(ListQualityGatesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Quality Gates")
-      .setDescription("List all quality gates in my SonarQube.")
+      .setDescription("List all quality gates.")
       .setReadOnlyHint()
       .build(),
       ToolCategory.QUALITY_GATES);

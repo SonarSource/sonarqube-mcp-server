@@ -31,7 +31,7 @@ public class ListPullRequestsTool extends Tool {
   public ListPullRequestsTool(ServerApiProvider serverApiProvider) {
     super(SchemaToolBuilder.forOutput(ListPullRequestsToolResponse.class)
         .setName(TOOL_NAME)
-        .setTitle("List Pull Requests")
+        .setTitle("List SonarQube Pull Requests")
         .setDescription("List all pull requests for a project. " +
           "Use this tool to discover available pull requests and their corresponding branch names before analyzing their coverage, issues, or quality. " +
           "Returns the pull request key/ID and source branch for each PR, which can be used with other tools that accept a pullRequest parameter.")

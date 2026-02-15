@@ -34,7 +34,7 @@ public class GetDuplicationsTool extends Tool {
     super(SchemaToolBuilder.forOutput(GetDuplicationsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Code Duplications")
-      .setDescription("Get duplications for a file. Require Browse permission on file's project")
+      .setDescription("Get duplications for a file. Requires Browse permission on file's project")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")
       .setReadOnlyHint()
@@ -62,10 +62,8 @@ public class GetDuplicationsTool extends Tool {
             return new GetDuplicationsToolResponse.Block(
               block.from(),
               block.size(),
-              block._ref(),
               fileInfo != null ? fileInfo.name() : "",
-              fileInfo != null ? fileInfo.key() : "",
-              fileInfo != null ? fileInfo.projectName() : ""
+              fileInfo != null ? fileInfo.key() : ""
             );
           })
           .toList();
@@ -76,8 +74,7 @@ public class GetDuplicationsTool extends Tool {
     var files = duplicationsResponse.files().values().stream()
       .map(fileInfo -> new GetDuplicationsToolResponse.FileInfo(
         fileInfo.key(),
-        fileInfo.name(),
-        fileInfo.projectName()
+        fileInfo.name()
       ))
       .toList();
 
