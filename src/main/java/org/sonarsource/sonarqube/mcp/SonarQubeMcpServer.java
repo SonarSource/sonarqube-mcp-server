@@ -76,7 +76,6 @@ import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
-import org.sonarsource.sonarqube.mcp.tools.rules.ListRuleRepositoriesTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
 import org.sonarsource.sonarqube.mcp.tools.duplications.GetDuplicationsTool;
 import org.sonarsource.sonarqube.mcp.tools.duplications.SearchDuplicatedFilesTool;
@@ -306,7 +305,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ChangeSecurityHotspotStatusTool(this),
       new ProjectStatusTool(this),
       new ShowRuleTool(this),
-      new ListRuleRepositoriesTool(this),
       new ListQualityGatesTool(this),
       new ListLanguagesTool(this),
       new GetComponentMeasuresTool(this),
