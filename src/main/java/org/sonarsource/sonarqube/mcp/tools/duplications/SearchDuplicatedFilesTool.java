@@ -53,8 +53,8 @@ public class SearchDuplicatedFilesTool extends Tool {
   public SearchDuplicatedFilesTool(ServerApiProvider serverApiProvider) {
     super(SchemaToolBuilder.forOutput(SearchDuplicatedFilesToolResponse.class)
         .setName(TOOL_NAME)
-        .setTitle("Search Files With Duplications")
-        .setDescription("Search for files with code duplications in a SonarQube project. " +
+        .setTitle("Search SonarQube Files With Duplications")
+        .setDescription("Search for files with code duplications in a project. " +
           "By default, automatically fetches all duplicated files across all pages (up to 10,000 files max).")
         .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)")
         .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")

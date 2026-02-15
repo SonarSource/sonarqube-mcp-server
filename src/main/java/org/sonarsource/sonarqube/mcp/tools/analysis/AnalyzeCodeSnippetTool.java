@@ -80,6 +80,16 @@ public class AnalyzeCodeSnippetTool extends Tool {
         .addStringProperty(SCOPE_PROPERTY, "Scope of the file: MAIN or TEST (default: MAIN)")
         .setReadOnlyHint()
         .build(),
+      .setName(TOOL_NAME)
+      .setTitle("SonarQube Code Analysis")
+      .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
+        "Specify the language of the snippet to improve analysis accuracy.")
+      .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
+      .addRequiredStringProperty(SNIPPET_PROPERTY, "Code snippet or full file content")
+      .addStringProperty(LANGUAGE_PROPERTY, "Language of the code snippet")
+      .addEnumProperty(SCOPE_PROPERTY, new String[] {"MAIN", "TEST"}, "Scope of the file (default: MAIN)")
+      .setReadOnlyHint()
+      .build(),
       ToolCategory.ANALYSIS);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
@@ -104,7 +114,8 @@ public class AnalyzeCodeSnippetTool extends Tool {
     var fileContent = arguments.getStringOrThrow(FILE_CONTENT_PROPERTY);
     var codeSnippet = arguments.getOptionalString(SNIPPET_PROPERTY);
     var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
-    var scope = arguments.getOptionalString(SCOPE_PROPERTY);
+    var scopeList = arguments.getOptionalStringList(SCOPE_PROPERTY);
+    var scope = (scopeList != null && !scopeList.isEmpty()) ? scopeList.getFirst() : null;
 
     AnalysisMode mode;
     Integer snippetStartLineNumber = null;

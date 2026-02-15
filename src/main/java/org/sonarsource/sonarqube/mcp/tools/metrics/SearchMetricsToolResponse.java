@@ -33,8 +33,6 @@ public record SearchMetricsToolResponse(
     @JsonPropertyDescription("Metric description") String description,
     @JsonPropertyDescription("Metric domain/category") String domain,
     @JsonPropertyDescription("Metric value type") String type,
-    @JsonPropertyDescription("Direction for metric improvement") int direction,
-    @JsonPropertyDescription("Whether this is a qualitative metric") boolean qualitative,
     @JsonPropertyDescription("Whether the metric is hidden") boolean hidden,
     @JsonPropertyDescription("Whether this is a custom metric") boolean custom
   ) {}

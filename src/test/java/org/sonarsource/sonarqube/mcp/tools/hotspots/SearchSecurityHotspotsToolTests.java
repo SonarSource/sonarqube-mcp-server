@@ -258,64 +258,8 @@ class SearchSecurityHotspotsToolTests {
         .contains(new ReceivedRequest("Bearer token", ""));
     }
 
-    @SonarQubeMcpServerTest
-    void it_should_filter_by_branch(SonarQubeMcpServerTestHarness harness) {
-      var hotspotKey = "AXJMFm6ERa2AinNL_0fP";
-      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project&branch=feature%2Fmy-branch")
-        .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes("""
-            {
-                "paging": {
-                  "pageIndex": 1,
-                  "pageSize": 100,
-                  "total": 1
-                },
-                "hotspots": [%s],
-                "components": []
-              }
-            """.formatted(generateHotspot(hotspotKey)).getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"));
-
-      var result = mcpClient.callTool(
-        SearchSecurityHotspotsTool.TOOL_NAME,
-        Map.of(
-          SearchSecurityHotspotsTool.PROJECT_KEY_PROPERTY, "my-project",
-          SearchSecurityHotspotsTool.BRANCH_PROPERTY, "feature/my-branch"));
-
-      assertResultEquals(result, """
-        {
-          "hotspots" : [ {
-            "key" : "AXJMFm6ERa2AinNL_0fP",
-            "component" : "com.example:project:src/main/java/com/example/Service.java",
-            "project" : "com.example:project",
-            "securityCategory" : "sql-injection",
-            "vulnerabilityProbability" : "HIGH",
-            "status" : "TO_REVIEW",
-            "line" : 42,
-            "message" : "Make sure using this hardcoded IP address is safe here.",
-            "assignee" : "john.doe",
-            "author" : "jane.smith",
-            "creationDate" : "2023-05-13T17:55:39+0200",
-            "updateDate" : "2023-05-14T10:20:15+0200",
-            "textRange" : {
-              "startLine" : 42,
-              "endLine" : 42,
-              "startOffset" : 15,
-              "endOffset" : 30
-            },
-            "ruleKey" : "java:S1313"
-          } ],
-          "paging" : {
-            "pageIndex" : 1,
-            "pageSize" : 100,
-            "total" : 1
-          }
-        }""");
-    }
-
-    @SonarQubeMcpServerTest
-    void it_should_filter_by_status(SonarQubeMcpServerTestHarness harness) {
+  @SonarQubeMcpServerTest
+  void it_should_filter_by_status(SonarQubeMcpServerTestHarness harness) {
       var hotspotKey = "AXJMFm6ERa2AinNL_0fP";
       harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project&status=REVIEWED")
         .willReturn(aResponse().withResponseBody(

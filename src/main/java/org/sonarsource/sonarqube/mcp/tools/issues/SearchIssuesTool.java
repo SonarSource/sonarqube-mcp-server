@@ -47,21 +47,22 @@ public class SearchIssuesTool extends Tool {
 
   private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
     var scope = isSonarCloud ? "my organization's projects" : "my projects";
-    var description = "Search for SonarQube issues in " + scope + ".";
+    var description = "Search for issues (bugs, vulnerabilities, code smells) in " + scope + ". " +
+      "Filter by severities=['HIGH','BLOCKER'] for critical issues, impactSoftwareQualities=['SECURITY'] for security, issueStatuses=['OPEN'] to exclude resolved.";
     
     return SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
       .setName(TOOL_NAME)
-      .setTitle("Search SonarQube Issues in Projects")
+      .setTitle("Search SonarQube Issues")
       .setDescription(description)
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of component keys (files, directories, modules) to filter issues")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
-      .addArrayProperty(SEVERITIES_PROPERTY, "string", "An optional list of severities to filter by, separated by a comma." +
-        " Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER")
-      .addArrayProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, "string", "An optional list of software qualities to filter by." +
-        " Possible values: MAINTAINABILITY, RELIABILITY, SECURITY")
-      .addArrayProperty(ISSUE_STATUSES_PROPERTY, "string", "An optional list of issue statuses to filter by." +
-        " Possible values: OPEN, CONFIRMED, FALSE_POSITIVE, ACCEPTED, FIXED, IN_SANDBOX. IN_SANDBOX value is valid only for SonarQube Server, but not SonarQube Cloud.")
+      .addEnumProperty(SEVERITIES_PROPERTY, new String[] {"INFO", "LOW", "MEDIUM", "HIGH", "BLOCKER"}, 
+        "An optional list of severities to filter by")
+      .addEnumProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, new String[] {"MAINTAINABILITY", "RELIABILITY", "SECURITY"}, 
+        "An optional list of software qualities to filter by")
+      .addEnumProperty(ISSUE_STATUSES_PROPERTY, new String[] {"OPEN", "CONFIRMED", "FALSE_POSITIVE", "ACCEPTED", "FIXED", "IN_SANDBOX"}, 
+        "An optional list of issue statuses to filter by. Note: IN_SANDBOX is valid only for SonarQube Server")
       .addArrayProperty(ISSUE_KEY_PROPERTY, "string", "An optional list of issue keys to fetch specific issues")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")

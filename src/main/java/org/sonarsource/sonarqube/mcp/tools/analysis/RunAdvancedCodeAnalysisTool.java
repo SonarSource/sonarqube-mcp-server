@@ -40,13 +40,13 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider) {
     super(SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
-      .setTitle("Advanced Code Analysis")
-      .setDescription("Run advanced code analysis on SonarQube Cloud for a single file.")
+      .setTitle("SonarQube Advanced Code Analysis")
+      .setDescription("Run advanced code analysis for a single file.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The key of the project.")
       .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "Branch name used to retrieve the latest analysis context.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
       .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The original content of the file to analyze.")
-      .addStringProperty(FILE_SCOPE_PROPERTY, "Defines in which scope the file originates from: 'MAIN' or 'TEST'. Defaults to 'MAIN'.")
+      .addEnumProperty(FILE_SCOPE_PROPERTY, new String[] {"MAIN", "TEST"}, "Defines in which scope the file originates from (default: MAIN)")
       .setReadOnlyHint()
       .build(),
       ToolCategory.ANALYSIS);
@@ -73,13 +73,16 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   }
 
   private static AnalysisCreationRequest extractRequest(Arguments arguments, String organizationKey) {
+    var scopeList = arguments.getOptionalStringList(FILE_SCOPE_PROPERTY);
+    var scope = (scopeList != null && !scopeList.isEmpty()) ? scopeList.getFirst() : null;
+    
     return new AnalysisCreationRequest(
       organizationKey,
       arguments.getStringOrThrow(PROJECT_KEY_PROPERTY),
       arguments.getStringOrThrow(BRANCH_NAME_PROPERTY),
       arguments.getStringOrThrow(FILE_PATH_PROPERTY),
       arguments.getStringOrThrow(FILE_CONTENT_PROPERTY),
-      arguments.getOptionalString(FILE_SCOPE_PROPERTY)
+      scope
     );
   }
 

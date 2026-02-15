@@ -76,15 +76,7 @@ public class GetComponentMeasuresTool extends Tool {
     
     var measures = (comp.measures() != null) ?
       comp.measures().stream()
-        .map(m -> {
-          List<GetComponentMeasuresToolResponse.Period> periods = null;
-          if (m.periods() != null && !m.periods().isEmpty()) {
-            periods = m.periods().stream()
-              .map(p -> new GetComponentMeasuresToolResponse.Period(p.value()))
-              .toList();
-          }
-          return new GetComponentMeasuresToolResponse.Measure(m.metric(), m.value(), periods);
-        })
+        .map(m -> new GetComponentMeasuresToolResponse.Measure(m.metric(), m.value()))
         .toList()
       : List.<GetComponentMeasuresToolResponse.Measure>of();
     
@@ -93,7 +85,7 @@ public class GetComponentMeasuresTool extends Tool {
       metrics = response.metrics().stream()
         .map(m -> new GetComponentMeasuresToolResponse.Metric(
           m.key(), m.name(), m.description(), m.domain(), m.type(),
-          m.higherValuesAreBetter(), m.qualitative(), m.hidden(), m.custom()
+          m.hidden(), m.custom()
         ))
         .toList();
     }

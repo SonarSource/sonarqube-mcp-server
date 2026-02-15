@@ -34,7 +34,7 @@ public class SearchMetricsTool extends Tool {
     super(SchemaToolBuilder.forOutput(SearchMetricsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Metrics")
-      .setDescription("Search for SonarQube metrics")
+      .setDescription("Search for available metrics")
       .addNumberProperty(PAGE_PROPERTY, "1-based page number (default: 1)")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size. Must be greater than 0 and less than or equal to 500 (default: 100)")
       .setReadOnlyHint()
@@ -57,7 +57,7 @@ public class SearchMetricsTool extends Tool {
     var metrics = response.metrics() == null ? java.util.List.<SearchMetricsToolResponse.Metric>of() : response.metrics().stream()
       .map(m -> new SearchMetricsToolResponse.Metric(
         m.id(), m.key(), m.name(), m.description(), m.domain(), m.type(),
-        m.direction(), m.qualitative(), m.hidden(), m.custom()
+        m.hidden(), m.custom()
       ))
       .toList();
 

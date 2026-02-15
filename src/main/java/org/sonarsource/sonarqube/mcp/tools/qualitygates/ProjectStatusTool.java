@@ -37,7 +37,7 @@ public class ProjectStatusTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Quality Gate Status")
       .setDescription("""
-        Get the Quality Gate Status for the SonarQube project. Either '%s', '%s' or '%s' must be provided.
+        Get the Quality Gate Status for a project. Either '%s', '%s' or '%s' must be provided.
         """.formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY))
       .addStringProperty(ANALYSIS_ID_PROPERTY, "The optional analysis ID to get the status for, for example 'AU-TpxcA-iU5OvuD2FL1'")
       .addStringProperty(PROJECT_ID_PROPERTY, """

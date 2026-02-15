@@ -30,7 +30,6 @@ public class SearchSecurityHotspotsTool extends Tool {
 
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
   public static final String HOTSPOT_KEYS_PROPERTY = "hotspotKeys";
-  public static final String BRANCH_PROPERTY = "branch";
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
   public static final String FILES_PROPERTY = "files";
   public static final String STATUS_PROPERTY = "status";
@@ -45,15 +44,14 @@ public class SearchSecurityHotspotsTool extends Tool {
   public SearchSecurityHotspotsTool(ServerApiProvider serverApiProvider) {
     super(SchemaToolBuilder.forOutput(SearchSecurityHotspotsToolResponse.class)
       .setName(TOOL_NAME)
-      .setTitle("Search Security Hotspots")
-      .setDescription("Search for Security Hotspots in a SonarQube project.")
+      .setTitle("Search SonarQube Security Hotspots")
+      .setDescription("Search for Security Hotspots in a project.")
       .addStringProperty(PROJECT_KEY_PROPERTY, "The key of the project or application to search in. Required unless hotspotKeys is provided.")
       .addArrayProperty(HOTSPOT_KEYS_PROPERTY, "string", "Comma-separated list of specific Security Hotspot keys to retrieve. Required unless projectKey is provided.")
-      .addStringProperty(BRANCH_PROPERTY, "The branch name to search for Security Hotspots in")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The identifier of the Pull Request to search in")
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of file paths to filter Security Hotspots")
-      .addStringProperty(STATUS_PROPERTY, "Filter by review status. Possible values: TO_REVIEW, REVIEWED")
-      .addStringProperty(RESOLUTION_PROPERTY, "Filter by resolution (when status is REVIEWED). Possible values: FIXED, SAFE, ACKNOWLEDGED")
+      .addEnumProperty(STATUS_PROPERTY, new String[] {"TO_REVIEW", "REVIEWED"}, "Filter by review status")
+      .addEnumProperty(RESOLUTION_PROPERTY, new String[] {"FIXED", "SAFE", "ACKNOWLEDGED"}, "Filter by resolution (when status is REVIEWED)")
       .addBooleanProperty(SINCE_LEAK_PERIOD_PROPERTY, "If true, only Security Hotspots created since the leak period (new code period) are returned")
       .addBooleanProperty(ONLY_MINE_PROPERTY, "If true, only Security Hotspots assigned to the current user are returned")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
@@ -95,7 +93,7 @@ public class SearchSecurityHotspotsTool extends Tool {
   private static HotspotsApi.SearchParams extractSearchParams(Tool.Arguments arguments) {
     return new HotspotsApi.SearchParams(
       arguments.getOptionalString(PROJECT_KEY_PROPERTY),
-      arguments.getOptionalString(BRANCH_PROPERTY),
+      null,
       arguments.getOptionalString(PULL_REQUEST_PROPERTY),
       arguments.getOptionalStringList(FILES_PROPERTY),
       arguments.getOptionalStringList(HOTSPOT_KEYS_PROPERTY),

@@ -34,7 +34,7 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
   public ChangeSecurityHotspotStatusTool(ServerApiProvider serverApiProvider) {
     super(SchemaToolBuilder.forOutput(ChangeSecurityHotspotStatusToolResponse.class)
       .setName(TOOL_NAME)
-      .setTitle("Change Security Hotspot Status")
+      .setTitle("Change SonarQube Security Hotspot Status")
       .setDescription("""
         Change the status of a Security Hotspot to review it. When marking as REVIEWED, you must specify a resolution.
         - TO_REVIEW: Mark the Security Hotspot as needing review

@@ -33,7 +33,7 @@ public class GetRawSourceTool extends Tool {
     super(SchemaToolBuilder.forOutput(GetRawSourceToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Raw Source Code")
-      .setDescription("Get source code as raw text from SonarQube. Require 'See Source Code' permission on file.")
+      .setDescription("Get source code as raw text. Requires 'See Source Code' permission on file.")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")
       .setReadOnlyHint()
