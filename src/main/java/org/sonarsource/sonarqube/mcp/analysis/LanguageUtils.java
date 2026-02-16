@@ -96,21 +96,9 @@ public class LanguageUtils {
       return null;
     }
 
-    // First, try direct match with language enum name (e.g., "typescript" → TS)
     for (var sonarLanguage : getSupportedSonarLanguages()) {
-      if (sonarLanguage.name().equalsIgnoreCase(languageInput) ||
-        sonarLanguage.getPluginKey().equalsIgnoreCase(languageInput)) {
+      if (sonarLanguage.name().equalsIgnoreCase(languageInput)) {
         return sonarLanguage;
-      }
-    }
-
-    // Second, try to find via plugin key mapping
-    var pluginKey = getPluginKeyForLanguageName(languageInput);
-    if (pluginKey != null) {
-      for (var sonarLanguage : getSupportedSonarLanguages()) {
-        if (sonarLanguage.getPluginKey().equalsIgnoreCase(pluginKey)) {
-          return sonarLanguage;
-        }
       }
     }
 
