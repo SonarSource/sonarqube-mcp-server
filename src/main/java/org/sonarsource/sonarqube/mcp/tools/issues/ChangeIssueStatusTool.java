@@ -27,6 +27,8 @@ public class ChangeIssueStatusTool extends Tool {
   public static final String TOOL_NAME = "change_sonar_issue_status";
   public static final String KEY_PROPERTY = "key";
   public static final String STATUS_PROPERTY = "status";
+  
+  private static final String[] VALID_STATUSES = {"accept", "falsepositive", "reopen"};
 
   private final ServerApiProvider serverApiProvider;
 
@@ -38,7 +40,7 @@ public class ChangeIssueStatusTool extends Tool {
         Change the status of an issue. This tool can be used to change the status of an issue to "accept", "falsepositive" or to "reopen" an issue.
         An example request could be: I would like to accept the issue having the key "AX-HMISMFixnZED\"""")
       .addRequiredStringProperty(KEY_PROPERTY, "The key of the issue which status should be changed")
-      .addRequiredEnumProperty(STATUS_PROPERTY, new String[] {"accept", "falsepositive", "reopen"}, "The new status of the issue")
+      .addRequiredEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "The new status of the issue")
       .build(),
       ToolCategory.ISSUES);
     this.serverApiProvider = serverApiProvider;
@@ -47,7 +49,7 @@ public class ChangeIssueStatusTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
-    var statusString = arguments.getStringListOrThrow(STATUS_PROPERTY).getFirst();
+    var statusString = arguments.getEnumOrThrow(STATUS_PROPERTY, VALID_STATUSES);
     var status = Transition.fromStatus(statusString);
     if (status.isEmpty()) {
       return Tool.Result.failure("Status is unknown: " + statusString);

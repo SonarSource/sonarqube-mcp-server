@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-  public record GetDuplicationsToolResponse(
+public record GetDuplicationsToolResponse(
   @JsonPropertyDescription("List of duplication groups found") List<Duplication> duplications,
   @JsonPropertyDescription("Map of file references to file information") List<FileInfo> files
 ) {

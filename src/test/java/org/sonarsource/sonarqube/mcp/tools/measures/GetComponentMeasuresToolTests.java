@@ -95,22 +95,6 @@ class GetComponentMeasuresToolTests {
                         "type":"string",
                         "description":"Metric key"
                      },
-                     "periods":{
-                        "description":"Historical period values",
-                        "type":"array",
-                        "items":{
-                           "type":"object",
-                           "properties":{
-                              "value":{
-                                 "type":"string",
-                                 "description":"Period value"
-                              }
-                           },
-                           "required":[
-                              "value"
-                           ]
-                        }
-                     },
                      "value":{
                         "type":"string",
                         "description":"Measure value"
@@ -143,10 +127,6 @@ class GetComponentMeasuresToolTests {
                         "type":"boolean",
                         "description":"Whether the metric is hidden"
                      },
-                     "higherValuesAreBetter":{
-                        "type":"boolean",
-                        "description":"Whether higher values are better"
-                     },
                      "key":{
                         "type":"string",
                         "description":"Metric key"
@@ -154,10 +134,6 @@ class GetComponentMeasuresToolTests {
                      "name":{
                         "type":"string",
                         "description":"Metric display name"
-                     },
-                     "qualitative":{
-                        "type":"boolean",
-                        "description":"Whether this is a qualitative metric"
                      },
                      "type":{
                         "type":"string",
@@ -169,10 +145,8 @@ class GetComponentMeasuresToolTests {
                      "description",
                      "domain",
                      "hidden",
-                     "higherValuesAreBetter",
                      "key",
                      "name",
-                     "qualitative",
                      "type"
                   ]
                }
@@ -260,10 +234,7 @@ class GetComponentMeasuresToolTests {
             "metric" : "complexity",
             "value" : "12"
           }, {
-            "metric" : "new_violations",
-            "periods" : [ {
-              "value" : "25"
-            } ]
+            "metric" : "new_violations"
           }, {
             "metric" : "ncloc",
             "value" : "114"
@@ -274,8 +245,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Cyclomatic complexity",
             "domain" : "Complexity",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -284,8 +253,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -294,8 +261,6 @@ class GetComponentMeasuresToolTests {
             "description" : "New Issues",
             "domain" : "Issues",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : true,
             "hidden" : false,
             "custom" : false
           } ]
@@ -335,10 +300,7 @@ class GetComponentMeasuresToolTests {
             "metric" : "complexity",
             "value" : "12"
           }, {
-            "metric" : "new_violations",
-            "periods" : [ {
-              "value" : "25"
-            } ]
+            "metric" : "new_violations"
           }, {
             "metric" : "ncloc",
             "value" : "114"
@@ -349,8 +311,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Cyclomatic complexity",
             "domain" : "Complexity",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -359,8 +319,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -369,8 +327,6 @@ class GetComponentMeasuresToolTests {
             "description" : "New Issues",
             "domain" : "Issues",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : true,
             "hidden" : false,
             "custom" : false
           } ]
@@ -410,10 +366,7 @@ class GetComponentMeasuresToolTests {
             "metric" : "complexity",
             "value" : "12"
           }, {
-            "metric" : "new_violations",
-            "periods" : [ {
-              "value" : "25"
-            } ]
+            "metric" : "new_violations"
           }, {
             "metric" : "ncloc",
             "value" : "114"
@@ -424,8 +377,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Cyclomatic complexity",
             "domain" : "Complexity",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -434,8 +385,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -444,8 +393,6 @@ class GetComponentMeasuresToolTests {
             "description" : "New Issues",
             "domain" : "Issues",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : true,
             "hidden" : false,
             "custom" : false
           } ]
@@ -507,8 +454,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           } ]
@@ -598,8 +543,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Coverage by tests",
             "domain" : "Coverage",
             "type" : "PERCENT",
-            "higherValuesAreBetter" : true,
-            "qualitative" : true,
             "hidden" : false,
             "custom" : false
           }, {
@@ -608,8 +551,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           } ]
@@ -685,10 +626,7 @@ class GetComponentMeasuresToolTests {
             "metric" : "complexity",
             "value" : "12"
           }, {
-            "metric" : "new_violations",
-            "periods" : [ {
-              "value" : "25"
-            } ]
+            "metric" : "new_violations"
           }, {
             "metric" : "ncloc",
             "value" : "114"
@@ -699,8 +637,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Cyclomatic complexity",
             "domain" : "Complexity",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -709,8 +645,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -719,8 +653,6 @@ class GetComponentMeasuresToolTests {
             "description" : "New Issues",
             "domain" : "Issues",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : true,
             "hidden" : false,
             "custom" : false
           } ]
@@ -758,10 +690,7 @@ class GetComponentMeasuresToolTests {
             "metric" : "complexity",
             "value" : "12"
           }, {
-            "metric" : "new_violations",
-            "periods" : [ {
-              "value" : "25"
-            } ]
+            "metric" : "new_violations"
           }, {
             "metric" : "ncloc",
             "value" : "114"
@@ -772,8 +701,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Cyclomatic complexity",
             "domain" : "Complexity",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -782,8 +709,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -792,8 +717,6 @@ class GetComponentMeasuresToolTests {
             "description" : "New Issues",
             "domain" : "Issues",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : true,
             "hidden" : false,
             "custom" : false
           } ]
@@ -831,10 +754,7 @@ class GetComponentMeasuresToolTests {
             "metric" : "complexity",
             "value" : "12"
           }, {
-            "metric" : "new_violations",
-            "periods" : [ {
-              "value" : "25"
-            } ]
+            "metric" : "new_violations"
           }, {
             "metric" : "ncloc",
             "value" : "114"
@@ -845,8 +765,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Cyclomatic complexity",
             "domain" : "Complexity",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -855,8 +773,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           }, {
@@ -865,8 +781,6 @@ class GetComponentMeasuresToolTests {
             "description" : "New Issues",
             "domain" : "Issues",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : true,
             "hidden" : false,
             "custom" : false
           } ]
@@ -926,8 +840,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           } ]
@@ -1015,8 +927,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Coverage by tests",
             "domain" : "Coverage",
             "type" : "PERCENT",
-            "higherValuesAreBetter" : true,
-            "qualitative" : true,
             "hidden" : false,
             "custom" : false
           }, {
@@ -1025,8 +935,6 @@ class GetComponentMeasuresToolTests {
             "description" : "Non Commenting Lines of Code",
             "domain" : "Size",
             "type" : "INT",
-            "higherValuesAreBetter" : false,
-            "qualitative" : false,
             "hidden" : false,
             "custom" : false
           } ]

@@ -37,6 +37,11 @@ public class SearchIssuesTool extends Tool {
   public static final String ISSUE_KEY_PROPERTY = "issueKey";
   public static final String PAGE_PROPERTY = "p";
   public static final String PAGE_SIZE_PROPERTY = "ps";
+  
+  private static final String[] VALID_SEVERITIES = {"INFO", "LOW", "MEDIUM", "HIGH", "BLOCKER"};
+  private static final String[] VALID_IMPACT_SOFTWARE_QUALITIES = {"MAINTAINABILITY", "RELIABILITY", "SECURITY"};
+  private static final String[] VALID_ISSUE_STATUSES = {"OPEN", "CONFIRMED", "FALSE_POSITIVE", "ACCEPTED", "FIXED", "IN_SANDBOX"};
+  
   private final ServerApiProvider serverApiProvider;
 
   public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
@@ -57,12 +62,9 @@ public class SearchIssuesTool extends Tool {
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of component keys (files, directories, modules) to filter issues")
       .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
-      .addEnumProperty(SEVERITIES_PROPERTY, new String[] {"INFO", "LOW", "MEDIUM", "HIGH", "BLOCKER"}, 
-        "An optional list of severities to filter by")
-      .addEnumProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, new String[] {"MAINTAINABILITY", "RELIABILITY", "SECURITY"}, 
-        "An optional list of software qualities to filter by")
-      .addEnumProperty(ISSUE_STATUSES_PROPERTY, new String[] {"OPEN", "CONFIRMED", "FALSE_POSITIVE", "ACCEPTED", "FIXED", "IN_SANDBOX"}, 
-        "An optional list of issue statuses to filter by. Note: IN_SANDBOX is valid only for SonarQube Server")
+      .addEnumProperty(SEVERITIES_PROPERTY, VALID_SEVERITIES, "An optional list of severities to filter by")
+      .addEnumProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES, "An optional list of software qualities to filter by")
+      .addEnumProperty(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES, "An optional list of issue statuses to filter by. Note: IN_SANDBOX is valid only for SonarQube Server")
       .addArrayProperty(ISSUE_KEY_PROPERTY, "string", "An optional list of issue keys to fetch specific issues")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
@@ -84,9 +86,9 @@ public class SearchIssuesTool extends Tool {
       null,
       arguments.getOptionalStringList(FILES_PROPERTY),
       arguments.getOptionalString(PULL_REQUEST_ID_PROPERTY),
-      arguments.getOptionalStringList(SEVERITIES_PROPERTY),
-      arguments.getOptionalStringList(IMPACT_SOFTWARE_QUALITIES_PROPERTY),
-      arguments.getOptionalStringList(ISSUE_STATUSES_PROPERTY),
+      arguments.getOptionalEnumList(SEVERITIES_PROPERTY, VALID_SEVERITIES),
+      arguments.getOptionalEnumList(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES),
+      arguments.getOptionalEnumList(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES),
       arguments.getOptionalStringList(ISSUE_KEY_PROPERTY),
       arguments.getOptionalInteger(PAGE_PROPERTY),
       arguments.getOptionalInteger(PAGE_SIZE_PROPERTY)

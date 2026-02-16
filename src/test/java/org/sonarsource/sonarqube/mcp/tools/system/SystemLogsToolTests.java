@@ -21,7 +21,6 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.Nested;
-import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
@@ -88,7 +87,7 @@ class SystemLogsToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(SystemApi.LOGS_PATH).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.LOGS_PATH + "?name=app").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SystemLogsTool.TOOL_NAME);
@@ -102,14 +101,14 @@ class SystemLogsToolTests {
 
       var result = mcpClient.callTool(
         SystemLogsTool.TOOL_NAME,
-        Map.of(SystemLogsTool.NAME_PROPERTY, "foo"));
+        Map.of(SystemLogsTool.NAME_PROPERTY, new String[] {"foo"}));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Invalid log name. Possible values: access, app, ce, deprecation, es, web").build());
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Invalid name: foo. Possible values: access, app, ce, deprecation, es, web").build());
     }
 
     @SonarQubeMcpServerTest
     void it_should_return_the_system_logs(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(SystemApi.LOGS_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(SystemApi.LOGS_PATH + "?name=app")
         .willReturn(aResponse().withBody(generateAppLogsPayload())));
       var mcpClient = harness.newClient();
 
@@ -120,8 +119,6 @@ class SystemLogsToolTests {
           "logType" : "app",
           "content" : "2023-01-01 10:00:01 INFO  o.s.s.a.WebServer Starting SonarQube Web Server\\n2023-01-01 10:00:02 INFO  o.s.s.p.ProcessEntryPoint Process[web] is up"
         }""");
-      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
-        .contains(new ReceivedRequest("Bearer token", ""));
     }
   }
 

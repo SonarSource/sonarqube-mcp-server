@@ -28,6 +28,9 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
   public static final String STATUS_PROPERTY = "status";
   public static final String RESOLUTION_PROPERTY = "resolution";
   public static final String COMMENT_PROPERTY = "comment";
+  
+  private static final String[] VALID_STATUSES = {"TO_REVIEW", "REVIEWED"};
+  private static final String[] VALID_RESOLUTIONS = {"FIXED", "SAFE", "ACKNOWLEDGED"};
 
   private final ServerApiProvider serverApiProvider;
 
@@ -44,8 +47,8 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
           * ACKNOWLEDGED: Acknowledged as a risk but accepted
         You can optionally add a comment to explain your review decision.""")
       .addRequiredStringProperty(HOTSPOT_KEY_PROPERTY, "The key of the Security Hotspot to update")
-      .addRequiredEnumProperty(STATUS_PROPERTY, new String[] {"TO_REVIEW", "REVIEWED"}, "The new status of the Security Hotspot")
-      .addEnumProperty(RESOLUTION_PROPERTY, new String[] {"FIXED", "SAFE", "ACKNOWLEDGED"}, "The resolution when status is REVIEWED. Required if status is REVIEWED")
+      .addRequiredEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "The new status of the Security Hotspot")
+      .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "The resolution when status is REVIEWED. Required if status is REVIEWED")
       .addStringProperty(COMMENT_PROPERTY, "An optional comment explaining the review decision")
       .build(),
       ToolCategory.SECURITY_HOTSPOTS);
@@ -55,14 +58,14 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var hotspotKey = arguments.getStringOrThrow(HOTSPOT_KEY_PROPERTY);
-    var status = arguments.getStringListOrThrow(STATUS_PROPERTY).getFirst();
-    var resolutionList = arguments.getOptionalStringList(RESOLUTION_PROPERTY);
-    var resolution = resolutionList != null && !resolutionList.isEmpty() ? resolutionList.getFirst() : null;
+    var status = arguments.getEnumOrThrow(STATUS_PROPERTY, VALID_STATUSES);
     var comment = arguments.getOptionalString(COMMENT_PROPERTY);
+    
+    var resolution = arguments.getOptionalEnumValue(RESOLUTION_PROPERTY, VALID_RESOLUTIONS);
 
     // Validate that resolution is provided when status is REVIEWED
     if ("REVIEWED".equals(status) && (resolution == null || resolution.isEmpty())) {
-      return Tool.Result.failure("Resolution is required when status is REVIEWED. Valid resolutions: FIXED, SAFE, ACKNOWLEDGED");
+      return Tool.Result.failure("Resolution is required when status is REVIEWED. Valid resolutions: " + String.join(", ", VALID_RESOLUTIONS));
     }
 
     // Validate that resolution is not provided when status is TO_REVIEW

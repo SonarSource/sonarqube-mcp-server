@@ -69,17 +69,9 @@ class GetDuplicationsToolTests {
                                  "type":"string",
                                  "description":"File name"
                               },
-                              "fileRef":{
-                                 "type":"string",
-                                 "description":"File reference"
-                              },
                               "from":{
                                  "type":"integer",
                                  "description":"Starting line number"
-                              },
-                              "projectName":{
-                                 "type":"string",
-                                 "description":"Project name"
                               },
                               "size":{
                                  "type":"integer",
@@ -89,9 +81,7 @@ class GetDuplicationsToolTests {
                            "required":[
                               "fileKey",
                               "fileName",
-                              "fileRef",
                               "from",
-                              "projectName",
                               "size"
                            ]
                         }
@@ -115,16 +105,11 @@ class GetDuplicationsToolTests {
                      "name":{
                         "type":"string",
                         "description":"File name"
-                     },
-                     "projectName":{
-                        "type":"string",
-                        "description":"Project name"
                      }
                   },
                   "required":[
                      "key",
-                     "name",
-                     "projectName"
+                     "name"
                   ]
                }
             }
@@ -250,43 +235,33 @@ class GetDuplicationsToolTests {
             "blocks" : [ {
               "from" : 94,
               "size" : 101,
-              "fileRef" : "1",
               "fileName" : "CommandExecutor",
-              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java",
-              "projectName" : "SonarQube"
+              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java"
             }, {
               "from" : 83,
               "size" : 101,
-              "fileRef" : "2",
               "fileName" : "CommandExecutor",
-              "fileKey" : "com.sonarsource.orchestrator:sonar-orchestrator:src/main/java/com/sonar/orchestrator/util/CommandExecutor.java",
-              "projectName" : "SonarSource :: Orchestrator"
+              "fileKey" : "com.sonarsource.orchestrator:sonar-orchestrator:src/main/java/com/sonar/orchestrator/util/CommandExecutor.java"
             } ]
           }, {
             "blocks" : [ {
               "from" : 38,
               "size" : 40,
-              "fileRef" : "1",
               "fileName" : "CommandExecutor",
-              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java",
-              "projectName" : "SonarQube"
+              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java"
             }, {
               "from" : 29,
               "size" : 39,
-              "fileRef" : "2",
               "fileName" : "CommandExecutor",
-              "fileKey" : "com.sonarsource.orchestrator:sonar-orchestrator:src/main/java/com/sonar/orchestrator/util/CommandExecutor.java",
-              "projectName" : "SonarSource :: Orchestrator"
+              "fileKey" : "com.sonarsource.orchestrator:sonar-orchestrator:src/main/java/com/sonar/orchestrator/util/CommandExecutor.java"
             } ]
           } ],
           "files" : [ {
             "key" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java",
-            "name" : "CommandExecutor",
-            "projectName" : "SonarQube"
+            "name" : "CommandExecutor"
           }, {
             "key" : "com.sonarsource.orchestrator:sonar-orchestrator:src/main/java/com/sonar/orchestrator/util/CommandExecutor.java",
-            "name" : "CommandExecutor",
-            "projectName" : "SonarSource :: Orchestrator"
+            "name" : "CommandExecutor"
           } ]
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
@@ -362,16 +337,13 @@ class GetDuplicationsToolTests {
             "blocks" : [ {
               "from" : 94,
               "size" : 101,
-              "fileRef" : "1",
               "fileName" : "CommandExecutor",
-              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java",
-              "projectName" : "SonarQube"
+              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java"
             } ]
           } ],
           "files" : [ {
             "key" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java",
-            "name" : "CommandExecutor",
-            "projectName" : "SonarQube"
+            "name" : "CommandExecutor"
           } ]
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
@@ -460,27 +432,21 @@ class GetDuplicationsToolTests {
             "blocks" : [ {
               "from" : 94,
               "size" : 101,
-              "fileRef" : "1",
               "fileName" : "CommandExecutor",
-              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java",
-              "projectName" : "SonarQube"
+              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java"
             }, {
               "from" : 83,
               "size" : 101,
-              "fileRef" : "2",
               "fileName" : "CommandExecutor",
-              "fileKey" : "com.sonarsource.orchestrator:sonar-orchestrator:src/main/java/com/sonar/orchestrator/util/CommandExecutor.java",
-              "projectName" : "SonarSource :: Orchestrator"
+              "fileKey" : "com.sonarsource.orchestrator:sonar-orchestrator:src/main/java/com/sonar/orchestrator/util/CommandExecutor.java"
             } ]
           } ],
           "files" : [ {
             "key" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java",
-            "name" : "CommandExecutor",
-            "projectName" : "SonarQube"
+            "name" : "CommandExecutor"
           }, {
             "key" : "com.sonarsource.orchestrator:sonar-orchestrator:src/main/java/com/sonar/orchestrator/util/CommandExecutor.java",
-            "name" : "CommandExecutor",
-            "projectName" : "SonarSource :: Orchestrator"
+            "name" : "CommandExecutor"
           } ]
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
@@ -552,16 +518,13 @@ class GetDuplicationsToolTests {
             "blocks" : [ {
               "from" : 94,
               "size" : 101,
-              "fileRef" : "1",
               "fileName" : "CommandExecutor",
-              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java",
-              "projectName" : "SonarQube"
+              "fileKey" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java"
             } ]
           } ],
           "files" : [ {
             "key" : "org.codehaus.sonar:sonar-plugin-api:src/main/java/org/sonar/api/utils/command/CommandExecutor.java",
-            "name" : "CommandExecutor",
-            "projectName" : "SonarQube"
+            "name" : "CommandExecutor"
           } ]
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
