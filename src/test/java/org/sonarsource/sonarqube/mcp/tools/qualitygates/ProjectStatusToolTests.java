@@ -727,4 +727,61 @@ class ProjectStatusToolTests {
       }""";
   }
 
+  @Nested
+  class DetailedFailureReports {
+
+    @SonarQubeMcpServerTest
+    void it_should_return_basic_report_without_failure_details_when_basicReport_is_true(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectKey=pkey")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        ProjectStatusTool.TOOL_NAME,
+        Map.of(
+          ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey",
+          ProjectStatusTool.BASIC_REPORT_PROPERTY, true
+        ));
+
+      assertThat(result.isError()).isFalse();
+      var content = result.content().getFirst().toString();
+      // Should not contain failure details when basic report is requested
+      assertThat(content).contains("\"status\" : \"ERROR\"");
+      assertThat(content).contains("new_coverage");
+      assertThat(content).doesNotContain("failureDetails");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_handle_status_ok_without_failure_details(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectKey=pkey")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+              "projectStatus": {
+                "status": "OK",
+                "conditions": [
+                  {
+                    "status": "OK",
+                    "metricKey": "new_coverage",
+                    "errorThreshold": "80",
+                    "actualValue": "85.0"
+                  }
+                ]
+              }
+            }""".getBytes(StandardCharsets.UTF_8)))));
+
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        ProjectStatusTool.TOOL_NAME,
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
+
+      assertThat(result.isError()).isFalse();
+      var content = result.content().getFirst().toString();
+      assertThat(content).contains("\"status\" : \"OK\"");
+      assertThat(content).doesNotContain("failureDetails");
+    }
+  }
+
 }
