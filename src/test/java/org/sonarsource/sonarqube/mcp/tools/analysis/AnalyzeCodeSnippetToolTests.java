@@ -163,9 +163,7 @@ class AnalyzeCodeSnippetToolTests {
 
       var result = mcpClient.callTool(
         TOOL_NAME,
-        Map.of(
-          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, "",
-          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, ""));
+        Map.of(AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, ""));
 
       assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
     }
@@ -263,7 +261,7 @@ class AnalyzeCodeSnippetToolTests {
             // TODO just do it
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php",
-          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, "MAIN"));
+          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, new String[] {"MAIN"}));
 
       assertResultEquals(result, """
         {
@@ -295,7 +293,7 @@ class AnalyzeCodeSnippetToolTests {
             // TODO just do it
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php",
-          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, "TEST"));
+          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, new String[] {"TEST"}));
 
       assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
     }

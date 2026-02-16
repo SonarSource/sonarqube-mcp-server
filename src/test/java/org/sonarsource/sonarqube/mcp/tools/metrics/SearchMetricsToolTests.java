@@ -63,10 +63,6 @@ class SearchMetricsToolTests {
                         "type":"string",
                         "description":"Metric description"
                      },
-                     "direction":{
-                        "type":"integer",
-                        "description":"Direction for metric improvement"
-                     },
                      "domain":{
                         "type":"string",
                         "description":"Metric domain/category"
@@ -87,10 +83,6 @@ class SearchMetricsToolTests {
                         "type":"string",
                         "description":"Metric display name"
                      },
-                     "qualitative":{
-                        "type":"boolean",
-                        "description":"Whether this is a qualitative metric"
-                     },
                      "type":{
                         "type":"string",
                         "description":"Metric value type"
@@ -99,13 +91,11 @@ class SearchMetricsToolTests {
                   "required":[
                      "custom",
                      "description",
-                     "direction",
                      "domain",
                      "hidden",
                      "id",
                      "key",
                      "name",
-                     "qualitative",
                      "type"
                   ]
                }
@@ -202,8 +192,6 @@ class SearchMetricsToolTests {
                   "description":"Number of people in the team",
                   "domain":"Management",
                   "type":"INT",
-                  "direction":0,
-                  "qualitative":false,
                   "hidden":false,
                   "custom":true
                },
@@ -214,8 +202,6 @@ class SearchMetricsToolTests {
                   "description":"Uncovered lines",
                   "domain":"Tests",
                   "type":"INT",
-                  "direction":1,
-                  "qualitative":true,
                   "hidden":false,
                   "custom":false
                }
@@ -255,8 +241,6 @@ class SearchMetricsToolTests {
                   "description":"Number of people in the team",
                   "domain":"Management",
                   "type":"INT",
-                  "direction":0,
-                  "qualitative":false,
                   "hidden":false,
                   "custom":true
                },
@@ -267,8 +251,6 @@ class SearchMetricsToolTests {
                   "description":"Uncovered lines",
                   "domain":"Tests",
                   "type":"INT",
-                  "direction":1,
-                  "qualitative":true,
                   "hidden":false,
                   "custom":false
                }
@@ -346,8 +328,6 @@ class SearchMetricsToolTests {
                   "description":"Number of people in the team",
                   "domain":"Management",
                   "type":"INT",
-                  "direction":0,
-                  "qualitative":false,
                   "hidden":false,
                   "custom":true
                },
@@ -358,8 +338,6 @@ class SearchMetricsToolTests {
                   "description":"Uncovered lines",
                   "domain":"Tests",
                   "type":"INT",
-                  "direction":1,
-                  "qualitative":true,
                   "hidden":false,
                   "custom":false
                }
@@ -397,8 +375,6 @@ class SearchMetricsToolTests {
                   "description":"Number of people in the team",
                   "domain":"Management",
                   "type":"INT",
-                  "direction":0,
-                  "qualitative":false,
                   "hidden":false,
                   "custom":true
                },
@@ -409,8 +385,6 @@ class SearchMetricsToolTests {
                   "description":"Uncovered lines",
                   "domain":"Tests",
                   "type":"INT",
-                  "direction":1,
-                  "qualitative":true,
                   "hidden":false,
                   "custom":false
                }

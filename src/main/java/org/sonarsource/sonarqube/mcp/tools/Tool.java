@@ -123,6 +123,75 @@ public abstract class Tool {
     public List<String> getOptionalStringList(String argumentName) {
       return (List<String>) argumentsMap.get(argumentName);
     }
+
+    @CheckForNull
+    public String getOptionalEnumValue(String argumentName, String[] validValues) {
+      var arg = argumentsMap.get(argumentName);
+      if (arg == null) {
+        return null;
+      }
+      
+      var value = switch (arg) {
+        case String string -> string;
+        case List<?> list when !list.isEmpty() -> String.valueOf(list.getFirst());
+        case List<?> ignored -> null;
+        default -> String.valueOf(arg);
+      };
+      
+      if (value != null && !isValidEnumValue(value, validValues)) {
+        throw new IllegalArgumentException("Invalid " + argumentName + ": " + value + ". Possible values: " + String.join(", ", validValues));
+      }
+      
+      return value;
+    }
+
+    public String getEnumOrThrow(String argumentName, String[] validValues) {
+      var arg = argumentsMap.get(argumentName);
+      if (arg == null) {
+        throw new MissingRequiredArgumentException(argumentName);
+      }
+      
+      var value = switch (arg) {
+        case String string -> string;
+        case List<?> list when !list.isEmpty() -> String.valueOf(list.getFirst());
+        case List<?> ignored -> throw new MissingRequiredArgumentException(argumentName);
+        default -> String.valueOf(arg);
+      };
+      
+      if (!isValidEnumValue(value, validValues)) {
+        throw new IllegalArgumentException("Invalid " + argumentName + ": " + value + ". Possible values: " + String.join(", ", validValues));
+      }
+      
+      return value;
+    }
+
+    public String getEnumOrDefault(String argumentName, String[] validValues, String defaultValue) {
+      var value = getOptionalEnumValue(argumentName, validValues);
+      return value != null ? value : defaultValue;
+    }
+
+    @CheckForNull
+    public List<String> getOptionalEnumList(String argumentName, String[] validValues) {
+      var values = getOptionalStringList(argumentName);
+      if (values != null) {
+        for (var value : values) {
+          if (!isValidEnumValue(value, validValues)) {
+            throw new IllegalArgumentException("Invalid " + argumentName + ": " + value + ". Possible values: " + String.join(", ", validValues));
+          }
+        }
+      }
+      return values;
+    }
+    
+
+    private static boolean isValidEnumValue(String value, String[] validValues) {
+      for (var validValue : validValues) {
+        if (validValue.equals(value)) {
+          return true;
+        }
+      }
+      return false;
+    }
     
     /**
      * Get the underlying map of arguments.

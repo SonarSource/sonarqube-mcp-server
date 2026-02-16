@@ -39,6 +39,9 @@ public class SearchSecurityHotspotsTool extends Tool {
   public static final String PAGE_PROPERTY = "p";
   public static final String PAGE_SIZE_PROPERTY = "ps";
   
+  private static final String[] VALID_STATUSES = {"TO_REVIEW", "REVIEWED"};
+  private static final String[] VALID_RESOLUTIONS = {"FIXED", "SAFE", "ACKNOWLEDGED"};
+  
   private final ServerApiProvider serverApiProvider;
 
   public SearchSecurityHotspotsTool(ServerApiProvider serverApiProvider) {
@@ -50,8 +53,8 @@ public class SearchSecurityHotspotsTool extends Tool {
       .addArrayProperty(HOTSPOT_KEYS_PROPERTY, "string", "Comma-separated list of specific Security Hotspot keys to retrieve. Required unless projectKey is provided.")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The identifier of the Pull Request to search in")
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of file paths to filter Security Hotspots")
-      .addEnumProperty(STATUS_PROPERTY, new String[] {"TO_REVIEW", "REVIEWED"}, "Filter by review status")
-      .addEnumProperty(RESOLUTION_PROPERTY, new String[] {"FIXED", "SAFE", "ACKNOWLEDGED"}, "Filter by resolution (when status is REVIEWED)")
+      .addEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "Filter by review status")
+      .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "Filter by resolution (when status is REVIEWED)")
       .addBooleanProperty(SINCE_LEAK_PERIOD_PROPERTY, "If true, only Security Hotspots created since the leak period (new code period) are returned")
       .addBooleanProperty(ONLY_MINE_PROPERTY, "If true, only Security Hotspots assigned to the current user are returned")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
@@ -97,8 +100,8 @@ public class SearchSecurityHotspotsTool extends Tool {
       arguments.getOptionalString(PULL_REQUEST_PROPERTY),
       arguments.getOptionalStringList(FILES_PROPERTY),
       arguments.getOptionalStringList(HOTSPOT_KEYS_PROPERTY),
-      arguments.getOptionalString(STATUS_PROPERTY),
-      arguments.getOptionalString(RESOLUTION_PROPERTY),
+      arguments.getOptionalEnumValue(STATUS_PROPERTY, VALID_STATUSES),
+      arguments.getOptionalEnumValue(RESOLUTION_PROPERTY, VALID_RESOLUTIONS),
       arguments.getOptionalBoolean(SINCE_LEAK_PERIOD_PROPERTY),
       arguments.getOptionalBoolean(ONLY_MINE_PROPERTY),
       arguments.getOptionalInteger(PAGE_PROPERTY),

@@ -137,7 +137,7 @@ class ChangeIssuesStatusToolTests {
           "key", "k",
           "status", new String[] {"yolo"}));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Status is unknown: yolo").build());
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Invalid status: yolo. Possible values: accept, falsepositive, reopen").build());
     }
 
   }

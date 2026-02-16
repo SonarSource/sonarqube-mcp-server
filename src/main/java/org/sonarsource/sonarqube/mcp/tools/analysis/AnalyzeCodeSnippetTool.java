@@ -40,6 +40,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static java.util.stream.Collectors.toMap;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
+import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getValidLanguageKeys;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.mapSonarLanguageToLanguage;
 
 public class AnalyzeCodeSnippetTool extends Tool {
@@ -58,6 +59,9 @@ public class AnalyzeCodeSnippetTool extends Tool {
   public static final String SNIPPET_PROPERTY = "codeSnippet";
   public static final String LANGUAGE_PROPERTY = "language";
   public static final String SCOPE_PROPERTY = "scope";
+  
+  private static final String[] VALID_SCOPES = {"MAIN", "TEST"};
+  private static final String[] VALID_LANGUAGES = getValidLanguageKeys();
 
   private final BackendService backendService;
   private final ServerApiProvider serverApiProvider;
@@ -68,28 +72,18 @@ public class AnalyzeCodeSnippetTool extends Tool {
     CompletableFuture<Void> initializationFuture) {
     super(SchemaToolBuilder.forOutput(AnalyzeCodeSnippetToolResponse.class)
         .setName(TOOL_NAME)
-        .setTitle("Code File Analysis")
-        .setDescription("Analyze file content with SonarQube analyzers to identify code quality and security issues. " +
+        .setTitle("SonarQube Code Analysis")
+        .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
           "Always pass the complete file content for accurate analysis. Optionally provide a code snippet to filter issues - " +
           "only issues within the snippet will be reported (snippet location is auto-detected). " +
           "Specify the language to improve analysis accuracy.")
         .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
         .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "Complete file content to analyze")
         .addStringProperty(SNIPPET_PROPERTY, "Code snippet to filter issues - must match content within fileContent")
-        .addStringProperty(LANGUAGE_PROPERTY, "Language of the code (e.g., 'java', 'python', 'javascript')")
-        .addStringProperty(SCOPE_PROPERTY, "Scope of the file: MAIN or TEST (default: MAIN)")
+        .addEnumProperty(LANGUAGE_PROPERTY, VALID_LANGUAGES, "Language of the code (e.g., 'java', 'python', 'javascript')")
+        .addEnumProperty(SCOPE_PROPERTY, VALID_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN)")
         .setReadOnlyHint()
         .build(),
-      .setName(TOOL_NAME)
-      .setTitle("SonarQube Code Analysis")
-      .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
-        "Specify the language of the snippet to improve analysis accuracy.")
-      .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
-      .addRequiredStringProperty(SNIPPET_PROPERTY, "Code snippet or full file content")
-      .addStringProperty(LANGUAGE_PROPERTY, "Language of the code snippet")
-      .addEnumProperty(SCOPE_PROPERTY, new String[] {"MAIN", "TEST"}, "Scope of the file (default: MAIN)")
-      .setReadOnlyHint()
-      .build(),
       ToolCategory.ANALYSIS);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
@@ -113,9 +107,8 @@ public class AnalyzeCodeSnippetTool extends Tool {
     var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
     var fileContent = arguments.getStringOrThrow(FILE_CONTENT_PROPERTY);
     var codeSnippet = arguments.getOptionalString(SNIPPET_PROPERTY);
-    var language = arguments.getOptionalString(LANGUAGE_PROPERTY);
-    var scopeList = arguments.getOptionalStringList(SCOPE_PROPERTY);
-    var scope = (scopeList != null && !scopeList.isEmpty()) ? scopeList.getFirst() : null;
+    var scope = arguments.getEnumOrDefault(SCOPE_PROPERTY, VALID_SCOPES, "MAIN");
+    var language = arguments.getOptionalEnumValue(LANGUAGE_PROPERTY, VALID_LANGUAGES);
 
     AnalysisMode mode;
     Integer snippetStartLineNumber = null;
@@ -272,8 +265,8 @@ public class AnalyzeCodeSnippetTool extends Tool {
           if (issue.textRange() == null) {
             return false;
           }
-          int issueStartLine = issue.textRange().startLine();
-          int issueEndLine = issue.textRange().endLine();
+          var issueStartLine = issue.textRange().startLine();
+          var issueEndLine = issue.textRange().endLine();
           // Issue overlaps with snippet if it starts before snippet ends and ends after snippet starts
           return issueStartLine <= snippetEndLine && issueEndLine >= snippetStartLine;
         })

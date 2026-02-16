@@ -63,6 +63,14 @@ public class LanguageUtils {
       .collect(Collectors.toSet());
   }
 
+  public static String[] getValidLanguageKeys() {
+    return getSupportedSonarLanguages().stream()
+      .map(SonarLanguage::getPluginKey)
+      .distinct()
+      .sorted()
+      .toArray(String[]::new);
+  }
+
   @CheckForNull
   public static SonarLanguage getSonarLanguageFromInput(@Nullable String languageInput) {
     for (var sonarLanguage : getSupportedSonarLanguages()) {

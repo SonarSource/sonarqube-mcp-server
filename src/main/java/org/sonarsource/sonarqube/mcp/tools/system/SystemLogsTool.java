@@ -25,6 +25,7 @@ public class SystemLogsTool extends Tool {
 
   public static final String TOOL_NAME = "get_system_logs";
   public static final String NAME_PROPERTY = "name";
+  private static final String[] VALID_LOG_NAMES = {"access", "app", "ce", "deprecation", "es", "web"};
 
   private final ServerApiProvider serverApiProvider;
 
@@ -33,8 +34,7 @@ public class SystemLogsTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Logs")
       .setDescription("Get SonarQube Server system logs in plain-text format. Requires system administration permission.")
-      .addEnumProperty(NAME_PROPERTY, new String[] {"access", "app", "ce", "deprecation", "es", "web"}, 
-        "Name of the logs to get. Default: app")
+      .addEnumProperty(NAME_PROPERTY, VALID_LOG_NAMES, "Name of the logs to get. Default: app")
       .setReadOnlyHint()
       .build(),
       ToolCategory.SYSTEM);
@@ -43,13 +43,11 @@ public class SystemLogsTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var name = arguments.getOptionalStringList("name");
-    var logName = (name != null && !name.isEmpty()) ? name.getFirst() : null;
-
+    var logName = arguments.getEnumOrDefault(NAME_PROPERTY, VALID_LOG_NAMES, "app");
+    
     var logs = serverApiProvider.get().systemApi().getLogs(logName);
-    var logType = logName != null ? logName : "app";
     var content = logs != null && !logs.trim().isEmpty() ? logs : "No logs available.";
-    var response = new SystemLogsToolResponse(logType, content);
+    var response = new SystemLogsToolResponse(logName, content);
     return Tool.Result.success(response);
   }
 

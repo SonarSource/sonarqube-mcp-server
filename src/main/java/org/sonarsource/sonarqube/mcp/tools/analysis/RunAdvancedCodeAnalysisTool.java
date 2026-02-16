@@ -34,6 +34,8 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   public static final String FILE_PATH_PROPERTY = "filePath";
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
   public static final String FILE_SCOPE_PROPERTY = "fileScope";
+  
+  private static final String[] VALID_FILE_SCOPES = {"MAIN", "TEST"};
 
   private final ServerApiProvider serverApiProvider;
 
@@ -46,7 +48,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "Branch name used to retrieve the latest analysis context.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
       .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The original content of the file to analyze.")
-      .addEnumProperty(FILE_SCOPE_PROPERTY, new String[] {"MAIN", "TEST"}, "Defines in which scope the file originates from (default: MAIN)")
+      .addEnumProperty(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "Defines in which scope the file originates from (default: MAIN)")
       .setReadOnlyHint()
       .build(),
       ToolCategory.ANALYSIS);
@@ -60,7 +62,9 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     if (organizationKey == null) {
       throw new IllegalStateException("run_advanced_code_analysis requires an organization to be configured in MCP (SONARQUBE_ORG).");
     }
-    var request = extractRequest(arguments, organizationKey);
+    
+    var scope = arguments.getEnumOrDefault(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "MAIN");
+    var request = extractRequest(arguments, organizationKey, scope);
     var response = serverApi.a3sAnalysisApi().analyze(request);
     if (response.errors() != null && !response.errors().isEmpty()) {
       var errorMessage = response.errors().stream()
@@ -72,10 +76,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     return Result.success(toolResponse);
   }
 
-  private static AnalysisCreationRequest extractRequest(Arguments arguments, String organizationKey) {
-    var scopeList = arguments.getOptionalStringList(FILE_SCOPE_PROPERTY);
-    var scope = (scopeList != null && !scopeList.isEmpty()) ? scopeList.getFirst() : null;
-    
+  private static AnalysisCreationRequest extractRequest(Arguments arguments, String organizationKey, String scope) {
     return new AnalysisCreationRequest(
       organizationKey,
       arguments.getStringOrThrow(PROJECT_KEY_PROPERTY),

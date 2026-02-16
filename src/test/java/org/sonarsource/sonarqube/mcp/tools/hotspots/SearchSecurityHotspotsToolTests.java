@@ -258,8 +258,8 @@ class SearchSecurityHotspotsToolTests {
         .contains(new ReceivedRequest("Bearer token", ""));
     }
 
-  @SonarQubeMcpServerTest
-  void it_should_filter_by_status(SonarQubeMcpServerTestHarness harness) {
+    @SonarQubeMcpServerTest
+    void it_should_filter_by_status(SonarQubeMcpServerTestHarness harness) {
       var hotspotKey = "AXJMFm6ERa2AinNL_0fP";
       harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project&status=REVIEWED")
         .willReturn(aResponse().withResponseBody(

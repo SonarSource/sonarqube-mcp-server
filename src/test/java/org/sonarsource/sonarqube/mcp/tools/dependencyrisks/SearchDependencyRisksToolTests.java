@@ -105,10 +105,6 @@ class SearchDependencyRisksToolTests {
                               "type":"string",
                               "description":"Package name"
                            },
-                           "productionScopeSummary":{
-                              "type":"boolean",
-                              "description":"Production scope summary"
-                           },
                            "version":{
                               "type":"string",
                               "description":"Package version"
@@ -261,8 +257,7 @@ class SearchDependencyRisksToolTests {
               "version" : "1.2.3",
               "packageManager" : "npm",
               "newlyIntroduced" : true,
-              "directSummary" : true,
-              "productionScopeSummary" : true
+              "directSummary" : true
             },
             "assignee" : {
               "name" : "John Doe"
@@ -311,8 +306,7 @@ class SearchDependencyRisksToolTests {
               "version" : "1.2.3",
               "packageManager" : "npm",
               "newlyIntroduced" : true,
-              "directSummary" : true,
-              "productionScopeSummary" : true
+              "directSummary" : true
             },
             "assignee" : {
               "name" : "John Doe"
@@ -361,8 +355,7 @@ class SearchDependencyRisksToolTests {
               "version" : "1.2.3",
               "packageManager" : "npm",
               "newlyIntroduced" : true,
-              "directSummary" : true,
-              "productionScopeSummary" : true
+              "directSummary" : true
             },
             "assignee" : {
               "name" : "John Doe"
@@ -435,8 +428,7 @@ class SearchDependencyRisksToolTests {
               "version" : "2.0.0",
               "packageManager" : "maven",
               "newlyIntroduced" : false,
-              "directSummary" : false,
-              "productionScopeSummary" : false
+              "directSummary" : false
             }
           } ]
         }""");
@@ -480,8 +472,7 @@ class SearchDependencyRisksToolTests {
               "version" : "1.2.3",
               "packageManager" : "npm",
               "newlyIntroduced" : true,
-              "directSummary" : true,
-              "productionScopeSummary" : true
+              "directSummary" : true
             },
             "assignee" : {
               "name" : "John Doe"
@@ -498,8 +489,7 @@ class SearchDependencyRisksToolTests {
               "version" : "2.0.0",
               "packageManager" : "maven",
               "newlyIntroduced" : false,
-              "directSummary" : false,
-              "productionScopeSummary" : false
+              "directSummary" : false
             }
           } ]
         }""");
