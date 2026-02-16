@@ -30,7 +30,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
@@ -53,26 +52,26 @@ class ProjectStatusToolTests {
          "type":"object",
          "properties":{
             "conditions":{
-               "description":"List of quality gate conditions",
+               "description":"List of quality gate conditions with their pass/fail status",
                "type":"array",
                "items":{
                   "type":"object",
                   "properties":{
                      "actualValue":{
                         "type":"string",
-                        "description":"Metric actual value"
+                        "description":"The current actual value of the metric"
                      },
                      "errorThreshold":{
                         "type":"string",
-                        "description":"Error threshold value"
+                        "description":"The threshold value that must not be exceeded"
                      },
                      "metricKey":{
                         "type":"string",
-                        "description":"Metric key"
+                        "description":"Metric key (e.g., new_coverage, new_blocker_violations)"
                      },
                      "status":{
                         "type":"string",
-                        "description":"Condition status (OK, ERROR, etc.)"
+                        "description":"Condition status: OK if passed, ERROR if failed"
                      }
                   },
                   "required":[
@@ -81,13 +80,299 @@ class ProjectStatusToolTests {
                   ]
                }
             },
-            "ignoredConditions":{
-               "type":"boolean",
-               "description":"Whether the quality gate is ignored"
+            "failureDetails":{
+               "type":"object",
+               "properties":{
+                  "coverageFailures":{
+                     "description":"Coverage-related failures with list of files needing test coverage",
+                     "type":"array",
+                     "items":{
+                        "type":"object",
+                        "properties":{
+                           "actualValue":{
+                              "type":"string",
+                              "description":"The actual coverage value"
+                           },
+                           "failedMetric":{
+                              "type":"string",
+                              "description":"The coverage metric that failed (e.g., new_coverage, coverage)"
+                           },
+                           "threshold":{
+                              "type":"string",
+                              "description":"The threshold that was not met"
+                           },
+                           "worstFiles":{
+                              "description":"Top 10 files with lowest coverage (sorted worst first)",
+                              "type":"array",
+                              "items":{
+                                 "type":"object",
+                                 "properties":{
+                                    "coverage":{
+                                       "type":"string",
+                                       "description":"Coverage percentage (0-100)"
+                                    },
+                                    "linesToCover":{
+                                       "type":"integer",
+                                       "description":"Number of lines to cover"
+                                    },
+                                    "path":{
+                                       "type":"string",
+                                       "description":"File path relative to project root"
+                                    },
+                                    "uncoveredLines":{
+                                       "type":"integer",
+                                       "description":"Number of uncovered lines"
+                                    }
+                                 },
+                                 "required":[
+                                    "path"
+                                 ]
+                              }
+                           }
+                        },
+                        "required":[
+                           "failedMetric",
+                           "worstFiles"
+                        ]
+                     }
+                  },
+                  "dependencyRisksFailures":{
+                     "description":"Dependency risk-related failures with list of vulnerable dependencies",
+                     "type":"array",
+                     "items":{
+                        "type":"object",
+                        "properties":{
+                           "actualValue":{
+                              "type":"string",
+                              "description":"The actual number of risks"
+                           },
+                           "failedMetric":{
+                              "type":"string",
+                              "description":"The dependency risk metric that failed"
+                           },
+                           "risks":{
+                              "description":"List of vulnerable dependencies",
+                              "type":"array",
+                              "items":{
+                                 "type":"object",
+                                 "properties":{
+                                    "packageName":{
+                                       "type":"string",
+                                       "description":"Package name"
+                                    },
+                                    "severity":{
+                                       "type":"string",
+                                       "description":"Severity (BLOCKER, CRITICAL, HIGH, MEDIUM, LOW, INFO)"
+                                    },
+                                    "version":{
+                                       "type":"string",
+                                       "description":"Package version"
+                                    },
+                                    "vulnerabilityId":{
+                                       "type":"string",
+                                       "description":"CVE or vulnerability ID"
+                                    }
+                                 },
+                                 "required":[
+                                    "packageName",
+                                    "severity",
+                                    "version"
+                                 ]
+                              }
+                           },
+                           "threshold":{
+                              "type":"string",
+                              "description":"The threshold that was not met"
+                           }
+                        },
+                        "required":[
+                           "failedMetric",
+                           "risks"
+                        ]
+                     }
+                  },
+                  "duplicationFailures":{
+                     "description":"Duplication-related failures with list of most duplicated files",
+                     "type":"array",
+                     "items":{
+                        "type":"object",
+                        "properties":{
+                           "actualValue":{
+                              "type":"string",
+                              "description":"The actual duplication value"
+                           },
+                           "failedMetric":{
+                              "type":"string",
+                              "description":"The duplication metric that failed (e.g., new_duplicated_lines_density)"
+                           },
+                           "threshold":{
+                              "type":"string",
+                              "description":"The threshold that was not met"
+                           },
+                           "worstFiles":{
+                              "description":"Top 10 files with highest duplication (sorted worst first)",
+                              "type":"array",
+                              "items":{
+                                 "type":"object",
+                                 "properties":{
+                                    "duplicatedBlocks":{
+                                       "type":"integer",
+                                       "description":"Number of duplicated blocks"
+                                    },
+                                    "duplicatedLines":{
+                                       "type":"integer",
+                                       "description":"Number of duplicated lines"
+                                    },
+                                    "path":{
+                                       "type":"string",
+                                       "description":"File path relative to project root"
+                                    }
+                                 },
+                                 "required":[
+                                    "path"
+                                 ]
+                              }
+                           }
+                        },
+                        "required":[
+                           "failedMetric",
+                           "worstFiles"
+                        ]
+                     }
+                  },
+                  "hotspotsFailures":{
+                     "description":"Security hotspot-related failures with list of unreviewed hotspots",
+                     "type":"array",
+                     "items":{
+                        "type":"object",
+                        "properties":{
+                           "actualValue":{
+                              "type":"string",
+                              "description":"The actual number of hotspots"
+                           },
+                           "failedMetric":{
+                              "type":"string",
+                              "description":"The hotspot metric that failed (e.g., new_security_hotspots)"
+                           },
+                           "hotspots":{
+                              "description":"List of unreviewed security hotspots",
+                              "type":"array",
+                              "items":{
+                                 "type":"object",
+                                 "properties":{
+                                    "filePath":{
+                                       "type":"string",
+                                       "description":"File path"
+                                    },
+                                    "key":{
+                                       "type":"string",
+                                       "description":"Hotspot key"
+                                    },
+                                    "line":{
+                                       "type":"integer",
+                                       "description":"Line number where hotspot is located"
+                                    },
+                                    "message":{
+                                       "type":"string",
+                                       "description":"Hotspot message/description"
+                                    },
+                                    "vulnerabilityProbability":{
+                                       "type":"string",
+                                       "description":"Vulnerability probability (HIGH, MEDIUM, LOW)"
+                                    }
+                                 },
+                                 "required":[
+                                    "key",
+                                    "message",
+                                    "vulnerabilityProbability"
+                                 ]
+                              }
+                           },
+                           "threshold":{
+                              "type":"string",
+                              "description":"The threshold that was not met"
+                           }
+                        },
+                        "required":[
+                           "failedMetric",
+                           "hotspots"
+                        ]
+                     }
+                  },
+                  "issuesFailures":{
+                     "description":"Issue/violation-related failures with list of actual issues",
+                     "type":"array",
+                     "items":{
+                        "type":"object",
+                        "properties":{
+                           "actualValue":{
+                              "type":"string",
+                              "description":"The actual number of issues"
+                           },
+                           "failedMetric":{
+                              "type":"string",
+                              "description":"The issue metric that failed (e.g., new_blocker_violations)"
+                           },
+                           "issues":{
+                              "description":"List of issues that caused the failure",
+                              "type":"array",
+                              "items":{
+                                 "type":"object",
+                                 "properties":{
+                                    "filePath":{
+                                       "type":"string",
+                                       "description":"File path"
+                                    },
+                                    "key":{
+                                       "type":"string",
+                                       "description":"Issue key"
+                                    },
+                                    "line":{
+                                       "type":"integer",
+                                       "description":"Line number where issue is located"
+                                    },
+                                    "message":{
+                                       "type":"string",
+                                       "description":"Issue message/description"
+                                    },
+                                    "rule":{
+                                       "type":"string",
+                                       "description":"Rule key (e.g., java:S1234)"
+                                    },
+                                    "severity":{
+                                       "type":"string",
+                                       "description":"Issue severity (BLOCKER, CRITICAL, MAJOR, MINOR, INFO)"
+                                    },
+                                    "type":{
+                                       "type":"string",
+                                       "description":"Issue type (BUG, VULNERABILITY, CODE_SMELL)"
+                                    }
+                                 },
+                                 "required":[
+                                    "key",
+                                    "message",
+                                    "rule",
+                                    "severity"
+                                 ]
+                              }
+                           },
+                           "threshold":{
+                              "type":"string",
+                              "description":"The threshold that was not met"
+                           }
+                        },
+                        "required":[
+                           "failedMetric",
+                           "issues"
+                        ]
+                     }
+                  }
+               },
+               "description":"Detailed context about failed conditions (null if all passed or detailLevel=basic)"
             },
             "status":{
                "type":"string",
-               "description":"Overall quality gate status (OK, WARN, ERROR, etc.)"
+               "description":"Overall quality gate status: OK if passed, ERROR if failed, WARN for warnings"
             }
          },
          "required":[
@@ -108,7 +393,7 @@ class ProjectStatusToolTests {
 
       var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "12345"));
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "nonexistent"));
 
       assertThat(result.isError()).isTrue();
       var content = result.content().getFirst().toString();
@@ -123,33 +408,23 @@ class ProjectStatusToolTests {
 
       var result = mcpClient.callTool(ProjectStatusTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Either 'analysisId', 'projectId' or 'projectKey' must be provided").build());
-    }
-
-    @SonarQubeMcpServerTest
-    void it_should_show_error_when_project_id_and_pull_request_are_provided(SonarQubeMcpServerTestHarness harness) {
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"));
-
-      var result = mcpClient.callTool(
-        ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "123", ProjectStatusTool.PULL_REQUEST_PROPERTY, "5461"));
-
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Project ID doesn't work with pull requests").build());
+      assertThat(result.isError()).isTrue();
+      var content = result.content().getFirst().toString();
+      assertThat(content).contains("projectKey");
     }
 
     @SonarQubeMcpServerTest
     void it_should_show_error_when_request_fails(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer()
-        .stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?analysisId=12345").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+        .stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectKey=pkey").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
       var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "12345"));
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/project_status?analysisId=12345").build());
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/api/qualitygates/project_status?projectKey=pkey").build());
     }
 
     @SonarQubeMcpServerTest
@@ -163,112 +438,6 @@ class ProjectStatusToolTests {
       var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
         Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
-
-      assertResultEquals(result, """
-        {
-          "status" : "ERROR",
-          "conditions" : [ {
-            "metricKey" : "new_coverage",
-            "status" : "ERROR",
-            "errorThreshold" : "85",
-            "actualValue" : "82.50562381034781"
-          }, {
-            "metricKey" : "new_blocker_violations",
-            "status" : "ERROR",
-            "errorThreshold" : "0",
-            "actualValue" : "14"
-          }, {
-            "metricKey" : "new_critical_violations",
-            "status" : "ERROR",
-            "errorThreshold" : "0",
-            "actualValue" : "1"
-          }, {
-            "metricKey" : "new_sqale_debt_ratio",
-            "status" : "OK",
-            "errorThreshold" : "5",
-            "actualValue" : "0.6562109862671661"
-          }, {
-            "metricKey" : "reopened_issues",
-            "status" : "OK",
-            "actualValue" : "0"
-          }, {
-            "metricKey" : "open_issues",
-            "status" : "ERROR",
-            "actualValue" : "17"
-          }, {
-            "metricKey" : "skipped_tests",
-            "status" : "OK",
-            "actualValue" : "0"
-          } ]
-        }""");
-      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
-        .contains(new ReceivedRequest("Bearer token", ""));
-    }
-
-    @SonarQubeMcpServerTest
-    void it_should_return_the_project_status_with_analysis_id(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?analysisId=id")
-        .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"));
-
-      var result = mcpClient.callTool(
-        ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "id"));
-
-      assertResultEquals(result, """
-        {
-          "status" : "ERROR",
-          "conditions" : [ {
-            "metricKey" : "new_coverage",
-            "status" : "ERROR",
-            "errorThreshold" : "85",
-            "actualValue" : "82.50562381034781"
-          }, {
-            "metricKey" : "new_blocker_violations",
-            "status" : "ERROR",
-            "errorThreshold" : "0",
-            "actualValue" : "14"
-          }, {
-            "metricKey" : "new_critical_violations",
-            "status" : "ERROR",
-            "errorThreshold" : "0",
-            "actualValue" : "1"
-          }, {
-            "metricKey" : "new_sqale_debt_ratio",
-            "status" : "OK",
-            "errorThreshold" : "5",
-            "actualValue" : "0.6562109862671661"
-          }, {
-            "metricKey" : "reopened_issues",
-            "status" : "OK",
-            "actualValue" : "0"
-          }, {
-            "metricKey" : "open_issues",
-            "status" : "ERROR",
-            "actualValue" : "17"
-          }, {
-            "metricKey" : "skipped_tests",
-            "status" : "OK",
-            "actualValue" : "0"
-          } ]
-        }""");
-      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
-        .contains(new ReceivedRequest("Bearer token", ""));
-    }
-
-    @SonarQubeMcpServerTest
-    void it_should_return_the_project_status_with_project_id(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectId=" + urlEncode("AU-Tpxb--iU5OvuD2FLy"))
-        .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient(Map.of(
-        "SONARQUBE_ORG", "org"));
-
-      var result = mcpClient.callTool(
-        ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "AU-Tpxb--iU5OvuD2FLy"));
 
       assertResultEquals(result, """
         {
@@ -390,58 +559,6 @@ class ProjectStatusToolTests {
       var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
         Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
-
-      assertResultEquals(result, """
-        {
-          "status" : "ERROR",
-          "conditions" : [ {
-            "metricKey" : "new_coverage",
-            "status" : "ERROR",
-            "errorThreshold" : "85",
-            "actualValue" : "82.50562381034781"
-          }, {
-            "metricKey" : "new_blocker_violations",
-            "status" : "ERROR",
-            "errorThreshold" : "0",
-            "actualValue" : "14"
-          }, {
-            "metricKey" : "new_critical_violations",
-            "status" : "ERROR",
-            "errorThreshold" : "0",
-            "actualValue" : "1"
-          }, {
-            "metricKey" : "new_sqale_debt_ratio",
-            "status" : "OK",
-            "errorThreshold" : "5",
-            "actualValue" : "0.6562109862671661"
-          }, {
-            "metricKey" : "reopened_issues",
-            "status" : "OK",
-            "actualValue" : "0"
-          }, {
-            "metricKey" : "open_issues",
-            "status" : "ERROR",
-            "actualValue" : "17"
-          }, {
-            "metricKey" : "skipped_tests",
-            "status" : "OK",
-            "actualValue" : "0"
-          } ]
-        }""");
-      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
-        .contains(new ReceivedRequest("Bearer token", ""));
-    }
-
-    @SonarQubeMcpServerTest
-    void it_should_return_the_project_status_with_analysis_id(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?analysisId=id")
-        .willReturn(aResponse().withResponseBody(
-          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient();
-
-      var result = mcpClient.callTool(
-        ProjectStatusTool.TOOL_NAME,
-        Map.of(ProjectStatusTool.ANALYSIS_ID_PROPERTY, "id"));
 
       assertResultEquals(result, """
         {
@@ -608,6 +725,63 @@ class ProjectStatusToolTests {
           ]
         }
       }""";
+  }
+
+  @Nested
+  class DetailedFailureReports {
+
+    @SonarQubeMcpServerTest
+    void it_should_return_basic_report_without_failure_details_when_basicReport_is_true(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectKey=pkey")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        ProjectStatusTool.TOOL_NAME,
+        Map.of(
+          ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey",
+          ProjectStatusTool.BASIC_REPORT_PROPERTY, true
+        ));
+
+      assertThat(result.isError()).isFalse();
+      var content = result.content().getFirst().toString();
+      // Should not contain failure details when basic report is requested
+      assertThat(content).contains("\"status\" : \"ERROR\"");
+      assertThat(content).contains("new_coverage");
+      assertThat(content).doesNotContain("failureDetails");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_handle_status_ok_without_failure_details(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?projectKey=pkey")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+              "projectStatus": {
+                "status": "OK",
+                "conditions": [
+                  {
+                    "status": "OK",
+                    "metricKey": "new_coverage",
+                    "errorThreshold": "80",
+                    "actualValue": "85.0"
+                  }
+                ]
+              }
+            }""".getBytes(StandardCharsets.UTF_8)))));
+
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        ProjectStatusTool.TOOL_NAME,
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
+
+      assertThat(result.isError()).isFalse();
+      var content = result.content().getFirst().toString();
+      assertThat(content).contains("\"status\" : \"OK\"");
+      assertThat(content).doesNotContain("failureDetails");
+    }
   }
 
 }

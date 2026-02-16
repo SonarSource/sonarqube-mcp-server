@@ -138,7 +138,7 @@ Quality gates are **release readiness indicators** that enforce minimum quality 
 
 ```javascript
 // Check quality gate for a pull request
-get_project_quality_gate_status({
+check_quality_gate_status({
     projectKey: "my-project",
     pullRequest: "123"
 });
@@ -247,7 +247,7 @@ for (const issue of issues) {
 }
 
 // Step 3: Check quality gate status
-const qgStatus = get_project_quality_gate_status({
+const qgStatus = check_quality_gate_status({
     projectKey: "my-project",
     pullRequest: "123"
 });
@@ -272,7 +272,7 @@ const measures = get_component_measures({
 });
 
 // Step 2: Check quality gate status
-const qgStatus = get_project_quality_gate_status({
+const qgStatus = check_quality_gate_status({
     projectKey: "my-project"
 });
 

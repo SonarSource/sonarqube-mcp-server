@@ -945,11 +945,18 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 ### Quality Gates
 
-- **get_project_quality_gate_status** - Get the Quality Gate Status for the SonarQube project.
-  - `analysisId` - Optional analysis ID - _String_
-  - `projectId` - Optional project ID - _String_
-  - `projectKey` - Optional project key - _String_
-  - `pullRequest` - Optional pull request ID - _String_
+- **check_quality_gate_status** - Check if a project passes its quality gate. Returns the overall status (PASSED/FAILED) and details about which quality conditions passed or failed. By default, provides comprehensive detailed information about all failure types:
+  - **Coverage failures**: Top 10 files with the lowest coverage
+  - **Issue violations**: Up to 20 actual issues that need fixing (with file paths and line numbers)
+  - **Security hotspots**: Up to 10 unreviewed hotspots
+  - **Duplications**: Top 10 files with the highest duplication
+  - **Dependency risks**: Up to 10 vulnerable dependencies (if available)
+  
+  Use this to determine if code is ready to merge or deploy, and get an immediate actionable list of what needs to be fixed.
+  
+  - `projectKey` - The project key (e.g., 'my_project') - _Required String_
+  - `pullRequest` - The pull request ID to check (e.g., '5461'). If not provided, checks the main branch - _String_
+  - `basicReport` - If true, returns only status and conditions without detailed failure information. Default: false (detailed report) - _Boolean_
 
 
 - **list_quality_gates** - List all quality gates in my SonarQube.

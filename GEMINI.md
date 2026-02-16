@@ -26,7 +26,7 @@ The user should provide the following environment variables:
 - "Check if my project passes quality gates"
 - "How is the code quality for project X?"
 
-**What to do:** Use `get_project_quality_gate_status` with the project key. If user doesn't know the project key, first use `search_my_sonarqube_projects`.
+**What to do:** Use `check_quality_gate_status` with the project key. If user doesn't know the project key, first use `search_my_sonarqube_projects`.
 
 ### Code Issues and Violations
 **Example user requests:**
