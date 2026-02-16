@@ -33,7 +33,7 @@ The simplest method is to rely on our container image hosted at [mcp/sonarqube](
 claude mcp add sonarqube \
   --env SONARQUBE_TOKEN=$SONAR_TOKEN \
   --env SONARQUBE_ORG=$SONAR_ORG \
-  -- docker run -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube
+  -- docker run --init --pull=always -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube
 ```
 
 For **SonarQube Cloud US**, add `--env SONARQUBE_URL=https://sonarqube.us` to the command.
@@ -44,7 +44,7 @@ For **SonarQube Cloud US**, add `--env SONARQUBE_URL=https://sonarqube.us` to th
 claude mcp add sonarqube \
   --env SONARQUBE_TOKEN=$SONAR_USER_TOKEN \
   --env SONARQUBE_URL=$SONAR_URL \
-  -- docker run -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_URL mcp/sonarqube
+  -- docker run --init --pull=always -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_URL mcp/sonarqube
 ```
 
 </details>
@@ -59,7 +59,7 @@ Manually edit the configuration file at `~/.codex/config.toml` and add the follo
 ```toml
 [mcp_servers.sonarqube]
 command = "docker"
-args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"]
+args = ["run", "--init", "--pull=always", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"]
 env = { "SONARQUBE_TOKEN" = "<YOUR_USER_TOKEN>", "SONARQUBE_ORG" = "<YOUR_ORG>" }
 ```
 
@@ -70,7 +70,7 @@ For **SonarQube Cloud US**, add `"SONARQUBE_URL" = "https://sonarqube.us"` to th
 ```toml
 [mcp_servers.sonarqube]
 command = "docker"
-args = ["run", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_URL", "mcp/sonarqube"]
+args = ["run", "--init", "--pull=always", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_URL", "mcp/sonarqube"]
 env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>" }
 ```
 
@@ -81,13 +81,13 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>
 
 * To connect with SonarQube Cloud:
 
-[![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=sonarqube&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9UT0tFTiIsIlNPTkFSUVVCRV9PUkciOiJZT1VSX1NPTkFSUVVCRV9PUkcifSwiY29tbWFuZCI6ImRvY2tlciBydW4gLWkgLS1ybSAtZSBTT05BUlFVQkVfVE9LRU4gLWUgU09OQVJRVUJFX09SRyBtY3Avc29uYXJxdWJlIn0%3D)
+[![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=sonarqube&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9UT0tFTiIsIlNPTkFSUVVCRV9PUkciOiJZT1VSX1NPTkFSUVVCRV9PUkcifSwiY29tbWFuZCI6ImRvY2tlciBydW4gLS1pbml0IC0tcHVsbD1hbHdheXMgLWkgLS1ybSAtZSBTT05BUlFVQkVfVE9LRU4gLWUgU09OQVJRVUJFX09SRyBtY3Avc29uYXJxdWJlIn0%3D)
 
 For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section in your MCP configuration after installation.
 
 * To connect with SonarQube Server:
 
-[![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=sonarqube&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9VU0VSX1RPS0VOIiwiU09OQVJRVUJFX1VSTCI6IllPVVJfU09OQVJRVUJFX1VSTCJ9LCJjb21tYW5kIjoiZG9ja2VyIHJ1biAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfVVJMIG1jcC9zb25hcnF1YmUifQ%3D%3D)
+[![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=sonarqube&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9VU0VSX1RPS0VOIiwiU09OQVJRVUJFX1VSTCI6IllPVVJfU09OQVJRVUJFX1VSTCJ9LCJjb21tYW5kIjoiZG9ja2VyIHJ1biAtLWluaXQgLS1wdWxsPWFsd2F5cyAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfVVJMIG1jcC9zb25hcnF1YmUifQ%3D%3D)
 
 </details>
 
@@ -134,7 +134,7 @@ You will have to provide different information about the MCP server, you can use
 Server Name: sonarqube
 Server Type: Local (Press 1)
 Command: docker
-Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
+Arguments: run, --init, --pull=always, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
 Environment Variables: SONARQUBE_TOKEN=<YOUR_TOKEN>,SONARQUBE_ORG=<YOUR_ORG>
 Tools: *
 ```
@@ -147,7 +147,7 @@ For **SonarQube Cloud US**, add `-e, SONARQUBE_URL` to Arguments and `SONARQUBE_
 Server Name: sonarqube
 Server Type: Local (Press 1)
 Command: docker
-Arguments: run, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_URL, mcp/sonarqube
+Arguments: run, --init, --pull=always, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_URL, mcp/sonarqube
 Environment Variables: SONARQUBE_TOKEN=<YOUR_USER_TOKEN>,SONARQUBE_URL=<YOUR_SERVER_URL>
 Tools: *
 ```
@@ -175,6 +175,8 @@ In your GitHub repository, navigate under **Settings -> Copilot -> Coding agent*
       "command": "docker",
       "args": [
         "run",
+        "--init",
+        "--pull=always",
         "--rm",
         "-i",
         "-e",
@@ -205,6 +207,8 @@ For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL=$SONAR_URL"` to the `args`
       "command": "docker",
       "args": [
         "run",
+        "--init",
+        "--pull=always",
         "--rm",
         "-i",
         "-e",
@@ -239,6 +243,8 @@ Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if 
       "command": "docker",
       "args": [
         "run",
+        "--init",
+        "--pull=always",
         "-i",
         "--rm",
         "-e", 
@@ -269,6 +275,8 @@ For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL"` to the `args` array and 
       "command": "docker",
       "args": [
         "run",
+        "--init",
+        "--pull=always",
         "-i",
         "--rm",
         "-e", 
@@ -295,11 +303,11 @@ For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL"` to the `args` array and 
 
 You can use the following buttons to simplify the installation process within VS Code.
 
-[![Install for SonarQube Cloud](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_ORG%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Organization%20Key%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_ORG%22%3A%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
+[![Install for SonarQube Cloud](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_ORG%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Organization%20Key%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22--init%22%2C%22--pull%3Dalways%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_ORG%22%3A%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
 
 For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section in your MCP configuration after installation.
 
-[![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
+[![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22--init%22%2C%22--pull%3Dalways%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
 
 </details>
 
@@ -367,6 +375,8 @@ You can manually install the SonarQube MCP server by copying the following snipp
     "command": "docker",
     "args": [
       "run",
+      "--init",
+      "--pull=always",
       "-i",
       "--rm",
       "-e",
@@ -391,6 +401,8 @@ You can manually install the SonarQube MCP server by copying the following snipp
     "command": "docker",
     "args": [
       "run",
+      "--init",
+      "--pull=always",
       "-i",
       "--rm",
       "-e",
@@ -421,6 +433,8 @@ For example, with SonarQube Cloud:
     "command": "docker",
     "args": [
       "run",
+      "--init",
+      "--pull=always",
       "-i",
       "--rm",
       "-e",
@@ -551,7 +565,7 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 **Enable analysis, issues, and quality gates toolsets (using Docker with SonarQube Cloud):**
 
 ```bash
-docker run -i --rm \
+docker run --init --pull=always -i --rm \
   -e SONARQUBE_TOKEN="<token>" \
   -e SONARQUBE_ORG="<org>" \
   -e SONARQUBE_TOOLSETS="analysis,issues,quality-gates" \
@@ -563,7 +577,7 @@ Note: The `projects` toolset is always enabled automatically, so you don't need 
 **Enable read-only mode (using Docker with SonarQube Cloud):**
 
 ```bash
-docker run -i --rm \
+docker run --init --pull=always -i --rm \
   -e SONARQUBE_TOKEN="<token>" \
   -e SONARQUBE_ORG="<org>" \
   -e SONARQUBE_READ_ONLY="true" \
@@ -611,7 +625,7 @@ The recommended mode for local development and single-user setups, used by all M
   "mcpServers": {
     "sonarqube": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"],
+      "args": ["run", "--init", "--pull=always", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"],
       "env": {
         "SONARQUBE_TOKEN": "<your-token>",
         "SONARQUBE_ORG": "<your-org>"
@@ -655,7 +669,7 @@ Secure multi-user transport with TLS encryption. Requires SSL certificates.
 
 **Example - Docker with SonarQube Cloud:**
 ```bash
-docker run -p 8443:8443 \
+docker run --init --pull=always -p 8443:8443 \
   -v $(pwd)/keystore.p12:/etc/ssl/mcp/keystore.p12:ro \
   -e SONARQUBE_TRANSPORT=https \
   -e SONARQUBE_HTTP_PORT=8443 \
@@ -692,7 +706,7 @@ If your SonarQube Server uses a self-signed certificate or a certificate from a 
 Mount a directory containing your certificates when running the container:
 
 ```bash
-docker run -i --rm \
+docker run --init --pull=always -i --rm \
   -v /path/to/your/certificates/:/usr/local/share/ca-certificates/:ro \
   -e SONARQUBE_TOKEN="<token>" \
   -e SONARQUBE_URL="<url>" \
@@ -715,6 +729,8 @@ When using custom certificates, you can modify your MCP configuration to mount t
     "command": "docker",
     "args": [
       "run",
+      "--init",
+      "--pull=always",
       "-i",
       "--rm",
       "-v",
@@ -1126,7 +1142,7 @@ After pulling the latest image, restart your MCP client to use the updated versi
 Optionally, add the `--pull=always` flag to your docker run command to always check for and pull the latest version:
 
 ```bash
-docker run --pull=always -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube
+docker run --init --pull=always -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube
 ```
 
 ## Data and telemetry

@@ -7,6 +7,8 @@
       "command": "docker",
       "args": [
         "run",
+        "--init",
+        "--pull=always",
         "-i",
         "--rm",
         "-e",
