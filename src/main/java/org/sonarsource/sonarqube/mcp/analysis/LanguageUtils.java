@@ -74,23 +74,6 @@ public class LanguageUtils {
   }
 
   @CheckForNull
-  public static String getPluginKeyForLanguageName(@Nullable String languageName) {
-    if (languageName == null) {
-      return null;
-    }
-
-    for (var entry : SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.entrySet()) {
-      for (var lang : entry.getValue()) {
-        if (lang.name().equalsIgnoreCase(languageName)) {
-          return entry.getKey();
-        }
-      }
-    }
-
-    return null;
-  }
-
-  @CheckForNull
   public static SonarLanguage getSonarLanguageFromInput(@Nullable String languageInput) {
     if (languageInput == null) {
       return null;
