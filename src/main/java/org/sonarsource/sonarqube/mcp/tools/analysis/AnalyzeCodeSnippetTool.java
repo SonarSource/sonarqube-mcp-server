@@ -40,7 +40,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static java.util.stream.Collectors.toMap;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
-import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getValidLanguageKeys;
+import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getValidLanguageNames;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.mapSonarLanguageToLanguage;
 
 public class AnalyzeCodeSnippetTool extends Tool {
@@ -61,7 +61,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
   public static final String SCOPE_PROPERTY = "scope";
   
   private static final String[] VALID_SCOPES = {"MAIN", "TEST"};
-  private static final String[] VALID_LANGUAGES = getValidLanguageKeys();
+  private static final String[] VALID_LANGUAGES = getValidLanguageNames();
 
   private final BackendService backendService;
   private final ServerApiProvider serverApiProvider;
@@ -80,7 +80,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
         .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
         .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "Complete file content to analyze")
         .addStringProperty(SNIPPET_PROPERTY, "Code snippet to filter issues - must match content within fileContent")
-        .addEnumProperty(LANGUAGE_PROPERTY, VALID_LANGUAGES, "Language of the code (e.g., 'java', 'python', 'javascript')")
+        .addEnumProperty(LANGUAGE_PROPERTY, VALID_LANGUAGES, "Language of the code (e.g., 'java', 'python', 'js')")
         .addEnumProperty(SCOPE_PROPERTY, VALID_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN)")
         .setReadOnlyHint()
         .build(),

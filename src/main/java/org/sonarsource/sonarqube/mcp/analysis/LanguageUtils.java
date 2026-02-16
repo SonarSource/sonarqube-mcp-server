@@ -63,9 +63,11 @@ public class LanguageUtils {
       .collect(Collectors.toSet());
   }
 
-  public static String[] getValidLanguageKeys() {
-    return getSupportedSonarLanguages().stream()
-      .map(SonarLanguage::getPluginKey)
+  public static String[] getValidLanguageNames() {
+    return SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.values().stream()
+      .flatMap(Set::stream)
+      .map(Language::name)
+      .map(String::toLowerCase)
       .distinct()
       .sorted()
       .toArray(String[]::new);
@@ -73,11 +75,16 @@ public class LanguageUtils {
 
   @CheckForNull
   public static SonarLanguage getSonarLanguageFromInput(@Nullable String languageInput) {
+    if (languageInput == null) {
+      return null;
+    }
+
     for (var sonarLanguage : getSupportedSonarLanguages()) {
-      if (sonarLanguage.getPluginKey().equalsIgnoreCase(languageInput)) {
+      if (sonarLanguage.name().equalsIgnoreCase(languageInput)) {
         return sonarLanguage;
       }
     }
+
     return null;
   }
 
