@@ -63,21 +63,57 @@ public class LanguageUtils {
       .collect(Collectors.toSet());
   }
 
-  public static String[] getValidLanguageKeys() {
-    return getSupportedSonarLanguages().stream()
-      .map(SonarLanguage::getPluginKey)
+  public static String[] getValidLanguageNames() {
+    return SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.values().stream()
+      .flatMap(Set::stream)
+      .map(Language::name)
+      .map(String::toLowerCase)
       .distinct()
       .sorted()
       .toArray(String[]::new);
   }
 
   @CheckForNull
+  public static String getPluginKeyForLanguageName(@Nullable String languageName) {
+    if (languageName == null) {
+      return null;
+    }
+
+    for (var entry : SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.entrySet()) {
+      for (var lang : entry.getValue()) {
+        if (lang.name().equalsIgnoreCase(languageName)) {
+          return entry.getKey();
+        }
+      }
+    }
+
+    return null;
+  }
+
+  @CheckForNull
   public static SonarLanguage getSonarLanguageFromInput(@Nullable String languageInput) {
+    if (languageInput == null) {
+      return null;
+    }
+
+    // First, try direct match with language enum name (e.g., "typescript" → TS)
     for (var sonarLanguage : getSupportedSonarLanguages()) {
-      if (sonarLanguage.getPluginKey().equalsIgnoreCase(languageInput)) {
+      if (sonarLanguage.name().equalsIgnoreCase(languageInput) ||
+        sonarLanguage.getPluginKey().equalsIgnoreCase(languageInput)) {
         return sonarLanguage;
       }
     }
+
+    // Second, try to find via plugin key mapping
+    var pluginKey = getPluginKeyForLanguageName(languageInput);
+    if (pluginKey != null) {
+      for (var sonarLanguage : getSupportedSonarLanguages()) {
+        if (sonarLanguage.getPluginKey().equalsIgnoreCase(pluginKey)) {
+          return sonarLanguage;
+        }
+      }
+    }
+
     return null;
   }
 
