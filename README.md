@@ -948,11 +948,6 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 
 ### Rules
 
-- **list_rule_repositories** - List rule repositories available in SonarQube.
-  - `language` - Optional language key - _String_
-  - `q` - Optional search query - _String_
-
-
 - **show_rule** - Shows detailed information about a SonarQube rule.
   - `key` - Rule key - _Required String_
 
