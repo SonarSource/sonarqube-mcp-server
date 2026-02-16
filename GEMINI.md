@@ -40,10 +40,12 @@ The user should provide the following environment variables:
 ### Code Snippet Analysis
 **Example user requests:**
 - "Analyze this code snippet for issues"
-- "Check this code for quality problems"
-- "What would SonarQube say about this file?"
+- "Check this code for quality problems"  
+- "Generate a method that does X and analyze it for issues"
 
-**What to do:** Use `analyze_code_snippet` with the provided code and specify the programming language.
+**What to do:** Use `analyze_code_snippet` - always pass complete file content:
+1. **Full analysis**: Pass `fileContent` only to get all issues
+2. **Filtered analysis** (recommended for generated code): Pass `fileContent` + `codeSnippet` - tool analyzes full file but reports issues only in the snippet (auto-detects location)
 
 **Supported Languages:**
 - Java
