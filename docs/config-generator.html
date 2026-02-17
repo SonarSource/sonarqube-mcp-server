@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SonarQube MCP Server - Configuration Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f0ff 0%, #f5f8fc 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0b1523 0%, #1a2744 100%);
+            color: #ffffff;
+            padding: 40px 30px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3c9bd8 0%, #5bb3e8 100%);
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            font-size: 1.05rem;
+            opacity: 0.85;
+            font-weight: 400;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            align-items: flex-start;
+        }
+
+        .config-panel {
+            flex: 1;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            padding: 25px 30px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e6e6e6;
+        }
+
+        .preview-panel {
+            width: 550px;
+            max-width: 550px;
+            background: white;
+            border-radius: 8px;
+            padding: 25px 30px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e6e6e6;
+            position: sticky;
+            top: 20px;
+            height: calc(100vh - 40px);
+            max-height: 800px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-title {
+            font-size: 1.3rem;
+            color: #0b1523;
+            margin-bottom: 20px;
+            font-weight: 700;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3c9bd8;
+            letter-spacing: -0.3px;
+        }
+
+        .form-section {
+            margin-bottom: 20px;
+        }
+        
+        fieldset.form-section {
+            border: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+
+        .section-label {
+            font-size: 0.95rem;
+            color: #0b1523;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        legend.section-label {
+            padding: 0;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        select, input[type="text"] {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        select:hover, input:hover {
+            border-color: #999;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #3c9bd8;
+            box-shadow: 0 0 0 3px rgba(60, 155, 216, 0.15);
+        }
+
+        /* Environment Button Group */
+        .env-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        
+        /* Transport Radio Group */
+        .transport-options {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .transport-radio {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .transport-radio input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #3c9bd8;
+            cursor: pointer;
+        }
+        
+        .transport-radio span {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .env-button {
+            padding: 12px 10px;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #0b1523;
+        }
+
+        .env-button:hover {
+            border-color: #3c9bd8;
+            background: #f0f8ff;
+            transform: translateY(-1px);
+        }
+
+        .env-button.active {
+            border-color: #3c9bd8;
+            background: #3c9bd8;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(60, 155, 216, 0.3);
+        }
+        
+        .env-button small {
+            color: inherit;
+        }
+
+        /* Credentials Info Box */
+        .credentials-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #856404;
+            line-height: 1.5;
+        }
+
+        .credentials-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .credentials-header strong {
+            font-size: 0.9rem;
+        }
+
+        .credentials-arrow {
+            transition: transform 0.3s;
+            font-size: 0.8rem;
+        }
+
+        .credentials-arrow.expanded {
+            transform: rotate(180deg);
+        }
+
+        .credentials-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .credentials-content.expanded {
+            max-height: 300px;
+            margin-top: 8px;
+        }
+
+        .credentials-box ul {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .credentials-box li {
+            margin-bottom: 5px;
+        }
+
+        .credentials-box code {
+            background: rgba(0,0,0,0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+
+        /* Toolsets Grid */
+        .toolsets-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .toolset-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .toolset-item:hover {
+            background: #f8f9fa;
+        }
+
+        .toolset-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #3c9bd8;
+            cursor: pointer;
+        }
+        
+        .toolsets-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .reset-button {
+            background: #e8f4fb;
+            border: 1px solid #3c9bd8;
+            color: #0b1523;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .reset-button:hover {
+            background: #3c9bd8;
+            color: white;
+        }
+
+        .toolset-item label {
+            margin: 0;
+            font-size: 0.85rem;
+            font-weight: normal;
+            cursor: pointer;
+        }
+
+        .toolset-item.always-enabled {
+            opacity: 0.7;
+        }
+
+        .toolset-item.always-enabled label {
+            color: #6b6b6b;
+        }
+
+        /* Options Grid */
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .option-item:hover {
+            border-color: #3c9bd8;
+            background: #f0f8ff;
+        }
+
+        .option-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #3c9bd8;
+            cursor: pointer;
+        }
+
+        .option-item.with-input {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .option-item .cert-path-input {
+            width: 100%;
+            margin-top: 8px;
+            padding: 6px 8px;
+            font-size: 0.85rem;
+        }
+
+        .option-item label {
+            margin: 0;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        /* Code Preview */
+        .code-preview {
+            background: #1a2744;
+            color: #e8e8e8;
+            padding: 24px;
+            border-radius: 4px;
+            overflow: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            flex: 1;
+            min-height: 200px;
+            border: 1px solid #0b1523;
+        }
+
+        .code-preview::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .code-preview::-webkit-scrollbar-track {
+            background: #0b1523;
+        }
+
+        .code-preview::-webkit-scrollbar-thumb {
+            background: #3c9bd8;
+            border-radius: 5px;
+        }
+
+        .code-preview::-webkit-scrollbar-thumb:hover {
+            background: #5bb3e8;
+        }
+
+        .copy-button {
+            width: 100%;
+            padding: 14px;
+            background: #3c9bd8;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 16px;
+            flex-shrink: 0;
+            letter-spacing: 0.3px;
+        }
+
+        .copy-button:hover {
+            background: #5bb3e8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(60, 155, 216, 0.4);
+        }
+
+        .copy-button:active {
+            transform: translateY(0);
+        }
+
+        .copy-button:disabled {
+            background: #d0d0d0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .copy-feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #3c9bd8;
+            color: #ffffff;
+            padding: 24px 48px;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+            z-index: 1000;
+            display: none;
+        }
+
+        .copy-feedback.show {
+            display: block;
+            animation: fadeInOut var(--fade-duration);
+        }
+        
+        :root {
+            --fade-duration: 2s;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -60%); }
+            20% { opacity: 1; transform: translate(-50%, -50%); }
+            80% { opacity: 1; transform: translate(-50%, -50%); }
+            100% { opacity: 0; transform: translate(-50%, -40%); }
+        }
+
+        .info-text {
+            color: #4a4a4a;
+            font-size: 0.85rem;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .credentials-input-group {
+            margin-top: 8px;
+        }
+
+        .credentials-input-group input {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        .credentials-input-group input:focus {
+            outline: none;
+            border-color: #3c9bd8;
+            box-shadow: 0 0 0 3px rgba(60, 155, 216, 0.15);
+        }
+        
+        .token-help-link {
+            display: inline-block;
+            color: #3c9bd8;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-top: 8px;
+            transition: color 0.2s;
+        }
+        
+        .token-help-link:hover {
+            color: #2a7ab0;
+            text-decoration: underline;
+        }
+
+        .credentials-input-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .preview-panel {
+                width: 100%;
+                max-width: 100%;
+                position: relative;
+                top: 0;
+            }
+            
+            .env-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            .toolsets-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        small {
+            color: #4a4a4a;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="copy-feedback" id="copyFeedback">✓ Configuration copied to clipboard!</div>
+
+    <div class="container">
+        <div class="header">
+            <h1>SonarQube MCP Server Configuration Generator</h1>
+            <p>⚠️ Experimental tool - Configuration may change</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Configuration Panel -->
+            <div class="config-panel">
+                <div class="panel-title">Configure Your Setup</div>
+
+                <!-- Agent Selection -->
+                <div class="form-section">
+                    <label class="section-label" for="agent">1. Select Your AI Agent</label>
+                    <select id="agent" onchange="updatePreview()">
+                        <option value="">-- Select an agent --</option>
+                        <option value="claude">Claude Desktop / Claude Code</option>
+                        <option value="cursor">Cursor</option>
+                        <option value="vscode">VS Code</option>
+                        <option value="codex">Codex CLI</option>
+                        <option value="gemini">Gemini CLI</option>
+                        <option value="copilot-cli">GitHub Copilot CLI</option>
+                        <option value="copilot-agent">GitHub Copilot Agent</option>
+                        <option value="kiro">Kiro</option>
+                        <option value="windsurf">Windsurf</option>
+                        <option value="zed">Zed</option>
+                        <option value="generic">Generic / Manual</option>
+                    </select>
+                </div>
+
+                <!-- Environment Selection -->
+                <fieldset class="form-section">
+                    <legend class="section-label">2. SonarQube Environment</legend>
+                    <div class="env-buttons">
+                        <button class="env-button active" onclick="selectEnvironment('cloud')" type="button" aria-pressed="true">
+                            SonarQube Cloud<br><small>sonarcloud.io</small>
+                        </button>
+                        <button class="env-button" onclick="selectEnvironment('cloud-us')" type="button" aria-pressed="false">
+                            SonarQube Cloud US<br><small>sonarqube.us</small>
+                        </button>
+                        <button class="env-button" onclick="selectEnvironment('server')" type="button" aria-pressed="false">
+                            SonarQube Server<br><small>Self-hosted</small>
+                        </button>
+                    </div>
+                </fieldset>
+
+                <!-- Credentials Info -->
+                <fieldset class="form-section">
+                    <legend class="section-label">3. Credentials</legend>
+                    <div class="credentials-box">
+                        <button class="credentials-header" 
+                                onclick="toggleCredentialsInfo()" 
+                                type="button"
+                                aria-expanded="false"
+                                aria-controls="credentialsContent"
+                                style="background: none; border: none; width: 100%; cursor: pointer; text-align: left; display: flex; align-items: center; justify-content: space-between;">
+                            <strong>🔒 Security Best Practices</strong>
+                            <span class="credentials-arrow" id="credentialsArrow" aria-hidden="true">▼</span>
+                        </button>
+                        <div class="credentials-content" id="credentialsContent">
+                            <p>Your SonarQube token is sensitive. Follow these security practices:</p>
+                            <ul>
+                                <li><strong>Use environment variables</strong> - Set tokens via environment variables before running</li>
+                                <li><strong>Avoid hardcoding</strong> - Never commit tokens to version control</li>
+                                <li><strong>Use variable substitution</strong> - Reference env vars in config files (e.g., <code>$SONAR_TOKEN</code>)</li>
+                            </ul>
+                            <p style="margin-top: 8px;">The token in generated config uses a placeholder (<code>&lt;YOUR_TOKEN&gt;</code>). Replace it securely.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="tokenHelpLink" style="margin-top: 12px;">
+                        <a href="https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/" 
+                           target="_blank" 
+                           class="token-help-link"
+                           id="tokenLink">
+                            📖 How to generate a USER token in SonarQube Cloud →
+                        </a>
+                    </div>
+
+                    <!-- Organization / URL Input -->
+                    <div id="orgInputGroup" class="credentials-input-group">
+                        <label for="orgInput">Organization Key (optional)</label>
+                        <input type="text" id="orgInput" placeholder="your-organization-key" oninput="updatePreview()">
+                        <small style="display: block; margin-top: 5px;">Leave empty to use placeholder in generated config</small>
+                    </div>
+
+                    <div id="urlInputGroup" class="credentials-input-group" style="display: none;">
+                        <label for="urlInput">Server URL (optional)</label>
+                        <input type="text" id="urlInput" placeholder="https://your-sonar-server.com" oninput="updatePreview()">
+                        <small style="display: block; margin-top: 5px;">Leave empty to use placeholder in generated config</small>
+                    </div>
+                </fieldset>
+
+                <!-- Transport Mode -->
+                <fieldset class="form-section">
+                    <legend class="section-label">4. Transport Mode</legend>
+                    <div class="transport-options">
+                        <label class="transport-radio">
+                            <input type="radio" name="transport" value="stdio" checked onchange="selectTransport('stdio')">
+                            <span>Stdio <small>(Local)</small></span>
+                        </label>
+                        <label class="transport-radio">
+                            <input type="radio" name="transport" value="http" onchange="selectTransport('http')">
+                            <span>HTTP <small>(Multi-user)</small></span>
+                        </label>
+                        <label class="transport-radio">
+                            <input type="radio" name="transport" value="https" onchange="selectTransport('https')">
+                            <span>HTTPS <small>(Secure)</small></span>
+                        </label>
+                    </div>
+                    
+                    <div id="httpConfigGroup" style="display: none; margin-top: 12px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label for="httpHost" style="font-size: 0.85rem;">Host:</label>
+                                <input type="text" id="httpHost" value="127.0.0.1" oninput="updatePreview()" style="padding: 8px 10px;">
+                            </div>
+                            <div>
+                                <label for="httpPort" style="font-size: 0.85rem;">Port:</label>
+                                <input type="text" id="httpPort" value="8080" oninput="updatePreview()" style="padding: 8px 10px;">
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Advanced Options -->
+                <fieldset class="form-section">
+                    <legend class="section-label">5. Advanced Options</legend>
+                    
+                    <div class="options-grid">
+                        <div class="option-item">
+                            <input type="checkbox" id="debugMode" onchange="updatePreview()">
+                            <label for="debugMode">Debug Logging</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="readOnly" onchange="updatePreview()">
+                            <label for="readOnly">Read-Only Mode</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="advancedAnalysis" onchange="updatePreview()">
+                            <label for="advancedAnalysis">Advanced Analysis<br><small>(Beta - Cloud only)</small></label>
+                        </div>
+                        <div class="option-item with-input">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="customCertificates" onchange="toggleCertPath()">
+                                <label for="customCertificates">Custom SSL Certificates</label>
+                            </div>
+                            <input type="text" 
+                                   id="certPath" 
+                                   class="cert-path-input" 
+                                   placeholder="/path/to/certificates" 
+                                   style="display: none;"
+                                   oninput="updatePreview()">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Toolsets -->
+                <fieldset class="form-section">
+                    <div class="toolsets-header">
+                        <div>
+                            <legend class="section-label" style="margin-bottom: 0;">6. Select Toolsets</legend>
+                            <p class="info-text" style="margin-top: 5px;">Choose which SonarQube features to enable. <em>Analysis and Projects are always enabled.</em></p>
+                        </div>
+                        <button class="reset-button" onclick="resetToolsets()" type="button">↻ Reset to Default</button>
+                    </div>
+                    
+                    <div class="toolsets-grid">
+                        <div class="toolset-item always-enabled" title="Always enabled - required toolset">
+                            <input type="checkbox" id="tool-analysis" checked disabled>
+                            <label for="tool-analysis">Analysis ✓</label>
+                        </div>
+                        <div class="toolset-item always-enabled" title="Always enabled - required toolset">
+                            <input type="checkbox" id="tool-projects" checked disabled>
+                            <label for="tool-projects">Projects ✓</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-issues" checked onchange="updatePreview()">
+                            <label for="tool-issues">Issues</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-security-hotspots" checked onchange="updatePreview()">
+                            <label for="tool-security-hotspots">Security Hotspots</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-quality-gates" checked onchange="updatePreview()">
+                            <label for="tool-quality-gates">Quality Gates</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-rules" checked onchange="updatePreview()">
+                            <label for="tool-rules">Rules</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-duplications" checked onchange="updatePreview()">
+                            <label for="tool-duplications">Duplications</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-measures" checked onchange="updatePreview()">
+                            <label for="tool-measures">Measures</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-dependency-risks" checked onchange="updatePreview()">
+                            <label for="tool-dependency-risks">Dependency Risks</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-coverage" onchange="updatePreview()">
+                            <label for="tool-coverage">Coverage</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-sources" onchange="updatePreview()">
+                            <label for="tool-sources">Sources</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-languages" onchange="updatePreview()">
+                            <label for="tool-languages">Languages</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-portfolios" onchange="updatePreview()">
+                            <label for="tool-portfolios">Portfolios</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-system" onchange="updatePreview()">
+                            <label for="tool-system">System</label>
+                        </div>
+                        <div class="toolset-item">
+                            <input type="checkbox" id="tool-webhooks" onchange="updatePreview()">
+                            <label for="tool-webhooks">Webhooks</label>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- Preview Panel -->
+            <div class="preview-panel">
+                <div class="panel-title">Configuration Preview</div>
+                
+                <div id="instructions" style="margin-bottom: 15px; color: #4a4a4a; font-size: 0.9rem;">
+                    Select an agent to see the configuration
+                </div>
+
+                <pre class="code-preview"><code id="configOutput">// Select an agent to generate configuration</code></pre>
+
+                <button class="copy-button" onclick="copyConfig()" id="copyButton" disabled>
+                    📋 Copy to Clipboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentEnvironment = 'cloud';
+        let currentTransport = 'stdio';
+
+        function selectTransport(transport) {
+            currentTransport = transport;
+            
+            // Show/hide HTTP config
+            const httpConfigGroup = document.getElementById('httpConfigGroup');
+            if (transport === 'http' || transport === 'https') {
+                httpConfigGroup.style.display = 'block';
+                // Update port default
+                if (transport === 'https') {
+                    document.getElementById('httpPort').value = '8443';
+                } else {
+                    document.getElementById('httpPort').value = '8080';
+                }
+            } else {
+                httpConfigGroup.style.display = 'none';
+            }
+            
+            updatePreview();
+        }
+
+        function toggleCredentialsInfo() {
+            const content = document.getElementById('credentialsContent');
+            const arrow = document.getElementById('credentialsArrow');
+            const button = content.previousElementSibling;
+            const isExpanded = content.classList.contains('expanded');
+            
+            content.classList.toggle('expanded');
+            arrow.classList.toggle('expanded');
+            button.setAttribute('aria-expanded', !isExpanded);
+        }
+
+        function selectEnvironment(env) {
+            currentEnvironment = env;
+            
+            // Update button states and aria-pressed
+            document.querySelectorAll('.env-button').forEach(btn => {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-pressed', 'false');
+            });
+            const clickedButton = event.target.closest('.env-button');
+            clickedButton.classList.add('active');
+            clickedButton.setAttribute('aria-pressed', 'true');
+            
+            // Show/hide appropriate input fields
+            const orgGroup = document.getElementById('orgInputGroup');
+            const urlGroup = document.getElementById('urlInputGroup');
+            
+            if (env === 'cloud' || env === 'cloud-us') {
+                orgGroup.style.display = 'block';
+                urlGroup.style.display = 'none';
+            } else {
+                orgGroup.style.display = 'none';
+                urlGroup.style.display = 'block';
+            }
+            
+            updateTokenHelpLink(env);
+            updatePreview();
+        }
+
+        function updateTokenHelpLink(env) {
+            const tokenLink = document.getElementById('tokenLink');
+            if (env === 'cloud' || env === 'cloud-us') {
+                tokenLink.href = 'https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/';
+                tokenLink.innerHTML = '📖 How to generate a USER token in SonarQube Cloud →';
+            } else {
+                tokenLink.href = 'https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token';
+                tokenLink.innerHTML = '📖 How to generate a USER token in SonarQube Server →';
+            }
+        }
+
+        function resetToolsets() {
+            // Default toolsets that should be checked
+            const defaultToolsets = ['issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks'];
+            
+            // Uncheck all first
+            document.querySelectorAll('[id^="tool-"]').forEach(cb => {
+                if (!cb.disabled) {
+                    cb.checked = false;
+                }
+            });
+            
+            // Check default ones
+            defaultToolsets.forEach(toolset => {
+                const checkbox = document.getElementById(`tool-${toolset}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+            
+            updatePreview();
+        }
+
+        function toggleCertPath() {
+            const checkbox = document.getElementById('customCertificates');
+            const input = document.getElementById('certPath');
+            input.style.display = checkbox.checked ? 'block' : 'none';
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const agent = document.getElementById('agent').value;
+
+            if (!agent) {
+                document.getElementById('configOutput').textContent = '// Select an agent to generate configuration';
+                document.getElementById('copyButton').disabled = true;
+                document.getElementById('instructions').innerHTML = 'Select an agent to see the configuration';
+                return;
+            }
+
+            document.getElementById('copyButton').disabled = false;
+
+            // Build environment variables
+            const env = { SONARQUBE_TOKEN: '<YOUR_TOKEN>' };
+
+            if (currentEnvironment === 'cloud' || currentEnvironment === 'cloud-us') {
+                const orgValue = document.getElementById('orgInput').value.trim();
+                env.SONARQUBE_ORG = orgValue || '<YOUR_ORG>';
+            }
+
+            if (currentEnvironment === 'cloud-us') {
+                env.SONARQUBE_URL = 'https://sonarqube.us';
+            } else if (currentEnvironment === 'server') {
+                const urlValue = document.getElementById('urlInput').value.trim();
+                env.SONARQUBE_URL = urlValue || '<YOUR_SERVER_URL>';
+            }
+
+            if (document.getElementById('debugMode').checked) {
+                env.SONARQUBE_DEBUG_ENABLED = 'true';
+            }
+
+            if (document.getElementById('readOnly').checked) {
+                env.SONARQUBE_READ_ONLY = 'true';
+            }
+
+            if (document.getElementById('advancedAnalysis').checked) {
+                env.SONARQUBE_ADVANCED_ANALYSIS_ENABLED = 'true';
+            }
+
+            const toolsets = getSelectedToolsets();
+            if (toolsets) {
+                env.SONARQUBE_TOOLSETS = toolsets;
+            }
+
+            const customCerts = document.getElementById('customCertificates').checked;
+            const certPath = customCerts ? (document.getElementById('certPath').value.trim() || '/path/to/certificates') : null;
+
+            // Add transport configuration if not stdio
+            if (currentTransport !== 'stdio') {
+                env.SONARQUBE_TRANSPORT = currentTransport;
+                env.SONARQUBE_HTTP_HOST = document.getElementById('httpHost').value.trim() || '127.0.0.1';
+                env.SONARQUBE_HTTP_PORT = document.getElementById('httpPort').value.trim() || (currentTransport === 'https' ? '8443' : '8080');
+            }
+
+            // Generate configuration
+            let config = '';
+            let instructions = '';
+
+            switch (agent) {
+                case 'claude':
+                    config = generateClaudeConfig(env);
+                    instructions = '<strong>💡 Instructions:</strong> Run this command in your terminal (replace placeholder values with your actual credentials):';
+                    break;
+                case 'cursor':
+                case 'vscode':
+                    config = generateJSONConfig(env, certPath);
+                    instructions = `<strong>💡 Instructions:</strong> Add this to your ${agent === 'cursor' ? 'Cursor' : 'VS Code'} MCP settings (replace placeholder values):`;
+                    break;
+                case 'codex':
+                    config = generateCodexConfig(env, certPath);
+                    instructions = '<strong>💡 Instructions:</strong> Add this to <code>~/.codex/config.toml</code> (replace placeholder values):';
+                    break;
+                case 'gemini':
+                    config = generateGeminiConfig(env);
+                    instructions = '<strong>💡 Instructions:</strong> Set environment variables and install:';
+                    break;
+                case 'copilot-cli':
+                    config = generateCopilotCLIConfig(env, certPath);
+                    instructions = '<strong>💡 Instructions:</strong> Run <code>/mcp add</code> in Copilot CLI and use these values:';
+                    break;
+                case 'copilot-agent':
+                    config = generateCopilotAgentConfig(env, certPath);
+                    instructions = '<strong>💡 Instructions:</strong> Add to GitHub repository Settings → Copilot → Coding agent:';
+                    break;
+                case 'kiro':
+                    config = generateKiroConfig(env, certPath);
+                    instructions = '<strong>💡 Instructions:</strong> Add to <code>.kiro/settings/mcp.json</code> in your workspace:';
+                    break;
+                case 'windsurf':
+                    config = generateWindsurfConfig(env);
+                    instructions = '<strong>💡 Instructions:</strong> Install from MCP Marketplace and use these values:';
+                    break;
+                case 'zed':
+                    config = generateZedConfig(env);
+                    instructions = '<strong>💡 Instructions:</strong> Install the extension in Zed and provide these values:';
+                    break;
+                case 'generic':
+                    config = generateJSONConfig(env, certPath);
+                    instructions = '<strong>💡 Instructions:</strong> Generic JSON configuration (adapt for your client):';
+                    break;
+            }
+
+            document.getElementById('instructions').innerHTML = instructions;
+            document.getElementById('configOutput').textContent = config;
+        }
+
+        function getSelectedToolsets() {
+            const toolsets = ['analysis'];
+            const checkboxes = document.querySelectorAll('[id^="tool-"]');
+            checkboxes.forEach(cb => {
+                if (cb.checked && !cb.disabled && cb.id !== 'tool-analysis') {
+                    toolsets.push(cb.id.replace('tool-', ''));
+                }
+            });
+            
+            // Check if all default toolsets are selected
+            const defaultToolsets = ['analysis', 'issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks'];
+            const selectedToolsets = toolsets.filter(t => defaultToolsets.includes(t));
+            
+            // Only return toolsets if it's different from default
+            if (selectedToolsets.length !== defaultToolsets.length || toolsets.length !== defaultToolsets.length) {
+                return toolsets.join(',');
+            }
+            
+            return null;
+        }
+
+        function buildDockerArgs(env, certPath) {
+            const args = ['run', '--init', '--pull=always', '-i', '--rm'];
+            
+            if (certPath) {
+                args.push('-v', `${certPath}:/usr/local/share/ca-certificates/:ro`);
+            }
+            
+            Object.keys(env).forEach(key => {
+                args.push('-e', key);
+            });
+            
+            args.push('mcp/sonarqube');
+            return args;
+        }
+
+        function generateClaudeConfig(env) {
+            let cmd = 'claude mcp add sonarqube';
+            Object.entries(env).forEach(([key, value]) => {
+                cmd += ` \\\n  --env ${key}=${value}`;
+            });
+            cmd += ' \\\n  -- docker run --init --pull=always -i --rm';
+            Object.keys(env).forEach(key => {
+                cmd += ` -e ${key}`;
+            });
+            cmd += ' mcp/sonarqube';
+            return cmd;
+        }
+
+        function generateJSONConfig(env, certPath) {
+            return JSON.stringify({
+                sonarqube: {
+                    command: 'docker',
+                    args: buildDockerArgs(env, certPath),
+                    env
+                }
+            }, null, 2);
+        }
+
+        function generateCodexConfig(env, certPath) {
+            let config = '[mcp_servers.sonarqube]\n';
+            config += 'command = "docker"\n';
+            config += 'args = ' + JSON.stringify(buildDockerArgs(env, certPath)) + '\n';
+            config += 'env = ' + JSON.stringify(env).replaceAll('{', '{ ').replaceAll('}', ' }');
+            return config;
+        }
+
+        function generateGeminiConfig(env) {
+            let config = '# Set environment variables:\n';
+            Object.entries(env).forEach(([key, value]) => {
+                config += `export ${key}="${value}"\n`;
+            });
+            config += '\n# Install extension:\n';
+            config += 'gemini extensions install https://github.com/SonarSource/sonarqube-mcp-server';
+            return config;
+        }
+
+        function generateCopilotCLIConfig(env, certPath) {
+            const args = buildDockerArgs(env, certPath);
+            let config = 'Server Name: sonarqube\n';
+            config += 'Server Type: Local (Press 1)\n';
+            config += 'Command: docker\n';
+            config += 'Arguments: ' + args.join(', ') + '\n';
+            config += 'Environment Variables: ';
+            config += Object.entries(env).map(([k, v]) => `${k}=${v}`).join(',') + '\n';
+            config += 'Tools: *';
+            return config;
+        }
+
+        function generateCopilotAgentConfig(env, certPath) {
+            const args = buildDockerArgs(env, certPath);
+            const copilotEnv = {};
+            Object.keys(env).forEach(key => {
+                copilotEnv[key.replaceAll('SONARQUBE_', 'SONAR_')] = `COPILOT_MCP_${key}`;
+            });
+
+            return JSON.stringify({
+                mcpServers: {
+                    sonarqube: {
+                        type: 'local',
+                        command: 'docker',
+                        args,
+                        env: copilotEnv,
+                        tools: ['*']
+                    }
+                }
+            }, null, 2);
+        }
+
+        function generateKiroConfig(env, certPath) {
+            return JSON.stringify({
+                mcpServers: {
+                    sonarqube: {
+                        command: 'docker',
+                        args: buildDockerArgs(env, certPath),
+                        env,
+                        disabled: false,
+                        autoApprove: []
+                    }
+                }
+            }, null, 2);
+        }
+
+        function generateWindsurfConfig(env) {
+            let config = '';
+            Object.entries(env).forEach(([key, value]) => {
+                config += `${key}: ${value}\n`;
+            });
+            return config;
+        }
+
+        function generateZedConfig(env) {
+            const zedEnv = { docker_path: '/usr/bin/docker' };
+            Object.entries(env).forEach(([key, value]) => {
+                zedEnv[key.toLowerCase()] = value;
+            });
+            return JSON.stringify(zedEnv, null, 2);
+        }
+
+        const FEEDBACK_TIMEOUT_MS = 2000;
+        
+        function copyConfig() {
+            const config = document.getElementById('configOutput').textContent;
+            navigator.clipboard.writeText(config).then(() => {
+                const feedback = document.getElementById('copyFeedback');
+                feedback.classList.add('show');
+                setTimeout(() => {
+                    feedback.classList.remove('show');
+                }, FEEDBACK_TIMEOUT_MS);
+            });
+        }
+
+        // Initialize
+        updateTokenHelpLink('cloud');
+        updatePreview();
+    </script>
+</body>
+</html>
