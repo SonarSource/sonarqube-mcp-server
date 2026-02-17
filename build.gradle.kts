@@ -236,3 +236,18 @@ sonar {
 		property("sonar.exclusions", "**/build/**/*")
 	}
 }
+
+signing {
+    setRequired {
+        val branch = System.getenv("GITHUB_REF_NAME") ?: ""
+        val pr = System.getenv("GITHUB_HEAD_REF") ?: ""
+        (branch == "master" || branch.matches("branch-[\\d.]+".toRegex())) &&
+            pr == "" &&
+            gradle.taskGraph.hasTask(":artifactoryPublish")
+    }
+    val signingKeyId: String? by project
+    val signingKey: String? by project
+    val signingPassword: String? by project
+    useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+    sign(publishing.publications["mavenJava"])
+}
