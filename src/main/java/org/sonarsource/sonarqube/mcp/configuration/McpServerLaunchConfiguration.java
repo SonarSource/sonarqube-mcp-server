@@ -141,13 +141,8 @@ public class McpServerLaunchConfiguration {
       this.sonarqubeUrl = sonarqubeUrlFromEnv;
     }
 
-    var transportMode = requireNonNull(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TRANSPORT, "")).toLowerCase(Locale.getDefault());
-    this.isHttpEnabled = transportMode.equals("http") || transportMode.equals("https");
-
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
-    // Token is optional in HTTP mode on SonarQube Cloud
-    // Token is required in stdio mode or on SonarQube Server
-    if (sonarqubeToken == null && (!this.isHttpEnabled || !this.isSonarCloud)) {
+    if (sonarqubeToken == null) {
       throw new IllegalArgumentException("SONARQUBE_TOKEN environment variable or property must be set");
     }
 
@@ -157,6 +152,9 @@ public class McpServerLaunchConfiguration {
     this.userAgent = APP_NAME + " " + appVersion;
     this.isTelemetryEnabled = !Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, TELEMETRY_DISABLED, "false"));
 
+    // Parse transport mode: "http", "https", or disabled (stdio)
+    var transportMode = requireNonNull(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TRANSPORT, "")).toLowerCase(Locale.getDefault());
+    this.isHttpEnabled = transportMode.equals("http") || transportMode.equals("https");
     this.isHttpsEnabled = transportMode.equals("https");
     
     this.httpPort = parseHttpPortValue(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_PORT, "8080"));
@@ -209,12 +207,10 @@ public class McpServerLaunchConfiguration {
 
   /**
    * Get the SonarQube token.
-   * - In stdio mode: Required. Used for all operations.
-   * - In HTTP mode on SonarQube Server: Required. Used for startup initialization.
-   * - In HTTP mode on SonarQube Cloud: Optional. Not needed since plugin and version check endpoints don't require authentication.
+   * - In stdio mode: Used for all operations.
+   * - In HTTP mode: Used only for startup initialization (version check, plugin sync).
    *   Per-request operations use client tokens from Authorization headers.
    */
-  @Nullable
   public String getSonarQubeToken() {
     return sonarqubeToken;
   }

@@ -297,7 +297,7 @@ For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL"` to the `args` array and 
 ```
 
 </details>
-
+    
 <details>
 <summary>VS Code</summary>
 
@@ -310,7 +310,6 @@ For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us
 [![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22--init%22%2C%22--pull%3Dalways%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
 
 </details>
-
 <details>
 <summary>Windsurf</summary>
 
@@ -646,7 +645,7 @@ Unencrypted HTTP transport. Use HTTPS instead for multi-user deployments.
 | `SONARQUBE_HTTP_PORT`| Port number (1024-65535)                                         | `8080`          |
 | `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)                | `127.0.0.1`     |
 
-**Note:** In HTTP(S) mode, each client sends their own token via the `SONARQUBE_TOKEN` header. For SonarQube Cloud, the server's `SONARQUBE_TOKEN` is not needed as initialization operations don't require authentication. For SonarQube Server, the server's `SONARQUBE_TOKEN` is required for initialization.
+**Note:** In HTTP(S) mode, each client sends their own token via the `SONARQUBE_TOKEN` header. The server's `SONARQUBE_TOKEN` is required for initialization.
 
 #### 3. **HTTPS** (Recommended for Multi-User Production Deployments)
 Secure multi-user transport with TLS encryption. Requires SSL certificates.
