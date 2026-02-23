@@ -456,11 +456,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       if (token == null || token.isBlank()) {
         throw new IllegalStateException("No SONARQUBE_TOKEN in transport context");
       }
-      var organization = (String) ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
-      if (organization == null || organization.isBlank()) {
-        organization = mcpConfiguration.getSonarqubeOrg();
-      }
-      return createServerApiWithTokenAndOrg(token, organization);
+      return createServerApiWithTokenAndOrg(token, mcpConfiguration.getSonarqubeOrg());
     } else {
       if (serverApi == null) {
         throw new IllegalStateException("ServerApi not initialized");

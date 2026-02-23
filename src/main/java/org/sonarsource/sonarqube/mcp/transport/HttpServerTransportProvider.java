@@ -49,7 +49,6 @@ public class HttpServerTransportProvider {
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String MCP_ENDPOINT = "/mcp";
   public static final String CONTEXT_TOKEN_KEY = "sonarqube-token";
-  public static final String CONTEXT_ORG_KEY = "sonarqube-org";
 
   private final int port;
   private final String host;
@@ -96,8 +95,7 @@ public class HttpServerTransportProvider {
       .messageEndpoint(MCP_ENDPOINT)
       .jsonMapper(McpJsonMappers.DEFAULT)
       .contextExtractor(request -> McpTransportContext.create(Map.of(
-        CONTEXT_TOKEN_KEY, request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) != null ? request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) : "",
-        CONTEXT_ORG_KEY, request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG) != null ? request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG) : ""
+        CONTEXT_TOKEN_KEY, request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) != null ? request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) : ""
       )))
       .build();
 
