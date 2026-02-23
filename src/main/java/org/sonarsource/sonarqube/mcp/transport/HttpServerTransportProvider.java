@@ -16,13 +16,14 @@
  */
 package org.sonarsource.sonarqube.mcp.transport;
 
-import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
+import io.modelcontextprotocol.common.McpTransportContext;
+import io.modelcontextprotocol.server.transport.HttpServletStatelessServerTransport;
 import jakarta.servlet.DispatcherType;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.EnumSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
@@ -35,17 +36,20 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
+import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
- * HTTP transport provider for MCP server using the SDK's built-in servlet transport.
- * This implementation follows the MCP Streamable HTTP specification and uses Jetty 
- * as the servlet container to host the SDK's HttpServletStreamableServerTransportProvider.
+ * HTTP transport for the MCP server using the stateless servlet transport.
+ * Each POST request is handled independently — no session state is maintained,
+ * enabling horizontal scaling without sticky sessions.
  */
 public class HttpServerTransportProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String MCP_ENDPOINT = "/mcp";
+  public static final String CONTEXT_TOKEN_KEY = "sonarqube-token";
+  public static final String CONTEXT_ORG_KEY = "sonarqube-org";
 
   private final int port;
   private final String host;
@@ -57,7 +61,7 @@ public class HttpServerTransportProvider {
   private final Path httpsTruststorePath;
   private final String httpsTruststorePassword;
   private final String httpsTruststoreType;
-  private final HttpServletStreamableServerTransportProvider mcpTransportProvider;
+  private final HttpServletStatelessServerTransport mcpTransportProvider;
   private Server httpServer;
 
   /**
@@ -88,10 +92,13 @@ public class HttpServerTransportProvider {
     this.httpsTruststorePassword = httpsTruststorePassword;
     this.httpsTruststoreType = httpsTruststoreType;
 
-    this.mcpTransportProvider = HttpServletStreamableServerTransportProvider.builder()
-      .mcpEndpoint(MCP_ENDPOINT)
-      .keepAliveInterval(Duration.ofSeconds(30))
+    this.mcpTransportProvider = HttpServletStatelessServerTransport.builder()
+      .messageEndpoint(MCP_ENDPOINT)
       .jsonMapper(McpJsonMappers.DEFAULT)
+      .contextExtractor(request -> McpTransportContext.create(Map.of(
+        CONTEXT_TOKEN_KEY, request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) != null ? request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) : "",
+        CONTEXT_ORG_KEY, request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG) != null ? request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG) : ""
+      )))
       .build();
 
     var protocol = httpsEnabled ? "https" : "http";
@@ -113,7 +120,7 @@ public class HttpServerTransportProvider {
     }
   }
 
-  public HttpServletStreamableServerTransportProvider getTransportProvider() {
+  public HttpServletStatelessServerTransport getTransportProvider() {
     return mcpTransportProvider;
   }
 
@@ -140,7 +147,6 @@ public class HttpServerTransportProvider {
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var servletHolder = new ServletHolder(mcpTransportProvider);
-    // Required for Server-Sent Events
     servletHolder.setAsyncSupported(true);
     servletContextHandler.addServlet(servletHolder, "/*");
 

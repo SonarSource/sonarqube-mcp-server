@@ -33,8 +33,9 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 │                  MCP Client                         │
 │            (Cursor, VS Code, etc.)                  │
 └────────────────┬────────────────────────────────────┘
-                 │ HTTP POST/GET/DELETE
+                 │ HTTP POST
                  │ Header: SONARQUBE_TOKEN
+                 │ Header: SONARQUBE_ORG (optional)
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │              Jetty HTTP Server                      │
@@ -44,20 +45,20 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │            Servlet Filter Chain                     │
-│  1. AuthenticationFilter (token extraction)         │
+│  1. AuthenticationFilter (token validation)         │
 │  2. McpSecurityFilter (CORS + Origin validation)    │
 └────────────────┬────────────────────────────────────┘
                  │
                  ▼
 ┌─────────────────────────────────────────────────────┐
-│   HttpServletStreamableServerTransportProvider      │
-│         (MCP SDK - handles protocol)                │
+│     HttpServletStatelessServerTransport             │
+│   (MCP SDK - stateless, extracts McpTransportCtx)  │
 └────────────────┬────────────────────────────────────┘
                  │
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │            MCP Tool Execution                       │
-│     (looks up token from SessionTokenStore)         │
+│  (reads token from McpTransportContext ThreadLocal) │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -65,23 +66,19 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 
 #### `HttpServerTransportProvider`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider`
-- **Purpose**: Bootstraps Jetty server and configures servlet transport
+- **Purpose**: Bootstraps Jetty server and configures the stateless servlet transport with a context extractor that reads `SONARQUBE_TOKEN` and `SONARQUBE_ORG` headers into a `McpTransportContext` for each request
 
 #### `AuthenticationFilter`
 - **Location**: `org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter`
-- **Purpose**: Extracts and validates client tokens
+- **Purpose**: Validates that every request carries a non-blank `SONARQUBE_TOKEN` header. No session state is created or maintained.
 
 #### `McpSecurityFilter`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.McpSecurityFilter`
 - **Purpose**: Security and CORS handling
 
-#### `RequestContext`
-- **Location**: `org.sonarsource.sonarqube.mcp.context.RequestContext`
-- **Purpose**: Thread-local storage for session ID during tool execution
-
-#### `SessionTokenStore`
-- **Location**: `org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore`
-- **Purpose**: Secure session-to-token mapping store (prevents session hijacking)
+#### `SonarQubeMcpServer` (ServerApiProvider)
+- **Location**: `org.sonarsource.sonarqube.mcp.SonarQubeMcpServer`
+- **Purpose**: In HTTP stateless mode, reads the current request's `McpTransportContext` from a `ThreadLocal` to extract the token and create a per-request `ServerApi` instance
 
 ---
 
@@ -109,32 +106,27 @@ Clients configure the HTTP endpoint with authentication:
 ```
 1. Client sends HTTP POST with token header
    └─> SONARQUBE_TOKEN: squ_abc123
-   └─> Mcp-Session-Id: session-uuid
+   └─> SONARQUBE_ORG: my-org (optional)
 
 2. AuthenticationFilter intercepts request
    ├─> Extract token from SONARQUBE_TOKEN header
-   ├─> Validate token presence
-   ├─> Store/validate session-token binding in SessionTokenStore
-   │   (prevents session hijacking - token must match for existing sessions)
-   └─> Pass to next filter
+   ├─> Reject with 401 if token is missing or blank
+   └─> Pass to next filter if token is present
 
 3. McpSecurityFilter validates security
    ├─> Check Origin header
    ├─> Set CORS headers
    └─> Pass to servlet
 
-4. MCP SDK servlet processes request
+4. HttpServletStatelessServerTransport processes request
+   ├─> contextExtractor runs: reads SONARQUBE_TOKEN and SONARQUBE_ORG headers
+   ├─> Creates McpTransportContext with those values
    ├─> Parse JSON-RPC message
-   └─> Dispatch to tool handler
+   └─> Dispatch to tool handler (context available via ThreadLocal)
 
-5. Tool execution handler
-   ├─> Get session ID from MCP exchange
-   ├─> Set session ID in RequestContext
-   ├─> Execute tool
-
-6. Tool execution (ServerApiProvider.get())
-   ├─> Get session ID from RequestContext
-   ├─> Look up token from SessionTokenStore by session ID
+5. Tool execution (ServerApiProvider.get())
+   ├─> Read McpTransportContext from ThreadLocal
+   ├─> Extract sonarqube-token and sonarqube-org
    ├─> Create ServerApi with client's token
    └─> Call SonarQube API
 ```
@@ -142,10 +134,11 @@ Clients configure the HTTP endpoint with authentication:
 ### 3. Authentication Modes
 
 #### `TOKEN` Mode (Default)
-- Clients provide their own SonarQube token
-- Token validated by SonarQube API (not MCP server)
+- Clients provide their own SonarQube token on **every request** (fully stateless)
+- Token validated by SonarQube API (not the MCP server itself)
 - Uses custom header format:
   - `SONARQUBE_TOKEN: <token>`
+  - `SONARQUBE_ORG: <org>` (optional, overrides server-side default)
 
 #### `OAUTH` Mode (Not Yet Implemented)
 - OAuth 2.1 with PKCE
@@ -156,48 +149,41 @@ Clients configure the HTTP endpoint with authentication:
 
 ## Token Propagation
 
-### Problem: Async Processing, ThreadLocal, and Session Hijacking
+### Design: Stateless Per-Request Token Extraction
 
-The MCP SDK servlet uses **async processing** with **worker threads** to handle tool execution. This creates challenges:
-
-1. **ThreadLocal leakage**: Worker threads from thread pools may have stale inherited ThreadLocal values
-2. **Session hijacking**: Without proper binding, a malicious client could steal another user's session
-
-### Solution: SessionTokenStore
-
-Instead of relying on ThreadLocal for token storage, we use a `ConcurrentHashMap`-based store that maps session IDs to tokens:
+The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function runs synchronously on the request thread and populates a `McpTransportContext` map with the request headers:
 
 ```java
-// SessionTokenStore - the source of truth
-private final ConcurrentHashMap<String, String> sessionTokens = new ConcurrentHashMap<>();
+HttpServletStatelessServerTransport.builder()
+  .contextExtractor(request -> McpTransportContext.create(Map.of(
+    "sonarqube-token", request.getHeader("SONARQUBE_TOKEN") != null ? request.getHeader("SONARQUBE_TOKEN") : "",
+    "sonarqube-org",   request.getHeader("SONARQUBE_ORG")   != null ? request.getHeader("SONARQUBE_ORG")   : ""
+  )))
+  .build();
 ```
 
-The flow is:
+The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>` during tool execution, so `ServerApiProvider.get()` can access the token without any session lookup:
 
 ```
 1. HTTP Request arrives
-   └─> Filter extracts token and session ID
-   └─> SessionTokenStore.setTokenIfValid(sessionId, token)
-       ├─> New session: stores token, returns true
-       └─> Existing session: validates token matches, returns true/false
-           (token mismatch = hijacking attempt → 403 Forbidden)
+   └─> contextExtractor reads SONARQUBE_TOKEN / SONARQUBE_ORG from headers
+   └─> McpTransportContext stored in ThreadLocal for this request thread
 
 2. Tool Execution Handler
-   └─> Gets session ID from MCP exchange
-   └─> Sets session ID in RequestContext (ThreadLocal)
+   └─> ThreadLocal<McpTransportContext> is already populated by the SDK
 
 3. ServerApiProvider.get()
-   └─> Gets session ID from RequestContext
-   └─> Looks up token from SessionTokenStore
-   └─> Creates ServerApi with the correct token
+   └─> Reads McpTransportContext from ThreadLocal
+   └─> Extracts token (and optionally org)
+   └─> Creates a fresh ServerApi for this request
 ```
 
 ### Why This Design?
 
-1. **Session-token binding**: A session can only be used with the token that created it
-2. **No ThreadLocal contamination**: Tokens are never stored in ThreadLocal, only session IDs
-3. **Explicit lookup**: Token is always looked up by session ID at point of use
-4. **Thread-safe**: ConcurrentHashMap handles concurrent access correctly
+1. **Stateless**: No session-to-token mapping; each request is self-contained
+2. **Horizontally scalable**: No sticky sessions required — any server instance can handle any request
+3. **Simple**: No `ConcurrentHashMap` for session management, no session hijacking surface
+4. **Per-request isolation**: A new `ServerApi` is created for each request using only the credentials from that request
 
 ---
 
@@ -205,9 +191,9 @@ The flow is:
 
 ### DNS Rebinding Protection
 
-**Threat**: Attacker could use DNS rebinding to access local MCP server from remote website.
+**Threat**: Attacker could use DNS rebinding to access a local MCP server from a remote website.
 
-**Mitigation**: `McpSecurityFilter` validates `Origin` header:
+**Mitigation**: `McpSecurityFilter` validates the `Origin` header.
 
 **Allowed Origins**:
 - When bound to `127.0.0.1` (default): Only `http://localhost`, `http://127.0.0.1`, etc.
@@ -218,8 +204,8 @@ The flow is:
 
 **Server-side**:
 - Token **never logged** in plain text
-- Token **not validated** by MCP server (delegated to SonarQube API)
-- Token **cleared** from memory after request
+- Token **not validated** by the MCP server (delegated to SonarQube API)
+- No token is persisted between requests
 
 **Transport**:
 - HTTPS recommended for production (not enforced for localhost development)
@@ -227,7 +213,7 @@ The flow is:
 
 **Storage**:
 - Client responsible for secure token storage
-- Token never persisted by MCP server
+- Token is never persisted by the MCP server
 
 ---
 
