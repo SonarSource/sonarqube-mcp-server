@@ -156,6 +156,18 @@ class HttpServerTransportIntegrationTest {
     }
   }
 
+  @Test
+  void should_return_immediately_when_server_already_running() {
+    httpServer.startServer().join();
+    await().atMost(5, TimeUnit.SECONDS).until(() -> isServerRunning(httpServer.getServerUrl()));
+
+    // Calling startServer() a second time while running should return a completed future without restarting
+    var secondStartFuture = httpServer.startServer();
+
+    assertThat(secondStartFuture).isCompleted();
+    assertThat(isServerRunning(httpServer.getServerUrl())).isTrue();
+  }
+
   private boolean isServerRunning(String serverUrl) {
     try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(1)).build()) {
       var request = HttpRequest.newBuilder()
