@@ -116,7 +116,7 @@ class HttpServerTransportIntegrationTest {
 
       var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-      // Stateless transport does not support GET (no persistent SSE stream)
+      // Stateless transport only accepts POST
       assertThat(response.statusCode()).isEqualTo(405);
     }
   }

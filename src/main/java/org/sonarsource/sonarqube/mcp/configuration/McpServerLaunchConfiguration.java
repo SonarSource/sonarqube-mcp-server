@@ -209,7 +209,7 @@ public class McpServerLaunchConfiguration {
    * Get the SonarQube token.
    * - In stdio mode: Used for all operations.
    * - In HTTP mode: Used only for startup initialization (version check, plugin sync).
-   *   Per-request operations use client tokens from Authorization headers.
+   *   Per-request operations use client tokens from the SONARQUBE_TOKEN header.
    */
   public String getSonarQubeToken() {
     return sonarqubeToken;

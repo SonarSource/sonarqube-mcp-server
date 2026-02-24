@@ -8,7 +8,7 @@
 The SonarQube MCP Server supports two transport modes:
 
 - **Stdio Transport**: Direct process communication (stdin/stdout)
-- **HTTP Transport**: Network-based communication using MCP Streamable HTTP specification
+- **HTTP Transport**: Network-based communication using the MCP stateless HTTP transport
 
 This document focuses on the **Stdio Transport**.
 
@@ -117,16 +117,16 @@ This document focuses on the **Stdio Transport**.
 
 ## Comparison: Stdio vs HTTP
 
-| Feature                      | Stdio | HTTP |
-|------------------------------|-------|------|
-| **Setup Complexity**         | ✅ Simple | ⚠️ Moderate |
-| **Network Exposure**         | ✅ None | ⚠️ Optional |
-| **Multi-User**               | ❌ One process per user | ✅ Shared gateway |
-| **Token Handling**           | ✅ Environment variable | ✅ Per-request header |
-| **SonarQube for IDE Bridge** | ✅ Supported | ❌ Disabled |
-| **Process Lifecycle**        | ✅ Automatic | ⚠️ Manual |
-| **Resource Usage**           | ⚠️ One JVM per user | ✅ Shared JVM |
-| **Use Case**                 | Individual developers | Shared server/gateway |
+| Feature                      | Stdio                  | HTTP                  |
+|------------------------------|------------------------|-----------------------|
+| **Setup Complexity**         | ✅ Simple               | ⚠️ Moderate           |
+| **Network Exposure**         | ✅ None                 | ⚠️ Optional           |
+| **Multi-User**               | ❌ One process per user | ✅ Shared gateway      |
+| **Token Handling**           | ✅ Environment variable | ✅ Per-request header  |
+| **SonarQube for IDE Bridge** | ✅ Supported            | ❌ Disabled            |
+| **Process Lifecycle**        | ✅ Automatic            | ⚠️ Manual             |
+| **Resource Usage**           | ⚠️ One JVM per user    | ✅ Shared JVM          |
+| **Use Case**                 | Individual developers  | Shared server/gateway |
 
 **Recommendation:** Use stdio transport unless you specifically need multi-user gateway functionality.
 

@@ -122,9 +122,9 @@ class McpSecurityFilterTest {
       Arguments.of("127.0.0.1", "http://localhost:3000", "POST"),
       Arguments.of("127.0.0.1", "http://127.0.0.1:8080", "POST"),
       Arguments.of("127.0.0.1", "https://localhost:3000", "POST"),
-      Arguments.of("127.0.0.1", "http://[::1]:8080", "POST"),
+      Arguments.of("127.0.0.1", "http://[::1]:8080", "POST"),   // IPv6 localhost
       Arguments.of("127.0.0.1", "https://127.0.0.1:3000", "POST"),
-      Arguments.of("127.0.0.1", "https://[::1]:8080", "POST"),
+      Arguments.of("127.0.0.1", "https://[::1]:8080", "POST"),  // IPv6 localhost over HTTPS
       Arguments.of("0.0.0.0", "https://external-site.com", "POST")
     );
   }

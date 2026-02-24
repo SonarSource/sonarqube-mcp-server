@@ -112,7 +112,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * ServerApi instance.
    * - In stdio mode: created once at startup with the configured token
-   * - In HTTP mode: null (created per-request using client's token from Authorization header)
+   * - In HTTP mode: null (created per-request using client's token from the SONARQUBE_TOKEN header)
    */
   @Nullable
   private ServerApi serverApi;
@@ -122,8 +122,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @Nullable
   private McpSyncServer stdioSyncServer;
   /**
-   * In HTTP stateless mode, carries the McpTransportContext for the current request thread
-   * so that get() can extract the SONARQUBE_TOKEN and SONARQUBE_ORG headers.
+   * In HTTP stateless mode, carries the McpTransportContext for the current request thread so that get() can extract the SONARQUBE_TOKEN value.
    */
   private final ThreadLocal<McpTransportContext> currentTransportContext = new ThreadLocal<>();
   private volatile boolean isShutdown = false;

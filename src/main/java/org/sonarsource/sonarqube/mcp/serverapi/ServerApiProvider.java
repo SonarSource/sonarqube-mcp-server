@@ -22,7 +22,7 @@ import java.util.function.Supplier;
  * Provider interface for obtaining ServerApi instances.
  * This abstraction allows tools to work in both stdio and HTTP modes:
  * - In stdio mode: Returns the global ServerApi instance created at startup
- * - In HTTP mode: Creates per-request ServerApi instances using client tokens from Authorization headers
+ * - In HTTP mode: Creates per-request ServerApi instances using the client token from the SONARQUBE_TOKEN header
  */
 public interface ServerApiProvider extends Supplier<ServerApi> {
 }

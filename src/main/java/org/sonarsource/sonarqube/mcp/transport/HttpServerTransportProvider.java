@@ -114,7 +114,7 @@ public class HttpServerTransportProvider {
     if (!httpsEnabled) {
       LOG.warn("SECURITY WARNING: MCP server is using HTTP without SSL/TLS encryption. " +
         "Tokens and data will be transmitted in plain text. " +
-        "For production use, consider enabling HTTPS with SONARQUBE_HTTPS_ENABLED=true.");
+        "For production use, consider enabling HTTPS with SONARQUBE_TRANSPORT=https.");
     }
   }
 
@@ -135,14 +135,14 @@ public class HttpServerTransportProvider {
 
     var startupFuture = new CompletableFuture<Void>();
 
-    var servletContextHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
+    var servletContextHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
     servletContextHandler.setContextPath("/");
-
-    var authFilter = new FilterHolder(new AuthenticationFilter(authMode));
-    servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var securityFilter = new FilterHolder(new McpSecurityFilter(host));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
+
+    var authFilter = new FilterHolder(new AuthenticationFilter(authMode));
+    servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var servletHolder = new ServletHolder(mcpTransportProvider);
     servletHolder.setAsyncSupported(true);

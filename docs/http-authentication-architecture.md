@@ -216,7 +216,7 @@ The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>
 
 ## References
 
-- [MCP Specification - Streamable HTTP Transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
+- [MCP Specification - HTTP Transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
 - [MCP Specification - Authorization](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization)
 - [MCP Java SDK Documentation](https://modelcontextprotocol.io/sdk/java/mcp-overview)
 - [Jakarta Servlet Specification](https://jakarta.ee/specifications/servlet/)

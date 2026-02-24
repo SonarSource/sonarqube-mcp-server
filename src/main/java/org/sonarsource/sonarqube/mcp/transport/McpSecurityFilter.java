@@ -41,7 +41,7 @@ public class McpSecurityFilter implements Filter {
   private static final Set<String> ALLOWED_LOCALHOST_HOSTS = Set.of(
     "localhost",
     "127.0.0.1",
-    "[::1]"
+    "::1"
   );
 
   private final String hostBinding;
