@@ -609,7 +609,7 @@ To enable full functionality, the following environment variables must be set be
 
 > ⚠️ Connection to SonarQube Server requires a token of type **USER** and will not function properly if project tokens or global tokens are used.
 
-> 💡 **Configuration Tip**: The presence of `SONARQUBE_ORG` determines whether you're connecting to SonarQube Cloud or Server. If `SONARQUBE_ORG` is set, SonarQube Cloud is used; otherwise, SonarQube Server is used.
+> 💡 **Configuration Tip (stdio mode)**: The presence of `SONARQUBE_ORG` determines whether you're connecting to SonarQube Cloud or Server. If `SONARQUBE_ORG` is set, SonarQube Cloud is used; otherwise, SonarQube Server is used. In HTTP/HTTPS mode, SonarQube Cloud is detected by the URL (`sonarcloud.io`) or by the absence of `SONARQUBE_URL`; the org is provided per-request via the `SONARQUBE_ORG` header.
 
 ### Transport Modes
 
@@ -645,7 +645,7 @@ Unencrypted HTTP transport. Use HTTPS instead for multi-user deployments.
 | `SONARQUBE_HTTP_PORT`| Port number (1024-65535)                                         | `8080`          |
 | `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)                | `127.0.0.1`     |
 
-**Note:** In HTTP(S) mode, the server is stateless — each client request must include a `SONARQUBE_TOKEN` header carrying the user's own SonarQube token. No session state is maintained between requests.
+**Note:** In HTTP(S) mode, the server is stateless — each client request must include a `SONARQUBE_TOKEN` header carrying the user's own SonarQube token. For SonarQube Cloud, clients may also supply a `SONARQUBE_ORG` header to identify the organization (this takes precedence over the server-level `SONARQUBE_ORG` environment variable). No session state is maintained between requests.
 
 #### 3. **HTTPS** (Recommended for Multi-User Production Deployments)
 Secure multi-user transport with TLS encryption. Requires SSL certificates.
@@ -677,7 +677,22 @@ docker run --init --pull=always -p 8443:8443 \
   mcp/sonarqube
 ```
 
-**Client Configuration:**
+**Client Configuration (SonarQube Cloud):**
+```json
+{
+  "mcpServers": {
+    "sonarqube-https": {
+      "url": "https://your-server:8443/mcp",
+      "headers": {
+        "SONARQUBE_TOKEN": "<your-token>",
+        "SONARQUBE_ORG": "<your-org>"
+      }
+    }
+  }
+}
+```
+
+**Client Configuration (SonarQube Server):**
 ```json
 {
   "mcpServers": {
