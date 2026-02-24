@@ -34,7 +34,7 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 │            (Cursor, VS Code, etc.)                  │
 └────────────────┬────────────────────────────────────┘
                  │ HTTP POST
-                 │ Header: SONARQUBE_TOKEN (required)
+                 │ Headers: SONARQUBE_TOKEN (required), SONARQUBE_ORG (optional, SQC only)
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │              Jetty HTTP Server                      │
@@ -125,7 +125,8 @@ Clients configure the HTTP endpoint with authentication:
 5. Tool execution (ServerApiProvider.get())
    ├─> Read McpTransportContext from ThreadLocal
    ├─> Extract CONTEXT_TOKEN_KEY value
-   ├─> Create ServerApi with client's token + server-configured org
+   ├─> Extract CONTEXT_ORG_KEY value (per-request org takes precedence over server-level org)
+   ├─> Create ServerApi with client's token and resolved org
    └─> Call SonarQube API
 ```
 
@@ -136,7 +137,7 @@ Clients configure the HTTP endpoint with authentication:
 - Token validated by SonarQube API (not the MCP server itself)
 - Uses custom header format:
   - `SONARQUBE_TOKEN: <token>` — required on every request
-- The organization (`SONARQUBE_ORG`) is a server-side configuration set via environment variable; it is not supplied by clients
+  - `SONARQUBE_ORG: <org>` — optional; for SonarQube Cloud, identifies the organization. Per-request value takes precedence over the server-level `SONARQUBE_ORG` environment variable (which can serve as a fallback for single-org deployments)
 
 #### `OAUTH` Mode (Not Yet Implemented)
 - OAuth 2.1 with PKCE
@@ -153,17 +154,24 @@ The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. 
 
 ```java
 HttpServletStatelessServerTransport.builder()
-  .contextExtractor(request -> McpTransportContext.create(Map.of(
-    CONTEXT_TOKEN_KEY, request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) != null ? request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) : ""
-  )))
+  .contextExtractor(request -> {
+    var token = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN);
+    var org = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
+    var contextBuilder = new HashMap<String, Object>();
+    contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
+    if (org != null && !org.isBlank()) {
+      contextBuilder.put(CONTEXT_ORG_KEY, org);
+    }
+    return McpTransportContext.create(contextBuilder);
+  })
   .build();
 ```
 
-The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>` during tool execution, so `ServerApiProvider.get()` can access the token without any session lookup:
+The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>` during tool execution, so `ServerApiProvider.get()` can access the token and org without any session lookup:
 
 ```
 1. HTTP Request arrives
-   └─> contextExtractor reads SONARQUBE_TOKEN header
+   └─> contextExtractor reads SONARQUBE_TOKEN and SONARQUBE_ORG headers
    └─> McpTransportContext stored in ThreadLocal for this request thread
 
 2. Tool Execution Handler
@@ -171,7 +179,7 @@ The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>
 
 3. ServerApiProvider.get()
    └─> Reads McpTransportContext from ThreadLocal
-   └─> Extracts token (and optionally org)
+   └─> Extracts token and org (per-request org takes precedence over server-level org)
    └─> Creates a fresh ServerApi for this request
 ```
 

@@ -22,8 +22,8 @@ import jakarta.servlet.DispatcherType;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
@@ -49,6 +49,7 @@ public class HttpServerTransportProvider {
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String MCP_ENDPOINT = "/mcp";
   public static final String CONTEXT_TOKEN_KEY = "sonarqube-token";
+  public static final String CONTEXT_ORG_KEY = "sonarqube-org";
 
   private final int port;
   private final String host;
@@ -94,9 +95,16 @@ public class HttpServerTransportProvider {
     this.mcpTransportProvider = HttpServletStatelessServerTransport.builder()
       .messageEndpoint(MCP_ENDPOINT)
       .jsonMapper(McpJsonMappers.DEFAULT)
-      .contextExtractor(request -> McpTransportContext.create(Map.of(
-        CONTEXT_TOKEN_KEY, request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) != null ? request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) : ""
-      )))
+      .contextExtractor(request -> {
+        var token = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN);
+        var org = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
+        var contextBuilder = new HashMap<String, Object>();
+        contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
+        if (org != null && !org.isBlank()) {
+          contextBuilder.put(CONTEXT_ORG_KEY, org);
+        }
+        return McpTransportContext.create(contextBuilder);
+      })
       .build();
 
     var protocol = httpsEnabled ? "https" : "http";

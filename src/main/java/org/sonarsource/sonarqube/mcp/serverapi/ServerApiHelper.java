@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.net.HttpURLConnection;
@@ -89,7 +90,7 @@ public class ServerApiHelper {
   }
 
   /**
-   * Execute GET using the API subdomain (api.sonarcloud.io)
+   * Execute GET using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
    */
   public HttpClient.Response getApiSubdomain(String path) {
     var response = rawGetApiSubdomain(path);
@@ -100,14 +101,14 @@ public class ServerApiHelper {
   }
 
   /**
-   * Execute raw GET using the API subdomain (api.sonarcloud.io)
+   * Execute raw GET using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
    */
   public HttpClient.Response rawGetApiSubdomain(String relativePath) {
     return client.getAsync(buildApiSubdomainUrl(relativePath)).join();
   }
 
   /**
-   * Execute POST using the API subdomain (api.sonarcloud.io)
+   * Execute POST using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
    */
   public HttpClient.Response postApiSubdomain(String path, String contentType, String body) {
     var response = rawPostApiSubdomain(path, contentType, body);
@@ -118,7 +119,7 @@ public class ServerApiHelper {
   }
 
   /**
-   * Execute raw POST using the API subdomain (api.sonarcloud.io)
+   * Execute raw POST using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
    */
   public HttpClient.Response rawPostApiSubdomain(String relativePath, String contentType, String body) {
     return client.postAsync(buildApiSubdomainUrl(relativePath), contentType, body).join();
@@ -129,18 +130,20 @@ public class ServerApiHelper {
   }
 
   /**
-   * Build URL using the API subdomain (api.sonarcloud.io)
+   * Build URL using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
    */
-  private String buildApiSubdomainUrl(String relativePath) {
+  @VisibleForTesting
+  String buildApiSubdomainUrl(String relativePath) {
     if (endpointParams.organization() == null) {
       // For SonarQube Server, fall back to regular endpoint
       return buildEndpointUrl(relativePath);
     }
 
     var baseUrl = endpointParams.baseUrl();
-    // Transform sonarcloud.io to api.sonarcloud.io
     if (baseUrl.contains("sonarcloud.io")) {
       baseUrl = baseUrl.replace("://sonarcloud.io", "://api.sonarcloud.io");
+    } else if (baseUrl.contains("sonarqube.us")) {
+      baseUrl = baseUrl.replace("://sonarqube.us", "://api.sonarqube.us");
     }
     return concat(baseUrl, relativePath);
   }
