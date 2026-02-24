@@ -458,10 +458,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       }
       return createServerApiWithTokenAndOrg(token, mcpConfiguration.getSonarqubeOrg());
     } else {
-      if (serverApi == null) {
-        throw new IllegalStateException("ServerApi not initialized");
-      }
-      return serverApi;
+      return Objects.requireNonNull(serverApi, "ServerApi not initialized");
     }
   }
 
@@ -598,6 +595,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @VisibleForTesting
   public void waitForInitialization() throws ExecutionException, InterruptedException {
     initializationFuture.get();
+  }
+
+
+  @VisibleForTesting
+  public void withTransportContext(McpTransportContext context, Runnable action) {
+    currentTransportContext.set(context);
+    try {
+      action.run();
+    } finally {
+      currentTransportContext.remove();
+    }
   }
 
 }

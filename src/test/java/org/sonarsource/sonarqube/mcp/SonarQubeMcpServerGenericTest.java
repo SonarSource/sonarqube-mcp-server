@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
+import io.modelcontextprotocol.common.McpTransportContext;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -189,6 +191,37 @@ class SonarQubeMcpServerGenericTest {
       .toList();
     assertThat(enabledToolNames)
       .contains("analyze_code_snippet");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void get_should_return_server_api_in_http_mode_when_context_has_valid_token(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    var context = McpTransportContext.create(Map.of(HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "squ_valid_token"));
+    server.withTransportContext(context, () ->
+      assertThat(server.get()).isNotNull());
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void get_should_throw_in_http_mode_when_context_token_is_blank(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    var context = McpTransportContext.create(Map.of(HttpServerTransportProvider.CONTEXT_TOKEN_KEY, ""));
+    assertThatThrownBy(() -> server.withTransportContext(context, server::get))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("No SONARQUBE_TOKEN in transport context");
 
     server.shutdown();
   }
