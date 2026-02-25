@@ -100,13 +100,12 @@ class AuthenticationIntegrationTest {
   @Test
   void should_always_allow_options_requests_regardless_of_auth() throws Exception {
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, 
+    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
     try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
-      // OPTIONS request without Authorization header
       var request = HttpRequest.newBuilder()
         .uri(URI.create(httpServer.getServerUrl()))
         .method("OPTIONS", HttpRequest.BodyPublishers.noBody())

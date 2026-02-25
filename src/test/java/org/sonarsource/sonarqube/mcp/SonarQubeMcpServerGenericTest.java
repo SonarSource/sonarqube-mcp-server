@@ -16,30 +16,27 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
+import io.modelcontextprotocol.common.McpTransportContext;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore;
-import org.sonarsource.sonarqube.mcp.context.RequestContext;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 class SonarQubeMcpServerGenericTest {
 
-  @AfterEach
-  void tearDown() {
-    RequestContext.clear();
-    SessionTokenStore.getInstance().clear();
-  }
+  // No per-test teardown needed — the stateless HTTP mode has no global session state.
 
   @SonarQubeMcpServerTest
   void get_should_return_server_api_in_stdio_mode(SonarQubeMcpServerTestHarness harness) {
@@ -106,54 +103,6 @@ class SonarQubeMcpServerGenericTest {
       System.clearProperty("SONARQUBE_DEBUG_ENABLED");
       System.setErr(originalErr);
     }
-  }
-
-  @SonarQubeMcpServerTest
-  void get_should_throw_when_no_request_context_in_http_mode(SonarQubeMcpServerTestHarness harness) {
-    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    harness.prepareMockWebServer(environment);
-
-    var server = new SonarQubeMcpServer(environment);
-
-    // No RequestContext set - should throw
-    assertThatThrownBy(server::get)
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("No request context");
-  }
-
-  @SonarQubeMcpServerTest
-  void get_should_throw_when_no_token_for_session_in_http_mode(SonarQubeMcpServerTestHarness harness) {
-    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    harness.prepareMockWebServer(environment);
-
-    var server = new SonarQubeMcpServer(environment);
-
-    // Set RequestContext with session ID but don't store token in SessionTokenStore
-    RequestContext.set("unknown-session-id");
-
-    assertThatThrownBy(server::get)
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("No token found for session");
-  }
-
-  @SonarQubeMcpServerTest
-  void get_should_return_server_api_when_session_has_token_in_http_mode(SonarQubeMcpServerTestHarness harness) {
-    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    harness.prepareMockWebServer(environment);
-
-    var server = new SonarQubeMcpServer(environment);
-
-    // Simulate what AuthenticationFilter does: store token for session
-    var sessionId = "test-session-123";
-    var token = "squ_test_token";
-    SessionTokenStore.getInstance().setTokenIfValid(sessionId, token);
-
-    // Simulate what tool handler does: set session ID in RequestContext
-    RequestContext.set(sessionId);
-
-    var serverApi = server.get();
-
-    assertThat(serverApi).isNotNull();
   }
 
   @SonarQubeMcpServerTest
@@ -246,6 +195,75 @@ class SonarQubeMcpServerGenericTest {
     server.shutdown();
   }
 
+  @SonarQubeMcpServerTest
+  void get_should_return_server_api_in_http_mode_when_context_has_valid_token(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    var context = McpTransportContext.create(Map.of(HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "squ_valid_token"));
+    server.withTransportContext(context, () ->
+      assertThat(server.get()).isNotNull());
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void get_should_throw_in_http_mode_when_context_token_is_blank(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    var context = McpTransportContext.create(Map.of(HttpServerTransportProvider.CONTEXT_TOKEN_KEY, ""));
+    assertThatThrownBy(() -> server.withTransportContext(context, server::get))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("No SONARQUBE_TOKEN in transport context");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void get_should_throw_in_http_mode_when_called_outside_tool_execution(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    assertThatThrownBy(server::get)
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("No transport context available for HTTP stateless mode");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void shutdown_should_be_idempotent_in_http_mode(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    server.shutdown();
+    server.shutdown();
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void shutdown_should_work_before_start_in_http_mode(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+
+    server.shutdown();
+  }
+
   private Map<String, String> createStdioEnvironment(String baseUrl) {
     var environment = new HashMap<String, String>();
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir"));
@@ -257,9 +275,17 @@ class SonarQubeMcpServerGenericTest {
   private Map<String, String> createHttpEnvironment(String baseUrl) {
     var environment = createStdioEnvironment(baseUrl);
     environment.put("SONARQUBE_TRANSPORT", "http");
-    environment.put("SONARQUBE_HTTP_PORT", "18080");
+    environment.put("SONARQUBE_HTTP_PORT", String.valueOf(findAvailablePort()));
     environment.put("SONARQUBE_HTTP_HOST", "127.0.0.1");
     return environment;
+  }
+
+  private static int findAvailablePort() {
+    try (var serverSocket = new ServerSocket(0)) {
+      return serverSocket.getLocalPort();
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to find available port", e);
+    }
   }
 
 }

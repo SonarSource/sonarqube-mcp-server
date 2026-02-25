@@ -66,7 +66,7 @@ public class McpSecurityFilter implements Filter {
 
   @Override
   public void doFilter(ServletRequest req, ServletResponse resp, FilterChain filterChain)
-      throws IOException, ServletException {
+    throws IOException, ServletException {
     var httpRequest = (HttpServletRequest) req;
     var httpResponse = (HttpServletResponse) resp;
     
@@ -88,10 +88,8 @@ public class McpSecurityFilter implements Filter {
       httpResponse.setHeader("Access-Control-Allow-Origin", "*");
     }
     
-    httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    httpResponse.setHeader("Access-Control-Allow-Headers", 
-        "Content-Type, Accept, Mcp-Session-Id, Last-Event-ID, SONARQUBE_TOKEN");
-    httpResponse.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+    httpResponse.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    httpResponse.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, SONARQUBE_TOKEN");
     httpResponse.setHeader("Access-Control-Max-Age", "3600");
 
     if ("OPTIONS".equals(httpRequest.getMethod())) {

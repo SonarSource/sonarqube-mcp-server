@@ -17,14 +17,14 @@
 package org.sonarsource.sonarqube.mcp;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpServerFeatures;
+import io.modelcontextprotocol.server.McpStatelessServerFeatures;
+import io.modelcontextprotocol.server.McpStatelessSyncServer;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpServerTransportProvider;
-import io.modelcontextprotocol.spec.McpServerTransportProviderBase;
-import io.modelcontextprotocol.spec.McpStreamableServerTransportProvider;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -35,16 +35,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
-import org.sonarsource.sonarqube.mcp.authentication.SessionTokenStore;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.client.ProxiedServerConfigParser;
 import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
-import org.sonarsource.sonarqube.mcp.context.RequestContext;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.plugins.PluginsSynchronizer;
@@ -106,7 +103,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private BackendService backendService;
   private ToolExecutor toolExecutor;
   private final HttpServerTransportProvider httpServerManager;
-  private final McpServerTransportProviderBase transportProvider;
+  private final McpServerTransportProvider transportProvider;
   private final List<Tool> supportedTools = new ArrayList<>();
   private final McpServerLaunchConfiguration mcpConfiguration;
   private HttpClientProvider httpClientProvider;
@@ -115,15 +112,20 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * ServerApi instance.
    * - In stdio mode: created once at startup with the configured token
-   * - In HTTP mode: null (created per-request using client's token from Authorization header)
+   * - In HTTP mode: null (created per-request using client's token from the SONARQUBE_TOKEN header)
    */
   @Nullable
   private ServerApi serverApi;
-
   private SonarQubeVersionChecker sonarQubeVersionChecker;
-  private McpSyncServer syncServer;
+  @Nullable
+  private McpStatelessSyncServer statelessSyncServer;
+  @Nullable
+  private McpSyncServer stdioSyncServer;
+  /**
+   * In HTTP stateless mode, carries the McpTransportContext for the current request thread so that get() can extract the SONARQUBE_TOKEN value.
+   */
+  private final ThreadLocal<McpTransportContext> currentTransportContext = new ThreadLocal<>();
   private volatile boolean isShutdown = false;
-  private boolean logFileLocationLogged;
   private final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
   private ProxiedToolsLoader proxiedToolsLoader;
 
@@ -148,7 +150,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getHttpsTruststorePassword(),
         mcpConfiguration.getHttpsTruststoreType()
       );
-      this.transportProvider = httpServerManager.getTransportProvider();
+      this.transportProvider = null;
     } else {
       this.httpServerManager = null;
       this.transportProvider = new StdioServerTransportProvider(this::shutdown);
@@ -158,26 +160,22 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   public void start() {
-    // Start HTTP server if enabled
     if (httpServerManager != null) {
       httpServerManager.startServer().join();
-    }
-
-    Function<Object, McpSyncServer> serverBuilder = provider -> {
-      var builder = switch (provider) {
-        case McpServerTransportProvider p -> McpServer.sync(p);
-        case McpStreamableServerTransportProvider p -> McpServer.sync(p);
-        default -> throw new IllegalArgumentException("Unsupported transport provider type: " + provider.getClass().getName());
-      };
-      return builder
+      statelessSyncServer = McpServer.sync(httpServerManager.getTransportProvider())
+        .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
+        .instructions(composedInstructions)
+        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
+        .tools(filterForEnabledTools(supportedTools).stream().map(this::toStatelessSpec).toArray(McpStatelessServerFeatures.SyncToolSpecification[]::new))
+        .build();
+    } else {
+      stdioSyncServer = McpServer.sync(transportProvider)
         .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
-        .tools(filterForEnabledTools(supportedTools).stream().map(this::toSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
+        .tools(filterForEnabledTools(supportedTools).stream().map(this::toStdioSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
         .build();
-    };
-
-    syncServer = serverBuilder.apply(transportProvider);
+    }
 
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
@@ -384,25 +382,24 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       .toList();
   }
 
-  private McpServerFeatures.SyncToolSpecification toSpec(Tool tool) {
-    return new McpServerFeatures.SyncToolSpecification.Builder()
+  private McpStatelessServerFeatures.SyncToolSpecification toStatelessSpec(Tool tool) {
+    return new McpStatelessServerFeatures.SyncToolSpecification.Builder()
       .tool(tool.definition())
-      .callHandler((exchange, toolRequest) -> {
-        // Set session ID in RequestContext so get() can look up the token from SessionTokenStore
-        if (mcpConfiguration.isHttpEnabled()) {
-          var sessionId = exchange.sessionId();
-          RequestContext.set(sessionId);
-        }
-
+      .callHandler((transportContext, toolRequest) -> {
+        currentTransportContext.set(transportContext);
         try {
-          logLogFileLocation(exchange);
           return toolExecutor.execute(tool, toolRequest);
         } finally {
-          if (mcpConfiguration.isHttpEnabled()) {
-            RequestContext.clear();
-          }
+          currentTransportContext.remove();
         }
       })
+      .build();
+  }
+
+  private McpServerFeatures.SyncToolSpecification toStdioSpec(Tool tool) {
+    return new McpServerFeatures.SyncToolSpecification.Builder()
+      .tool(tool.definition())
+      .callHandler((exchange, toolRequest) -> toolExecutor.execute(tool, toolRequest))
       .build();
   }
 
@@ -441,37 +438,26 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.debug("================================");
   }
 
-  private void logLogFileLocation(McpSyncServerExchange exchange) {
-    if (!logFileLocationLogged) {
-      exchange.loggingNotification(new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.INFO, SONARQUBE_MCP_SERVER_NAME,
-        "Logs are redirected to " + mcpConfiguration.getLogFilePath().toAbsolutePath()));
-      logFileLocationLogged = true;
-    }
-  }
-
   /**
    * Get ServerApi instance for the current request context.
-   * - In stdio mode: Returns the global ServerApi instance created at startup
-   * - In HTTP mode: Creates a new ServerApi instance using the token looked up from SessionTokenStore
+   * - In HTTP stateless mode: Creates a new ServerApi per tool call using the token and org
+   *   extracted from the HTTP request headers via McpTransportContext.
+   * - In stdio mode: Returns the global ServerApi instance created at startup.
    */
   @Override
   public ServerApi get() {
     if (mcpConfiguration.isHttpEnabled()) {
-      var ctx = RequestContext.current();
+      var ctx = currentTransportContext.get();
       if (ctx == null) {
-        throw new IllegalStateException("No request context - session ID required for HTTP mode");
+        throw new IllegalStateException("No transport context available for HTTP stateless mode");
       }
-      var sessionId = ctx.sessionId();
-      var token = SessionTokenStore.getInstance().getToken(sessionId);
-      if (token == null) {
-        throw new IllegalStateException("No token found for session: " + sessionId);
+      var token = (String) ctx.get(HttpServerTransportProvider.CONTEXT_TOKEN_KEY);
+      if (token == null || token.isBlank()) {
+        throw new IllegalStateException("No SONARQUBE_TOKEN in transport context");
       }
-      return createServerApiWithToken(token);
+      return createServerApiWithTokenAndOrg(token, mcpConfiguration.getSonarqubeOrg());
     } else {
-      if (serverApi == null) {
-        throw new IllegalStateException("ServerApi not initialized");
-      }
-      return serverApi;
+      return Objects.requireNonNull(serverApi, "ServerApi not initialized");
     }
   }
 
@@ -481,11 +467,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
   
   private ServerApi createServerApiWithToken(@Nullable String token) {
-    var organization = mcpConfiguration.getSonarqubeOrg();
+    return createServerApiWithTokenAndOrg(token, mcpConfiguration.getSonarqubeOrg());
+  }
+
+  private ServerApi createServerApiWithTokenAndOrg(@Nullable String token, @Nullable String organization) {
     var url = mcpConfiguration.getSonarQubeUrl();
     var httpClient = token != null ? httpClientProvider.getHttpClient(token) : httpClientProvider.getAnonymousHttpClient();
+    var isSonarCloud = mcpConfiguration.isSonarCloud() || organization != null;
     var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization), httpClient);
-    return new ServerApi(serverApiHelper, mcpConfiguration.isSonarCloud());
+    return new ServerApi(serverApiHelper, isSonarCloud);
   }
 
   private SonarQubeIdeBridgeClient initializeBridgeClient(McpServerLaunchConfiguration mcpConfiguration) {
@@ -545,11 +535,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     } catch (Exception e) {
       LOG.error("Error shutting down HTTP server", e);
     }
-    try {
-      SessionTokenStore.getInstance().shutdown();
-    } catch (Exception e) {
-      LOG.error("Error shutting down session token store", e);
-    }
   }
 
   private void shutdownHttpClient() {
@@ -564,11 +549,13 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   private void shutdownMcpServer() {
-    if (syncServer == null) {
-      return;
-    }
     try {
-      syncServer.closeGracefully();
+      if (statelessSyncServer != null) {
+        statelessSyncServer.closeGracefully().block();
+      }
+      if (stdioSyncServer != null) {
+        stdioSyncServer.closeGracefully();
+      }
     } catch (Exception e) {
       LOG.error("Error shutting down MCP server", e);
     }
@@ -583,7 +570,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   // Constructor for testing - allows injecting custom transport provider
-  public SonarQubeMcpServer(McpServerTransportProviderBase transportProvider, @Nullable HttpServerTransportProvider httpServerManager, Map<String,
+  public SonarQubeMcpServer(McpServerTransportProvider transportProvider, @Nullable HttpServerTransportProvider httpServerManager, Map<String,
     String> environment) {
     this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
     this.transportProvider = transportProvider;
@@ -607,6 +594,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @VisibleForTesting
   public void waitForInitialization() throws ExecutionException, InterruptedException {
     initializationFuture.get();
+  }
+
+
+  @VisibleForTesting
+  public void withTransportContext(McpTransportContext context, Runnable action) {
+    currentTransportContext.set(context);
+    try {
+      action.run();
+    } finally {
+      currentTransportContext.remove();
+    }
   }
 
 }

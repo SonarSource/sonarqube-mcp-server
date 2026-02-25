@@ -25,30 +25,27 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
- * Authentication filter for MCP HTTP transport.
- * Extracts SonarQube tokens from the SONARQUBE_TOKEN HTTP header.
- * <p>
- * Token format:
- * <ul>
- *   <li>SONARQUBE_TOKEN header - Custom header: {@code "SONARQUBE_TOKEN": "your-token"}</li>
- * </ul>
+ * Authentication filter for the stateless MCP HTTP transport.
+ * Validates that each request carries a SONARQUBE_TOKEN header.
+ * No session state is created or maintained — every request is authenticated independently,
+ * enabling horizontal scaling without sticky sessions.
  * <p>
  * Authentication modes:
  * <ul>
- *   <li>TOKEN (default) - Client must provide SonarQube token via SONARQUBE_TOKEN header</li>
+ *   <li>TOKEN (default) - Client must provide a SonarQube token via the SONARQUBE_TOKEN header
+ *       on every request</li>
  *   <li>OAUTH - OAuth 2.1 with PKCE (not yet implemented)</li>
  * </ul>
- * <p>
- * Note: This filter is only registered in HTTP mode. Stdio mode has no HTTP authentication.
  */
 public class AuthenticationFilter implements Filter {
 
   private static final McpLogger LOG = McpLogger.getInstance();
-  private static final String SONARQUBE_TOKEN_HEADER = "SONARQUBE_TOKEN";
-  
+  private static final String SONARQUBE_TOKEN_HEADER = McpServerLaunchConfiguration.SONARQUBE_TOKEN;
+
   private final AuthMode authMode;
 
   public AuthenticationFilter(AuthMode authMode) {
@@ -63,10 +60,9 @@ public class AuthenticationFilter implements Filter {
 
   @Override
   public void doFilter(ServletRequest req, ServletResponse resp, FilterChain filterChain)
-      throws IOException, ServletException {
+    throws IOException, ServletException {
     var httpRequest = (HttpServletRequest) req;
     var httpResponse = (HttpServletResponse) resp;
-    var sessionId = httpRequest.getHeader("Mcp-Session-Id");
 
     if ("OPTIONS".equals(httpRequest.getMethod())) {
       filterChain.doFilter(req, resp);
@@ -74,25 +70,16 @@ public class AuthenticationFilter implements Filter {
     }
 
     if (authMode == AuthMode.TOKEN) {
-      var token = extractToken(httpRequest);
-
+      var token = httpRequest.getHeader(SONARQUBE_TOKEN_HEADER);
       if (token == null || token.isBlank()) {
         LOG.warn("Missing or empty SonarQube token from " + httpRequest.getRemoteAddr());
         sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via SONARQUBE_TOKEN header.");
         return;
       }
-
-      // Token is stored in SessionTokenStore and looked up by session ID during tool execution.
-      if (sessionId != null && !sessionId.isBlank() && !SessionTokenStore.getInstance().setTokenIfValid(sessionId, token)) {
-        // Token doesn't match the bound session
-        sendForbiddenResponse(httpResponse);
-        return;
-      }
-
       filterChain.doFilter(req, resp);
       return;
     }
-    
+
     if (authMode == AuthMode.OAUTH) {
       sendUnauthorizedResponse(httpResponse, "OAuth authentication not yet implemented");
       return;
@@ -105,48 +92,13 @@ public class AuthenticationFilter implements Filter {
   public void destroy() {
     // No cleanup needed
   }
-  
-  /**
-   * Extract SonarQube token from SONARQUBE_TOKEN header.
-   */
-  private static String extractToken(HttpServletRequest request) {
-    var sonarQubeTokenHeader = request.getHeader(SONARQUBE_TOKEN_HEADER);
-    if (sonarQubeTokenHeader != null && !sonarQubeTokenHeader.trim().isEmpty()) {
-      return sonarQubeTokenHeader.trim();
-    }
 
-    return null;
-  }
-
-  /**
-   * Send 401 Unauthorized response with WWW-Authenticate header (MCP spec)
-   */
   private static void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     response.setContentType("application/json");
-
-    // Per MCP spec: WWW-Authenticate header for resource metadata discovery
-    // For OAUTH mode, this would include the authorization server location
     response.setHeader("WWW-Authenticate", "Bearer realm=\"MCP Server\"");
-
-    var errorJson = String.format(
-      "{\"error\":\"unauthorized\",\"error_description\":\"%s\"}", 
-      message
-    );
+    var errorJson = String.format("{\"error\":\"unauthorized\",\"error_description\":\"%s\"}", message);
     response.getWriter().write(errorJson);
   }
 
-  private static void sendForbiddenResponse(HttpServletResponse response) throws IOException {
-    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-    response.setContentType("application/json");
-
-    var errorJson = String.format(
-      "{\"error\":\"forbidden\",\"error_description\":\"%s\"}",
-      "Token does not match session binding. Access denied."
-    );
-    response.getWriter().write(errorJson);
-  }
-  
 }
-
-

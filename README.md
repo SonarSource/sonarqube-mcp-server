@@ -645,7 +645,7 @@ Unencrypted HTTP transport. Use HTTPS instead for multi-user deployments.
 | `SONARQUBE_HTTP_PORT`| Port number (1024-65535)                                         | `8080`          |
 | `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)                | `127.0.0.1`     |
 
-**Note:** In HTTP(S) mode, each client sends their own token via the `SONARQUBE_TOKEN` header. The server's `SONARQUBE_TOKEN` is required for initialization.
+**Note:** In HTTP(S) mode, the server is stateless — each client request must include a `SONARQUBE_TOKEN` header carrying the user's own SonarQube token. No session state is maintained between requests.
 
 #### 3. **HTTPS** (Recommended for Multi-User Production Deployments)
 Secure multi-user transport with TLS encryption. Requires SSL certificates.

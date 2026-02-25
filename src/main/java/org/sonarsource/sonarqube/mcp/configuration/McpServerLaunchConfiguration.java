@@ -39,8 +39,8 @@ public class McpServerLaunchConfiguration {
   @Deprecated(forRemoval = true)
   private static final String SONARQUBE_CLOUD_URL = "SONARQUBE_CLOUD_URL";
   private static final String SONARQUBE_URL = "SONARQUBE_URL";
-  private static final String SONARQUBE_ORG = "SONARQUBE_ORG";
-  private static final String SONARQUBE_TOKEN = "SONARQUBE_TOKEN";
+  public static final String SONARQUBE_ORG = "SONARQUBE_ORG";
+  public static final String SONARQUBE_TOKEN = "SONARQUBE_TOKEN";
   private static final String SONARQUBE_IDE_PORT_ENV = "SONARQUBE_IDE_PORT";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
   
@@ -209,7 +209,7 @@ public class McpServerLaunchConfiguration {
    * Get the SonarQube token.
    * - In stdio mode: Used for all operations.
    * - In HTTP mode: Used only for startup initialization (version check, plugin sync).
-   *   Per-request operations use client tokens from Authorization headers.
+   *   Per-request operations use client tokens from the SONARQUBE_TOKEN header.
    */
   public String getSonarQubeToken() {
     return sonarqubeToken;

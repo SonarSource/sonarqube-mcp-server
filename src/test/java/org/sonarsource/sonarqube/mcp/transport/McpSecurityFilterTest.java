@@ -122,9 +122,9 @@ class McpSecurityFilterTest {
       Arguments.of("127.0.0.1", "http://localhost:3000", "POST"),
       Arguments.of("127.0.0.1", "http://127.0.0.1:8080", "POST"),
       Arguments.of("127.0.0.1", "https://localhost:3000", "POST"),
-      Arguments.of("127.0.0.1", "http://[::1]:8080", "POST"),
+      Arguments.of("127.0.0.1", "http://[::1]:8080", "POST"),   // IPv6 localhost
       Arguments.of("127.0.0.1", "https://127.0.0.1:3000", "POST"),
-      Arguments.of("127.0.0.1", "https://[::1]:8080", "POST"),
+      Arguments.of("127.0.0.1", "https://[::1]:8080", "POST"),  // IPv6 localhost over HTTPS
       Arguments.of("0.0.0.0", "https://external-site.com", "POST")
     );
   }
@@ -175,10 +175,8 @@ class McpSecurityFilterTest {
 
     filter.doFilter(request, response, filterChain);
 
-    verify(response).setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    verify(response).setHeader("Access-Control-Allow-Headers", 
-        "Content-Type, Accept, Mcp-Session-Id, Last-Event-ID, SONARQUBE_TOKEN");
-    verify(response).setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+    verify(response).setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    verify(response).setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, SONARQUBE_TOKEN");
     verify(response).setHeader("Access-Control-Max-Age", "3600");
   }
 
@@ -221,7 +219,7 @@ class McpSecurityFilterTest {
       Arguments.of("localhost", "http://localhost:3000", "POST", true, "localhost binding accepts localhost origins"),
       Arguments.of("192.168.1.100", "http://localhost:3000", "POST", false, "custom host binding rejects all origins"),
       Arguments.of("127.0.0.1", "https://malicious.com", "GET", false, "GET with disallowed origin should be rejected"),
-      Arguments.of("127.0.0.1", "http://localhost:3000", "DELETE", true, "DELETE with allowed origin should be accepted")
+      Arguments.of("127.0.0.1", "http://localhost:3000", "POST", true, "POST with allowed origin should be accepted")
     );
   }
 
