@@ -295,7 +295,7 @@ class SonarQubeMcpServerGenericTest {
     assertThatThrownBy(() -> server.withTransportContext(context, server::get))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessageContaining("SONARQUBE_ORG header is not allowed")
-      .hasMessageContaining("server-org");
+      .hasMessageNotContaining("server-org");
 
     server.shutdown();
   }
