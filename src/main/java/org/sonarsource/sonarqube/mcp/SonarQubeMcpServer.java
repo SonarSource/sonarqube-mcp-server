@@ -481,8 +481,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (serverOrg != null) {
       if (orgFromRequest != null) {
         throw new IllegalArgumentException(
-          "The SONARQUBE_ORG header is not allowed: this server is already configured with organization '" + serverOrg +
-            "'. Remove the SONARQUBE_ORG header from your request.");
+          "The SONARQUBE_ORG header is not allowed: this server is already configured with an organization. " +
+            "Remove the SONARQUBE_ORG header from your request.");
       }
       organization = serverOrg;
     } else {

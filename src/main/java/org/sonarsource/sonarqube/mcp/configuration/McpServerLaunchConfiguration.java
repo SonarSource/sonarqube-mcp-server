@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.configuration;
 
 import java.net.InetAddress;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Locale;
@@ -352,13 +353,18 @@ public class McpServerLaunchConfiguration {
 
   /**
    * Returns true if the given URL points to a SonarQube Cloud instance
-   * (sonarcloud.io or sonarqube.us).
    */
   public static boolean isSonarCloudUrl(@Nullable String url) {
     if (url == null) {
       return false;
     }
-    return url.contains("sonarcloud.io") || url.contains("sonarqube.us");
+    try {
+      var host = URI.create(url).getHost();
+      return "sonarcloud.io".equals(host) || (host != null && host.endsWith(".sonarcloud.io"))
+        || "sonarqube.us".equals(host) || (host != null && host.endsWith(".sonarqube.us"));
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
   }
 
   /**

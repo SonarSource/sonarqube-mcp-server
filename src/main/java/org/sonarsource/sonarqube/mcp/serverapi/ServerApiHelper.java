@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.CheckForNull;
@@ -140,10 +141,16 @@ public class ServerApiHelper {
     }
 
     var baseUrl = endpointParams.baseUrl();
-    if (baseUrl.contains("sonarcloud.io")) {
-      baseUrl = baseUrl.replace("://sonarcloud.io", "://api.sonarcloud.io");
-    } else if (baseUrl.contains("sonarqube.us")) {
-      baseUrl = baseUrl.replace("://sonarqube.us", "://api.sonarqube.us");
+    try {
+      var uri = URI.create(baseUrl);
+      var host = uri.getHost();
+      if ("sonarcloud.io".equals(host)) {
+        baseUrl = uri.toString().replace("://" + host, "://api.sonarcloud.io");
+      } else if ("sonarqube.us".equals(host)) {
+        baseUrl = uri.toString().replace("://" + host, "://api.sonarqube.us");
+      }
+    } catch (IllegalArgumentException e) {
+      // Malformed base URL – fall through and use it as-is
     }
     return concat(baseUrl, relativePath);
   }
