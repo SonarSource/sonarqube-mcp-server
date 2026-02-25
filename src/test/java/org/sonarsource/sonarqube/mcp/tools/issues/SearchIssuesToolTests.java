@@ -186,7 +186,7 @@ class SearchIssuesToolTests {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
       var projectName = "projectName1";
-      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2&organization=org")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?componentKeys=project1,project2&organization=org")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -242,7 +242,7 @@ class SearchIssuesToolTests {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
       var projectName = "projectName1";
-      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2&impactSeverities=HIGH,BLOCKER&organization=org")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?componentKeys=project1,project2&impactSeverities=HIGH,BLOCKER&organization=org")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -299,7 +299,7 @@ class SearchIssuesToolTests {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
       var projectName = "projectName1";
-      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?components=file1,file2&organization=org")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?componentKeys=file1,file2&organization=org")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -643,7 +643,7 @@ class SearchIssuesToolTests {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
       var projectName = "projectName1";
-      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?components=project1,project2")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -698,7 +698,7 @@ class SearchIssuesToolTests {
       var issueKey = "issueKey1";
       var ruleName = "ruleName1";
       var projectName = "projectName1";
-      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?projects=project1,project2&impactSeverities=HIGH,BLOCKER")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?components=project1,project2&impactSeverities=HIGH,BLOCKER")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {

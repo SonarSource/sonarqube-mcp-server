@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.issues;
 
 import com.google.gson.Gson;
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
@@ -63,11 +64,27 @@ public class IssuesApi {
     }
   }
 
+  @Nullable
+  private static List<String> mergedComponents(@Nullable List<String> projects, @Nullable List<String> files) {
+    if (projects == null && files == null) {
+      return null;
+    }
+    var merged = new ArrayList<String>();
+    if (projects != null) {
+      merged.addAll(projects);
+    }
+    if (files != null) {
+      merged.addAll(files);
+    }
+    return merged;
+  }
+
   private String buildIssueSearchPath(SearchParams params) {
+    var isSonarCloud = helper.getOrganization() != null;
+    var componentsParamName = isSonarCloud ? "componentKeys" : "components";
     var builder = new UrlBuilder(SEARCH_PATH)
-      .addParam("projects", params.projects())
+      .addParam(componentsParamName, mergedComponents(params.projects(), params.files()))
       .addParam("branch", params.branch())
-      .addParam("components", params.files())
       .addParam("pullRequest", params.pullRequestId())
       .addParam("impactSeverities", params.severities())
       .addParam("impactSoftwareQualities", params.impactSoftwareQualities())
