@@ -17,12 +17,15 @@
 package org.sonarsource.sonarqube.mcp.transport;
 
 import io.modelcontextprotocol.common.McpTransportContext;
+import io.modelcontextprotocol.server.McpStatelessServerHandler;
 import io.modelcontextprotocol.server.transport.HttpServletStatelessServerTransport;
+import io.modelcontextprotocol.spec.McpStatelessServerTransport;
 import jakarta.servlet.DispatcherType;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
@@ -38,6 +41,8 @@ import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.tools.Tool;
+import reactor.core.publisher.Mono;
 
 /**
  * HTTP transport for the MCP server using the stateless servlet transport.
@@ -50,6 +55,8 @@ public class HttpServerTransportProvider {
   private static final String MCP_ENDPOINT = "/mcp";
   public static final String CONTEXT_TOKEN_KEY = "sonarqube-token";
   public static final String CONTEXT_ORG_KEY = "sonarqube-org";
+  public static final String CONTEXT_TOOLSETS_KEY = "sonarqube-toolsets";
+  public static final String CONTEXT_READ_ONLY_KEY = "sonarqube-read-only";
 
   private final int port;
   private final String host;
@@ -98,10 +105,18 @@ public class HttpServerTransportProvider {
       .contextExtractor(request -> {
         var token = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN);
         var org = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
+        var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
+        var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);
         var contextBuilder = new HashMap<String, Object>();
         contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
         if (org != null && !org.isBlank()) {
           contextBuilder.put(CONTEXT_ORG_KEY, org);
+        }
+        if (toolsets != null && !toolsets.isBlank()) {
+          contextBuilder.put(CONTEXT_TOOLSETS_KEY, toolsets);
+        }
+        if (readOnly != null && !readOnly.isBlank()) {
+          contextBuilder.put(CONTEXT_READ_ONLY_KEY, readOnly);
         }
         return McpTransportContext.create(contextBuilder);
       })
@@ -126,8 +141,44 @@ public class HttpServerTransportProvider {
     }
   }
 
-  public HttpServletStatelessServerTransport getTransportProvider() {
-    return mcpTransportProvider;
+  /**
+   * Returns a {@link CapturingTransport} that intercepts {@code setMcpHandler} to hold the
+   * SDK-provided handler reference. Pass it to {@code McpServer.sync(...).build()}, then call
+   * {@link CapturingTransport#installToolsListFilter} to wrap the captured handler.
+   */
+  public CapturingTransport getCapturingTransport() {
+    return new CapturingTransport();
+  }
+
+  public class CapturingTransport implements McpStatelessServerTransport {
+    private McpStatelessServerHandler sdkHandler;
+
+    @Override
+    public void setMcpHandler(McpStatelessServerHandler handler) {
+      sdkHandler = handler;
+      mcpTransportProvider.setMcpHandler(handler);
+    }
+
+    @Override
+    public Mono<Void> closeGracefully() {
+      return mcpTransportProvider.closeGracefully();
+    }
+
+    @Override
+    public List<String> protocolVersions() {
+      return mcpTransportProvider.protocolVersions();
+    }
+
+    /**
+     * Replaces the SDK's handler on the servlet transport with a {@link ToolsListFilteringHandler}.
+     * Must be called after {@code McpServer.sync(this).build()} on the same thread.
+     */
+    public void installToolsListFilter(List<Tool> enabledTools) {
+      if (sdkHandler == null) {
+        throw new IllegalStateException("installToolsListFilter called before the SDK set its handler");
+      }
+      mcpTransportProvider.setMcpHandler(new ToolsListFilteringHandler(sdkHandler, enabledTools));
+    }
   }
 
   /**

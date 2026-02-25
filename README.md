@@ -535,8 +535,8 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 
 | Environment variable   | Description                                                                                                                                                                                                                                    |
 |------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. |
-| `SONARQUBE_READ_ONLY`  | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`.                                     |
+| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. In HTTP(S) mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [HTTP/HTTPS Transport](#2-http) below). |
+| `SONARQUBE_READ_ONLY`  | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`. In HTTP(S) mode, clients can send a `SONARQUBE_READ_ONLY` HTTP header to further restrict individual requests to read-only, but cannot lift a server-level read-only restriction (see [HTTP/HTTPS Transport](#2-http) below). |
 
 <details>
 <summary>Available Toolsets</summary>
@@ -645,7 +645,7 @@ Unencrypted HTTP transport. Use HTTPS instead for multi-user deployments.
 | `SONARQUBE_HTTP_PORT`| Port number (1024-65535)                                         | `8080`          |
 | `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)                | `127.0.0.1`     |
 
-**Note:** In HTTP(S) mode, the server is stateless — each client request must include a `SONARQUBE_TOKEN` header carrying the user's own SonarQube token. For SonarQube Cloud, clients may also supply a `SONARQUBE_ORG` header to identify the organization (this takes precedence over the server-level `SONARQUBE_ORG` environment variable). No session state is maintained between requests.
+**Note:** In HTTP(S) mode, the server is stateless — each client request must include a `SONARQUBE_TOKEN` header carrying the user's own SonarQube token. For SonarQube Cloud, clients may also supply a `SONARQUBE_ORG` header to identify the organization (this takes precedence over the server-level `SONARQUBE_ORG` environment variable). Clients can also narrow the visible tools per-request by supplying `SONARQUBE_TOOLSETS` and/or `SONARQUBE_READ_ONLY` headers; these apply additional filtering on top of the server-level configuration — they can only reduce the scope, never expand it. No session state is maintained between requests.
 
 #### 3. **HTTPS** (Recommended for Multi-User Production Deployments)
 Secure multi-user transport with TLS encryption. Requires SSL certificates.
@@ -685,12 +685,16 @@ docker run --init --pull=always -p 8443:8443 \
       "url": "https://your-server:8443/mcp",
       "headers": {
         "SONARQUBE_TOKEN": "<your-token>",
-        "SONARQUBE_ORG": "<your-org>"
+        "SONARQUBE_ORG": "<your-org>",
+        "SONARQUBE_TOOLSETS": "issues,quality-gates",
+        "SONARQUBE_READ_ONLY": "true"
       }
     }
   }
 }
 ```
+
+> **Note:** `SONARQUBE_TOOLSETS` and `SONARQUBE_READ_ONLY` are optional per-request headers that narrow the server-level tool set for that specific request. They can only reduce scope — they cannot enable toolsets or lift restrictions beyond what the server was launched with.
 
 **Client Configuration (SonarQube Server):**
 ```json
@@ -699,12 +703,16 @@ docker run --init --pull=always -p 8443:8443 \
     "sonarqube-https": {
       "url": "https://your-server:8443/mcp",
       "headers": {
-        "SONARQUBE_TOKEN": "<your-token>"
+        "SONARQUBE_TOKEN": "<your-token>",
+        "SONARQUBE_TOOLSETS": "issues,quality-gates",
+        "SONARQUBE_READ_ONLY": "true"
       }
     }
   }
 }
 ```
+
+> **Note:** `SONARQUBE_TOOLSETS` and `SONARQUBE_READ_ONLY` are optional per-request headers that narrow the server-level tool set for that specific request. They can only reduce scope — they cannot enable toolsets or lift restrictions beyond what the server was launched with.
 
 **Note:** For local development, use Stdio transport instead (the default). HTTPS is intended for multi-user production deployments with proper SSL certificates.
 
