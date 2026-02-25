@@ -1,8 +1,8 @@
 ---
 name: "sonarqube"
 displayName: "SonarQube Code Quality & Security"
-description: "Integrate with SonarQube for code quality analysis, security scanning, and technical debt management - detect bugs, vulnerabilities, and code smells"
-keywords: [ "sonarqube","issues","code-quality","security","analysis","quality-gates","vulnerabilities" ]
+description: "Integrate with SonarQube for code quality analysis, security scanning, and technical debt management - detect bugs, vulnerabilities, code smells and dependency risks"
+keywords: [ "sonarqube","issues","code-quality","security","analysis","quality-gates","vulnerabilities", "sca" ]
 author: "Sonar"
 ---
 
@@ -10,7 +10,7 @@ author: "Sonar"
 
 ## Overview
 
-Integrate with SonarQube Server or Cloud to analyze code quality, detect security vulnerabilities, and manage technical debt. This power provides seamless access to SonarQube's comprehensive code analysis platform, enabling you to detect bugs, security vulnerabilities, code smells, and enforce quality standards throughout your development workflow.
+Integrate with SonarQube Server or Cloud. This power provides seamless access to SonarQube's comprehensive code analysis platform, enabling you to detect bugs, security vulnerabilities, dependency risks, code smells, and enforce quality standards throughout your development workflow.
 
 SonarQube supports 30+ programming languages and provides actionable insights to help teams write cleaner, safer, and more maintainable code. Use it to analyze code snippets on-the-fly, search for issues, track quality metrics, and ensure your projects meet quality gate standards before deployment.
 
@@ -83,12 +83,6 @@ The `analyze_code_snippet` tool supports the following languages: Java, Kotlin, 
 
 ### Issue Management
 
-**Understanding Issue Types:**
-
-- **Bugs**: Code that is wrong or will behave unexpectedly - fix immediately if HIGH or BLOCKER severity
-- **Vulnerabilities**: Security issues that could be exploited - always prioritize BLOCKER and HIGH severity
-- **Code Smells**: Maintainability issues - address during refactoring, track with sqale_index metric
-
 **Filter issues effectively** to focus on what matters:
 
 ```javascript
@@ -129,27 +123,6 @@ Use `change_sonar_issue_status` appropriately:
 - `accept` - Acknowledged, will be addressed later
 - `falsepositive` - Not actually an issue (document why)
 - `reopen` - Previously closed but needs reconsideration
-
-### Quality Gates
-
-Quality gates are **release readiness indicators** that enforce minimum quality standards and prevent regression. Never bypass failed quality gates without team discussion.
-
-**Check quality gate status** before merging:
-
-```javascript
-// Check quality gate for a pull request
-get_project_quality_gate_status({
-    projectKey: "my-project",
-    pullRequest: "123"
-});
-```
-
-**Best practices**:
-
-- Understand which conditions failed and why
-- Fix issues rather than relaxing gate conditions
-- Configure gates to be strict but achievable
-- Use different gates for different project types if needed
 
 ### Essential Metrics
 
@@ -300,6 +273,20 @@ const risks = search_dependency_risks({
 // Step 4: Re-analyze to verify fixes
 ```
 
+### Workflow 5: Review Test Coverage for a File
+
+```javascript
+// Step 1: Fetch file coverage details
+const risks = get_file_coverage_details({
+    key: "my_project:src/foo/Bar.java",
+    pullRequest: "123"
+});
+
+// Step 2: Review if there is sufficient coverage
+// Step 3: Generate tests for missing coverage
+// Step 4: Re-analyze on SonarQube to verify coverage is improved
+```
+
 ## Configuration
 
 **Authentication Required**:
@@ -311,9 +298,9 @@ const risks = search_dependency_risks({
 
 ### For SonarQube Cloud:
 
-1. Navigate to [SonarQube Cloud](https://sonarcloud.io)
+1. Navigate to [SonarQube Cloud](https://sonarcloud.io) (https://sonarqube.us for US region)
 2. Go to Account → Security → Generate Tokens
-3. Generate a user token with appropriate permissions
+3. Generate a user token
 4. Note your organization key from [Organizations](https://sonarcloud.io/account/organizations)
 5. Configure in your MCP client
 
@@ -450,16 +437,21 @@ For SonarQube Server:
 ## Tips
 
 1. **Start with project discovery** - Use `search_my_sonarqube_projects` to find available projects
-2. **Use quality gates as checkpoints** - Don't merge code that fails quality gates
-3. **Analyze code snippets frequently** - Catch issues early in development
-4. **Review rule details** - Understand why issues are flagged and how to fix them
-5. **Monitor trends, not just values** - Track if metrics are improving or degrading over time
-6. **Integrate with CI/CD** - Check quality gates in your pipeline before deployment
-7. **Use selective toolsets** - Enable only what you need to reduce context overhead
-8. **Prioritize security issues** - Fix BLOCKER and HIGH vulnerabilities immediately
+2. **Analyze code snippets frequently** - Catch issues early in development
+3. **Review rule details** - Understand why issues are flagged and how to fix them
+4. **Monitor trends, not just values** - Track if metrics are improving or degrading over time
+5. **Use selective toolsets** - Enable only what you need to reduce context overhead
+6. **Prioritize security issues** - Fix BLOCKER and HIGH vulnerabilities immediately
+7. **Keep third-party dependencies up-to-date** - Review detected Dependency Risks & apply recommended upgrades
 
 ## Resources
 
 - [SonarQube MCP Server GitHub](https://github.com/SonarSource/sonarqube-mcp-server)
-- [SonarQube Documentation](https://docs.sonarsource.com/sonarqube)
-- [SonarQube Rules](https://rules.sonarsource.com)
+- [SonarQube Documentation](https://docs.sonarsource.com/)
+
+------------
+**License**: LicenseRef-SonarSource-SSAL-1.0
+
+**Privacy Policy**: https://www.sonarsource.com/legal/#privacy
+
+**Support**: https://community.sonarsource.com/c/mcp/54
