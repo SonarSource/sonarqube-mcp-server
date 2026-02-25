@@ -449,8 +449,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    * Get ServerApi instance for the current request context.
    * - In HTTP stateless mode: Creates a new ServerApi per tool call using the token and org
    *   extracted from the HTTP request headers via McpTransportContext.
-   *   The org from the per-request SONARQUBE_ORG header takes precedence; falls back to the
-   *   server-level org from configuration (for single-org deployments).
+   *   Org resolution follows strict rules:
+   *   - If SONARQUBE_ORG is set at server startup, it is used for all requests and clients
+   *     must NOT supply a SONARQUBE_ORG header (doing so results in an error).
+   *   - If SONARQUBE_ORG is not set at server startup, clients connecting to SonarQube Cloud
+   *     must supply a SONARQUBE_ORG header on every request.
    * - In stdio mode: Returns the global ServerApi instance created at startup.
    */
   @Override
@@ -465,11 +468,32 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         throw new IllegalStateException("No SONARQUBE_TOKEN in transport context");
       }
       var orgFromRequest = (String) ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
-      var organization = orgFromRequest != null ? orgFromRequest : mcpConfiguration.getSonarqubeOrg();
+      var organization = getOrganization(orgFromRequest);
       return createServerApiWithTokenAndOrg(token, organization);
     } else {
       return Objects.requireNonNull(serverApi, "ServerApi not initialized");
     }
+  }
+
+  private String getOrganization(@Nullable String orgFromRequest) {
+    var serverOrg = mcpConfiguration.getSonarqubeOrg();
+    String organization;
+    if (serverOrg != null) {
+      if (orgFromRequest != null) {
+        throw new IllegalArgumentException(
+          "The SONARQUBE_ORG header is not allowed: this server is already configured with organization '" + serverOrg +
+            "'. Remove the SONARQUBE_ORG header from your request.");
+      }
+      organization = serverOrg;
+    } else {
+      if (mcpConfiguration.isSonarCloud() && orgFromRequest == null) {
+        throw new IllegalArgumentException(
+          "A SONARQUBE_ORG header is required: this server is not configured with a default organization. " +
+            "Provide your SonarQube Cloud organization key in the SONARQUBE_ORG request header.");
+      }
+      organization = orgFromRequest;
+    }
+    return organization;
   }
 
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {

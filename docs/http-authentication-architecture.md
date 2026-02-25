@@ -125,7 +125,7 @@ Clients configure the HTTP endpoint with authentication:
 5. Tool execution (ServerApiProvider.get())
    ├─> Read McpTransportContext from ThreadLocal
    ├─> Extract CONTEXT_TOKEN_KEY value
-   ├─> Extract CONTEXT_ORG_KEY value (per-request org takes precedence over server-level org)
+   ├─> Resolve org: use server-level env var (header must be absent) OR per-request header (required if env var not set)
    ├─> Create ServerApi with client's token and resolved org
    └─> Call SonarQube API
 ```
@@ -137,7 +137,7 @@ Clients configure the HTTP endpoint with authentication:
 - Token validated by SonarQube API (not the MCP server itself)
 - Uses custom header format:
   - `SONARQUBE_TOKEN: <token>` — required on every request
-  - `SONARQUBE_ORG: <org>` — optional; for SonarQube Cloud, identifies the organization. Per-request value takes precedence over the server-level `SONARQUBE_ORG` environment variable (which can serve as a fallback for single-org deployments)
+  - `SONARQUBE_ORG: <org>` — for SonarQube Cloud, identifies the organization. **Mutually exclusive with the server-level `SONARQUBE_ORG` env var**: if the env var is set at startup, clients must not send this header (results in an error); if the env var is not set, clients must send this header on every request
 
 #### `OAUTH` Mode (Not Yet Implemented)
 - OAuth 2.1 with PKCE
@@ -179,7 +179,7 @@ The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>
 
 3. ServerApiProvider.get()
    └─> Reads McpTransportContext from ThreadLocal
-   └─> Extracts token and org (per-request org takes precedence over server-level org)
+   └─> Extracts token and org (strict: server-level env var XOR per-request header — mixing both is an error)
    └─> Creates a fresh ServerApi for this request
 ```
 
