@@ -150,22 +150,7 @@ Clients configure the HTTP endpoint with authentication:
 
 ### Design: Stateless Per-Request Token Extraction
 
-The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function runs synchronously on the request thread and populates a `McpTransportContext` map with the request headers:
-
-```java
-HttpServletStatelessServerTransport.builder()
-  .contextExtractor(request -> {
-    var token = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN);
-    var org = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
-    var contextBuilder = new HashMap<String, Object>();
-    contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
-    if (org != null && !org.isBlank()) {
-      contextBuilder.put(CONTEXT_ORG_KEY, org);
-    }
-    return McpTransportContext.create(contextBuilder);
-  })
-  .build();
-```
+The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function runs synchronously on the request thread and populates a `McpTransportContext` map with the request headers.
 
 The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>` during tool execution, so `ServerApiProvider.get()` can access the token and org without any session lookup:
 

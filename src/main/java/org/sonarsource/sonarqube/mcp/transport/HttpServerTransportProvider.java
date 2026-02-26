@@ -34,6 +34,7 @@ import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
@@ -54,6 +55,9 @@ public class HttpServerTransportProvider {
   private final int port;
   private final String host;
   private final AuthMode authMode;
+  private final boolean isSonarCloud;
+  @Nullable
+  private final String serverOrg;
   private final boolean httpsEnabled;
   private final Path httpsKeystorePath;
   private final String httpsKeystorePassword;
@@ -70,6 +74,8 @@ public class HttpServerTransportProvider {
    * @param port HTTP port (e.g., 8080 for HTTP, 8443 for HTTPS)
    * @param host Host to bind to (127.0.0.1 for localhost, 0.0.0.0 for all interfaces)
    * @param authMode Authentication mode (e.g., TOKEN, OAUTH)
+   * @param isSonarCloud Whether this server connects to SonarQube Cloud
+   * @param serverOrg Server-level organization key (null when not configured at startup)
    * @param httpsEnabled Whether to enable HTTPS/TLS
    * @param httpsKeystorePath Path to keystore file (contains server certificate and private key)
    * @param httpsKeystorePassword Keystore password
@@ -78,12 +84,14 @@ public class HttpServerTransportProvider {
    * @param httpsTruststorePassword Truststore password (optional)
    * @param httpsTruststoreType Truststore type (optional)
    */
-  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean httpsEnabled,
-    Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
+  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarCloud, @Nullable String serverOrg,
+    boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
     Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType) {
     this.port = port;
     this.host = host;
     this.authMode = authMode;
+    this.isSonarCloud = isSonarCloud;
+    this.serverOrg = serverOrg;
     this.httpsEnabled = httpsEnabled;
     this.httpsKeystorePath = httpsKeystorePath;
     this.httpsKeystorePassword = httpsKeystorePassword;
@@ -149,7 +157,7 @@ public class HttpServerTransportProvider {
     var securityFilter = new FilterHolder(new McpSecurityFilter(host));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    var authFilter = new FilterHolder(new AuthenticationFilter(authMode));
+    var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarCloud, serverOrg));
     servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var servletHolder = new ServletHolder(mcpTransportProvider);

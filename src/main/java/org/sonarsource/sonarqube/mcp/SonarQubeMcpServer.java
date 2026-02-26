@@ -143,6 +143,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getHttpPort(),
         mcpConfiguration.getHttpHost(),
         authConfig,
+        mcpConfiguration.isSonarCloud(),
+        mcpConfiguration.getSonarqubeOrg(),
         mcpConfiguration.isHttpsEnabled(),
         mcpConfiguration.getHttpsKeystorePath(),
         mcpConfiguration.getHttpsKeystorePassword(),
@@ -477,23 +479,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private String getOrganization(@Nullable String orgFromRequest) {
     var serverOrg = mcpConfiguration.getSonarqubeOrg();
-    String organization;
     if (serverOrg != null) {
-      if (orgFromRequest != null) {
-        throw new IllegalArgumentException(
-          "The SONARQUBE_ORG header is not allowed: this server is already configured with an organization. " +
-            "Remove the SONARQUBE_ORG header from your request.");
-      }
-      organization = serverOrg;
-    } else {
-      if (mcpConfiguration.isSonarCloud() && orgFromRequest == null) {
-        throw new IllegalArgumentException(
-          "A SONARQUBE_ORG header is required: this server is not configured with a default organization. " +
-            "Provide your SonarQube Cloud organization key in the SONARQUBE_ORG request header.");
-      }
-      organization = orgFromRequest;
+      return serverOrg;
     }
-    return organization;
+    return orgFromRequest;
   }
 
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {

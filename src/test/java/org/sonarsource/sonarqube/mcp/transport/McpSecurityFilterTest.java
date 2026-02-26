@@ -61,7 +61,13 @@ class McpSecurityFilterTest {
     filter.doFilter(request, response, filterChain);
 
     verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
-    assertThat(responseWriter.toString()).hasToString("Origin not allowed");
+    verify(response).setContentType("application/json");
+    var body = responseWriter.toString();
+    assertThat(body)
+      .contains("\"jsonrpc\":\"2.0\"")
+      .contains("\"id\":null")
+      .contains("\"code\":-32000")
+      .contains("Origin not allowed");
     verify(filterChain, never()).doFilter(any(), any());
   }
 
@@ -87,7 +93,8 @@ class McpSecurityFilterTest {
     filter.doFilter(request, response, filterChain);
 
     verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
-    assertThat(responseWriter.toString()).hasToString("Origin not allowed");
+    var body = responseWriter.toString();
+    assertThat(body).contains("\"jsonrpc\":\"2.0\"").contains("Origin not allowed");
     verify(filterChain, never()).doFilter(any(), any());
   }
 
@@ -168,7 +175,6 @@ class McpSecurityFilterTest {
 
   @Test
   void should_always_set_standard_cors_headers() throws Exception {
-    // Given: Any valid request
     var filter = new McpSecurityFilter("127.0.0.1");
     when(request.getHeader("Origin")).thenReturn("http://localhost:3000");
     when(request.getMethod()).thenReturn("POST");
@@ -176,9 +182,11 @@ class McpSecurityFilterTest {
     filter.doFilter(request, response, filterChain);
 
     verify(response).setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    verify(response).setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, SONARQUBE_TOKEN");
+    verify(response).setHeader("Access-Control-Allow-Headers",
+      "Content-Type, Accept, SONARQUBE_TOKEN, SONARQUBE_ORG, MCP-Protocol-Version");
     verify(response).setHeader("Access-Control-Max-Age", "3600");
   }
+
 
   @Test
   void should_handle_options_preflight_and_terminate() throws Exception {
