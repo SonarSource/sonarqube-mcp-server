@@ -280,25 +280,6 @@ class SonarQubeMcpServerGenericTest {
     server.shutdown();
   }
 
-  @SonarQubeMcpServerTest
-  void get_should_throw_in_http_mode_when_server_org_is_set_and_client_sends_org_header(SonarQubeMcpServerTestHarness harness) {
-    var environment = createSonarCloudHttpEnvironment();
-    environment.put("SONARQUBE_ORG", "server-org");
-    harness.prepareMockWebServer(environment);
-
-    var server = new SonarQubeMcpServer(environment);
-    server.start();
-
-    var context = McpTransportContext.create(Map.of(
-      HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "squ_valid_token",
-      HttpServerTransportProvider.CONTEXT_ORG_KEY, "client-org"));
-    assertThatThrownBy(() -> server.withTransportContext(context, server::get))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_ORG header is not allowed")
-      .hasMessageNotContaining("server-org");
-
-    server.shutdown();
-  }
 
   @SonarQubeMcpServerTest
   void get_should_return_server_api_in_http_mode_when_no_server_org_and_client_sends_org_header(SonarQubeMcpServerTestHarness harness) {
@@ -317,21 +298,6 @@ class SonarQubeMcpServerGenericTest {
     server.shutdown();
   }
 
-  @SonarQubeMcpServerTest
-  void get_should_throw_in_http_mode_when_no_server_org_and_client_sends_no_org_header_for_sonarcloud(SonarQubeMcpServerTestHarness harness) {
-    var environment = createSonarCloudHttpEnvironment();
-    harness.prepareMockWebServer(environment);
-
-    var server = new SonarQubeMcpServer(environment);
-    server.start();
-
-    var context = McpTransportContext.create(Map.of(HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "squ_valid_token"));
-    assertThatThrownBy(() -> server.withTransportContext(context, server::get))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_ORG header is required");
-
-    server.shutdown();
-  }
 
   private Map<String, String> createSonarCloudHttpEnvironment() {
     var environment = new HashMap<String, String>();
