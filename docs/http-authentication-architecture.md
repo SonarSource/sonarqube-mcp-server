@@ -34,7 +34,7 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 │            (Cursor, VS Code, etc.)                  │
 └────────────────┬────────────────────────────────────┘
                  │ HTTP POST
-                 │ Header: SONARQUBE_TOKEN (required)
+                 │ Headers: SONARQUBE_TOKEN (required), SONARQUBE_ORG (optional, SQC only)
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │              Jetty HTTP Server                      │
@@ -125,7 +125,8 @@ Clients configure the HTTP endpoint with authentication:
 5. Tool execution (ServerApiProvider.get())
    ├─> Read McpTransportContext from ThreadLocal
    ├─> Extract CONTEXT_TOKEN_KEY value
-   ├─> Create ServerApi with client's token + server-configured org
+   ├─> Resolve org: use server-level env var (header must be absent) OR per-request header (required if env var not set)
+   ├─> Create ServerApi with client's token and resolved org
    └─> Call SonarQube API
 ```
 
@@ -136,7 +137,7 @@ Clients configure the HTTP endpoint with authentication:
 - Token validated by SonarQube API (not the MCP server itself)
 - Uses custom header format:
   - `SONARQUBE_TOKEN: <token>` — required on every request
-- The organization (`SONARQUBE_ORG`) is a server-side configuration set via environment variable; it is not supplied by clients
+  - `SONARQUBE_ORG: <org>` — for SonarQube Cloud, identifies the organization. **Mutually exclusive with the server-level `SONARQUBE_ORG` env var**: if the env var is set at startup, clients must not send this header (results in an error); if the env var is not set, clients must send this header on every request
 
 #### `OAUTH` Mode (Not Yet Implemented)
 - OAuth 2.1 with PKCE
@@ -149,21 +150,13 @@ Clients configure the HTTP endpoint with authentication:
 
 ### Design: Stateless Per-Request Token Extraction
 
-The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function runs synchronously on the request thread and populates a `McpTransportContext` map with the request headers:
+The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function runs synchronously on the request thread and populates a `McpTransportContext` map with the request headers.
 
-```java
-HttpServletStatelessServerTransport.builder()
-  .contextExtractor(request -> McpTransportContext.create(Map.of(
-    CONTEXT_TOKEN_KEY, request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) != null ? request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN) : ""
-  )))
-  .build();
-```
-
-The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>` during tool execution, so `ServerApiProvider.get()` can access the token without any session lookup:
+The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>` during tool execution, so `ServerApiProvider.get()` can access the token and org without any session lookup:
 
 ```
 1. HTTP Request arrives
-   └─> contextExtractor reads SONARQUBE_TOKEN header
+   └─> contextExtractor reads SONARQUBE_TOKEN and SONARQUBE_ORG headers
    └─> McpTransportContext stored in ThreadLocal for this request thread
 
 2. Tool Execution Handler
@@ -171,7 +164,7 @@ The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>
 
 3. ServerApiProvider.get()
    └─> Reads McpTransportContext from ThreadLocal
-   └─> Extracts token (and optionally org)
+   └─> Extracts token and org (strict: server-level env var XOR per-request header — mixing both is an error)
    └─> Creates a fresh ServerApi for this request
 ```
 

@@ -42,7 +42,7 @@ class HttpServerTransportIntegrationTest {
   void setUp() {
     // Use a random available port for testing
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false,
+    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
   }
 
@@ -124,7 +124,7 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_use_custom_host_and_port() {
     var customPort = findAvailablePort();
-    var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1", AuthMode.TOKEN, false,
+    var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
 
     try {

@@ -80,16 +80,17 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_if_sonarqube_token_is_missing_in_http_mode_on_server(@TempDir Path tempDir) {
+  void should_allow_missing_token_in_http_mode(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_URL", "https://sonarqube.example.com",
       "SONARQUBE_TRANSPORT", "http"
     );
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("SONARQUBE_TOKEN environment variable or property must be set");
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.getSonarQubeToken()).isNull();
+    assertThat(config.isHttpEnabled()).isTrue();
   }
 
   @Test
@@ -349,7 +350,6 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  @SuppressWarnings("deprecation")
   void should_support_deprecated_sonarqube_cloud_url_for_backward_compatibility(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
@@ -365,7 +365,6 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  @SuppressWarnings("deprecation")
   void should_prefer_sonarqube_url_over_deprecated_cloud_url(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
@@ -378,6 +377,81 @@ class McpServerLaunchConfigurationTest {
 
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
     assertThat(configuration.isSonarCloud()).isTrue();
+  }
+
+  // isSonarCloudUrl tests
+
+  @Test
+  void isSonarCloudUrl_should_return_false_for_null() {
+    assertThat(McpServerLaunchConfiguration.isSonarCloudUrl(null)).isFalse();
+  }
+
+  @Test
+  void isSonarCloudUrl_should_return_true_for_sonarcloud_io() {
+    assertThat(McpServerLaunchConfiguration.isSonarCloudUrl("https://sonarcloud.io")).isTrue();
+  }
+
+  @Test
+  void isSonarCloudUrl_should_return_true_for_sonarqube_us() {
+    assertThat(McpServerLaunchConfiguration.isSonarCloudUrl("https://sonarqube.us")).isTrue();
+  }
+
+  @Test
+  void isSonarCloudUrl_should_return_false_for_custom_server_url() {
+    assertThat(McpServerLaunchConfiguration.isSonarCloudUrl("https://my-sonarqube.example.com")).isFalse();
+  }
+
+  // HTTP mode SonarCloud detection tests
+
+  @Test
+  void should_default_to_sonarcloud_in_http_mode_when_no_url_is_set(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TRANSPORT", "http"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(configuration.getSonarQubeToken()).isNull();
+  }
+
+  @Test
+  void should_detect_sonarcloud_in_http_mode_from_sonarcloud_io_url(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_URL", "https://sonarcloud.io"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarCloud()).isTrue();
+  }
+
+  @Test
+  void should_detect_sonarcloud_in_http_mode_from_sonarqube_us_url(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_URL", "https://sonarqube.us"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
+  }
+
+  @Test
+  void should_detect_sonarqube_server_in_http_mode_from_custom_url(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_URL", "https://my-sonarqube.example.com"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarCloud()).isFalse();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://my-sonarqube.example.com");
   }
 
   // Advanced analysis enabled tests

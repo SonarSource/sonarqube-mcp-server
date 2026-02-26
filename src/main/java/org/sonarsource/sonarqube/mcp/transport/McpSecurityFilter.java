@@ -36,7 +36,7 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 public class McpSecurityFilter implements Filter {
 
   private static final McpLogger LOG = McpLogger.getInstance();
-  
+
   // Allowed hosts for localhost deployments (exact match only)
   private static final Set<String> ALLOWED_LOCALHOST_HOSTS = Set.of(
     "localhost",
@@ -69,30 +69,30 @@ public class McpSecurityFilter implements Filter {
     throws IOException, ServletException {
     var httpRequest = (HttpServletRequest) req;
     var httpResponse = (HttpServletResponse) resp;
-    
-    // Validate Origin header
+
     var origin = httpRequest.getHeader("Origin");
     boolean isOptionsRequest = "OPTIONS".equals(httpRequest.getMethod());
-    
+
     if (origin != null && !isOriginAllowed(origin)) {
       LOG.warn("Rejected request from disallowed origin: " + origin);
       httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
-      httpResponse.getWriter().write("Origin not allowed");
+      httpResponse.setContentType("application/json");
+      httpResponse.getWriter().write(jsonRpcError("Origin not allowed"));
       return;
     }
 
     if (origin != null && isOriginAllowed(origin)) {
       httpResponse.setHeader("Access-Control-Allow-Origin", origin);
     } else if (allowAllOrigins || isOptionsRequest) {
-      // For OPTIONS preflight or when explicitly allowed, use wildcard
       httpResponse.setHeader("Access-Control-Allow-Origin", "*");
     }
-    
+
     httpResponse.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    httpResponse.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, SONARQUBE_TOKEN");
+    httpResponse.setHeader("Access-Control-Allow-Headers",
+      "Content-Type, Accept, SONARQUBE_TOKEN, SONARQUBE_ORG, MCP-Protocol-Version");
     httpResponse.setHeader("Access-Control-Max-Age", "3600");
 
-    if ("OPTIONS".equals(httpRequest.getMethod())) {
+    if (isOptionsRequest) {
       httpResponse.setStatus(HttpServletResponse.SC_OK);
       return;
     }
@@ -103,6 +103,15 @@ public class McpSecurityFilter implements Filter {
   @Override
   public void destroy() {
     // No cleanup needed
+  }
+
+  /**
+   * Builds a JSON-RPC 2.0 error response with no id, as required by the MCP spec for transport-level errors.
+   * Uses -32000 (server-defined error) since these are HTTP transport-layer rejections, not JSON-RPC payload errors.
+   */
+  private static String jsonRpcError(String message) {
+    var escapedMessage = message.replace("\\", "\\\\").replace("\"", "\\\"");
+    return String.format("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32000,\"message\":\"%s\"}}", escapedMessage);
   }
 
   /**

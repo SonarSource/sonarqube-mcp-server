@@ -165,6 +165,28 @@ class ServerApiTests {
   }
 
   @Test
+  void buildApiSubdomainUrl_should_rewrite_sonarqube_us_to_api_subdomain() {
+    var httpClientProvider = new HttpClientProvider(USER_AGENT);
+    var httpClient = httpClientProvider.getHttpClient("token");
+    var helper = new ServerApiHelper(new EndpointParams("https://sonarqube.us", "my-org"), httpClient);
+
+    var url = helper.buildApiSubdomainUrl("/api/test");
+
+    assertThat(url).isEqualTo("https://api.sonarqube.us/api/test");
+  }
+
+  @Test
+  void buildApiSubdomainUrl_should_use_regular_endpoint_when_no_org() {
+    var httpClientProvider = new HttpClientProvider(USER_AGENT);
+    var httpClient = httpClientProvider.getHttpClient("token");
+    var helper = new ServerApiHelper(new EndpointParams("https://sonarqube.us", null), httpClient);
+
+    var url = helper.buildApiSubdomainUrl("/api/test");
+
+    assertThat(url).isEqualTo("https://sonarqube.us/api/test");
+  }
+
+  @Test
   void postApiSubdomain_should_throw_on_unauthorized_response() {
     sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse().withStatus(HttpStatus.SC_UNAUTHORIZED)));
 

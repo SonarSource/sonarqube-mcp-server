@@ -110,9 +110,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private String composedInstructions;
 
   /**
-   * ServerApi instance.
-   * - In stdio mode: created once at startup with the configured token
-   * - In HTTP mode: null (created per-request using client's token from the SONARQUBE_TOKEN header)
+   * ServerApi instance used for startup probing (version check, SCA availability, plugin sync).
+   * - In stdio mode: created once at startup with the configured token; also used for all tool calls.
+   * - In HTTP mode: created at startup only when a startup token is configured (SONARQUBE_TOKEN env var).
+   *   Per-request tool calls always use a fresh ServerApi built from the request's SONARQUBE_TOKEN header.
    */
   @Nullable
   private ServerApi serverApi;
@@ -142,6 +143,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getHttpPort(),
         mcpConfiguration.getHttpHost(),
         authConfig,
+        mcpConfiguration.isSonarCloud(),
+        mcpConfiguration.getSonarqubeOrg(),
         mcpConfiguration.isHttpsEnabled(),
         mcpConfiguration.getHttpsKeystorePath(),
         mcpConfiguration.getHttpsKeystorePassword(),
@@ -197,16 +200,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     this.toolExecutor = new ToolExecutor(backendService);
 
-    // Create ServerApi and SonarQubeVersionChecker
-    if (mcpConfiguration.isHttpEnabled()) {
-      var initServerApi = createServerApiWithToken(mcpConfiguration.getSonarQubeToken());
-      this.sonarQubeVersionChecker = new SonarQubeVersionChecker(initServerApi);
-      loadBackendIndependentTools(initServerApi);
-    } else {
-      this.serverApi = initializeServerApi(mcpConfiguration);
-      this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-      loadBackendIndependentTools(serverApi);
-    }
+    // Create ServerApi for startup probing (version check, SCA availability, plugin sync).
+    // In HTTP mode this is optional — only created when a startup token is configured.
+    // Per-request tool calls in HTTP mode always use a fresh ServerApi from the request headers.
+    this.serverApi = initializeServerApi(mcpConfiguration);
+    this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
+    loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
 
@@ -224,7 +223,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       if (mcpConfiguration.isAdvancedAnalysisEnabled() && !mcpConfiguration.isSonarCloud()) {
         LOG.warn("SONARQUBE_ADVANCED_ANALYSIS_ENABLED is set but advanced analysis is only available on SonarCloud. Falling back to standard analysis.");
       }
-      loadBackendDependentTools();
+      // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
+      // token is configured (so plugins can be downloaded at startup).
+      if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
+        loadBackendDependentTools();
+      }
     }
 
     logToolsLoaded();
@@ -246,6 +249,13 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         return;
       }
 
+      // In HTTP mode without a startup token, plugins cannot be downloaded.
+      if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null) {
+        LOG.info("HTTP mode without startup token - skipping analyzers download (set SONARQUBE_TOKEN at server level to enable local analysis in HTTP mode)");
+        initializationFuture.complete(null);
+        return;
+      }
+
       // Skip analyzer download when advanced analysis mode is enabled (no local analysis)
       if (mcpConfiguration.isAdvancedAnalysisEnabled() && mcpConfiguration.isSonarCloud()) {
         LOG.info("Advanced analysis mode enabled - skipping analyzers download (no local analysis needed)");
@@ -253,13 +263,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         return;
       }
 
-      PluginsSynchronizer pluginsSynchronizer;
-      if (mcpConfiguration.isHttpEnabled()) {
-        var initServerApi = createServerApiWithToken(mcpConfiguration.getSonarQubeToken());
-        pluginsSynchronizer = new PluginsSynchronizer(initServerApi, mcpConfiguration.getStoragePath());
-      } else {
-        pluginsSynchronizer = new PluginsSynchronizer(Objects.requireNonNull(serverApi), mcpConfiguration.getStoragePath());
-      }
+      var pluginsSynchronizer = new PluginsSynchronizer(Objects.requireNonNull(serverApi), mcpConfiguration.getStoragePath());
 
       LOG.info("Downloading analyzers in background...");
       var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
@@ -318,10 +322,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListPortfoliosTool(this, mcpConfiguration.isSonarCloud()),
       new ListPullRequestsTool(this)));
 
-    var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();
-    var scaSupportedOnSQS = !serverApi.isSonarQubeCloud() && serverApi.featuresApi().listFeatures().contains(Feature.SCA);
-    if (scaSupportedOnSQC || scaSupportedOnSQS) {
+    if (mcpConfiguration.isHttpEnabled()) {
+      // In HTTP mode there is no startup token to probe SCA availability
       supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker));
+    } else {
+      var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();
+      var scaSupportedOnSQS = !serverApi.isSonarQubeCloud() && serverApi.featuresApi().listFeatures().contains(Feature.SCA);
+      if (scaSupportedOnSQC || scaSupportedOnSQS) {
+        supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker));
+      }
     }
   }
 
@@ -442,6 +451,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    * Get ServerApi instance for the current request context.
    * - In HTTP stateless mode: Creates a new ServerApi per tool call using the token and org
    *   extracted from the HTTP request headers via McpTransportContext.
+   *   Org resolution follows strict rules:
+   *   - If SONARQUBE_ORG is set at server startup, it is used for all requests and clients
+   *     must NOT supply a SONARQUBE_ORG header (doing so results in an error).
+   *   - If SONARQUBE_ORG is not set at server startup, clients connecting to SonarQube Cloud
+   *     must supply a SONARQUBE_ORG header on every request.
    * - In stdio mode: Returns the global ServerApi instance created at startup.
    */
   @Override
@@ -455,10 +469,20 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       if (token == null || token.isBlank()) {
         throw new IllegalStateException("No SONARQUBE_TOKEN in transport context");
       }
-      return createServerApiWithTokenAndOrg(token, mcpConfiguration.getSonarqubeOrg());
+      var orgFromRequest = (String) ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
+      var organization = getOrganization(orgFromRequest);
+      return createServerApiWithTokenAndOrg(token, organization);
     } else {
       return Objects.requireNonNull(serverApi, "ServerApi not initialized");
     }
+  }
+
+  private String getOrganization(@Nullable String orgFromRequest) {
+    var serverOrg = mcpConfiguration.getSonarqubeOrg();
+    if (serverOrg != null) {
+      return serverOrg;
+    }
+    return orgFromRequest;
   }
 
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
