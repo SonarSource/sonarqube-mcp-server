@@ -49,8 +49,8 @@ public class McpServerLaunchConfiguration {
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
   
   // Tool category configuration
-  private static final String SONARQUBE_TOOLSETS = "SONARQUBE_TOOLSETS";
-  private static final String SONARQUBE_READ_ONLY = "SONARQUBE_READ_ONLY";
+  public static final String SONARQUBE_TOOLSETS = "SONARQUBE_TOOLSETS";
+  public static final String SONARQUBE_READ_ONLY = "SONARQUBE_READ_ONLY";
   
   // Advanced analysis configuration
   private static final String SONARQUBE_ADVANCED_ANALYSIS_ENABLED = "SONARQUBE_ADVANCED_ANALYSIS_ENABLED";
