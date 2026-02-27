@@ -37,7 +37,6 @@ public class McpSecurityFilter implements Filter {
 
   private static final McpLogger LOG = McpLogger.getInstance();
 
-
   static final String HEALTH_ENDPOINT = "/health";
 
   // Allowed hosts for localhost deployments (exact match only)
