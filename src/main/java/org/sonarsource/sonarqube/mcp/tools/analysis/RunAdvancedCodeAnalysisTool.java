@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import java.util.List;
-import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -66,12 +65,6 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     var scope = arguments.getEnumOrDefault(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "MAIN");
     var request = extractRequest(arguments, organizationKey, scope);
     var response = serverApi.a3sAnalysisApi().analyze(request);
-    if (response.errors() != null && !response.errors().isEmpty()) {
-      var errorMessage = response.errors().stream()
-        .map(AnalysisResponse.AnalysisError::message)
-        .collect(Collectors.joining(", "));
-      return Result.failure("An error occurred during the tool execution: " + errorMessage);
-    }
     var toolResponse = buildStructuredContent(response);
     return Result.success(toolResponse);
   }
@@ -101,7 +94,14 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       );
     }
 
-    return new RunAdvancedCodeAnalysisToolResponse(issues, patchResult);
+    List<RunAdvancedCodeAnalysisToolResponse.AnalysisError> analysisErrors = null;
+    if (response.errors() != null && !response.errors().isEmpty()) {
+      analysisErrors = response.errors().stream()
+        .map(e -> new RunAdvancedCodeAnalysisToolResponse.AnalysisError(e.code(), e.message()))
+        .toList();
+    }
+
+    return new RunAdvancedCodeAnalysisToolResponse(issues, patchResult, analysisErrors);
   }
 
   private static RunAdvancedCodeAnalysisToolResponse.Issue mapIssue(AnalysisResponse.Issue issue) {
