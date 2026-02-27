@@ -165,11 +165,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   public void start() {
     if (httpServerManager != null) {
       httpServerManager.startServer().join();
-      statelessSyncServer = McpServer.sync(httpServerManager.getTransportProvider())
+      var enabledTools = filterForEnabledTools(supportedTools);
+      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools))
         .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
-        .tools(filterForEnabledTools(supportedTools).stream().map(this::toStatelessSpec).toArray(McpStatelessServerFeatures.SyncToolSpecification[]::new))
+        .tools(enabledTools.stream().map(this::toStatelessSpec).toArray(McpStatelessServerFeatures.SyncToolSpecification[]::new))
         .build();
     } else {
       stdioSyncServer = McpServer.sync(transportProvider)
