@@ -24,7 +24,8 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record RunAdvancedCodeAnalysisToolResponse(
   @JsonPropertyDescription("List of issues found in the analysis") List<Issue> issues,
-  @JsonPropertyDescription("Result of analyzing a patch, showing new, matched, and closed issues") @Nullable PatchResult patchResult
+  @JsonPropertyDescription("Result of analyzing a patch, showing new, matched, and closed issues") @Nullable PatchResult patchResult,
+  @JsonPropertyDescription("Non-fatal errors that occurred during analysis; the response may be incomplete") @Nullable List<AnalysisError> analysisErrors
 ) {
 
   public record Issue(
@@ -61,6 +62,12 @@ public record RunAdvancedCodeAnalysisToolResponse(
     @JsonPropertyDescription("Issues that appear only in the patched version") List<Issue> newIssues,
     @JsonPropertyDescription("Issues that exist in both original and patched versions") List<Issue> matchedIssues,
     @JsonPropertyDescription("Issue IDs that were closed/fixed by the patch") List<String> closedIssues
+  ) {
+  }
+
+  public record AnalysisError(
+    @JsonPropertyDescription("Error code identifying the type of failure") String code,
+    @JsonPropertyDescription("Human-readable description of what went wrong") String message
   ) {
   }
 

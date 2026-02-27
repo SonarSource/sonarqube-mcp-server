@@ -139,8 +139,8 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_surface_analysis_errors_in_response(SonarQubeMcpServerTestHarness harness) {
-    stubAnalysisResponse(harness, RESPONSE_WITH_ERRORS);
+  void it_should_succeed_and_surface_analysis_errors_alongside_issues(SonarQubeMcpServerTestHarness harness) {
+    stubAnalysisResponse(harness, RESPONSE_WITH_ERRORS_AND_ISSUES);
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
     var result = mcpClient.callTool(
@@ -152,10 +152,49 @@ class RunAdvancedCodeAnalysisToolTests {
         "fileContent", "class Main {}"
       ));
 
-    assertThat(result).isEqualTo(McpSchema.CallToolResult.builder()
-      .isError(true)
-      .addTextContent("An error occurred during the tool execution: Error while calling language analysis service, Failed to parse analysis input")
-      .build());
+    assertResultEquals(result, """
+      {
+        "issues" : [ {
+          "id" : "issue-1",
+          "filePath" : "src/Main.java",
+          "message" : "Null pointer dereference",
+          "rule" : "java:S2259"
+        } ],
+        "analysisErrors" : [ {
+          "code" : "SERVICE_CALL_ERROR",
+          "message" : "Error while calling language analysis service"
+        }, {
+          "code" : "PARSE_ERROR",
+          "message" : "Failed to parse analysis input"
+        } ]
+      }""");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_succeed_and_surface_analysis_errors_when_no_issues_were_found(SonarQubeMcpServerTestHarness harness) {
+    stubAnalysisResponse(harness, RESPONSE_WITH_ERRORS_NO_ISSUES);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "projectKey", "my-project",
+        "branchName", "main",
+        "filePath", "src/Main.java",
+        "fileContent", "class Main {}"
+      ));
+
+    assertResultEquals(result, """
+      {
+        "issues" : [ ],
+        "analysisErrors" : [ {
+          "code" : "SERVICE_CALL_ERROR",
+          "message" : "Error while calling language analysis service"
+        }, {
+          "code" : "PARSE_ERROR",
+          "message" : "Failed to parse analysis input"
+        } ]
+      }""");
   }
 
   private static void stubAnalysisResponse(SonarQubeMcpServerTestHarness harness, String responseBody) {
@@ -278,7 +317,32 @@ class RunAdvancedCodeAnalysisToolTests {
     }
     """;
 
-  private static final String RESPONSE_WITH_ERRORS = """
+  private static final String RESPONSE_WITH_ERRORS_AND_ISSUES = """
+    {
+      "id": "analysis-1",
+      "issues": [
+        {
+          "id": "issue-1",
+          "filePath": "src/Main.java",
+          "message": "Null pointer dereference",
+          "rule": "java:S2259"
+        }
+      ],
+      "patchResult": null,
+      "errors": [
+        {
+          "code": "SERVICE_CALL_ERROR",
+          "message": "Error while calling language analysis service"
+        },
+        {
+          "code": "PARSE_ERROR",
+          "message": "Failed to parse analysis input"
+        }
+      ]
+    }
+    """;
+
+  private static final String RESPONSE_WITH_ERRORS_NO_ISSUES = """
     {
       "id": "analysis-1",
       "issues": [],
