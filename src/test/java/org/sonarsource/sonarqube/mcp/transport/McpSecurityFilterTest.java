@@ -53,6 +53,18 @@ class McpSecurityFilterTest {
   }
 
   @Test
+  void should_respond_200_to_health_check_without_auth() throws Exception {
+    var filter = new McpSecurityFilter("127.0.0.1");
+    when(request.getRequestURI()).thenReturn(McpSecurityFilter.HEALTH_ENDPOINT);
+    when(request.getMethod()).thenReturn("GET");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_OK);
+    verify(filterChain, never()).doFilter(any(), any());
+  }
+
+  @Test
   void should_reject_external_origin_when_bound_to_localhost() throws Exception {
     var filter = new McpSecurityFilter("127.0.0.1");
     when(request.getHeader("Origin")).thenReturn("https://malicious-site.com");

@@ -37,6 +37,8 @@ public class McpSecurityFilter implements Filter {
 
   private static final McpLogger LOG = McpLogger.getInstance();
 
+  static final String HEALTH_ENDPOINT = "/health";
+
   // Allowed hosts for localhost deployments (exact match only)
   private static final Set<String> ALLOWED_LOCALHOST_HOSTS = Set.of(
     "localhost",
@@ -65,10 +67,14 @@ public class McpSecurityFilter implements Filter {
   }
 
   @Override
-  public void doFilter(ServletRequest req, ServletResponse resp, FilterChain filterChain)
-    throws IOException, ServletException {
+  public void doFilter(ServletRequest req, ServletResponse resp, FilterChain filterChain) throws IOException, ServletException {
     var httpRequest = (HttpServletRequest) req;
     var httpResponse = (HttpServletResponse) resp;
+
+    if (HEALTH_ENDPOINT.equals(httpRequest.getRequestURI())) {
+      httpResponse.setStatus(HttpServletResponse.SC_OK);
+      return;
+    }
 
     var origin = httpRequest.getHeader("Origin");
     boolean isOptionsRequest = "OPTIONS".equals(httpRequest.getMethod());

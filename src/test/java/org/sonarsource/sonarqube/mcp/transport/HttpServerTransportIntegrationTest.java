@@ -101,6 +101,25 @@ class HttpServerTransportIntegrationTest {
   }
 
   @Test
+  void should_respond_to_health_check_without_authentication() throws Exception {
+    httpServer.startServer().join();
+
+    await().atMost(5, TimeUnit.SECONDS).until(() -> isServerRunning(httpServer.getServerUrl()));
+
+    try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
+      var healthUrl = "http://127.0.0.1:" + testPort + McpSecurityFilter.HEALTH_ENDPOINT;
+      var request = HttpRequest.newBuilder()
+        .uri(URI.create(healthUrl))
+        .GET()
+        .build();
+
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      assertThat(response.statusCode()).isEqualTo(200);
+    }
+  }
+
+  @Test
   void should_reject_get_requests_with_token() throws Exception {
     httpServer.startServer().join();
 
