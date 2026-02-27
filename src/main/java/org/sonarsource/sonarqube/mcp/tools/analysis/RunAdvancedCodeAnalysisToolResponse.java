@@ -25,7 +25,7 @@ import java.util.List;
 public record RunAdvancedCodeAnalysisToolResponse(
   @JsonPropertyDescription("List of issues found in the analysis") List<Issue> issues,
   @JsonPropertyDescription("Result of analyzing a patch, showing new, matched, and closed issues") @Nullable PatchResult patchResult,
-  @JsonPropertyDescription("Non-fatal errors that occurred during analysis; the response may be incomplete") @Nullable List<AnalysisError> analysisErrors
+  @JsonPropertyDescription("Non-fatal errors that occurred during analysis") @Nullable List<AnalysisError> analysisErrors
 ) {
 
   public record Issue(
