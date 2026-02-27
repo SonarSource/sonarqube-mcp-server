@@ -42,12 +42,14 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     super(SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("SonarQube Advanced Code Analysis")
-      .setDescription("Run advanced code analysis for a single file.")
+      .setDescription("Run advanced code analysis on a single file using SonarQube Cloud's server-side engine. " +
+        "Identifies code quality and security issues, leveraging the project's full analysis context for deeper cross-file detection. " +
+        "Always specify the file scope (MAIN or TEST) for more accurate results.")
       .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The key of the project.")
-      .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "Branch name used to retrieve the latest analysis context.")
+      .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "The branch name used to retrieve the latest analysis context from SonarQube Cloud.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
-      .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The original content of the file to analyze.")
-      .addEnumProperty(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "Defines in which scope the file originates from (default: MAIN)")
+      .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The full content of the file to analyze.")
+      .addEnumProperty(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN).")
       .setReadOnlyHint()
       .build(),
       ToolCategory.ANALYSIS);

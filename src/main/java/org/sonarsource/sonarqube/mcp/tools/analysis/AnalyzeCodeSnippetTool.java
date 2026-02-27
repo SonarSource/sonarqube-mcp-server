@@ -76,7 +76,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
         .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
           "Always pass the complete file content for accurate analysis. Optionally provide a code snippet to filter issues - " +
           "only issues within the snippet will be reported (snippet location is auto-detected). " +
-          "Specify the language to improve analysis accuracy.")
+          "Always specify the language and the file scope (MAIN or TEST) for more accurate results.")
         .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
         .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "Complete file content to analyze")
         .addStringProperty(SNIPPET_PROPERTY, "Code snippet to filter issues - must match content within fileContent")
