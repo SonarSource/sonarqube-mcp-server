@@ -27,6 +27,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
@@ -118,13 +119,13 @@ public class HttpServerTransportProvider {
         var contextBuilder = new HashMap<String, Object>();
         contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
         if (org != null && !org.isBlank()) {
-          contextBuilder.put(CONTEXT_ORG_KEY, org);
+          contextBuilder.put(CONTEXT_ORG_KEY, org.trim());
         }
         if (toolsets != null && !toolsets.isBlank()) {
-          contextBuilder.put(CONTEXT_TOOLSETS_KEY, toolsets.trim());
+          contextBuilder.put(CONTEXT_TOOLSETS_KEY, ToolCategory.parseCategories(toolsets.trim()));
         }
         if (readOnly != null && !readOnly.isBlank()) {
-          contextBuilder.put(CONTEXT_READ_ONLY_KEY, readOnly.trim());
+          contextBuilder.put(CONTEXT_READ_ONLY_KEY, Boolean.parseBoolean(readOnly.trim()));
         }
         return McpTransportContext.create(contextBuilder);
       })
@@ -150,10 +151,8 @@ public class HttpServerTransportProvider {
   }
 
   /**
-   * Returns transport preloaded with {@code enabledTools}.
-   * Pass it to {@code McpServer.sync(...).build()}: when the SDK calls {@code setMcpHandler},
-   * the transport immediately installs a {@link ToolsListFilteringHandler} wrapping the SDK
-   * handler — the servlet is never exposed to unfiltered tool listings, even briefly.
+   * Returns transport preloaded with {@code enabledTools}. Pass it to {@code McpServer.sync(...).build()}:
+   * when the SDK calls {@code setMcpHandler}, the transport immediately installs a {@link PerRequestToolFilteringHandler} wrapping the SDK handler.
    */
   public McpStatelessServerTransport getFilteringTransport(List<Tool> enabledTools) {
     return new McpStatelessServerTransport() {
@@ -161,7 +160,7 @@ public class HttpServerTransportProvider {
 
       @Override
       public void setMcpHandler(McpStatelessServerHandler handler) {
-        mcpTransportProvider.setMcpHandler(new ToolsListFilteringHandler(handler, tools));
+        mcpTransportProvider.setMcpHandler(new PerRequestToolFilteringHandler(handler, tools));
       }
 
       @Override

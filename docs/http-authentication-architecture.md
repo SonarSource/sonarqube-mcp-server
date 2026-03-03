@@ -55,19 +55,19 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │     HttpServletStatelessServerTransport             │
-│   (MCP SDK - stateless, extracts McpTransportCtx)  │
+│   (MCP SDK - stateless, extracts McpTransportCtx)   │
 └────────────────┬────────────────────────────────────┘
                  │
                  ▼
 ┌─────────────────────────────────────────────────────┐
-│       ToolsListFilteringHandler                     │
+│       PerRequestToolFilteringHandler                │
 │  (per-request tools/list filtering)                 │
 └────────────────┬────────────────────────────────────┘
                  │
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │            MCP Tool Execution                       │
-│  (reads token + toolset filters from               │
+│  (reads token + toolset filters from                │
 │   McpTransportContext ThreadLocal)                  │
 └─────────────────────────────────────────────────────┘
 ```
@@ -86,8 +86,8 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.McpSecurityFilter`
 - **Purpose**: Security and CORS handling (Origin validation, CORS headers)
 
-#### `ToolsListFilteringHandler`
-- **Location**: `org.sonarsource.sonarqube.mcp.transport.ToolsListFilteringHandler`
+#### `PerRequestToolFilteringHandler`
+- **Location**: `org.sonarsource.sonarqube.mcp.transport.PerRequestToolFilteringHandler`
 - **Purpose**: Wraps the SDK's `McpStatelessServerHandler` to intercept `tools/list` responses and filter the returned tool list based on the per-request `SONARQUBE_TOOLSETS` and `SONARQUBE_READ_ONLY` headers from `McpTransportContext`. A well-behaved MCP client will only call tools it received from `tools/list`, so filtering the list is sufficient enforcement.
 
 #### `SonarQubeMcpServer` (ServerApiProvider)
@@ -124,24 +124,27 @@ Clients configure the HTTP endpoint with authentication:
    └─> SONARQUBE_TOOLSETS: issues,rules     (optional, per-request override)
    └─> SONARQUBE_READ_ONLY: true            (optional, per-request override)
 
-2. AuthenticationFilter intercepts request
-   ├─> Extract token from SONARQUBE_TOKEN header
-   ├─> Reject with 401 if token is missing or blank
-   └─> Pass to next filter if token is present
-
-3. McpSecurityFilter validates security
+2. McpSecurityFilter validates security
+   ├─> Allow OPTIONS preflight without authentication (enables CORS handshake)
    ├─> Check Origin header
    ├─> Set CORS headers
-   └─> Pass to servlet
+   └─> Pass to next filter
+
+3. AuthenticationFilter intercepts request
+   ├─> Extract token from SONARQUBE_TOKEN header
+   ├─> Reject with 401 if token is missing or blank
+   ├─> Validate SONARQUBE_ORG header (SonarQube Cloud only)
+   ├─> Validate SONARQUBE_READ_ONLY header (must be 'true' or 'false' if present)
+   └─> Pass to servlet if all checks pass
 
 4. HttpServletStatelessServerTransport processes request
    ├─> contextExtractor runs: reads SONARQUBE_TOKEN, SONARQUBE_ORG,
    │   SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
    ├─> Creates McpTransportContext with all extracted values
    ├─> Parse JSON-RPC message
-   └─> Dispatch to ToolsListFilteringHandler
+   └─> Dispatch to PerRequestToolFilteringHandler
 
-5. ToolsListFilteringHandler (tools/list only)
+5. PerRequestToolFilteringHandler (tools/list only)
    ├─> Read SONARQUBE_TOOLSETS and SONARQUBE_READ_ONLY from McpTransportContext
    ├─> If per-request headers are present, filter tool list accordingly
    └─> Return filtered tools/list response (bypasses SDK's unfiltered response)
@@ -186,7 +189,7 @@ The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>
        SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
    └─> McpTransportContext stored in ThreadLocal for this request thread
 
-2. ToolsListFilteringHandler (tools/list only)
+2. PerRequestToolFilteringHandler (tools/list only)
    └─> Reads SONARQUBE_TOOLSETS and SONARQUBE_READ_ONLY from McpTransportContext
    └─> Filters the SDK's full tool list down to the per-request allowed subset
 
@@ -221,7 +224,7 @@ In HTTP(S) mode, clients can **narrow** the set of visible tools on a per-reques
 
 ### Filtering
 
-Per-request filtering is applied at the **`tools/list` response**: `ToolsListFilteringHandler` intercepts the SDK's response and removes tools that are not allowed for this request. The MCP client only sees tools it is permitted to use, reducing its context window accordingly. A well-behaved MCP client will only call tools it received from `tools/list`, so filtering the list is sufficient.
+Per-request filtering is applied at the **`tools/list` response**: `PerRequestToolFilteringHandler` intercepts the SDK's response and removes tools that are not allowed for this request. The MCP client only sees tools it is permitted to use, reducing its context window accordingly. A well-behaved MCP client will only call tools it received from `tools/list`, so filtering the list is sufficient.
 
 ### Security Notes
 
