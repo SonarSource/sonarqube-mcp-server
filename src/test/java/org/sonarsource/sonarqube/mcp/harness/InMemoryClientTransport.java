@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.harness;
 
 import io.modelcontextprotocol.json.TypeRef;
-import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
+import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
@@ -208,8 +208,7 @@ public class InMemoryClientTransport implements McpClientTransport {
 
   @Override
   public <T> T unmarshalFrom(Object data, TypeRef<T> typeRef) {
-    // Convert TypeRef to TypeReference for Jackson compatibility
-    return mcpJsonMapper.getObjectMapper().convertValue(data, mcpJsonMapper.getObjectMapper().getTypeFactory().constructType(typeRef.getType()));
+    return mcpJsonMapper.convertValue(data, typeRef);
   }
 
   private static void log(String message) {
