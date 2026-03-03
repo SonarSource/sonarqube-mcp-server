@@ -37,7 +37,7 @@ class ToolCategoryTest {
     assertThat(ToolCategory.SYSTEM.getKey()).isEqualTo("system");
     assertThat(ToolCategory.WEBHOOKS.getKey()).isEqualTo("webhooks");
     assertThat(ToolCategory.DEPENDENCY_RISKS.getKey()).isEqualTo("dependency-risks");
-    assertThat(ToolCategory.EXTERNAL.getKey()).isEqualTo("external");
+    assertThat(ToolCategory.CAG.getKey()).isEqualTo("cag");
   }
 
   @Test
@@ -125,7 +125,7 @@ class ToolCategoryTest {
       ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.DEPENDENCY_RISKS,
       ToolCategory.COVERAGE,
-      ToolCategory.EXTERNAL
+      ToolCategory.CAG
     );
   }
 
@@ -149,7 +149,7 @@ class ToolCategoryTest {
       ToolCategory.WEBHOOKS,
       ToolCategory.DEPENDENCY_RISKS,
       ToolCategory.SECURITY_HOTSPOTS,
-      ToolCategory.EXTERNAL
+      ToolCategory.CAG
     );
   }
 

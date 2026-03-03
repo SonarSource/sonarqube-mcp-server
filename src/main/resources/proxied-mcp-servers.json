@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "name": "sonar-cag",
+    "transport": "stdio",
+    "command": "sonar-code-context-mcp",
+    "namespace": "cag",
+    "args": [],
+    "env": {},
+    "supportedTransports": ["stdio"]
+  }
+]
