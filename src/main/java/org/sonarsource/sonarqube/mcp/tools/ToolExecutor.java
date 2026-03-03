@@ -17,7 +17,11 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
+import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
+import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
@@ -27,9 +31,19 @@ import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 public class ToolExecutor {
   private static final McpLogger LOG = McpLogger.getInstance();
   private final BackendService backendService;
+  @Nullable
+  private final AnalyticsService analyticsService;
+  private final Supplier<ConnectionContext> connectionContextSupplier;
 
   public ToolExecutor(BackendService backendService) {
+    this(backendService, null, ConnectionContext::empty);
+  }
+
+  public ToolExecutor(BackendService backendService, @Nullable AnalyticsService analyticsService,
+    Supplier<ConnectionContext> connectionContextSupplier) {
     this.backendService = backendService;
+    this.analyticsService = analyticsService;
+    this.connectionContextSupplier = connectionContextSupplier;
   }
 
   public McpSchema.CallToolResult execute(Tool tool, McpSchema.CallToolRequest toolRequest) {
@@ -46,8 +60,25 @@ public class ToolExecutor {
       result = handleExecutionError(e, toolName, startTime);
     }
 
-    backendService.notifyToolCalled("mcp_" + tool.definition().name(), !result.isError());
+    var durationMs = System.currentTimeMillis() - startTime;
+    var successful = !result.isError();
+    backendService.notifyToolCalled("mcp_" + tool.definition().name(), successful);
+    notifyAnalytics(toolName, durationMs, successful);
     return result.toCallToolResult();
+  }
+
+  private void notifyAnalytics(String toolName, long durationMs, boolean successful) {
+    var service = analyticsService;
+    if (service == null) {
+      return;
+    }
+    try {
+      var ctx = connectionContextSupplier.get();
+      service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
+        ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful);
+    } catch (Exception e) {
+      LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
+    }
   }
 
   private static void logSuccess(String toolName, long startTime) {
