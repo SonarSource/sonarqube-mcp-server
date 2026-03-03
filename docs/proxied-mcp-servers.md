@@ -43,7 +43,7 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 
 **Fields:**
 - `name` (required): Human-readable server name (for logging)
-- `namespace` (required): Tool name prefix (e.g., tool `analyze` becomes `context/analyze`)
+- `namespace` (required): Reserved for future use (currently not applied to tool names)
 - `command` (required): Executable command to start the MCP server
 - `args` (optional): Command-line arguments
 - `env` (optional): Environment variables with explicit values. These take precedence over inherited variables.
@@ -51,12 +51,9 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 - `supportedTransports` (required): Array of transport modes supported by this provider. Valid values: `"stdio"`, `"http"`. Providers are only loaded if they support the server's current transport mode.
 - `instructions` (optional): Brief instructions to help AI assistants use this provider's tools effectively. These are automatically appended to the server's base instructions.
 
-### Tool Namespacing
+### Tool Names
 
-Proxied tools are prefixed with their namespace to avoid conflicts with the main server's tools, following the [MCP SEP-986 naming convention](https://modelcontextprotocol.io/community/seps/986-specify-format-for-tool-names):
-- Server namespace: `context`
-- Original tool name: `analyze_code`
-- Exposed name: `context/analyze_code`
+Proxied tools are exposed with their original names from the proxied MCP server without any prefix or namespace modification.
 
 **Tool Name Validation:**
 
@@ -92,6 +89,29 @@ INFO: Loaded 5 proxied tool(s) from 1/2 server(s)
 
 **Key principle:** The server never fails to start due to proxied server issues. It gracefully degrades and continues with available servers.
 
+### Logging
+
+Diagnostic logs from proxied MCP servers are automatically captured and logged:
+
+**Standard Error (stderr) Logging:**
+- According to MCP protocol, servers send diagnostic logs to stderr
+- The SonarQube MCP server captures and logs stderr from all proxied servers, **preserving the original log level**
+- The system automatically parses common log level patterns (DEBUG, INFO, WARN/WARNING, ERROR) from the stderr output
+- Supported formats include:
+  - Pipe-separated: `2024-01-01 12:00:00.000 | DEBUG` or `| DEBUG |` or `| DEBUG    |`
+  - Bracketed: `[DEBUG] message`
+  - Space-separated: ` DEBUG message`
+  - Colon-separated: `DEBUG: message`
+  - Line starting with level: `DEBUG message`
+- All logs are prefixed with the server name (e.g., `[sonar-cag] <log message>`)
+- If no log level is detected, the message is logged at INFO level by default
+
+**Controlling Log Output:**
+- Use the `logback.xml` configuration to filter logs by logger name or level
+- Stderr output is logged via the `org.sonarsource.sonarqube.mcp.client.McpClientManager` logger
+- Example: Set `<logger name="org.sonarsource.sonarqube.mcp.client.McpClientManager" level="DEBUG"/>` to see all proxied server output, including DEBUG messages
+- Example: Set `<logger name="org.sonarsource.sonarqube.mcp.client.McpClientManager" level="WARN"/>` to only see warnings and errors from proxied servers
+
 ## Adding a New Proxied Server
 
 ### 1. Add Configuration
@@ -109,7 +129,7 @@ Edit `src/main/resources/proxied-mcp-servers.json`:
       "NODE_ENV": "production"
     },
     "supportedTransports": ["stdio"],
-    "instructions": "Before analyzing code issues, always use myprovider_my_tool to retrieve relevant code snippets."
+    "instructions": "Before analyzing code issues, always use my_tool to retrieve relevant code snippets."
   }
 ]
 ```
