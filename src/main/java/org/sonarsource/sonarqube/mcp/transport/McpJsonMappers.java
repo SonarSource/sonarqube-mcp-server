@@ -16,12 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.transport;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
+import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 public class McpJsonMappers {
-  public static final JacksonMcpJsonMapper DEFAULT = new JacksonMcpJsonMapper(new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false));
+  public static final JacksonMcpJsonMapper DEFAULT = new JacksonMcpJsonMapper(
+    JsonMapper.builder().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build());
 
   private McpJsonMappers() {
     // utility class
