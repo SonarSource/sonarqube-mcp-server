@@ -53,6 +53,7 @@ public class AuthenticationFilter implements Filter {
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String SONARQUBE_TOKEN_HEADER = McpServerLaunchConfiguration.SONARQUBE_TOKEN;
   private static final String SONARQUBE_ORG_HEADER = McpServerLaunchConfiguration.SONARQUBE_ORG;
+  private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
 
   private final AuthMode authMode;
   private final boolean isSonarCloud;
@@ -92,6 +93,9 @@ public class AuthenticationFilter implements Filter {
       if (!validateOrg(httpRequest, httpResponse)) {
         return;
       }
+      if (!validateReadOnly(httpRequest, httpResponse)) {
+        return;
+      }
       filterChain.doFilter(req, resp);
       return;
     }
@@ -109,9 +113,6 @@ public class AuthenticationFilter implements Filter {
     // No cleanup needed
   }
 
-  /**
-   * Returns true if the org header is valid for this request, false if a 400 response was sent.
-   */
   private boolean validateOrg(HttpServletRequest request, HttpServletResponse response) throws IOException {
     if (!isSonarCloud) {
       return true;
@@ -129,6 +130,18 @@ public class AuthenticationFilter implements Filter {
         sendBadRequestResponse(response,
           "A SONARQUBE_ORG header is required: this server is not configured with a default organization. " +
             "Provide your SonarQube Cloud organization key in the SONARQUBE_ORG request header.");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean validateReadOnly(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    var value = request.getHeader(SONARQUBE_READ_ONLY_HEADER);
+    if (value != null && !value.isBlank()) {
+      var trimmed = value.trim();
+      if (!"true".equalsIgnoreCase(trimmed) && !"false".equalsIgnoreCase(trimmed)) {
+        sendBadRequestResponse(response, "Invalid SONARQUBE_READ_ONLY header value. Expected 'true' or 'false'.");
         return false;
       }
     }
