@@ -98,7 +98,6 @@ public class ProxiedServerConfigParser {
   private static ProxiedMcpServerConfig toProxiedMcpServerConfig(JsonServerConfig jsonConfig) {
     return new ProxiedMcpServerConfig(
       jsonConfig.name,
-      jsonConfig.namespace,
       jsonConfig.command,
       jsonConfig.args != null ? jsonConfig.args : Collections.emptyList(),
       jsonConfig.env != null ? jsonConfig.env : Collections.emptyMap(),
@@ -116,7 +115,6 @@ public class ProxiedServerConfigParser {
   @JsonIgnoreProperties(ignoreUnknown = true)
   record JsonServerConfig(
     @JsonProperty("name") String name,
-    @JsonProperty("namespace") String namespace,
     @JsonProperty("command") String command,
     @JsonProperty("args") @Nullable List<String> args,
     @JsonProperty("env") @Nullable Map<String, String> env,
