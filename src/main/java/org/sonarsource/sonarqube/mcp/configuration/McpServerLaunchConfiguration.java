@@ -54,6 +54,9 @@ public class McpServerLaunchConfiguration {
   
   // Advanced analysis configuration
   private static final String SONARQUBE_ADVANCED_ANALYSIS_ENABLED = "SONARQUBE_ADVANCED_ANALYSIS_ENABLED";
+
+  // Force SonarCloud detection for non-standard deployments (e.g. internal staging environments)
+  private static final String SONARQUBE_IS_CLOUD = "SONARQUBE_IS_CLOUD";
   
   // HTTP/HTTPS transport configuration
   private static final String SONARQUBE_TRANSPORT = "SONARQUBE_TRANSPORT";
@@ -134,7 +137,10 @@ public class McpServerLaunchConfiguration {
       sonarqubeUrlFromEnv = sonarqubeCloudUrl;
     }
 
-    if (!isHttpEnabled) {
+    var forceSonarQubeCloud = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_IS_CLOUD, "false"));
+    if (forceSonarQubeCloud) {
+      this.isSonarCloud = true;
+    } else if (!isHttpEnabled) {
       this.isSonarCloud = this.sonarqubeOrg != null;
     } else {
       this.isSonarCloud = sonarqubeUrlFromEnv == null || isSonarCloudUrl(sonarqubeUrlFromEnv);

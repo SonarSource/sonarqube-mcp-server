@@ -454,6 +454,47 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://my-sonarqube.example.com");
   }
 
+  @Test
+  void should_force_sonarcloud_in_http_mode_when_is_sonarcloud_flag_is_set(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_URL", "https://dev4.sc-dev4.io",
+      "SONARQUBE_IS_CLOUD", "true"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://dev4.sc-dev4.io");
+  }
+
+  @Test
+  void should_force_sonarcloud_in_stdio_mode_when_is_sonarcloud_flag_is_set(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_URL", "https://dev4.sc-dev4.io",
+      "SONARQUBE_IS_CLOUD", "true"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://dev4.sc-dev4.io");
+  }
+
+  @Test
+  void should_not_force_sonarcloud_when_is_sonarcloud_flag_is_false(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_URL", "https://my-sonarqube.example.com",
+      "SONARQUBE_IS_CLOUD", "false"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarCloud()).isFalse();
+  }
+
   // Advanced analysis enabled tests
 
   @Test
