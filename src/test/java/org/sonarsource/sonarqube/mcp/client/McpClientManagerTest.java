@@ -116,8 +116,8 @@ class McpClientManagerTest {
   @Test
   void buildEnvironmentVariables_should_include_explicit_values_from_config() {
     var manager = new McpClientManager(List.of());
-    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), 
-      Map.of("EXPLICIT_VAR1", "value1", "EXPLICIT_VAR2", "value2"), 
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
+      Map.of("EXPLICIT_VAR1", "value1", "EXPLICIT_VAR2", "value2"),
       List.of(), Set.of(TransportMode.STDIO), null);
     var parentEnv = Map.of("PARENT_VAR", "parent_value");
 
@@ -133,9 +133,9 @@ class McpClientManagerTest {
   @Test
   void buildEnvironmentVariables_should_inherit_variables_from_parent() {
     var manager = new McpClientManager(List.of());
-    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), 
-      Map.of(), 
-      List.of("INHERITED_VAR1", "INHERITED_VAR2"), 
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
+      Map.of(),
+      List.of("INHERITED_VAR1", "INHERITED_VAR2"),
       Set.of(TransportMode.STDIO), null);
     var parentEnv = Map.of(
       "INHERITED_VAR1", "inherited_value1",
@@ -155,9 +155,9 @@ class McpClientManagerTest {
   @Test
   void buildEnvironmentVariables_should_prioritize_explicit_values_over_inherited() {
     var manager = new McpClientManager(List.of());
-    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), 
-      Map.of("OVERRIDE_VAR", "explicit_value"), 
-      List.of("OVERRIDE_VAR"), 
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
+      Map.of("OVERRIDE_VAR", "explicit_value"),
+      List.of("OVERRIDE_VAR"),
       Set.of(TransportMode.STDIO), null);
     var parentEnv = Map.of("OVERRIDE_VAR", "parent_value");
 
@@ -171,9 +171,9 @@ class McpClientManagerTest {
   @Test
   void buildEnvironmentVariables_should_skip_inherited_var_not_in_parent() {
     var manager = new McpClientManager(List.of());
-    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), 
-      Map.of(), 
-      List.of("MISSING_VAR", "EXISTING_VAR"), 
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
+      Map.of(),
+      List.of("MISSING_VAR", "EXISTING_VAR"),
       Set.of(TransportMode.STDIO), null);
     var parentEnv = Map.of("EXISTING_VAR", "existing_value");
 

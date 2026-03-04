@@ -72,11 +72,11 @@ public class McpClientManager {
       if (!config.args().isEmpty()) {
         serverParamsBuilder.args(config.args());
       }
-      
+
       // Build environment variables: explicit values from config + inherited from parent
       var filteredEnv = buildEnvironmentVariables(config, System.getenv());
-      
-      LOG.debug("Passing " + filteredEnv.size() + " environment variable(s) to '" + config.name() + "' (" + 
+
+      LOG.debug("Passing " + filteredEnv.size() + " environment variable(s) to '" + config.name() + "' (" +
         config.env().size() + " explicit, " + config.inherits().size() + " inherited)");
       serverParamsBuilder.env(filteredEnv);
 
@@ -177,18 +177,15 @@ public class McpClientManager {
     return Map.copyOf(clients);
   }
 
-  /**
-   * Builds the environment variables map for a proxied server by combining explicit values from config and inherited values from parent environment.
-   */
   @VisibleForTesting
   Map<String, String> buildEnvironmentVariables(ProxiedMcpServerConfig config, Map<String, String> parentEnv) {
     var filteredEnv = new HashMap<String, String>();
-    
+
     // Add explicit values from config
     if (!config.env().isEmpty()) {
       filteredEnv.putAll(config.env());
     }
-    
+
     // Add inherited variables from parent environment
     if (!config.inherits().isEmpty()) {
       for (var inheritKey : config.inherits()) {
@@ -200,7 +197,7 @@ public class McpClientManager {
         }
       }
     }
-    
+
     return filteredEnv;
   }
 
