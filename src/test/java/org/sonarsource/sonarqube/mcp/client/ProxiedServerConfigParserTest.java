@@ -35,7 +35,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "test-server",
-          "namespace": "test",
           "command": "npx",
           "args": ["arg1", "arg2"],
           "env": {
@@ -53,7 +52,6 @@ class ProxiedServerConfigParserTest {
     assertThat(result.configs()).hasSize(1);
     var config = result.configs().getFirst();
     assertThat(config.name()).isEqualTo("test-server");
-    assertThat(config.namespace()).isEqualTo("test");
     assertThat(config.command()).isEqualTo("npx");
     assertThat(config.args()).containsExactly("arg1", "arg2");
     assertThat(config.env()).containsEntry("KEY1", "value1").containsEntry("KEY2", "value2");
@@ -66,7 +64,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "minimal-server",
-          "namespace": "minimal",
           "command": "node",
           "supportedTransports": ["stdio"]
         }
@@ -79,7 +76,6 @@ class ProxiedServerConfigParserTest {
     assertThat(result.configs()).hasSize(1);
     var config = result.configs().getFirst();
     assertThat(config.name()).isEqualTo("minimal-server");
-    assertThat(config.namespace()).isEqualTo("minimal");
     assertThat(config.command()).isEqualTo("node");
     assertThat(config.args()).isEmpty();
     assertThat(config.env()).isEmpty();
@@ -92,7 +88,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "  ",
-          "namespace": "ns",
           "command": "node",
           "supportedTransports": ["stdio"]
         }
@@ -106,31 +101,11 @@ class ProxiedServerConfigParserTest {
   }
 
   @Test
-  void parseAndValidateProxiedConfig_should_throw_when_namespace_is_blank() {
-    var json = """
-      [
-        {
-          "name": "server",
-          "namespace": "  ",
-          "command": "node",
-          "supportedTransports": ["stdio"]
-        }
-      ]
-      """;
-
-    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(json);
-
-    assertThat(result.success()).isFalse();
-    assertThat(result.error()).contains("Proxied MCP server namespace cannot be null or blank");
-  }
-
-  @Test
   void parseAndValidateProxiedConfig_should_throw_when_command_is_blank() {
     var json = """
       [
         {
           "name": "server",
-          "namespace": "ns",
           "command": "  ",
           "supportedTransports": ["stdio"]
         }
@@ -149,7 +124,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "server",
-          "namespace": "ns",
           "command": "node",
           "args": [],
           "supportedTransports": ["stdio"]
@@ -169,7 +143,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "server",
-          "namespace": "ns",
           "command": "node",
           "env": {},
           "supportedTransports": ["stdio"]
@@ -189,7 +162,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "server1",
-          "namespace": "full",
           "command": "docker",
           "args": ["run", "-it", "image"],
           "env": {
@@ -201,7 +173,6 @@ class ProxiedServerConfigParserTest {
         },
         {
           "name": "server2",
-          "namespace": "ns2",
           "command": "python",
           "args": ["-m", "server"],
           "supportedTransports": ["stdio"]
@@ -251,19 +222,6 @@ class ProxiedServerConfigParserTest {
         """
         [
           {
-            "namespace": "ns1",
-            "command": "node"
-          }
-        ]
-        """,
-        "Failed to parse configuration"
-      ),
-      Arguments.of(
-        "missing required field namespace",
-        """
-        [
-          {
-            "name": "server1",
             "command": "node"
           }
         ]
@@ -276,7 +234,6 @@ class ProxiedServerConfigParserTest {
         [
           {
             "name": "server1",
-            "namespace": "ns1"
           }
         ]
         """,
@@ -288,7 +245,6 @@ class ProxiedServerConfigParserTest {
         [
           {
             "name": "server",
-            "namespace": "ns",
             "command": "node",
             "args": "should-be-array"
           }
@@ -305,7 +261,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "server",
-          "namespace": "ns",
           "command": "node",
           "supportedTransports": ["stdio"],
           "extra_field": "should be ignored",
@@ -327,7 +282,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "server",
-          "namespace": "ns",
           "command": "cmd",
           "args": ["first", "second", "third", "fourth"],
           "supportedTransports": ["stdio"]
@@ -347,7 +301,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "server",
-          "namespace": "ns",
           "command": "node"
         }
       ]
@@ -365,7 +318,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "server",
-          "namespace": "ns",
           "command": "node",
           "supportedTransports": []
         }
@@ -384,7 +336,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "server",
-          "namespace": "ns",
           "command": "node",
           "supportedTransports": ["invalid"]
         }
@@ -403,7 +354,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "server",
-          "namespace": "ns",
           "command": "node",
           "supportedTransports": ["STDIO", "Http"]
         }
@@ -417,7 +367,7 @@ class ProxiedServerConfigParserTest {
 
   @Test
   void constructor_should_accept_instructions() {
-    var config = new ProxiedMcpServerConfig("server", "namespace", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), "Use these tools for testing");
+    var config = new ProxiedMcpServerConfig("server", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), "Use these tools for testing");
 
     assertThat(config.instructions()).isEqualTo("Use these tools for testing");
   }
@@ -428,7 +378,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "test-server",
-          "namespace": "test",
           "command": "npx",
           "args": ["arg1"],
           "env": {
@@ -455,7 +404,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "test-server",
-          "namespace": "test",
           "command": "npx",
           "inherits": [],
           "supportedTransports": ["stdio"]
@@ -475,7 +423,6 @@ class ProxiedServerConfigParserTest {
       [
         {
           "name": "test-server",
-          "namespace": "test",
           "command": "npx",
           "supportedTransports": ["stdio"]
         }

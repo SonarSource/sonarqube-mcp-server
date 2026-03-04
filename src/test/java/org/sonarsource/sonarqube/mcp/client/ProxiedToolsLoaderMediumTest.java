@@ -72,7 +72,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
-        "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of(),
@@ -88,33 +87,7 @@ class ProxiedToolsLoaderMediumTest {
       .hasSize(2);
 
     var toolNames = tools.stream().map(t -> t.definition().name()).toList();
-    assertThat(toolNames).containsExactlyInAnyOrder("test/test_tool_1", "test/test_tool_2");
-  }
-
-  @Test
-  void loadProxiedTools_should_apply_namespace_prefix_to_tool_names() {
-    createTestConfig(List.of(
-      Map.of(
-        "name", "my-server",
-        "namespace", "myserver",
-        "command", "python3",
-        "args", List.of(testServerScript.toString()),
-        "env", Map.of(),
-        "supportedTransports", Set.of("stdio")
-      )
-    ));
-
-    loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
-
-    assertThat(tools).hasSize(2);
-    
-    var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("myserver/test_tool_1"))
-      .findFirst();
-    
-    assertThat(tool1).isPresent();
-    assertThat(tool1.get().definition().title()).isEqualTo("Test Tool 1");
+    assertThat(toolNames).containsExactlyInAnyOrder("test_tool_1", "test_tool_2");
   }
 
   @Test
@@ -122,7 +95,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
-        "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of(),
@@ -144,7 +116,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
-        "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of(),
@@ -157,7 +128,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -173,7 +144,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "server1",
-        "namespace", "s1",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of(),
@@ -181,7 +151,6 @@ class ProxiedToolsLoaderMediumTest {
       ),
       Map.of(
         "name", "server2",
-        "namespace", "s2",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of(),
@@ -192,12 +161,12 @@ class ProxiedToolsLoaderMediumTest {
     loader = new ProxiedToolsLoader();
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
-    assertThat(tools).hasSize(4);
+    // Note: Without namespace prefixing, we'll only get 2 tools since both servers expose the same tool names
+    // The second server's tools will overwrite the first server's tools in the map
+    assertThat(tools).hasSize(2);
 
     var toolNames = tools.stream().map(t -> t.definition().name()).toList();
-    assertThat(toolNames)
-      .contains("s1/test_tool_1", "s1/test_tool_2")
-      .contains("s2/test_tool_1", "s2/test_tool_2");
+    assertThat(toolNames).containsExactlyInAnyOrder("test_tool_1", "test_tool_2");
   }
 
   @Test
@@ -205,7 +174,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "good-server",
-        "namespace", "good",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of(),
@@ -213,7 +181,6 @@ class ProxiedToolsLoaderMediumTest {
       ),
       Map.of(
         "name", "bad-server",
-        "namespace", "bad",
         "command", "/non/existent/command",
         "args", List.of(),
         "env", Map.of(),
@@ -225,7 +192,8 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).hasSize(2);
-    assertThat(tools.stream().map(t -> t.definition().name())).allMatch(name -> name.startsWith("good/"));
+    var toolNames2 = tools.stream().map(t -> t.definition().name()).toList();
+    assertThat(toolNames2).containsExactlyInAnyOrder("test_tool_1", "test_tool_2");
   }
 
   @Test
@@ -233,7 +201,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
-        "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of("TEST_ENV_VAR", "config_value"),
@@ -247,7 +214,7 @@ class ProxiedToolsLoaderMediumTest {
 
     // The test server includes the TEST_ENV_VAR in the tool description
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -260,7 +227,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
-        "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         // Empty string value should trigger inheritance from parent
@@ -277,11 +243,11 @@ class ProxiedToolsLoaderMediumTest {
     // If PATH wasn't inherited, python3 command wouldn't be found
     assertThat(tools).isNotEmpty();
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_tool_1"))
       .findFirst()
       .orElseThrow();
 
-    assertThat(tool1.definition().name()).isEqualTo("test/test_tool_1");
+    assertThat(tool1.definition().name()).isEqualTo("test_tool_1");
   }
 
   @Test
@@ -289,7 +255,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
-        "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         // Explicit value should be used, not inherited
@@ -303,7 +268,7 @@ class ProxiedToolsLoaderMediumTest {
 
     // The test server includes TEST_ENV_VAR in the tool description
     var tool1 = tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -315,7 +280,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
-        "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of(),
@@ -327,7 +291,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool1 = (ProxiedMcpTool) tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_1"))
+      .filter(t -> t.definition().name().equals("test_tool_1"))
       .findFirst()
       .orElseThrow();
 
@@ -349,7 +313,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "test-server",
-        "namespace", "test",
         "command", "python3",
         "args", List.of(testServerScript.toString()),
         "env", Map.of(),
@@ -361,7 +324,7 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     var tool2 = (ProxiedMcpTool) tools.stream()
-      .filter(t -> t.definition().name().equals("test/test_tool_2"))
+      .filter(t -> t.definition().name().equals("test_tool_2"))
       .findFirst()
       .orElseThrow();
 
@@ -381,7 +344,6 @@ class ProxiedToolsLoaderMediumTest {
     createTestConfig(List.of(
       Map.of(
         "name", "bad-server-1",
-        "namespace", "bad1",
         "command", "/non/existent/command1",
         "args", List.of(),
         "env", Map.of(),
@@ -390,7 +352,6 @@ class ProxiedToolsLoaderMediumTest {
       ),
       Map.of(
         "name", "bad-server-2",
-        "namespace", "bad2",
         "command", "/non/existent/command2",
         "args", List.of(),
         "env", Map.of(),

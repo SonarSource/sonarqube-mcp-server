@@ -75,12 +75,11 @@ public class ProxiedToolsLoader {
       mcpClientManager = new McpClientManager(compatibleConfigs);
       mcpClientManager.initialize();
 
-      var tools = mcpClientManager.getAllProxiedTools().entrySet().stream()
-        .map(e -> (Tool) new ProxiedMcpTool(
-          e.getKey(),
-          e.getValue().serverId(),
-          e.getValue().originalToolName(),
-          e.getValue().tool(),
+      var tools = mcpClientManager.getAllProxiedTools().values().stream()
+        .map(toolMapping -> (Tool) new ProxiedMcpTool(
+          toolMapping.serverId(),
+          toolMapping.originalToolName(),
+          toolMapping.tool(),
           mcpClientManager
         ))
         .toList();

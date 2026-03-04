@@ -26,8 +26,6 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-
 class McpSchemaValidationTest {
 
   @SonarQubeMcpServerTest
@@ -65,21 +63,13 @@ class McpSchemaValidationTest {
         .isNotNull()
         .isNotEmpty();
       
-      // Proxied tools (containing /) follow SEP-986 and may use different conventions
-      if (tool.name().contains("/")) {
-        // Validate proxied tools according to SEP-986
-        assertThatCode(() -> ToolNameValidator.validate(tool.name()))
-          .as("Proxied tool '%s' should follow MCP SEP-986 naming convention", tool.name())
-          .doesNotThrowAnyException();
-      } else {
-        // Internal tools follow snake_case convention
-        assertThat(tool.name())
-          .as("Internal tool '%s' name should follow snake_case convention (lowercase letters, numbers, underscores)", tool.name())
-          .matches("^[a-z][a-z0-9_]*[a-z0-9]$")
-          .as("Internal tool '%s' name should not start or end with underscore", tool.name())
-          .doesNotStartWith("_")
-          .doesNotEndWith("_");
-      }
+      // All tools follow snake_case convention
+      assertThat(tool.name())
+        .as("Tool '%s' name should follow snake_case convention (lowercase letters, numbers, underscores)", tool.name())
+        .matches("^[a-z][a-z0-9_]*[a-z0-9]$")
+        .as("Tool '%s' name should not start or end with underscore", tool.name())
+        .doesNotStartWith("_")
+        .doesNotEndWith("_");
     }
   }
 
@@ -89,13 +79,9 @@ class McpSchemaValidationTest {
     var tools = client.listTools();
     
     for (var tool : tools) {
-      // Proxied tools (containing /) may not follow telemetry snake_case requirements
-      // as they follow SEP-986 which allows more characters
-      if (!tool.name().contains("/")) {
-        assertThat(tool.name())
-          .as("Internal tool '%s' name should match the telemetry regex pattern", tool.name())
-          .matches("^[a-z_][a-z0-9_]{1,126}$");
-      }
+      assertThat(tool.name())
+        .as("Tool '%s' name should match the telemetry regex pattern", tool.name())
+        .matches("^[a-z_][a-z0-9_]{1,126}$");
     }
   }
 
@@ -311,8 +297,7 @@ class McpSchemaValidationTest {
     for (var tool : tools) {
       var toolName = tool.name();
 
-      // For proxied tools, check the part after the namespace separator
-      var nameToCheck = toolName.contains("/") ? toolName.substring(toolName.indexOf("/") + 1) : toolName;
+      var nameToCheck = toolName;
       
       var hasActionWord = nameToCheck.contains("get") || nameToCheck.contains("search") ||
         nameToCheck.contains("change") || nameToCheck.contains("list") ||

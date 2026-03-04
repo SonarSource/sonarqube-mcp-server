@@ -32,7 +32,6 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 [
   {
     "name": "my-server",
-    "namespace": "myserver",
     "command": "node",
     "args": ["path/to/mcp-server.js"],
     "env": {},
@@ -43,7 +42,6 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 
 **Fields:**
 - `name` (required): Human-readable server name (for logging)
-- `namespace` (required): Tool name prefix (e.g., tool `analyze` becomes `context/analyze`)
 - `command` (required): Executable command to start the MCP server
 - `args` (optional): Command-line arguments
 - `env` (optional): Environment variables with explicit values. These take precedence over inherited variables.
@@ -51,12 +49,9 @@ Proxied MCP servers are defined in `/proxied-mcp-servers.json` (bundled in the J
 - `supportedTransports` (required): Array of transport modes supported by this provider. Valid values: `"stdio"`, `"http"`. Providers are only loaded if they support the server's current transport mode.
 - `instructions` (optional): Brief instructions to help AI assistants use this provider's tools effectively. These are automatically appended to the server's base instructions.
 
-### Tool Namespacing
+### Tool Names
 
-Proxied tools are prefixed with their namespace to avoid conflicts with the main server's tools, following the [MCP SEP-986 naming convention](https://modelcontextprotocol.io/community/seps/986-specify-format-for-tool-names):
-- Server namespace: `context`
-- Original tool name: `analyze_code`
-- Exposed name: `context/analyze_code`
+Proxied tools are exposed with their original names from the proxied MCP server.
 
 **Tool Name Validation:**
 
@@ -102,7 +97,6 @@ Edit `src/main/resources/proxied-mcp-servers.json`:
 [
   {
     "name": "my-server",
-    "namespace": "myserver",
     "command": "node",
     "args": ["path/to/mcp-server.js"],
     "env": {
@@ -141,7 +135,6 @@ This provides security through explicit allowlisting while maintaining flexibili
 ```json
 {
   "name": "my-server",
-  "namespace": "myserver",
   "command": "python",
   "args": ["-m", "my_mcp_server"],
   "env": {
@@ -159,7 +152,6 @@ The proxied server receives:
 ```json
 {
   "name": "my-server",
-  "namespace": "myserver",
   "command": "python",
   "args": ["-m", "my_mcp_server"],
   "env": {
@@ -178,7 +170,6 @@ If the parent process has `SONARQUBE_TOKEN=secret123` and `SONARQUBE_URL=https:/
 ```json
 {
   "name": "my-server",
-  "namespace": "myserver",
   "command": "python",
   "args": ["-m", "my_mcp_server"],
   "env": {
