@@ -49,8 +49,8 @@ public class McpServerLaunchConfiguration {
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
   
   // Tool category configuration
-  public static final String SONARQUBE_TOOLSETS = "SONARQUBE_TOOLSETS";
-  public static final String SONARQUBE_READ_ONLY = "SONARQUBE_READ_ONLY";
+  private static final String SONARQUBE_TOOLSETS = "SONARQUBE_TOOLSETS";
+  private static final String SONARQUBE_READ_ONLY = "SONARQUBE_READ_ONLY";
   
   // Advanced analysis configuration
   private static final String SONARQUBE_ADVANCED_ANALYSIS_ENABLED = "SONARQUBE_ADVANCED_ANALYSIS_ENABLED";
@@ -394,15 +394,10 @@ public class McpServerLaunchConfiguration {
   /**
    * Determines if a tool category should be enabled based on configuration.
    * Rules:
-   * 1. PROJECTS toolset is always enabled (required to find project keys)
-   * 2. If SONARQUBE_TOOLSETS is set, only those toolsets (plus PROJECTS) are enabled
-   * 3. If SONARQUBE_TOOLSETS is not set, only default important toolsets are enabled
+   * 1. If SONARQUBE_TOOLSETS is set, only those toolsets are enabled
+   * 2. If SONARQUBE_TOOLSETS is not set, all toolsets are enabled (default)
    */
   public boolean isToolCategoryEnabled(ToolCategory category) {
-    // PROJECTS is always enabled as it's required to find project keys
-    if (category == ToolCategory.PROJECTS) {
-      return true;
-    }
     return enabledToolsets.contains(category);
   }
 

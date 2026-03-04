@@ -65,7 +65,7 @@ public class McpClientManager {
   private void initializeClient(ProxiedMcpServerConfig config) {
     var serverName = config.name();
     try {
-      LOG.info("Connecting to '" + config.name() + "' (namespace: " + config.namespace() + ")");
+      LOG.info("Connecting to '" + config.name() + "'");
       
       // Build server parameters for STDIO transport
       var serverParamsBuilder = ServerParameters.builder(config.command());
@@ -99,7 +99,7 @@ public class McpClientManager {
       LOG.info("Connected to '" + config.name() + "' - discovered " + tools.size() + " tool(s)");
       clients.put(serverName, client);
       serverTools.put(serverName, tools);
-      tools.forEach(tool -> LOG.debug(" - " + config.namespace() + "/" + tool.name()));
+      tools.forEach(tool -> LOG.debug(" - " + tool.name()));
     } catch (Exception e) {
       LOG.error("Failed to initialize '" + config.name() + "': " + e.getMessage(), e);
       serverErrors.put(serverName, e.getMessage());
@@ -113,10 +113,9 @@ public class McpClientManager {
       var namespace = config.namespace();
       var tools = serverTools.getOrDefault(serverId, List.of());
       tools.forEach(tool -> {
-        var namespacedToolName = namespace + "/" + tool.name();
         try {
-          ToolNameValidator.validate(namespacedToolName);
-          allTools.put(namespacedToolName, new ToolMapping(serverId, namespace, tool.name(), tool));
+          ToolNameValidator.validate(tool.name());
+          allTools.put(tool.name(), new ToolMapping(serverId, namespace, tool.name(), tool));
         } catch (IllegalArgumentException e) {
           LOG.error("Skipping tool with invalid name from server '" + serverId + "': " + e.getMessage(), e);
         }
