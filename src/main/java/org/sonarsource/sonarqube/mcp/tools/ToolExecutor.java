@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -26,8 +27,11 @@ import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
+import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
 public class ToolExecutor {
   private static final McpLogger LOG = McpLogger.getInstance();
@@ -51,24 +55,28 @@ public class ToolExecutor {
     var toolName = tool.definition().name();
     LOG.info("Tool called: " + toolName);
 
-    var startTime = System.currentTimeMillis();
+    var invocationTimestamp = System.currentTimeMillis();
     Tool.Result result;
+    String errorType = null;
 
     try {
       result = tool.execute(new Tool.Arguments(toolRequest.arguments()));
-      logSuccess(toolName, startTime);
+      logSuccess(toolName, invocationTimestamp);
     } catch (Exception e) {
-      result = handleExecutionError(e, toolName, startTime);
+      errorType = resolveErrorType(e);
+      result = handleExecutionError(e, toolName, invocationTimestamp);
     }
 
-    var durationMs = System.currentTimeMillis() - startTime;
+    var durationMs = System.currentTimeMillis() - invocationTimestamp;
     var successful = !result.isError();
+    var responseSizeBytes = computeResponseSizeBytes(result.toCallToolResult());
     backendService.notifyToolCalled("mcp_" + tool.definition().name(), successful);
-    notifyAnalytics(toolName, durationMs, successful);
+    notifyAnalytics(toolName, durationMs, successful, errorType, responseSizeBytes, invocationTimestamp);
     return result.toCallToolResult();
   }
 
-  private void notifyAnalytics(String toolName, long durationMs, boolean successful) {
+  private void notifyAnalytics(String toolName, long durationMs, boolean successful,
+    @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {
     var service = analyticsService;
     if (service == null) {
       return;
@@ -77,11 +85,20 @@ public class ToolExecutor {
       try {
         var ctx = connectionContextSupplier.get();
         service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
-          ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful);
+          ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful,
+          errorType, responseSizeBytes, invocationTimestamp);
       } catch (Exception e) {
         LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
       }
     });
+  }
+
+  private static long computeResponseSizeBytes(McpSchema.CallToolResult callToolResult) {
+    return callToolResult.content().stream()
+      .filter(c -> c instanceof McpSchema.TextContent)
+      .map(c -> ((McpSchema.TextContent) c).text())
+      .mapToLong(text -> text.getBytes(StandardCharsets.UTF_8).length)
+      .sum();
   }
 
   private static void logSuccess(String toolName, long startTime) {
@@ -94,6 +111,20 @@ public class ToolExecutor {
     var message = formatErrorMessage(e);
     LOG.error("Tool failed: " + toolName + " (execution time: " + executionTime + "ms)", e);
     return Tool.Result.failure("An error occurred during the tool execution: " + message);
+  }
+
+  private static String resolveErrorType(Exception e) {
+    return switch (e) {
+      case UnauthorizedException ignored -> "unauthorized";
+      case ForbiddenException ignored -> "forbidden";
+      case NotFoundException ignored -> "not_found";
+      case ServerInternalErrorException ignored -> "server_error";
+      case ServerApiException ignored -> "server_api_error";
+      case MissingRequiredArgumentException ignored -> "missing_argument";
+      case IllegalArgumentException ignored -> "invalid_argument";
+      case ResponseErrorException ignored -> "protocol_error";
+      default -> "unknown";
+    };
   }
 
   private static String formatErrorMessage(Exception e) {

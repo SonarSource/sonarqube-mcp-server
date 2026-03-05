@@ -83,7 +83,11 @@ class AnalyticsClientTest {
       null,
       null,
       250L,
-      true
+      true,
+      null,
+      1024L,
+      null,
+      System.currentTimeMillis()
     );
 
     analyticsClient.postEvent(event);
@@ -104,10 +108,14 @@ class AnalyticsClientTest {
       null,
       "srv-uuid",
       "http",
-      null,
-      null,
+      "cursor",
+      "1.0.0",
       512L,
-      true
+      false,
+      "not_found",
+      2048L,
+      "amd64",
+      1000L
     );
 
     analyticsClient.postEvent(event);
@@ -140,8 +148,14 @@ class AnalyticsClientTest {
           "sqs_installation_id": "install-123",
           "mcp_server_id": "srv-uuid",
           "transport_mode": "http",
+          "calling_agent_name": "cursor",
+          "calling_agent_version": "1.0.0",
           "tool_execution_duration_ms": 512,
-          "is_successful": true
+          "is_successful": false,
+          "error_type": "not_found",
+          "response_size_bytes": 2048,
+          "container_arch": "amd64",
+          "invocation_timestamp": 1000
         }
       }
       """;
@@ -152,7 +166,7 @@ class AnalyticsClientTest {
 
   @Test
   void it_should_send_x_api_key_header() {
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true, null, 0L, null, 0L);
 
     analyticsClient.postEvent(event);
 
@@ -166,7 +180,7 @@ class AnalyticsClientTest {
   void it_should_retry_up_to_twice_on_server_error() {
     wireMock.stubFor(post(urlPathEqualTo("/")).willReturn(aResponse().withStatus(500)));
 
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true, null, 0L, null, 0L);
     analyticsClient.postEvent(event);
 
     // 1 initial attempt + 2 retries = 3 total
@@ -179,7 +193,7 @@ class AnalyticsClientTest {
   void it_should_not_retry_on_client_error() {
     wireMock.stubFor(post(urlPathEqualTo("/")).willReturn(aResponse().withStatus(400)));
 
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true, null, 0L, null, 0L);
     analyticsClient.postEvent(event);
 
     await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
@@ -199,7 +213,7 @@ class AnalyticsClientTest {
       .whenScenarioStateIs("second-attempt")
       .willReturn(aResponse().withStatus(200)));
 
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true, null, 0L, null, 0L);
     analyticsClient.postEvent(event);
 
     await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
@@ -213,7 +227,7 @@ class AnalyticsClientTest {
     System.setProperty(AnalyticsClient.PROPERTY_ANALYTICS_ENDPOINT, "http://192.0.2.1:9999/mcp");
     var unreachableClient = new AnalyticsClient(httpClient);
 
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true, null, 0L, null, 0L);
 
     assertThatCode(() -> unreachableClient.postEvent(event)).doesNotThrowAnyException();
   }

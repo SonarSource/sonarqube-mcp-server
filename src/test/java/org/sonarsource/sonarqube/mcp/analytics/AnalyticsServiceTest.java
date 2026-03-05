@@ -37,7 +37,7 @@ class AnalyticsServiceTest {
   void it_should_build_sqc_event_with_org_uuid() {
     var service = new AnalyticsService(mockClient, "server-id", false, false, true);
 
-    service.notifyToolInvoked("search_issues", "org-uuid-123", null, "user-uuid-456", "cursor", "1.0.0", 123L, true);
+    service.notifyToolInvoked("search_issues", "org-uuid-123", null, "user-uuid-456", "cursor", "1.0.0", 123L, true, null, 512L, 1000L);
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
@@ -55,13 +55,16 @@ class AnalyticsServiceTest {
     assertThat(event.callingAgentVersion()).isEqualTo("1.0.0");
     assertThat(event.toolExecutionDurationMs()).isEqualTo(123L);
     assertThat(event.isSuccessful()).isTrue();
+    assertThat(event.errorType()).isNull();
+    assertThat(event.responseSizeBytes()).isEqualTo(512L);
+    assertThat(event.invocationTimestamp()).isEqualTo(1000L);
   }
 
   @Test
   void it_should_build_sqs_event_with_installation_id() {
     var service = new AnalyticsService(mockClient, "server-id", true, false, false);
 
-    service.notifyToolInvoked("show_rule", null, "install-abc", null, null, null, 42L, false);
+    service.notifyToolInvoked("show_rule", null, "install-abc", null, null, null, 42L, false, "not_found", 0L, 2000L);
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
@@ -76,13 +79,16 @@ class AnalyticsServiceTest {
     assertThat(event.callingAgentVersion()).isNull();
     assertThat(event.toolExecutionDurationMs()).isEqualTo(42L);
     assertThat(event.isSuccessful()).isFalse();
+    assertThat(event.errorType()).isEqualTo("not_found");
+    assertThat(event.responseSizeBytes()).isZero();
+    assertThat(event.invocationTimestamp()).isEqualTo(2000L);
   }
 
   @Test
   void it_should_ignore_sqs_installation_id_for_sqc_connection() {
     var service = new AnalyticsService(mockClient, "server-id", false, false, true);
 
-    service.notifyToolInvoked("search_issues", "org-uuid", "should-be-ignored", "user-uuid", null, null, 0L, true);
+    service.notifyToolInvoked("search_issues", "org-uuid", "should-be-ignored", "user-uuid", null, null, 0L, true, null, 0L, 0L);
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
@@ -97,7 +103,7 @@ class AnalyticsServiceTest {
   void it_should_ignore_org_uuid_for_sqs_connection() {
     var service = new AnalyticsService(mockClient, "server-id", false, false, false);
 
-    service.notifyToolInvoked("search_issues", "should-be-ignored", "install-id", null, null, null, 0L, true);
+    service.notifyToolInvoked("search_issues", "should-be-ignored", "install-id", null, null, null, 0L, true, null, 0L, 0L);
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
@@ -111,7 +117,7 @@ class AnalyticsServiceTest {
   @Test
   void it_should_resolve_transport_mode_as_stdio_when_http_disabled() {
     var service = new AnalyticsService(mockClient, "server-id", false, false, false);
-    service.notifyToolInvoked("tool", null, null, null, null, null, 0L, true);
+    service.notifyToolInvoked("tool", null, null, null, null, null, 0L, true, null, 0L, 0L);
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
     assertThat(captor.getValue().transportMode()).isEqualTo("stdio");
@@ -120,7 +126,7 @@ class AnalyticsServiceTest {
   @Test
   void it_should_resolve_transport_mode_as_http_when_http_enabled_without_tls() {
     var service = new AnalyticsService(mockClient, "server-id", true, false, false);
-    service.notifyToolInvoked("tool", null, null, null, null, null, 0L, true);
+    service.notifyToolInvoked("tool", null, null, null, null, null, 0L, true, null, 0L, 0L);
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
     assertThat(captor.getValue().transportMode()).isEqualTo("http");
@@ -129,7 +135,7 @@ class AnalyticsServiceTest {
   @Test
   void it_should_resolve_transport_mode_as_https_when_http_and_tls_enabled() {
     var service = new AnalyticsService(mockClient, "server-id", true, true, false);
-    service.notifyToolInvoked("tool", null, null, null, null, null, 0L, true);
+    service.notifyToolInvoked("tool", null, null, null, null, null, 0L, true, null, 0L, 0L);
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
     assertThat(captor.getValue().transportMode()).isEqualTo("https");
@@ -139,8 +145,8 @@ class AnalyticsServiceTest {
   void it_should_generate_unique_invocation_ids() {
     var service = new AnalyticsService(mockClient, "server-id", false, false, false);
 
-    service.notifyToolInvoked("tool_a", null, null, null, null, null, 0L, true);
-    service.notifyToolInvoked("tool_b", null, null, null, null, null, 0L, true);
+    service.notifyToolInvoked("tool_a", null, null, null, null, null, 0L, true, null, 0L, 0L);
+    service.notifyToolInvoked("tool_b", null, null, null, null, null, 0L, true, null, 0L, 0L);
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient, org.mockito.Mockito.times(2)).postEvent(captor.capture());

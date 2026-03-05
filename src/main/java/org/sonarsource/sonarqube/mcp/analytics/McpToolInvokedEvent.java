@@ -34,7 +34,11 @@ public record McpToolInvokedEvent(
   @JsonProperty("calling_agent_name") @Nullable String callingAgentName,
   @JsonProperty("calling_agent_version") @Nullable String callingAgentVersion,
   @JsonProperty("tool_execution_duration_ms") long toolExecutionDurationMs,
-  @JsonProperty("is_successful") boolean isSuccessful
+  @JsonProperty("is_successful") boolean isSuccessful,
+  @JsonProperty("error_type") @Nullable String errorType,
+  @JsonProperty("response_size_bytes") long responseSizeBytes,
+  @JsonProperty("container_arch") @Nullable String containerArch,
+  @JsonProperty("invocation_timestamp") long invocationTimestamp
 ) implements AnalyticsEvent {
 
   private static final String EVENT_TYPE = "Analytics.Mcp.McpToolInvoked";
