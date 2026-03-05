@@ -47,6 +47,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 class ToolExecutorTest {
@@ -173,7 +174,7 @@ class ToolExecutorTest {
       }
     }, new McpSchema.CallToolRequest("", Map.of()));
 
-    verify(analyticsService).notifyToolInvoked(anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(),
+    verify(analyticsService, timeout(2000)).notifyToolInvoked(anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(),
       errorTypeCaptor.capture(), anyLong(), anyLong());
     assertThat(errorTypeCaptor.getValue()).isEqualTo(expectedErrorType);
   }
