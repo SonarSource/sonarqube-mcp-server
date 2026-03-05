@@ -103,7 +103,7 @@ Edit `src/main/resources/proxied-mcp-servers.json`:
       "NODE_ENV": "production"
     },
     "supportedTransports": ["stdio"],
-    "instructions": "Before analyzing code issues, always use myprovider_my_tool to retrieve relevant code snippets."
+    "instructions": "Before analyzing code issues, always use my_tool to retrieve relevant code snippets."
   }
 ]
 ```

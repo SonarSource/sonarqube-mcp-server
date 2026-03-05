@@ -376,7 +376,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       ? BASE_INSTRUCTIONS_WITH_ANALYSIS
       : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
 
-    // Compose instructions with external provider contributions
+    // Compose instructions with proxied provider contributions
     var parseResult = ProxiedServerConfigParser.parse();
     if (parseResult.success() && !parseResult.configs().isEmpty()) {
       composedInstructions = ProxiedToolsLoader.composeInstructions(baseInstructions, parseResult.configs());
