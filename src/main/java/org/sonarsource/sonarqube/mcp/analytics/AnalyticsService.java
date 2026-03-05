@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.analytics;
 
 import java.util.UUID;
-import javax.annotation.Nullable;
 
 public class AnalyticsService {
 
@@ -55,21 +54,20 @@ public class AnalyticsService {
    * @param toolExecutionDurationMs  duration of the tool execution in milliseconds
    * @param isSuccessful             whether the tool execution completed without error
    */
-  public void notifyToolInvoked(String toolName, @Nullable String organizationUuidV4, @Nullable String sqsInstallationId, @Nullable String userUuid,
-    @Nullable String callingAgentName, @Nullable String callingAgentVersion, long toolExecutionDurationMs, boolean isSuccessful) {
+  public void notifyToolInvoked(String toolName, ConnectionContext connectionContext, long toolExecutionDurationMs, boolean isSuccessful) {
     var connectionType = isSonarCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS;
 
     var event = new McpToolInvokedEvent(
       UUID.randomUUID().toString(),
       toolName,
       connectionType,
-      isSonarCloud ? organizationUuidV4 : null,
-      isSonarCloud ? null : sqsInstallationId,
-      userUuid,
+      isSonarCloud ? connectionContext.getOrganizationUuidV4() : null,
+      isSonarCloud ? null : connectionContext.getSqsInstallationId(),
+      connectionContext.getUserUuid(),
       mcpServerId,
       transportMode,
-      callingAgentName,
-      callingAgentVersion,
+      connectionContext.getCallingAgentName(),
+      connectionContext.getCallingAgentVersion(),
       toolExecutionDurationMs,
       isSuccessful
     );
