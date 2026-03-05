@@ -113,7 +113,7 @@ def handle_call_tool(request):
     params = request.get("params", {})
     tool_name = params.get("name")
     arguments = params.get("arguments", {})
-    
+
     if tool_name == "test_tool_1":
         input_value = arguments.get("input", "no input")
         test_env_var = os.environ.get("TEST_ENV_VAR", "not_set")
