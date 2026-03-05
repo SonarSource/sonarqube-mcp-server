@@ -22,6 +22,7 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
 public class UsersApi {
+  @SuppressWarnings("java:S1075")
 
   public static final String CURRENT_USER_PATH = "/api/users/current";
 
