@@ -17,6 +17,8 @@
 package org.sonarsource.sonarqube.mcp.analytics;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -114,31 +116,18 @@ class AnalyticsServiceTest {
     assertThat(event.sqsInstallationId()).isEqualTo("install-id");
   }
 
-  @Test
-  void it_should_resolve_transport_mode_as_stdio_when_http_disabled() {
-    var service = new AnalyticsService(mockClient, "server-id", false, false, false);
+  @ParameterizedTest
+  @CsvSource({
+    "false, false, stdio",
+    "true, false, http",
+    "true, true, https"
+  })
+  void it_should_resolve_transport_mode(boolean isHttpEnabled, boolean isTlsEnabled, String expectedTransportMode) {
+    var service = new AnalyticsService(mockClient, "server-id", isHttpEnabled, isTlsEnabled, false);
     service.notifyToolInvoked("tool", null, null, null, null, null, 0L, true, null, 0L, 0L);
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
-    assertThat(captor.getValue().transportMode()).isEqualTo("stdio");
-  }
-
-  @Test
-  void it_should_resolve_transport_mode_as_http_when_http_enabled_without_tls() {
-    var service = new AnalyticsService(mockClient, "server-id", true, false, false);
-    service.notifyToolInvoked("tool", null, null, null, null, null, 0L, true, null, 0L, 0L);
-    var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
-    verify(mockClient).postEvent(captor.capture());
-    assertThat(captor.getValue().transportMode()).isEqualTo("http");
-  }
-
-  @Test
-  void it_should_resolve_transport_mode_as_https_when_http_and_tls_enabled() {
-    var service = new AnalyticsService(mockClient, "server-id", true, true, false);
-    service.notifyToolInvoked("tool", null, null, null, null, null, 0L, true, null, 0L, 0L);
-    var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
-    verify(mockClient).postEvent(captor.capture());
-    assertThat(captor.getValue().transportMode()).isEqualTo("https");
+    assertThat(captor.getValue().transportMode()).isEqualTo(expectedTransportMode);
   }
 
   @Test
