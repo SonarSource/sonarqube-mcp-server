@@ -132,6 +132,16 @@ tasks {
 		reports {
 			xml.required.set(true)
 		}
+		classDirectories.setFrom(
+			files(classDirectories.files.map {
+				fileTree(it) {
+					exclude(
+						"**/ManagedStdioClientTransport.class",
+						"**/StdioServerTransportProvider.class"
+					)
+				}
+			})
+		)
 	}
 
 	register("prepareTestPlugins") {
@@ -234,6 +244,7 @@ sonar {
 		property("sonar.links.scm", "https://github.com/SonarSource/sonarqube-mcp-server")
 		property("sonar.links.issue", "https://jira.sonarsource.com/browse/MCP")
 		property("sonar.exclusions", "**/build/**/*")
+		property("sonar.coverage.exclusions", "**/ManagedStdioClientTransport.java,**/StdioServerTransportProvider.java")
 	}
 }
 

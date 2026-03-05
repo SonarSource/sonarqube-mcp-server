@@ -16,6 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
@@ -27,7 +31,9 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
@@ -45,6 +51,8 @@ class ProxiedToolsLoaderMediumTest {
   private static Path testServerScript;
   
   private ProxiedToolsLoader loader;
+  private ListAppender<ILoggingEvent> logAppender;
+  private Logger mcpClientManagerLogger;
 
   @BeforeAll
   static void setupTestEnvironment() {
@@ -52,6 +60,15 @@ class ProxiedToolsLoaderMediumTest {
     if (resourceUrl != null) {
       testServerScript = Paths.get(resourceUrl.getPath());
     }
+  }
+
+  @BeforeEach
+  void setupLogCapture() {
+    mcpClientManagerLogger = (Logger) LoggerFactory.getLogger("org.sonarsource.sonarqube.mcp.log.McpLogger");
+    logAppender = new ListAppender<>();
+    logAppender.start();
+    mcpClientManagerLogger.addAppender(logAppender);
+    mcpClientManagerLogger.setLevel(Level.TRACE);
   }
 
   @AfterEach
@@ -62,6 +79,10 @@ class ProxiedToolsLoaderMediumTest {
     }
     if (testConfigFile != null && Files.exists(testConfigFile)) {
       Files.deleteIfExists(testConfigFile);
+    }
+    if (mcpClientManagerLogger != null && logAppender != null) {
+      mcpClientManagerLogger.detachAppender(logAppender);
+      logAppender.stop();
     }
     // Clear the system property to prevent it from affecting other tests
     System.clearProperty("proxied.mcp.servers.config.path");
@@ -363,6 +384,107 @@ class ProxiedToolsLoaderMediumTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO);
 
     assertThat(tools).isEmpty();
+  }
+
+  @Test
+  void should_log_DEBUG_notifications_at_debug_level() {
+    try {
+      System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
+      logAppender.list.clear();
+
+      McpClientManager.handleProxiedServerLog("test-server",
+        new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.DEBUG, null, "Test debug message", null));
+
+      var debugLog = logAppender.list.stream()
+        .filter(event -> event.getLevel() == Level.DEBUG)
+        .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+        .findFirst();
+
+      assertThat(debugLog).isPresent();
+      assertThat(debugLog.get().getFormattedMessage()).contains("Test debug message");
+    } finally {
+      System.clearProperty("SONARQUBE_DEBUG_ENABLED");
+    }
+  }
+
+  @Test
+  void should_log_INFO_notifications_at_info_level() {
+    logAppender.list.clear();
+
+    McpClientManager.handleProxiedServerLog("test-server",
+      new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.INFO, null, "Test info message", null));
+
+    var infoLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.INFO)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+
+    assertThat(infoLog).isPresent();
+    assertThat(infoLog.get().getFormattedMessage()).contains("Test info message");
+  }
+
+  @Test
+  void should_log_NOTICE_notifications_at_info_level() {
+    logAppender.list.clear();
+
+    McpClientManager.handleProxiedServerLog("test-server",
+      new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.NOTICE, null, "Test notice message", null));
+
+    var infoLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.INFO)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+
+    assertThat(infoLog).isPresent();
+    assertThat(infoLog.get().getFormattedMessage()).contains("Test notice message");
+  }
+
+  @Test
+  void should_log_WARNING_notifications_at_warn_level() {
+    logAppender.list.clear();
+
+    McpClientManager.handleProxiedServerLog("test-server",
+      new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.WARNING, null, "Test warning message", null));
+
+    var warnLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.WARN)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+
+    assertThat(warnLog).isPresent();
+    assertThat(warnLog.get().getFormattedMessage()).contains("Test warning message");
+  }
+
+  @Test
+  void should_log_ERROR_notifications_at_error_level() {
+    logAppender.list.clear();
+
+    McpClientManager.handleProxiedServerLog("test-server",
+      new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.ERROR, null, "Test error message", null));
+
+    var errorLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.ERROR)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+
+    assertThat(errorLog).isPresent();
+    assertThat(errorLog.get().getFormattedMessage()).contains("Test error message");
+  }
+
+  @Test
+  void should_include_logger_name_in_log_message_when_present() {
+    logAppender.list.clear();
+
+    McpClientManager.handleProxiedServerLog("test-server",
+      new McpSchema.LoggingMessageNotification(McpSchema.LoggingLevel.INFO, "my-logger", "Test message", null));
+
+    var infoLog = logAppender.list.stream()
+      .filter(event -> event.getLevel() == Level.INFO)
+      .filter(event -> event.getFormattedMessage().contains("[test-server]"))
+      .findFirst();
+
+    assertThat(infoLog).isPresent();
+    assertThat(infoLog.get().getFormattedMessage()).contains("my-logger").contains("Test message");
   }
 
   private void createTestConfig(List<Map<String, Object>> configs) {

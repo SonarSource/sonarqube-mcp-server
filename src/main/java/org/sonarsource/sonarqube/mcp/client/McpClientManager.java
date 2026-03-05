@@ -20,7 +20,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.ServerParameters;
-import io.modelcontextprotocol.client.transport.StdioClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.time.Duration;
 import java.util.HashMap;
@@ -61,7 +60,28 @@ public class McpClientManager {
     initialized = true;
     LOG.info("MCP client manager initialization completed. " + getConnectedCount() + "/" + serverConfigs.size() + " server(s) connected");
   }
-  
+
+  private static void setLoggingLevel(McpSyncClient client, String serverName) {
+    var minLevel = McpLogger.isDebugEnabled() ? McpSchema.LoggingLevel.DEBUG : McpSchema.LoggingLevel.INFO;
+    try {
+      client.setLoggingLevel(minLevel);
+    } catch (Exception e) {
+      LOG.debug("Server '" + serverName + "' does not support logging/setLevel: " + e.getMessage());
+    }
+  }
+
+  @VisibleForTesting
+  static void handleProxiedServerLog(String serverName, McpSchema.LoggingMessageNotification notification) {
+    var prefix = "[" + serverName + "] ";
+    var message = prefix + (notification.logger() != null ? (notification.logger() + ": ") : "") + notification.data();
+    switch (notification.level()) {
+      case DEBUG -> LOG.debug(message);
+      case INFO, NOTICE -> LOG.info(message);
+      case WARNING -> LOG.warn(message);
+      case ERROR, CRITICAL, ALERT, EMERGENCY -> LOG.error(message);
+    }
+  }
+
   private void initializeClient(ProxiedMcpServerConfig config) {
     var serverName = config.name();
     try {
@@ -81,7 +101,8 @@ public class McpClientManager {
       serverParamsBuilder.env(filteredEnv);
 
       var serverParams = serverParamsBuilder.build();
-      var transport = new StdioClientTransport(serverParams, McpJsonMappers.DEFAULT);
+      var transport = new ManagedStdioClientTransport(config.name(), serverParams, McpJsonMappers.DEFAULT);
+      transport.setStdErrorHandler(line -> LOG.debug("[" + config.name() + "] stderr: " + line));
 
       var client = McpClient.sync(transport)
         .requestTimeout(DEFAULT_REQUEST_TIMEOUT)
@@ -90,9 +111,11 @@ public class McpClientManager {
           .elicitation()
           .sampling()
           .build())
+        .loggingConsumer(notification -> handleProxiedServerLog(config.name(), notification))
         .build();
-      
+
       client.initialize();
+      setLoggingLevel(client, config.name());
       var listToolsResult = client.listTools();
       var tools = listToolsResult.tools();
       
