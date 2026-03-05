@@ -31,6 +31,7 @@ public class AnalyticsClient {
   private static final String DEFAULT_PROD_ENDPOINT = "xxx";
   private static final String MOCK_API_KEY = "xxx";
   private static final String SOURCE_DOMAIN = "MCP";
+  private static final int MAX_RETRIES = 2;
   private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -43,7 +44,51 @@ public class AnalyticsClient {
   }
 
   public void postEvent(AnalyticsEvent event) {
-    var envelope = new AnalyticsEnvelope(
+    String json;
+    try {
+      json = objectMapper.writeValueAsString(buildEnvelope(event));
+    } catch (JsonProcessingException e) {
+      LOG.debug("Failed to serialize analytics event: " + e.getMessage());
+      return;
+    }
+
+    LOG.debug("Sending analytics event: type=" + event.eventType() + ", version=" + event.eventVersion());
+    sendWithRetry(json, 0);
+  }
+
+  private void sendWithRetry(String json, int attempt) {
+    httpClient.postAsync(endpoint, HttpClient.JSON_CONTENT_TYPE, json)
+      .thenAccept(response -> {
+        try (response) {
+          if (response.isSuccessful()) {
+            return;
+          }
+          // 4xx errors are not retried — they indicate a schema or auth problem
+          if (response.code() >= 400 && response.code() < 500) {
+            LOG.debug("Analytics event rejected (HTTP " + response.code() + "), not retrying: " + response.bodyAsString());
+            return;
+          }
+          if (attempt < MAX_RETRIES) {
+            LOG.debug("Analytics event failed (HTTP " + response.code() + "), retrying (attempt " + (attempt + 1) + "/" + MAX_RETRIES + ")");
+            sendWithRetry(json, attempt + 1);
+          } else {
+            LOG.debug("Analytics event failed after " + MAX_RETRIES + " retries (HTTP " + response.code() + ")");
+          }
+        }
+      })
+      .exceptionally(ex -> {
+        if (attempt < MAX_RETRIES) {
+          LOG.debug("Analytics event failed (" + ex.getMessage() + "), retrying (attempt " + (attempt + 1) + "/" + MAX_RETRIES + ")");
+          sendWithRetry(json, attempt + 1);
+        } else {
+          LOG.debug("Analytics event failed after " + MAX_RETRIES + " retries: " + ex.getMessage());
+        }
+        return null;
+      });
+  }
+
+  private static AnalyticsEnvelope buildEnvelope(AnalyticsEvent event) {
+    return new AnalyticsEnvelope(
       new AnalyticsEnvelope.Metadata(
         UUID.randomUUID().toString(),
         new AnalyticsEnvelope.Source(SOURCE_DOMAIN),
@@ -53,27 +98,6 @@ public class AnalyticsClient {
       ),
       event
     );
-
-    String json;
-    try {
-      json = objectMapper.writeValueAsString(envelope);
-    } catch (JsonProcessingException e) {
-      LOG.debug("Failed to serialize analytics event: " + e.getMessage());
-      return;
-    }
-
-    httpClient.postAsync(endpoint, HttpClient.JSON_CONTENT_TYPE, json)
-      .thenAccept(response -> {
-        try (response) {
-          if (!response.isSuccessful()) {
-            LOG.debug("Analytics event rejected by server: HTTP " + response.code() + " - " + response.bodyAsString());
-          }
-        }
-      })
-      .exceptionally(ex -> {
-        LOG.debug("Failed to send analytics event: " + ex.getMessage());
-        return null;
-      });
   }
 
   public static String resolveApiKey() {

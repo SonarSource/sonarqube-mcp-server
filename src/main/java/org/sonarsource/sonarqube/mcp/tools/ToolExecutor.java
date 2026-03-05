@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
@@ -72,13 +73,15 @@ public class ToolExecutor {
     if (service == null) {
       return;
     }
-    try {
-      var ctx = connectionContextSupplier.get();
-      service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
-        ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful);
-    } catch (Exception e) {
-      LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
-    }
+    CompletableFuture.runAsync(() -> {
+      try {
+        var ctx = connectionContextSupplier.get();
+        service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
+          ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful);
+      } catch (Exception e) {
+        LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
+      }
+    });
   }
 
   private static void logSuccess(String toolName, long startTime) {

@@ -32,6 +32,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.awaitility.Awaitility.await;
@@ -158,6 +159,51 @@ class AnalyticsClientTest {
     await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
       wireMock.verify(postRequestedFor(urlPathEqualTo("/"))
         .withHeader("x-api-key", WireMock.equalTo("test-api-key")))
+    );
+  }
+
+  @Test
+  void it_should_retry_up_to_twice_on_server_error() {
+    wireMock.stubFor(post(urlPathEqualTo("/")).willReturn(aResponse().withStatus(500)));
+
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true);
+    analyticsClient.postEvent(event);
+
+    // 1 initial attempt + 2 retries = 3 total
+    await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+      wireMock.verify(3, postRequestedFor(urlPathEqualTo("/")))
+    );
+  }
+
+  @Test
+  void it_should_not_retry_on_client_error() {
+    wireMock.stubFor(post(urlPathEqualTo("/")).willReturn(aResponse().withStatus(400)));
+
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true);
+    analyticsClient.postEvent(event);
+
+    await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+      wireMock.verify(1, postRequestedFor(urlPathEqualTo("/")))
+    );
+  }
+
+  @Test
+  void it_should_succeed_after_transient_failures() {
+    wireMock.stubFor(post(urlPathEqualTo("/"))
+      .inScenario("retry")
+      .whenScenarioStateIs(STARTED)
+      .willReturn(aResponse().withStatus(503))
+      .willSetStateTo("second-attempt"));
+    wireMock.stubFor(post(urlPathEqualTo("/"))
+      .inScenario("retry")
+      .whenScenarioStateIs("second-attempt")
+      .willReturn(aResponse().withStatus(200)));
+
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "stdio", null, null, 100L, true);
+    analyticsClient.postEvent(event);
+
+    await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+      wireMock.verify(2, postRequestedFor(urlPathEqualTo("/")))
     );
   }
 
