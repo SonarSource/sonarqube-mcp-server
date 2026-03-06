@@ -20,6 +20,7 @@ import com.google.gson.Gson;
 import javax.annotation.CheckForNull;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
+@SuppressWarnings("java:S1075")
 
 public class UsersApi {
 
