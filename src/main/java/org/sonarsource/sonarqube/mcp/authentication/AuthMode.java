@@ -27,7 +27,7 @@ public enum AuthMode {
 
   /**
    * Bearer token authentication.
-   * Client must provide a valid token in the SONARQUBE_TOKEN header.
+   * Client must provide a valid SonarQube token via the standard {@code Authorization: Bearer <token>} header.
    * These tokens are the client's SonarQube tokens and are passed through to SonarQube API.
    * This is the default mode.
    */

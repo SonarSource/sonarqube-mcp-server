@@ -37,7 +37,8 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
                  │ HTTP POST    (MCP requests)
                  │ HTTP GET     (optional SSE stream attempt per Streamable HTTP spec)
                  │ HTTP OPTIONS (CORS preflight)
-                 │ Headers: SONARQUBE_TOKEN (required)
+                 │ Headers: Authorization: Bearer <token> (required, preferred)
+                 │          SONARQUBE_TOKEN (deprecated, accepted for backward compat)
                  │          SONARQUBE_ORG (optional, SQC only)
                  │          SONARQUBE_TOOLSETS (optional, per-request override)
                  │          SONARQUBE_READ_ONLY (optional, per-request override)
@@ -78,11 +79,11 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 
 #### `HttpServerTransportProvider`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider`
-- **Purpose**: Bootstraps Jetty server and configures the stateless servlet transport with a context extractor that reads `SONARQUBE_TOKEN`, `SONARQUBE_ORG`, `SONARQUBE_TOOLSETS`, and `SONARQUBE_READ_ONLY` headers into a `McpTransportContext` for each request
+- **Purpose**: Bootstraps Jetty server and configures the stateless servlet transport with a context extractor that reads the token (from `Authorization: Bearer` or the deprecated `SONARQUBE_TOKEN` header), plus `SONARQUBE_ORG`, `SONARQUBE_TOOLSETS`, and `SONARQUBE_READ_ONLY` headers into a `McpTransportContext` for each request
 
 #### `AuthenticationFilter`
 - **Location**: `org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter`
-- **Purpose**: Validates that every request carries a non-blank `SONARQUBE_TOKEN` header. No session state is created or maintained. Runs **after** `McpSecurityFilter` so CORS preflight (OPTIONS) requests and Origin validation are handled before authentication, allowing browsers to complete their preflight handshake without a token.
+- **Purpose**: Validates that every request carries a non-blank token. Accepts `Authorization: Bearer <token>` (preferred) and falls back to the deprecated `SONARQUBE_TOKEN` header for backward compatibility, logging a warning when the legacy header is used. No session state is created or maintained. Runs **after** `McpSecurityFilter` so CORS preflight (OPTIONS) requests and Origin validation are handled before authentication, allowing browsers to complete their preflight handshake without a token.
 
 #### `McpSecurityFilter`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.McpSecurityFilter`
@@ -102,7 +103,7 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 
 ### 1. Client Configuration
 
-Clients configure the HTTP endpoint with authentication:
+Clients configure the HTTP endpoint with authentication using the preferred `Authorization: Bearer` header:
 
 ```json
 {
@@ -110,21 +111,24 @@ Clients configure the HTTP endpoint with authentication:
     "sonarqube-http": {
       "url": "http://<host>:<port>/mcp",
       "headers": {
-        "SONARQUBE_TOKEN": "your-sonarqube-token"
+        "Authorization": "Bearer your-sonarqube-token"
       }
     }
   }
 }
 ```
 
+> **Deprecated (backward compatibility only)**: The `SONARQUBE_TOKEN` request header is still accepted but will be removed in a future version. Migrate to `Authorization: Bearer <token>`.
+
 ### 2. Request Flow
 
 ```
 1. Client sends HTTP POST with headers
-   └─> SONARQUBE_TOKEN: squ_abc123          (required)
-   └─> SONARQUBE_ORG: my-org                (optional, SQC only)
-   └─> SONARQUBE_TOOLSETS: issues,rules     (optional, per-request override)
-   └─> SONARQUBE_READ_ONLY: true            (optional, per-request override)
+   └─> Authorization: Bearer squ_abc123     (required, preferred)
+   │   OR SONARQUBE_TOKEN: squ_abc123       (deprecated, backward compat)
+   └─> SONARQUBE_ORG: my-org               (optional, SQC only)
+   └─> SONARQUBE_TOOLSETS: issues,rules    (optional, per-request override)
+   └─> SONARQUBE_READ_ONLY: true           (optional, per-request override)
 
 2. McpSecurityFilter validates security
    ├─> Allow OPTIONS preflight without authentication (enables CORS handshake)
@@ -133,14 +137,16 @@ Clients configure the HTTP endpoint with authentication:
    └─> Pass to next filter
 
 3. AuthenticationFilter intercepts request
-   ├─> Extract token from SONARQUBE_TOKEN header
-   ├─> Reject with 401 if token is missing or blank
+   ├─> Extract token from Authorization: Bearer header (preferred)
+   │   OR fall back to deprecated SONARQUBE_TOKEN header (logs a warning)
+   ├─> Reject with 401 if no valid token found
    ├─> Validate SONARQUBE_ORG header (SonarQube Cloud only)
    ├─> Validate SONARQUBE_READ_ONLY header (must be 'true' or 'false' if present)
    └─> Pass to servlet if all checks pass
 
 4. HttpServletStatelessServerTransport processes request
-   ├─> contextExtractor runs: reads SONARQUBE_TOKEN, SONARQUBE_ORG,
+   ├─> contextExtractor runs: extracts token from Authorization: Bearer
+   │   (or deprecated SONARQUBE_TOKEN), plus SONARQUBE_ORG,
    │   SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
    ├─> Creates McpTransportContext with all extracted values
    ├─> Parse JSON-RPC message
@@ -164,8 +170,9 @@ Clients configure the HTTP endpoint with authentication:
 #### `TOKEN` Mode (Default)
 - Clients provide their own SonarQube token on **every request** (fully stateless)
 - Token validated by SonarQube API (not the MCP server itself)
-- Uses custom header format:
-  - `SONARQUBE_TOKEN: <token>` — required on every request
+- Headers:
+  - `Authorization: Bearer <token>` — **preferred**, required on every request
+  - `SONARQUBE_TOKEN: <token>` — **deprecated**, still accepted for backward compatibility; will be removed in a future version
   - `SONARQUBE_ORG: <org>` — for SonarQube Cloud, identifies the organization. **Mutually exclusive with the server-level `SONARQUBE_ORG` env var**: if the env var is set at startup, clients must not send this header (results in an error); if the env var is not set, clients must send this header on every request
   - `SONARQUBE_TOOLSETS: <comma-separated-keys>` — optional; narrows the server-level toolset for this request (cannot add toolsets beyond what the server was launched with)
   - `SONARQUBE_READ_ONLY: true|false` — optional; can further restrict to read-only for this request (cannot lift a server-level read-only restriction)
@@ -187,8 +194,9 @@ The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>
 
 ```
 1. HTTP Request arrives
-   └─> contextExtractor reads SONARQUBE_TOKEN, SONARQUBE_ORG,
-       SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
+   └─> contextExtractor extracts token from Authorization: Bearer header
+       (falls back to deprecated SONARQUBE_TOKEN for backward compat)
+       plus SONARQUBE_ORG, SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
    └─> McpTransportContext stored in ThreadLocal for this request thread
 
 2. PerRequestToolFilteringHandler (tools/list only)
@@ -241,7 +249,7 @@ Per-request filtering is applied at the **`tools/list` response**: `PerRequestTo
     "sonarqube-https": {
       "url": "https://your-server:8443/mcp",
       "headers": {
-        "SONARQUBE_TOKEN": "<your-token>",
+        "Authorization": "Bearer <your-token>",
         "SONARQUBE_ORG": "<your-org>",
         "SONARQUBE_TOOLSETS": "issues,quality-gates",
         "SONARQUBE_READ_ONLY": "true"

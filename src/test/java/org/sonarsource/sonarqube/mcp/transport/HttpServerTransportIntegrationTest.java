@@ -130,7 +130,7 @@ class HttpServerTransportIntegrationTest {
     try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
       var request = HttpRequest.newBuilder()
         .uri(URI.create(httpServer.getServerUrl()))
-        .header("SONARQUBE_TOKEN", "test-token")
+        .header("Authorization", "Bearer test-token")
         .GET()
         .build();
 
