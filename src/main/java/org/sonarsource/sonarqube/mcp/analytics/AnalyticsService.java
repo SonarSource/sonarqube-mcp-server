@@ -76,8 +76,7 @@ public class AnalyticsService {
    * @param responseSizeBytes        byte size of the tool response content
    * @param invocationTimestamp      epoch milliseconds when the tool invocation started
    */
-  public void notifyToolInvoked(String toolName, @Nullable String organizationUuidV4, @Nullable String sqsInstallationId, @Nullable String userUuid,
-    @Nullable String callingAgentName, @Nullable String callingAgentVersion, long toolExecutionDurationMs, boolean isSuccessful,
+  public void notifyToolInvoked(String toolName, ConnectionContext connectionContext, long toolExecutionDurationMs, boolean isSuccessful,
     @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {
     var connectionType = isSonarCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS;
 
@@ -85,14 +84,14 @@ public class AnalyticsService {
       UUID.randomUUID().toString(),
       toolName,
       connectionType,
-      isSonarCloud ? organizationUuidV4 : null,
-      isSonarCloud ? null : sqsInstallationId,
-      userUuid,
+      isSonarCloud ? connectionContext.getOrganizationUuidV4() : null,
+      isSonarCloud ? null : connectionContext.getSqsInstallationId(),
+      connectionContext.getUserUuid(),
       mcpServerId,
       mcpServerVersion,
       transportMode,
-      callingAgentName,
-      callingAgentVersion,
+      connectionContext.getCallingAgentName(),
+      connectionContext.getCallingAgentVersion(),
       toolExecutionDurationMs,
       isSuccessful,
       errorType,
