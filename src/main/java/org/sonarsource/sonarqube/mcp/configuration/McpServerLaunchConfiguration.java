@@ -20,6 +20,8 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -62,6 +64,7 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_TRANSPORT = "SONARQUBE_TRANSPORT";
   private static final String SONARQUBE_HTTP_PORT = "SONARQUBE_HTTP_PORT";
   private static final String SONARQUBE_HTTP_HOST = "SONARQUBE_HTTP_HOST";
+  private static final String SONARQUBE_HTTP_ALLOWED_ORIGINS = "SONARQUBE_HTTP_ALLOWED_ORIGINS";
   
   // HTTPS/SSL configuration
   private static final String SONARQUBE_HTTPS_KEYSTORE_PATH = "SONARQUBE_HTTPS_KEYSTORE_PATH";
@@ -107,7 +110,8 @@ public class McpServerLaunchConfiguration {
   private final String httpsTruststoreType;
   @Nullable
   private final AuthMode authMode;
-  
+  private final List<String> httpAllowedOrigins;
+
   // Tool category configuration
   private final Set<ToolCategory> enabledToolsets;
   private final boolean isReadOnlyMode;
@@ -185,7 +189,8 @@ public class McpServerLaunchConfiguration {
     this.httpsTruststoreType = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTPS_TRUSTSTORE_TYPE, DEFAULT_KEYSTORE_TYPE);
     
     this.authMode = parseAuthMode(environment);
-    
+    this.httpAllowedOrigins = parseAllowedOrigins(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_ALLOWED_ORIGINS, null));
+
     // Parse tool category configuration
     var toolsetsStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOOLSETS, null);
     this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
@@ -299,6 +304,10 @@ public class McpServerLaunchConfiguration {
     return authMode;
   }
 
+  public List<String> getHttpAllowedOrigins() {
+    return httpAllowedOrigins;
+  }
+
   @CheckForNull
   private static String getValueViaEnvOrPropertyOrDefault(Map<String, String> environment, String propertyName, @Nullable String defaultValue) {
     var value = environment.get(propertyName);
@@ -395,6 +404,16 @@ public class McpServerLaunchConfiguration {
     }
     // Stdio mode: No HTTP authentication, AuthenticationFilter not registered
     return null;
+  }
+
+  private static List<String> parseAllowedOrigins(@Nullable String rawValue) {
+    if (rawValue == null || rawValue.isBlank()) {
+      return List.of();
+    }
+    return Arrays.stream(rawValue.split(","))
+      .map(String::trim)
+      .filter(s -> !s.isBlank())
+      .toList();
   }
 
   /**

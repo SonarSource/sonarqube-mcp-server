@@ -73,12 +73,13 @@ public class HttpServerTransportProvider {
   private final Path httpsTruststorePath;
   private final String httpsTruststorePassword;
   private final String httpsTruststoreType;
+  private final List<String> allowedOrigins;
   private final HttpServletStatelessServerTransport mcpTransportProvider;
   private Server httpServer;
 
   /**
    * Create HTTP transport provider with custom host binding and authentication.
-   * 
+   *
    * @param port HTTP port (e.g., 8080 for HTTP, 8443 for HTTPS)
    * @param host Host to bind to (127.0.0.1 for localhost, 0.0.0.0 for all interfaces)
    * @param authMode Authentication mode (e.g., TOKEN, OAUTH)
@@ -91,10 +92,12 @@ public class HttpServerTransportProvider {
    * @param httpsTruststorePath Path to truststore file (optional, contains trusted CA certificates)
    * @param httpsTruststorePassword Truststore password (optional)
    * @param httpsTruststoreType Truststore type (optional)
+   * @param allowedOrigins Additional allowed origins beyond localhost defaults (e.g. for reverse-proxy deployments)
    */
   public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarCloud, @Nullable String serverOrg,
     boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
-    Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType) {
+    Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
+    List<String> allowedOrigins) {
     this.port = port;
     this.host = host;
     this.authMode = authMode;
@@ -107,6 +110,7 @@ public class HttpServerTransportProvider {
     this.httpsTruststorePath = httpsTruststorePath;
     this.httpsTruststorePassword = httpsTruststorePassword;
     this.httpsTruststoreType = httpsTruststoreType;
+    this.allowedOrigins = List.copyOf(allowedOrigins);
 
     this.mcpTransportProvider = HttpServletStatelessServerTransport.builder()
       .messageEndpoint(MCP_ENDPOINT)
@@ -191,7 +195,7 @@ public class HttpServerTransportProvider {
     var servletContextHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
     servletContextHandler.setContextPath("/");
 
-    var securityFilter = new FilterHolder(new McpSecurityFilter(host));
+    var securityFilter = new FilterHolder(new McpSecurityFilter(host, allowedOrigins));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarCloud, serverOrg));

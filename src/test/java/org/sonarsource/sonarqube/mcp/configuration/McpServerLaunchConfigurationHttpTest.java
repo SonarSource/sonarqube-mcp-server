@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -265,6 +266,60 @@ class McpServerLaunchConfigurationHttpTest {
       assertThat(config.isHttpEnabled()).isFalse();
       assertThat(config.isHttpsEnabled()).isFalse();
     }
+  }
+
+  @Test
+  void should_default_allowed_origins_to_empty_list() {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", "http");
+
+    var config = new McpServerLaunchConfiguration(environment);
+
+    assertThat(config.getHttpAllowedOrigins()).isEmpty();
+  }
+
+  @Test
+  void should_parse_single_allowed_origin() {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", "http");
+    environment.put("SONARQUBE_HTTP_ALLOWED_ORIGINS", "https://sonarcloud.io");
+
+    var config = new McpServerLaunchConfiguration(environment);
+
+    assertThat(config.getHttpAllowedOrigins()).containsExactly("https://sonarcloud.io");
+  }
+
+  @Test
+  void should_parse_multiple_allowed_origins() {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", "http");
+    environment.put("SONARQUBE_HTTP_ALLOWED_ORIGINS", "https://sonarcloud.io, https://sonarqube.us");
+
+    var config = new McpServerLaunchConfiguration(environment);
+
+    assertThat(config.getHttpAllowedOrigins()).containsExactly("https://sonarcloud.io", "https://sonarqube.us");
+  }
+
+  @Test
+  void should_trim_whitespace_from_allowed_origins() {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", "http");
+    environment.put("SONARQUBE_HTTP_ALLOWED_ORIGINS", "  https://sonarcloud.io  ,  https://sonarqube.us  ");
+
+    var config = new McpServerLaunchConfiguration(environment);
+
+    assertThat(config.getHttpAllowedOrigins()).containsExactly("https://sonarcloud.io", "https://sonarqube.us");
+  }
+
+  @Test
+  void should_return_empty_list_when_allowed_origins_is_blank() {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", "http");
+    environment.put("SONARQUBE_HTTP_ALLOWED_ORIGINS", "   ");
+
+    var config = new McpServerLaunchConfiguration(environment);
+
+    assertThat(config.getHttpAllowedOrigins()).isEqualTo(List.of());
   }
 
   private Map<String, String> createMinimalTestEnvironment() {
