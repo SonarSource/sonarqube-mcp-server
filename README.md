@@ -645,11 +645,13 @@ Unencrypted HTTP transport. Use HTTPS instead for multi-user deployments.
 | `SONARQUBE_HTTP_PORT`| Port number (1024-65535)                                         | `8080`          |
 | `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)                | `127.0.0.1`     |
 
-**Note:** In HTTP(S) mode, the server is stateless — each client request must include a `SONARQUBE_TOKEN` header carrying the user's own SonarQube token. For SonarQube Cloud, the organization is resolved as follows:
+**Note:** In HTTP(S) mode, the server is stateless — each client request must include an `Authorization: Bearer <token>` header carrying the user's own SonarQube token. For SonarQube Cloud, the organization is resolved as follows:
 - If `SONARQUBE_ORG` is set at server startup, all requests are routed to that organization. Clients must **not** send a `SONARQUBE_ORG` header — doing so will result in an error.
 - If `SONARQUBE_ORG` is not set at server startup, each client **must** supply a `SONARQUBE_ORG` header on every request.
 Clients can also narrow the visible tools per-request by supplying `SONARQUBE_TOOLSETS` and/or `SONARQUBE_READ_ONLY` headers; these apply additional filtering on top of the server-level configuration — they can only reduce the scope, never expand it.
 No session state is maintained between requests.
+
+> **Deprecated:** The `SONARQUBE_TOKEN` request header is still accepted for backward compatibility but will be removed in a future version. Migrate to `Authorization: Bearer <token>`.
 
 #### 3. **HTTPS** (Recommended for Multi-User Production Deployments)
 Secure multi-user transport with TLS encryption. Requires SSL certificates.
@@ -688,7 +690,7 @@ docker run --init --pull=always -p 8443:8443 \
     "sonarqube-https": {
       "url": "https://your-server:8443/mcp",
       "headers": {
-        "SONARQUBE_TOKEN": "<your-token>",
+        "Authorization": "Bearer <your-token>",
         "SONARQUBE_ORG": "<your-org>",
         "SONARQUBE_TOOLSETS": "issues,quality-gates",
         "SONARQUBE_READ_ONLY": "true"
@@ -705,7 +707,7 @@ docker run --init --pull=always -p 8443:8443 \
     "sonarqube-https": {
       "url": "https://your-server:8443/mcp",
       "headers": {
-        "SONARQUBE_TOKEN": "<your-token>",
+        "Authorization": "Bearer <your-token>",
         "SONARQUBE_TOOLSETS": "issues,quality-gates",
         "SONARQUBE_READ_ONLY": "true"
       }
