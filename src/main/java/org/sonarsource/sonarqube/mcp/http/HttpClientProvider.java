@@ -91,6 +91,14 @@ public class HttpClientProvider {
     return new HttpClientAdapter(httpClient, null, true);
   }
 
+  /**
+   * Creates an HTTP client for analytics event reporting.
+   * Sends an x-api-key header on every request.
+   */
+  public HttpClient getHttpClientForAnalytics(String apiKey) {
+    return new HttpClientAdapter(httpClient, null, false, apiKey);
+  }
+
   public void shutdown() {
     httpClient.close(CloseMode.IMMEDIATE);
   }
