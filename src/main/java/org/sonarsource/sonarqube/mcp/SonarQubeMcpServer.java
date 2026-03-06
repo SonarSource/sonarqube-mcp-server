@@ -151,7 +151,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getHttpsKeystoreType(),
         mcpConfiguration.getHttpsTruststorePath(),
         mcpConfiguration.getHttpsTruststorePassword(),
-        mcpConfiguration.getHttpsTruststoreType()
+        mcpConfiguration.getHttpsTruststoreType(),
+        mcpConfiguration.getHttpAllowedOrigins()
       );
       this.transportProvider = null;
     } else {

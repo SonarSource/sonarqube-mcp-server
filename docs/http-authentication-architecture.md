@@ -34,7 +34,9 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 │                  MCP Client                         │
 │            (Cursor, VS Code, etc.)                  │
 └────────────────┬────────────────────────────────────┘
-                 │ HTTP POST
+                 │ HTTP POST    (MCP requests)
+                 │ HTTP GET     (optional SSE stream attempt per Streamable HTTP spec)
+                 │ HTTP OPTIONS (CORS preflight)
                  │ Headers: SONARQUBE_TOKEN (required)
                  │          SONARQUBE_ORG (optional, SQC only)
                  │          SONARQUBE_TOOLSETS (optional, per-request override)
@@ -259,8 +261,9 @@ Per-request filtering is applied at the **`tools/list` response**: `PerRequestTo
 
 **Allowed Origins**:
 - When bound to `127.0.0.1` (default): Only `http://localhost`, `http://127.0.0.1`, etc.
+- Additional origins can be whitelisted via `SONARQUBE_HTTP_ALLOWED_ORIGINS` (see below)
 
-> ⚠️ **Important**: The server defaults to binding to `127.0.0.1` (localhost) for security. This is the recommended configuration. Binding to other interfaces is not supported for production use.
+> ⚠️ **Important**: The server defaults to binding to `127.0.0.1` (localhost) for security. This is the recommended configuration for local development. Use `SONARQUBE_HTTP_ALLOWED_ORIGINS` to extend the origin allowlist when deploying behind a web application rather than loosening the host binding.
 
 ### Token Security
 

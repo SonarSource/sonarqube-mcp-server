@@ -21,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -193,7 +194,7 @@ class McpSecurityFilterTest {
 
     filter.doFilter(request, response, filterChain);
 
-    verify(response).setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    verify(response).setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     verify(response).setHeader("Access-Control-Allow-Headers",
       "Content-Type, Accept, SONARQUBE_TOKEN, SONARQUBE_ORG, MCP-Protocol-Version");
     verify(response).setHeader("Access-Control-Max-Age", "3600");
@@ -241,6 +242,41 @@ class McpSecurityFilterTest {
       Arguments.of("127.0.0.1", "https://malicious.com", "GET", false, "GET with disallowed origin should be rejected"),
       Arguments.of("127.0.0.1", "http://localhost:3000", "POST", true, "POST with allowed origin should be accepted")
     );
+  }
+
+  @Test
+  void should_accept_multiple_extra_allowed_origins() throws Exception {
+    var filter = new McpSecurityFilter("127.0.0.1", List.of("https://sonarcloud.io", "https://sonarqube.us"));
+    when(request.getHeader("Origin")).thenReturn("https://sonarqube.us");
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain).doFilter(request, response);
+  }
+
+  @Test
+  void should_still_reject_unlisted_origin_when_extra_origins_configured() throws Exception {
+    var filter = new McpSecurityFilter("127.0.0.1", List.of("https://sonarcloud.io"));
+    when(request.getHeader("Origin")).thenReturn("https://evil.com");
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain, never()).doFilter(any(), any());
+  }
+
+  @Test
+  void should_include_get_in_access_control_allow_methods() throws Exception {
+    var filter = new McpSecurityFilter("127.0.0.1");
+    when(request.getHeader("Origin")).thenReturn("http://localhost:3000");
+    when(request.getMethod()).thenReturn("GET");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   }
 
 }

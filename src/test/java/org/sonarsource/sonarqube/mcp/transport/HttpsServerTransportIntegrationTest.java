@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,7 +57,8 @@ class HttpsServerTransportIntegrationTest {
       "PKCS12",
       Path.of(""),
       "",
-      ""
+      "",
+      List.of()
     );
   }
 
@@ -123,7 +125,8 @@ class HttpsServerTransportIntegrationTest {
       "PKCS12",
       Path.of(""),
       "",
-      ""
+      "",
+      List.of()
     );
 
     try {
