@@ -112,7 +112,11 @@ public class HttpServerTransportProvider {
       .messageEndpoint(MCP_ENDPOINT)
       .jsonMapper(McpJsonMappers.DEFAULT)
       .contextExtractor(request -> {
-        var token = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN);
+        var token = AuthenticationFilter.extractBearerToken(request);
+        if (token == null) {
+          // Fallback to the deprecated SONARQUBE_TOKEN header for backward compatibility
+          token = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOKEN);
+        }
         var org = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
         var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
         var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);

@@ -62,10 +62,10 @@ class AuthenticationFilterTest {
   }
 
   @Test
-  void should_allow_request_with_sonarqube_token_header() throws Exception {
+  void should_allow_request_with_authorization_bearer_header() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_my_custom_token");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_my_custom_token");
 
     filter.doFilter(request, response, filterChain);
 
@@ -74,10 +74,36 @@ class AuthenticationFilterTest {
   }
 
   @Test
-  void should_reject_request_without_token_header() throws Exception {
+  void should_allow_request_with_deprecated_sonarqube_token_header() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn(null);
+    when(request.getHeader("Authorization")).thenReturn(null);
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_legacy_token");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+  }
+
+  @Test
+  void should_prefer_authorization_bearer_over_deprecated_sonarqube_token_header() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_new_token");
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_legacy_token");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+  }
+
+  @Test
+  void should_reject_request_without_authorization_header() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn(null);
     when(request.getRemoteAddr()).thenReturn("192.168.1.100");
 
     filter.doFilter(request, response, filterChain);
@@ -94,10 +120,23 @@ class AuthenticationFilterTest {
   }
 
   @Test
-  void should_reject_request_with_empty_token() throws Exception {
+  void should_reject_request_with_non_bearer_authorization_header() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("");
+    when(request.getHeader("Authorization")).thenReturn("Basic dXNlcjpwYXNz");
+    when(request.getRemoteAddr()).thenReturn("192.168.1.100");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    verify(filterChain, never()).doFilter(request, response);
+  }
+
+  @Test
+  void should_reject_request_with_empty_bearer_token() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn("Bearer ");
     when(request.getRemoteAddr()).thenReturn("192.168.1.100");
 
     filter.doFilter(request, response, filterChain);
@@ -110,7 +149,7 @@ class AuthenticationFilterTest {
   void should_include_www_authenticate_header_in_401_response() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn(null);
+    when(request.getHeader("Authorization")).thenReturn(null);
     when(request.getRemoteAddr()).thenReturn("10.0.0.1");
 
     filter.doFilter(request, response, filterChain);
@@ -123,7 +162,7 @@ class AuthenticationFilterTest {
   void should_return_jsonrpc_error_response_body() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn(null);
+    when(request.getHeader("Authorization")).thenReturn(null);
     when(request.getRemoteAddr()).thenReturn("10.0.0.1");
 
     filter.doFilter(request, response, filterChain);
@@ -158,7 +197,7 @@ class AuthenticationFilterTest {
   void should_validate_sonarcloud_org_when_no_server_org_configured(String orgHeader, boolean allowed) throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, true, null);
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_token");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_ORG")).thenReturn(orgHeader);
 
     filter.doFilter(request, response, filterChain);
@@ -188,7 +227,7 @@ class AuthenticationFilterTest {
   void should_reject_sonarcloud_request_with_org_header_when_server_org_already_configured() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, true, "server-org");
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_token");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_ORG")).thenReturn("other-org");
 
     filter.doFilter(request, response, filterChain);
@@ -206,7 +245,7 @@ class AuthenticationFilterTest {
   void should_allow_sonarcloud_request_without_org_header_when_server_org_configured() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, true, "server-org");
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_token");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_ORG")).thenReturn(null);
 
     filter.doFilter(request, response, filterChain);
@@ -219,7 +258,7 @@ class AuthenticationFilterTest {
   void should_not_validate_org_for_sonarqube_server_requests() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_token");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_ORG")).thenReturn(null);
 
     filter.doFilter(request, response, filterChain);
@@ -232,7 +271,7 @@ class AuthenticationFilterTest {
   void should_allow_request_with_valid_read_only_header() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_token");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_READ_ONLY")).thenReturn("true");
 
     filter.doFilter(request, response, filterChain);
@@ -245,7 +284,7 @@ class AuthenticationFilterTest {
   void should_reject_request_with_invalid_read_only_header() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
     when(request.getMethod()).thenReturn("POST");
-    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_token");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_READ_ONLY")).thenReturn("yes");
 
     filter.doFilter(request, response, filterChain);
