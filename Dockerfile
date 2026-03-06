@@ -34,19 +34,41 @@ RUN apk add --no-cache \
         git \
         nodejs=~24 \
         npm \
+        python3=~3.12 \
+        py3-pip \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
-        mkdir -p /home/appuser/.sonarlint ./storage && \
-        chown -R appuser:appgroup /home/appuser ./storage && \
+        mkdir -p /home/appuser/.sonarlint /app/storage && \
+        chown -R appuser:appgroup /home/appuser /app/storage && \
         echo "appuser ALL=(ALL) NOPASSWD: /usr/sbin/update-ca-certificates" > /etc/sudoers.d/appuser && \
         chmod 0440 /etc/sudoers.d/appuser
 
+ARG TARGETARCH
+ARG SONAR_CODE_CONTEXT_VERSION=0.3.3.236
+
+RUN case "$TARGETARCH" in \
+        amd64) ARCH="x64" ;; \
+        arm64) ARCH="arm64" ;; \
+        *) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    wget -qO- "https://binaries.sonarsource.com/Distribution/sonar-code-context-mcp-alpine-${ARCH}/sonar-code-context-mcp-alpine-${ARCH}-${SONAR_CODE_CONTEXT_VERSION}.tar.gz" \
+    | tar -xz -C /tmp && \
+    install -m 755 /tmp/sonar-code-context-mcp /usr/local/bin/sonar-code-context-mcp && \
+    cp /tmp/requirements.txt /app/requirements.txt && \
+    rm -rf /tmp/sonar-code-context-mcp /tmp/requirements.txt
+
+# Install Python dependencies for sonar-code-context
+USER appuser
+RUN python3 -m pip install --no-cache-dir --break-system-packages --user -r /app/requirements.txt
+
+ENV PATH="/home/appuser/.local/bin:${PATH}"
+
 COPY --from=builder --chown=appuser:appgroup --chmod=755 /app/sonarqube-mcp-server.jar /app/sonarqube-mcp-server.jar
 COPY --chown=appuser:appgroup --chmod=755 scripts/install-certificates.sh /usr/local/bin/install-certificates
+COPY --chown=appuser:appgroup --chmod=755 scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 
-USER appuser
 WORKDIR /app
-ENV STORAGE_PATH=./storage
+ENV STORAGE_PATH=/app/storage
 LABEL io.modelcontextprotocol.server.name="io.github.SonarSource/sonarqube-mcp-server"
 
-ENTRYPOINT ["/bin/sh", "-c", "/usr/local/bin/install-certificates && exec java -jar /app/sonarqube-mcp-server.jar"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]

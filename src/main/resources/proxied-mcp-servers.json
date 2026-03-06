@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "name": "sonar-cag",
+    "transport": "stdio",
+    "command": "sonar-code-context-mcp",
+    "args": [],
+    "env": {},
+    "inherits": ["SONARQUBE_TOKEN", "SONARQUBE_ORG", "SONARQUBE_URL", "SONAR_SQ_PROJECT_KEY", "SONAR_LOG_LEVEL"],
+    "supportedTransports": ["stdio"]
+  }
+]
