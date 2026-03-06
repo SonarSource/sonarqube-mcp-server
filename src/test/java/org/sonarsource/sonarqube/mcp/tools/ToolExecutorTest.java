@@ -20,15 +20,34 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
+import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
+import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
+import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
+
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 class ToolExecutorTest {
@@ -125,6 +144,39 @@ class ToolExecutorTest {
     assertThat(callToolResult.isError()).isTrue();
     assertThat(callToolResult.content().toString()).contains("An error occurred during the tool execution: Unexpected error");
     verify(mockBackendService).notifyToolCalled("mcp_tool_name", false);
+  }
+
+  static Stream<Arguments> error_type_mappings() {
+    return Stream.of(
+      Arguments.of(new UnauthorizedException("msg"), "unauthorized"),
+      Arguments.of(new ForbiddenException("msg"), "forbidden"),
+      Arguments.of(new NotFoundException("msg"), "not_found"),
+      Arguments.of(new ServerInternalErrorException("msg"), "server_error"),
+      Arguments.of(new ServerApiException("msg"), "server_api_error"),
+      Arguments.of(new MissingRequiredArgumentException("param"), "missing_argument"),
+      Arguments.of(new IllegalArgumentException("bad arg"), "invalid_argument"),
+      Arguments.of(new ResponseErrorException(new ResponseError(ResponseErrorCode.InternalError, "rpc error", null)), "protocol_error"),
+      Arguments.of(new RuntimeException("boom"), "unknown")
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("error_type_mappings")
+  void it_should_map_exception_to_error_type(RuntimeException exception, String expectedErrorType) {
+    var analyticsService = mock(AnalyticsService.class);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext::empty);
+    var errorTypeCaptor = ArgumentCaptor.forClass(String.class);
+
+    executor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
+      @Override
+      public Result execute(Arguments arguments) {
+        throw exception;
+      }
+    }, new McpSchema.CallToolRequest("", Map.of()));
+
+    verify(analyticsService, timeout(2000)).notifyToolInvoked(anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(),
+      errorTypeCaptor.capture(), anyLong(), anyLong());
+    assertThat(errorTypeCaptor.getValue()).isEqualTo(expectedErrorType);
   }
 
 }

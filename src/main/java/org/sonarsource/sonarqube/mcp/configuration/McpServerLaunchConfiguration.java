@@ -23,6 +23,7 @@ import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
@@ -115,6 +116,8 @@ public class McpServerLaunchConfiguration {
   // Advanced analysis configuration
   private final boolean isAdvancedAnalysisEnabled;
 
+  private final String mcpServerId;
+
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
     if (storagePathString == null) {
@@ -193,6 +196,8 @@ public class McpServerLaunchConfiguration {
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
 
     this.isAdvancedAnalysisEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ADVANCED_ANALYSIS_ENABLED, "false"));
+
+    this.mcpServerId = UUID.randomUUID().toString();
   }
 
   @NotNull
@@ -430,6 +435,13 @@ public class McpServerLaunchConfiguration {
    */
   public boolean isAdvancedAnalysisEnabled() {
     return isAdvancedAnalysisEnabled;
+  }
+
+  /**
+   * Returns the unique identifier for this MCP server instance, generated at startup.
+   */
+  public String getMcpServerId() {
+    return mcpServerId;
   }
 
 }

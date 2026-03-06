@@ -46,6 +46,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
+import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -62,7 +63,8 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
 
   private static final Map<String, String> DEFAULT_ENV_TEMPLATE = Map.of(
     "SONARQUBE_TOKEN", "token",
-    "SONARQUBE_TOOLSETS", ALL_TOOLSETS);
+    "SONARQUBE_TOOLSETS", ALL_TOOLSETS,
+    "TELEMETRY_DISABLED", "true");
   private final List<McpSyncClient> clients = new ArrayList<>();
   private final List<SonarQubeMcpServer> servers = new ArrayList<>();
   private Path tempStoragePath;
@@ -253,6 +255,12 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
           }
         """)));
     }
+
+    // Stub users/current for analytics connection context resolution
+    mockSonarQubeServer.stubFor(get(UsersApi.CURRENT_USER_PATH)
+      .willReturn(okJson("""
+        {"login":"test-user","name":"Test User"}
+        """)));
 
     // Configure SCA feature check based on server type
     if (environment.containsKey("SONARQUBE_ORG")) {
