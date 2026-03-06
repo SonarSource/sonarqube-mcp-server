@@ -26,6 +26,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.pullrequests.PullRequestsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
@@ -34,6 +35,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.SourcesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
+import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
 import org.sonarsource.sonarqube.mcp.serverapi.views.ViewsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 
@@ -125,6 +127,14 @@ public class ServerApi {
 
   public PullRequestsApi pullRequestsApi() {
     return new PullRequestsApi(helper);
+  }
+
+  public UsersApi usersApi() {
+    return new UsersApi(helper);
+  }
+
+  public OrganizationsApi organizationsApi() {
+    return new OrganizationsApi(helper);
   }
 
   public String getOrganization() {

@@ -72,6 +72,7 @@ class McpServerTestContainers {
       envVars.put("SONARQUBE_TOKEN", getSonarCloudToken());
       envVars.put("SONARQUBE_ORG", "sonarlint-it");
       envVars.put("SONARQUBE_URL", "https://sc-staging.io");
+      envVars.put("TELEMETRY_DISABLED", "true");
     }
 
     ContainerBuilder withProxiedServersConfig(String resourcePath) {
