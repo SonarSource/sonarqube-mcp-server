@@ -4,1183 +4,1213 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SonarQube MCP Server - Configuration Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #0f172a;
+            --border-color: #334155;
+            --border-hover: #475569;
+            --border-active: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --success: #10b981;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius: 12px;
+            --transition: all 0.2s ease;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #e8f0ff 0%, #f5f8fc 100%);
+            background-color: var(--bg-body);
+            color: var(--text-main);
             min-height: 100vh;
-            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
 
-        .container {
+        /* --- Layout --- */
+        .page-container {
             max-width: 1400px;
             margin: 0 auto;
+            padding: 40px 20px;
+            width: 100%;
         }
 
         .header {
-            background: linear-gradient(135deg, #0b1523 0%, #1a2744 100%);
-            color: #ffffff;
-            padding: 40px 30px;
             text-align: center;
-            border-radius: 8px 8px 0 0;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            position: relative;
-        }
-
-        .header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #3c9bd8 0%, #5bb3e8 100%);
+            margin-bottom: 40px;
+            animation: fadeInDown 0.6s ease-out;
         }
 
         .header h1 {
-            font-size: 2.2rem;
-            margin-bottom: 8px;
+            font-size: 2.5rem;
             font-weight: 700;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.025em;
+            background: linear-gradient(to right, #60a5fa, #3b82f6);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
         }
 
         .header p {
-            font-size: 1.05rem;
-            opacity: 0.85;
-            font-weight: 400;
+            color: var(--text-muted);
+            font-size: 1.1rem;
         }
 
-        .main-content {
-            display: flex;
-            gap: 20px;
-            margin-top: 20px;
-            align-items: flex-start;
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 1fr 500px;
+            gap: 30px;
+            align-items: start;
         }
 
-        .config-panel {
-            flex: 1;
-            background: white;
-            border-radius: 0 0 8px 8px;
-            padding: 25px 30px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e6e6e6;
+        @media (max-width: 1100px) {
+            .layout-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
-        .preview-panel {
-            width: 550px;
-            max-width: 550px;
-            background: white;
-            border-radius: 8px;
-            padding: 25px 30px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e6e6e6;
-            position: sticky;
-            top: 20px;
-            height: calc(100vh - 40px);
-            max-height: 800px;
-            display: flex;
-            flex-direction: column;
+        /* --- Cards --- */
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 30px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 24px;
+            animation: fadeInUp 0.5s ease-out backwards;
+            position: relative;
+            overflow: hidden;
         }
 
-        .panel-title {
-            font-size: 1.3rem;
-            color: #0b1523;
-            margin-bottom: 20px;
-            font-weight: 700;
-            padding-bottom: 10px;
-            border-bottom: 3px solid #3c9bd8;
-            letter-spacing: -0.3px;
+        /* Subtle top glow on cards */
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+            opacity: 0;
+            transition: var(--transition);
         }
 
-        .form-section {
-            margin-bottom: 20px;
-        }
-        
-        fieldset.form-section {
-            border: none;
-            padding: 0;
-            margin: 0 0 20px 0;
+        .card:hover::before {
+            opacity: 1;
         }
 
-        .section-label {
-            font-size: 0.95rem;
-            color: #0b1523;
+        .card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .card:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .card:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
             font-weight: 600;
-            margin-bottom: 10px;
-            display: block;
-        }
-        
-        legend.section-label {
-            padding: 0;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
         }
 
+        .step-number {
+            background: var(--primary);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+        }
+
+        /* --- Forms & Inputs --- */
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 20px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
         }
 
         label {
             display: block;
-            margin-bottom: 5px;
-            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
             font-weight: 500;
-            font-size: 0.9rem;
+            color: #e2e8f0;
         }
 
-        select, input[type="text"] {
+        .help-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        input[type="text"], input[type="password"], select {
             width: 100%;
-            padding: 9px 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-            background: white;
+            padding: 12px 16px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            transition: var(--transition);
         }
 
-        select:hover, input:hover {
-            border-color: #999;
+        input[type="text"]::placeholder, input[type="password"]::placeholder {
+            color: #475569;
         }
 
-        select:focus, input:focus {
+        input[type="text"]:focus, input[type="password"]:focus, select:focus {
             outline: none;
-            border-color: #3c9bd8;
-            box-shadow: 0 0 0 3px rgba(60, 155, 216, 0.15);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
 
-        /* Environment Button Group */
-        .env-buttons {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+        input[type="text"]:hover:not(:focus), input[type="password"]:hover:not(:focus), select:hover:not(:focus) {
+            border-color: var(--border-hover);
         }
-        
-        /* Transport Radio Group */
-        .transport-options {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .transport-radio {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: #333;
-        }
-        
-        .transport-radio input[type="radio"] {
-            width: 18px;
-            height: 18px;
-            accent-color: #3c9bd8;
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
             cursor: pointer;
         }
-        
-        .transport-radio span {
+
+        /* --- Segmented Control / Radio Buttons --- */
+        .segmented-control {
             display: flex;
-            align-items: baseline;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 4px;
             gap: 4px;
         }
 
-        .env-button {
-            padding: 12px 10px;
-            border: 2px solid #ccc;
-            border-radius: 4px;
-            background: white;
-            cursor: pointer;
-            transition: all 0.2s;
+        .segment-btn {
+            flex: 1;
+            padding: 10px;
             text-align: center;
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: #0b1523;
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: var(--transition);
         }
 
-        .env-button:hover {
-            border-color: #3c9bd8;
-            background: #f0f8ff;
-            transform: translateY(-1px);
+        .segment-btn:hover {
+            color: var(--text-main);
         }
 
-        .env-button.active {
-            border-color: #3c9bd8;
-            background: #3c9bd8;
-            color: #ffffff;
-            box-shadow: 0 2px 8px rgba(60, 155, 216, 0.3);
-        }
-        
-        .env-button small {
-            color: inherit;
+        .segment-btn.active {
+            background: var(--border-color);
+            color: var(--text-main);
+            box-shadow: var(--shadow-sm);
         }
 
-        /* Credentials Info Box */
-        .credentials-box {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 10px 12px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            color: #856404;
-            line-height: 1.5;
-        }
-
-        .credentials-header {
+        /* Radio group custom styling */
+        .radio-group {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .credentials-header strong {
-            font-size: 0.9rem;
-        }
-
-        .credentials-arrow {
-            transition: transform 0.3s;
-            font-size: 0.8rem;
-        }
-
-        .credentials-arrow.expanded {
-            transform: rotate(180deg);
-        }
-
-        .credentials-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        .credentials-content.expanded {
-            max-height: 300px;
-            margin-top: 8px;
-        }
-
-        .credentials-box ul {
-            margin-left: 20px;
-            margin-top: 8px;
-        }
-
-        .credentials-box li {
-            margin-bottom: 5px;
-        }
-
-        .credentials-box code {
-            background: rgba(0,0,0,0.1);
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 0.8rem;
-        }
-
-        /* Toolsets Grid */
-        .toolsets-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .toolset-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-
-        .toolset-item:hover {
-            background: #f8f9fa;
-        }
-
-        .toolset-item input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            accent-color: #3c9bd8;
-            cursor: pointer;
-        }
-        
-        .toolsets-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-        
-        .reset-button {
-            background: #e8f4fb;
-            border: 1px solid #3c9bd8;
-            color: #0b1523;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .reset-button:hover {
-            background: #3c9bd8;
-            color: white;
-        }
-
-        .toolset-item label {
-            margin: 0;
-            font-size: 0.85rem;
-            font-weight: normal;
-            cursor: pointer;
-        }
-
-        .toolset-item.always-enabled {
-            opacity: 0.7;
-        }
-
-        .toolset-item.always-enabled label {
-            color: #6b6b6b;
-        }
-
-        /* Options Grid */
-        .options-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            flex-direction: column;
             gap: 12px;
         }
 
-        .option-item {
+        .radio-horizontal {
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+
+        .radio-card {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            transition: all 0.2s;
-            background: white;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            background: rgba(15, 23, 42, 0.5);
+            flex: 1;
         }
 
-        .option-item:hover {
-            border-color: #3c9bd8;
-            background: #f0f8ff;
+        .radio-card:hover {
+            border-color: var(--border-hover);
+            background: var(--bg-input);
         }
 
-        .option-item input[type="checkbox"] {
+        .radio-card input[type="radio"] {
+            margin-right: 12px;
+            accent-color: var(--primary);
             width: 18px;
             height: 18px;
-            accent-color: #3c9bd8;
             cursor: pointer;
         }
 
-        .option-item.with-input {
+        .radio-card.active {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .radio-content {
+            display: flex;
             flex-direction: column;
-            align-items: flex-start;
         }
 
-        .option-item .cert-path-input {
-            width: 100%;
-            margin-top: 8px;
-            padding: 6px 8px;
+        .radio-title {
+            font-weight: 500;
+            color: white;
+            font-size: 0.95rem;
+        }
+
+        .radio-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* --- Checkboxes & Toolsets --- */
+        .grid-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 6px;
+            transition: var(--transition);
+            font-weight: normal;
+            border: 1px solid transparent;
+        }
+
+        .checkbox-label:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: var(--border-color);
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .checkbox-label.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* --- Preview Panel --- */
+        .preview-sticky {
+            position: sticky;
+            top: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .code-container {
+            background-color: #0d1117;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background-color: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Inter', sans-serif;
             font-size: 0.85rem;
+            color: var(--text-muted);
         }
 
-        .option-item label {
+        .client-badge {
+            background: var(--primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        pre {
+            padding: 20px;
+            overflow-x: auto;
             margin: 0;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
             font-size: 0.85rem;
-            cursor: pointer;
-        }
-
-        /* Code Preview */
-        .code-preview {
-            background: #1a2744;
-            color: #e8e8e8;
-            padding: 24px;
-            border-radius: 4px;
-            overflow: auto;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'Courier New', monospace;
-            font-size: 0.875rem;
+            color: #e2e8f0;
             line-height: 1.6;
-            flex: 1;
-            min-height: 200px;
-            border: 1px solid #0b1523;
         }
 
-        .code-preview::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+        pre::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
         }
 
-        .code-preview::-webkit-scrollbar-track {
-            background: #0b1523;
+        pre::-webkit-scrollbar-track {
+            background: transparent;
         }
 
-        .code-preview::-webkit-scrollbar-thumb {
-            background: #3c9bd8;
-            border-radius: 5px;
-        }
-
-        .code-preview::-webkit-scrollbar-thumb:hover {
-            background: #5bb3e8;
-        }
-
-        .copy-button {
-            width: 100%;
-            padding: 14px;
-            background: #3c9bd8;
-            color: #ffffff;
-            border: none;
+        pre::-webkit-scrollbar-thumb {
+            background: var(--border-hover);
             border-radius: 4px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 24px;
             font-size: 1rem;
-            font-weight: 700;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 16px;
-            flex-shrink: 0;
-            letter-spacing: 0.3px;
+            transition: var(--transition);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
         }
 
-        .copy-button:hover {
-            background: #5bb3e8;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(60, 155, 216, 0.4);
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
         }
 
-        .copy-button:active {
+        .btn-primary:active {
             transform: translateY(0);
         }
 
-        .copy-button:disabled {
-            background: #d0d0d0;
+        .btn-primary:disabled {
+            background-color: var(--border-color);
+            color: var(--text-muted);
             cursor: not-allowed;
-            transform: none;
             box-shadow: none;
+            transform: none;
         }
 
-        .copy-feedback {
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-hover);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-secondary:hover {
+            color: white;
+            border-color: white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* --- Alerts --- */
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .alert-warning {
+            background-color: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            color: #fcd34d;
+        }
+
+        .alert-info {
+            background-color: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        /* --- Animations --- */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .toast {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #3c9bd8;
-            color: #ffffff;
-            padding: 24px 48px;
-            border-radius: 4px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+            bottom: 30px;
+            right: 30px;
+            background: var(--success);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             z-index: 1000;
-            display: none;
         }
 
-        .copy-feedback.show {
-            display: block;
-            animation: fadeInOut var(--fade-duration);
-        }
-        
-        :root {
-            --fade-duration: 2s;
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
         }
 
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: translate(-50%, -60%); }
-            20% { opacity: 1; transform: translate(-50%, -50%); }
-            80% { opacity: 1; transform: translate(-50%, -50%); }
-            100% { opacity: 0; transform: translate(-50%, -40%); }
+        .hidden {
+            display: none !important;
         }
 
-        .info-text {
-            color: #4a4a4a;
-            font-size: 0.85rem;
-            margin-top: 8px;
-            font-style: italic;
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
         }
 
-        .credentials-input-group {
-            margin-top: 8px;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
         }
 
-        .credentials-input-group input {
-            width: 100%;
-            padding: 7px 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            margin-top: 4px;
-        }
-
-        .credentials-input-group input:focus {
-            outline: none;
-            border-color: #3c9bd8;
-            box-shadow: 0 0 0 3px rgba(60, 155, 216, 0.15);
-        }
-        
-        .token-help-link {
-            display: inline-block;
-            color: #3c9bd8;
+        .link {
+            color: var(--primary);
             text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: 500;
-            margin-top: 8px;
-            transition: color 0.2s;
+            transition: var(--transition);
         }
-        
-        .token-help-link:hover {
-            color: #2a7ab0;
+
+        .link:hover {
+            color: #60a5fa;
             text-decoration: underline;
-        }
-
-        .credentials-input-group label {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: #333;
-        }
-
-        @media (max-width: 1200px) {
-            .main-content {
-                flex-direction: column;
-            }
-
-            .preview-panel {
-                width: 100%;
-                max-width: 100%;
-                position: relative;
-                top: 0;
-            }
-            
-            .env-buttons {
-                grid-template-columns: 1fr;
-            }
-            
-            .toolsets-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        small {
-            color: #4a4a4a;
-            font-size: 0.8rem;
         }
     </style>
 </head>
 <body>
-    <div class="copy-feedback" id="copyFeedback">✓ Configuration copied to clipboard!</div>
+<div class="toast" id="copyToast">✓ Copied to clipboard!</div>
 
-    <div class="container">
-        <div class="header">
-            <h1>SonarQube MCP Server Configuration Generator</h1>
-            <p>⚠️ Experimental tool - Configuration may change</p>
-        </div>
+<div class="page-container">
+    <div class="header">
+        <h1>SonarQube MCP Server Configuration Generator</h1>
+    </div>
 
-        <div class="main-content">
-            <!-- Configuration Panel -->
-            <div class="config-panel">
-                <div class="panel-title">Configure Your Setup</div>
+    <div class="layout-grid">
+        <!-- Left Column: Configuration Form -->
+        <div class="config-form">
 
-                <!-- Agent Selection -->
-                <div class="form-section">
-                    <label class="section-label" for="agent">1. Select Your AI Agent</label>
-                    <select id="agent" onchange="updatePreview()">
-                        <option value="">-- Select an agent --</option>
+            <!-- STEP 1: Client -->
+            <div class="card">
+                <h2 class="card-title"><span class="step-number">1</span> Target Client</h2>
+                <div class="form-group">
+                    <label for="agent">Which AI Agent will use this server?</label>
+                    <select id="agent" onchange="updateUI()">
+                        <option value="">-- Choose your agent --</option>
+                        <option value="antigravity">Google Antigravity</option>
                         <option value="claude">Claude Desktop / Claude Code</option>
-                        <option value="cursor">Cursor</option>
+                        <option value="cursor">Cursor IDE</option>
                         <option value="vscode">VS Code</option>
-                        <option value="codex">Codex CLI</option>
-                        <option value="gemini">Gemini CLI</option>
-                        <option value="copilot-cli">GitHub Copilot CLI</option>
-                        <option value="copilot-agent">GitHub Copilot Agent</option>
-                        <option value="kiro">Kiro</option>
                         <option value="windsurf">Windsurf</option>
                         <option value="zed">Zed</option>
-                        <option value="generic">Generic / Manual</option>
+                        <option value="copilot-cli">GitHub Copilot CLI</option>
+                        <option value="copilot-agent">GitHub Copilot Agent</option>
+                        <option value="gemini">Gemini CLI</option>
+                        <option value="codex">Codex CLI</option>
+                        <option value="kiro">Kiro</option>
+                        <option value="generic">Generic / Other (JSON)</option>
                     </select>
                 </div>
-
-                <!-- Environment Selection -->
-                <fieldset class="form-section">
-                    <legend class="section-label">2. SonarQube Environment</legend>
-                    <div class="env-buttons">
-                        <button class="env-button active" onclick="selectEnvironment('cloud')" type="button" aria-pressed="true">
-                            SonarQube Cloud<br><small>sonarcloud.io</small>
-                        </button>
-                        <button class="env-button" onclick="selectEnvironment('cloud-us')" type="button" aria-pressed="false">
-                            SonarQube Cloud US<br><small>sonarqube.us</small>
-                        </button>
-                        <button class="env-button" onclick="selectEnvironment('server')" type="button" aria-pressed="false">
-                            SonarQube Server<br><small>Self-hosted</small>
-                        </button>
-                    </div>
-                </fieldset>
-
-                <!-- Credentials Info -->
-                <fieldset class="form-section">
-                    <legend class="section-label">3. Credentials</legend>
-                    <div class="credentials-box">
-                        <button class="credentials-header" 
-                                onclick="toggleCredentialsInfo()" 
-                                type="button"
-                                aria-expanded="false"
-                                aria-controls="credentialsContent"
-                                style="background: none; border: none; width: 100%; cursor: pointer; text-align: left; display: flex; align-items: center; justify-content: space-between;">
-                            <strong>🔒 Security Best Practices</strong>
-                            <span class="credentials-arrow" id="credentialsArrow" aria-hidden="true">▼</span>
-                        </button>
-                        <div class="credentials-content" id="credentialsContent">
-                            <p>Your SonarQube token is sensitive. Follow these security practices:</p>
-                            <ul>
-                                <li><strong>Use environment variables</strong> - Set tokens via environment variables before running</li>
-                                <li><strong>Avoid hardcoding</strong> - Never commit tokens to version control</li>
-                                <li><strong>Use variable substitution</strong> - Reference env vars in config files (e.g., <code>$SONAR_TOKEN</code>)</li>
-                            </ul>
-                            <p style="margin-top: 8px;">The token in generated config uses a placeholder (<code>&lt;YOUR_TOKEN&gt;</code>). Replace it securely.</p>
-                        </div>
-                    </div>
-                    
-                    <div id="tokenHelpLink" style="margin-top: 12px;">
-                        <a href="https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/" 
-                           target="_blank" 
-                           class="token-help-link"
-                           id="tokenLink">
-                            📖 How to generate a USER token in SonarQube Cloud →
-                        </a>
-                    </div>
-
-                    <!-- Organization / URL Input -->
-                    <div id="orgInputGroup" class="credentials-input-group">
-                        <label for="orgInput">Organization Key (optional)</label>
-                        <input type="text" id="orgInput" placeholder="your-organization-key" oninput="updatePreview()">
-                        <small style="display: block; margin-top: 5px;">Leave empty to use placeholder in generated config</small>
-                    </div>
-
-                    <div id="urlInputGroup" class="credentials-input-group" style="display: none;">
-                        <label for="urlInput">Server URL (optional)</label>
-                        <input type="text" id="urlInput" placeholder="https://your-sonar-server.com" oninput="updatePreview()">
-                        <small style="display: block; margin-top: 5px;">Leave empty to use placeholder in generated config</small>
-                    </div>
-                </fieldset>
-
-                <!-- Transport Mode -->
-                <fieldset class="form-section">
-                    <legend class="section-label">4. Transport Mode</legend>
-                    <div class="transport-options">
-                        <label class="transport-radio">
-                            <input type="radio" name="transport" value="stdio" checked onchange="selectTransport('stdio')">
-                            <span>Stdio <small>(Local)</small></span>
-                        </label>
-                        <label class="transport-radio">
-                            <input type="radio" name="transport" value="http" onchange="selectTransport('http')">
-                            <span>HTTP <small>(Multi-user)</small></span>
-                        </label>
-                        <label class="transport-radio">
-                            <input type="radio" name="transport" value="https" onchange="selectTransport('https')">
-                            <span>HTTPS <small>(Secure)</small></span>
-                        </label>
-                    </div>
-                    
-                    <div id="httpConfigGroup" style="display: none; margin-top: 12px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <div>
-                                <label for="httpHost" style="font-size: 0.85rem;">Host:</label>
-                                <input type="text" id="httpHost" value="127.0.0.1" oninput="updatePreview()" style="padding: 8px 10px;">
-                            </div>
-                            <div>
-                                <label for="httpPort" style="font-size: 0.85rem;">Port:</label>
-                                <input type="text" id="httpPort" value="8080" oninput="updatePreview()" style="padding: 8px 10px;">
-                            </div>
-                        </div>
-                    </div>
-                </fieldset>
-
-                <!-- Advanced Options -->
-                <fieldset class="form-section">
-                    <legend class="section-label">5. Advanced Options</legend>
-                    
-                    <div class="options-grid">
-                        <div class="option-item">
-                            <input type="checkbox" id="debugMode" onchange="updatePreview()">
-                            <label for="debugMode">Debug Logging</label>
-                        </div>
-                        <div class="option-item">
-                            <input type="checkbox" id="readOnly" onchange="updatePreview()">
-                            <label for="readOnly">Read-Only Mode</label>
-                        </div>
-                        <div class="option-item">
-                            <input type="checkbox" id="advancedAnalysis" onchange="updatePreview()">
-                            <label for="advancedAnalysis">Advanced Analysis<br><small>(Beta - Cloud only)</small></label>
-                        </div>
-                        <div class="option-item with-input">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <input type="checkbox" id="customCertificates" onchange="toggleCertPath()">
-                                <label for="customCertificates">Custom SSL Certificates</label>
-                            </div>
-                            <input type="text" 
-                                   id="certPath" 
-                                   class="cert-path-input" 
-                                   placeholder="/path/to/certificates" 
-                                   style="display: none;"
-                                   oninput="updatePreview()">
-                        </div>
-                    </div>
-                </fieldset>
-
-                <!-- Toolsets -->
-                <fieldset class="form-section">
-                    <div class="toolsets-header">
-                        <div>
-                            <legend class="section-label" style="margin-bottom: 0;">6. Select Toolsets</legend>
-                            <p class="info-text" style="margin-top: 5px;">Choose which SonarQube features to enable. <em>Analysis and Projects are always enabled.</em></p>
-                        </div>
-                        <button class="reset-button" onclick="resetToolsets()" type="button">↻ Reset to Default</button>
-                    </div>
-                    
-                    <div class="toolsets-grid">
-                        <div class="toolset-item always-enabled" title="Always enabled - required toolset">
-                            <input type="checkbox" id="tool-analysis" checked disabled>
-                            <label for="tool-analysis">Analysis ✓</label>
-                        </div>
-                        <div class="toolset-item always-enabled" title="Always enabled - required toolset">
-                            <input type="checkbox" id="tool-projects" checked disabled>
-                            <label for="tool-projects">Projects ✓</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-issues" checked onchange="updatePreview()">
-                            <label for="tool-issues">Issues</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-security-hotspots" checked onchange="updatePreview()">
-                            <label for="tool-security-hotspots">Security Hotspots</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-quality-gates" checked onchange="updatePreview()">
-                            <label for="tool-quality-gates">Quality Gates</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-rules" checked onchange="updatePreview()">
-                            <label for="tool-rules">Rules</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-duplications" checked onchange="updatePreview()">
-                            <label for="tool-duplications">Duplications</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-measures" checked onchange="updatePreview()">
-                            <label for="tool-measures">Measures</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-dependency-risks" checked onchange="updatePreview()">
-                            <label for="tool-dependency-risks">Dependency Risks</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-coverage" onchange="updatePreview()">
-                            <label for="tool-coverage">Coverage</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-sources" onchange="updatePreview()">
-                            <label for="tool-sources">Sources</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-languages" onchange="updatePreview()">
-                            <label for="tool-languages">Languages</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-portfolios" onchange="updatePreview()">
-                            <label for="tool-portfolios">Portfolios</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-system" onchange="updatePreview()">
-                            <label for="tool-system">System</label>
-                        </div>
-                        <div class="toolset-item">
-                            <input type="checkbox" id="tool-webhooks" onchange="updatePreview()">
-                            <label for="tool-webhooks">Webhooks</label>
-                        </div>
-                    </div>
-                </fieldset>
             </div>
 
-            <!-- Preview Panel -->
-            <div class="preview-panel">
-                <div class="panel-title">Configuration Preview</div>
-                
-                <div id="instructions" style="margin-bottom: 15px; color: #4a4a4a; font-size: 0.9rem;">
-                    Select an agent to see the configuration
+            <!-- STEP 2: Environment & Auth -->
+            <div class="card">
+                <h2 class="card-title"><span class="step-number">2</span> SonarQube Server & Auth</h2>
+
+                <div class="form-group">
+                    <label>Platform Type</label>
+                    <div class="segmented-control" id="envControl">
+                        <button class="segment-btn active" onclick="setEnv('cloud')" data-value="cloud">SonarQube Cloud</button>
+                        <button class="segment-btn" onclick="setEnv('cloud-us')" data-value="cloud-us">SonarQube Cloud US</button>
+                        <button class="segment-btn" onclick="setEnv('server')" data-value="server">SonarQube Server</button>
+                    </div>
                 </div>
 
-                <pre class="code-preview"><code id="configOutput">// Select an agent to generate configuration</code></pre>
+                <div class="form-group" id="urlGroup" class="hidden" style="display: none;">
+                    <label for="serverUrl">Server URL</label>
+                    <input type="text" id="serverUrl" placeholder="https://sonarqube.mycompany.com" oninput="generateConfig()">
+                </div>
 
-                <button class="copy-button" onclick="copyConfig()" id="copyButton" disabled>
-                    📋 Copy to Clipboard
+                <div class="form-group" id="orgGroup">
+                    <label for="orgKey">Organization Key</label>
+                    <input type="text" id="orgKey" placeholder="my-organization" oninput="generateConfig()">
+                </div>
+
+                <div class="form-group">
+                    <label for="token">User Token <span
+                            style="color:var(--text-muted); font-weight:normal;">(Optional but recommended)</span></label>
+                    <span class="help-text">If provided, it will be injected into the config. Keep this secret! Leave empty to keep `&lt;YOUR_TOKEN&gt;` placeholder. <a
+                            href="https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/" id="tokenDocsLink"
+                            target="_blank" class="link">How to get a token</a></span>
+                    <input type="password" id="token" placeholder="sqp_xxxxxxxxxxxxxxxxxxx" oninput="generateConfig()">
+                </div>
+            </div>
+
+            <!-- STEP 3: Transport & Network -->
+            <div class="card">
+                <h2 class="card-title"><span class="step-number">3</span> Connection Mode</h2>
+
+                <div class="form-group radio-group">
+                    <label class="radio-card active" onclick="setTransport('stdio')" id="card-stdio">
+                        <input type="radio" name="transport" value="stdio" checked>
+                        <div class="radio-content">
+                            <span class="radio-title">Local Execution (Stdio)</span>
+                            <span class="radio-desc">The AI agent runs the server in Docker locally. Best for single users.</span>
+                        </div>
+                    </label>
+                    <label class="radio-card" onclick="setTransport('http')" id="card-http">
+                        <input type="radio" name="transport" value="http">
+                        <div class="radio-content">
+                            <span class="radio-title">Remote Server (HTTP)</span>
+                            <span class="radio-desc">Connect to an MCP server running remotely via HTTP. Best for teams.</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Only shown if HTTP is selected -->
+                <div id="httpOptions" class="hidden fade-in"
+                     style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                    <label>HTTP Objective</label>
+                    <span class="help-text">Are you launching the host server or connecting your client to it?</span>
+
+                    <div class="segmented-control" style="margin-bottom: 20px;">
+                        <button class="segment-btn active" onclick="setHttpMode('client')" id="btn-http-client">Configure Client Settings
+                        </button>
+                        <button class="segment-btn" onclick="setHttpMode('launch')" id="btn-http-launch">Generate Launch Command</button>
+                    </div>
+
+                    <div class="form-group" style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                        <div>
+                            <label for="httpHost" id="httpHostLabel">Host / URL</label>
+                            <input type="text" id="httpHost" value="http://127.0.0.1" oninput="generateConfig()">
+                        </div>
+                        <div id="httpPortContainer">
+                            <label for="httpPort">Port</label>
+                            <input type="text" id="httpPort" value="8080" oninput="generateConfig()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 4: Features & Advanced -->
+            <div class="card" id="advancedCard">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                    <h2 class="card-title" style="margin:0; border:none; padding:0;"><span class="step-number">4</span> Toolsets & Advanced
+                    </h2>
+                    <button class="btn-secondary" onclick="resetToolsets()">Reset Default Tools</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Enabled Toolsets</label>
+                    <div class="grid-options" id="toolsetsGrid">
+                        <label class="checkbox-label"><input type="checkbox" id="tool-analysis" checked onchange="generateConfig()">
+                            Analysis</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-projects" checked onchange="generateConfig()">
+                            Projects</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-issues" checked onchange="generateConfig()">
+                            Issues</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-security-hotspots" checked
+                                                             onchange="generateConfig()"> Security Hotspots</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-quality-gates" checked onchange="generateConfig()">
+                            Quality Gates</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-rules" checked onchange="generateConfig()">
+                            Rules</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-duplications" checked onchange="generateConfig()">
+                            Duplications</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-measures" checked onchange="generateConfig()">
+                            Measures</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-dependency-risks" checked onchange="generateConfig()">
+                            Dependency Risks</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-coverage" checked onchange="generateConfig()">
+                            Coverage</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-external" checked onchange="generateConfig()">
+                            External/CAG</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-sources" onchange="generateConfig()"> Sources</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-languages" onchange="generateConfig()">
+                            Languages</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-portfolios" onchange="generateConfig()">
+                            Portfolios</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-system" onchange="generateConfig()"> System</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-webhooks" onchange="generateConfig()">
+                            Webhooks</label>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border-color);">
+                    <label>Advanced Options</label>
+                    <div class="grid-options">
+                        <label class="checkbox-label"><input type="checkbox" id="opt-debug" onchange="generateConfig()"> Debug
+                            Logging</label>
+                        <label class="checkbox-label"><input type="checkbox" id="opt-readonly" onchange="generateConfig()"> Read-Only
+                            Mode</label>
+                        <label class="checkbox-label"><input type="checkbox" id="opt-advanced" onchange="generateConfig()"> Adv. Analysis
+                            (Cloud Beta)</label>
+                        <label class="checkbox-label"><input type="checkbox" id="opt-certs" onchange="toggleCerts()"> Custom SSL
+                            Certs</label>
+                    </div>
+                </div>
+
+                <div class="form-group hidden fade-in" id="certsGroup" style="margin-top:12px;">
+                    <label for="certPath">Certificate Folder Path</label>
+                    <input type="text" id="certPath" placeholder="/usr/local/share/ca-certificates" oninput="generateConfig()">
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Generation Output -->
+        <div class="preview-sticky">
+            <div class="card" style="margin-bottom:0; padding:0; border:none; background:transparent; box-shadow:none;">
+
+                <div id="instructionAlert" class="alert alert-info hidden">
+                    <!-- Filled by JS -->
+                </div>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span>Generated Configuration</span>
+                        <span class="client-badge" id="clientBadge">Not Selected</span>
+                    </div>
+                    <pre><code id="codeOutput">Please select a Target Client (Step 1) to build the configuration.</code></pre>
+                </div>
+
+                <button class="btn-primary" id="copyBtn" style="margin-top: 20px;" onclick="copyCode()" disabled>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    Copy Configuration
                 </button>
+
+                <div style="margin-top: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                    <p>⚠️ Do not share this generated text with others if it contains your private SonarQube token.</p>
+                </div>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        let currentEnvironment = 'cloud';
-        let currentTransport = 'stdio';
+<script>
+    // State
+    let state = {
+        agent: '',
+        env: 'cloud',
+        transport: 'stdio',
+        httpMode: 'client' // 'client' or 'launch'
+    };
 
-        function selectTransport(transport) {
-            currentTransport = transport;
-            
-            // Show/hide HTTP config
-            const httpConfigGroup = document.getElementById('httpConfigGroup');
-            if (transport === 'http' || transport === 'https') {
-                httpConfigGroup.style.display = 'block';
-                // Update port default
-                if (transport === 'https') {
-                    document.getElementById('httpPort').value = '8443';
-                } else {
-                    document.getElementById('httpPort').value = '8080';
+    const DEFAULT_TOOLSETS = ['analysis', 'projects', 'issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks', 'coverage', 'external'];
+
+    // Initial setup
+    document.addEventListener('DOMContentLoaded', () => {
+        updateUI();
+    });
+
+    // Event Handlers
+    function setEnv(env) {
+        state.env = env;
+        // Update UI buttons
+        document.querySelectorAll('#envControl .segment-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`#envControl .segment-btn[data-value="${env}"]`).classList.add('active');
+
+        // Show/Hide fields
+        const isServer = env === 'server';
+        document.getElementById('urlGroup').style.display = isServer ? 'block' : 'none';
+        document.getElementById('orgGroup').style.display = isServer ? 'none' : 'block';
+
+        // Update token docs link
+        const docsLink = document.getElementById('tokenDocsLink');
+        if (isServer) {
+            docsLink.href = 'https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token';
+        } else {
+            docsLink.href = 'https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/';
+        }
+
+        generateConfig();
+    }
+
+    function setTransport(mode) {
+        state.transport = mode;
+        // Update radios visually
+        document.getElementById('card-stdio').classList.remove('active');
+        document.getElementById('card-http').classList.remove('active');
+        document.getElementById(`card-${mode}`).classList.add('active');
+        document.querySelector(`input[name="transport"][value="${mode}"]`).checked = true;
+
+        // Show/hide HTTP section
+        const httpOptions = document.getElementById('httpOptions');
+        if (mode === 'http') {
+            httpOptions.classList.remove('hidden');
+            // Re-apply the current httpMode UI logic
+            setHttpMode(state.httpMode);
+        } else {
+            httpOptions.classList.add('hidden');
+            document.getElementById('advancedCard').style.display = 'block';
+        }
+
+        generateConfig();
+    }
+
+    function setHttpMode(mode) {
+        state.httpMode = mode;
+        document.getElementById('btn-http-client').classList.remove('active');
+        document.getElementById('btn-http-launch').classList.remove('active');
+        document.getElementById(`btn-http-${mode}`).classList.add('active');
+
+        // Adjust port logic and advanced cards visibility
+        if (mode === 'client') {
+            document.getElementById('httpPortContainer').style.display = 'none';
+            document.getElementById('httpHostLabel').textContent = 'Full Server URL (e.g. http://host:port/mcp)';
+            document.getElementById('advancedCard').style.display = 'none';
+        } else {
+            document.getElementById('httpPortContainer').style.display = 'block';
+            document.getElementById('httpHostLabel').textContent = 'Host IP';
+            document.getElementById('advancedCard').style.display = 'block';
+        }
+
+        generateConfig();
+    }
+
+    function toggleCerts() {
+        const checked = document.getElementById('opt-certs').checked;
+        const group = document.getElementById('certsGroup');
+        if (checked) {
+            group.classList.remove('hidden');
+        } else {
+            group.classList.add('hidden');
+        }
+        generateConfig();
+    }
+
+    function resetToolsets() {
+        document.querySelectorAll('.grid-options input[type="checkbox"]').forEach(cb => {
+            if (!cb.disabled && cb.id.startsWith('tool-')) cb.checked = false;
+        });
+        DEFAULT_TOOLSETS.forEach(t => {
+            document.getElementById(`tool-${t}`).checked = true;
+        });
+        generateConfig();
+    }
+
+    function updateUI() {
+        state.agent = document.getElementById('agent').value;
+        const badge = document.getElementById('clientBadge');
+
+        if (state.agent) {
+            badge.textContent = document.getElementById('agent').options[document.getElementById('agent').selectedIndex].text;
+            document.getElementById('copyBtn').disabled = false;
+            badge.style.background = 'var(--primary)';
+        } else {
+            badge.textContent = 'Not Selected';
+            document.getElementById('copyBtn').disabled = true;
+            badge.style.background = 'var(--text-muted)';
+        }
+        generateConfig();
+    }
+
+    // Configuration Generation Engine
+    function generateConfig() {
+        if (!state.agent) {
+            document.getElementById('codeOutput').textContent = "Please select a Target Client (Step 1) to build the configuration.";
+            document.getElementById('instructionAlert').classList.add('hidden');
+            return;
+        }
+
+        // Gather inputs
+        const rawToken = document.getElementById('token').value.trim();
+        const token = rawToken || '<YOUR_TOKEN>';
+        const org = document.getElementById('orgKey').value.trim() || '<YOUR_ORG>';
+        const url = document.getElementById('serverUrl').value.trim() || '<YOUR_SERVER_URL>';
+        const httpHost = document.getElementById('httpHost').value.trim() || 'http://127.0.0.1';
+        const httpPort = document.getElementById('httpPort').value.trim() || '8080';
+
+        // Build Env map for Stdio / Launch
+        let envVars = {};
+
+        // In HTTP client mode we only connect, but for stdio/launch we construct the environment variables
+        if (state.transport === 'stdio' || (state.transport === 'http' && state.httpMode === 'launch')) {
+            envVars['SONARQUBE_TOKEN'] = token;
+
+            if (state.env === 'cloud') {
+                envVars['SONARQUBE_ORG'] = org;
+            } else if (state.env === 'cloud-us') {
+                envVars['SONARQUBE_ORG'] = org;
+                envVars['SONARQUBE_URL'] = 'https://sonarqube.us';
+            } else if (state.env === 'server') {
+                envVars['SONARQUBE_URL'] = url;
+            }
+
+            if (document.getElementById('opt-debug').checked) envVars['SONARQUBE_DEBUG_ENABLED'] = 'true';
+            if (document.getElementById('opt-readonly').checked) envVars['SONARQUBE_READ_ONLY'] = 'true';
+            if (document.getElementById('opt-advanced').checked) envVars['SONARQUBE_ADVANCED_ANALYSIS_ENABLED'] = 'true';
+
+            // HTTP specific variables for server launch
+            if (state.transport === 'http' && state.httpMode === 'launch') {
+                envVars['SONARQUBE_TRANSPORT'] = 'http';
+                envVars['SONARQUBE_HTTP_PORT'] = httpPort;
+            }
+
+            // Gather toolsets (only if differs from default)
+            let selectedToolsets = [];
+            let hasNonDefault = false;
+            document.querySelectorAll('#toolsetsGrid input[type="checkbox"]').forEach(cb => {
+                if (cb.id.startsWith('tool-') && cb.id !== 'tool-analysis' && cb.id !== 'tool-projects') {
+                    const name = cb.id.replace('tool-', '');
+                    if (cb.checked) {
+                        selectedToolsets.push(name);
+                        if (!DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
+                    } else if (DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
                 }
+            });
+
+            if (hasNonDefault) {
+                envVars['SONARQUBE_TOOLSETS'] = ['analysis', 'projects', ...selectedToolsets].join(',');
+            }
+        }
+
+        // Cert path
+        const needsCerts = document.getElementById('opt-certs').checked;
+        const certPath = needsCerts ? (document.getElementById('certPath').value.trim() || '/usr/local/share/ca-certificates') : null;
+
+        // Generate Output Context
+        let code = '';
+        let instructions = '';
+
+        // Formatting Helpers
+        const getDockerArgs = () => {
+            let args = ['run', '--init', '--pull=always', '-i'];
+            if (state.transport === 'http') {
+                // if http launch mode, we need to bind the port on host, and run it detached rather than detached if preferred, but -i/stdio shouldn't be required. Let's adapt docker args.
+                args = ['run', '--init', '--pull=always', '-d', '-p', `${httpPort}:${httpPort}`];
             } else {
-                httpConfigGroup.style.display = 'none';
+                args.push('--rm');
             }
-            
-            updatePreview();
-        }
-
-        function toggleCredentialsInfo() {
-            const content = document.getElementById('credentialsContent');
-            const arrow = document.getElementById('credentialsArrow');
-            const button = content.previousElementSibling;
-            const isExpanded = content.classList.contains('expanded');
-            
-            content.classList.toggle('expanded');
-            arrow.classList.toggle('expanded');
-            button.setAttribute('aria-expanded', !isExpanded);
-        }
-
-        function selectEnvironment(env) {
-            currentEnvironment = env;
-            
-            // Update button states and aria-pressed
-            document.querySelectorAll('.env-button').forEach(btn => {
-                btn.classList.remove('active');
-                btn.setAttribute('aria-pressed', 'false');
-            });
-            const clickedButton = event.target.closest('.env-button');
-            clickedButton.classList.add('active');
-            clickedButton.setAttribute('aria-pressed', 'true');
-            
-            // Show/hide appropriate input fields
-            const orgGroup = document.getElementById('orgInputGroup');
-            const urlGroup = document.getElementById('urlInputGroup');
-            
-            if (env === 'cloud' || env === 'cloud-us') {
-                orgGroup.style.display = 'block';
-                urlGroup.style.display = 'none';
-            } else {
-                orgGroup.style.display = 'none';
-                urlGroup.style.display = 'block';
-            }
-            
-            updateTokenHelpLink(env);
-            updatePreview();
-        }
-
-        function updateTokenHelpLink(env) {
-            const tokenLink = document.getElementById('tokenLink');
-            if (env === 'cloud' || env === 'cloud-us') {
-                tokenLink.href = 'https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/';
-                tokenLink.innerHTML = '📖 How to generate a USER token in SonarQube Cloud →';
-            } else {
-                tokenLink.href = 'https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token';
-                tokenLink.innerHTML = '📖 How to generate a USER token in SonarQube Server →';
-            }
-        }
-
-        function resetToolsets() {
-            // Default toolsets that should be checked
-            const defaultToolsets = ['issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks'];
-            
-            // Uncheck all first
-            document.querySelectorAll('[id^="tool-"]').forEach(cb => {
-                if (!cb.disabled) {
-                    cb.checked = false;
-                }
-            });
-            
-            // Check default ones
-            defaultToolsets.forEach(toolset => {
-                const checkbox = document.getElementById(`tool-${toolset}`);
-                if (checkbox) {
-                    checkbox.checked = true;
-                }
-            });
-            
-            updatePreview();
-        }
-
-        function toggleCertPath() {
-            const checkbox = document.getElementById('customCertificates');
-            const input = document.getElementById('certPath');
-            input.style.display = checkbox.checked ? 'block' : 'none';
-            updatePreview();
-        }
-
-        function updatePreview() {
-            const agent = document.getElementById('agent').value;
-
-            if (!agent) {
-                document.getElementById('configOutput').textContent = '// Select an agent to generate configuration';
-                document.getElementById('copyButton').disabled = true;
-                document.getElementById('instructions').innerHTML = 'Select an agent to see the configuration';
-                return;
-            }
-
-            document.getElementById('copyButton').disabled = false;
-
-            // Build environment variables
-            const env = { SONARQUBE_TOKEN: '<YOUR_TOKEN>' };
-
-            if (currentEnvironment === 'cloud' || currentEnvironment === 'cloud-us') {
-                const orgValue = document.getElementById('orgInput').value.trim();
-                env.SONARQUBE_ORG = orgValue || '<YOUR_ORG>';
-            }
-
-            if (currentEnvironment === 'cloud-us') {
-                env.SONARQUBE_URL = 'https://sonarqube.us';
-            } else if (currentEnvironment === 'server') {
-                const urlValue = document.getElementById('urlInput').value.trim();
-                env.SONARQUBE_URL = urlValue || '<YOUR_SERVER_URL>';
-            }
-
-            if (document.getElementById('debugMode').checked) {
-                env.SONARQUBE_DEBUG_ENABLED = 'true';
-            }
-
-            if (document.getElementById('readOnly').checked) {
-                env.SONARQUBE_READ_ONLY = 'true';
-            }
-
-            if (document.getElementById('advancedAnalysis').checked) {
-                env.SONARQUBE_ADVANCED_ANALYSIS_ENABLED = 'true';
-            }
-
-            const toolsets = getSelectedToolsets();
-            if (toolsets) {
-                env.SONARQUBE_TOOLSETS = toolsets;
-            }
-
-            const customCerts = document.getElementById('customCertificates').checked;
-            const certPath = customCerts ? (document.getElementById('certPath').value.trim() || '/path/to/certificates') : null;
-
-            // Add transport configuration if not stdio
-            if (currentTransport !== 'stdio') {
-                env.SONARQUBE_TRANSPORT = currentTransport;
-                env.SONARQUBE_HTTP_HOST = document.getElementById('httpHost').value.trim() || '127.0.0.1';
-                env.SONARQUBE_HTTP_PORT = document.getElementById('httpPort').value.trim() || (currentTransport === 'https' ? '8443' : '8080');
-            }
-
-            // Generate configuration
-            let config = '';
-            let instructions = '';
-
-            switch (agent) {
-                case 'claude':
-                    config = generateClaudeConfig(env);
-                    instructions = '<strong>💡 Instructions:</strong> Run this command in your terminal (replace placeholder values with your actual credentials):';
-                    break;
-                case 'cursor':
-                case 'vscode':
-                    config = generateJSONConfig(env, certPath);
-                    instructions = `<strong>💡 Instructions:</strong> Add this to your ${agent === 'cursor' ? 'Cursor' : 'VS Code'} MCP settings (replace placeholder values):`;
-                    break;
-                case 'codex':
-                    config = generateCodexConfig(env, certPath);
-                    instructions = '<strong>💡 Instructions:</strong> Add this to <code>~/.codex/config.toml</code> (replace placeholder values):';
-                    break;
-                case 'gemini':
-                    config = generateGeminiConfig(env);
-                    instructions = '<strong>💡 Instructions:</strong> Set environment variables and install:';
-                    break;
-                case 'copilot-cli':
-                    config = generateCopilotCLIConfig(env, certPath);
-                    instructions = '<strong>💡 Instructions:</strong> Run <code>/mcp add</code> in Copilot CLI and use these values:';
-                    break;
-                case 'copilot-agent':
-                    config = generateCopilotAgentConfig(env, certPath);
-                    instructions = '<strong>💡 Instructions:</strong> Add to GitHub repository Settings → Copilot → Coding agent:';
-                    break;
-                case 'kiro':
-                    config = generateKiroConfig(env, certPath);
-                    instructions = '<strong>💡 Instructions:</strong> Add to <code>.kiro/settings/mcp.json</code> in your workspace:';
-                    break;
-                case 'windsurf':
-                    config = generateWindsurfConfig(env);
-                    instructions = '<strong>💡 Instructions:</strong> Install from MCP Marketplace and use these values:';
-                    break;
-                case 'zed':
-                    config = generateZedConfig(env);
-                    instructions = '<strong>💡 Instructions:</strong> Install the extension in Zed and provide these values:';
-                    break;
-                case 'generic':
-                    config = generateJSONConfig(env, certPath);
-                    instructions = '<strong>💡 Instructions:</strong> Generic JSON configuration (adapt for your client):';
-                    break;
-            }
-
-            document.getElementById('instructions').innerHTML = instructions;
-            document.getElementById('configOutput').textContent = config;
-        }
-
-        function getSelectedToolsets() {
-            const toolsets = ['analysis'];
-            const checkboxes = document.querySelectorAll('[id^="tool-"]');
-            checkboxes.forEach(cb => {
-                if (cb.checked && !cb.disabled && cb.id !== 'tool-analysis') {
-                    toolsets.push(cb.id.replace('tool-', ''));
-                }
-            });
-            
-            // Check if all default toolsets are selected
-            const defaultToolsets = ['analysis', 'issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks'];
-            const selectedToolsets = toolsets.filter(t => defaultToolsets.includes(t));
-            
-            // Only return toolsets if it's different from default
-            if (selectedToolsets.length !== defaultToolsets.length || toolsets.length !== defaultToolsets.length) {
-                return toolsets.join(',');
-            }
-            
-            return null;
-        }
-
-        function buildDockerArgs(env, certPath) {
-            const args = ['run', '--init', '--pull=always', '-i', '--rm'];
-            
             if (certPath) {
                 args.push('-v', `${certPath}:/usr/local/share/ca-certificates/:ro`);
             }
-            
-            Object.keys(env).forEach(key => {
-                args.push('-e', key);
-            });
-            
+            for (const [k, v] of Object.entries(envVars)) {
+                args.push('-e', k);
+            }
             args.push('mcp/sonarqube');
             return args;
-        }
+        };
 
-        function generateClaudeConfig(env) {
-            let cmd = 'claude mcp add sonarqube';
-            Object.entries(env).forEach(([key, value]) => {
-                cmd += ` \\\n  --env ${key}=${value}`;
-            });
-            cmd += ' \\\n  -- docker run --init --pull=always -i --rm';
-            Object.keys(env).forEach(key => {
-                cmd += ` -e ${key}`;
-            });
-            cmd += ' mcp/sonarqube';
-            return cmd;
-        }
-
-        function generateJSONConfig(env, certPath) {
+        const getJsonConfigStdio = () => {
             return JSON.stringify({
                 sonarqube: {
                     command: 'docker',
-                    args: buildDockerArgs(env, certPath),
-                    env
+                    args: getDockerArgs(),
+                    env: envVars
                 }
             }, null, 2);
-        }
+        };
 
-        function generateCodexConfig(env, certPath) {
-            let config = '[mcp_servers.sonarqube]\n';
-            config += 'command = "docker"\n';
-            config += 'args = ' + JSON.stringify(buildDockerArgs(env, certPath)) + '\n';
-            config += 'env = ' + JSON.stringify(env).replaceAll('{', '{ ').replaceAll('}', ' }');
-            return config;
-        }
-
-        function generateGeminiConfig(env) {
-            let config = '# Set environment variables:\n';
-            Object.entries(env).forEach(([key, value]) => {
-                config += `export ${key}="${value}"\n`;
-            });
-            config += '\n# Install extension:\n';
-            config += 'gemini extensions install https://github.com/SonarSource/sonarqube-mcp-server';
-            return config;
-        }
-
-        function generateCopilotCLIConfig(env, certPath) {
-            const args = buildDockerArgs(env, certPath);
-            let config = 'Server Name: sonarqube\n';
-            config += 'Server Type: Local (Press 1)\n';
-            config += 'Command: docker\n';
-            config += 'Arguments: ' + args.join(', ') + '\n';
-            config += 'Environment Variables: ';
-            config += Object.entries(env).map(([k, v]) => `${k}=${v}`).join(',') + '\n';
-            config += 'Tools: *';
-            return config;
-        }
-
-        function generateCopilotAgentConfig(env, certPath) {
-            const args = buildDockerArgs(env, certPath);
-            const copilotEnv = {};
-            Object.keys(env).forEach(key => {
-                copilotEnv[key.replaceAll('SONARQUBE_', 'SONAR_')] = `COPILOT_MCP_${key}`;
-            });
-
-            return JSON.stringify({
-                mcpServers: {
+        const renderJsonForClient = () => {
+            if (state.transport === 'http' && state.httpMode === 'client') {
+                // For HTTP clients in VSCode/Cursor, typically you have to configure it specially or just mention it's not fully supported universally yet in the UI.
+                // Let's output a generic HTTP setup.
+                let output = {
                     sonarqube: {
-                        type: 'local',
-                        command: 'docker',
-                        args,
-                        env: copilotEnv,
-                        tools: ['*']
+                        url: httpHost,
+                        type: "http"
                     }
-                }
-            }, null, 2);
-        }
+                };
+                return JSON.stringify({mcpServers: output}, null, 2);
+            } else {
+                return JSON.stringify({mcpServers: JSON.parse(getJsonConfigStdio())}, null, 2);
+            }
+        };
 
-        function generateKiroConfig(env, certPath) {
-            return JSON.stringify({
-                mcpServers: {
-                    sonarqube: {
-                        command: 'docker',
-                        args: buildDockerArgs(env, certPath),
-                        env,
-                        disabled: false,
-                        autoApprove: []
+        // Switch Logic Based on HTTP Mode & Agent
+        if (state.transport === 'http' && state.httpMode === 'launch') {
+            instructions = "🖧 <strong>Launch the HTTP Server</strong>: Run this command in your terminal to host the MCP server.";
+            // For Docker command visualization
+            let cmd = 'docker run \\\n  --init --pull=always \\\n  -d -p ' + httpPort + ':' + httpPort + ' \\';
+            if (certPath) cmd += `\n  -v ${certPath}:/usr/local/share/ca-certificates/:ro \\`;
+
+            for (const [k, v] of Object.entries(envVars)) {
+                cmd += `\n  -e ${k}="${v}" \\`;
+            }
+            cmd += '\n  mcp/sonarqube';
+
+            code = cmd;
+        } else {
+            // STDIO or HTTP_CLIENT Modes customized to agent
+            switch (state.agent) {
+                case 'antigravity':
+                    instructions = `📄 <strong>Google Antigravity config</strong>: In the Agent Side Panel, click the three dots, select <strong>MCP Store</strong> > <strong>Manage MCP Servers</strong> > <strong>View raw config</strong>, and paste this into the <code>mcp_config.json</code> file.`;
+                    if (state.transport === 'http') {
+                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'http', url: httpHost}}}, null, 2);
+                    } else {
+                        let agEnv = {};
+                        for (const [k, v] of Object.entries(envVars)) agEnv[k] = v;
+                        code = JSON.stringify({mcpServers: {sonarqube: {command: "docker", args: getDockerArgs(), env: agEnv}}}, null, 2);
                     }
-                }
-            }, null, 2);
+                    break;
+
+                case 'claude':
+                    instructions = `🔌 <strong>Claude Code / Desktop</strong>: Run the command below for Claude Code, or select 'Generic JSON' to copy the config for Claude Desktop.`;
+                    if (state.transport === 'http') {
+                        code = `claude mcp add --transport http sonarqube ${httpHost}`;
+                    } else {
+                        let cmd = 'claude mcp add --transport stdio sonarqube \\\n';
+                        for (const [k, v] of Object.entries(envVars)) {
+                            cmd += `  --env ${k}="${v}" \\\n`;
+                        }
+                        cmd += '  -- docker ' + getDockerArgs().join(' ');
+                        code = cmd;
+                    }
+                    break;
+
+                case 'cursor':
+                    instructions = `📄 <strong>Cursor IDE config</strong>: Add this to your <code>.cursor/mcp.json</code> file in your workspace.`;
+                    if (state.transport === 'http') {
+                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'http', url: httpHost}}}, null, 2);
+                    } else {
+                        let cursorEnv = {};
+                        for (const [k, v] of Object.entries(envVars)) cursorEnv[k] = v;
+                        code = JSON.stringify({
+                            mcpServers: {
+                                sonarqube: {
+                                    command: "docker",
+                                    args: getDockerArgs(),
+                                    env: cursorEnv
+                                }
+                            }
+                        }, null, 2);
+                    }
+                    break;
+
+                case 'vscode':
+                    instructions = String.raw`📄 <strong>VS Code config</strong>: Add this to your MCP configuration file (e.g., <code>cline_mcp_settings.json</code> if using Roo Cline, or <code>.vscode/mcp.json</code> for native VS Code MCP).`;
+                    if (state.transport === 'http') {
+                        code = JSON.stringify({servers: {sonarqube: {type: "http", url: httpHost}}}, null, 2);
+                    } else {
+                        let vsEnv = {};
+                        for (const [k, v] of Object.entries(envVars)) vsEnv[k] = v;
+                        code = JSON.stringify({servers: {sonarqube: {command: "docker", args: getDockerArgs(), env: vsEnv}}}, null, 2);
+                    }
+                    break;
+
+                case 'windsurf':
+                    instructions = String.raw`📄 <strong>Windsurf config</strong>: Add this configuration to your <code>mcp_config.json</code> file (typically in <code>~/.codeium/windsurf/</code>).`;
+                    if (state.transport === 'http') {
+                        code = JSON.stringify({mcpServers: {sonarqube: {serverUrl: httpHost}}}, null, 2);
+                    } else {
+                        code = renderJsonForClient();
+                    }
+                    break;
+
+                case 'zed':
+                    instructions = "📄 <strong>Zed IDE</strong>: Install the 'SonarQube' extension in Zed. Then add this block to your Zed <code>settings.json</code> file (Cmd + , -> Open Settings JSON).";
+                    if (state.transport === 'http') {
+                        instructions = "❌ <strong>Zed IDE HTTP</strong>: The SonarQube Zed extension currently only supports Docker/Studio transport, not HTTP. Please switch to Stdio.";
+                        code = "HTTP is not supported by the SonarQube Zed Extension.";
+                    } else {
+                        let zedCfg = {};
+                        if (envVars["SONARQUBE_TOKEN"]) zedCfg["sonarqube_token"] = envVars["SONARQUBE_TOKEN"];
+                        if (envVars["SONARQUBE_URL"]) zedCfg["sonarqube_url"] = envVars["SONARQUBE_URL"];
+                        if (envVars["SONARQUBE_ORG"]) zedCfg["sonarqube_org"] = envVars["SONARQUBE_ORG"];
+                        zedCfg["docker_path"] = "/usr/local/bin/docker";
+                        code = JSON.stringify(zedCfg, null, 2);
+                    }
+                    break;
+
+                case 'kiro':
+                    instructions = `📄 <strong>Kiro config</strong>: Add this to your <code>mcp.json</code> file (Workspace: <code>.kiro/settings/mcp.json</code> or Global: <code>~/.kiro/settings/mcp.json</code>).`;
+                    code = renderJsonForClient();
+                    break;
+
+                case 'copilot-cli':
+                    instructions = "🔌 <strong>GitHub Copilot CLI</strong>: Run <code>/mcp add</code> in your terminal and step through the prompts, or paste this into <code>~/.copilot/mcp-config.json</code> (Global) or <code>.copilot/mcp-config.json</code> (Workspace).";
+                    if (state.transport === 'http') {
+                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'http', url: httpHost, tools: ['*']}}}, null, 2);
+                    } else {
+                        let copilotEnv = {};
+                        for (const [k, v] of Object.entries(envVars)) copilotEnv[k] = v;
+                        code = JSON.stringify({
+                            mcpServers: {
+                                sonarqube: {
+                                    type: 'local',
+                                    command: "docker",
+                                    args: getDockerArgs(),
+                                    env: copilotEnv,
+                                    tools: ['*']
+                                }
+                            }
+                        }, null, 2);
+                    }
+                    break;
+
+                case 'copilot-agent':
+                    instructions = "🔌 <strong>GitHub Copilot Workspace</strong>: Paste this JSON object into your GitHub Copilot Workspace repository settings (Settings -> Copilot -> Coding agent -> MCP Servers).";
+                    if (state.transport === 'http') {
+                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'http', url: httpHost, tools: ['*']}}}, null, 2);
+                    } else {
+                        let copilotEnv = {};
+                        for (const [k, v] of Object.entries(envVars)) copilotEnv[k] = `COPILOT_MCP_${k}`;
+                        code = JSON.stringify({
+                            mcpServers: {
+                                sonarqube: {
+                                    type: 'local',
+                                    command: 'docker',
+                                    args: getDockerArgs(),
+                                    env: copilotEnv,
+                                    tools: ['*']
+                                }
+                            }
+                        }, null, 2);
+                    }
+                    break;
+
+                case 'gemini':
+                    instructions = "🔌 <strong>Gemini CLI</strong>: Run this command in your terminal to add the SonarQube MCP server.";
+                    if (state.transport === 'http') {
+                        code = `gemini mcp add --transport http sonarqube ${httpHost}`;
+                    } else {
+                        let cmd = 'gemini mcp add ';
+                        for (const [k, v] of Object.entries(envVars)) {
+                            cmd += `-e ${k}="${v}" `;
+                        }
+                        cmd += 'sonarqube docker ' + getDockerArgs().join(' ');
+                        code = cmd;
+                    }
+                    break;
+
+                case 'codex':
+                    instructions = "📄 <strong>Codex CLI</strong>: Append these lines directly to your <code>~/.codex/config.toml</code> file.";
+                    if (state.transport === 'http') {
+                        code = `[mcp_servers.sonarqube]\nurl = "${httpHost}"`;
+                    } else {
+                        code = `[mcp_servers.sonarqube]\ncommand = "docker"\nargs = ${JSON.stringify(getDockerArgs())}`;
+                        if (Object.keys(envVars).length > 0) {
+                            code += `\n\n[mcp_servers.sonarqube.env]\n`;
+                            for (const [k, v] of Object.entries(envVars)) {
+                                code += `${k} = "${v}"\n`;
+                            }
+                        }
+                    }
+                    break;
+
+                case 'generic':
+                    instructions = "📄 <strong>Generic JSON</strong>: Useful for integrations that accept pure MCP schemas.";
+                    code = renderJsonForClient();
+                    break;
+            }
         }
 
-        function generateWindsurfConfig(env) {
-            let config = '';
-            Object.entries(env).forEach(([key, value]) => {
-                config += `${key}: ${value}\n`;
-            });
-            return config;
+        // Apply warning if token is included
+        if (rawToken) {
+            instructions += "<br><span style='color:var(--danger);font-weight:600;'>⚠️ Warning: Your private token is exposed in the output block below. Do not share it.</span>";
         }
 
-        function generateZedConfig(env) {
-            const zedEnv = { docker_path: '/usr/bin/docker' };
-            Object.entries(env).forEach(([key, value]) => {
-                zedEnv[key.toLowerCase()] = value;
-            });
-            return JSON.stringify(zedEnv, null, 2);
-        }
+        // Render
+        const alertBox = document.getElementById('instructionAlert');
+        alertBox.innerHTML = `<div>${instructions}</div>`;
+        alertBox.classList.remove('hidden');
 
-        const FEEDBACK_TIMEOUT_MS = 2000;
-        
-        function copyConfig() {
-            const config = document.getElementById('configOutput').textContent;
-            navigator.clipboard.writeText(config).then(() => {
-                const feedback = document.getElementById('copyFeedback');
-                feedback.classList.add('show');
-                setTimeout(() => {
-                    feedback.classList.remove('show');
-                }, FEEDBACK_TIMEOUT_MS);
-            });
-        }
+        document.getElementById('codeOutput').textContent = code;
+    }
 
-        // Initialize
-        updateTokenHelpLink('cloud');
-        updatePreview();
-    </script>
+    function copyCode() {
+        const code = document.getElementById('codeOutput').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            const toast = document.getElementById('copyToast');
+            toast.classList.add('show');
+
+            const btn = document.getElementById('copyBtn');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '✓ Copied!';
+            btn.style.backgroundColor = 'var(--success)';
+            btn.style.boxShadow = '0 4px 14px 0 rgba(16, 185, 129, 0.39)';
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                btn.innerHTML = origHtml;
+                btn.style.backgroundColor = '';
+                btn.style.boxShadow = '';
+            }, 2000);
+        });
+    }
+</script>
 </body>
 </html>
