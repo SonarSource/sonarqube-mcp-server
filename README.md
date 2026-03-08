@@ -25,6 +25,60 @@ The simplest method is to rely on our container image hosted at [mcp/sonarqube](
 - **Use environment variable substitution** in config files when possible
 
 <details>
+<summary>Antigravity</summary>
+
+SonarQube MCP Server is available in the Antigravity MCP Store. Follow these instructions:
+
+1. Open the **Agent Side Panel**
+2. Click the three dots (**...**) at the top right and select **MCP Servers**
+3. Search for `SonarQube` and select **Install**
+4. Provide the required SonarQube User token. You can also provide your organization key for SonarQube Cloud or the SonarQube URL if connecting to SonarQube Server.
+
+For **SonarQube Cloud US**, set the URL to `https://sonarqube.us`.
+
+Alternatively, you can manually configure the server via `mcp_config.json`:
+
+* To connect with SonarQube Cloud:
+
+In the Agent Side Panel, click the three dots (**...**) -> **MCP Store** -> **Manage MCP Servers** -> **View raw config**, and add the following:
+
+```json
+{
+  "mcpServers": {
+    "sonarqube": {
+      "command": "docker",
+      "args": ["run", "--init", "--pull=always", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"],
+      "env": {
+        "SONARQUBE_TOKEN": "<YOUR_TOKEN>",
+        "SONARQUBE_ORG": "<YOUR_ORG>"
+      }
+    }
+  }
+}
+```
+
+For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section and `"-e", "SONARQUBE_URL"` to the `args` array.
+
+* To connect with SonarQube Server:
+
+```json
+{
+  "mcpServers": {
+    "sonarqube": {
+      "command": "docker",
+      "args": ["run", "--init", "--pull=always", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_URL", "mcp/sonarqube"],
+      "env": {
+        "SONARQUBE_TOKEN": "<YOUR_USER_TOKEN>",
+        "SONARQUBE_URL": "<YOUR_SERVER_URL>"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
 <summary>Claude Code</summary>
 
 * To connect with SonarQube Cloud:
