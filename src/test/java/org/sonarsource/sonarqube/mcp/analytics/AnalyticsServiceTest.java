@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.analytics;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -136,6 +138,41 @@ class AnalyticsServiceTest {
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
     assertThat(captor.getValue().transportMode()).isEqualTo("http");
+  }
+
+  @Test
+  void it_should_execute_submitted_tasks() throws InterruptedException {
+    var service = new AnalyticsService(mockClient, "server-id", "1.0.0", false, false, false);
+    var executed = new AtomicBoolean(false);
+    var latch = new CountDownLatch(1);
+
+    service.submit(() -> {
+      executed.set(true);
+      latch.countDown();
+    });
+
+    latch.await();
+    assertThat(executed).isTrue();
+    service.shutdown();
+  }
+
+  @Test
+  void it_should_shutdown_gracefully() throws InterruptedException {
+    var service = new AnalyticsService(mockClient, "server-id", "1.0.0", false, false, false);
+    var latch = new CountDownLatch(1);
+
+    service.submit(latch::countDown);
+    latch.await();
+    service.shutdown();
+
+    // A second shutdown on an already-terminated executor must be a no-op
+    var threwException = new AtomicBoolean(false);
+    try {
+      service.shutdown();
+    } catch (Exception e) {
+      threwException.set(true);
+    }
+    assertThat(threwException).isFalse();
   }
 
   @Test
