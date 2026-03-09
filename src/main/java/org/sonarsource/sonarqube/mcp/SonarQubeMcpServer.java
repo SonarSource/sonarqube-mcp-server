@@ -234,8 +234,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     backendService.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
     backendService.notifyTransportModeUsed();
 
-    // Initialize proxied MCP servers and load their tools synchronously
-    loadProxiedServerTools();
+    setBaseInstructions();
+
+    // Initialize proxied MCP servers and load their tools synchronously (only when CAG toolset is enabled)
+    // To improve in https://sonarsource.atlassian.net/browse/MCP-337
+    if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)) {
+      loadProxiedServerTools();
+    } else {
+      LOG.debug("CAG toolset is not enabled, skipping proxied server initialization");
+    }
 
     if (mcpConfiguration.isAdvancedAnalysisEnabled() && mcpConfiguration.isSonarCloud()) {
       LOG.info("Advanced analysis mode enabled");
@@ -395,21 +402,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var currentTransportMode = mcpConfiguration.isHttpEnabled() ? TransportMode.HTTP : TransportMode.STDIO;
     var proxiedTools = proxiedToolsLoader.loadProxiedTools(currentTransportMode);
     supportedTools.addAll(proxiedTools);
-    var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
-    LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);
 
-    // Select base instructions based on whether ANALYSIS tools are enabled
-    var baseInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
-      ? BASE_INSTRUCTIONS_WITH_ANALYSIS
-      : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
-
-    // Compose instructions with proxied provider contributions
     var parseResult = ProxiedServerConfigParser.parse();
     if (parseResult.success() && !parseResult.configs().isEmpty()) {
-      composedInstructions = ProxiedToolsLoader.composeInstructions(baseInstructions, parseResult.configs());
-    } else {
-      composedInstructions = baseInstructions;
+      composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, parseResult.configs());
     }
+  }
+
+  private void setBaseInstructions() {
+    composedInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
+      ? BASE_INSTRUCTIONS_WITH_ANALYSIS
+      : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
   }
 
   private List<Tool> filterForEnabledTools(List<Tool> toolsToFilter) {

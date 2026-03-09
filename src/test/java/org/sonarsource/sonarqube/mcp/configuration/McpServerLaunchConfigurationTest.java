@@ -203,7 +203,6 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.WEBHOOKS)).isFalse();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.SECURITY_HOTSPOTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)).isTrue();
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.EXTERNAL)).isTrue();
   }
 
   @Test

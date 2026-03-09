@@ -33,7 +33,7 @@ public class ProxiedMcpTool extends Tool {
 
   public ProxiedMcpTool(String serverId, String originalToolName, McpSchema.Tool originalTool,
     McpClientManager clientManager) {
-    super(createProxyDefinition(originalToolName, originalTool), ToolCategory.EXTERNAL);
+    super(createProxyDefinition(originalToolName, originalTool), ToolCategory.CAG);
     this.serverId = serverId;
     this.originalToolName = originalToolName;
     this.clientManager = clientManager;

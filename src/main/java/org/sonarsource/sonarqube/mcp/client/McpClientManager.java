@@ -222,7 +222,7 @@ public class McpClientManager {
           // Only inherit if not already explicitly set in config
           filteredEnv.putIfAbsent(inheritKey, parentEnv.get(inheritKey));
         } else {
-          LOG.warn("Cannot inherit '" + inheritKey + "' for '" + config.name() + "': variable not found in parent environment");
+          LOG.debug("Cannot inherit '" + inheritKey + "' for '" + config.name() + "': variable not found in parent environment");
         }
       }
     }
