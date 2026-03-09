@@ -32,16 +32,24 @@ class HttpClientAdapter implements HttpClient {
   private static final String ORIGIN_HEADER = "Origin";
   private static final String HOST_HEADER = "Host";
   private static final String AUTHORIZATION_HEADER = "Authorization";
+  private static final String X_API_KEY_HEADER = "x-api-key";
   private static final String LOCALHOST = "localhost";
   private static final String LOCALHOST_ORIGIN = "http://localhost";
   private final CloseableHttpAsyncClient apacheClient;
   private final String token;
   private final boolean isBridgeClient;
+  @Nullable
+  private final String apiKey;
 
   HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient) {
+    this(apacheClient, sonarqubeCloudToken, isBridgeClient, null);
+  }
+
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, @Nullable String apiKey) {
     this.apacheClient = apacheClient;
     this.token = sonarqubeCloudToken;
     this.isBridgeClient = isBridgeClient;
+    this.apiKey = apiKey;
   }
 
   @Override
@@ -128,6 +136,9 @@ class HttpClientAdapter implements HttpClient {
     try {
       if (tokenToUse != null) {
         httpRequest.setHeader(AUTHORIZATION_HEADER, bearer(tokenToUse));
+      }
+      if (apiKey != null) {
+        httpRequest.setHeader(X_API_KEY_HEADER, apiKey);
       }
       return new CompletableFutureWrappingFuture(httpRequest);
     } catch (Exception e) {

@@ -23,6 +23,7 @@ import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures;
 import io.modelcontextprotocol.server.McpStatelessSyncServer;
 import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpServerTransportProvider;
 import java.util.ArrayList;
@@ -37,6 +38,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
+import org.sonarsource.sonarqube.mcp.analytics.AnalyticsClient;
+import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
+import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.client.ProxiedServerConfigParser;
 import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
@@ -108,6 +112,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private final McpServerLaunchConfiguration mcpConfiguration;
   private HttpClientProvider httpClientProvider;
   private String composedInstructions;
+  @Nullable
+  private AnalyticsService analyticsService;
+  private final ConnectionContext connectionContext = ConnectionContext.empty();
 
   /**
    * ServerApi instance used for startup probing (version check, SCA availability, plugin sync).
@@ -200,7 +207,19 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void initializeBasicServicesAndTools() {
     this.backendService = new BackendService(mcpConfiguration);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
-    this.toolExecutor = new ToolExecutor(backendService);
+
+    if (mcpConfiguration.isTelemetryEnabled()) {
+      var analyticsHttpClient = httpClientProvider.getHttpClientForAnalytics(AnalyticsClient.resolveApiKey());
+      var analyticsClient = new AnalyticsClient(analyticsHttpClient);
+      this.analyticsService = new AnalyticsService(analyticsClient, mcpConfiguration.getMcpServerId(),
+        mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarCloud());
+    }
+
+    // In stdio mode: pass the shared pre-resolved ConnectionContext
+    // In HTTP mode: pass a supplier that captures the request-scoped ServerApi synchronously to the async analytics task
+    this.toolExecutor = mcpConfiguration.isHttpEnabled()
+      ? new ToolExecutor(backendService, analyticsService, null, this)
+      : new ToolExecutor(backendService, analyticsService, connectionContext, null);
 
     // Create ServerApi for startup probing (version check, SCA availability, plugin sync).
     // In HTTP mode this is optional — only created when a startup token is configured.
@@ -243,6 +262,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void initializeBackgroundServices() {
     try {
       logInitialization();
+
+      // In stdio mode the token is fixed
+      if (mcpConfiguration.isTelemetryEnabled() && !mcpConfiguration.isHttpEnabled() && serverApi != null) {
+        connectionContext.resolveFrom(serverApi);
+      }
 
       // Check if ANALYSIS tools are enabled before downloading analyzers
       if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)) {
@@ -410,8 +434,21 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private McpServerFeatures.SyncToolSpecification toStdioSpec(Tool tool) {
     return new McpServerFeatures.SyncToolSpecification.Builder()
       .tool(tool.definition())
-      .callHandler((exchange, toolRequest) -> toolExecutor.execute(tool, toolRequest))
+      .callHandler((exchange, toolRequest) -> {
+        captureCallingAgent(exchange);
+        return toolExecutor.execute(tool, toolRequest);
+      })
       .build();
+  }
+
+  private void captureCallingAgent(McpSyncServerExchange exchange) {
+    if (!mcpConfiguration.isTelemetryEnabled()) {
+      return;
+    }
+    var clientInfo = exchange.getClientInfo();
+    if (clientInfo != null) {
+      connectionContext.captureCallingAgent(clientInfo.name(), clientInfo.version());
+    }
   }
 
   private void logInitialization() {
@@ -526,7 +563,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     shutdownHttpServer();
     shutdownHttpClient();
     shutdownMcpServer();
+    shutdownAnalytics();
     shutdownBackend();
+  }
+
+  private void shutdownAnalytics() {
+    if (analyticsService != null) {
+      analyticsService.shutdown();
+    }
   }
 
   private void shutdownProxiedServers() {
