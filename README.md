@@ -569,11 +569,12 @@ Depending on your environment, you should provide specific environment variables
 
 You should add the following variable when running the MCP Server:
 
-| Environment variable        | Description                                                                                                                                                                                                 |
-|-----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `STORAGE_PATH`              | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using the container image |
-| `SONARQUBE_IDE_PORT`        | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                                   |
-| `SONARQUBE_DEBUG_ENABLED`   | When set to `true`, enables debug logging. Debug logs are written to both the log file and STDERR. Useful for troubleshooting connectivity or configuration issues. Default: `false`.                       |
+| Environment variable        | Description                                                                                                                                                                                                                 |
+|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `STORAGE_PATH`              | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using the container image                 |
+| `SONARQUBE_PROJECT_KEY`     | Optional default project key. When set, all tools that require a project key will use this value automatically — the `projectKey` parameter is removed from their schema entirely. Useful when working on a single project. |
+| `SONARQUBE_IDE_PORT`        | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                                                   |
+| `SONARQUBE_DEBUG_ENABLED`   | When set to `true`, enables debug logging. Debug logs are written to both the log file and STDERR. Useful for troubleshooting connectivity or configuration issues. Default: `false`.                                       |
 
 ### Advanced Analysis
 
@@ -876,7 +877,7 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
   - Add optional `codeSnippet` to filter results - only issues within the snippet will be reported (snippet location auto-detected)
   
   Parameters:
-  - `projectKey` - The SonarQube project key - _Required String_
+  - `projectKey` - The SonarQube project key - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
   - `fileContent` - Complete file content as a string - _Required String_
   - `codeSnippet` - Code snippet to filter issues (must match content in fileContent) - _String_
   - `language` - Language of the code (e.g., 'java', 'python', 'javascript') - _String_
@@ -897,7 +898,7 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 > **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud users with access enabled.
 
 - **run_advanced_code_analysis** - Run advanced code analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.
-    - `projectKey` - The key of the project - _Required String_
+    - `projectKey` - The key of the project - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
     - `branchName` - Branch name used to retrieve the latest analysis context - _Required String_
     - `filePath` - Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java') - _Required String_
     - `fileContent` - The original content of the file to analyze - _Required String_
@@ -906,7 +907,7 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 ### Coverage
 
 - **search_files_by_coverage** - Search for files in a project sorted by coverage (ascending - worst coverage first). This tool helps identify files that need test coverage improvements.
-  - `projectKey` - The project key to search in - _Required String_
+  - `projectKey` - The project key to search in - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
   - `pullRequest` - Pull request id to analyze - _String_
   - `maxCoverage` - Maximum coverage threshold (0-100). Only return files with coverage <= this value - _Number_
   - `pageIndex` - Page index (1-based, default: 1) - _Number_
@@ -924,7 +925,7 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 **Note: Dependency risks are only available when connecting to SonarQube Server 2025.4 Enterprise or higher with SonarQube Advanced Security enabled.**
 
 - **search_dependency_risks** - Search for software composition analysis issues (dependency risks) of a SonarQube project, paired with releases that appear in the analyzed project, application, or portfolio.
-  - `projectKey` - Project key - _String_
+  - `projectKey` - Project key - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
   - `branchKey` - Optional branch key - _String_
   - `pullRequestKey` - Optional pull request key - _String_
 
@@ -1042,7 +1043,7 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 ### Duplications
 
 - **search_duplicated_files** - Search for files with code duplications in a SonarQube project. By default, automatically fetches all duplicated files across all pages (up to 10,000 files max). Returns only files with duplications.
-  - `projectKey` - Project key - _Required String_
+  - `projectKey` - Project key - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
   - `pullRequest` - Optional pull request id - _String_
   - `pageSize` - Optional number of results per page for manual pagination (max: 500). If not specified, auto-fetches all duplicated files - _Integer_
   - `pageIndex` - Optional page number for manual pagination (starts at 1). If not specified, auto-fetches all duplicated files - _Integer_

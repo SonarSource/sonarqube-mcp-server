@@ -55,6 +55,9 @@ public class McpServerLaunchConfiguration {
   public static final String SONARQUBE_TOOLSETS = "SONARQUBE_TOOLSETS";
   public static final String SONARQUBE_READ_ONLY = "SONARQUBE_READ_ONLY";
   
+  // Default project key configuration
+  public static final String SONARQUBE_PROJECT_KEY = "SONARQUBE_PROJECT_KEY";
+
   // Advanced analysis configuration
   private static final String SONARQUBE_ADVANCED_ANALYSIS_ENABLED = "SONARQUBE_ADVANCED_ANALYSIS_ENABLED";
 
@@ -117,6 +120,10 @@ public class McpServerLaunchConfiguration {
   private final Set<ToolCategory> enabledToolsets;
   private final boolean isReadOnlyMode;
   
+  // Default project key configuration
+  @Nullable
+  private final String sonarqubeProjectKey;
+
   // Advanced analysis configuration
   private final boolean isAdvancedAnalysisEnabled;
 
@@ -201,6 +208,8 @@ public class McpServerLaunchConfiguration {
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
 
     this.isAdvancedAnalysisEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ADVANCED_ANALYSIS_ENABLED, "false"));
+
+    this.sonarqubeProjectKey = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_PROJECT_KEY, null);
 
     this.mcpServerId = UUID.randomUUID().toString();
   }
@@ -454,6 +463,16 @@ public class McpServerLaunchConfiguration {
    */
   public boolean isAdvancedAnalysisEnabled() {
     return isAdvancedAnalysisEnabled;
+  }
+
+  /**
+   * Returns the default project key configured via SONARQUBE_PROJECT_KEY.
+   * When set, all tools that accept a projectKey will use this as a fallback when no projectKey
+   * is provided in the tool call arguments.
+   */
+  @Nullable
+  public String getProjectKey() {
+    return sonarqubeProjectKey;
   }
 
   /**

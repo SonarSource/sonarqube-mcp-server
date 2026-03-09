@@ -65,11 +65,13 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
   private final BackendService backendService;
   private final ServerApiProvider serverApiProvider;
+  @Nullable
+  private final String configuredProjectKey;
 
   private final CompletableFuture<Void> initializationFuture;
 
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
-    CompletableFuture<Void> initializationFuture) {
+    CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey) {
     super(SchemaToolBuilder.forOutput(AnalyzeCodeSnippetToolResponse.class)
         .setName(TOOL_NAME)
         .setTitle("SonarQube Code Analysis")
@@ -77,7 +79,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
           "Always pass the complete file content for accurate analysis. Optionally provide a code snippet to filter issues - " +
           "only issues within the snippet will be reported (snippet location is auto-detected). " +
           "Always specify the language and the file scope (MAIN or TEST) for more accurate results.")
-        .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key")
+        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key", configuredProjectKey)
         .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "Complete file content to analyze")
         .addStringProperty(SNIPPET_PROPERTY, "Code snippet to filter issues - must match content within fileContent")
         .addEnumProperty(LANGUAGE_PROPERTY, VALID_LANGUAGES, "Language of the code (e.g., 'java', 'python', 'js')")
@@ -88,6 +90,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
     this.initializationFuture = initializationFuture;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
@@ -104,7 +107,9 @@ public class AnalyzeCodeSnippetTool extends Tool {
       Thread.currentThread().interrupt();
       return handleInitializationError(e, startTime);
     }
-    var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
+    var projectKey = configuredProjectKey != null
+      ? arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey)
+      : arguments.getOptionalString(PROJECT_KEY_PROPERTY);
     var fileContent = arguments.getStringOrThrow(FILE_CONTENT_PROPERTY);
     var codeSnippet = arguments.getOptionalString(SNIPPET_PROPERTY);
     var scope = arguments.getEnumOrDefault(SCOPE_PROPERTY, VALID_SCOPES, "MAIN");

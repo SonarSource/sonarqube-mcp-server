@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import java.util.List;
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -37,15 +38,17 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private static final String[] VALID_FILE_SCOPES = {"MAIN", "TEST"};
 
   private final ServerApiProvider serverApiProvider;
+  @Nullable
+  private final String configuredProjectKey;
 
-  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider) {
+  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
     super(SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("SonarQube Advanced Code Analysis")
       .setDescription("Run advanced code analysis on a single file using SonarQube Cloud's server-side engine. " +
         "Identifies code quality and security issues, leveraging the project's full analysis context for deeper cross-file detection. " +
         "Always specify the file scope (MAIN or TEST) for more accurate results.")
-      .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The key of the project.")
+      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The key of the project.", configuredProjectKey)
       .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "The branch name used to retrieve the latest analysis context from SonarQube Cloud.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
       .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The full content of the file to analyze.")
@@ -54,6 +57,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .build(),
       ToolCategory.ANALYSIS);
     this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
@@ -71,10 +75,10 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     return Result.success(toolResponse);
   }
 
-  private static AnalysisCreationRequest extractRequest(Arguments arguments, String organizationKey, String scope) {
+  private AnalysisCreationRequest extractRequest(Arguments arguments, String organizationKey, String scope) {
     return new AnalysisCreationRequest(
       organizationKey,
-      arguments.getStringOrThrow(PROJECT_KEY_PROPERTY),
+      arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey),
       arguments.getStringOrThrow(BRANCH_NAME_PROPERTY),
       arguments.getStringOrThrow(FILE_PATH_PROPERTY),
       arguments.getStringOrThrow(FILE_CONTENT_PROPERTY),

@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.pullrequests;
 
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -27,24 +28,27 @@ public class ListPullRequestsTool extends Tool {
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
 
   private final ServerApiProvider serverApiProvider;
+  @Nullable
+  private final String configuredProjectKey;
 
-  public ListPullRequestsTool(ServerApiProvider serverApiProvider) {
+  public ListPullRequestsTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
     super(SchemaToolBuilder.forOutput(ListPullRequestsToolResponse.class)
         .setName(TOOL_NAME)
         .setTitle("List SonarQube Pull Requests")
         .setDescription("List all pull requests for a project. " +
           "Use this tool to discover available pull requests and their corresponding branch names before analyzing their coverage, issues, or quality. " +
           "Returns the pull request key/ID and source branch for each PR, which can be used with other tools that accept a pullRequest parameter.")
-        .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)")
+        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)", configuredProjectKey)
         .setReadOnlyHint()
         .build(),
       ToolCategory.PROJECTS);
     this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var projectKey = arguments.getStringOrThrow(PROJECT_KEY_PROPERTY);
+    var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
 
     var response = serverApiProvider.get().pullRequestsApi().listPullRequests(projectKey);
 

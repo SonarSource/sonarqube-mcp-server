@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public class SchemaToolBuilder {
 
@@ -112,6 +113,19 @@ public class SchemaToolBuilder {
     addEnumProperty(propertyName, items, description);
     requiredProperties.add(propertyName);
     return this;
+  }
+
+  /**
+   * Adds a project key property only when no default project key is configured.
+   * When {@code configuredProjectKey} is non-null, the property is omitted from the schema
+   * entirely — the configured default is used automatically at runtime.
+   * When {@code null}, the property is added as a required parameter.
+   */
+  public SchemaToolBuilder addProjectKeyProperty(String propertyName, String description, @Nullable String configuredProjectKey) {
+    if (configuredProjectKey != null) {
+      return this;
+    }
+    return addRequiredStringProperty(propertyName, description);
   }
 
   /**
