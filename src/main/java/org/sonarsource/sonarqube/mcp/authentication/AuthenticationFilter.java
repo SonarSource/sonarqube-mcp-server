@@ -159,7 +159,7 @@ public class AuthenticationFilter implements Filter {
    * and falling back to the deprecated {@code SONARQUBE_TOKEN} header with a warning.
    */
   @Nullable
-  private static String extractToken(HttpServletRequest request) {
+  public static String extractToken(HttpServletRequest request) {
     var bearerToken = extractBearerToken(request);
     if (bearerToken != null) {
       return bearerToken;
@@ -178,7 +178,7 @@ public class AuthenticationFilter implements Filter {
    * Returns {@code null} if the header is absent or does not use the Bearer scheme.
    */
   @Nullable
-  public static String extractBearerToken(HttpServletRequest request) {
+  private static String extractBearerToken(HttpServletRequest request) {
     var authHeader = request.getHeader(AUTHORIZATION_HEADER);
     if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
       return null;

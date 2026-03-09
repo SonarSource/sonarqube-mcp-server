@@ -124,7 +124,7 @@ class AuthenticationIntegrationTest {
   void should_allow_request_with_deprecated_sonarqube_token_header() throws Exception {
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
