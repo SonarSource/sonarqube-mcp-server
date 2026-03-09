@@ -683,7 +683,7 @@
                     <div class="grid-options" id="toolsetsGrid">
                         <label class="checkbox-label"><input type="checkbox" id="tool-analysis" checked onchange="generateConfig()">
                             Analysis</label>
-                        <label class="checkbox-label"><input type="checkbox" id="tool-projects" checked onchange="generateConfig()">
+                        <label class="checkbox-label" style="opacity: 0.7;" title="The Projects toolset is required and automatically enabled."><input type="checkbox" id="tool-projects" checked disabled onchange="generateConfig()">
                             Projects</label>
                         <label class="checkbox-label"><input type="checkbox" id="tool-issues" checked onchange="generateConfig()">
                             Issues</label>
@@ -933,17 +933,21 @@
             let selectedToolsets = [];
             let hasNonDefault = false;
             document.querySelectorAll('#toolsetsGrid input[type="checkbox"]').forEach(cb => {
-                if (cb.id.startsWith('tool-') && cb.id !== 'tool-analysis' && cb.id !== 'tool-projects') {
+                if (cb.id.startsWith('tool-')) {
                     const name = cb.id.replace('tool-', '');
                     if (cb.checked) {
                         selectedToolsets.push(name);
                         if (!DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
-                    } else if (DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
+                    } else {
+                        // If it's disabled like projects, it shouldn't trigger a non-default update if we can't uncheck it, but standard flow handles it.
+                        if (!cb.disabled && DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
+                    }
                 }
             });
 
             if (hasNonDefault) {
-                envVars['SONARQUBE_TOOLSETS'] = ['analysis', 'projects', ...selectedToolsets].join(',');
+                // Remove duplicates if any, joined smoothly
+                envVars['SONARQUBE_TOOLSETS'] = selectedToolsets.join(',');
             }
         }
 
