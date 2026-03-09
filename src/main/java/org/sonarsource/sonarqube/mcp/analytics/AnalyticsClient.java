@@ -72,27 +72,24 @@ public class AnalyticsClient {
             LOG.debug("Analytics event rejected (HTTP " + response.code() + "), not retrying: " + response.bodyAsString());
             return;
           }
-          if (attempt < MAX_RETRIES) {
-            var nextAttempt = attempt + 1;
-            var delayMs = RETRY_BASE_DELAY_MS * (long) Math.pow(2, attempt);
-            LOG.debug("Analytics event failed (HTTP " + response.code() + "), retrying in " + delayMs + "ms (attempt " + nextAttempt + "/" + MAX_RETRIES + ")");
-            CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS).execute(() -> sendWithRetry(json, nextAttempt));
-          } else {
-            LOG.debug("Analytics event failed after " + MAX_RETRIES + " retries (HTTP " + response.code() + ")");
-          }
+          scheduleRetry(json, attempt, "HTTP " + response.code());
         }
       })
       .exceptionally(ex -> {
-        if (attempt < MAX_RETRIES) {
-          var nextAttempt = attempt + 1;
-          var delayMs = RETRY_BASE_DELAY_MS * (long) Math.pow(2, attempt);
-          LOG.debug("Analytics event failed (" + ex.getMessage() + "), retrying in " + delayMs + "ms (attempt " + nextAttempt + "/" + MAX_RETRIES + ")");
-          CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS).execute(() -> sendWithRetry(json, nextAttempt));
-        } else {
-          LOG.debug("Analytics event failed after " + MAX_RETRIES + " retries: " + ex.getMessage());
-        }
+        scheduleRetry(json, attempt, ex.getMessage());
         return null;
       });
+  }
+
+  private void scheduleRetry(String json, int attempt, String reason) {
+    if (attempt < MAX_RETRIES) {
+      var nextAttempt = attempt + 1;
+      var delayMs = RETRY_BASE_DELAY_MS * (long) Math.pow(2, attempt);
+      LOG.debug("Analytics event failed (" + reason + "), retrying in " + delayMs + "ms (attempt " + nextAttempt + "/" + MAX_RETRIES + ")");
+      CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS).execute(() -> sendWithRetry(json, nextAttempt));
+    } else {
+      LOG.debug("Analytics event failed after " + MAX_RETRIES + " retries (" + reason + ")");
+    }
   }
 
   private static AnalyticsEnvelope buildEnvelope(AnalyticsEvent event) {
