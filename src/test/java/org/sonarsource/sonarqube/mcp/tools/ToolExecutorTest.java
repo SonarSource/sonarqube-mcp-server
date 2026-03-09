@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
@@ -31,6 +32,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
@@ -39,15 +41,16 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
-import java.util.stream.Stream;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
@@ -180,6 +183,100 @@ class ToolExecutorTest {
     verify(analyticsService, timeout(2000)).notifyToolInvoked(anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(),
       errorTypeCaptor.capture(), anyLong(), anyLong());
     assertThat(errorTypeCaptor.getValue()).isEqualTo(expectedErrorType);
+  }
+
+  @Test
+  void it_should_skip_analytics_when_service_is_null() {
+    var executor = new ToolExecutor(mockBackendService, null, ConnectionContext.empty(), null);
+
+    var result = executeDummyTool(executor);
+
+    assertThat(result.isError()).isFalse();
+  }
+
+  @Test
+  void it_should_dispatch_event_in_stdio_mode_with_pre_resolved_context() {
+    var analyticsService = syncAnalyticsService();
+    var ctx = ConnectionContext.empty();
+    ctx.captureCallingAgent("cursor", "1.0.0");
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ctx, null);
+
+    executeDummyTool(executor);
+
+    verify(analyticsService).notifyToolInvoked(
+      anyString(), any(), any(), any(),
+      anyString(), anyString(),
+      anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+  }
+
+  @Test
+  void it_should_skip_analytics_when_both_context_and_supplier_are_null() {
+    var analyticsService = syncAnalyticsService();
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null, null);
+
+    executeDummyTool(executor);
+
+    verify(analyticsService, never()).notifyToolInvoked(
+      anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+  }
+
+  @Test
+  void it_should_dispatch_event_in_http_mode_and_resolve_context_from_server_api() {
+    var analyticsService = syncAnalyticsService();
+    var mockServerApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi);
+
+    executeDummyTool(executor);
+
+    verify(mockServerApi).isSonarQubeCloud();
+    verify(analyticsService).notifyToolInvoked(
+      anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+  }
+
+  @Test
+  void it_should_skip_analytics_in_http_mode_when_supplier_throws() {
+    var analyticsService = syncAnalyticsService();
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null,
+      () -> { throw new RuntimeException("no transport context"); });
+
+    executeDummyTool(executor);
+
+    verify(analyticsService, never()).notifyToolInvoked(
+      anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+  }
+
+  @Test
+  void it_should_skip_analytics_in_http_mode_when_resolve_from_throws() {
+    var analyticsService = syncAnalyticsService();
+    var mockServerApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    doThrow(new RuntimeException("API unavailable")).when(mockServerApi).isSonarQubeCloud();
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi);
+
+    executeDummyTool(executor);
+
+    verify(analyticsService, never()).notifyToolInvoked(
+      anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+  }
+
+  /** Stubs submit() to run the Runnable synchronously so assertions need no async wait. */
+  private static AnalyticsService syncAnalyticsService() {
+    var service = mock(AnalyticsService.class);
+    doAnswer(invocation -> { ((Runnable) invocation.getArgument(0)).run(); return null; })
+      .when(service).submit(any(Runnable.class));
+    return service;
+  }
+
+  private McpSchema.CallToolResult executeDummyTool(ToolExecutor executor) {
+    record DummyResponse(String message) {}
+    return executor.execute(
+      new Tool(new McpSchema.Tool("tool_name", "desc", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()),
+        ToolCategory.ANALYSIS) {
+        @Override
+        public Result execute(Arguments arguments) {
+          return Result.success(new DummyResponse("ok"));
+        }
+      },
+      new McpSchema.CallToolRequest("", Map.of()));
   }
 
 }
