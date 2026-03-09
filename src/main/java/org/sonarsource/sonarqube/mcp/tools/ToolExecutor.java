@@ -35,6 +35,7 @@ import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentExce
 
 public class ToolExecutor {
   private static final McpLogger LOG = McpLogger.getInstance();
+  private record InvocationMetrics(long durationMs, boolean successful, @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {}
   private final BackendService backendService;
   @Nullable
   private final AnalyticsService analyticsService;
@@ -84,12 +85,11 @@ public class ToolExecutor {
     var callToolResult = result.toCallToolResult();
     var responseSizeBytes = computeResponseSizeBytes(callToolResult);
     backendService.notifyToolCalled("mcp_" + tool.definition().name(), successful);
-    notifyAnalytics(toolName, durationMs, successful, errorType, responseSizeBytes, invocationTimestamp);
+    notifyAnalytics(toolName, new InvocationMetrics(durationMs, successful, errorType, responseSizeBytes, invocationTimestamp));
     return callToolResult;
   }
 
-  private void notifyAnalytics(String toolName, long durationMs, boolean successful,
-    @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {
+  private void notifyAnalytics(String toolName, InvocationMetrics metrics) {
     var service = analyticsService;
     if (service == null) {
       return;
@@ -103,31 +103,32 @@ public class ToolExecutor {
         LOG.debug("Failed to obtain ServerApi for analytics context, skipping event for tool " + toolName + ": " + e.getMessage());
         return;
       }
-      service.submit(() -> {
-        try {
-          var ctx = ConnectionContext.empty();
-          if (serverApi != null) {
-            ctx.resolveFrom(serverApi);
-          }
-          service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
-            ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful,
-            errorType, responseSizeBytes, invocationTimestamp);
-        } catch (Exception e) {
-          LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
-        }
-      });
+      // HTTP mode: resolve context asynchronously — API calls must not block the tool response.
+      service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> resolveHttpContext(serverApi), metrics));
     } else if (stdioContext != null) {
       // stdio mode: context is pre-resolved at startup — read cached values, no I/O.
       var ctx = stdioContext;
-      service.submit(() -> {
-        try {
-          service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
-            ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful,
-            errorType, responseSizeBytes, invocationTimestamp);
-        } catch (Exception e) {
-          LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
-        }
-      });
+      service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> ctx, metrics));
+    }
+  }
+
+  private static ConnectionContext resolveHttpContext(@Nullable ServerApi serverApi) {
+    var ctx = ConnectionContext.empty();
+    if (serverApi != null) {
+      ctx.resolveFrom(serverApi);
+    }
+    return ctx;
+  }
+
+  private static void dispatchAnalyticsEvent(AnalyticsService service, String toolName, Supplier<ConnectionContext> ctxSupplier, InvocationMetrics metrics) {
+    try {
+      var ctx = ctxSupplier.get();
+      service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
+        ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), metrics.durationMs(), metrics.successful(),
+        metrics.errorType(), metrics.responseSizeBytes(), metrics.invocationTimestamp()
+      );
+    } catch (Exception e) {
+      LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
     }
   }
 
