@@ -105,7 +105,7 @@ public class McpSecurityFilter implements Filter {
 
     httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     httpResponse.setHeader("Access-Control-Allow-Headers",
-      "Content-Type, Accept, SONARQUBE_TOKEN, SONARQUBE_ORG, MCP-Protocol-Version");
+      "Content-Type, Accept, Authorization, SONARQUBE_TOKEN, SONARQUBE_ORG, MCP-Protocol-Version");
     httpResponse.setHeader("Access-Control-Max-Age", "3600");
 
     if (isOptionsRequest) {

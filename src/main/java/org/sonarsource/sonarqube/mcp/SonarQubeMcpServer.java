@@ -113,7 +113,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    * ServerApi instance used for startup probing (version check, SCA availability, plugin sync).
    * - In stdio mode: created once at startup with the configured token; also used for all tool calls.
    * - In HTTP mode: created at startup only when a startup token is configured (SONARQUBE_TOKEN env var).
-   *   Per-request tool calls always use a fresh ServerApi built from the request's SONARQUBE_TOKEN header.
+   *   Per-request tool calls always use a fresh ServerApi built from the token in the request's Authorization: Bearer header.
    */
   @Nullable
   private ServerApi serverApi;
@@ -123,7 +123,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @Nullable
   private McpSyncServer stdioSyncServer;
   /**
-   * In HTTP stateless mode, carries the McpTransportContext for the current request thread so that get() can extract the SONARQUBE_TOKEN value.
+   * In HTTP stateless mode, carries the McpTransportContext for the current request thread so that get() can extract the bearer token value.
    */
   private final ThreadLocal<McpTransportContext> currentTransportContext = new ThreadLocal<>();
   private volatile boolean isShutdown = false;

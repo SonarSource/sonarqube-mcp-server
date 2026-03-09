@@ -46,7 +46,7 @@ class AuthenticationIntegrationTest {
   }
 
   @Test
-  void should_allow_request_with_sonarqube_token_header() throws Exception {
+  void should_allow_request_with_authorization_bearer_header() throws Exception {
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
@@ -58,7 +58,7 @@ class AuthenticationIntegrationTest {
         .uri(URI.create(httpServer.getServerUrl()))
         .POST(HttpRequest.BodyPublishers.ofString("{}"))
         .header("Content-Type", "application/json")
-        .header("SONARQUBE_TOKEN", "squ_my-sonarqube-token-123")
+        .header("Authorization", "Bearer squ_my-sonarqube-token-123")
         .build();
 
       var response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -121,7 +121,29 @@ class AuthenticationIntegrationTest {
   }
 
   @Test
-  void should_reject_requests_with_empty_token() throws Exception {
+  void should_allow_request_with_deprecated_sonarqube_token_header() throws Exception {
+    testPort = findAvailablePort();
+    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
+    httpServer.startServer().join();
+    await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
+
+    try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
+      var request = HttpRequest.newBuilder()
+        .uri(URI.create(httpServer.getServerUrl()))
+        .POST(HttpRequest.BodyPublishers.ofString("{}"))
+        .header("Content-Type", "application/json")
+        .header("SONARQUBE_TOKEN", "squ_legacy_token")
+        .build();
+
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      assertThat(response.statusCode()).isNotEqualTo(401);
+    }
+  }
+
+  @Test
+  void should_reject_requests_without_bearer_prefix() throws Exception {
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
@@ -130,12 +152,11 @@ class AuthenticationIntegrationTest {
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
     try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
-      // Test with empty token
       var request = HttpRequest.newBuilder()
         .uri(URI.create(httpServer.getServerUrl()))
         .POST(HttpRequest.BodyPublishers.ofString("{}"))
         .header("Content-Type", "application/json")
-        .header("SONARQUBE_TOKEN", "")
+        .header("Authorization", "Basic dXNlcjpwYXNz")
         .build();
 
       var response = client.send(request, HttpResponse.BodyHandlers.ofString());

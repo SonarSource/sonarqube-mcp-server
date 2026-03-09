@@ -164,7 +164,7 @@ public class McpServerLaunchConfiguration {
     }
 
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
-    // In HTTP mode the token is provided per-request via the SONARQUBE_TOKEN header; not required at startup.
+    // In HTTP mode the token is provided per-request via the Authorization: Bearer header; not required at startup.
     if (sonarqubeToken == null && !isHttpEnabled) {
       throw new IllegalArgumentException("SONARQUBE_TOKEN environment variable or property must be set");
     }
@@ -228,7 +228,7 @@ public class McpServerLaunchConfiguration {
    * Get the SonarQube token.
    * - In stdio mode: Always non-null; used for all operations.
    * - In HTTP mode: Optional startup token (null when not configured).
-   *   Per-request operations use client tokens from the SONARQUBE_TOKEN header.
+   *   Per-request operations use client tokens from the Authorization: Bearer header.
    */
   @Nullable
   public String getSonarQubeToken() {

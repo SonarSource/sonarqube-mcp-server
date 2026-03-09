@@ -31,14 +31,18 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
  * Authentication filter for the stateless MCP HTTP transport.
- * Validates that each request carries a SONARQUBE_TOKEN header.
+ * Validates that each request carries a token, accepting two header formats:
+ * <ol>
+ *   <li>{@code Authorization: Bearer <token>} — preferred, standard HTTP authentication</li>
+ *   <li>{@code SONARQUBE_TOKEN: <token>} — deprecated, accepted for backward compatibility only</li>
+ * </ol>
  * No session state is created or maintained — every request is authenticated independently,
  * enabling horizontal scaling without sticky sessions.
  * <p>
  * Authentication modes:
  * <ul>
- *   <li>TOKEN (default) - Client must provide a SonarQube token via the SONARQUBE_TOKEN header
- *       on every request</li>
+ *   <li>TOKEN (default) - Client must provide a SonarQube token via {@code Authorization: Bearer <token>}
+ *       (or the deprecated {@code SONARQUBE_TOKEN} header) on every request</li>
  *   <li>OAUTH - OAuth 2.1 with PKCE (not yet implemented)</li>
  * </ul>
  * <p>
@@ -51,6 +55,8 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 public class AuthenticationFilter implements Filter {
 
   private static final McpLogger LOG = McpLogger.getInstance();
+  static final String AUTHORIZATION_HEADER = "Authorization";
+  static final String BEARER_PREFIX = "Bearer ";
   private static final String SONARQUBE_TOKEN_HEADER = McpServerLaunchConfiguration.SONARQUBE_TOKEN;
   private static final String SONARQUBE_ORG_HEADER = McpServerLaunchConfiguration.SONARQUBE_ORG;
   private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
@@ -84,10 +90,10 @@ public class AuthenticationFilter implements Filter {
     }
 
     if (authMode == AuthMode.TOKEN) {
-      var token = httpRequest.getHeader(SONARQUBE_TOKEN_HEADER);
+      var token = extractToken(httpRequest);
       if (token == null || token.isBlank()) {
         LOG.warn("Missing or empty SonarQube token from " + httpRequest.getRemoteAddr());
-        sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via SONARQUBE_TOKEN header.");
+        sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via Authorization: Bearer <token> header.");
         return;
       }
       if (!validateOrg(httpRequest, httpResponse)) {
@@ -146,6 +152,38 @@ public class AuthenticationFilter implements Filter {
       }
     }
     return true;
+  }
+
+  /**
+   * Extracts the token from the request, preferring {@code Authorization: Bearer <token>}
+   * and falling back to the deprecated {@code SONARQUBE_TOKEN} header with a warning.
+   */
+  @Nullable
+  public static String extractToken(HttpServletRequest request) {
+    var bearerToken = extractBearerToken(request);
+    if (bearerToken != null) {
+      return bearerToken;
+    }
+    var legacyToken = request.getHeader(SONARQUBE_TOKEN_HEADER);
+    if (legacyToken != null && !legacyToken.isBlank()) {
+      LOG.warn("Deprecated header SONARQUBE_TOKEN used from " + request.getRemoteAddr() +
+        ". Please migrate to: Authorization: Bearer <token>");
+      return legacyToken;
+    }
+    return null;
+  }
+
+  /**
+   * Extracts the bearer token from the standard {@code Authorization: Bearer <token>} header.
+   * Returns {@code null} if the header is absent or does not use the Bearer scheme.
+   */
+  @Nullable
+  private static String extractBearerToken(HttpServletRequest request) {
+    var authHeader = request.getHeader(AUTHORIZATION_HEADER);
+    if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+      return null;
+    }
+    return authHeader.substring(BEARER_PREFIX.length());
   }
 
   private static void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
