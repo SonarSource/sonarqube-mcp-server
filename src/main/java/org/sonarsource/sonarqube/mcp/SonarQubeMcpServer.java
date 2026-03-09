@@ -215,7 +215,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarCloud());
     }
 
-    this.toolExecutor = new ToolExecutor(backendService, analyticsService, () -> connectionContext);
+    // In stdio mode: pass the shared pre-resolved ConnectionContext
+    // In HTTP mode: pass a supplier that captures the request-scoped ServerApi synchronously to the async analytics task
+    this.toolExecutor = mcpConfiguration.isHttpEnabled()
+      ? new ToolExecutor(backendService, analyticsService, null, this)
+      : new ToolExecutor(backendService, analyticsService, connectionContext, null);
 
     // Create ServerApi for startup probing (version check, SCA availability, plugin sync).
     // In HTTP mode this is optional — only created when a startup token is configured.
@@ -559,7 +563,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     shutdownHttpServer();
     shutdownHttpClient();
     shutdownMcpServer();
+    shutdownAnalytics();
     shutdownBackend();
+  }
+
+  private void shutdownAnalytics() {
+    if (analyticsService != null) {
+      analyticsService.shutdown();
+    }
   }
 
   private void shutdownProxiedServers() {

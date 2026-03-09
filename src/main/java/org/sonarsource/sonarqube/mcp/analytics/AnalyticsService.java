@@ -17,6 +17,9 @@
 package org.sonarsource.sonarqube.mcp.analytics;
 
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 public class AnalyticsService {
@@ -31,6 +34,7 @@ public class AnalyticsService {
   private final boolean isSonarCloud;
   @Nullable
   private final String containerArch;
+  private final ExecutorService executor;
 
   public AnalyticsService(AnalyticsClient client, String mcpServerId, String mcpServerVersion, boolean isHttpEnabled, boolean isHttpsEnabled, boolean isSonarCloud) {
     this.client = client;
@@ -39,6 +43,11 @@ public class AnalyticsService {
     this.transportMode = resolveTransportMode(isHttpEnabled, isHttpsEnabled);
     this.isSonarCloud = isSonarCloud;
     this.containerArch = resolveContainerArch();
+    this.executor = Executors.newSingleThreadExecutor(r -> {
+      var thread = new Thread(r, "analytics-dispatcher");
+      thread.setDaemon(true);
+      return thread;
+    });
   }
 
   private static String resolveTransportMode(boolean isHttpEnabled, boolean isHttpsEnabled) {
@@ -102,6 +111,22 @@ public class AnalyticsService {
     );
 
     client.postEvent(event);
+  }
+
+  public void submit(Runnable task) {
+    executor.submit(task);
+  }
+
+  public void shutdown() {
+    executor.shutdown();
+    try {
+      if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+        executor.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      executor.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
   }
 
 }

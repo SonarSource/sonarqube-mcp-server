@@ -46,6 +46,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
@@ -164,7 +165,9 @@ class ToolExecutorTest {
   @MethodSource("error_type_mappings")
   void it_should_map_exception_to_error_type(RuntimeException exception, String expectedErrorType) {
     var analyticsService = mock(AnalyticsService.class);
-    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext::empty);
+    doAnswer(invocation -> { ((Runnable) invocation.getArgument(0)).run(); return null; })
+      .when(analyticsService).submit(any(Runnable.class));
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null);
     var errorTypeCaptor = ArgumentCaptor.forClass(String.class);
 
     executor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {

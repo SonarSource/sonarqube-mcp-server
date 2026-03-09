@@ -22,9 +22,15 @@ import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 
 /**
- * Per-session context used to enrich analytics events.
+ * Per-session (or per-request) context used to enrich analytics events.
  * Holds connection identifiers resolved from the SonarQube API, and the calling agent info captured during the MCP handshake.
- * In stdio mode this is resolved once at startup. In HTTP mode it is not resolved (per-request user context is unavailable at the server level).
+ * <ul>
+ *   <li>In stdio mode: a single shared instance is populated once at startup via {@link #resolveFrom(ServerApi)}
+ *       and reused for all tool calls. {@link #captureCallingAgent} is also written to this instance.</li>
+ *   <li>In HTTP mode: a fresh instance is created per tool call inside the async analytics dispatch task.
+ *       {@link #resolveFrom(ServerApi)} is called there with the request-scoped {@link ServerApi},
+ *       so SonarQube API calls (user UUID, org UUID, installation ID) never block the tool response.</li>
+ * </ul>
  */
 public class ConnectionContext {
 

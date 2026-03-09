@@ -18,13 +18,13 @@ package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
@@ -38,17 +38,29 @@ public class ToolExecutor {
   private final BackendService backendService;
   @Nullable
   private final AnalyticsService analyticsService;
-  private final Supplier<ConnectionContext> connectionContextSupplier;
+
+  /**
+   * Pre-resolved connection context for stdio mode. Null when running in HTTP mode.
+   */
+  @Nullable
+  private final ConnectionContext stdioContext;
+
+  /**
+   * Supplies the request-scoped {@link ServerApi} for HTTP mode. Null when running in stdio mode.
+   */
+  @Nullable
+  private final Supplier<ServerApi> httpServerApiSupplier;
 
   public ToolExecutor(BackendService backendService) {
-    this(backendService, null, ConnectionContext::empty);
+    this(backendService, null, null, null);
   }
 
   public ToolExecutor(BackendService backendService, @Nullable AnalyticsService analyticsService,
-    Supplier<ConnectionContext> connectionContextSupplier) {
+    @Nullable ConnectionContext stdioContext, @Nullable Supplier<ServerApi> httpServerApiSupplier) {
     this.backendService = backendService;
     this.analyticsService = analyticsService;
-    this.connectionContextSupplier = connectionContextSupplier;
+    this.stdioContext = stdioContext;
+    this.httpServerApiSupplier = httpServerApiSupplier;
   }
 
   public McpSchema.CallToolResult execute(Tool tool, McpSchema.CallToolRequest toolRequest) {
@@ -69,10 +81,11 @@ public class ToolExecutor {
 
     var durationMs = System.currentTimeMillis() - invocationTimestamp;
     var successful = !result.isError();
-    var responseSizeBytes = computeResponseSizeBytes(result.toCallToolResult());
+    var callToolResult = result.toCallToolResult();
+    var responseSizeBytes = computeResponseSizeBytes(callToolResult);
     backendService.notifyToolCalled("mcp_" + tool.definition().name(), successful);
     notifyAnalytics(toolName, durationMs, successful, errorType, responseSizeBytes, invocationTimestamp);
-    return result.toCallToolResult();
+    return callToolResult;
   }
 
   private void notifyAnalytics(String toolName, long durationMs, boolean successful,
@@ -81,16 +94,41 @@ public class ToolExecutor {
     if (service == null) {
       return;
     }
-    CompletableFuture.runAsync(() -> {
+    var httpSupplier = httpServerApiSupplier;
+    if (httpSupplier != null) {
+      ServerApi serverApi;
       try {
-        var ctx = connectionContextSupplier.get();
-        service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
-          ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful,
-          errorType, responseSizeBytes, invocationTimestamp);
+        serverApi = httpSupplier.get();
       } catch (Exception e) {
-        LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
+        LOG.debug("Failed to obtain ServerApi for analytics context, skipping event for tool " + toolName + ": " + e.getMessage());
+        return;
       }
-    });
+      service.submit(() -> {
+        try {
+          var ctx = ConnectionContext.empty();
+          if (serverApi != null) {
+            ctx.resolveFrom(serverApi);
+          }
+          service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
+            ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful,
+            errorType, responseSizeBytes, invocationTimestamp);
+        } catch (Exception e) {
+          LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
+        }
+      });
+    } else if (stdioContext != null) {
+      // stdio mode: context is pre-resolved at startup — read cached values, no I/O.
+      var ctx = stdioContext;
+      service.submit(() -> {
+        try {
+          service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
+            ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), durationMs, successful,
+            errorType, responseSizeBytes, invocationTimestamp);
+        } catch (Exception e) {
+          LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
+        }
+      });
+    }
   }
 
   private static long computeResponseSizeBytes(McpSchema.CallToolResult callToolResult) {

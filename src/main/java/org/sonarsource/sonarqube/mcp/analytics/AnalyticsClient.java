@@ -20,6 +20,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -33,6 +35,7 @@ public class AnalyticsClient {
   private static final String API_KEY = "1b8EU3XmRk5MKpIhqzKoD54LzfplrL2X1RLkLzLA";
   private static final String SOURCE_DOMAIN = "MCP";
   private static final int MAX_RETRIES = 2;
+  private static final long RETRY_BASE_DELAY_MS = 2000L;
   private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -70,8 +73,10 @@ public class AnalyticsClient {
             return;
           }
           if (attempt < MAX_RETRIES) {
-            LOG.debug("Analytics event failed (HTTP " + response.code() + "), retrying (attempt " + (attempt + 1) + "/" + MAX_RETRIES + ")");
-            sendWithRetry(json, attempt + 1);
+            var nextAttempt = attempt + 1;
+            var delayMs = RETRY_BASE_DELAY_MS * (long) Math.pow(2, attempt);
+            LOG.debug("Analytics event failed (HTTP " + response.code() + "), retrying in " + delayMs + "ms (attempt " + nextAttempt + "/" + MAX_RETRIES + ")");
+            CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS).execute(() -> sendWithRetry(json, nextAttempt));
           } else {
             LOG.debug("Analytics event failed after " + MAX_RETRIES + " retries (HTTP " + response.code() + ")");
           }
@@ -79,8 +84,10 @@ public class AnalyticsClient {
       })
       .exceptionally(ex -> {
         if (attempt < MAX_RETRIES) {
-          LOG.debug("Analytics event failed (" + ex.getMessage() + "), retrying (attempt " + (attempt + 1) + "/" + MAX_RETRIES + ")");
-          sendWithRetry(json, attempt + 1);
+          var nextAttempt = attempt + 1;
+          var delayMs = RETRY_BASE_DELAY_MS * (long) Math.pow(2, attempt);
+          LOG.debug("Analytics event failed (" + ex.getMessage() + "), retrying in " + delayMs + "ms (attempt " + nextAttempt + "/" + MAX_RETRIES + ")");
+          CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS).execute(() -> sendWithRetry(json, nextAttempt));
         } else {
           LOG.debug("Analytics event failed after " + MAX_RETRIES + " retries: " + ex.getMessage());
         }

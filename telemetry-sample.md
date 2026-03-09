@@ -49,3 +49,25 @@
   ]
 }
 ```
+On tool invocation:
+```json
+{
+  "invocation_id": "123e4567-e89b-12d3-a456-426655440000",
+  "tool_name": "search_sonar_issues_in_projects",
+  "connection_type": "SQC",
+  "organization_uuid_v4": "123e4567-e89b-12d3-a456-426655440000",
+  "sqs_installation_id": null,
+  "user_uuid": "123e4567-e89b-12d3-a456-426655440000",
+  "mcp_server_id": "123e4567-e89b-12d3-a456-426655440000",
+  "mcp_server_version": "1.11.0.12345",
+  "transport_mode": "stdio",
+  "calling_agent_name": "cursor-vscode",
+  "calling_agent_version": "1.0.0",
+  "tool_execution_duration_ms": 342,
+  "is_successful": true,
+  "error_type": null,
+  "response_size_bytes": 8472,
+  "container_arch": "arm64",
+  "invocation_timestamp": 1741036799658
+}
+```

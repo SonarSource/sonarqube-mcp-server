@@ -187,7 +187,7 @@ class AnalyticsClientTest {
     analyticsClient.postEvent(event);
 
     // 1 initial attempt + 2 retries = 3 total
-    await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+    await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
       wireMock.verify(3, postRequestedFor(urlPathEqualTo("/")))
     );
   }
