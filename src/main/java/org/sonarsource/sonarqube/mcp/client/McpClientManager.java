@@ -39,7 +39,9 @@ public class McpClientManager {
   
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(
-    Integer.parseInt(System.getProperty("mcp.client.timeout.seconds", "30")));
+    Integer.parseInt(System.getProperty("mcp.client.timeout.seconds", "600")));
+  private static final Duration INITIALIZATION_TIMEOUT = Duration.ofSeconds(
+    Integer.parseInt(System.getProperty("mcp.client.init.timeout.seconds", "60")));
   
   private final List<ProxiedMcpServerConfig> serverConfigs;
   private final Map<String, McpSyncClient> clients = new ConcurrentHashMap<>();
@@ -106,6 +108,7 @@ public class McpClientManager {
 
       var client = McpClient.sync(transport)
         .requestTimeout(DEFAULT_REQUEST_TIMEOUT)
+        .initializationTimeout(INITIALIZATION_TIMEOUT)
         .capabilities(McpSchema.ClientCapabilities.builder()
           .roots(false)
           .elicitation()
