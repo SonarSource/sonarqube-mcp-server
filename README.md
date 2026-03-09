@@ -1097,6 +1097,125 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 - **list_webhooks** - List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.
   - `projectKey` - Optional project key to list project-specific webhooks - _String_
 
+### CAG (Context Augmentation)
+
+<details>
+<summary>Architecture Tools</summary>
+
+- **search_by_signature_patterns** - Find code elements (classes, methods, interfaces) by their declaration signatures using regex patterns.
+    - `include_code_regex_list` - List of regex patterns to match against signatures - _Required String[]_
+    - `exclude_code_regex_list` - List of regex patterns to exclude from results - _String[]_
+    - `include_glob` - File filter glob pattern (e.g., `*.java`) - _String_
+    - `exclude_glob` - File exclusion glob pattern - _String_
+    - `fields` - Comma-separated list of fields to include in the response - _String_
+    - `limit` - Maximum number of results to return (default: 10) - _Integer_
+    - `regex_lists_operator` - How to combine multiple patterns: `OR` (default) or `AND` - _String_
+
+
+- **search_by_body_patterns** - Find code elements by their implementation body using regex patterns. Useful for locating where APIs or patterns are actually used.
+    - `include_code_regex_list` - List of regex patterns to match in code bodies - _Required String[]_
+    - `exclude_code_regex_list` - List of regex patterns to exclude from results - _String[]_
+    - `include_glob` - File filter glob pattern - _String_
+    - `exclude_glob` - File exclusion glob pattern - _String_
+    - `fields` - Comma-separated list of fields to include in the response - _String_
+    - `limit` - Maximum number of results to return (default: 10) - _Integer_
+    - `regex_lists_operator` - How to combine multiple patterns: `OR` (default) or `AND` - _String_
+
+
+- **get_upstream_call_flow** - Trace what functions call a given function. Useful for finding all callers and entry points, and understanding what breaks if a signature changes.
+    - `fqn` - Fully qualified name of the function - _Required String_
+    - `depth` - Call chain depth (0=function only, 1=direct callers, etc.) - _Integer_
+    - `fields` - Comma-separated list of fields to include in the response - _String_
+
+
+- **get_downstream_call_flow** - Trace what functions a given function calls. Useful for impact analysis and understanding execution flow.
+    - `fqn` - Fully qualified name of the function - _Required String_
+    - `depth` - Call chain depth (0=function only, 1=direct callees, etc.) - _Integer_
+    - `fields` - Comma-separated list of fields to include in the response - _String_
+
+
+- **get_source_code** - Get complete source code (signature and body) for a code element by its fully qualified name.
+    - `fqn` - Fully qualified name of the element - _Required String_
+    - `fields` - Comma-separated list of fields to include in the response - _String_
+
+
+- **get_classlike_structure_hierarchy** - Get the full inheritance hierarchy for a class-like structure (class, interface, enum, record, exception, struct). Essential for understanding inheritance trees and refactoring.
+    - `fqn` - Fully qualified name of the class-like structure - _Required String_
+    - `fields` - Comma-separated list of fields to include in the response - _String_
+
+
+- **get_references** - Get direct inbound and outbound code references for a class or module. Returns only direct (non-transitive) references.
+    - `fqn` - Fully qualified name of the class or module - _Required String_
+    - `fields` - Comma-separated list of fields to include in the response - _String_
+
+
+- **get_current_architecture** - Get a hierarchical architecture graph filtered by path prefix and depth. Useful for exploring module structure and high-level dependencies.
+    - `depth` - Hierarchy depth (0=root only, 1=root + children, etc.) - _Required Integer_
+    - `path_prefix` - Optional path prefix to filter nodes (e.g., `com.example.service`) - _String_
+    - `ecosystem` - Optional ecosystem to filter by (`java`, `cs`, `py`, `js`, `ts`) - _String_
+
+
+- **get_intended_architecture** - Get user-defined architectural constraints specifying which modules are allowed to depend on others.
+
+**Guidelines Tools**
+
+- **get_guidelines** - Get coding guidelines based on SonarQube project issues, catalog categories, or a combination of both.
+    - `mode` - Guidelines retrieval mode: `project_based`, `category_based`, or `combined` - _Required String_
+    - `categories` - List of category names (required for `category_based` and `combined` modes) - _String[]_
+    - `languages` - List of target languages in SonarQube repository key format (required when `categories` is provided) - _String[]_
+    - `file_paths` - Optional list of file paths to filter guidelines by - _String[]_
+
+</details>
+
+<details>
+<summary>CAG Environment Variables</summary>
+
+| Variable                | Description                                                        | Required | Default                 |
+|-------------------------|--------------------------------------------------------------------|----------|-------------------------|
+| `SONARQUBE_URL`         | SonarQube server URL                                               | Yes      | `https://sonarcloud.io` |
+| `SONARQUBE_TOKEN`       | Authentication token                                               | Yes      | None                    |
+| `SONARQUBE_ORG`         | Organization key (SonarCloud only)                                 | Yes*     | None                    |
+| `SONARQUBE_PROJECT_KEY` | Explicit project key override                                      | No       | None                    |
+| `SONAR_LOG_LEVEL`       | Logging verbosity (`TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`)   | No | `INFO`                  |
+
+\* Required only for SonarCloud connections.
+
+</details>
+
+<details>
+<summary>Project-Specific Configuration (Recommended)</summary>
+
+Mount the project workspace to give the CAG server direct access to your source files:
+
+```json
+{
+  "mcpServers": {
+    "sonarqube-and-cag-mcp": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm", "--init", "--pull=always",
+        "-e", "SONARQUBE_URL",
+        "-e", "SONARQUBE_TOKEN",
+        "-e", "SONARQUBE_ORG",
+        "-e", "SONARQUBE_PROJECT_KEY",
+        "-e", "SONAR_LOG_LEVEL",
+        "-v", "/path/to/your/project:/app/mcp-workspace",
+        "mcp/sonarqube"
+      ],
+      "env": {
+        "SONARQUBE_URL": "https://sonarcloud.io",
+        "SONARQUBE_TOKEN": "<token>",
+        "SONARQUBE_ORG": "<my_org>",
+        "SONAR_LOG_LEVEL": "INFO",
+        "SONARQUBE_PROJECT_KEY": "<my-org_my-project>"
+      }
+    }
+  }
+}
+```
+
+</details>
+
 ## Example Prompts
 
 Once you've set up the SonarQube MCP Server, here are some example prompts for common real-world scenarios:

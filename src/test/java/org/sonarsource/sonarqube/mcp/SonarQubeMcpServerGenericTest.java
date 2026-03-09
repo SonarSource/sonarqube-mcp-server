@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
@@ -133,6 +134,24 @@ class SonarQubeMcpServerGenericTest {
       environment);
 
     // Shutdown before start should not throw
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_start_proxied_server_when_cag_toolset_is_not_enabled(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TOOLSETS", "projects,issues");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getSupportedTools())
+      .noneMatch(ProxiedMcpTool.class::isInstance);
+
     server.shutdown();
   }
 
