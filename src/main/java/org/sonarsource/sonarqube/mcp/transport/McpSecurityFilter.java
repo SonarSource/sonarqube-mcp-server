@@ -26,6 +26,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Set;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -48,16 +49,25 @@ public class McpSecurityFilter implements Filter {
 
   private final String hostBinding;
   private final boolean allowAllOrigins;
+  private final Set<String> extraAllowedOrigins;
 
   public McpSecurityFilter(String hostBinding) {
+    this(hostBinding, List.of());
+  }
+
+  public McpSecurityFilter(String hostBinding, List<String> extraAllowedOrigins) {
     this.hostBinding = hostBinding;
     // Only allow all origins if explicitly bound to all interfaces (0.0.0.0)
     // Otherwise, restrict to localhost origins
     this.allowAllOrigins = "0.0.0.0".equals(hostBinding);
-    
+    this.extraAllowedOrigins = Set.copyOf(extraAllowedOrigins);
+
     if (allowAllOrigins) {
       LOG.warn("MCP HTTP server is bound to all network interfaces (0.0.0.0). " +
-                  "This is less secure. Consider binding to 127.0.0.1 for local use only.");
+        "This is less secure. Consider binding to 127.0.0.1 for local use only.");
+    }
+    if (!this.extraAllowedOrigins.isEmpty()) {
+      LOG.info("MCP HTTP server configured with additional allowed origins: " + this.extraAllowedOrigins);
     }
   }
 
@@ -93,7 +103,7 @@ public class McpSecurityFilter implements Filter {
       httpResponse.setHeader("Access-Control-Allow-Origin", "*");
     }
 
-    httpResponse.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     httpResponse.setHeader("Access-Control-Allow-Headers",
       "Content-Type, Accept, SONARQUBE_TOKEN, SONARQUBE_ORG, MCP-Protocol-Version");
     httpResponse.setHeader("Access-Control-Max-Age", "3600");
@@ -121,18 +131,22 @@ public class McpSecurityFilter implements Filter {
   }
 
   /**
-   * Check if the given origin is allowed based on the server's host binding.
+   * Check if the given origin is allowed based on the server's host binding and the configured extra allowed origins.
    */
   private boolean isOriginAllowed(String origin) {
     if (allowAllOrigins) {
       return true;
     }
-    
+
+    if (extraAllowedOrigins.contains(origin)) {
+      return true;
+    }
+
     // For localhost bindings, only allow localhost origins
     if ("127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding)) {
       return isLocalhostOrigin(origin);
     }
-    
+
     // For other specific host bindings, be restrictive
     return false;
   }

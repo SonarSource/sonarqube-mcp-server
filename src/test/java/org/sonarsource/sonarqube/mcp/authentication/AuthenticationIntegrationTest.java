@@ -27,6 +27,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ class AuthenticationIntegrationTest {
   void should_allow_request_with_sonarqube_token_header() throws Exception {
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
@@ -70,7 +71,7 @@ class AuthenticationIntegrationTest {
   void should_reject_request_without_token_header() throws Exception {
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
@@ -102,7 +103,7 @@ class AuthenticationIntegrationTest {
   void should_always_allow_options_requests_regardless_of_auth() throws Exception {
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
@@ -123,7 +124,7 @@ class AuthenticationIntegrationTest {
   void should_reject_requests_with_empty_token() throws Exception {
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null);
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
 
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
