@@ -20,6 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
 public abstract class Tool {
@@ -100,6 +101,23 @@ public abstract class Tool {
       } else {
         return null;
       }
+    }
+
+    /**
+     * Resolves a project key argument with a fallback to a configured default.
+     * If the argument is provided in the tool call, it takes precedence.
+     * If not provided and a configured default exists, the default is used.
+     * If neither is available, a {@link MissingRequiredArgumentException} is thrown.
+     */
+    public String getProjectKeyWithFallback(String argumentName, @Nullable String configuredDefault) {
+      var fromArg = getOptionalString(argumentName);
+      if (fromArg != null && !fromArg.isBlank()) {
+        return fromArg;
+      }
+      if (configuredDefault != null && !configuredDefault.isBlank()) {
+        return configuredDefault;
+      }
+      throw new MissingRequiredArgumentException(argumentName);
     }
 
     public int getIntOrDefault(String argumentName, int defaultValue) {

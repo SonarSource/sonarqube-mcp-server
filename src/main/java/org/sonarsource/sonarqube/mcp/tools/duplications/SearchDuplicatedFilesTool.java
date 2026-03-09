@@ -27,6 +27,7 @@ import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
+
 public class SearchDuplicatedFilesTool extends Tool {
 
   public static final String TOOL_NAME = "search_duplicated_files";
@@ -49,14 +50,16 @@ public class SearchDuplicatedFilesTool extends Tool {
   private static final int MAX_PAGES_TO_FETCH = 20;
 
   private final ServerApiProvider serverApiProvider;
+  @Nullable
+  private final String configuredProjectKey;
 
-  public SearchDuplicatedFilesTool(ServerApiProvider serverApiProvider) {
+  public SearchDuplicatedFilesTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
     super(SchemaToolBuilder.forOutput(SearchDuplicatedFilesToolResponse.class)
         .setName(TOOL_NAME)
         .setTitle("Search SonarQube Files With Duplications")
         .setDescription("Search for files with code duplications in a project. " +
           "By default, automatically fetches all duplicated files across all pages (up to 10,000 files max).")
-        .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)")
+        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)", configuredProjectKey)
         .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Optional: Number of results per page for manual pagination (max: 500). " +
           "If not specified, auto-fetches all duplicated files.")
@@ -66,11 +69,12 @@ public class SearchDuplicatedFilesTool extends Tool {
         .build(),
       ToolCategory.DUPLICATIONS);
     this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var projectKey = arguments.getStringOrThrow(PROJECT_KEY_PROPERTY);
+    var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
     var requestedPageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
     var requestedPageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);

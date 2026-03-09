@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.measures;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.ComponentTreeParams;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
@@ -42,14 +43,16 @@ public class SearchFilesByCoverageTool extends Tool {
   private static final String METRIC_UNCOVERED_LINES = "uncovered_lines";
 
   private final ServerApiProvider serverApiProvider;
+  @Nullable
+  private final String configuredProjectKey;
 
-  public SearchFilesByCoverageTool(ServerApiProvider serverApiProvider) {
+  public SearchFilesByCoverageTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
     super(SchemaToolBuilder.forOutput(SearchFilesByCoverageToolResponse.class)
         .setName(TOOL_NAME)
         .setTitle("Search SonarQube Files by Coverage")
         .setDescription("Search for files in a project sorted by coverage (ascending - worst coverage first). " +
           "This tool helps identify files that need test coverage improvements.")
-        .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The project key to search in")
+        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key to search in", configuredProjectKey)
         .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id to analyze")
         .addNumberProperty(MAX_COVERAGE_PROPERTY, "Only return files with coverage below this threshold (0-100)")
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Page index (1-based, default: 1)")
@@ -58,11 +61,12 @@ public class SearchFilesByCoverageTool extends Tool {
         .build(),
       ToolCategory.COVERAGE);
     this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var projectKey = arguments.getStringOrThrow(PROJECT_KEY_PROPERTY);
+    var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
     var maxCoverage = arguments.getOptionalInteger(MAX_COVERAGE_PROPERTY);
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);

@@ -239,7 +239,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     if (mcpConfiguration.isAdvancedAnalysisEnabled() && mcpConfiguration.isSonarCloud()) {
       LOG.info("Advanced analysis mode enabled");
-      supportedTools.add(new RunAdvancedCodeAnalysisTool(this));
+      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey()));
     } else {
       if (mcpConfiguration.isAdvancedAnalysisEnabled() && !mcpConfiguration.isSonarCloud()) {
         LOG.warn("SONARQUBE_ADVANCED_ANALYSIS_ENABLED is set but advanced analysis is only available on SonarCloud. Falling back to standard analysis.");
@@ -324,6 +324,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         new SystemStatusTool(this)));
     }
 
+    var configuredProjectKey = mcpConfiguration.getProjectKey();
+
     supportedTools.addAll(List.of(
       new ChangeIssueStatusTool(this),
       new SearchMyProjectsTool(this, mcpConfiguration.isSonarCloud()),
@@ -336,7 +338,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListQualityGatesTool(this),
       new ListLanguagesTool(this),
       new GetComponentMeasuresTool(this),
-      new SearchFilesByCoverageTool(this),
+      new SearchFilesByCoverageTool(this, configuredProjectKey),
       new GetFileCoverageDetailsTool(this),
       new SearchMetricsTool(this),
       new GetScmInfoTool(this),
@@ -344,18 +346,18 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new CreateWebhookTool(this, mcpConfiguration.isSonarCloud()),
       new ListWebhooksTool(this, mcpConfiguration.isSonarCloud()),
       new GetDuplicationsTool(this),
-      new SearchDuplicatedFilesTool(this),
+      new SearchDuplicatedFilesTool(this, configuredProjectKey),
       new ListPortfoliosTool(this, mcpConfiguration.isSonarCloud()),
-      new ListPullRequestsTool(this)));
+      new ListPullRequestsTool(this, configuredProjectKey)));
 
     if (mcpConfiguration.isHttpEnabled()) {
       // In HTTP mode there is no startup token to probe SCA availability
-      supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker));
+      supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
     } else {
       var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();
       var scaSupportedOnSQS = !serverApi.isSonarQubeCloud() && serverApi.featuresApi().listFeatures().contains(Feature.SCA);
       if (scaSupportedOnSQC || scaSupportedOnSQS) {
-        supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker));
+        supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
       }
     }
   }
@@ -379,7 +381,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (!useIdeBridge) {
       LOG.info("Standard analysis mode (no IDE bridge)");
-      supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture));
+      supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey()));
     }
   }
 

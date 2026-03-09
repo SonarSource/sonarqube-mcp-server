@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
@@ -33,14 +34,17 @@ public class SearchDependencyRisksTool extends Tool {
 
   private final ServerApiProvider serverApiProvider;
   private final SonarQubeVersionChecker sonarQubeVersionChecker;
+  @Nullable
+  private final String configuredProjectKey;
 
-  public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker) {
+  public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker,
+    @Nullable String configuredProjectKey) {
     super(SchemaToolBuilder.forOutput(SearchDependencyRisksToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +
         "paired with releases that appear in the analyzed project, application, or portfolio.")
-      .addRequiredStringProperty(PROJECT_KEY_PROPERTY, "The project key")
+      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key", configuredProjectKey)
       .addStringProperty(BRANCH_KEY_PROPERTY, "The branch key")
       .addStringProperty(PULL_REQUEST_KEY_PROPERTY, "The pull request key")
       .setReadOnlyHint()
@@ -48,6 +52,7 @@ public class SearchDependencyRisksTool extends Tool {
       ToolCategory.DEPENDENCY_RISKS);
     this.serverApiProvider = serverApiProvider;
     this.sonarQubeVersionChecker = sonarQubeVersionChecker;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
@@ -62,7 +67,7 @@ public class SearchDependencyRisksTool extends Tool {
     if (!provider.isSonarQubeCloud() && !provider.featuresApi().listFeatures().contains(Feature.SCA)) {
       return Tool.Result.failure("Search Dependency Risks tool is not available for SonarQube Server because Advanced Security is not enabled.");
     }
-    var projectKey = arguments.getStringOrThrow(PROJECT_KEY_PROPERTY);
+    var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
     var branchKey = arguments.getOptionalString(BRANCH_KEY_PROPERTY);
     var pullRequestKey = arguments.getOptionalString(PULL_REQUEST_KEY_PROPERTY);
 
