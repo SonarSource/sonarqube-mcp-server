@@ -5,7 +5,7 @@ sonarqube = "7.2.2.6593"
 
 license-plugin = "0.16.1"
 artifactory-plugin = "6.0.4"
-cyclonedx-plugin = "1.10.0"
+cyclonedx-plugin = "2.0.0"
 
 sonar-php = "3.54.0.15452"
 
