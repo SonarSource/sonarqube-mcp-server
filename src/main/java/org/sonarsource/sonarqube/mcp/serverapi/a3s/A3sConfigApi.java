@@ -23,7 +23,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
 public class A3sConfigApi {
 
-  public static final String ORG_CONFIG_PATH = "/a3s-analysis/org-config/";
+  private static final String A3S_ANALYSIS_BASE_PATH = "/a3s-analysis";
+  public static final String ORG_CONFIG_PATH = A3S_ANALYSIS_BASE_PATH + "/org-config/";
   private static final Gson GSON = new Gson();
   private static final McpLogger LOG = McpLogger.getInstance();
 
