@@ -15,7 +15,7 @@ commons-text = "1.15.0"
 ayza = "10.0.3"
 logback = "1.5.29"
 jetty = "12.1.6"
-jsonschema-generator = "4.38.0"
+jsonschema-generator = "5.0.0"
 
 junit = "6.0.2"
 mockito = "5.21.0"
