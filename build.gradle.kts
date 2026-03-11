@@ -87,6 +87,7 @@ dependencies {
 	implementation(libs.jsonschema.generator)
 	implementation(libs.jsonschema.module.jackson)
 	runtimeOnly(libs.logback.classic)
+	testImplementation(libs.logback.classic)
 	testImplementation(platform(libs.junit.bom))
 	testImplementation(libs.junit.jupiter)
 	testImplementation(libs.mockito.core)
