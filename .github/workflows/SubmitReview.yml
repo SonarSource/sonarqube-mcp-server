@@ -18,7 +18,7 @@ jobs:
             || github.event.review.state == 'approved')
     steps:
       - id: secrets
-        uses: SonarSource/vault-action-wrapper@v3
+        uses: SonarSource/vault-action-wrapper@3.3.0
         with:
           secrets: |
             development/kv/data/jira user | JIRA_USER;

@@ -27,14 +27,14 @@ jobs:
     outputs:
       PROJECT_VERSION: ${{ steps.build-step.outputs.project-version }}
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
         with:
           version: 2025.7.12
 
       - id: build-step
-        uses: SonarSource/ci-github-actions/build-gradle@v1
+        uses: SonarSource/ci-github-actions/build-gradle@1.3.25
         with:
           deploy-pull-request: true
           artifactory-reader-role: private-reader
@@ -58,7 +58,7 @@ jobs:
           - name: ProxiedServer
             test_class: ProxiedServerITest
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
         with:
@@ -66,7 +66,7 @@ jobs:
 
       - name: Vault (SonarCloud IT token)
         id: secrets-sc
-        uses: SonarSource/vault-action-wrapper@320bd31b03e5dacaac6be51bbbb15adf7caccc32 # v3.1.0
+        uses: SonarSource/vault-action-wrapper@c210d4012f44361e2d2a28aa2d97a75fd90b6214 # 3.1.1
         with:
           secrets: |
             development/team/sonarlint/kv/data/sonarcloud-it token | SONARCLOUD_IT_TOKEN;
@@ -107,6 +107,6 @@ jobs:
     runs-on: github-ubuntu-latest-s  # Public repository runner
     name: Promote
     steps:
-      - uses: SonarSource/ci-github-actions/promote@v1
+      - uses: SonarSource/ci-github-actions/promote@1.3.25
         with:
           promote-pull-request: true
