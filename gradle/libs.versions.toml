@@ -23,7 +23,7 @@ assertj = "3.27.7"
 awaitility = "4.3.0"
 wiremock = "3.13.2"
 
-testcontainers = "1.21.4"
+testcontainers = "2.0.0"
 
 [libraries]
 sonarlint-java-client-utils = { module = "org.sonarsource.sonarlint.core:sonarlint-java-client-utils", version.ref = "sonarlint-core" }
