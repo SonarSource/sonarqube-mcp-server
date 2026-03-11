@@ -42,7 +42,9 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sConfigApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
@@ -264,8 +266,27 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
 
     // Configure SCA feature check based on server type
     if (environment.containsKey("SONARQUBE_ORG")) {
+      var orgKey = environment.get("SONARQUBE_ORG");
+
+      // Stub organizations API to return a stable UUID v4 for the org key
+      var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
+      if (!mockSonarQubeServer.isStubConfigured(OrganizationsApi.ORGANIZATIONS_PATH)) {
+        mockSonarQubeServer.stubFor(get(OrganizationsApi.ORGANIZATIONS_PATH + "?organizationKey=" + orgKey + "&excludeEligibility=true")
+          .willReturn(okJson("""
+            [{"id":"%s","uuidV4":"%s"}]
+            """.formatted(orgKey, orgUuidV4))));
+      }
+
+      // Stub A3S org-config API — disabled by default; tests that need advanced analysis should override
+      if (!mockSonarQubeServer.isStubConfigured(A3sConfigApi.ORG_CONFIG_PATH + orgUuidV4)) {
+        mockSonarQubeServer.stubFor(get(A3sConfigApi.ORG_CONFIG_PATH + orgUuidV4)
+          .willReturn(okJson("""
+            {"id":"%s","enabled":false,"eligible":true}
+            """.formatted(orgUuidV4))));
+      }
+
       if (!mockSonarQubeServer.isStubConfigured(ScaApi.FEATURE_ENABLED_PATH)) {
-        var orgParameter = "?organization=" + environment.get("SONARQUBE_ORG");
+        var orgParameter = "?organization=" + orgKey;
         mockSonarQubeServer.stubFor(get(ScaApi.FEATURE_ENABLED_PATH + orgParameter).willReturn(okJson("""
           {
             "enabled": true
