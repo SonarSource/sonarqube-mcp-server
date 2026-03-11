@@ -579,11 +579,7 @@ You should add the following variable when running the MCP Server:
 
 ### Advanced Analysis
 
-> **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud users with access enabled. If your organization does not have access, enabling it will not provide any additional functionality.
-
-| Environment variable | Description |
-|----------------------|-------------|
-| `SONARQUBE_ADVANCED_ANALYSIS_ENABLED` | When set to `true` on SonarQube Cloud, enables the advanced analysis tool `run_advanced_code_analysis`. When enabled, it replaces all local analysis tools (`analyze_code_snippet`, `analyze_file_list`, `toggle_automatic_analysis`). On SonarQube Server, the flag is ignored and the server falls back to standard analysis. Default: `false`. |
+> **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud organizations. The server automatically detects whether advanced analysis is enabled for your organization — no manual configuration is required.
 
 ### Selective Tool Enablement
 
@@ -903,9 +899,9 @@ SOCKS5 proxies are supported.
 - **toggle_automatic_analysis** - Enable or disable SonarQube for IDE automatic analysis. When enabled, SonarQube for IDE will automatically analyze files as they are modified in the working directory. When disabled, automatic analysis is turned off.
     - `enabled` - Enable or disable the automatic analysis - _Required Boolean_
 
-**When advanced analysis is enabled (`SONARQUBE_ADVANCED_ANALYSIS_ENABLED=true`):**
+**When advanced analysis is enabled for your SonarQube Cloud organization:**
 
-> **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud users with access enabled.
+> **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud organizations.
 
 - **run_advanced_code_analysis** - Run advanced code analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.
     - `projectKey` - The key of the project - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_

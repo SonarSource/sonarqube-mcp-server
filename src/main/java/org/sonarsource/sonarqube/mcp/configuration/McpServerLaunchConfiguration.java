@@ -58,13 +58,10 @@ public class McpServerLaunchConfiguration {
   // Default project key configuration
   public static final String SONARQUBE_PROJECT_KEY = "SONARQUBE_PROJECT_KEY";
 
-  // Advanced analysis configuration
-  private static final String SONARQUBE_ADVANCED_ANALYSIS_ENABLED = "SONARQUBE_ADVANCED_ANALYSIS_ENABLED";
-
   // Logging configuration
   private static final String SONARQUBE_LOG_TO_FILE_DISABLED = "SONARQUBE_LOG_TO_FILE_DISABLED";
 
-  // Force SonarCloud detection for non-standard deployments (e.g. internal staging environments)
+  // Force SonarQube Cloud detection for non-standard deployments (e.g. internal staging environments)
   private static final String SONARQUBE_IS_CLOUD = "SONARQUBE_IS_CLOUD";
   
   // HTTP/HTTPS transport configuration
@@ -126,9 +123,6 @@ public class McpServerLaunchConfiguration {
   // Default project key configuration
   @Nullable
   private final String sonarqubeProjectKey;
-
-  // Advanced analysis configuration
-  private final boolean isAdvancedAnalysisEnabled;
 
   private final boolean isFileLoggingDisabled;
 
@@ -211,8 +205,6 @@ public class McpServerLaunchConfiguration {
     this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
 
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
-
-    this.isAdvancedAnalysisEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ADVANCED_ANALYSIS_ENABLED, "false"));
 
     this.sonarqubeProjectKey = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_PROJECT_KEY, null);
 
@@ -462,14 +454,6 @@ public class McpServerLaunchConfiguration {
    */
   public boolean isReadOnlyMode() {
     return isReadOnlyMode;
-  }
-
-  /**
-   * Returns whether advanced analysis is enabled.
-   * When enabled on SonarCloud, replaces all local analysis tools with the advanced analysis tool.
-   */
-  public boolean isAdvancedAnalysisEnabled() {
-    return isAdvancedAnalysisEnabled;
   }
 
   public boolean isFileLoggingDisabled() {

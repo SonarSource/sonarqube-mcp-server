@@ -21,21 +21,23 @@ import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sConfigApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class RunAdvancedCodeAnalysisToolTests {
 
-  private static final Map<String, String> ADVANCED_ANALYSIS_ENV = Map.of(
-    "SONARQUBE_ORG", "my-org",
-    "SONARQUBE_ADVANCED_ANALYSIS_ENABLED", "true"
-  );
+  private static final String ORG_UUID_V4 = "00000000-0000-0000-0000-000000000001";
+  private static final Map<String, String> ADVANCED_ANALYSIS_ENV = Map.of("SONARQUBE_ORG", "my-org");
 
   @SonarQubeMcpServerTest
   void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
     stubAnalysisResponse(harness, SIMPLE_RESPONSE);
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
@@ -54,6 +56,7 @@ class RunAdvancedCodeAnalysisToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_return_issues_with_flows(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
     stubAnalysisResponse(harness, RESPONSE_WITH_FLOWS);
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
@@ -95,6 +98,7 @@ class RunAdvancedCodeAnalysisToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_allow_issues_without_file_path(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
     stubAnalysisResponse(harness, RESPONSE_WITHOUT_FILE_PATH);
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
@@ -119,6 +123,7 @@ class RunAdvancedCodeAnalysisToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_return_an_error_on_api_failure(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
     harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisApi.ANALYSES_PATH)
       .willReturn(aResponse().withStatus(403)));
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
@@ -140,6 +145,7 @@ class RunAdvancedCodeAnalysisToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_succeed_and_surface_analysis_errors_alongside_issues(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
     stubAnalysisResponse(harness, RESPONSE_WITH_ERRORS_AND_ISSUES);
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
@@ -172,6 +178,7 @@ class RunAdvancedCodeAnalysisToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_succeed_and_surface_analysis_errors_when_no_issues_were_found(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
     stubAnalysisResponse(harness, RESPONSE_WITH_ERRORS_NO_ISSUES);
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
@@ -197,6 +204,13 @@ class RunAdvancedCodeAnalysisToolTests {
       }""");
   }
 
+  private static void stubAdvancedAnalysisEnabled(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(A3sConfigApi.ORG_CONFIG_PATH + ORG_UUID_V4)
+      .willReturn(okJson("""
+        {"id":"%s","enabled":true,"eligible":true}
+        """.formatted(ORG_UUID_V4))));
+  }
+
   private static void stubAnalysisResponse(SonarQubeMcpServerTestHarness harness, String responseBody) {
     harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisApi.ANALYSES_PATH)
       .willReturn(aResponse()
@@ -215,6 +229,7 @@ class RunAdvancedCodeAnalysisToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_return_patch_result_when_server_calculates_it(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
     stubAnalysisResponse(harness, RESPONSE_WITH_PATCH_RESULT);
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
