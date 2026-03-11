@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21.0.1_12-jdk-alpine AS builder
+FROM eclipse-temurin:21-jdk-alpine AS builder
 
 RUN apk update &&  \
     apk add binutils
