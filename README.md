@@ -834,12 +834,12 @@ When using custom certificates, you can modify your MCP configuration to mount t
 
 ### Proxy
 
-The SonarQube MCP Server supports HTTP proxies through standard Java proxy system properties.
+The SonarQube MCP Server supports HTTP and SOCKS5 proxies through standard Java proxy system properties.
 
 <details>
 <summary>Configuration</summary>
 
-#### Configuring Proxy Settings
+#### HTTP/HTTPS Proxy
 
 You can configure proxy settings using Java system properties. These can be set as environment variables or passed as JVM arguments.
 
@@ -853,9 +853,7 @@ You can configure proxy settings using Java system properties. These can be set 
 | `https.proxyPort` | HTTPS proxy port | `8443` |
 | `http.nonProxyHosts` | Hosts that bypass the proxy (pipe-separated) | `localhost\|127.0.0.1\|*.internal.com` |
 
-#### Proxy Authentication
-
-If your proxy requires authentication, the SonarQube MCP Server uses Java's standard authentication mechanism. You can set up proxy credentials using Java system properties:
+**HTTP/HTTPS Proxy Authentication:**
 
 | Property | Description | Example |
 |----------|-------------|---------|
@@ -863,6 +861,17 @@ If your proxy requires authentication, the SonarQube MCP Server uses Java's stan
 | `http.proxyPassword` | HTTP proxy password | `mypassword` |
 | `https.proxyUser` | HTTPS proxy username | `myuser` |
 | `https.proxyPassword` | HTTPS proxy password | `mypassword` |
+
+#### SOCKS5 Proxy
+
+SOCKS5 proxies are supported.
+
+| Property                  | Description                        | Default | Example      |
+|---------------------------|------------------------------------|---------|--------------|
+| `socksProxyHost`          | SOCKS5 proxy hostname              | —       | `localhost`  |
+| `socksProxyPort`          | SOCKS5 proxy port                  | `1080`  | `1080`       |
+| `java.net.socks.username` | SOCKS5 username (if auth required) | —       | `myuser`     |
+| `java.net.socks.password` | SOCKS5 password (if auth required) | —       | `mypassword` |
 
 </details>
 

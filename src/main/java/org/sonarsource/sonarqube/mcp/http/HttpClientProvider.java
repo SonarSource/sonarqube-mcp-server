@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.http;
 
+import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
@@ -28,6 +29,7 @@ import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
+import org.apache.hc.core5.reactor.IOReactorConfig;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 public class HttpClientProvider {
@@ -70,9 +72,32 @@ public class HttpClientProvider {
     if (defaultProxySelector != null) {
       httpClientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(defaultProxySelector));
     }
+    var socksConfig = buildSocksProxyConfig();
+    if (socksConfig != null) {
+      httpClientBuilder.setIOReactorConfig(socksConfig);
+    }
     this.httpClient = httpClientBuilder.build();
 
     httpClient.start();
+  }
+
+  private static IOReactorConfig buildSocksProxyConfig() {
+    var socksHost = System.getProperty("socksProxyHost");
+    if (socksHost == null) {
+      return null;
+    }
+    var socksPort = Integer.parseInt(System.getProperty("socksProxyPort", "1080"));
+    var builder = IOReactorConfig.custom()
+      .setSocksProxyAddress(new InetSocketAddress(socksHost, socksPort));
+    var socksUser = System.getProperty("java.net.socks.username");
+    if (socksUser != null) {
+      builder.setSocksProxyUsername(socksUser);
+    }
+    var socksPassword = System.getProperty("java.net.socks.password");
+    if (socksPassword != null) {
+      builder.setSocksProxyPassword(socksPassword);
+    }
+    return builder.build();
   }
 
   public HttpClient getHttpClient(String sonarqubeCloudToken) {
@@ -113,13 +138,17 @@ public class HttpClientProvider {
     LOG.debug("Proxy selector: " + proxySelector);
     var httpProxy = System.getProperty("http.proxyHost");
     var httpsProxy = System.getProperty("https.proxyHost");
+    var socksProxy = System.getProperty("socksProxyHost");
     if (httpProxy != null) {
       LOG.debug("HTTP proxy: " + httpProxy + ":" + System.getProperty("http.proxyPort", "80"));
     }
     if (httpsProxy != null) {
       LOG.debug("HTTPS proxy: " + httpsProxy + ":" + System.getProperty("https.proxyPort", "443"));
     }
-    if (httpProxy == null && httpsProxy == null) {
+    if (socksProxy != null) {
+      LOG.debug("SOCKS proxy: " + socksProxy + ":" + System.getProperty("socksProxyPort", "1080"));
+    }
+    if (httpProxy == null && httpsProxy == null && socksProxy == null) {
       LOG.debug("No proxy system properties configured");
     }
     LOG.debug("HTTP client user agent: " + userAgent);

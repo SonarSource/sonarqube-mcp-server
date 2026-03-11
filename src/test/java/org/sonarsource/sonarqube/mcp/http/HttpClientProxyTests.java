@@ -70,6 +70,10 @@ class HttpClientProxyTests {
     System.clearProperty("https.proxyHost");
     System.clearProperty("https.proxyPort");
     System.clearProperty("http.nonProxyHosts");
+    System.clearProperty("socksProxyHost");
+    System.clearProperty("socksProxyPort");
+    System.clearProperty("java.net.socks.username");
+    System.clearProperty("java.net.socks.password");
     System.clearProperty("SONARQUBE_DEBUG_ENABLED");
   }
 
@@ -173,7 +177,58 @@ class HttpClientProxyTests {
       .contains("Proxy selector: ")
       .contains("HTTP proxy: proxy.local:3128")
       .contains("HTTPS proxy: proxy.local:3129")
+      .doesNotContain("SOCKS proxy:")
       .contains("HTTP client user agent: " + USER_AGENT);
+  }
+
+  @Test
+  void should_log_socks_proxy_settings_when_elevated_debug_enabled() {
+    System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
+    System.setProperty("socksProxyHost", "socks.local");
+    System.setProperty("socksProxyPort", "1080");
+
+    originalErr = System.err;
+    errBuffer = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+
+    var provider = new HttpClientProvider(USER_AGENT);
+    provider.logConnectionSettings();
+
+    var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
+    assertThat(stderrOutput)
+      .contains("SOCKS proxy: socks.local:1080")
+      .doesNotContain("No proxy system properties configured");
+  }
+
+  @Test
+  void should_log_no_proxy_when_no_proxy_properties_set() {
+    System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
+
+    originalErr = System.err;
+    errBuffer = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+
+    var provider = new HttpClientProvider(USER_AGENT);
+    provider.logConnectionSettings();
+
+    var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
+    assertThat(stderrOutput).contains("No proxy system properties configured");
+  }
+
+  @Test
+  void should_fail_when_socks_proxy_is_unreachable() {
+    System.setProperty("socksProxyHost", "localhost");
+    System.setProperty("socksProxyPort", "19998");
+
+    targetServer.stubFor(get("/test")
+      .willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+
+    var underTest = new HttpClientProvider(USER_AGENT);
+
+    var httpClient = underTest.getHttpClient("token").getAsync(targetServer.url("/test"));
+    assertThatThrownBy(httpClient::join)
+      .as("Request should fail when SOCKS proxy is unreachable")
+      .isInstanceOf(CompletionException.class);
   }
 
   /**
