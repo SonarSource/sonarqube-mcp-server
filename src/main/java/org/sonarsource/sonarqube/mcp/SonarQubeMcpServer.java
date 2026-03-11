@@ -174,7 +174,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (httpServerManager != null) {
       httpServerManager.startServer().join();
       var enabledTools = filterForEnabledTools(supportedTools);
-      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools))
+      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools, this::createServerApiWithTokenAndOrg))
         .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
@@ -244,13 +244,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("CAG toolset is not enabled, skipping proxied server initialization");
     }
 
-    if (mcpConfiguration.isAdvancedAnalysisEnabled() && mcpConfiguration.isSonarCloud()) {
+    if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null && mcpConfiguration.isSonarCloud()) {
+      // HTTP mode without a startup token on SQC: register the advanced analysis tool unconditionally.
+      // Per-request visibility is controlled by PerRequestToolFilteringHandler querying the org-config endpoint.
+      LOG.info("HTTP mode without startup token on SonarQube Cloud - advanced analysis tool will be shown per-request based on org config");
+      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey()));
+    } else if (isAdvancedAnalysisEnabledForOrg(serverApi)) {
       LOG.info("Advanced analysis mode enabled");
       supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey()));
     } else {
-      if (mcpConfiguration.isAdvancedAnalysisEnabled() && !mcpConfiguration.isSonarCloud()) {
-        LOG.warn("SONARQUBE_ADVANCED_ANALYSIS_ENABLED is set but advanced analysis is only available on SonarCloud. Falling back to standard analysis.");
-      }
       // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
       // token is configured (so plugins can be downloaded at startup).
       if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
@@ -289,9 +291,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         return;
       }
 
-      // Skip analyzer download when advanced analysis mode is enabled (no local analysis)
-      if (mcpConfiguration.isAdvancedAnalysisEnabled() && mcpConfiguration.isSonarCloud()) {
-        LOG.info("Advanced analysis mode enabled - skipping analyzers download (no local analysis needed)");
+      // Skip analyzer download when the local analysis tool is not present
+      if (supportedTools.stream().noneMatch(AnalyzeCodeSnippetTool.class::isInstance)) {
+        LOG.info("Local analysis tool is not present - skipping analyzers download");
         initializationFuture.complete(null);
         return;
       }
@@ -367,6 +369,27 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
       }
     }
+  }
+
+  private boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api) {
+    if (!mcpConfiguration.isSonarCloud() || api == null) {
+      return false;
+    }
+    var orgKey = mcpConfiguration.getSonarqubeOrg();
+    if (orgKey == null) {
+      return false;
+    }
+    var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+    if (orgUuidV4 == null) {
+      LOG.warn("Could not resolve organization UUID - falling back to standard analysis");
+      return false;
+    }
+    var config = api.a3sConfigApi().getOrgConfig(orgUuidV4);
+    if (config == null) {
+      LOG.warn("Could not retrieve A3S org config - falling back to standard analysis");
+      return false;
+    }
+    return config.enabled();
   }
 
   /**
@@ -482,7 +505,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.debug("=== Debug Level Configuration Details ===");
     httpClientProvider.logConnectionSettings();
     LOG.debug("Enabled toolsets: " + mcpConfiguration.getEnabledToolsets());
-    LOG.debug("Advanced analysis: " + mcpConfiguration.isAdvancedAnalysisEnabled());
+    LOG.debug("Advanced analysis: " + supportedTools.stream().anyMatch(RunAdvancedCodeAnalysisTool.class::isInstance));
     LOG.debug("Telemetry enabled: " + mcpConfiguration.isTelemetryEnabled());
     LOG.debug("App version: " + mcpConfiguration.getAppVersion());
     LOG.debug("Storage path: " + mcpConfiguration.getStoragePath());

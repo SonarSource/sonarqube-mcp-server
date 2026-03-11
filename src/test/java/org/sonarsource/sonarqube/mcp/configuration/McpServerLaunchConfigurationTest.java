@@ -16,21 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp.configuration;
 
-import io.modelcontextprotocol.spec.McpSchema;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
-import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
-import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
-import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
-import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,7 +31,6 @@ class McpServerLaunchConfigurationTest {
   @AfterEach
   void cleanup() {
     System.clearProperty("SONARQUBE_URL");
-    System.clearProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED");
   }
 
   @Test
@@ -492,92 +481,6 @@ class McpServerLaunchConfigurationTest {
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.isSonarCloud()).isFalse();
-  }
-
-  // Advanced analysis enabled tests
-
-  @Test
-  void should_not_enable_advanced_analysis_by_default(@TempDir Path tempDir) {
-    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
-    var configuration = new McpServerLaunchConfiguration(arg);
-
-    assertThat(configuration.isAdvancedAnalysisEnabled()).isFalse();
-  }
-
-  @Test
-  void should_enable_advanced_analysis_when_system_property_is_true(@TempDir Path tempDir) {
-    var arg = Map.of(
-      "STORAGE_PATH", tempDir.toString(),
-      "SONARQUBE_TOKEN", "token",
-      "SONARQUBE_ORG", "org"
-    );
-    System.setProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED", "true");
-    var configuration = new McpServerLaunchConfiguration(arg);
-
-    assertThat(configuration.isAdvancedAnalysisEnabled()).isTrue();
-  }
-
-  @Test
-  void should_not_enable_advanced_analysis_when_system_property_is_false(@TempDir Path tempDir) {
-    var arg = Map.of(
-      "STORAGE_PATH", tempDir.toString(),
-      "SONARQUBE_TOKEN", "token",
-      "SONARQUBE_ORG", "org"
-    );
-    System.setProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED", "false");
-    var configuration = new McpServerLaunchConfiguration(arg);
-
-    assertThat(configuration.isAdvancedAnalysisEnabled()).isFalse();
-  }
-
-  @Test
-  void should_parse_advanced_analysis_enabled_case_insensitively(@TempDir Path tempDir) {
-    var arg = Map.of(
-      "STORAGE_PATH", tempDir.toString(),
-      "SONARQUBE_TOKEN", "token",
-      "SONARQUBE_ORG", "org"
-    );
-    System.setProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED", "TRUE");
-    var configuration = new McpServerLaunchConfiguration(arg);
-
-    assertThat(configuration.isAdvancedAnalysisEnabled()).isTrue();
-  }
-
-  @SonarQubeMcpServerTest
-  void should_register_only_advanced_analysis_tool_on_sonarcloud(SonarQubeMcpServerTestHarness harness) {
-    System.setProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED", "true");
-
-    var mcpClient = harness.newClient(Map.of("SONARQUBE_ORG", "org"));
-
-    var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
-
-    assertThat(toolNames).contains(RunAdvancedCodeAnalysisTool.TOOL_NAME);
-    assertThat(toolNames).doesNotContain(AnalyzeCodeSnippetTool.TOOL_NAME);
-    assertThat(toolNames).doesNotContain(AnalyzeFileListTool.TOOL_NAME);
-    assertThat(toolNames).doesNotContain(ToggleAutomaticAnalysisTool.TOOL_NAME);
-  }
-
-  @SonarQubeMcpServerTest
-  void should_log_warning_and_fallback_to_standard_analysis_on_sonarqube_server(SonarQubeMcpServerTestHarness harness) {
-    var originalErr = System.err;
-    var errBuffer = new ByteArrayOutputStream();
-    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
-
-    try {
-      System.setProperty("SONARQUBE_ADVANCED_ANALYSIS_ENABLED", "true");
-
-      var mcpClient = harness.newClient();
-
-      var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
-
-      assertThat(toolNames).doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
-      assertThat(toolNames).contains(AnalyzeCodeSnippetTool.TOOL_NAME);
-
-      var stderr = errBuffer.toString(StandardCharsets.UTF_8);
-      assertThat(stderr).contains("SONARQUBE_ADVANCED_ANALYSIS_ENABLED is set but advanced analysis is only available on SonarCloud");
-    } finally {
-      System.setErr(originalErr);
-    }
   }
 
 }
