@@ -158,13 +158,13 @@ public class HttpServerTransportProvider {
    * Returns transport preloaded with {@code enabledTools}. Pass it to {@code McpServer.sync(...).build()}:
    * when the SDK calls {@code setMcpHandler}, the transport immediately installs a {@link PerRequestToolFilteringHandler} wrapping the SDK handler.
    */
-  public McpStatelessServerTransport getFilteringTransport(List<Tool> enabledTools) {
+  public McpStatelessServerTransport getFilteringTransport(List<Tool> enabledTools, ServerApiFactory serverApiFactory) {
     return new McpStatelessServerTransport() {
       private final List<Tool> tools = List.copyOf(enabledTools);
 
       @Override
       public void setMcpHandler(McpStatelessServerHandler handler) {
-        mcpTransportProvider.setMcpHandler(new PerRequestToolFilteringHandler(handler, tools));
+        mcpTransportProvider.setMcpHandler(new PerRequestToolFilteringHandler(handler, tools, serverApiFactory));
       }
 
       @Override

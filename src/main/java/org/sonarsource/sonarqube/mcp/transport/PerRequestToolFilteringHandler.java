@@ -23,8 +23,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import reactor.core.publisher.Mono;
 
 /**
@@ -51,31 +53,40 @@ import reactor.core.publisher.Mono;
  * <p>For {@code tools/call}, if a per-request filter is active and the requested tool is not in
  * the allowed set, a {@code METHOD_NOT_FOUND} error is returned immediately without delegating
  * to the SDK handler.
+ *
+ * <p>When a {@link ServerApiFactory} is provided, {@code run_advanced_code_analysis} is
+ * additionally gated per-request by querying the SQ:C A3S org-config endpoint with the
+ * token and org from the request context. The tool is hidden unless {@code enabled=true}.
  */
 public class PerRequestToolFilteringHandler implements McpStatelessServerHandler {
 
+  private static final McpLogger LOG = McpLogger.getInstance();
+
   private final McpStatelessServerHandler delegate;
   private final List<Tool> allTools;
+  @Nullable
+  private final ServerApiFactory serverApiFactory;
+  private final boolean hasAdvancedAnalysisTool;
 
-  public PerRequestToolFilteringHandler(McpStatelessServerHandler delegate, List<Tool> allTools) {
+  public PerRequestToolFilteringHandler(McpStatelessServerHandler delegate, List<Tool> allTools, @Nullable ServerApiFactory serverApiFactory) {
     this.delegate = delegate;
     this.allTools = List.copyOf(allTools);
+    this.serverApiFactory = serverApiFactory;
+    this.hasAdvancedAnalysisTool = allTools.stream().anyMatch(PerRequestToolFilteringHandler::isAdvancedAnalysisTool);
   }
 
   @Override
   public Mono<McpSchema.JSONRPCResponse> handleRequest(McpTransportContext transportContext, McpSchema.JSONRPCRequest request) {
-    if (hasPerRequestFilter(transportContext)) {
-      if (McpSchema.METHOD_TOOLS_LIST.equals(request.method())) {
-        var filteredTools = filterTools(transportContext);
-        var result = new McpSchema.ListToolsResult(filteredTools, null);
-        return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), result, null));
-      }
-      if (McpSchema.METHOD_TOOLS_CALL.equals(request.method())) {
-        var toolName = extractToolName(request);
-        if (toolName != null && !isToolAllowed(toolName, transportContext)) {
-          var error = new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.METHOD_NOT_FOUND, "Tool not found: " + toolName, null);
-          return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
-        }
+    if (McpSchema.METHOD_TOOLS_LIST.equals(request.method())) {
+      var filteredTools = filterTools(transportContext);
+      var result = new McpSchema.ListToolsResult(filteredTools, null);
+      return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), result, null));
+    }
+    if (McpSchema.METHOD_TOOLS_CALL.equals(request.method())) {
+      var toolName = extractToolName(request);
+      if (toolName != null && !isToolAllowed(toolName, transportContext)) {
+        var error = new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.METHOD_NOT_FOUND, "Tool not found: " + toolName, null);
+        return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
       }
     }
     return delegate.handleRequest(transportContext, request);
@@ -86,19 +97,15 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
     return delegate.handleNotification(transportContext, notification);
   }
 
-  private static boolean hasPerRequestFilter(McpTransportContext ctx) {
-    var toolsets = ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
-    var readOnly = ctx.get(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY);
-    return toolsets != null || Boolean.TRUE.equals(readOnly);
-  }
-
   private List<McpSchema.Tool> filterTools(McpTransportContext ctx) {
     @SuppressWarnings("unchecked")
     var allowedCategories = (Set<ToolCategory>) ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
     var readOnly = Boolean.TRUE.equals(ctx.get(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY));
+    var advancedAnalysisEnabled = hasAdvancedAnalysisTool && isAdvancedAnalysisEnabledForRequest(ctx);
 
     return allTools.stream()
       .filter(tool -> isCategoryAllowed(tool, allowedCategories))
+      .filter(tool -> !isAdvancedAnalysisTool(tool) || advancedAnalysisEnabled)
       .map(Tool::definition)
       .filter(definition -> !readOnly || (definition.annotations() != null && definition.annotations().readOnlyHint()))
       .toList();
@@ -106,6 +113,35 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
 
   private boolean isToolAllowed(String toolName, McpTransportContext ctx) {
     return filterTools(ctx).stream().anyMatch(tool -> toolName.equals(tool.name()));
+  }
+
+  /**
+   * Queries the SQ:C A3S org-config endpoint to determine whether advanced analysis is enabled
+   * for the token+org in the current request. Returns false if no factory is configured, if the
+   * org cannot be resolved, or if the endpoint call fails.
+   */
+  private boolean isAdvancedAnalysisEnabledForRequest(McpTransportContext ctx) {
+    var factory = serverApiFactory;
+    if (factory == null) {
+      return false;
+    }
+    var token = (String) ctx.get(HttpServerTransportProvider.CONTEXT_TOKEN_KEY);
+    var org = (String) ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
+    if (token == null || token.isBlank() || org == null || org.isBlank()) {
+      return false;
+    }
+    try {
+      var api = factory.create(token, org);
+      var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(org);
+      if (orgUuidV4 == null) {
+        return false;
+      }
+      var config = api.a3sConfigApi().getOrgConfig(orgUuidV4);
+      return config != null && config.enabled();
+    } catch (Exception e) {
+      LOG.debug("Could not determine A3S availability for org '" + org + "': " + e.getMessage());
+      return false;
+    }
   }
 
   @Nullable
@@ -125,6 +161,10 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
       return true;
     }
     return allowedCategories.contains(tool.getCategory());
+  }
+
+  private static boolean isAdvancedAnalysisTool(Tool tool) {
+    return tool instanceof RunAdvancedCodeAnalysisTool;
   }
 
 }

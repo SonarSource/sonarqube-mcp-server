@@ -38,14 +38,15 @@ class PerRequestToolFilteringHandlerTest {
   private static final String REQUEST_ID = "1";
 
   @Test
-  void tools_list_without_filter_headers_delegates_to_sdk_handler() {
-    var delegate = mockDelegateReturningEmptyList();
-    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
+  void tools_list_always_returns_filtered_list() {
+    var issuesTool = mockTool("search_issues", ToolCategory.ISSUES, true);
+    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(issuesTool), null);
     var context = contextWithToken();
 
-    handler.handleRequest(context, toolsListRequest()).block();
+    var response = handler.handleRequest(context, toolsListRequest()).block();
 
-    verify(delegate).handleRequest(context, toolsListRequest());
+    assertThat(response).isNotNull();
+    assertThat(((McpSchema.ListToolsResult) response.result()).tools()).hasSize(1);
   }
 
   @Test
@@ -54,7 +55,7 @@ class PerRequestToolFilteringHandlerTest {
     var hotspotsTool = mockTool("search_hotspots", ToolCategory.SECURITY_HOTSPOTS, true);
     var projectsTool = mockTool("search_projects", ToolCategory.PROJECTS, true);
 
-    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(issuesTool, hotspotsTool, projectsTool));
+    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(issuesTool, hotspotsTool, projectsTool), null);
     var context = contextWith(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.ISSUES)
@@ -72,7 +73,7 @@ class PerRequestToolFilteringHandlerTest {
     var readOnlyTool = mockTool("search_issues", ToolCategory.ISSUES, true);
     var writeTool = mockTool("change_status", ToolCategory.ISSUES, false);
 
-    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(readOnlyTool, writeTool));
+    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(readOnlyTool, writeTool), null);
     var context = contextWith(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY, true
@@ -92,7 +93,7 @@ class PerRequestToolFilteringHandlerTest {
     var hotspotsTool = mockTool("search_hotspots", ToolCategory.SECURITY_HOTSPOTS, true);
 
     var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class),
-      List.of(issuesReadOnly, issuesWrite, hotspotsTool));
+      List.of(issuesReadOnly, issuesWrite, hotspotsTool), null);
     var context = contextWith(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.ISSUES),
@@ -111,7 +112,7 @@ class PerRequestToolFilteringHandlerTest {
     var projectsTool = mockTool("search_projects", ToolCategory.PROJECTS, true);
     var issuesTool = mockTool("search_issues", ToolCategory.ISSUES, true);
 
-    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(projectsTool, issuesTool));
+    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(projectsTool, issuesTool), null);
     var context = contextWith(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.MEASURES) // neither issues nor projects
@@ -131,7 +132,7 @@ class PerRequestToolFilteringHandlerTest {
       new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
 
     var issuesTool = mockTool("search_issues", ToolCategory.ISSUES, true);
-    var handler = new PerRequestToolFilteringHandler(delegate, List.of(issuesTool));
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of(issuesTool), null);
     var context = contextWith(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.ISSUES)
@@ -148,7 +149,7 @@ class PerRequestToolFilteringHandlerTest {
     var issuesTool = mockTool("search_issues", ToolCategory.ISSUES, true);
     var hotspotsTool = mockTool("search_hotspots", ToolCategory.SECURITY_HOTSPOTS, true);
 
-    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(issuesTool, hotspotsTool));
+    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(issuesTool, hotspotsTool), null);
     var context = contextWith(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.ISSUES)
@@ -167,7 +168,7 @@ class PerRequestToolFilteringHandlerTest {
   void tools_call_disallowed_write_tool_in_read_only_mode_returns_method_not_found_error() {
     var writeTool = mockTool("change_status", ToolCategory.ISSUES, false);
 
-    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(writeTool));
+    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(writeTool), null);
     var context = contextWith(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY, true
@@ -188,7 +189,7 @@ class PerRequestToolFilteringHandlerTest {
       new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
 
     var hotspotsTool = mockTool("search_hotspots", ToolCategory.SECURITY_HOTSPOTS, true);
-    var handler = new PerRequestToolFilteringHandler(delegate, List.of(hotspotsTool));
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of(hotspotsTool), null);
     var context = contextWithToken();
     var callRequest = toolsCallRequest("search_hotspots");
 
@@ -203,7 +204,7 @@ class PerRequestToolFilteringHandlerTest {
     when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
       new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
 
-    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of(), null);
     var context = contextWith(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.ISSUES)
@@ -220,21 +221,13 @@ class PerRequestToolFilteringHandlerTest {
     var delegate = mock(McpStatelessServerHandler.class);
     when(delegate.handleNotification(any(), any())).thenReturn(Mono.empty());
 
-    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of(), null);
     var context = contextWithToken();
     var notification = new McpSchema.JSONRPCNotification(McpSchema.JSONRPC_VERSION, "notifications/initialized", null);
 
     handler.handleNotification(context, notification).block();
 
     verify(delegate).handleNotification(context, notification);
-  }
-
-  private static McpStatelessServerHandler mockDelegateReturningEmptyList() {
-    var delegate = mock(McpStatelessServerHandler.class);
-    when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
-      new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID,
-        new McpSchema.ListToolsResult(List.of(), null), null)));
-    return delegate;
   }
 
   private static Tool mockTool(String name, ToolCategory category, boolean readOnly) {
