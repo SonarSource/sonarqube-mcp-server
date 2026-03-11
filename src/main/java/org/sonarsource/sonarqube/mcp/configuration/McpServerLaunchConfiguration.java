@@ -61,6 +61,9 @@ public class McpServerLaunchConfiguration {
   // Advanced analysis configuration
   private static final String SONARQUBE_ADVANCED_ANALYSIS_ENABLED = "SONARQUBE_ADVANCED_ANALYSIS_ENABLED";
 
+  // Logging configuration
+  private static final String SONARQUBE_LOG_TO_FILE_DISABLED = "SONARQUBE_LOG_TO_FILE_DISABLED";
+
   // Force SonarCloud detection for non-standard deployments (e.g. internal staging environments)
   private static final String SONARQUBE_IS_CLOUD = "SONARQUBE_IS_CLOUD";
   
@@ -126,6 +129,8 @@ public class McpServerLaunchConfiguration {
 
   // Advanced analysis configuration
   private final boolean isAdvancedAnalysisEnabled;
+
+  private final boolean isFileLoggingDisabled;
 
   private final String mcpServerId;
 
@@ -210,6 +215,8 @@ public class McpServerLaunchConfiguration {
     this.isAdvancedAnalysisEnabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ADVANCED_ANALYSIS_ENABLED, "false"));
 
     this.sonarqubeProjectKey = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_PROJECT_KEY, null);
+
+    this.isFileLoggingDisabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_LOG_TO_FILE_DISABLED, "false"));
 
     this.mcpServerId = UUID.randomUUID().toString();
   }
@@ -463,6 +470,10 @@ public class McpServerLaunchConfiguration {
    */
   public boolean isAdvancedAnalysisEnabled() {
     return isAdvancedAnalysisEnabled;
+  }
+
+  public boolean isFileLoggingDisabled() {
+    return isFileLoggingDisabled;
   }
 
   /**
