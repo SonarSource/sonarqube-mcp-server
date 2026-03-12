@@ -61,8 +61,10 @@ public class McpServerLaunchConfiguration {
   // Logging configuration
   private static final String SONARQUBE_LOG_TO_FILE_DISABLED = "SONARQUBE_LOG_TO_FILE_DISABLED";
 
-  // Force SonarQube Cloud detection for non-standard deployments (e.g. internal staging environments)
+  // Force SonarQube Cloud detection for non-standard deployments
   private static final String SONARQUBE_IS_CLOUD = "SONARQUBE_IS_CLOUD";
+  // Override the API subdomain base URL for non-standard SonarQube Cloud deployments
+  private static final String SONARQUBE_API_URL = "SONARQUBE_API_URL";
   
   // HTTP/HTTPS transport configuration
   private static final String SONARQUBE_TRANSPORT = "SONARQUBE_TRANSPORT";
@@ -90,6 +92,8 @@ public class McpServerLaunchConfiguration {
   private final Path storagePath;
   private final String hostMachineAddress;
   private final String sonarqubeUrl;
+  @Nullable
+  private final String sonarqubeApiUrl;
   @Nullable
   private final String sonarqubeOrg;
   @Nullable
@@ -172,6 +176,8 @@ public class McpServerLaunchConfiguration {
       this.sonarqubeUrl = sonarqubeUrlFromEnv;
     }
 
+    this.sonarqubeApiUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_API_URL, null);
+
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
     // In HTTP mode the token is provided per-request via the Authorization: Bearer header; not required at startup.
     if (sonarqubeToken == null && !isHttpEnabled) {
@@ -235,6 +241,14 @@ public class McpServerLaunchConfiguration {
 
   public String getSonarQubeUrl() {
     return sonarqubeUrl;
+  }
+
+  /**
+   * Returns the explicit API subdomain base URL configured via SONARQUBE_API_URL, or null if not set.
+   */
+  @Nullable
+  public String getSonarQubeApiUrl() {
+    return sonarqubeApiUrl;
   }
 
   /**

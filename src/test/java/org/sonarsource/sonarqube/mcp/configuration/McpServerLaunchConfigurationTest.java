@@ -447,13 +447,13 @@ class McpServerLaunchConfigurationTest {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TRANSPORT", "http",
-      "SONARQUBE_URL", "https://dev4.sc-dev4.io",
+      "SONARQUBE_URL", "https://test.sc-test.io",
       "SONARQUBE_IS_CLOUD", "true"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.isSonarCloud()).isTrue();
-    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://dev4.sc-dev4.io");
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://test.sc-test.io");
   }
 
   @Test
@@ -461,13 +461,13 @@ class McpServerLaunchConfigurationTest {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
-      "SONARQUBE_URL", "https://dev4.sc-dev4.io",
+      "SONARQUBE_URL", "https://test.sc-test.io",
       "SONARQUBE_IS_CLOUD", "true"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.isSonarCloud()).isTrue();
-    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://dev4.sc-dev4.io");
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://test.sc-test.io");
   }
 
   @Test
