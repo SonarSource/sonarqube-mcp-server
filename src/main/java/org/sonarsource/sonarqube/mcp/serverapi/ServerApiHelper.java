@@ -131,13 +131,20 @@ public class ServerApiHelper {
   }
 
   /**
-   * Build URL using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
+   * Build URL using the API subdomain (api.sonarcloud.io / api.sonarqube.us).
+   * When an explicit {@code apiBaseUrl} override is set on the endpoint params (via
+   * {@code SONARQUBE_API_URL}), it is used directly instead of deriving the API subdomain from the base URL
    */
   @VisibleForTesting
   String buildApiSubdomainUrl(String relativePath) {
     if (endpointParams.organization() == null) {
       // For SonarQube Server, fall back to regular endpoint
       return buildEndpointUrl(relativePath);
+    }
+
+    // Explicit override takes precedence over the automatic host-rewrite logic
+    if (endpointParams.apiBaseUrl() != null) {
+      return concat(endpointParams.apiBaseUrl(), relativePath);
     }
 
     var baseUrl = endpointParams.baseUrl();

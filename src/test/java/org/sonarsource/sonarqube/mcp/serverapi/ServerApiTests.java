@@ -20,12 +20,16 @@ import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
@@ -39,6 +43,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ServerApiTests {
@@ -71,68 +76,46 @@ class ServerApiTests {
     }
   }
 
-  @Test
-  void it_should_throw_on_unauthorized_response() {
-    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_UNAUTHORIZED)));
-
-    var exception = assertThrows(UnauthorizedException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("SonarQube answered with Not authorized. Please check server credentials.");
+  static Stream<Arguments> getErrorResponses() {
+    return Stream.of(
+      arguments(HttpStatus.SC_UNAUTHORIZED, UnauthorizedException.class,
+        "SonarQube answered with Not authorized. Please check server credentials."),
+      arguments(HttpStatus.SC_FORBIDDEN, ForbiddenException.class,
+        "SonarQube answered with Forbidden"),
+      arguments(HttpStatus.SC_NOT_FOUND, NotFoundException.class,
+        "SonarQube answered with Error 404 on %s/test"),
+      arguments(HttpStatus.SC_INTERNAL_SERVER_ERROR, ServerInternalErrorException.class,
+        "SonarQube answered with Error 500 on %s/test"),
+      arguments(HttpStatus.SC_BAD_REQUEST, IllegalStateException.class,
+        "Error 400 on %s/test")
+    );
   }
 
-  @Test
-  void it_should_throw_on_forbidden_response() {
-    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+  @ParameterizedTest
+  @MethodSource("getErrorResponses")
+  void it_should_throw_appropriate_exception_on_error_response(int statusCode, Class<? extends Exception> expectedException, String messageTemplate) {
+    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(statusCode)));
+    var expectedMessage = messageTemplate.contains("%s") ? messageTemplate.formatted(sonarqubeMock.baseUrl()) : messageTemplate;
 
-    var exception = assertThrows(ForbiddenException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("SonarQube answered with Forbidden");
+    var exception = assertThrows(expectedException, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage(expectedMessage);
   }
 
-  @Test
-  void it_should_throw_on_not_found_response() {
-    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
-
-    var exception = assertThrows(NotFoundException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("SonarQube answered with Error 404 on " + sonarqubeMock.baseUrl() + "/test");
+  static Stream<Arguments> errorBodyParsingCases() {
+    return Stream.of(
+      arguments("{\"errors\": [{\"msg\": \"Kaboom\"}]}", "Error 400 on %s/test: Kaboom"),
+      arguments("{\"message\": \"Project sonarcloud-core doesn't have a valid ID\"}", "Error 400 on %s/test: Project sonarcloud-core doesn't have a valid ID"),
+      arguments("{\"status\": \"error\"}", "Error 400 on %s/test")
+    );
   }
 
-  @Test
-  void it_should_throw_on_internal_error_response() {
-    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
-
-    var exception = assertThrows(ServerInternalErrorException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("SonarQube answered with Error 500 on " + sonarqubeMock.baseUrl() + "/test");
-  }
-
-  @Test
-  void it_should_throw_on_any_other_error_response() {
-    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_BAD_REQUEST)));
+  @ParameterizedTest
+  @MethodSource("errorBodyParsingCases")
+  void it_should_parse_error_message_from_body(String responseBody, String messageTemplate) {
+    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse(responseBody, HttpStatus.SC_BAD_REQUEST)));
 
     var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test");
-  }
-
-  @Test
-  void it_should_parse_the_message_in_the_body_when_there_is_an_error() {
-    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"errors\": [{\"msg\": \"Kaboom\"}]}", HttpStatus.SC_BAD_REQUEST)));
-
-    var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test: Kaboom");
-  }
-
-  @Test
-  void it_should_parse_the_message_field_in_the_body_when_there_is_an_error() {
-    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"message\": \"Project sonarcloud-core doesn't have a valid ID\"}", HttpStatus.SC_BAD_REQUEST)));
-
-    var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test: Project sonarcloud-core doesn't have a valid ID");
-  }
-
-  @Test
-  void it_should_ignore_body_when_json_has_no_errors_or_message() {
-    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"status\": \"error\"}", HttpStatus.SC_BAD_REQUEST)));
-
-    var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
-    assertThat(exception).hasMessage("Error 400 on " + sonarqubeMock.baseUrl() + "/test");
+    assertThat(exception).hasMessage(messageTemplate.formatted(sonarqubeMock.baseUrl()));
   }
 
   @Test
@@ -164,53 +147,53 @@ class ServerApiTests {
     }
   }
 
-  @Test
-  void buildApiSubdomainUrl_should_rewrite_sonarqube_us_to_api_subdomain() {
-    var httpClientProvider = new HttpClientProvider(USER_AGENT);
-    var httpClient = httpClientProvider.getHttpClient("token");
-    var helper = new ServerApiHelper(new EndpointParams("https://sonarqube.us", "my-org"), httpClient);
-
-    var url = helper.buildApiSubdomainUrl("/api/test");
-
-    assertThat(url).isEqualTo("https://api.sonarqube.us/api/test");
+  static Stream<Arguments> buildApiSubdomainUrlCases() {
+    return Stream.of(
+      // known hosts: sonarcloud.io and sonarqube.us get their api.* subdomain derived automatically
+      arguments("https://sonarcloud.io", "my-org", null, "https://api.sonarcloud.io/api/test"),
+      arguments("https://sonarqube.us", "my-org", null, "https://api.sonarqube.us/api/test"),
+      // no org (SQS): always falls back to the base URL
+      arguments("https://sonarqube.us", null, null, "https://sonarqube.us/api/test"),
+      // explicit override: used as-is regardless of the base URL host
+      arguments("https://test.sc-test.io", "my-org", "https://api.sc-test.io", "https://api.sc-test.io/api/test"),
+      // unknown host without override: base URL is used as-is
+      arguments("https://test.sc-test.io", "my-org", null, "https://test.sc-test.io/api/test")
+    );
   }
 
-  @Test
-  void buildApiSubdomainUrl_should_use_regular_endpoint_when_no_org() {
-    var httpClientProvider = new HttpClientProvider(USER_AGENT);
-    var httpClient = httpClientProvider.getHttpClient("token");
-    var helper = new ServerApiHelper(new EndpointParams("https://sonarqube.us", null), httpClient);
+  @ParameterizedTest
+  @MethodSource("buildApiSubdomainUrlCases")
+  void buildApiSubdomainUrl_should_build_correct_url(String baseUrl, String org, String apiBaseUrl, String expectedUrl) {
+    var httpClient = new HttpClientProvider(USER_AGENT).getHttpClient("token");
+    var helper = new ServerApiHelper(new EndpointParams(baseUrl, org, apiBaseUrl), httpClient);
 
-    var url = helper.buildApiSubdomainUrl("/api/test");
-
-    assertThat(url).isEqualTo("https://sonarqube.us/api/test");
+    assertThat(helper.buildApiSubdomainUrl("/api/test")).isEqualTo(expectedUrl);
   }
 
-  @Test
-  void postApiSubdomain_should_throw_on_unauthorized_response() {
-    sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse().withStatus(HttpStatus.SC_UNAUTHORIZED)));
-
-    var exception = assertThrows(UnauthorizedException.class,
-      () -> serverApiHelper.postApiSubdomain("/api/test", "application/json", "{}"));
-    assertThat(exception).hasMessage("SonarQube answered with Not authorized. Please check server credentials.");
+  static Stream<Arguments> postApiSubdomainErrorResponses() {
+    return Stream.of(
+      arguments(HttpStatus.SC_UNAUTHORIZED, UnauthorizedException.class,
+        "SonarQube answered with Not authorized. Please check server credentials."),
+      arguments(HttpStatus.SC_FORBIDDEN, ForbiddenException.class,
+        "SonarQube answered with Forbidden"),
+      arguments(HttpStatus.SC_INTERNAL_SERVER_ERROR, ServerInternalErrorException.class,
+        "SonarQube answered with Error 500 on %s/api/test")
+    );
   }
 
-  @Test
-  void postApiSubdomain_should_throw_on_forbidden_response() {
-    sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+  @ParameterizedTest
+  @MethodSource("postApiSubdomainErrorResponses")
+  void postApiSubdomain_should_throw_appropriate_exception_on_error_response(int statusCode, Class<? extends Exception> expectedException, String messageTemplate) {
+    sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse().withStatus(statusCode)));
+    var expectedMessage = messageTemplate.contains("%s") ? messageTemplate.formatted(sonarqubeMock.baseUrl()) : messageTemplate;
 
-    var exception = assertThrows(ForbiddenException.class,
-      () -> serverApiHelper.postApiSubdomain("/api/test", "application/json", "{}"));
-    assertThat(exception).hasMessage("SonarQube answered with Forbidden");
-  }
-
-  @Test
-  void postApiSubdomain_should_throw_on_internal_error_response() {
-    sonarqubeMock.stubFor(post("/api/test").willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
-
-    var exception = assertThrows(ServerInternalErrorException.class,
-      () -> serverApiHelper.postApiSubdomain("/api/test", "application/json", "{}"));
-    assertThat(exception).hasMessage("SonarQube answered with Error 500 on " + sonarqubeMock.baseUrl() + "/api/test");
+    var exception = assertThrows(expectedException,
+      () -> {
+        try (var ignored = serverApiHelper.postApiSubdomain("/api/test", "application/json", "{}")) {
+          // an exception is thrown before a response can be returned
+        }
+      });
+    assertThat(exception).hasMessage(expectedMessage);
   }
 
 }
