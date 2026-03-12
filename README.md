@@ -569,12 +569,13 @@ Depending on your environment, you should provide specific environment variables
 
 You should add the following variable when running the MCP Server:
 
-| Environment variable        | Description                                                                                                                                                                                                                 |
-|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `STORAGE_PATH`              | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using the container image                 |
-| `SONARQUBE_PROJECT_KEY`     | Optional default project key. When set, all tools that require a project key will use this value automatically — the `projectKey` parameter is removed from their schema entirely. Useful when working on a single project. |
-| `SONARQUBE_IDE_PORT`        | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                                                   |
-| `SONARQUBE_DEBUG_ENABLED`   | When set to `true`, enables debug logging. Debug logs are written to both the log file and STDERR. Useful for troubleshooting connectivity or configuration issues. Default: `false`.                                       |
+| Environment variable             | Description                                                                                                                                                                                                                 |
+|----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `STORAGE_PATH`                   | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using the container image                 |
+| `SONARQUBE_PROJECT_KEY`          | Optional default project key. When set, all tools that require a project key will use this value automatically — the `projectKey` parameter is removed from their schema entirely. Useful when working on a single project. |
+| `SONARQUBE_IDE_PORT`             | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                                                   |
+| `SONARQUBE_DEBUG_ENABLED`        | When set to `true`, enables debug logging. Debug logs are written to both the log file and STDERR. Useful for troubleshooting connectivity or configuration issues. Default: `false`.                                       |
+| `SONARQUBE_LOG_TO_FILE_DISABLED` | When set to `true`, disables writing logs to disk entirely. No log files will be created under `STORAGE_PATH/logs/`. Useful in containerized or ephemeral environments where file logging is undesirable. Default: `false`. |
 
 ### Advanced Analysis
 
@@ -1326,7 +1327,7 @@ Show me all the issues that were marked as false positives in the last month. Ar
 
 ## Troubleshooting
 
-Applications logs will be written to the `STORAGE_PATH/logs/mcp.log` file.
+Application logs are written to the `STORAGE_PATH/logs/mcp.log` file by default. To disable file logging entirely, set `SONARQUBE_LOG_TO_FILE_DISABLED=true`.
 
 ### Common Issues
 

@@ -78,6 +78,7 @@ public class BackendService {
   private final String userAgent;
   private final String appName;
   private boolean isTelemetryEnabled;
+  private final boolean isFileLoggingDisabled;
   private ClientJsonRpcLauncher clientLauncher;
   private McpTransportMode transportMode;
   private volatile boolean isInitialized = false;
@@ -89,6 +90,7 @@ public class BackendService {
     this.userAgent = mcpConfiguration.getUserAgent();
     this.appName = mcpConfiguration.getAppName();
     this.isTelemetryEnabled = mcpConfiguration.isTelemetryEnabled();
+    this.isFileLoggingDisabled = mcpConfiguration.isFileLoggingDisabled();
     if (!mcpConfiguration.isHttpEnabled()) {
       this.transportMode = McpTransportMode.STDIO;
     } else if (mcpConfiguration.isHttpsEnabled()) {
@@ -106,6 +108,7 @@ public class BackendService {
     this.appVersion = appVersion;
     this.userAgent = appName + " " + appVersion;
     this.appName = appName;
+    this.isFileLoggingDisabled = false;
   }
 
   public CompletableFuture<AnalyzeFilesResponse> analyzeFilesAndTrack(UUID analysisId, List<URI> filesToAnalyze) {
@@ -155,25 +158,26 @@ public class BackendService {
         new BackendJsonRpcLauncher(clientToServerInputStream, serverToClientOutputStream);
         var rootLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
         rootLogger.detachAndStopAllAppenders();
-        var fileAppender = new RollingFileAppender<ILoggingEvent>();
-        fileAppender.setContext(rootLogger.getLoggerContext());
-        fileAppender.setName("FILE");
-        fileAppender.setFile(logFilePath.toAbsolutePath().toString());
-        var policy = new TimeBasedRollingPolicy<ILoggingEvent>();
-        policy.setContext(rootLogger.getLoggerContext());
-        policy.setFileNamePattern(storagePath.toAbsolutePath() + "/logs/mcp.%d{yyyy-MM-dd}.log");
-        policy.setMaxHistory(10);
-        policy.setParent(fileAppender);
-        policy.start();
-        fileAppender.setRollingPolicy(policy);
-        var encoder = new PatternLayoutEncoder();
-        encoder.setContext(rootLogger.getLoggerContext());
-        encoder.setPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n");
-        encoder.start();
-
-        fileAppender.setEncoder(encoder);
-        fileAppender.start();
-        rootLogger.addAppender(fileAppender);
+        if (!isFileLoggingDisabled) {
+          var fileAppender = new RollingFileAppender<ILoggingEvent>();
+          fileAppender.setContext(rootLogger.getLoggerContext());
+          fileAppender.setName("FILE");
+          fileAppender.setFile(logFilePath.toAbsolutePath().toString());
+          var policy = new TimeBasedRollingPolicy<ILoggingEvent>();
+          policy.setContext(rootLogger.getLoggerContext());
+          policy.setFileNamePattern(storagePath.toAbsolutePath() + "/logs/mcp.%d{yyyy-MM-dd}.log");
+          policy.setMaxHistory(10);
+          policy.setParent(fileAppender);
+          policy.start();
+          fileAppender.setRollingPolicy(policy);
+          var encoder = new PatternLayoutEncoder();
+          encoder.setContext(rootLogger.getLoggerContext());
+          encoder.setPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n");
+          encoder.start();
+          fileAppender.setEncoder(encoder);
+          fileAppender.start();
+          rootLogger.addAppender(fileAppender);
+        }
         clientLauncher = new ClientJsonRpcLauncher(serverToClientInputStream, clientToServerOutputStream, new McpSonarLintRpcClient());
       }
       var backend = clientLauncher.getServerProxy();
