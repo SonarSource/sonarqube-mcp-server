@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.metrics;
 
 import java.util.List;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 public record SearchMetricsToolResponse(
