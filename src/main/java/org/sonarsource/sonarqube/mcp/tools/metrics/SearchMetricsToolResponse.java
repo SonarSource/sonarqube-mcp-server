@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.metrics;
 
 import java.util.List;
+import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 public record SearchMetricsToolResponse(
@@ -30,8 +31,8 @@ public record SearchMetricsToolResponse(
     @JsonPropertyDescription("Metric unique identifier") String id,
     @JsonPropertyDescription("Metric key") String key,
     @JsonPropertyDescription("Metric display name") String name,
-    @JsonPropertyDescription("Metric description") String description,
-    @JsonPropertyDescription("Metric domain/category") String domain,
+    @Nullable @JsonPropertyDescription("Metric description") String description,
+    @Nullable @JsonPropertyDescription("Metric domain/category") String domain,
     @JsonPropertyDescription("Metric value type") String type,
     @JsonPropertyDescription("Whether the metric is hidden") boolean hidden,
     @JsonPropertyDescription("Whether this is a custom metric") boolean custom
