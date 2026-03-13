@@ -31,17 +31,17 @@ public class AnalyticsService {
   private final String mcpServerId;
   private final String mcpServerVersion;
   private final String transportMode;
-  private final boolean isSonarCloud;
+  private final boolean isSonarQubeCloud;
   @Nullable
   private final String containerArch;
   private final ExecutorService executor;
 
-  public AnalyticsService(AnalyticsClient client, String mcpServerId, String mcpServerVersion, boolean isHttpEnabled, boolean isHttpsEnabled, boolean isSonarCloud) {
+  public AnalyticsService(AnalyticsClient client, String mcpServerId, String mcpServerVersion, boolean isHttpEnabled, boolean isHttpsEnabled, boolean isSonarQubeCloud) {
     this.client = client;
     this.mcpServerId = mcpServerId;
     this.mcpServerVersion = mcpServerVersion;
     this.transportMode = resolveTransportMode(isHttpEnabled, isHttpsEnabled);
-    this.isSonarCloud = isSonarCloud;
+    this.isSonarQubeCloud = isSonarQubeCloud;
     this.containerArch = resolveContainerArch();
     this.executor = Executors.newSingleThreadExecutor(r -> {
       var thread = new Thread(r, "analytics-dispatcher");
@@ -88,14 +88,14 @@ public class AnalyticsService {
   public void notifyToolInvoked(String toolName, @Nullable String organizationUuidV4, @Nullable String sqsInstallationId, @Nullable String userUuid,
     @Nullable String callingAgentName, @Nullable String callingAgentVersion, long toolExecutionDurationMs, boolean isSuccessful,
     @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {
-    var connectionType = isSonarCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS;
+    var connectionType = isSonarQubeCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS;
 
     var event = new McpToolInvokedEvent(
       UUID.randomUUID().toString(),
       toolName,
       connectionType,
-      isSonarCloud ? organizationUuidV4 : null,
-      isSonarCloud ? null : sqsInstallationId,
+      isSonarQubeCloud ? organizationUuidV4 : null,
+      isSonarQubeCloud ? null : sqsInstallationId,
       userUuid,
       mcpServerId,
       mcpServerVersion,

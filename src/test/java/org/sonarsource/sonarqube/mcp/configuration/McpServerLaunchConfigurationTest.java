@@ -317,7 +317,7 @@ class McpServerLaunchConfigurationTest {
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
-    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
   }
 
@@ -332,7 +332,7 @@ class McpServerLaunchConfigurationTest {
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
-    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
   }
 
@@ -346,7 +346,7 @@ class McpServerLaunchConfigurationTest {
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://my-server.com");
-    assertThat(configuration.isSonarCloud()).isFalse();
+    assertThat(configuration.isSonarQubeCloud()).isFalse();
     assertThat(configuration.getSonarqubeOrg()).isNull();
   }
 
@@ -361,7 +361,7 @@ class McpServerLaunchConfigurationTest {
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
-    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
   }
 
@@ -377,32 +377,32 @@ class McpServerLaunchConfigurationTest {
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
-    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
   }
 
-  // isSonarCloudUrl tests
+  // isSonarQubeCloudUrl tests
 
   @Test
-  void isSonarCloudUrl_should_return_false_for_null() {
-    assertThat(McpServerLaunchConfiguration.isSonarCloudUrl(null)).isFalse();
-  }
-
-  @Test
-  void isSonarCloudUrl_should_return_true_for_sonarcloud_io() {
-    assertThat(McpServerLaunchConfiguration.isSonarCloudUrl("https://sonarcloud.io")).isTrue();
+  void isSonarQubeCloudUrl_should_return_false_for_null() {
+    assertThat(McpServerLaunchConfiguration.isSonarQubeCloudUrl(null)).isFalse();
   }
 
   @Test
-  void isSonarCloudUrl_should_return_true_for_sonarqube_us() {
-    assertThat(McpServerLaunchConfiguration.isSonarCloudUrl("https://sonarqube.us")).isTrue();
+  void isSonarQubeCloudUrl_should_return_true_for_sonarcloud_io() {
+    assertThat(McpServerLaunchConfiguration.isSonarQubeCloudUrl("https://sonarcloud.io")).isTrue();
   }
 
   @Test
-  void isSonarCloudUrl_should_return_false_for_custom_server_url() {
-    assertThat(McpServerLaunchConfiguration.isSonarCloudUrl("https://my-sonarqube.example.com")).isFalse();
+  void isSonarQubeCloudUrl_should_return_true_for_sonarqube_us() {
+    assertThat(McpServerLaunchConfiguration.isSonarQubeCloudUrl("https://sonarqube.us")).isTrue();
   }
 
-  // isSonarCloud detection tests — mode-independent (stdio and HTTP behave identically)
+  @Test
+  void isSonarQubeCloudUrl_should_return_false_for_custom_server_url() {
+    assertThat(McpServerLaunchConfiguration.isSonarQubeCloudUrl("https://my-sonarqube.example.com")).isFalse();
+  }
+
+  // isSonarQubeCloud detection tests — mode-independent (stdio and HTTP behave identically)
 
   @Test
   void should_default_to_sonarcloud_when_no_url_is_set(@TempDir Path tempDir) {
@@ -412,7 +412,7 @@ class McpServerLaunchConfigurationTest {
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
     assertThat(configuration.getSonarQubeToken()).isNull();
   }
@@ -426,7 +426,7 @@ class McpServerLaunchConfigurationTest {
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
   }
 
   @Test
@@ -438,7 +438,7 @@ class McpServerLaunchConfigurationTest {
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
   }
 
@@ -451,7 +451,7 @@ class McpServerLaunchConfigurationTest {
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isSonarCloud()).isFalse();
+    assertThat(configuration.isSonarQubeCloud()).isFalse();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://my-sonarqube.example.com");
   }
 
@@ -466,7 +466,7 @@ class McpServerLaunchConfigurationTest {
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://test.sc-test.io");
   }
 
@@ -480,7 +480,7 @@ class McpServerLaunchConfigurationTest {
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isSonarCloud()).isFalse();
+    assertThat(configuration.isSonarQubeCloud()).isFalse();
   }
 
   @Test
@@ -493,7 +493,7 @@ class McpServerLaunchConfigurationTest {
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isSonarCloud()).isTrue();
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://test.sc-test.io");
   }
 
@@ -507,7 +507,7 @@ class McpServerLaunchConfigurationTest {
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isSonarCloud()).isFalse();
+    assertThat(configuration.isSonarQubeCloud()).isFalse();
   }
 
 }

@@ -62,13 +62,13 @@ public class AuthenticationFilter implements Filter {
   private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
 
   private final AuthMode authMode;
-  private final boolean isSonarCloud;
+  private final boolean isSonarQubeCloud;
   @Nullable
   private final String serverOrg;
 
-  public AuthenticationFilter(AuthMode authMode, boolean isSonarCloud, @Nullable String serverOrg) {
+  public AuthenticationFilter(AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg) {
     this.authMode = authMode;
-    this.isSonarCloud = isSonarCloud;
+    this.isSonarQubeCloud = isSonarQubeCloud;
     this.serverOrg = serverOrg;
     LOG.info("Authentication filter initialized with mode: " + authMode);
   }
@@ -120,7 +120,7 @@ public class AuthenticationFilter implements Filter {
   }
 
   private boolean validateOrg(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    if (!isSonarCloud) {
+    if (!isSonarQubeCloud) {
       return true;
     }
     var org = request.getHeader(SONARQUBE_ORG_HEADER);

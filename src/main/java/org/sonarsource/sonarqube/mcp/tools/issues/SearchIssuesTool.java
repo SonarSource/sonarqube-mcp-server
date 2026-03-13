@@ -44,14 +44,14 @@ public class SearchIssuesTool extends Tool {
   
   private final ServerApiProvider serverApiProvider;
 
-  public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
-    super(createToolDefinition(isSonarCloud),
+  public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
+    super(createToolDefinition(isSonarQubeCloud),
       ToolCategory.ISSUES);
     this.serverApiProvider = serverApiProvider;
   }
 
-  private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
-    var scope = isSonarCloud ? "my organization's projects" : "my projects";
+  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
+    var scope = isSonarQubeCloud ? "my organization's projects" : "my projects";
     var description = "Search for issues (bugs, vulnerabilities, code smells) in " + scope + ". " +
       "Filter by severities=['HIGH','BLOCKER'] for critical issues, impactSoftwareQualities=['SECURITY'] for security, issueStatuses=['OPEN'] to exclude resolved.";
     

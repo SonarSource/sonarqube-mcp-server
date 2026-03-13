@@ -48,7 +48,7 @@ public class ScaApi {
 
   public DependencyRisksResponse getDependencyRisks(String projectKey, @Nullable String branchKey, @Nullable String pullRequestKey) {
     var path = buildPath(projectKey, branchKey, pullRequestKey);
-    try (var response = helper.isSonarCloud() ? helper.getApiSubdomain(path) : helper.get("/api/v2" + path)) {
+    try (var response = helper.isSonarQubeCloud() ? helper.getApiSubdomain(path) : helper.get("/api/v2" + path)) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, DependencyRisksResponse.class);
     }

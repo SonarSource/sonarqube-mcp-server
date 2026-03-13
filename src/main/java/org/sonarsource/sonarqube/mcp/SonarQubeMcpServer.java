@@ -150,7 +150,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getHttpPort(),
         mcpConfiguration.getHttpHost(),
         authConfig,
-        mcpConfiguration.isSonarCloud(),
+        mcpConfiguration.isSonarQubeCloud(),
         mcpConfiguration.getSonarqubeOrg(),
         mcpConfiguration.isHttpsEnabled(),
         mcpConfiguration.getHttpsKeystorePath(),
@@ -212,7 +212,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       var analyticsHttpClient = httpClientProvider.getHttpClientForAnalytics(AnalyticsClient.resolveApiKey());
       var analyticsClient = new AnalyticsClient(analyticsHttpClient);
       this.analyticsService = new AnalyticsService(analyticsClient, mcpConfiguration.getMcpServerId(),
-        mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarCloud());
+        mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarQubeCloud());
     }
 
     // In stdio mode: pass the shared pre-resolved ConnectionContext
@@ -244,7 +244,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("CAG toolset is not enabled, skipping proxied server initialization");
     }
 
-    if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null && mcpConfiguration.isSonarCloud()) {
+    if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null && mcpConfiguration.isSonarQubeCloud()) {
       // HTTP mode without a startup token on SQC: register the advanced analysis tool unconditionally.
       // Per-request visibility is controlled by PerRequestToolFilteringHandler querying the org-config endpoint.
       LOG.info("HTTP mode without startup token on SonarQube Cloud - advanced analysis tool will be shown per-request based on org config");
@@ -322,7 +322,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    * This makes most tools available to users within seconds instead of minutes.
    */
   private void loadBackendIndependentTools(ServerApi serverApi) {
-    if (mcpConfiguration.isSonarCloud()) {
+    if (mcpConfiguration.isSonarQubeCloud()) {
       supportedTools.add(new ListEnterprisesTool(this));
     } else {
       supportedTools.addAll(List.of(
@@ -337,8 +337,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     supportedTools.addAll(List.of(
       new ChangeIssueStatusTool(this),
-      new SearchMyProjectsTool(this, mcpConfiguration.isSonarCloud()),
-      new SearchIssuesTool(this, mcpConfiguration.isSonarCloud()),
+      new SearchMyProjectsTool(this, mcpConfiguration.isSonarQubeCloud()),
+      new SearchIssuesTool(this, mcpConfiguration.isSonarQubeCloud()),
       new SearchSecurityHotspotsTool(this),
       new ShowSecurityHotspotTool(this),
       new ChangeSecurityHotspotStatusTool(this),
@@ -352,11 +352,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new SearchMetricsTool(this),
       new GetScmInfoTool(this),
       new GetRawSourceTool(this),
-      new CreateWebhookTool(this, mcpConfiguration.isSonarCloud()),
-      new ListWebhooksTool(this, mcpConfiguration.isSonarCloud()),
+      new CreateWebhookTool(this, mcpConfiguration.isSonarQubeCloud()),
+      new ListWebhooksTool(this, mcpConfiguration.isSonarQubeCloud()),
       new GetDuplicationsTool(this),
       new SearchDuplicatedFilesTool(this, configuredProjectKey),
-      new ListPortfoliosTool(this, mcpConfiguration.isSonarCloud()),
+      new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
       new ListPullRequestsTool(this, configuredProjectKey)));
 
     if (mcpConfiguration.isHttpEnabled()) {
@@ -467,7 +467,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private void logInitialization() {
     var transportType = mcpConfiguration.isHttpEnabled() ? "HTTP" : "stdio";
-    var sonarQubeType = mcpConfiguration.isSonarCloud() ? "SonarQube Cloud" : "SonarQube Server";
+    var sonarQubeType = mcpConfiguration.isSonarQubeCloud() ? "SonarQube Cloud" : "SonarQube Server";
 
     LOG.info("========================================");
     LOG.info("SonarQube MCP Server Started:");
@@ -475,7 +475,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       (mcpConfiguration.isHttpEnabled() ? (" (" + mcpConfiguration.getHttpHost() + ":" + mcpConfiguration.getHttpPort() + ")") : ""));
     LOG.info("Instance: " + sonarQubeType);
     LOG.info("URL: " + mcpConfiguration.getSonarQubeUrl());
-    if (mcpConfiguration.isSonarCloud() && mcpConfiguration.getSonarqubeOrg() != null) {
+    if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.getSonarqubeOrg() != null) {
       LOG.info("Organization: " + mcpConfiguration.getSonarqubeOrg());
     }
     if (mcpConfiguration.isReadOnlyMode()) {
@@ -549,11 +549,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private ServerApi createServerApiWithTokenAndOrg(@Nullable String token, @Nullable String organization) {
     var url = mcpConfiguration.getSonarQubeUrl();
-    var apiUrl = mcpConfiguration.getSonarQubeApiUrl();
-    var isSonarCloud = mcpConfiguration.isSonarCloud();
+    var apiUrl = mcpConfiguration.getSonarQubeCloudApiUrl();
+    var isSonarQubeCloud = mcpConfiguration.isSonarQubeCloud();
     var httpClient = token != null ? httpClientProvider.getHttpClient(token) : httpClientProvider.getAnonymousHttpClient();
-    var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization, apiUrl, isSonarCloud), httpClient);
-    return new ServerApi(serverApiHelper, isSonarCloud);
+    var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization, apiUrl, isSonarQubeCloud), httpClient);
+    return new ServerApi(serverApiHelper, isSonarQubeCloud);
   }
 
   private SonarQubeIdeBridgeClient initializeBridgeClient(McpServerLaunchConfiguration mcpConfiguration) {
