@@ -174,7 +174,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (httpServerManager != null) {
       httpServerManager.startServer().join();
       var enabledTools = filterForEnabledTools(supportedTools);
-      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools, this::createServerApiWithTokenAndOrg))
+      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools))
         .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
@@ -249,7 +249,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       // Per-request visibility is controlled by PerRequestToolFilteringHandler querying the org-config endpoint.
       LOG.info("HTTP mode without startup token on SonarQube Cloud - advanced analysis tool will be shown per-request based on org config");
       supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey()));
-    } else if (isAdvancedAnalysisEnabledForOrg(serverApi)) {
+    } else if (isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
       LOG.info("Advanced analysis mode enabled");
       supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey()));
     } else {
@@ -371,25 +371,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  private boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api) {
-    if (!mcpConfiguration.isSonarCloud() || api == null) {
+  private static boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
+    if (api == null || orgKey == null) {
       return false;
     }
-    var orgKey = mcpConfiguration.getSonarqubeOrg();
-    if (orgKey == null) {
-      return false;
-    }
-    var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
-    if (orgUuidV4 == null) {
-      LOG.warn("Could not resolve organization UUID - falling back to standard analysis");
-      return false;
-    }
-    var config = api.a3sConfigApi().getOrgConfig(orgUuidV4);
-    if (config == null) {
-      LOG.warn("Could not retrieve A3S org config - falling back to standard analysis");
-      return false;
-    }
-    return config.enabled();
+    return RunAdvancedCodeAnalysisTool.isA3sEnabled(api, orgKey);
   }
 
   /**

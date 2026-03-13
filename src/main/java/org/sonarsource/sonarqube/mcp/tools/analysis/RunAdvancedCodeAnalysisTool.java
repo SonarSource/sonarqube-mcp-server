@@ -16,16 +16,25 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
+import io.modelcontextprotocol.common.McpTransportContext;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 
 public class RunAdvancedCodeAnalysisTool extends Tool {
+
+  private static final McpLogger LOG = McpLogger.getInstance();
+  private static final int ENTITLEMENT_CHECK_TIMEOUT_SECONDS = 5;
 
   public static final String TOOL_NAME = "run_advanced_code_analysis";
 
@@ -58,6 +67,49 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       ToolCategory.ANALYSIS);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
+  }
+
+  /**
+   * Checks per-request whether the requesting org has A3S enabled.
+   * Extracts token and org from the transport context, builds a {@link ServerApi} via the
+   * injected {@link ServerApiProvider}, then queries the SQ:C org-config endpoint.
+   */
+  @Override
+  public boolean isEnabledFor(McpTransportContext ctx) {
+    var token = (String) ctx.get(HttpServerTransportProvider.CONTEXT_TOKEN_KEY);
+    var org = (String) ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
+    if (token == null || token.isBlank() || org == null || org.isBlank()) {
+      LOG.debug("A3S entitlement check skipped: token or org missing from request context");
+      return false;
+    }
+    try {
+      return CompletableFuture.supplyAsync(() -> {
+          var api = serverApiProvider.get();
+          return isA3sEnabled(api, org);
+        })
+        .orTimeout(ENTITLEMENT_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .join();
+    } catch (Exception e) {
+      LOG.debug("A3S entitlement check failed for org '" + org + "': " + e.getMessage());
+      return false;
+    }
+  }
+
+  public static boolean isA3sEnabled(ServerApi api, String orgKey) {
+    var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+    if (orgUuidV4 == null) {
+      LOG.debug("A3S entitlement check: could not resolve UUID for org '" + orgKey + "' - falling back to standard analysis");
+      return false;
+    }
+    var config = api.a3sConfigApi().getOrgConfig(orgUuidV4);
+    if (config == null) {
+      LOG.debug("A3S entitlement check: could not retrieve org config for org '" + orgKey + "' - falling back to standard analysis");
+      return false;
+    }
+    if (!config.enabled()) {
+      LOG.debug("A3S entitlement check: advanced analysis is not enabled for org '" + orgKey + "'");
+    }
+    return config.enabled();
   }
 
   @Override
