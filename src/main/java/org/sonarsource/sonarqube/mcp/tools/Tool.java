@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
+import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,15 @@ public abstract class Tool {
 
   public ToolCategory getCategory() {
     return category;
+  }
+
+  /**
+   * Returns whether this tool should be visible and callable for the given request context.
+   * The default implementation always returns {@code true}. Tools that require per-request
+   * entitlement checks (e.g. feature-flag gating) can override this method.
+   */
+  public boolean isEnabledFor(McpTransportContext ctx) {
+    return true;
   }
 
   public abstract Result execute(Arguments arguments);

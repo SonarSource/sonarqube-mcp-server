@@ -29,8 +29,6 @@ import java.util.List;
 import java.util.Locale;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
@@ -160,13 +158,13 @@ public class HttpServerTransportProvider {
    * Returns transport preloaded with {@code enabledTools}. Pass it to {@code McpServer.sync(...).build()}:
    * when the SDK calls {@code setMcpHandler}, the transport immediately installs a {@link PerRequestToolFilteringHandler} wrapping the SDK handler.
    */
-  public McpStatelessServerTransport getFilteringTransport(List<Tool> enabledTools, BiFunction<String, String, ServerApi> serverApiFactory) {
+  public McpStatelessServerTransport getFilteringTransport(List<Tool> enabledTools) {
     return new McpStatelessServerTransport() {
       private final List<Tool> tools = List.copyOf(enabledTools);
 
       @Override
       public void setMcpHandler(McpStatelessServerHandler handler) {
-        mcpTransportProvider.setMcpHandler(new PerRequestToolFilteringHandler(handler, tools, serverApiFactory));
+        mcpTransportProvider.setMcpHandler(new PerRequestToolFilteringHandler(handler, tools));
       }
 
       @Override
