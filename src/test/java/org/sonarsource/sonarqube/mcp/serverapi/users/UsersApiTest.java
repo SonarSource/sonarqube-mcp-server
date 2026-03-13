@@ -44,7 +44,7 @@ class UsersApiTest {
   @BeforeAll
   void init() {
     var httpClient = new HttpClientProvider("test").getHttpClient("token");
-    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null), httpClient);
+    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), httpClient);
     usersApi = new UsersApi(helper);
   }
 

@@ -47,7 +47,7 @@ class A3sConfigApiTest {
   @BeforeAll
   void init() {
     var httpClient = new HttpClientProvider("test").getHttpClient("token");
-    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "my-org"), httpClient);
+    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "my-org", null, true), httpClient);
     a3sConfigApi = new A3sConfigApi(helper);
   }
 

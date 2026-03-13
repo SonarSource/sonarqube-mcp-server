@@ -46,7 +46,7 @@ class OrganizationsApiTest {
   void init() {
     var httpClient = new HttpClientProvider("test").getHttpClient("token");
     // For the organizations API, the base URL is used as-is (no sonarcloud.io host rewriting in tests)
-    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "my-org"), httpClient);
+    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "my-org", null, true), httpClient);
     organizationsApi = new OrganizationsApi(helper);
   }
 

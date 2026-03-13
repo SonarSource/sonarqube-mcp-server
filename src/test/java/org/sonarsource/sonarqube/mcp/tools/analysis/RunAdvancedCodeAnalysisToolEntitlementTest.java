@@ -56,7 +56,7 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
   @BeforeAll
   void init() {
     var httpClient = new HttpClientProvider("test").getHttpClient("token");
-    var helper = new ServerApiHelper(new EndpointParams(wireMock.baseUrl(), ORG_KEY), httpClient);
+    var helper = new ServerApiHelper(new EndpointParams(wireMock.baseUrl(), ORG_KEY, null, true), httpClient);
     serverApi = new ServerApi(helper, true);
   }
 

@@ -83,13 +83,26 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_if_sonarqube_server_url_is_missing(@TempDir Path tempDir) {
+  void should_throw_error_in_stdio_mode_when_neither_url_nor_org_is_set(@TempDir Path tempDir) {
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
 
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("SONARQUBE_URL must be set when connecting to SonarQube Server. " +
-        "SONARQUBE_ORG is not defined, so a connection to SonarQube Server was assumed.");
+      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+  }
+
+  @Test
+  void should_throw_error_in_stdio_mode_when_only_is_cloud_flag_is_set(@TempDir Path tempDir) {
+    // SONARQUBE_IS_CLOUD alone is not enough in stdio — org resolution is per-request in HTTP only
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_IS_CLOUD", "true"
+    );
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
   }
 
   @Test
@@ -389,10 +402,10 @@ class McpServerLaunchConfigurationTest {
     assertThat(McpServerLaunchConfiguration.isSonarCloudUrl("https://my-sonarqube.example.com")).isFalse();
   }
 
-  // HTTP mode SonarCloud detection tests
+  // isSonarCloud detection tests — mode-independent (stdio and HTTP behave identically)
 
   @Test
-  void should_default_to_sonarcloud_in_http_mode_when_no_url_is_set(@TempDir Path tempDir) {
+  void should_default_to_sonarcloud_when_no_url_is_set(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TRANSPORT", "http"
@@ -405,10 +418,10 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_detect_sonarcloud_in_http_mode_from_sonarcloud_io_url(@TempDir Path tempDir) {
+  void should_detect_sonarcloud_from_sonarcloud_io_url(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
-      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_TOKEN", "token",
       "SONARQUBE_URL", "https://sonarcloud.io"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
@@ -417,10 +430,10 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_detect_sonarcloud_in_http_mode_from_sonarqube_us_url(@TempDir Path tempDir) {
+  void should_detect_sonarcloud_from_sonarqube_us_url(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
-      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_TOKEN", "token",
       "SONARQUBE_URL", "https://sonarqube.us"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
@@ -430,10 +443,10 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_detect_sonarqube_server_in_http_mode_from_custom_url(@TempDir Path tempDir) {
+  void should_detect_sonarqube_server_from_custom_url(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
-      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_TOKEN", "token",
       "SONARQUBE_URL", "https://my-sonarqube.example.com"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
@@ -443,12 +456,13 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_force_sonarcloud_in_http_mode_when_is_sonarcloud_flag_is_set(@TempDir Path tempDir) {
+  void should_detect_sonarcloud_from_org_even_with_custom_url(@TempDir Path tempDir) {
+    // SONARQUBE_ORG is set → SQC regardless of the URL
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
-      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_TOKEN", "token",
       "SONARQUBE_URL", "https://test.sc-test.io",
-      "SONARQUBE_IS_CLOUD", "true"
+      "SONARQUBE_ORG", "my-org"
     );
     var configuration = new McpServerLaunchConfiguration(arg);
 
@@ -457,7 +471,20 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_force_sonarcloud_in_stdio_mode_when_is_sonarcloud_flag_is_set(@TempDir Path tempDir) {
+  void should_require_sonarqube_is_cloud_flag_for_custom_sqc_url_without_org(@TempDir Path tempDir) {
+    // Custom SQC URL, no org, no SONARQUBE_IS_CLOUD → falls through to SQS (URL is required and present)
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_URL", "https://test.sc-test.io"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarCloud()).isFalse();
+  }
+
+  @Test
+  void should_force_sonarcloud_when_is_sonarcloud_flag_is_set(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
@@ -474,7 +501,7 @@ class McpServerLaunchConfigurationTest {
   void should_not_force_sonarcloud_when_is_sonarcloud_flag_is_false(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
-      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_TOKEN", "token",
       "SONARQUBE_URL", "https://my-sonarqube.example.com",
       "SONARQUBE_IS_CLOUD", "false"
     );

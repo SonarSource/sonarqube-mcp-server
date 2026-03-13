@@ -19,12 +19,8 @@ package org.sonarsource.sonarqube.mcp.serverapi;
 import javax.annotation.Nullable;
 
 /**
- * SonarQube Server or Cloud endpoint parameters
+ * SonarQube Server or Cloud endpoint parameters.
+ * {@code isSonarCloud} must be set explicitly by the caller; it is the single authoritative source of truth
  */
-public record EndpointParams(String baseUrl, @Nullable String organization, @Nullable String apiBaseUrl) {
-
-  public EndpointParams(String baseUrl, @Nullable String organization) {
-    this(baseUrl, organization, null);
-  }
-
+public record EndpointParams(String baseUrl, @Nullable String organization, @Nullable String apiBaseUrl, boolean isSonarCloud) {
 }
