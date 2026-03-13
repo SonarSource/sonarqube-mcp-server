@@ -63,7 +63,7 @@ public class HttpServerTransportProvider {
   private final int port;
   private final String host;
   private final AuthMode authMode;
-  private final boolean isSonarCloud;
+  private final boolean isSonarQubeCloud;
   @Nullable
   private final String serverOrg;
   private final boolean httpsEnabled;
@@ -83,7 +83,7 @@ public class HttpServerTransportProvider {
    * @param port HTTP port (e.g., 8080 for HTTP, 8443 for HTTPS)
    * @param host Host to bind to (127.0.0.1 for localhost, 0.0.0.0 for all interfaces)
    * @param authMode Authentication mode (e.g., TOKEN, OAUTH)
-   * @param isSonarCloud Whether this server connects to SonarQube Cloud
+   * @param isSonarQubeCloud Whether this server connects to SonarQube Cloud
    * @param serverOrg Server-level organization key (null when not configured at startup)
    * @param httpsEnabled Whether to enable HTTPS/TLS
    * @param httpsKeystorePath Path to keystore file (contains server certificate and private key)
@@ -94,14 +94,14 @@ public class HttpServerTransportProvider {
    * @param httpsTruststoreType Truststore type (optional)
    * @param allowedOrigins Additional allowed origins beyond localhost defaults (e.g. for reverse-proxy deployments)
    */
-  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarCloud, @Nullable String serverOrg,
+  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
     boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
     Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
     List<String> allowedOrigins) {
     this.port = port;
     this.host = host;
     this.authMode = authMode;
-    this.isSonarCloud = isSonarCloud;
+    this.isSonarQubeCloud = isSonarQubeCloud;
     this.serverOrg = serverOrg;
     this.httpsEnabled = httpsEnabled;
     this.httpsKeystorePath = httpsKeystorePath;
@@ -198,7 +198,7 @@ public class HttpServerTransportProvider {
     var securityFilter = new FilterHolder(new McpSecurityFilter(host, allowedOrigins));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarCloud, serverOrg));
+    var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarQubeCloud, serverOrg));
     servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var servletHolder = new ServletHolder(mcpTransportProvider);

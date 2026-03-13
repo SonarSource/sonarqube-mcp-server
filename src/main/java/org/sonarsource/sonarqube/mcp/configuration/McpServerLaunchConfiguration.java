@@ -64,7 +64,7 @@ public class McpServerLaunchConfiguration {
   // Force SonarQube Cloud detection for non-standard deployments
   private static final String SONARQUBE_IS_CLOUD = "SONARQUBE_IS_CLOUD";
   // Override the API subdomain base URL for non-standard SonarQube Cloud deployments
-  private static final String SONARQUBE_API_URL = "SONARQUBE_API_URL";
+  private static final String SONARQUBE_CLOUD_API_URL = "SONARQUBE_CLOUD_API_URL";
   
   // HTTP/HTTPS transport configuration
   private static final String SONARQUBE_TRANSPORT = "SONARQUBE_TRANSPORT";
@@ -93,7 +93,7 @@ public class McpServerLaunchConfiguration {
   private final String hostMachineAddress;
   private final String sonarqubeUrl;
   @Nullable
-  private final String sonarqubeApiUrl;
+  private final String sonarqubeCloudApiUrl;
   @Nullable
   private final String sonarqubeOrg;
   @Nullable
@@ -102,7 +102,7 @@ public class McpServerLaunchConfiguration {
   private final String appVersion;
   private final String userAgent;
   private final boolean isTelemetryEnabled;
-  private final boolean isSonarCloud;
+  private final boolean isSonarQubeCloud;
   
   // HTTP transport configuration
   private final boolean isHttpEnabled;
@@ -156,10 +156,10 @@ public class McpServerLaunchConfiguration {
 
     var forceSonarQubeCloud = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_IS_CLOUD, "false"));
     validateStdioConfiguration(isHttpEnabled, sonarqubeUrlFromEnv, this.sonarqubeOrg);
-    this.isSonarCloud = resolveSonarCloud(forceSonarQubeCloud, this.sonarqubeOrg, sonarqubeUrlFromEnv);
-    this.sonarqubeUrl = resolveUrl(this.isSonarCloud, sonarqubeUrlFromEnv);
+    this.isSonarQubeCloud = resolveSonarQubeCloud(forceSonarQubeCloud, this.sonarqubeOrg, sonarqubeUrlFromEnv);
+    this.sonarqubeUrl = resolveUrl(this.isSonarQubeCloud, sonarqubeUrlFromEnv);
 
-    this.sonarqubeApiUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_API_URL, null);
+    this.sonarqubeCloudApiUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_API_URL, null);
 
     this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
     // In HTTP mode the token is provided per-request via the Authorization: Bearer header; not required at startup.
@@ -227,11 +227,11 @@ public class McpServerLaunchConfiguration {
   }
 
   /**
-   * Returns the explicit API subdomain base URL configured via SONARQUBE_API_URL, or null if not set.
+   * Returns the explicit API subdomain base URL configured via SONARQUBE_CLOUD_API_URL, or null if not set.
    */
   @Nullable
-  public String getSonarQubeApiUrl() {
-    return sonarqubeApiUrl;
+  public String getSonarQubeCloudApiUrl() {
+    return sonarqubeCloudApiUrl;
   }
 
   /**
@@ -265,8 +265,8 @@ public class McpServerLaunchConfiguration {
     return isTelemetryEnabled;
   }
 
-  public boolean isSonarCloud() {
-    return isSonarCloud;
+  public boolean isSonarQubeCloud() {
+    return isSonarQubeCloud;
   }
 
   public boolean isHttpEnabled() {
@@ -400,8 +400,8 @@ public class McpServerLaunchConfiguration {
    *   4. No SONARQUBE_URL → default to SQC (HTTP mode only after stdio validation)
    *   5. SONARQUBE_URL is unknown host → SQS
    */
-  private static boolean resolveSonarCloud(boolean forceSonarCloud, @Nullable String org, @Nullable String url) {
-    return forceSonarCloud || org != null || url == null || isSonarCloudUrl(url);
+  private static boolean resolveSonarQubeCloud(boolean forceSonarCloud, @Nullable String org, @Nullable String url) {
+    return forceSonarCloud || org != null || url == null || isSonarQubeCloudUrl(url);
   }
 
   /**
@@ -409,8 +409,8 @@ public class McpServerLaunchConfiguration {
    * For SQC without an explicit URL, defaults to sonarcloud.io.
    * For SQS, the URL is guaranteed non-null at this point (stdio validation ensures this).
    */
-  private static String resolveUrl(boolean isSonarCloud, @Nullable String url) {
-    if (isSonarCloud) {
+  private static String resolveUrl(boolean isSonarQubeCloud, @Nullable String url) {
+    if (isSonarQubeCloud) {
       return url != null ? url : SONARCLOUD_IO_URL;
     }
     return url;
@@ -419,7 +419,7 @@ public class McpServerLaunchConfiguration {
   /**
    * Returns true if the given URL points to a SonarQube Cloud instance
    */
-  public static boolean isSonarCloudUrl(@Nullable String url) {
+  public static boolean isSonarQubeCloudUrl(@Nullable String url) {
     if (url == null) {
       return false;
     }

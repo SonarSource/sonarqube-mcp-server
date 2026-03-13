@@ -20,7 +20,7 @@ import javax.annotation.Nullable;
 
 /**
  * SonarQube Server or Cloud endpoint parameters.
- * {@code isSonarCloud} must be set explicitly by the caller; it is the single authoritative source of truth
+ * {@code isSonarQubeCloud} must be set explicitly by the caller; it is the single authoritative source of truth
  */
-public record EndpointParams(String baseUrl, @Nullable String organization, @Nullable String apiBaseUrl, boolean isSonarCloud) {
+public record EndpointParams(String baseUrl, @Nullable String organization, @Nullable String apiBaseUrl, boolean isSonarQubeCloud) {
 }

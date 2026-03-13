@@ -43,11 +43,11 @@ import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 public class ServerApi {
 
   private final ServerApiHelper helper;
-  private final boolean isSonarCloud;
+  private final boolean isSonarQubeCloud;
 
-  public ServerApi(ServerApiHelper helper, boolean isSonarCloud) {
+  public ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud) {
     this.helper = helper;
-    this.isSonarCloud = isSonarCloud;
+    this.isSonarQubeCloud = isSonarQubeCloud;
   }
 
   public QualityGatesApi qualityGatesApi() {
@@ -99,7 +99,7 @@ public class ServerApi {
   }
 
   public PluginsApi pluginsApi() {
-    return new PluginsApi(helper, isSonarCloud);
+    return new PluginsApi(helper, isSonarQubeCloud);
   }
 
   public ScaApi scaApi() {
@@ -147,7 +147,7 @@ public class ServerApi {
   }
 
   public boolean isSonarQubeCloud() {
-    return isSonarCloud;
+    return isSonarQubeCloud;
   }
 
 }

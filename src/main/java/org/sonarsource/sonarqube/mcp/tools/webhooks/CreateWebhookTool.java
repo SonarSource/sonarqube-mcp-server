@@ -32,14 +32,14 @@ public class CreateWebhookTool extends Tool {
 
   private final ServerApiProvider serverApiProvider;
 
-  public CreateWebhookTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
-    super(createToolDefinition(isSonarCloud),
+  public CreateWebhookTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
+    super(createToolDefinition(isSonarQubeCloud),
       ToolCategory.WEBHOOKS);
     this.serverApiProvider = serverApiProvider;
   }
 
-  private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
-    var scope = isSonarCloud ? "organization or project" : "instance or project";
+  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
+    var scope = isSonarQubeCloud ? "organization or project" : "instance or project";
     var description = "Create a new webhook for the " + scope + ". " +
       "Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
     

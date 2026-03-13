@@ -33,14 +33,14 @@ public class SearchMyProjectsTool extends Tool {
 
   private final ServerApiProvider serverApiProvider;
 
-  public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarCloud) {
-    super(createToolDefinition(isSonarCloud),
+  public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
+    super(createToolDefinition(isSonarQubeCloud),
       ToolCategory.PROJECTS);
     this.serverApiProvider = serverApiProvider;
   }
 
-  private static McpSchema.Tool createToolDefinition(boolean isSonarCloud) {
-    var scope = isSonarCloud ? "organization" : "instance";
+  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
+    var scope = isSonarQubeCloud ? "organization" : "instance";
     var description = "Find SonarQube projects in your " + scope + ". Supports searching by project name or key. " +
       "Use this first when projectKey is unknown - most other tools require the project key from this response.";
 

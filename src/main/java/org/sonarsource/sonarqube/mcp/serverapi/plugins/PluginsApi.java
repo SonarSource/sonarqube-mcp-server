@@ -27,16 +27,16 @@ public class PluginsApi {
   public static final String DOWNLOAD_PLUGINS_PATH = "/api/plugins/download";
 
   private final ServerApiHelper helper;
-  private final boolean isSonarCloud;
+  private final boolean isSonarQubeCloud;
 
-  public PluginsApi(ServerApiHelper helper, boolean isSonarCloud) {
+  public PluginsApi(ServerApiHelper helper, boolean isSonarQubeCloud) {
     this.helper = helper;
-    this.isSonarCloud = isSonarCloud;
+    this.isSonarQubeCloud = isSonarQubeCloud;
   }
 
   public InstalledPluginsResponse getInstalled() {
-    // On SonarCloud, plugin endpoints don't require authentication
-    var response = isSonarCloud ? helper.getAnonymous(INSTALLED_PLUGINS_PATH) : helper.get(INSTALLED_PLUGINS_PATH);
+    // On SonarQube Cloud, plugin endpoints don't require authentication
+    var response = isSonarQubeCloud ? helper.getAnonymous(INSTALLED_PLUGINS_PATH) : helper.get(INSTALLED_PLUGINS_PATH);
     try (response) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, InstalledPluginsResponse.class);
@@ -45,8 +45,8 @@ public class PluginsApi {
 
   public HttpClient.Response downloadPlugin(String pluginKey) {
     var downloadPath = DOWNLOAD_PLUGINS_PATH + "?plugin=" + pluginKey;
-    // On SonarCloud, plugin endpoints don't require authentication
-    return isSonarCloud ? helper.rawGetAnonymous(downloadPath) : helper.rawGet(downloadPath);
+    // On SonarQube Cloud, plugin endpoints don't require authentication
+    return isSonarQubeCloud ? helper.rawGetAnonymous(downloadPath) : helper.rawGet(downloadPath);
   }
 
 }
