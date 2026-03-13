@@ -90,8 +90,6 @@ class SearchMetricsToolTests {
                   },
                   "required":[
                      "custom",
-                     "description",
-                     "domain",
                      "hidden",
                      "id",
                      "key",
