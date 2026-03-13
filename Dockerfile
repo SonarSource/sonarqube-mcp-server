@@ -55,7 +55,10 @@ RUN case "$TARGETARCH" in \
     | tar -xz -C /tmp && \
     install -m 755 /tmp/sonar-code-context-mcp /usr/local/bin/sonar-code-context-mcp && \
     cp /tmp/requirements.txt /app/requirements.txt && \
-    rm -rf /tmp/sonar-code-context-mcp /tmp/requirements.txt
+    if [ -d /tmp/wheels ]; then \
+        python3 -m pip install --no-cache-dir --break-system-packages /tmp/wheels/*.whl; \
+    fi && \
+    rm -rf /tmp/sonar-code-context-mcp /tmp/requirements.txt /tmp/wheels
 
 # Install Python dependencies for sonar-code-context
 USER appuser
