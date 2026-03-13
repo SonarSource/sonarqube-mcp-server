@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.analysis;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import io.modelcontextprotocol.common.McpTransportContext;
 import java.util.Map;
+import java.util.function.BiFunction;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -38,7 +39,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RunAdvancedCodeAnalysisToolEntitlementTest {
@@ -90,16 +90,28 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
   // --- isEnabledFor (instance method) ---
 
   @Test
+  void is_enabled_for_returns_true_when_no_factory_configured() {
+    // No factory = tool was registered at startup after a successful A3S check, always enabled.
+    var tool = new RunAdvancedCodeAnalysisTool(mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider.class), null);
+    var context = McpTransportContext.create(Map.of(
+      HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
+      HttpServerTransportProvider.CONTEXT_ORG_KEY, ORG_KEY
+    ));
+
+    assertThat(tool.isEnabledFor(context)).isTrue();
+  }
+
+  @Test
   void is_enabled_for_returns_false_when_token_missing_from_context() {
-    var tool = toolWithMockedProvider(serverApi);
+    var tool = toolWithFactory((token, org) -> serverApi);
     var context = McpTransportContext.create(Map.of(HttpServerTransportProvider.CONTEXT_ORG_KEY, ORG_KEY));
 
     assertThat(tool.isEnabledFor(context)).isFalse();
   }
 
   @Test
-  void is_enabled_for_returns_false_when_org_missing_from_context() {
-    var tool = toolWithMockedProvider(serverApi);
+  void is_enabled_for_returns_false_when_org_missing_from_context_and_no_startup_org() {
+    var tool = toolWithFactory((token, org) -> serverApi);
     var context = McpTransportContext.create(Map.of(HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token"));
 
     assertThat(tool.isEnabledFor(context)).isFalse();
@@ -109,7 +121,7 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
   void is_enabled_for_returns_true_when_org_is_enabled() {
     stubOrg(ORG_UUID);
     stubOrgConfig(ORG_UUID, true);
-    var tool = toolWithMockedProvider(serverApi);
+    var tool = toolWithFactory((token, org) -> serverApi);
     var context = McpTransportContext.create(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_ORG_KEY, ORG_KEY
@@ -122,7 +134,7 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
   void is_enabled_for_returns_false_when_org_is_not_enabled() {
     stubOrg(ORG_UUID);
     stubOrgConfig(ORG_UUID, false);
-    var tool = toolWithMockedProvider(serverApi);
+    var tool = toolWithFactory((token, org) -> serverApi);
     var context = McpTransportContext.create(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_ORG_KEY, ORG_KEY
@@ -132,10 +144,10 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
   }
 
   @Test
-  void is_enabled_for_returns_false_when_provider_throws() {
-    var provider = mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider.class);
-    when(provider.get()).thenThrow(new RuntimeException("network error"));
-    var tool = new RunAdvancedCodeAnalysisTool(provider, null);
+  void is_enabled_for_returns_false_when_factory_throws() {
+    var tool = toolWithFactory((token, org) -> {
+      throw new RuntimeException("network error");
+    });
     var context = McpTransportContext.create(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_ORG_KEY, ORG_KEY
@@ -144,10 +156,8 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
     assertThat(tool.isEnabledFor(context)).isFalse();
   }
 
-  private static RunAdvancedCodeAnalysisTool toolWithMockedProvider(ServerApi api) {
-    var provider = mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider.class);
-    when(provider.get()).thenReturn(api);
-    return new RunAdvancedCodeAnalysisTool(provider, null);
+  private static RunAdvancedCodeAnalysisTool toolWithFactory(BiFunction<String, String, ServerApi> factory) {
+    return new RunAdvancedCodeAnalysisTool(mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider.class), factory, null);
   }
 
   private void stubOrg(String uuidV4) {

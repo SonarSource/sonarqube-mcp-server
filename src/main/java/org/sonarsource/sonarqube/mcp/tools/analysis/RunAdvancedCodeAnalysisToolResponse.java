@@ -45,9 +45,9 @@ public record RunAdvancedCodeAnalysisToolResponse(
   }
 
   public record Flow(
-    @JsonPropertyDescription("The type of flow: UNDEFINED, DATA, or EXECUTION") String type,
+    @JsonPropertyDescription("The type of flow: UNDEFINED, DATA, or EXECUTION") @Nullable String type,
     @JsonPropertyDescription("Description of the flow, if any") @Nullable String description,
-    @JsonPropertyDescription("List of locations in this flow") List<Location> locations
+    @JsonPropertyDescription("List of locations in this flow") @Nullable List<Location> locations
   ) {
   }
 
