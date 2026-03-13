@@ -51,6 +51,10 @@ public class ServerApiHelper {
     return endpointParams.organization();
   }
 
+  public boolean isSonarCloud() {
+    return endpointParams.isSonarCloud();
+  }
+
   public HttpClient.Response get(String path) {
     var response = rawGet(path);
     if (!response.isSuccessful()) {
@@ -133,18 +137,20 @@ public class ServerApiHelper {
   /**
    * Build URL using the API subdomain (api.sonarcloud.io / api.sonarqube.us).
    * When an explicit {@code apiBaseUrl} override is set on the endpoint params (via
-   * {@code SONARQUBE_API_URL}), it is used directly instead of deriving the API subdomain from the base URL
+   * {@code SONARQUBE_API_URL}), it is used directly and takes priority over everything else.
+   * For SonarQube Server ({@code isSonarCloud == false}), falls back to the base URL.
+   * For SonarQube Cloud, derives the api.* subdomain automatically for known hosts
+   * (sonarcloud.io, sonarqube.us), or uses the base URL as-is for unknown hosts.
    */
   @VisibleForTesting
   String buildApiSubdomainUrl(String relativePath) {
-    if (endpointParams.organization() == null) {
-      // For SonarQube Server, fall back to regular endpoint
-      return buildEndpointUrl(relativePath);
-    }
-
-    // Explicit override takes precedence over the automatic host-rewrite logic
     if (endpointParams.apiBaseUrl() != null) {
       return concat(endpointParams.apiBaseUrl(), relativePath);
+    }
+
+    if (!endpointParams.isSonarCloud()) {
+      // For SonarQube Server, fall back to regular endpoint
+      return buildEndpointUrl(relativePath);
     }
 
     var baseUrl = endpointParams.baseUrl();

@@ -63,7 +63,7 @@ class ServerApiTests {
     var httpClientProvider = new HttpClientProvider(USER_AGENT);
     var httpClient = httpClientProvider.getHttpClient("token");
 
-    serverApiHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "org"), httpClient);
+    serverApiHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "org", null, true), httpClient);
   }
 
   @AfterEach
@@ -149,23 +149,26 @@ class ServerApiTests {
 
   static Stream<Arguments> buildApiSubdomainUrlCases() {
     return Stream.of(
-      // known hosts: sonarcloud.io and sonarqube.us get their api.* subdomain derived automatically
-      arguments("https://sonarcloud.io", "my-org", null, "https://api.sonarcloud.io/api/test"),
-      arguments("https://sonarqube.us", "my-org", null, "https://api.sonarqube.us/api/test"),
-      // no org (SQS): always falls back to the base URL
-      arguments("https://sonarqube.us", null, null, "https://sonarqube.us/api/test"),
-      // explicit override: used as-is regardless of the base URL host
-      arguments("https://test.sc-test.io", "my-org", "https://api.sc-test.io", "https://api.sc-test.io/api/test"),
-      // unknown host without override: base URL is used as-is
-      arguments("https://test.sc-test.io", "my-org", null, "https://test.sc-test.io/api/test")
+      // SQC - known hosts: api.* subdomain is derived automatically
+      arguments("https://sonarcloud.io", "my-org", null, true, "https://api.sonarcloud.io/api/test"),
+      arguments("https://sonarqube.us", "my-org", null, true, "https://api.sonarqube.us/api/test"),
+      // SQC - no org (e.g. SONARQUBE_IS_CLOUD=true without SONARQUBE_ORG): subdomain is still derived
+      arguments("https://sonarcloud.io", null, null, true, "https://api.sonarcloud.io/api/test"),
+      // SQS - no isSonarCloud: always falls back to the base URL
+      arguments("https://my-sonarqube.example.com", null, null, false, "https://my-sonarqube.example.com/api/test"),
+      // explicit override wins regardless of org or isSonarCloud
+      arguments("https://test.sc-test.io", "my-org", "https://api.sc-test.io", true, "https://api.sc-test.io/api/test"),
+      arguments("https://test.sc-test.io", null, "https://api.sc-test.io", true, "https://api.sc-test.io/api/test"),
+      // SQC - unknown host without override: base URL is used as-is
+      arguments("https://test.sc-test.io", "my-org", null, true, "https://test.sc-test.io/api/test")
     );
   }
 
   @ParameterizedTest
   @MethodSource("buildApiSubdomainUrlCases")
-  void buildApiSubdomainUrl_should_build_correct_url(String baseUrl, String org, String apiBaseUrl, String expectedUrl) {
+  void buildApiSubdomainUrl_should_build_correct_url(String baseUrl, String org, String apiBaseUrl, boolean isSonarCloud, String expectedUrl) {
     var httpClient = new HttpClientProvider(USER_AGENT).getHttpClient("token");
-    var helper = new ServerApiHelper(new EndpointParams(baseUrl, org, apiBaseUrl), httpClient);
+    var helper = new ServerApiHelper(new EndpointParams(baseUrl, org, apiBaseUrl, isSonarCloud), httpClient);
 
     assertThat(helper.buildApiSubdomainUrl("/api/test")).isEqualTo(expectedUrl);
   }

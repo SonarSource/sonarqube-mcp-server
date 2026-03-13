@@ -80,8 +80,7 @@ public class IssuesApi {
   }
 
   private String buildIssueSearchPath(SearchParams params) {
-    var isSonarCloud = helper.getOrganization() != null;
-    var componentsParamName = isSonarCloud ? "componentKeys" : "components";
+    var componentsParamName = helper.isSonarCloud() ? "componentKeys" : "components";
     var builder = new UrlBuilder(SEARCH_PATH)
       .addParam(componentsParamName, mergedComponents(params.projects(), params.files()))
       .addParam("branch", params.branch())

@@ -550,9 +550,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private ServerApi createServerApiWithTokenAndOrg(@Nullable String token, @Nullable String organization) {
     var url = mcpConfiguration.getSonarQubeUrl();
     var apiUrl = mcpConfiguration.getSonarQubeApiUrl();
+    var isSonarCloud = mcpConfiguration.isSonarCloud();
     var httpClient = token != null ? httpClientProvider.getHttpClient(token) : httpClientProvider.getAnonymousHttpClient();
-    var isSonarCloud = mcpConfiguration.isSonarCloud() || organization != null;
-    var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization, apiUrl), httpClient);
+    var serverApiHelper = new ServerApiHelper(new EndpointParams(url, organization, apiUrl, isSonarCloud), httpClient);
     return new ServerApi(serverApiHelper, isSonarCloud);
   }
 
@@ -563,7 +563,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var bridgeUrl = "http://" + host + ":" + port;
     LOG.info("Bridge URL: " + bridgeUrl);
     var httpClient = httpClientProvider.getHttpClientForBridge();
-    var bridgeHelper = new ServerApiHelper(new EndpointParams(bridgeUrl, null), httpClient);
+    var bridgeHelper = new ServerApiHelper(new EndpointParams(bridgeUrl, null, null, false), httpClient);
     return new SonarQubeIdeBridgeClient(bridgeHelper);
   }
 
