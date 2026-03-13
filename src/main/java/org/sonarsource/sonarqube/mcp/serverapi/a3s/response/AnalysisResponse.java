@@ -27,7 +27,7 @@ public record AnalysisResponse(String id, List<Issue> issues, @Nullable PatchRes
   public record TextRange(Integer startLine, Integer endLine, Integer startOffset, Integer endOffset) {
   }
 
-  public record Flow(String type, @Nullable String description, List<Location> locations) {
+  public record Flow(@Nullable String type, @Nullable String description, @Nullable List<Location> locations) {
   }
 
   public record Location(@Nullable TextRange textRange, @Nullable String message, @Nullable String file) {

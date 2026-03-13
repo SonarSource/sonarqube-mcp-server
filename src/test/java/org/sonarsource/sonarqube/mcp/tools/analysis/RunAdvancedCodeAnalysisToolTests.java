@@ -97,6 +97,76 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_return_issues_with_flows_missing_type(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
+    stubAnalysisResponse(harness, RESPONSE_WITH_FLOWS_WITHOUT_TYPE);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "projectKey", "my-project",
+        "branchName", "main",
+        "filePath", "src/Main.java",
+        "fileContent", "class Main {}"
+      ));
+
+    assertResultEquals(result, """
+      {
+        "issues" : [ {
+          "id" : "issue-1",
+          "filePath" : "src/Main.java",
+          "message" : "Null pointer dereference",
+          "rule" : "java:S2259",
+          "textRange" : {
+            "startLine" : 10,
+            "endLine" : 10
+          },
+          "flows" : [ {
+            "description" : "Data flow",
+            "locations" : [ {
+              "textRange" : {
+                "startLine" : 5,
+                "endLine" : 5
+              },
+              "message" : "Source of null",
+              "file" : "src/Main.java"
+            } ]
+          } ]
+        } ]
+      }""");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_return_issues_with_flows_missing_locations(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
+    stubAnalysisResponse(harness, RESPONSE_WITH_FLOWS_WITHOUT_LOCATIONS);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "projectKey", "my-project",
+        "branchName", "main",
+        "filePath", "src/Main.java",
+        "fileContent", "class Main {}"
+      ));
+
+    assertResultEquals(result, """
+      {
+        "issues" : [ {
+          "id" : "issue-1",
+          "filePath" : "src/Main.java",
+          "message" : "Null pointer dereference",
+          "rule" : "java:S2259",
+          "flows" : [ {
+            "type" : "DATA"
+          } ]
+        } ]
+      }""");
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_allow_issues_without_file_path(SonarQubeMcpServerTestHarness harness) {
     stubAdvancedAnalysisEnabled(harness);
     stubAnalysisResponse(harness, RESPONSE_WITHOUT_FILE_PATH);
@@ -262,6 +332,64 @@ class RunAdvancedCodeAnalysisToolTests {
         }
       }""");
   }
+
+  private static final String RESPONSE_WITH_FLOWS_WITHOUT_LOCATIONS = """
+    {
+      "id": "analysis-1",
+      "issues": [
+        {
+          "id": "issue-1",
+          "filePath": "src/Main.java",
+          "message": "Null pointer dereference",
+          "rule": "java:S2259",
+          "flows": [
+            {
+              "type": "DATA"
+            }
+          ]
+        }
+      ],
+      "patchResult": null
+    }
+    """;
+
+  private static final String RESPONSE_WITH_FLOWS_WITHOUT_TYPE = """
+    {
+      "id": "analysis-1",
+      "issues": [
+        {
+          "id": "issue-1",
+          "filePath": "src/Main.java",
+          "message": "Null pointer dereference",
+          "rule": "java:S2259",
+          "textRange": {
+            "startLine": 10,
+            "endLine": 10,
+            "startOffset": 4,
+            "endOffset": 20
+          },
+          "flows": [
+            {
+              "description": "Data flow",
+              "locations": [
+                {
+                  "textRange": {
+                    "startLine": 5,
+                    "endLine": 5,
+                    "startOffset": 0,
+                    "endOffset": 15
+                  },
+                  "message": "Source of null",
+                  "file": "src/Main.java"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "patchResult": null
+    }
+    """;
 
   private static final String RESPONSE_WITH_FLOWS = """
     {

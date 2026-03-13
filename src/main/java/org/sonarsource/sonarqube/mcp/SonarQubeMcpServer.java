@@ -248,7 +248,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       // HTTP mode without a startup token on SQC: register the advanced analysis tool unconditionally.
       // Per-request visibility is controlled by PerRequestToolFilteringHandler querying the org-config endpoint.
       LOG.info("HTTP mode without startup token on SonarQube Cloud - advanced analysis tool will be shown per-request based on org config");
-      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey()));
+      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, this::createServerApiWithTokenAndOrg, mcpConfiguration.getProjectKey()));
     } else if (isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
       LOG.info("Advanced analysis mode enabled");
       supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey()));

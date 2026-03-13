@@ -20,6 +20,7 @@ import io.modelcontextprotocol.common.McpTransportContext;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
@@ -47,10 +48,22 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private static final String[] VALID_FILE_SCOPES = {"MAIN", "TEST"};
 
   private final ServerApiProvider serverApiProvider;
+  /**
+   * Factory used exclusively for the per-request A3S entitlement check in {@link #isEnabledFor}.
+   * It takes (token, org) and returns a {@link ServerApi} without depending on any thread-local context.
+   * Null in stdio mode or when the tool is registered at startup with a fixed token.
+   */
+  @Nullable
+  private final BiFunction<String, String, ServerApi> apiFactory;
   @Nullable
   private final String configuredProjectKey;
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
+    this(serverApiProvider, null, configuredProjectKey);
+  }
+
+  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable BiFunction<String, String, ServerApi> apiFactory,
+    @Nullable String configuredProjectKey) {
     super(SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("SonarQube Advanced Code Analysis")
@@ -66,16 +79,22 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .build(),
       ToolCategory.ANALYSIS);
     this.serverApiProvider = serverApiProvider;
+    this.apiFactory = apiFactory;
     this.configuredProjectKey = configuredProjectKey;
   }
 
   /**
    * Checks per-request whether the requesting org has A3S enabled.
-   * Extracts token and org from the transport context, builds a {@link ServerApi} via the
-   * injected {@link ServerApiProvider}, then queries the SQ:C org-config endpoint.
+   * Extracts token and org from the transport context, builds a {@link ServerApi} via
+   * the {@code apiFactory} (which takes token+org directly, with no thread-local dependency), then queries the SQ:C org-config endpoint.
+   * Returns {@code true} when no factory is configured — the tool was already gated at startup
    */
   @Override
   public boolean isEnabledFor(McpTransportContext ctx) {
+    var factory = apiFactory;
+    if (factory == null) {
+      return true;
+    }
     var token = (String) ctx.get(HttpServerTransportProvider.CONTEXT_TOKEN_KEY);
     var org = (String) ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
     if (token == null || token.isBlank() || org == null || org.isBlank()) {
@@ -83,10 +102,8 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       return false;
     }
     try {
-      return CompletableFuture.supplyAsync(() -> {
-          var api = serverApiProvider.get();
-          return isA3sEnabled(api, org);
-        })
+      var api = factory.apply(token, org);
+      return CompletableFuture.supplyAsync(() -> isA3sEnabled(api, org))
         .orTimeout(ENTITLEMENT_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .join();
     } catch (Exception e) {
@@ -189,9 +206,12 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   }
 
   private static RunAdvancedCodeAnalysisToolResponse.Flow mapFlow(AnalysisResponse.Flow flow) {
-    var locations = flow.locations().stream()
-      .map(RunAdvancedCodeAnalysisTool::mapLocation)
-      .toList();
+    List<RunAdvancedCodeAnalysisToolResponse.Location> locations = null;
+    if (flow.locations() != null && !flow.locations().isEmpty()) {
+      locations = flow.locations().stream()
+        .map(RunAdvancedCodeAnalysisTool::mapLocation)
+        .toList();
+    }
 
     return new RunAdvancedCodeAnalysisToolResponse.Flow(
       flow.type(),
