@@ -72,8 +72,15 @@ The user should provide the following environment variables:
 ## Important Parameter Guidelines
 
 ### Project Keys
-- When a user mentions a project key, use `search_my_sonarqube_projects` first to find the exact project key
-- Don't guess project keys - always look them up
+
+Always resolve the project key using the following lookup order — **never guess**:
+
+1. **SonarQube for IDE (connected mode)**: If the MCP server is running with IDE integration (`SONARQUBE_IDE_PORT` is set), the project key may already be available from the IDE context.
+2. **`.sonarlint/connectedMode.json`**: Look for this file in the workspace root (or any parent directory). It contains the project key in the `projectKey` field.
+3. **Project-level configuration file**: Search for a `sonar.projectKey` property in files such as `sonar-project.properties`, `pom.xml`, `build.gradle`, `build.gradle.kts`, or `package.json` in the root project folder.
+4. **CI/CD pipeline definitions**: Search for `sonar.projectKey` in pipeline files such as `.github/workflows/*.yml`, `Jenkinsfile`, `.gitlab-ci.yml`, `azure-pipelines.yml`, `.circleci/config.yml`, etc.
+5. **User-provided project name**: When a user mentions a project by name or partial key, use `search_my_sonarqube_projects` to find the exact project key.
+6. **No key found**: If none of the above methods yield a project key, use `search_my_sonarqube_projects` to list available projects.
 
 ### Code Language Detection
 - When analyzing code snippets, try to detect the programming language from the code syntax
