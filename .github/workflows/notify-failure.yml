@@ -24,7 +24,7 @@ jobs:
             development/kv/data/slack token | SLACK_BOT_TOKEN;
 
       - name: Slack Notification on Failure
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        uses: slackapi/slack-github-action@e090a7a7c0b2d9b7ae32bd34f086e680ce260b06 # v3.0.0
         with:
           method: chat.postMessage
           token: ${{ fromJSON(steps.secrets.outputs.vault).SLACK_BOT_TOKEN }}
