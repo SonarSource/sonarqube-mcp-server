@@ -10,4 +10,4 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: SonarSource/ci-github-actions/pr_cleanup@1.3.25
+      - uses: SonarSource/ci-github-actions/pr_cleanup@c15f3733837c5ebd0f04a676feb1e18fae147cd5 # 1.3.27
