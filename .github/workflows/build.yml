@@ -27,9 +27,9 @@ jobs:
     outputs:
       PROJECT_VERSION: ${{ steps.build-step.outputs.project-version }}
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: jdx/mise-action@665d82088236dd987b2af6165be29d21e2e11184 # v3.0.0
+      - uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4 # v4.0.0
         with:
           version: 2026.3.9
 
@@ -58,9 +58,9 @@ jobs:
           - name: ProxiedServer
             test_class: ProxiedServerITest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: jdx/mise-action@665d82088236dd987b2af6165be29d21e2e11184 # v3.0.0
+      - uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4 # v4.0.0
         with:
           version: 2026.3.9
 
