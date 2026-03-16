@@ -98,6 +98,16 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String SONARQUBE_MCP_SERVER_NAME = "sonarqube-mcp-server";
+  private static final String PROJECT_KEY_INSTRUCTIONS = """
+    ## Project Key Resolution
+    Always resolve the project key using the following lookup order:
+    1. Check for a `.sonarlint/connectedMode.json` file in the workspace root or any parent directory - use the `projectKey` field.
+    2. Search for `sonar.projectKey` in project config files at the root folder: `sonar-project.properties`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `package.json`.
+    3. Search for `sonar.projectKey` in CI/CD pipeline files: `.github/workflows/*.yml`, `Jenkinsfile`, `.gitlab-ci.yml`, `azure-pipelines.yml`, `.circleci/config.yml`.
+    4. When a user mentions a project by name, use `search_my_sonarqube_projects` to find the exact key.
+    5. If no key is found, use `search_my_sonarqube_projects` to list projects.
+    An incorrect project key will silently return results from the wrong project.
+    """;
   private static final String BASE_INSTRUCTIONS_WITH_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
     "Analyze code, monitor project health, investigate issues, and understand quality gates. " +
     "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.";
@@ -422,6 +432,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     composedInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
       ? BASE_INSTRUCTIONS_WITH_ANALYSIS
       : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
+    if (mcpConfiguration.getProjectKey() == null) {
+      composedInstructions += "\n" + PROJECT_KEY_INSTRUCTIONS;
+    }
   }
 
   private List<Tool> filterForEnabledTools(List<Tool> toolsToFilter) {

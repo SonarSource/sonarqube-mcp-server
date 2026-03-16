@@ -41,6 +41,17 @@ The server supports both SonarQube Cloud and on-premises SonarQube Server instan
 
 ## Best Practices
 
+### Project Key Resolution
+
+Always resolve the project key using the following lookup order — **never guess**:
+
+1. **SonarQube for IDE (connected mode)**: If the MCP server is running with IDE integration (`SONARQUBE_IDE_PORT` is set), the project key may already be available from the IDE context.
+2. **`.sonarlint/connectedMode.json`**: Look for this file in the workspace root (or any parent directory). It contains the project key in the `projectKey` field.
+3. **Project-level configuration file**: Search for a `sonar.projectKey` property in files such as `sonar-project.properties`, `pom.xml`, `build.gradle`, `build.gradle.kts`, or `package.json` in the root project folder.
+4. **CI/CD pipeline definitions**: Search for `sonar.projectKey` in pipeline files such as `.github/workflows/*.yml`, `Jenkinsfile`, `.gitlab-ci.yml`, `azure-pipelines.yml`, `.circleci/config.yml`, etc.
+5. **User-provided project name**: When a user mentions a project by name or partial key, use `search_my_sonarqube_projects` to find the exact project key.
+6. **No key found**: If none of the above methods yield a project key, use `search_my_sonarqube_projects` to list available projects.
+
 ### Integration Approach
 
 **For SonarQube Cloud:**
@@ -387,10 +398,11 @@ For SonarQube Server:
 **Cause:** Invalid project key or insufficient permissions
 **Solution:**
 
-1. Verify project key is correct
-2. Check project exists in SonarQube dashboard
-3. Ensure token has access to the project
-4. For Cloud, verify you're using the correct organization
+1. Follow the **Project Key Resolution** steps above — check `.sonarlint/connectedMode.json`, then project config files, then CI/CD pipelines
+2. Use `search_my_sonarqube_projects` to confirm available projects and find the exact key
+3. Check project exists in SonarQube dashboard
+4. Ensure token has access to the project
+5. For Cloud, verify you're using the correct organization
 
 ### Error: "Connection refused"
 
