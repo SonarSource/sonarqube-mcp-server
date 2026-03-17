@@ -708,6 +708,13 @@
                             <span class="radio-desc">The AI agent runs the server in Docker locally. Best for single users.</span>
                         </div>
                     </label>
+                    <label class="radio-card" onclick="setTransport('sqc')" id="card-sqc">
+                        <input type="radio" name="transport" value="sqc">
+                        <div class="radio-content">
+                            <span class="radio-title">SonarQube Cloud (Official)</span>
+                            <span class="radio-desc">Connect directly to the Sonar-hosted SonarQube Cloud server via HTTP.</span>
+                        </div>
+                    </label>
                     <label class="radio-card" onclick="setTransport('http')" id="card-http">
                         <input type="radio" name="transport" value="http">
                         <div class="radio-content">
@@ -720,13 +727,6 @@
                         <div class="radio-content">
                             <span class="radio-title">Remote Server (HTTPS)</span>
                             <span class="radio-desc">Connect via TLS. Requires a keystore configured on the server.</span>
-                        </div>
-                    </label>
-                    <label class="radio-card" onclick="setTransport('sqc')" id="card-sqc">
-                        <input type="radio" name="transport" value="sqc">
-                        <div class="radio-content">
-                            <span class="radio-title">SonarQube Cloud (Official)</span>
-                            <span class="radio-desc">Connect directly to the Sonar-hosted SonarQube Cloud server via HTTP.</span>
                         </div>
                     </label>
                 </div>
@@ -783,14 +783,9 @@
                 <!-- Only shown if SQC official is selected -->
                 <div id="sqcOptions" class="hidden fade-in"
                      style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-color);">
-                    <label>SonarQube Cloud Region</label>
-                    <span class="help-text">Select the region that matches your SonarQube Cloud account.</span>
-                    <div class="segmented-control" style="margin-bottom: 10px;">
-                        <button class="segment-btn active" onclick="setSqcRegion('eu')" id="btn-sqc-eu">Global (EU)</button>
-                        <button class="segment-btn" onclick="setSqcRegion('us')" id="btn-sqc-us">US</button>
-                    </div>
                     <div class="form-group">
                         <label>Server URL</label>
+                        <span class="help-text">Automatically set based on your Step 2 platform selection.</span>
                         <input type="text" id="sqcUrl" readonly style="background: var(--bg-secondary); color: var(--text-muted); cursor: default;">
                     </div>
                 </div>
@@ -917,7 +912,7 @@
 
     // Initial setup
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('sqcUrl').value = SQC_URLS[state.sqcRegion];
+        syncSqcUrl();
         // SQC card only visible when a Cloud platform is selected
         if (state.env === 'server') {
             document.getElementById('card-sqc').style.display = 'none';
@@ -948,6 +943,10 @@
             }
         } else {
             sqcCard.style.display = '';
+            // If SQC transport is active, update the URL to match the new region
+            if (state.transport === 'sqc') {
+                syncSqcUrl();
+            }
         }
 
         // Update token docs link
@@ -988,7 +987,7 @@
             httpOptions.classList.add('hidden');
             sqcOptions.classList.remove('hidden');
             applyAdvancedCardMode('http-client');
-            setSqcRegion(state.sqcRegion);
+            syncSqcUrl();
         } else {
             httpOptions.classList.add('hidden');
             sqcOptions.classList.add('hidden');
@@ -998,13 +997,11 @@
         generateConfig();
     }
 
-    function setSqcRegion(region) {
+    function syncSqcUrl() {
+        // Derive region from the Step 2 env selection (cloud → EU, cloud-us → US)
+        const region = state.env === 'cloud-us' ? 'us' : 'eu';
         state.sqcRegion = region;
-        document.getElementById('btn-sqc-eu').classList.remove('active');
-        document.getElementById('btn-sqc-us').classList.remove('active');
-        document.getElementById(`btn-sqc-${region}`).classList.add('active');
         document.getElementById('sqcUrl').value = SQC_URLS[region];
-        generateConfig();
     }
 
     function setHttpMode(mode) {
