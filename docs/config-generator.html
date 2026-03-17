@@ -620,6 +620,7 @@
 <div class="page-container">
     <div class="header">
         <h1>SonarQube MCP Server Configuration Generator</h1>
+        <p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);">Something not working? Reach out on the <a href="https://community.sonarsource.com/c/mcp/54" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;">Sonar Community forum</a>.</p>
     </div>
 
     <div class="layout-grid">
@@ -1259,17 +1260,19 @@
                 case 'claude':
                     instructions = `🔌 <strong>Claude Code / Desktop</strong>: Run the command below for Claude Code, or select 'Generic JSON' to copy the config for Claude Desktop.`;
                     if (isHttpClient) {
-                        let cmd = `claude mcp add --transport http sonarqube`;
-                        for (const [k, v] of Object.entries(httpHeaders)) cmd += ` --header "${k}: ${v}"`;
-                        cmd += ` ${getHttpClientUrl()}`;
+                        // HTTP: claude mcp add --transport http <name> <url> [--header "K: V" ...]
+                        let cmd = `claude mcp add --transport http sonarqube ${getHttpClientUrl()}`;
+                        for (const [k, v] of Object.entries(httpHeaders)) cmd += ` \\\n  --header "${k}: ${v}"`;
                         code = cmd;
                     } else {
-                        let cmd = 'claude mcp add --transport stdio sonarqube \\\n';
-                        for (const [k, v] of Object.entries(envVars)) {
-                            cmd += `  --env ${k}="${v}" \\\n`;
-                        }
-                        cmd += '  -- docker ' + getDockerArgs().join(' ');
-                        code = cmd;
+                        // Stdio: Claude's --env parser is unreliable; pass values via -e KEY=VALUE
+                        // directly in the Docker command instead, avoiding --env entirely
+                        let dockerArgs = ['run', '--init', '--pull=always', '-i', '--rm'];
+                        if (certPath) dockerArgs.push('-v', `${certPath}:/usr/local/share/ca-certificates/:ro`);
+                        for (const [k, v] of Object.entries(envVars)) dockerArgs.push('-e', `${k}=${v}`);
+                        dockerArgs.push('mcp/sonarqube');
+                        const dockerCmd = 'docker ' + dockerArgs.join(' ');
+                        code = `claude mcp add --transport stdio sonarqube \\\n  -- ${dockerCmd}`;
                     }
                     break;
 
@@ -1324,7 +1327,16 @@
 
                 case 'kiro':
                     instructions = `📄 <strong>Kiro config</strong>: Add this to your <code>mcp.json</code> file (Workspace: <code>.kiro/settings/mcp.json</code> or Global: <code>~/.kiro/settings/mcp.json</code>).`;
-                    code = renderJsonForClient();
+                    if (isHttpClient) {
+                        // Kiro remote HTTP: { url, headers? } — no "type" field
+                        const kiroObj = {url: getHttpClientUrl()};
+                        if (Object.keys(httpHeaders).length > 0) kiroObj.headers = httpHeaders;
+                        code = JSON.stringify({mcpServers: {sonarqube: kiroObj}}, null, 2);
+                    } else {
+                        let kiroEnv = {};
+                        for (const [k, v] of Object.entries(envVars)) kiroEnv[k] = v;
+                        code = JSON.stringify({mcpServers: {sonarqube: {command: "docker", args: getDockerArgs(), env: kiroEnv}}}, null, 2);
+                    }
                     break;
 
                 case 'copilot-cli':
@@ -1350,29 +1362,27 @@
                     break;
 
                 case 'gemini':
-                    instructions = "🔌 <strong>Gemini CLI</strong>: Run this command in your terminal to add the SonarQube MCP server.";
+                    instructions = "📄 <strong>Gemini CLI</strong>: Add this to your <code>~/.gemini/settings.json</code> (global) or <code>.gemini/settings.json</code> (project).";
                     if (isHttpClient) {
-                        let cmd = `gemini mcp add --transport http`;
-                        for (const [k, v] of Object.entries(httpHeaders)) cmd += ` --header "${k}: ${v}"`;
-                        cmd += ` sonarqube ${getHttpClientUrl()}`;
-                        code = cmd;
+                        // Gemini CLI uses httpUrl for Streamable HTTP, headers as an object
+                        const geminiHttpObj = {httpUrl: getHttpClientUrl()};
+                        if (Object.keys(httpHeaders).length > 0) geminiHttpObj.headers = httpHeaders;
+                        code = JSON.stringify({mcpServers: {sonarqube: geminiHttpObj}}, null, 2);
                     } else {
-                        let cmd = 'gemini mcp add ';
-                        for (const [k, v] of Object.entries(envVars)) {
-                            cmd += `-e ${k}="${v}" `;
-                        }
-                        cmd += 'sonarqube docker ' + getDockerArgs().join(' ');
-                        code = cmd;
+                        let geminiEnv = {};
+                        for (const [k, v] of Object.entries(envVars)) geminiEnv[k] = v;
+                        code = JSON.stringify({mcpServers: {sonarqube: {command: "docker", args: getDockerArgs(), env: geminiEnv}}}, null, 2);
                     }
                     break;
 
                 case 'codex':
-                    instructions = "📄 <strong>Codex CLI</strong>: Append these lines directly to your <code>~/.codex/config.toml</code> file.";
+                    instructions = "📄 <strong>Codex CLI</strong>: Append these lines directly to your <code>~/.codex/config.toml</code> or project-scoped <code>.codex/config.toml</code> file.";
                     if (isHttpClient) {
+                        // Codex uses url + http_headers as an inline TOML table (not a sub-section)
                         code = `[mcp_servers.sonarqube]\nurl = "${getHttpClientUrl()}"`;
                         if (Object.keys(httpHeaders).length > 0) {
-                            code += `\n\n[mcp_servers.sonarqube.headers]\n`;
-                            for (const [k, v] of Object.entries(httpHeaders)) code += `${k} = "${v}"\n`;
+                            const headerPairs = Object.entries(httpHeaders).map(([k, v]) => `"${k}" = "${v}"`).join(', ');
+                            code += `\nhttp_headers = { ${headerPairs} }`;
                         }
                     } else {
                         code = `[mcp_servers.sonarqube]\ncommand = "docker"\nargs = ${JSON.stringify(getDockerArgs())}`;

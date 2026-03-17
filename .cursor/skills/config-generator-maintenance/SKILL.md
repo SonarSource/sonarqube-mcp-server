@@ -55,10 +55,14 @@ case 'myagent':
     if (isHttpClient) {
         // JSON-based clients: use httpClientObj() — injects url, type, headers automatically
         code = JSON.stringify({mcpServers: {sonarqube: httpClientObj()}}, null, 2);
-        // CLI-based clients: build command with --header flags
+        // ⚠️ Exceptions: some clients have different HTTP schemas — check agents.md:
+        //   - Kiro: { url, headers? } — no "type" field
+        //   - Gemini: { httpUrl, headers? } — uses httpUrl not url
+        //   - Codex: TOML with http_headers inline table
+        // CLI-based clients (e.g. Claude Code): all options before server name
         // let cmd = `mytool mcp add --transport http`;
-        // for (const [k,v] of Object.entries(httpHeaders)) cmd += ` --header "${k}: ${v}"`;
-        // cmd += ` sonarqube ${getHttpClientUrl()}`;
+        // for (const [k,v] of Object.entries(httpHeaders)) cmd += ` \\\n  --header "${k}: ${v}"`;
+        // cmd += ` \\\n  sonarqube ${getHttpClientUrl()}`;
     } else {
         // Stdio / launch: use envVars + getDockerArgs()
         let env = {};
