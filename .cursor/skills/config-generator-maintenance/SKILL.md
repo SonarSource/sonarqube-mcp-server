@@ -129,8 +129,10 @@ When a client updates its MCP config format, check the docs link in [agents.md](
 const DEFAULT_TOOLSETS = [
   'analysis','projects','issues','security-hotspots',
   'quality-gates','rules','duplications','measures',
-  'dependency-risks','coverage','external'
+  'dependency-risks','coverage'
 ];
 ```
 
 `SONARQUBE_TOOLSETS` is only emitted when the selection differs from these defaults.
+
+The `cag` toolset (Context Augmentation) is **not** in the defaults — its checkbox (`tool-cag`) is unchecked by default.
