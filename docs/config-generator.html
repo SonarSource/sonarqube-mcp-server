@@ -822,8 +822,8 @@
                             Dependency Risks</label>
                         <label class="checkbox-label"><input type="checkbox" id="tool-coverage" checked onchange="generateConfig()">
                             Coverage</label>
-                        <label class="checkbox-label"><input type="checkbox" id="tool-external" checked onchange="generateConfig()">
-                            External/CAG</label>
+                        <label class="checkbox-label"><input type="checkbox" id="tool-cag" onchange="generateConfig()">
+                            Context Augmentation</label>
                         <label class="checkbox-label"><input type="checkbox" id="tool-sources" onchange="generateConfig()"> Sources</label>
                         <label class="checkbox-label"><input type="checkbox" id="tool-languages" onchange="generateConfig()">
                             Languages</label>
@@ -908,7 +908,7 @@
         us: 'https://api.sonarqube.us/api'
     };
 
-    const DEFAULT_TOOLSETS = ['analysis', 'projects', 'issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks', 'coverage', 'external'];
+    const DEFAULT_TOOLSETS = ['analysis', 'projects', 'issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks', 'coverage'];
 
     // Initial setup
     document.addEventListener('DOMContentLoaded', () => {
