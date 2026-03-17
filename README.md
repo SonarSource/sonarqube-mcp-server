@@ -8,21 +8,11 @@ It also supports the analysis of code snippet directly within the agent context.
 
 ## Quick setup
 
-The simplest method is to rely on our container image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below if you want to build it locally.
+**[⚡ Use the Configuration Generator](https://sonarsource.github.io/sonarqube-mcp-server/config-generator.html)** — select your AI agent and SonarQube environment to get a ready-to-paste config in seconds.
 
-> **Note:** While the examples below use `docker`, any OCI-compatible container runtime works (e.g., Podman, nerdctl). Simply replace `docker` with your preferred tool.
+The server runs as a container image ([mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube)). The manual per-client instructions below use `docker`, but any OCI-compatible runtime works (Podman, nerdctl, etc.).
 
-### Security Best Practices
-
-> 🔒 **Important**: Your SonarQube token is a sensitive credential. Follow these security practices:
-
-**When using CLI commands:**
-- **Avoid hardcoding tokens** in command-line arguments - they get saved in shell history
-- **Use environment variables** - set tokens in environment variables before running commands
-
-**When using configuration files:**
-- **Never commit tokens** to version control
-- **Use environment variable substitution** in config files when possible
+> 🔒 **Security:** Never commit your SonarQube token to version control. Use environment variable substitution in config files, and avoid passing tokens as plain CLI arguments (they end up in shell history).
 
 <details>
 <summary>Antigravity</summary>
