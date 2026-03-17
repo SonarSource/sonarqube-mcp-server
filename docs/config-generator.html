@@ -47,36 +47,36 @@
         .page-container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 24px 20px;
             width: 100%;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 24px;
             animation: fadeInDown 0.6s ease-out;
         }
 
         .header h1 {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 700;
             letter-spacing: -0.025em;
             background: linear-gradient(to right, #60a5fa, #3b82f6);
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .header p {
             color: var(--text-muted);
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
 
         .layout-grid {
             display: grid;
             grid-template-columns: 1fr 500px;
-            gap: 30px;
+            gap: 20px;
             align-items: start;
         }
 
@@ -91,9 +91,9 @@
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: var(--radius);
-            padding: 30px;
+            padding: 20px;
             box-shadow: var(--shadow-md);
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             animation: fadeInUp 0.5s ease-out backwards;
             position: relative;
             overflow: hidden;
@@ -133,14 +133,14 @@
         }
 
         .card-title {
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             font-weight: 600;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             border-bottom: 1px solid var(--border-color);
-            padding-bottom: 16px;
+            padding-bottom: 12px;
         }
 
         .step-number {
@@ -159,7 +159,7 @@
 
         /* --- Forms & Inputs --- */
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 14px;
         }
 
         .form-group:last-child {
@@ -168,27 +168,27 @@
 
         label {
             display: block;
-            margin-bottom: 8px;
-            font-size: 0.95rem;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
             font-weight: 500;
             color: #e2e8f0;
         }
 
         .help-text {
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             color: var(--text-muted);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             display: block;
         }
 
         input[type="text"], input[type="password"], select {
             width: 100%;
-            padding: 12px 16px;
+            padding: 9px 12px;
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             color: var(--text-main);
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             transition: var(--transition);
         }
 
@@ -227,7 +227,7 @@
 
         .segment-btn {
             flex: 1;
-            padding: 10px;
+            padding: 7px 10px;
             text-align: center;
             background: transparent;
             color: var(--text-muted);
@@ -235,7 +235,7 @@
             border-radius: 6px;
             cursor: pointer;
             font-weight: 500;
-            font-size: 0.95rem;
+            font-size: 0.875rem;
             transition: var(--transition);
         }
 
@@ -253,7 +253,7 @@
         .radio-group {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 8px;
         }
 
         .radio-horizontal {
@@ -264,7 +264,7 @@
         .radio-card {
             display: flex;
             align-items: center;
-            padding: 14px 16px;
+            padding: 10px 14px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             cursor: pointer;
@@ -311,19 +311,20 @@
         /* --- Checkboxes & Toolsets --- */
         .grid-options {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 6px;
         }
 
         .checkbox-label {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             cursor: pointer;
-            padding: 10px;
+            padding: 7px 8px;
             border-radius: 6px;
             transition: var(--transition);
             font-weight: normal;
+            font-size: 0.875rem;
             border: 1px solid transparent;
         }
 
@@ -347,10 +348,10 @@
         /* --- Preview Panel --- */
         .preview-sticky {
             position: sticky;
-            top: 40px;
+            top: 20px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 14px;
         }
 
         .code-container {
@@ -384,7 +385,7 @@
         }
 
         pre {
-            padding: 20px;
+            padding: 14px;
             overflow-x: auto;
             margin: 0;
             font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
@@ -412,8 +413,8 @@
             color: white;
             border: none;
             border-radius: 8px;
-            padding: 14px 24px;
-            font-size: 1rem;
+            padding: 11px 24px;
+            font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
@@ -481,6 +482,63 @@
             background-color: rgba(59, 130, 246, 0.1);
             border: 1px solid rgba(59, 130, 246, 0.2);
             color: #93c5fd;
+        }
+
+        /* --- Security note (expandable) --- */
+        .security-note {
+            background-color: rgba(245, 158, 11, 0.07);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 8px;
+            margin-bottom: 14px;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        .security-note summary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            color: #fcd34d;
+            font-weight: 500;
+            list-style: none;
+            user-select: none;
+        }
+
+        .security-note summary::-webkit-details-marker { display: none; }
+
+        .security-note summary::after {
+            content: '▸';
+            margin-left: auto;
+            font-size: 0.75rem;
+            transition: transform 0.2s ease;
+            color: #fbbf24;
+        }
+
+        .security-note[open] summary::after {
+            transform: rotate(90deg);
+        }
+
+        .security-note-body {
+            padding: 0 14px 12px 14px;
+            color: #fde68a;
+        }
+
+        .security-note-body ul {
+            margin: 8px 0 0 16px;
+        }
+
+        .security-note-body li {
+            margin-bottom: 6px;
+        }
+
+        .security-note-body code {
+            background: rgba(0,0,0,0.3);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            color: #fcd34d;
         }
 
         /* --- Animations --- */
@@ -614,10 +672,23 @@
                     <input type="text" id="orgKey" placeholder="my-organization" oninput="generateConfig()">
                 </div>
 
+                <details class="security-note">
+                    <summary>🔒 Security recommendation — avoid hardcoding your token</summary>
+                    <div class="security-note-body">
+                        <p>Pasting your token here embeds it in plain text inside your config file, which can end up in version control or be read by other processes. Consider these safer alternatives instead:</p>
+                        <ul>
+                            <li><strong>Environment variable substitution</strong> — most clients support referencing a shell variable directly in the config, e.g. <code>${SONARQUBE_TOKEN}</code> or <code>$env:SONARQUBE_TOKEN</code> (PowerShell). Leave the field empty here and set the placeholder yourself.</li>
+                            <li><strong>Secrets manager</strong> — inject the token at runtime via your OS keychain, HashiCorp Vault, AWS Secrets Manager, or similar, and expose it as an env var.</li>
+                            <li><strong>CI/CD secrets</strong> — if you are generating a config for a pipeline, use your CI platform's native secret injection (GitHub Actions secrets, GitLab CI variables, etc.).</li>
+                            <li><strong>Short-lived tokens</strong> — generate a token with a short expiry and rotate it regularly to limit exposure.</li>
+                        </ul>
+                    </div>
+                </details>
+
                 <div class="form-group">
                     <label for="token">User Token <span
                             style="color:var(--text-muted); font-weight:normal;">(Optional but recommended)</span></label>
-                    <span class="help-text">If provided, it will be injected into the config. Keep this secret! Leave empty to keep `&lt;YOUR_TOKEN&gt;` placeholder. <a
+                    <span class="help-text">If provided, it will be injected into the config. Keep this secret! Leave empty to keep <code>&lt;YOUR_TOKEN&gt;</code> placeholder. <a
                             href="https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/" id="tokenDocsLink"
                             target="_blank" class="link">How to get a token</a></span>
                     <input type="password" id="token" placeholder="sqp_xxxxxxxxxxxxxxxxxxx" oninput="generateConfig()">
@@ -643,15 +714,29 @@
                             <span class="radio-desc">Connect to an MCP server running remotely via HTTP. Best for teams.</span>
                         </div>
                     </label>
+                    <label class="radio-card" onclick="setTransport('https')" id="card-https">
+                        <input type="radio" name="transport" value="https">
+                        <div class="radio-content">
+                            <span class="radio-title">Remote Server (HTTPS)</span>
+                            <span class="radio-desc">Connect via TLS. Requires a keystore configured on the server.</span>
+                        </div>
+                    </label>
+                    <label class="radio-card" onclick="setTransport('sqc')" id="card-sqc">
+                        <input type="radio" name="transport" value="sqc">
+                        <div class="radio-content">
+                            <span class="radio-title">SonarQube Cloud (Official)</span>
+                            <span class="radio-desc">Connect directly to the Sonar-hosted SonarQube Cloud server via HTTP.</span>
+                        </div>
+                    </label>
                 </div>
 
                 <!-- Only shown if HTTP is selected -->
                 <div id="httpOptions" class="hidden fade-in"
-                     style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                     style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-color);">
                     <label>HTTP Objective</label>
                     <span class="help-text">Are you launching the host server or connecting your client to it?</span>
 
-                    <div class="segmented-control" style="margin-bottom: 20px;">
+                    <div class="segmented-control" style="margin-bottom: 14px;">
                         <button class="segment-btn active" onclick="setHttpMode('client')" id="btn-http-client">Configure Client Settings
                         </button>
                         <button class="segment-btn" onclick="setHttpMode('launch')" id="btn-http-launch">Generate Launch Command</button>
@@ -667,12 +752,52 @@
                             <input type="text" id="httpPort" value="8080" oninput="generateConfig()">
                         </div>
                     </div>
+
+                    <!-- HTTPS keystore fields — only shown in HTTPS + launch mode -->
+                    <div id="httpsKeystoreSection" class="hidden fade-in"
+                         style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+                        <label style="margin-bottom:8px;">TLS / Keystore Configuration</label>
+                        <span class="help-text">These env vars configure the TLS certificate on the server container. Defaults are shown.</span>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label for="httpsKeystorePath">Keystore Path</label>
+                                <input type="text" id="httpsKeystorePath" placeholder="/etc/ssl/mcp/keystore.p12" oninput="generateConfig()">
+                            </div>
+                            <div class="form-group">
+                                <label for="httpsKeystorePassword">Keystore Password</label>
+                                <input type="password" id="httpsKeystorePassword" placeholder="sonarlint" oninput="generateConfig()">
+                            </div>
+                            <div class="form-group">
+                                <label for="httpsTruststorePath">Truststore Path</label>
+                                <input type="text" id="httpsTruststorePath" placeholder="/etc/ssl/mcp/truststore.p12" oninput="generateConfig()">
+                            </div>
+                            <div class="form-group">
+                                <label for="httpsTruststorePassword">Truststore Password</label>
+                                <input type="password" id="httpsTruststorePassword" placeholder="sonarlint" oninput="generateConfig()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Only shown if SQC official is selected -->
+                <div id="sqcOptions" class="hidden fade-in"
+                     style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+                    <label>SonarQube Cloud Region</label>
+                    <span class="help-text">Select the region that matches your SonarQube Cloud account.</span>
+                    <div class="segmented-control" style="margin-bottom: 10px;">
+                        <button class="segment-btn active" onclick="setSqcRegion('eu')" id="btn-sqc-eu">Global (EU)</button>
+                        <button class="segment-btn" onclick="setSqcRegion('us')" id="btn-sqc-us">US</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Server URL</label>
+                        <input type="text" id="sqcUrl" readonly style="background: var(--bg-secondary); color: var(--text-muted); cursor: default;">
+                    </div>
                 </div>
             </div>
 
             <!-- STEP 4: Features & Advanced -->
             <div class="card" id="advancedCard">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
                     <h2 class="card-title" style="margin:0; border:none; padding:0;"><span class="step-number">4</span> Toolsets & Advanced
                     </h2>
                     <button class="btn-secondary" onclick="resetToolsets()">Reset Default Tools</button>
@@ -714,21 +839,24 @@
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border-color);">
+                <div class="form-group" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-color);">
                     <label>Advanced Options</label>
+                    <span class="help-text" id="advancedHelpText" style="display:none;">These options are sent as HTTP request headers to the remote server.</span>
                     <div class="grid-options">
-                        <label class="checkbox-label"><input type="checkbox" id="opt-debug" onchange="generateConfig()"> Debug
-                            Logging</label>
+                        <div id="opt-debug-wrap">
+                            <label class="checkbox-label"><input type="checkbox" id="opt-debug" onchange="generateConfig()"> Debug
+                                Logging</label>
+                        </div>
                         <label class="checkbox-label"><input type="checkbox" id="opt-readonly" onchange="generateConfig()"> Read-Only
                             Mode</label>
-                        <label class="checkbox-label"><input type="checkbox" id="opt-advanced" onchange="generateConfig()"> Adv. Analysis
-                            (Cloud Beta)</label>
-                        <label class="checkbox-label"><input type="checkbox" id="opt-certs" onchange="toggleCerts()"> Custom SSL
-                            Certs</label>
+                        <div id="opt-certs-wrap">
+                            <label class="checkbox-label"><input type="checkbox" id="opt-certs" onchange="toggleCerts()"> Custom SSL
+                                Certs</label>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group hidden fade-in" id="certsGroup" style="margin-top:12px;">
+                <div class="form-group hidden fade-in" id="certsGroup" style="margin-top:8px;">
                     <label for="certPath">Certificate Folder Path</label>
                     <input type="text" id="certPath" placeholder="/usr/local/share/ca-certificates" oninput="generateConfig()">
                 </div>
@@ -774,14 +902,25 @@
     let state = {
         agent: '',
         env: 'cloud',
-        transport: 'stdio',
-        httpMode: 'client' // 'client' or 'launch'
+        transport: 'stdio',   // 'stdio' | 'http' | 'https' | 'sqc'
+        httpMode: 'client',   // 'client' | 'launch'
+        sqcRegion: 'eu'       // 'eu' | 'us'
+    };
+
+    const SQC_URLS = {
+        eu: 'https://api.sonarcloud.io/api',
+        us: 'https://api.sonarqube.us/api'
     };
 
     const DEFAULT_TOOLSETS = ['analysis', 'projects', 'issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks', 'coverage', 'external'];
 
     // Initial setup
     document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('sqcUrl').value = SQC_URLS[state.sqcRegion];
+        // SQC card only visible when a Cloud platform is selected
+        if (state.env === 'server') {
+            document.getElementById('card-sqc').style.display = 'none';
+        }
         updateUI();
     });
 
@@ -797,6 +936,19 @@
         document.getElementById('urlGroup').style.display = isServer ? 'block' : 'none';
         document.getElementById('orgGroup').style.display = isServer ? 'none' : 'block';
 
+        // SQC Official transport is only available for SonarQube Cloud (not Server)
+        const sqcCard = document.getElementById('card-sqc');
+        if (isServer) {
+            sqcCard.style.display = 'none';
+            // If SQC transport was selected, fall back to stdio
+            if (state.transport === 'sqc') {
+                setTransport('stdio');
+                return; // setTransport already calls generateConfig
+            }
+        } else {
+            sqcCard.style.display = '';
+        }
+
         // Update token docs link
         const docsLink = document.getElementById('tokenDocsLink');
         if (isServer) {
@@ -811,22 +963,46 @@
     function setTransport(mode) {
         state.transport = mode;
         // Update radios visually
-        document.getElementById('card-stdio').classList.remove('active');
-        document.getElementById('card-http').classList.remove('active');
+        ['stdio', 'http', 'https', 'sqc'].forEach(m => {
+            document.getElementById(`card-${m}`).classList.remove('active');
+        });
         document.getElementById(`card-${mode}`).classList.add('active');
         document.querySelector(`input[name="transport"][value="${mode}"]`).checked = true;
 
-        // Show/hide HTTP section
         const httpOptions = document.getElementById('httpOptions');
-        if (mode === 'http') {
+        const sqcOptions = document.getElementById('sqcOptions');
+
+        if (mode === 'http' || mode === 'https') {
             httpOptions.classList.remove('hidden');
-            // Re-apply the current httpMode UI logic
+            sqcOptions.classList.add('hidden');
+            // Update default URL prefix hint when switching between http/https
+            const hostInput = document.getElementById('httpHost');
+            if (mode === 'https' && hostInput.value.startsWith('http://')) {
+                hostInput.value = hostInput.value.replace('http://', 'https://');
+            } else if (mode === 'http' && hostInput.value.startsWith('https://')) {
+                hostInput.value = hostInput.value.replace('https://', 'http://');
+            }
             setHttpMode(state.httpMode);
+        } else if (mode === 'sqc') {
+            httpOptions.classList.add('hidden');
+            sqcOptions.classList.remove('hidden');
+            applyAdvancedCardMode('http-client');
+            setSqcRegion(state.sqcRegion);
         } else {
             httpOptions.classList.add('hidden');
-            document.getElementById('advancedCard').style.display = 'block';
+            sqcOptions.classList.add('hidden');
+            applyAdvancedCardMode('stdio');
         }
 
+        generateConfig();
+    }
+
+    function setSqcRegion(region) {
+        state.sqcRegion = region;
+        document.getElementById('btn-sqc-eu').classList.remove('active');
+        document.getElementById('btn-sqc-us').classList.remove('active');
+        document.getElementById(`btn-sqc-${region}`).classList.add('active');
+        document.getElementById('sqcUrl').value = SQC_URLS[region];
         generateConfig();
     }
 
@@ -836,18 +1012,43 @@
         document.getElementById('btn-http-launch').classList.remove('active');
         document.getElementById(`btn-http-${mode}`).classList.add('active');
 
-        // Adjust port logic and advanced cards visibility
-        if (mode === 'client') {
-            document.getElementById('httpPortContainer').style.display = 'none';
-            document.getElementById('httpHostLabel').textContent = 'Full Server URL (e.g. http://host:port/mcp)';
-            document.getElementById('advancedCard').style.display = 'none';
+        const isLaunch = mode === 'launch';
+        const isHttps = state.transport === 'https';
+
+        document.getElementById('httpPortContainer').style.display = isLaunch ? 'block' : 'none';
+        document.getElementById('httpHostLabel').textContent = isLaunch ? 'Host IP' : 'Full Server URL (e.g. http://host:port/mcp)';
+
+        // Show HTTPS keystore fields only when launching an HTTPS server
+        const keystoreSection = document.getElementById('httpsKeystoreSection');
+        if (isLaunch && isHttps) {
+            keystoreSection.classList.remove('hidden');
         } else {
-            document.getElementById('httpPortContainer').style.display = 'block';
-            document.getElementById('httpHostLabel').textContent = 'Host IP';
-            document.getElementById('advancedCard').style.display = 'block';
+            keystoreSection.classList.add('hidden');
         }
 
+        applyAdvancedCardMode(isLaunch ? 'stdio' : 'http-client');
+
         generateConfig();
+    }
+
+    // Controls Step 4 visibility and which controls are shown based on transport context.
+    // mode: 'stdio' = full server options, 'http-client' = toolsets + read-only only (sent as headers)
+    function applyAdvancedCardMode(mode) {
+        const card = document.getElementById('advancedCard');
+        const serverOnlyControls = ['opt-debug-wrap', 'opt-certs-wrap', 'certsGroup'];
+        const helpText = document.getElementById('advancedHelpText');
+
+        card.style.display = 'block';
+
+        if (mode === 'http-client') {
+            serverOnlyControls.forEach(id => document.getElementById(id).style.display = 'none');
+            helpText.style.display = 'block';
+            // Ensure cert group is also hidden
+            document.getElementById('certsGroup').classList.add('hidden');
+        } else {
+            serverOnlyControls.forEach(id => document.getElementById(id).style.display = '');
+            helpText.style.display = 'none';
+        }
     }
 
     function toggleCerts() {
@@ -902,12 +1103,43 @@
         const url = document.getElementById('serverUrl').value.trim() || '<YOUR_SERVER_URL>';
         const httpHost = document.getElementById('httpHost').value.trim() || 'http://127.0.0.1';
         const httpPort = document.getElementById('httpPort').value.trim() || '8080';
+        const sqcUrl = SQC_URLS[state.sqcRegion];
+
+        const isHttpClient = ((state.transport === 'http' || state.transport === 'https') && state.httpMode === 'client') || state.transport === 'sqc';
+        const isHttpLaunch = (state.transport === 'http' || state.transport === 'https') && state.httpMode === 'launch';
+
+        // Gather toolsets selection (used for both env vars and HTTP headers)
+        const getToolsetsValue = () => {
+            let selectedToolsets = [];
+            let hasNonDefault = false;
+            document.querySelectorAll('#toolsetsGrid input[type="checkbox"]').forEach(cb => {
+                if (cb.id.startsWith('tool-')) {
+                    const name = cb.id.replace('tool-', '');
+                    if (cb.checked) {
+                        selectedToolsets.push(name);
+                        if (!DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
+                    } else {
+                        if (!cb.disabled && DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
+                    }
+                }
+            });
+            return hasNonDefault ? selectedToolsets.join(',') : null;
+        };
 
         // Build Env map for Stdio / Launch
         let envVars = {};
 
-        // In HTTP client mode we only connect, but for stdio/launch we construct the environment variables
-        if (state.transport === 'stdio' || (state.transport === 'http' && state.httpMode === 'launch')) {
+        // Build Headers map for HTTP client connections
+        let httpHeaders = {};
+
+        if (isHttpClient) {
+            // For HTTP client modes, auth token and options are sent as request headers
+            httpHeaders['Authorization'] = `Bearer ${token}`;
+            const toolsets = getToolsetsValue();
+            if (toolsets) httpHeaders['SONARQUBE_TOOLSETS'] = toolsets;
+            if (document.getElementById('opt-readonly').checked) httpHeaders['SONARQUBE_READ_ONLY'] = 'true';
+        } else {
+            // Stdio or HTTP launch: build full env vars
             envVars['SONARQUBE_TOKEN'] = token;
 
             if (state.env === 'cloud') {
@@ -921,34 +1153,25 @@
 
             if (document.getElementById('opt-debug').checked) envVars['SONARQUBE_DEBUG_ENABLED'] = 'true';
             if (document.getElementById('opt-readonly').checked) envVars['SONARQUBE_READ_ONLY'] = 'true';
-            if (document.getElementById('opt-advanced').checked) envVars['SONARQUBE_ADVANCED_ANALYSIS_ENABLED'] = 'true';
 
-            // HTTP specific variables for server launch
-            if (state.transport === 'http' && state.httpMode === 'launch') {
-                envVars['SONARQUBE_TRANSPORT'] = 'http';
+            // HTTP/HTTPS specific variables for server launch
+            if (isHttpLaunch) {
+                envVars['SONARQUBE_TRANSPORT'] = state.transport; // 'http' or 'https'
                 envVars['SONARQUBE_HTTP_PORT'] = httpPort;
-            }
-
-            // Gather toolsets (only if differs from default)
-            let selectedToolsets = [];
-            let hasNonDefault = false;
-            document.querySelectorAll('#toolsetsGrid input[type="checkbox"]').forEach(cb => {
-                if (cb.id.startsWith('tool-')) {
-                    const name = cb.id.replace('tool-', '');
-                    if (cb.checked) {
-                        selectedToolsets.push(name);
-                        if (!DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
-                    } else {
-                        // If it's disabled like projects, it shouldn't trigger a non-default update if we can't uncheck it, but standard flow handles it.
-                        if (!cb.disabled && DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
-                    }
+                if (state.transport === 'https') {
+                    const ksPath = document.getElementById('httpsKeystorePath').value.trim();
+                    const ksPass = document.getElementById('httpsKeystorePassword').value.trim();
+                    const tsPath = document.getElementById('httpsTruststorePath').value.trim();
+                    const tsPass = document.getElementById('httpsTruststorePassword').value.trim();
+                    if (ksPath) envVars['SONARQUBE_HTTPS_KEYSTORE_PATH'] = ksPath;
+                    if (ksPass) envVars['SONARQUBE_HTTPS_KEYSTORE_PASSWORD'] = ksPass;
+                    if (tsPath) envVars['SONARQUBE_HTTPS_TRUSTSTORE_PATH'] = tsPath;
+                    if (tsPass) envVars['SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD'] = tsPass;
                 }
-            });
-
-            if (hasNonDefault) {
-                // Remove duplicates if any, joined smoothly
-                envVars['SONARQUBE_TOOLSETS'] = selectedToolsets.join(',');
             }
+
+            const toolsets = getToolsetsValue();
+            if (toolsets) envVars['SONARQUBE_TOOLSETS'] = toolsets;
         }
 
         // Cert path
@@ -962,8 +1185,7 @@
         // Formatting Helpers
         const getDockerArgs = () => {
             let args = ['run', '--init', '--pull=always', '-i'];
-            if (state.transport === 'http') {
-                // if http launch mode, we need to bind the port on host, and run it detached rather than detached if preferred, but -i/stdio shouldn't be required. Let's adapt docker args.
+            if (isHttpLaunch) {
                 args = ['run', '--init', '--pull=always', '-d', '-p', `${httpPort}:${httpPort}`];
             } else {
                 args.push('--rm');
@@ -988,25 +1210,28 @@
             }, null, 2);
         };
 
+        // Returns the effective URL for HTTP client connections
+        const getHttpClientUrl = () => state.transport === 'sqc' ? sqcUrl : httpHost;
+
+        // Returns a base HTTP client object, merging headers when present
+        const httpClientObj = (extraFields = {}) => {
+            const obj = {url: getHttpClientUrl(), type: "http", ...extraFields};
+            if (Object.keys(httpHeaders).length > 0) obj.headers = httpHeaders;
+            return obj;
+        };
+
         const renderJsonForClient = () => {
-            if (state.transport === 'http' && state.httpMode === 'client') {
-                // For HTTP clients in VSCode/Cursor, typically you have to configure it specially or just mention it's not fully supported universally yet in the UI.
-                // Let's output a generic HTTP setup.
-                let output = {
-                    sonarqube: {
-                        url: httpHost,
-                        type: "http"
-                    }
-                };
-                return JSON.stringify({mcpServers: output}, null, 2);
+            if (isHttpClient) {
+                return JSON.stringify({mcpServers: {sonarqube: httpClientObj()}}, null, 2);
             } else {
                 return JSON.stringify({mcpServers: JSON.parse(getJsonConfigStdio())}, null, 2);
             }
         };
 
         // Switch Logic Based on HTTP Mode & Agent
-        if (state.transport === 'http' && state.httpMode === 'launch') {
-            instructions = "🖧 <strong>Launch the HTTP Server</strong>: Run this command in your terminal to host the MCP server.";
+        if (isHttpLaunch) {
+            const proto = state.transport.toUpperCase();
+            instructions = `🖧 <strong>Launch the ${proto} Server</strong>: Run this command in your terminal to host the MCP server.`;
             // For Docker command visualization
             let cmd = 'docker run \\\n  --init --pull=always \\\n  -d -p ' + httpPort + ':' + httpPort + ' \\';
             if (certPath) cmd += `\n  -v ${certPath}:/usr/local/share/ca-certificates/:ro \\`;
@@ -1022,8 +1247,8 @@
             switch (state.agent) {
                 case 'antigravity':
                     instructions = `📄 <strong>Google Antigravity config</strong>: In the Agent Side Panel, click the three dots, select <strong>MCP Store</strong> > <strong>Manage MCP Servers</strong> > <strong>View raw config</strong>, and paste this into the <code>mcp_config.json</code> file.`;
-                    if (state.transport === 'http') {
-                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'http', url: httpHost}}}, null, 2);
+                    if (isHttpClient) {
+                        code = JSON.stringify({mcpServers: {sonarqube: httpClientObj()}}, null, 2);
                     } else {
                         let agEnv = {};
                         for (const [k, v] of Object.entries(envVars)) agEnv[k] = v;
@@ -1033,8 +1258,11 @@
 
                 case 'claude':
                     instructions = `🔌 <strong>Claude Code / Desktop</strong>: Run the command below for Claude Code, or select 'Generic JSON' to copy the config for Claude Desktop.`;
-                    if (state.transport === 'http') {
-                        code = `claude mcp add --transport http sonarqube ${httpHost}`;
+                    if (isHttpClient) {
+                        let cmd = `claude mcp add --transport http sonarqube`;
+                        for (const [k, v] of Object.entries(httpHeaders)) cmd += ` --header "${k}: ${v}"`;
+                        cmd += ` ${getHttpClientUrl()}`;
+                        code = cmd;
                     } else {
                         let cmd = 'claude mcp add --transport stdio sonarqube \\\n';
                         for (const [k, v] of Object.entries(envVars)) {
@@ -1047,27 +1275,20 @@
 
                 case 'cursor':
                     instructions = `📄 <strong>Cursor IDE config</strong>: Add this to your <code>.cursor/mcp.json</code> file in your workspace.`;
-                    if (state.transport === 'http') {
-                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'http', url: httpHost}}}, null, 2);
+                    if (isHttpClient) {
+                        code = JSON.stringify({mcpServers: {sonarqube: httpClientObj()}}, null, 2);
                     } else {
                         let cursorEnv = {};
                         for (const [k, v] of Object.entries(envVars)) cursorEnv[k] = v;
-                        code = JSON.stringify({
-                            mcpServers: {
-                                sonarqube: {
-                                    command: "docker",
-                                    args: getDockerArgs(),
-                                    env: cursorEnv
-                                }
-                            }
-                        }, null, 2);
+                        code = JSON.stringify({mcpServers: {sonarqube: {command: "docker", args: getDockerArgs(), env: cursorEnv}}}, null, 2);
                     }
                     break;
 
                 case 'vscode':
                     instructions = String.raw`📄 <strong>VS Code config</strong>: Add this to your MCP configuration file (e.g., <code>cline_mcp_settings.json</code> if using Roo Cline, or <code>.vscode/mcp.json</code> for native VS Code MCP).`;
-                    if (state.transport === 'http') {
-                        code = JSON.stringify({servers: {sonarqube: {type: "http", url: httpHost}}}, null, 2);
+                    if (isHttpClient) {
+                        const vsObj = httpClientObj();
+                        code = JSON.stringify({servers: {sonarqube: vsObj}}, null, 2);
                     } else {
                         let vsEnv = {};
                         for (const [k, v] of Object.entries(envVars)) vsEnv[k] = v;
@@ -1077,8 +1298,10 @@
 
                 case 'windsurf':
                     instructions = String.raw`📄 <strong>Windsurf config</strong>: Add this configuration to your <code>mcp_config.json</code> file (typically in <code>~/.codeium/windsurf/</code>).`;
-                    if (state.transport === 'http') {
-                        code = JSON.stringify({mcpServers: {sonarqube: {serverUrl: httpHost}}}, null, 2);
+                    if (isHttpClient) {
+                        const wsObj = {serverUrl: getHttpClientUrl()};
+                        if (Object.keys(httpHeaders).length > 0) wsObj.headers = httpHeaders;
+                        code = JSON.stringify({mcpServers: {sonarqube: wsObj}}, null, 2);
                     } else {
                         code = renderJsonForClient();
                     }
@@ -1086,8 +1309,8 @@
 
                 case 'zed':
                     instructions = "📄 <strong>Zed IDE</strong>: Install the 'SonarQube' extension in Zed. Then add this block to your Zed <code>settings.json</code> file (Cmd + , -> Open Settings JSON).";
-                    if (state.transport === 'http') {
-                        instructions = "❌ <strong>Zed IDE HTTP</strong>: The SonarQube Zed extension currently only supports Docker/Studio transport, not HTTP. Please switch to Stdio.";
+                    if (isHttpClient) {
+                        instructions = "❌ <strong>Zed IDE HTTP</strong>: The SonarQube Zed extension currently only supports Docker/Stdio transport, not HTTP. Please switch to Stdio.";
                         code = "HTTP is not supported by the SonarQube Zed Extension.";
                     } else {
                         let zedCfg = {};
@@ -1106,50 +1329,33 @@
 
                 case 'copilot-cli':
                     instructions = "🔌 <strong>GitHub Copilot CLI</strong>: Run <code>/mcp add</code> in your terminal and step through the prompts, or paste this into <code>~/.copilot/mcp-config.json</code> (Global) or <code>.copilot/mcp-config.json</code> (Workspace).";
-                    if (state.transport === 'http') {
-                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'http', url: httpHost, tools: ['*']}}}, null, 2);
+                    if (isHttpClient) {
+                        code = JSON.stringify({mcpServers: {sonarqube: httpClientObj({tools: ['*']})}}, null, 2);
                     } else {
                         let copilotEnv = {};
                         for (const [k, v] of Object.entries(envVars)) copilotEnv[k] = v;
-                        code = JSON.stringify({
-                            mcpServers: {
-                                sonarqube: {
-                                    type: 'local',
-                                    command: "docker",
-                                    args: getDockerArgs(),
-                                    env: copilotEnv,
-                                    tools: ['*']
-                                }
-                            }
-                        }, null, 2);
+                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'local', command: "docker", args: getDockerArgs(), env: copilotEnv, tools: ['*']}}}, null, 2);
                     }
                     break;
 
                 case 'copilot-agent':
                     instructions = "🔌 <strong>GitHub Copilot Workspace</strong>: Paste this JSON object into your GitHub Copilot Workspace repository settings (Settings -> Copilot -> Coding agent -> MCP Servers).";
-                    if (state.transport === 'http') {
-                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'http', url: httpHost, tools: ['*']}}}, null, 2);
+                    if (isHttpClient) {
+                        code = JSON.stringify({mcpServers: {sonarqube: httpClientObj({tools: ['*']})}}, null, 2);
                     } else {
                         let copilotEnv = {};
                         for (const [k, v] of Object.entries(envVars)) copilotEnv[k] = `COPILOT_MCP_${k}`;
-                        code = JSON.stringify({
-                            mcpServers: {
-                                sonarqube: {
-                                    type: 'local',
-                                    command: 'docker',
-                                    args: getDockerArgs(),
-                                    env: copilotEnv,
-                                    tools: ['*']
-                                }
-                            }
-                        }, null, 2);
+                        code = JSON.stringify({mcpServers: {sonarqube: {type: 'local', command: 'docker', args: getDockerArgs(), env: copilotEnv, tools: ['*']}}}, null, 2);
                     }
                     break;
 
                 case 'gemini':
                     instructions = "🔌 <strong>Gemini CLI</strong>: Run this command in your terminal to add the SonarQube MCP server.";
-                    if (state.transport === 'http') {
-                        code = `gemini mcp add --transport http sonarqube ${httpHost}`;
+                    if (isHttpClient) {
+                        let cmd = `gemini mcp add --transport http`;
+                        for (const [k, v] of Object.entries(httpHeaders)) cmd += ` --header "${k}: ${v}"`;
+                        cmd += ` sonarqube ${getHttpClientUrl()}`;
+                        code = cmd;
                     } else {
                         let cmd = 'gemini mcp add ';
                         for (const [k, v] of Object.entries(envVars)) {
@@ -1162,8 +1368,12 @@
 
                 case 'codex':
                     instructions = "📄 <strong>Codex CLI</strong>: Append these lines directly to your <code>~/.codex/config.toml</code> file.";
-                    if (state.transport === 'http') {
-                        code = `[mcp_servers.sonarqube]\nurl = "${httpHost}"`;
+                    if (isHttpClient) {
+                        code = `[mcp_servers.sonarqube]\nurl = "${getHttpClientUrl()}"`;
+                        if (Object.keys(httpHeaders).length > 0) {
+                            code += `\n\n[mcp_servers.sonarqube.headers]\n`;
+                            for (const [k, v] of Object.entries(httpHeaders)) code += `${k} = "${v}"\n`;
+                        }
                     } else {
                         code = `[mcp_servers.sonarqube]\ncommand = "docker"\nargs = ${JSON.stringify(getDockerArgs())}`;
                         if (Object.keys(envVars).length > 0) {
