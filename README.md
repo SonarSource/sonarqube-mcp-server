@@ -1103,7 +1103,7 @@ SOCKS5 proxies are supported.
 - **list_webhooks** - List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.
   - `projectKey` - Optional project key to list project-specific webhooks - _String_
 
-### CAG (Context Augmentation)
+### Context Augmentation
 
 <details>
 <summary>Architecture Tools</summary>
@@ -1174,7 +1174,7 @@ SOCKS5 proxies are supported.
 </details>
 
 <details>
-<summary>CAG Environment Variables</summary>
+<summary>Context Augmentation Environment Variables</summary>
 
 | Variable                | Description                                                        | Required | Default                 |
 |-------------------------|--------------------------------------------------------------------|----------|-------------------------|
@@ -1191,7 +1191,7 @@ SOCKS5 proxies are supported.
 <details>
 <summary>Project-Specific Configuration (Recommended)</summary>
 
-Mount the project workspace to give the CAG server direct access to your source files:
+Mount the project workspace to give the Context Augmentation server direct access to your source files:
 
 ```json
 {
