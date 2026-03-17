@@ -1163,7 +1163,10 @@ SOCKS5 proxies are supported.
 
 - **get_intended_architecture** - Get user-defined architectural constraints specifying which modules are allowed to depend on others.
 
-**Guidelines Tools**
+</details>
+
+<details>
+<summary>Guidelines Tools</summary>
 
 - **get_guidelines** - Get coding guidelines based on SonarQube project issues, catalog categories, or a combination of both.
     - `mode` - Guidelines retrieval mode: `project_based`, `category_based`, or `combined` - _Required String_
