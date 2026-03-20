@@ -84,7 +84,7 @@ class ToggleAutomaticAnalysisToolTests {
       when(bridgeClient.isAvailable()).thenReturn(true);
 
       assertThat(assertThrows(org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException.class,
-        () -> underTest.execute(new Tool.Arguments(Map.of()))))
+        () -> underTest.execute(new Tool.Arguments(Map.of(), null))))
         .hasMessage("Missing required argument: enabled");
     }
   }
@@ -97,7 +97,7 @@ class ToggleAutomaticAnalysisToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.").build());
     }
@@ -117,7 +117,7 @@ class ToggleAutomaticAnalysisToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertResultEquals(result, """
         {
@@ -134,7 +134,7 @@ class ToggleAutomaticAnalysisToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, false
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertResultEquals(result, """
         {
@@ -151,7 +151,7 @@ class ToggleAutomaticAnalysisToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to enable automatic analysis.").build());
     }
@@ -162,7 +162,7 @@ class ToggleAutomaticAnalysisToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         ToggleAutomaticAnalysisTool.ENABLED_PROPERTY, true
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to toggle automatic analysis. Check logs for details.").build());
     }

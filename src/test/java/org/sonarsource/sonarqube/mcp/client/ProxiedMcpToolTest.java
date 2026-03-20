@@ -26,6 +26,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -90,10 +91,10 @@ class ProxiedMcpToolTest {
       .addTextContent("Location not found")
       .build();
 
-    when(clientManager.executeTool(eq("weather"), eq("get_weather"), anyMap()))
+    when(clientManager.executeTool(eq("weather"), eq("get_weather"), anyMap(), any()))
       .thenReturn(errorResult);
 
-    var arguments = new Tool.Arguments(Map.of("location", "Invalid"));
+    var arguments = new Tool.Arguments(Map.of("location", "Invalid"), null);
     var result = tool.execute(arguments);
 
     assertThat(result.isError()).isTrue();
@@ -120,10 +121,10 @@ class ProxiedMcpToolTest {
       ))
       .build();
 
-    when(clientManager.executeTool(eq("img"), eq("process_image"), anyMap()))
+    when(clientManager.executeTool(eq("img"), eq("process_image"), anyMap(), any()))
       .thenReturn(errorResult);
 
-    var arguments = new Tool.Arguments(Map.of("image", "test.png"));
+    var arguments = new Tool.Arguments(Map.of("image", "test.png"), null);
     var result = tool.execute(arguments);
 
     assertThat(result.isError()).isTrue();

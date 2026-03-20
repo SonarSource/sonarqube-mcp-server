@@ -84,7 +84,7 @@ class McpClientManagerTest {
 
     manager.initialize();
 
-    assertThatThrownBy(() -> manager.executeTool("unknown", "tool", emptyMap))
+    assertThatThrownBy(() -> manager.executeTool("unknown", "tool", emptyMap, null))
       .isInstanceOf(IllegalStateException.class)
       .hasMessage("Service connection not established");
   }
@@ -108,7 +108,7 @@ class McpClientManagerTest {
 
     manager.initialize();
 
-    assertThatThrownBy(() -> manager.executeTool("failing-server", "tool", emptyMap))
+    assertThatThrownBy(() -> manager.executeTool("failing-server", "tool", emptyMap, null))
       .isInstanceOf(IllegalStateException.class)
       .hasMessageContaining("Service unavailable");
   }

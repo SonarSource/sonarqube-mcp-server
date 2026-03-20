@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.analytics;
 
-import java.util.UUID;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -85,13 +85,13 @@ public class AnalyticsService {
    * @param responseSizeBytes        byte size of the tool response content
    * @param invocationTimestamp      epoch milliseconds when the tool invocation started
    */
-  public void notifyToolInvoked(String toolName, @Nullable String organizationUuidV4, @Nullable String sqsInstallationId, @Nullable String userUuid,
+  public void notifyToolInvoked(String invocationId, String toolName, @Nullable String organizationUuidV4, @Nullable String sqsInstallationId, @Nullable String userUuid,
     @Nullable String callingAgentName, @Nullable String callingAgentVersion, long toolExecutionDurationMs, boolean isSuccessful,
     @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {
     var connectionType = isSonarQubeCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS;
 
     var event = new McpToolInvokedEvent(
-      UUID.randomUUID().toString(),
+      invocationId,
       toolName,
       connectionType,
       isSonarQubeCloud ? organizationUuidV4 : null,

@@ -18,6 +18,8 @@ package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.UUID;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
@@ -35,7 +37,7 @@ import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentExce
 
 public class ToolExecutor {
   private static final McpLogger LOG = McpLogger.getInstance();
-  private record InvocationMetrics(long durationMs, boolean successful, @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {}
+  private record InvocationMetrics(String invocationId, long durationMs, boolean successful, @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {}
   private final BackendService backendService;
   @Nullable
   private final AnalyticsService analyticsService;
@@ -71,9 +73,15 @@ public class ToolExecutor {
     var invocationTimestamp = System.currentTimeMillis();
     Tool.Result result;
     String errorType = null;
+    var invocationId = UUID.randomUUID().toString();
+    var meta = new HashMap<String, Object>();
+    if (toolRequest.meta() != null) {
+      meta.putAll(toolRequest.meta());
+    }
+    meta.put("invocation_id", invocationId);
 
     try {
-      result = tool.execute(new Tool.Arguments(toolRequest.arguments()));
+      result = tool.execute(new Tool.Arguments(toolRequest.arguments(), meta));
       logSuccess(toolName, invocationTimestamp);
     } catch (Exception e) {
       errorType = resolveErrorType(e);
@@ -85,7 +93,7 @@ public class ToolExecutor {
     var callToolResult = result.toCallToolResult();
     var responseSizeBytes = computeResponseSizeBytes(callToolResult);
     backendService.notifyToolCalled("mcp_" + tool.definition().name(), successful);
-    notifyAnalytics(toolName, new InvocationMetrics(durationMs, successful, errorType, responseSizeBytes, invocationTimestamp));
+    notifyAnalytics(toolName, new InvocationMetrics(invocationId, durationMs, successful, errorType, responseSizeBytes, invocationTimestamp));
     return callToolResult;
   }
 
@@ -123,7 +131,7 @@ public class ToolExecutor {
   private static void dispatchAnalyticsEvent(AnalyticsService service, String toolName, Supplier<ConnectionContext> ctxSupplier, InvocationMetrics metrics) {
     try {
       var ctx = ctxSupplier.get();
-      service.notifyToolInvoked(toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
+      service.notifyToolInvoked(metrics.invocationId(), toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
         ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), metrics.durationMs(), metrics.successful(),
         metrics.errorType(), metrics.responseSizeBytes(), metrics.invocationTimestamp()
       );

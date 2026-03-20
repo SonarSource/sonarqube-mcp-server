@@ -180,7 +180,7 @@ class ToolExecutorTest {
       }
     }, new McpSchema.CallToolRequest("", Map.of()));
 
-    verify(analyticsService, timeout(2000)).notifyToolInvoked(anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(),
+    verify(analyticsService, timeout(2000)).notifyToolInvoked(anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(),
       errorTypeCaptor.capture(), anyLong(), anyLong());
     assertThat(errorTypeCaptor.getValue()).isEqualTo(expectedErrorType);
   }
@@ -204,7 +204,7 @@ class ToolExecutorTest {
     executeDummyTool(executor);
 
     verify(analyticsService).notifyToolInvoked(
-      anyString(), any(), any(), any(),
+      anyString(), anyString(), any(), any(), any(),
       anyString(), anyString(),
       anyLong(), anyBoolean(), any(), anyLong(), anyLong());
   }
@@ -217,7 +217,7 @@ class ToolExecutorTest {
     executeDummyTool(executor);
 
     verify(analyticsService, never()).notifyToolInvoked(
-      anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+      anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
   }
 
   @Test
@@ -230,7 +230,7 @@ class ToolExecutorTest {
 
     verify(mockServerApi).isSonarQubeCloud();
     verify(analyticsService).notifyToolInvoked(
-      anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+      anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
   }
 
   @Test
@@ -242,7 +242,7 @@ class ToolExecutorTest {
     executeDummyTool(executor);
 
     verify(analyticsService, never()).notifyToolInvoked(
-      anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+      anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
   }
 
   @Test
@@ -255,7 +255,7 @@ class ToolExecutorTest {
     executeDummyTool(executor);
 
     verify(analyticsService, never()).notifyToolInvoked(
-      anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+      anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
   }
 
   /** Stubs submit() to run the Runnable synchronously so assertions need no async wait. */

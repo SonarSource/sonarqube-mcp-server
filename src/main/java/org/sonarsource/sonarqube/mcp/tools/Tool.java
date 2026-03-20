@@ -54,9 +54,17 @@ public abstract class Tool {
 
   public static class Arguments {
     private final Map<String, Object> argumentsMap;
+    @Nullable
+    private final Map<String, Object> metaMap;
 
-    public Arguments(Map<String, Object> argumentsMap) {
+    public Arguments(Map<String, Object> argumentsMap, @Nullable Map<String, Object> metaMap) {
       this.argumentsMap = argumentsMap;
+      this.metaMap = metaMap;
+    }
+
+    @Nullable
+    public Map<String, Object> getMeta() {
+      return metaMap;
     }
 
     public String getStringOrThrow(String argumentName) {

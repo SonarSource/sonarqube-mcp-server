@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.ToolNameValidator;
 import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
@@ -153,7 +154,7 @@ public class McpClientManager {
     return clients.containsKey(serverId);
   }
 
-  public McpSchema.CallToolResult executeTool(String serverId, String toolName, Map<String, Object> arguments) throws IllegalStateException {
+  public McpSchema.CallToolResult executeTool(String serverId, String toolName, Map<String, Object> arguments, @Nullable Map<String, Object> meta) throws IllegalStateException {
     var client = clients.get(serverId);
     if (client == null) {
       var errorMsg = serverErrors.get(serverId);
@@ -162,7 +163,7 @@ public class McpClientManager {
 
     LOG.info("Executing tool: " + toolName);
 
-    var request = new McpSchema.CallToolRequest(toolName, arguments);
+    var request = new McpSchema.CallToolRequest(toolName, arguments, meta);
     return client.callTool(request);
   }
 
