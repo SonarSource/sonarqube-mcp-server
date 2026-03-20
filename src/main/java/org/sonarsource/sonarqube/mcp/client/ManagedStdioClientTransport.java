@@ -139,9 +139,15 @@ public class ManagedStdioClientTransport implements McpClientTransport {
 
   @Override
   public Mono<Void> sendMessage(McpSchema.JSONRPCMessage message) {
-    return outboundSink.tryEmitNext(message).isSuccess() 
-      ? Mono.empty() 
-      : Mono.error(new RuntimeException("Failed to enqueue message for '" + serverName + "'"));
+    try {
+      // busyLooping retries on FAIL_NON_SERIALIZED (concurrent tryEmitNext from another thread)
+      // instead of failing immediately. The contention window is microseconds (single CAS),
+      // so the spin resolves almost instantly; the duration is just an upper bound.
+      outboundSink.emitNext(message, Sinks.EmitFailureHandler.busyLooping(Duration.ofMillis(100)));
+      return Mono.empty();
+    } catch (Sinks.EmissionException e) {
+      return Mono.error(new RuntimeException("Failed to enqueue message for '" + serverName + "'", e));
+    }
   }
 
   private void startInboundProcessing() {
