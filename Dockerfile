@@ -44,7 +44,7 @@ RUN apk add --no-cache \
         chmod 0440 /etc/sudoers.d/appuser
 
 ARG TARGETARCH
-ARG SONAR_CODE_CONTEXT_VERSION=0.3.3.236
+ARG SONAR_CODE_CONTEXT_VERSION=0.4.0.270
 
 RUN case "$TARGETARCH" in \
         amd64) ARCH="x64" ;; \
