@@ -58,6 +58,11 @@ public class McpServerLaunchConfiguration {
   // Default project key configuration
   public static final String SONARQUBE_PROJECT_KEY = "SONARQUBE_PROJECT_KEY";
 
+  // Active when a volume is mounted here (e.g. -v /your/project:/app/mcp-workspace).
+  public static final String MCP_WORKSPACE_PATH = "/app/mcp-workspace";
+  // System property to override the workspace path in tests
+  public static final String MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY = "sonarqube.mcp.workspace.path";
+
   // Logging configuration
   private static final String SONARQUBE_LOG_TO_FILE_DISABLED = "SONARQUBE_LOG_TO_FILE_DISABLED";
 
@@ -128,6 +133,9 @@ public class McpServerLaunchConfiguration {
   @Nullable
   private final String sonarqubeProjectKey;
 
+  @Nullable
+  private final Path workspacePath;
+
   private final boolean isFileLoggingDisabled;
 
   private final String mcpServerId;
@@ -196,6 +204,8 @@ public class McpServerLaunchConfiguration {
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
 
     this.sonarqubeProjectKey = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_PROJECT_KEY, null);
+
+    this.workspacePath = resolveWorkspacePath();
 
     this.isFileLoggingDisabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_LOG_TO_FILE_DISABLED, "false"));
 
@@ -456,6 +466,14 @@ public class McpServerLaunchConfiguration {
     return null;
   }
 
+  @Nullable
+  private static Path resolveWorkspacePath() {
+    var override = System.getProperty(MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
+    var pathStr = (override != null && !override.isBlank()) ? override : MCP_WORKSPACE_PATH;
+    var candidate = Paths.get(pathStr).toAbsolutePath().normalize();
+    return candidate.toFile().isDirectory() ? candidate : null;
+  }
+
   private static List<String> parseAllowedOrigins(@Nullable String rawValue) {
     if (rawValue == null || rawValue.isBlank()) {
       return List.of();
@@ -505,6 +523,11 @@ public class McpServerLaunchConfiguration {
   @Nullable
   public String getProjectKey() {
     return sonarqubeProjectKey;
+  }
+
+  @Nullable
+  public Path getWorkspacePath() {
+    return workspacePath;
   }
 
   /**

@@ -17,11 +17,14 @@
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import io.modelcontextprotocol.common.McpTransportContext;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -57,14 +60,25 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private final BiFunction<String, String, ServerApi> apiFactory;
   @Nullable
   private final String configuredProjectKey;
+  @Nullable
+  private final Path configuredWorkspacePath;
 
-  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    this(serverApiProvider, null, configuredProjectKey);
+  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
+    this(serverApiProvider, null, configuredProjectKey, configuredWorkspacePath);
   }
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable BiFunction<String, String, ServerApi> apiFactory,
-    @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
+    @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
+    super(buildSchema(configuredProjectKey, configuredWorkspacePath), ToolCategory.ANALYSIS);
+    this.serverApiProvider = serverApiProvider;
+    this.apiFactory = apiFactory;
+    this.configuredProjectKey = configuredProjectKey;
+    this.configuredWorkspacePath = configuredWorkspacePath;
+  }
+
+  private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
+    var workspaceConfigured = configuredWorkspacePath != null;
+    var builder = SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("SonarQube Advanced Code Analysis")
       .setDescription("Run advanced code analysis on a single file using SonarQube Cloud's server-side engine. " +
@@ -72,15 +86,14 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
         "Always specify the file scope (MAIN or TEST) for more accurate results.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The key of the project.", configuredProjectKey)
       .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "The branch name used to retrieve the latest analysis context from SonarQube Cloud.")
-      .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
-      .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The full content of the file to analyze.")
+      .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
+    if (!workspaceConfigured) {
+      builder = builder.addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The full content of the file to analyze.");
+    }
+    return builder
       .addEnumProperty(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN).")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.ANALYSIS);
-    this.serverApiProvider = serverApiProvider;
-    this.apiFactory = apiFactory;
-    this.configuredProjectKey = configuredProjectKey;
+      .build();
   }
 
   /**
@@ -136,21 +149,30 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     if (organizationKey == null) {
       throw new IllegalStateException("run_advanced_code_analysis requires an organization to be configured in MCP (SONARQUBE_ORG).");
     }
-    
+
+    String fileContent;
+    try {
+      fileContent = Tool.resolveFileContent(configuredWorkspacePath, arguments, FILE_PATH_PROPERTY, FILE_CONTENT_PROPERTY);
+    } catch (IOException e) {
+      return Result.failure("Could not read file: " + e.getMessage());
+    } catch (IllegalArgumentException e) {
+      return Result.failure(e.getMessage());
+    }
+
     var scope = arguments.getEnumOrDefault(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "MAIN");
-    var request = extractRequest(arguments, organizationKey, scope);
+    var request = extractRequest(arguments, organizationKey, scope, fileContent);
     var response = serverApi.a3sAnalysisApi().analyze(request);
     var toolResponse = buildStructuredContent(response);
     return Result.success(toolResponse);
   }
 
-  private AnalysisCreationRequest extractRequest(Arguments arguments, String organizationKey, String scope) {
+  private AnalysisCreationRequest extractRequest(Arguments arguments, String organizationKey, String scope, String fileContent) {
     return new AnalysisCreationRequest(
       organizationKey,
       arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey),
       arguments.getStringOrThrow(BRANCH_NAME_PROPERTY),
       arguments.getStringOrThrow(FILE_PATH_PROPERTY),
-      arguments.getStringOrThrow(FILE_CONTENT_PROPERTY),
+      fileContent,
       scope
     );
   }

@@ -92,7 +92,7 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
   @Test
   void is_enabled_for_returns_true_when_no_factory_configured() {
     // No factory = tool was registered at startup after a successful A3S check, always enabled.
-    var tool = new RunAdvancedCodeAnalysisTool(mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider.class), null);
+    var tool = new RunAdvancedCodeAnalysisTool(mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider.class), null, null);
     var context = McpTransportContext.create(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
       HttpServerTransportProvider.CONTEXT_ORG_KEY, ORG_KEY
@@ -157,7 +157,7 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
   }
 
   private static RunAdvancedCodeAnalysisTool toolWithFactory(BiFunction<String, String, ServerApi> factory) {
-    return new RunAdvancedCodeAnalysisTool(mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider.class), factory, null);
+    return new RunAdvancedCodeAnalysisTool(mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider.class), factory, null, null);
   }
 
   private void stubOrg(String uuidV4) {

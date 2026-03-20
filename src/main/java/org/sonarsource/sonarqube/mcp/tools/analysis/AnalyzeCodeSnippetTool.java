@@ -30,6 +30,7 @@ import java.util.concurrent.TimeoutException;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.StandaloneRuleConfigDto;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
@@ -55,6 +56,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
   public static final String TOOL_NAME = "analyze_code_snippet";
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String FILE_PATH_PROPERTY = "filePath";
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
   public static final String SNIPPET_PROPERTY = "codeSnippet";
   public static final String LANGUAGE_PROPERTY = "language";
@@ -67,30 +69,43 @@ public class AnalyzeCodeSnippetTool extends Tool {
   private final ServerApiProvider serverApiProvider;
   @Nullable
   private final String configuredProjectKey;
+  @Nullable
+  private final Path configuredWorkspacePath;
 
   private final CompletableFuture<Void> initializationFuture;
 
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
-    CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(AnalyzeCodeSnippetToolResponse.class)
-        .setName(TOOL_NAME)
-        .setTitle("SonarQube Code Analysis")
-        .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
-          "Always pass the complete file content for accurate analysis. Optionally provide a code snippet to filter issues - " +
-          "only issues within the snippet will be reported (snippet location is auto-detected). " +
-          "Always specify the language and the file scope (MAIN or TEST) for more accurate results.")
-        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key", configuredProjectKey)
-        .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "Complete file content to analyze")
-        .addStringProperty(SNIPPET_PROPERTY, "Code snippet to filter issues - must match content within fileContent")
-        .addEnumProperty(LANGUAGE_PROPERTY, VALID_LANGUAGES, "Language of the code (e.g., 'java', 'python', 'js')")
-        .addEnumProperty(SCOPE_PROPERTY, VALID_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN)")
-        .setReadOnlyHint()
-        .build(),
-      ToolCategory.ANALYSIS);
+    CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
+    super(buildSchema(configuredProjectKey, configuredWorkspacePath), ToolCategory.ANALYSIS);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
     this.initializationFuture = initializationFuture;
     this.configuredProjectKey = configuredProjectKey;
+    this.configuredWorkspacePath = configuredWorkspacePath;
+  }
+
+  private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
+    var workspaceConfigured = configuredWorkspacePath != null;
+    var builder = SchemaToolBuilder.forOutput(AnalyzeCodeSnippetToolResponse.class)
+      .setName(TOOL_NAME)
+      .setTitle("SonarQube Code Analysis")
+      .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
+        "Optionally provide a code snippet to filter issues — only issues within the snippet will be reported (snippet location is auto-detected). " +
+        "Always specify the language and the file scope (MAIN or TEST) for more accurate results.")
+      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key", configuredProjectKey);
+    if (workspaceConfigured) {
+      builder = builder.addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
+    } else {
+      builder = builder
+        .addStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java'). Optional when no workspace is mounted.")
+        .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "Complete file content to analyze.");
+    }
+    return builder
+      .addStringProperty(SNIPPET_PROPERTY, "Code snippet to filter issues - must match content within the analyzed file")
+      .addEnumProperty(LANGUAGE_PROPERTY, VALID_LANGUAGES, "Language of the code (e.g., 'java', 'python', 'js')")
+      .addEnumProperty(SCOPE_PROPERTY, VALID_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN)")
+      .setReadOnlyHint()
+      .build();
   }
 
   @Override
@@ -110,7 +125,14 @@ public class AnalyzeCodeSnippetTool extends Tool {
     var projectKey = configuredProjectKey != null
       ? arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey)
       : arguments.getOptionalString(PROJECT_KEY_PROPERTY);
-    var fileContent = arguments.getStringOrThrow(FILE_CONTENT_PROPERTY);
+    String fileContent;
+    try {
+      fileContent = Tool.resolveFileContent(configuredWorkspacePath, arguments, FILE_PATH_PROPERTY, FILE_CONTENT_PROPERTY);
+    } catch (IOException e) {
+      return Tool.Result.failure("Could not read file: " + e.getMessage());
+    } catch (IllegalArgumentException e) {
+      return Tool.Result.failure(e.getMessage());
+    }
     var codeSnippet = arguments.getOptionalString(SNIPPET_PROPERTY);
     var scope = arguments.getEnumOrDefault(SCOPE_PROPERTY, VALID_SCOPES, "MAIN");
     var language = arguments.getOptionalEnumValue(LANGUAGE_PROPERTY, VALID_LANGUAGES);

@@ -16,14 +16,16 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -129,7 +131,7 @@ class AnalyzeCodeSnippetToolTests {
     // Create a future that completes exceptionally
     var failedFuture = new CompletableFuture<Void>();
     failedFuture.completeExceptionally(new RuntimeException("Initialization failed"));
-    var tool = new AnalyzeCodeSnippetTool(mock(BackendService.class), mock(ServerApiProvider.class), failedFuture, null);
+    var tool = new AnalyzeCodeSnippetTool(mock(BackendService.class), mock(ServerApiProvider.class), failedFuture, null, null);
 
     var callToolResult = tool.execute(new Tool.Arguments(Map.of()));
 
@@ -148,8 +150,8 @@ class AnalyzeCodeSnippetToolTests {
         TOOL_NAME,
         Map.of(AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, ""));
 
-      assertThat(result)
-        .isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: fileContent").build());
+      assertThat(result.isError()).isTrue();
+      assertThat(result.toString()).contains("fileContent must be provided");
     }
   }
 
@@ -425,6 +427,75 @@ class AnalyzeCodeSnippetToolTests {
       var resultStr = result.content().getFirst().toString();
       assertThat(resultStr).contains("\"issueCount\" : 1");
       assertThat(resultStr).contains("\"startLine\" : 4");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_read_file_content_from_file_path_when_workspace_is_mounted(SonarQubeMcpServerTestHarness harness) throws IOException {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var workspaceDir = Files.createTempDirectory("sonar-mcp-workspace");
+      var fileToAnalyze = workspaceDir.resolve("todo.php");
+      Files.writeString(fileToAnalyze, "// TODO just do it\n");
+      System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspaceDir.toString());
+      try {
+        var mcpClient = harness.withPlugins().newClient();
+
+        var result = mcpClient.callTool(
+          TOOL_NAME,
+          Map.of(
+            AnalyzeCodeSnippetTool.FILE_PATH_PROPERTY, "todo.php",
+            AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
+
+        assertThat(result.isError()).isFalse();
+        var resultStr = result.content().getFirst().toString();
+        assertThat(resultStr).contains("\"issueCount\" : 1");
+        assertThat(resultStr).contains("php:S1135");
+      } finally {
+        System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
+        Files.deleteIfExists(fileToAnalyze);
+        Files.deleteIfExists(workspaceDir);
+      }
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_error_when_file_path_is_outside_workspace(SonarQubeMcpServerTestHarness harness) throws IOException {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var workspaceDir = Files.createTempDirectory("sonar-mcp-workspace");
+      System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspaceDir.toString());
+      try {
+        var mcpClient = harness.withPlugins().newClient();
+
+        var result = mcpClient.callTool(
+          TOOL_NAME,
+          Map.of(
+            AnalyzeCodeSnippetTool.FILE_PATH_PROPERTY, "../../etc/passwd",
+            AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
+
+        assertThat(result.isError()).isTrue();
+        assertThat(result.toString()).contains("outside the configured");
+      } finally {
+        System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
+        Files.deleteIfExists(workspaceDir);
+      }
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_error_when_file_path_is_missing(SonarQubeMcpServerTestHarness harness) throws IOException {
+      mockServerRules(harness, null, List.of("php:S1135"));
+      var workspaceDir = Files.createTempDirectory("sonar-mcp-workspace");
+      System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspaceDir.toString());
+      try {
+        var mcpClient = harness.withPlugins().newClient();
+
+        var result = mcpClient.callTool(
+          TOOL_NAME,
+          Map.of(AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
+
+        assertThat(result.isError()).isTrue();
+        assertThat(result.toString()).contains("Missing required argument: filePath");
+      } finally {
+        System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
+        Files.deleteIfExists(workspaceDir);
+      }
     }
 
   }
