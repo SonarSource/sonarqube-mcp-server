@@ -116,25 +116,30 @@ public class HttpServerTransportProvider {
       .messageEndpoint(MCP_ENDPOINT)
       .jsonMapper(McpJsonMappers.DEFAULT)
       .contextExtractor(request -> {
-        var token = AuthenticationFilter.extractToken(request);
-        var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
-        var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);
-        var contextBuilder = new HashMap<String, Object>();
-        contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
-        if (isSonarQubeCloud) {
-          var orgHeader = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
-          var org = (orgHeader != null && !orgHeader.isBlank()) ? orgHeader.trim() : serverOrg;
-          if (org != null && !org.isBlank()) {
-            contextBuilder.put(CONTEXT_ORG_KEY, org);
+        try {
+          var token = AuthenticationFilter.extractToken(request);
+          var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
+          var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);
+          var contextBuilder = new HashMap<String, Object>();
+          contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
+          if (isSonarQubeCloud) {
+            var orgHeader = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
+            var org = (orgHeader != null && !orgHeader.isBlank()) ? orgHeader.trim() : serverOrg;
+            if (org != null && !org.isBlank()) {
+              contextBuilder.put(CONTEXT_ORG_KEY, org);
+            }
           }
+          if (toolsets != null && !toolsets.isBlank()) {
+            contextBuilder.put(CONTEXT_TOOLSETS_KEY, ToolCategory.parseCategories(toolsets.trim()));
+          }
+          if (readOnly != null && !readOnly.isBlank()) {
+            contextBuilder.put(CONTEXT_READ_ONLY_KEY, Boolean.parseBoolean(readOnly.trim()));
+          }
+          return McpTransportContext.create(contextBuilder);
+        } catch (Exception e) {
+          LOG.error("Failed to extract MCP transport context from request for URI '" + request.getRequestURI() + "'", e);
+          throw e;
         }
-        if (toolsets != null && !toolsets.isBlank()) {
-          contextBuilder.put(CONTEXT_TOOLSETS_KEY, ToolCategory.parseCategories(toolsets.trim()));
-        }
-        if (readOnly != null && !readOnly.isBlank()) {
-          contextBuilder.put(CONTEXT_READ_ONLY_KEY, Boolean.parseBoolean(readOnly.trim()));
-        }
-        return McpTransportContext.create(contextBuilder);
       })
       .build();
 
