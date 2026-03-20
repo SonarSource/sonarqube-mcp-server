@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ProxiedMcpToolTest {
@@ -131,6 +132,24 @@ class ProxiedMcpToolTest {
     var textContent = (McpSchema.TextContent) result.toCallToolResult().content().getFirst();
     // Only text content is included, image is ignored
     assertThat(textContent.text()).isEqualTo("Error processing image");
+  }
+
+  @Test
+  void execute_should_forward_meta_map_to_client_manager() {
+    var tool = new ProxiedMcpTool("weather", "get_weather", originalTool, clientManager);
+    var successResult = McpSchema.CallToolResult.builder()
+      .isError(false)
+      .addTextContent("Weather is good")
+      .build();
+    when(clientManager.executeTool(eq("weather"), eq("get_weather"), anyMap(), any()))
+      .thenReturn(successResult);
+    var expectedMeta = Map.<String, Object>of("invocation_id", "123-abc", "extra_meta", "value");
+    var arguments = new Tool.Arguments(Map.of("location", "Paris"), expectedMeta);
+    
+    var result = tool.execute(arguments);
+    
+    assertThat(result.isError()).isFalse();
+    verify(clientManager).executeTool("weather", "get_weather", Map.of("location", "Paris"), expectedMeta);
   }
 
 }

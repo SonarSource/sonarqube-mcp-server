@@ -73,6 +73,7 @@ public class AnalyticsService {
   /**
    * Sends a McpToolInvoked event asynchronously. Errors are silently swallowed.
    *
+   * @param invocationId             unique identifier of the tool invocation
    * @param toolName                 the MCP tool name that was invoked
    * @param organizationUuidV4       the SQC organisation UUID (null for SQS connections)
    * @param sqsInstallationId        the SQS installation identifier (null for SQC connections)

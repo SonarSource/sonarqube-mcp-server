@@ -46,6 +46,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -53,6 +54,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ToolExecutorTest {
 
@@ -256,6 +258,35 @@ class ToolExecutorTest {
 
     verify(analyticsService, never()).notifyToolInvoked(
       anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+  }
+
+  @Test
+  void it_should_inject_invocation_id_into_tool_arguments_and_analytics() {
+    var analyticsService = syncAnalyticsService();
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null);
+    var tool = mock(Tool.class);
+    var toolDefinition = new McpSchema.Tool("test_tool", "desc", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of());
+    record DummyResponse(String message) {}
+    when(tool.definition()).thenReturn(toolDefinition);
+    when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
+
+    var toolRequest = new McpSchema.CallToolRequest("test_tool", Map.of("arg", "value"), Map.of("client_meta", "client_value"));
+    executor.execute(tool, toolRequest);
+
+    var argumentsCaptor = ArgumentCaptor.forClass(Tool.Arguments.class);
+    verify(tool).execute(argumentsCaptor.capture());
+    var capturedMeta = argumentsCaptor.getValue().getMeta();
+    assertThat(capturedMeta)
+      .isNotNull()
+      .containsEntry("client_meta", "client_value")
+      .containsKey("invocation_id");
+    var invocationId = capturedMeta.get("invocation_id").toString();
+    assertThat(invocationId).isNotBlank();
+    var eventInvocationIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(analyticsService).notifyToolInvoked(
+      eventInvocationIdCaptor.capture(), eq("test_tool"), any(), any(), any(), any(), any(), anyLong(), eq(true), any(), anyLong(), anyLong()
+    );
+    assertThat(eventInvocationIdCaptor.getValue()).isEqualTo(invocationId);
   }
 
   /** Stubs submit() to run the Runnable synchronously so assertions need no async wait. */
