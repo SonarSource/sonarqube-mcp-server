@@ -68,11 +68,7 @@ public abstract class Tool {
       }
       return Files.readString(realResolved);
     }
-    var fileContent = arguments.getOptionalString(fileContentProperty);
-    if (fileContent == null) {
-      throw new IllegalArgumentException("fileContent must be provided.");
-    }
-    return fileContent;
+    return arguments.getStringOrThrow(fileContentProperty);
   }
 
   public static class Arguments {

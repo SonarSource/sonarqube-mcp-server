@@ -96,9 +96,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
     if (workspaceConfigured) {
       builder = builder.addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
     } else {
-      builder = builder
-        .addStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java'). Optional when no workspace is mounted.")
-        .addRequiredStringProperty(FILE_CONTENT_PROPERTY, "Complete file content to analyze.");
+      builder = builder.addRequiredStringProperty(FILE_CONTENT_PROPERTY, "Complete file content to analyze.");
     }
     return builder
       .addStringProperty(SNIPPET_PROPERTY, "Code snippet to filter issues - must match content within the analyzed file")

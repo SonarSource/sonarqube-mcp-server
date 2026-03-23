@@ -494,6 +494,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (mcpConfiguration.isReadOnlyMode()) {
       LOG.info("Mode: READ-ONLY (write operations disabled)");
     }
+    var workspacePath = mcpConfiguration.getWorkspacePath();
+    if (workspacePath != null) {
+      LOG.info("Workspace: " + workspacePath);
+    } else {
+      LOG.info("Workspace: none");
+    }
     LOG.info("Status: Server ready - tools loading in background");
     LOG.info("========================================");
 

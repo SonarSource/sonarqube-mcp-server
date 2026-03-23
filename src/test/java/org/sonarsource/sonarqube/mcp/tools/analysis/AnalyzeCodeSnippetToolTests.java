@@ -151,7 +151,7 @@ class AnalyzeCodeSnippetToolTests {
         Map.of(AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, ""));
 
       assertThat(result.isError()).isTrue();
-      assertThat(result.toString()).contains("fileContent must be provided");
+      assertThat(result.toString()).contains("Missing required argument: fileContent");
     }
   }
 
