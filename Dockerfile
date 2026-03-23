@@ -5,7 +5,7 @@ RUN apk update &&  \
 
 WORKDIR /app
 
-ADD https://binaries.sonarsource.com/Distribution/sonarqube-mcp-server/sonarqube-mcp-server-1.13.0.2300.jar ./sonarqube-mcp-server.jar
+ADD https://binaries.sonarsource.com/Distribution/sonarqube-mcp-server/sonarqube-mcp-server-1.14.0.2351.jar ./sonarqube-mcp-server.jar
 
 RUN jdeps --ignore-missing-deps -q  \
     --recursive  \
@@ -34,8 +34,8 @@ RUN apk add --no-cache \
         git \
         nodejs=~24 \
         npm \
-        python3=~3.12 \
         py3-pip \
+        python3=~3.12 \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
         mkdir -p /home/appuser/.sonarlint /app/storage && \
@@ -44,7 +44,7 @@ RUN apk add --no-cache \
         chmod 0440 /etc/sudoers.d/appuser
 
 ARG TARGETARCH
-ARG SONAR_CODE_CONTEXT_VERSION=0.3.3.236
+ARG SONAR_CODE_CONTEXT_VERSION=0.4.0.270
 
 RUN case "$TARGETARCH" in \
         amd64) ARCH="x64" ;; \
