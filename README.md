@@ -581,6 +581,28 @@ You should add the following variable when running the MCP Server:
 
 > **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud organizations. The server automatically detects whether advanced analysis is enabled for your organization — no manual configuration is required.
 
+### Workspace Mount (Reducing Context Bloat)
+
+By default, analysis tools (`analyze_code_snippet` and `run_advanced_code_analysis`) require the agent to pass the full file content as a `fileContent` argument. For large files or when analyzing many files in a session, this significantly increases context window usage and cost.
+
+**Solution:** mount your project directory into the container at `/app/mcp-workspace`. When this mount is detected, the server reads files directly from disk using the project-relative `filePath` argument — file content never passes through the agent context.
+
+```json
+{
+  "args": [
+    "run", "-i", "--rm", "--init", "--pull=always",
+    "-e", "SONARQUBE_TOKEN",
+    "-e", "SONARQUBE_ORG",
+    "-v", "/path/to/your/project:/app/mcp-workspace",
+    "mcp/sonarqube"
+  ]
+}
+```
+
+When the mount is active:
+- `run_advanced_code_analysis`: `fileContent` is no longer needed — the server resolves `filePath` (e.g., `src/main/java/MyClass.java`) against the mounted workspace
+- `analyze_code_snippet`: `filePath` is required and `fileContent` is not used — the server resolves the file the same way
+
 ### Selective Tool Enablement
 
 By default, only important toolsets are enabled to reduce context overhead. You can enable additional toolsets as needed.
@@ -879,12 +901,14 @@ SOCKS5 proxies are supported.
 - **analyze_code_snippet** - Analyze file content with SonarQube analyzers to identify code quality and security issues. Always analyzes the complete file content for accuracy. Optionally filter results to a specific code snippet.
   
   Usage:
-  - Pass complete `fileContent` for full file analysis (reports all issues)
+  - **With workspace mounted** (recommended): pass `filePath` (project-relative) — the server reads the file directly, keeping file content out of the agent context window
+  - **Without workspace mount**: pass complete `fileContent` for full file analysis (reports all issues)
   - Add optional `codeSnippet` to filter results - only issues within the snippet will be reported (snippet location auto-detected)
   
   Parameters:
   - `projectKey` - The SonarQube project key - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
-  - `fileContent` - Complete file content as a string - _Required String_
+  - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). Used when the workspace is mounted at `/app/mcp-workspace` - _String_
+  - `fileContent` - Complete file content as a string. Required when workspace is not mounted - _String_
   - `codeSnippet` - Code snippet to filter issues (must match content in fileContent) - _String_
   - `language` - Language of the code (e.g., 'java', 'python', 'javascript') - _String_
   - `scope` - Scope of the file: MAIN or TEST (default: MAIN) - _String_
@@ -906,8 +930,8 @@ SOCKS5 proxies are supported.
 - **run_advanced_code_analysis** - Run advanced code analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.
     - `projectKey` - The key of the project - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
     - `branchName` - Branch name used to retrieve the latest analysis context - _Required String_
-    - `filePath` - Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java') - _Required String_
-    - `fileContent` - The original content of the file to analyze - _Required String_
+    - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). When the workspace is mounted at `/app/mcp-workspace`, the server reads the file directly from this path (no `fileContent` needed) - _Required String_
+    - `fileContent` - The original content of the file to analyze. Required only when the workspace is not mounted - _String_
     - `fileScope` - Defines in which scope the file originates from: 'MAIN' or 'TEST' (default: MAIN) - _String_
 
 ### Coverage

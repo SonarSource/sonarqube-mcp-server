@@ -18,6 +18,9 @@ package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.CheckForNull;
@@ -51,6 +54,22 @@ public abstract class Tool {
   }
 
   public abstract Result execute(Arguments arguments);
+
+  public static String resolveFileContent(@Nullable Path configuredWorkspacePath, Arguments arguments, String filePathProperty,
+    String fileContentProperty) throws IOException {
+    if (configuredWorkspacePath != null) {
+      var workspaceRealPath = configuredWorkspacePath.toRealPath();
+      var filePath = arguments.getStringOrThrow(filePathProperty);
+      var candidate = workspaceRealPath.resolve(filePath).normalize();
+      var realResolved = candidate.toRealPath();
+      if (!realResolved.startsWith(workspaceRealPath)) {
+        throw new IllegalArgumentException(
+          "filePath '" + filePath + "' resolves outside the configured workspace '" + configuredWorkspacePath + "'");
+      }
+      return Files.readString(realResolved);
+    }
+    return arguments.getStringOrThrow(fileContentProperty);
+  }
 
   public static class Arguments {
     private final Map<String, Object> argumentsMap;

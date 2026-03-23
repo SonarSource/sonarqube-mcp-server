@@ -258,10 +258,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       // HTTP mode without a startup token on SQC: register the advanced analysis tool unconditionally.
       // Per-request visibility is controlled by PerRequestToolFilteringHandler querying the org-config endpoint.
       LOG.info("HTTP mode without startup token on SonarQube Cloud - advanced analysis tool will be shown per-request based on org config");
-      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, this::createServerApiWithTokenAndOrg, mcpConfiguration.getProjectKey()));
+      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, this::createServerApiWithTokenAndOrg, mcpConfiguration.getProjectKey(), null));
     } else if (isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
       LOG.info("Advanced analysis mode enabled");
-      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey()));
+      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), mcpConfiguration.getWorkspacePath()));
     } else {
       // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
       // token is configured (so plugins can be downloaded at startup).
@@ -407,7 +407,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (!useIdeBridge) {
       LOG.info("Standard analysis mode (no IDE bridge)");
-      supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey()));
+      supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey(), mcpConfiguration.getWorkspacePath()));
     }
   }
 
@@ -493,6 +493,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (mcpConfiguration.isReadOnlyMode()) {
       LOG.info("Mode: READ-ONLY (write operations disabled)");
+    }
+    var workspacePath = mcpConfiguration.getWorkspacePath();
+    if (workspacePath != null) {
+      LOG.info("Workspace: " + workspacePath);
+    } else {
+      LOG.info("Workspace: none");
     }
     LOG.info("Status: Server ready - tools loading in background");
     LOG.info("========================================");
