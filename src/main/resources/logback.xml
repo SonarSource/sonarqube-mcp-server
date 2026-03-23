@@ -32,4 +32,6 @@
   <logger name="io.modelcontextprotocol.spec.McpSchema" level="off" />
   <logger name="io.modelcontextprotocol.client.McpAsyncClient" level="off" />
   <logger name="io.modelcontextprotocol.spec.McpClientSession" level="off" />
+  <!-- Keep server transport errors visible -->
+  <logger name="io.modelcontextprotocol.server.transport" level="warn" />
 </configuration>

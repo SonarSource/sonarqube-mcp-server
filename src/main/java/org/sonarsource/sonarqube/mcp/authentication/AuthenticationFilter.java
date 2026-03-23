@@ -92,7 +92,7 @@ public class AuthenticationFilter implements Filter {
     if (authMode == AuthMode.TOKEN) {
       var token = extractToken(httpRequest);
       if (token == null || token.isBlank()) {
-        LOG.warn("Missing or empty SonarQube token from " + httpRequest.getRemoteAddr());
+        LOG.warn("Missing or empty SonarQube token for URI '" + httpRequest.getRequestURI() + "'");
         sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via Authorization: Bearer <token> header.");
         return;
       }
@@ -107,10 +107,12 @@ public class AuthenticationFilter implements Filter {
     }
 
     if (authMode == AuthMode.OAUTH) {
+      LOG.warn("OAuth authentication attempted but not yet implemented");
       sendUnauthorizedResponse(httpResponse, "OAuth authentication not yet implemented");
       return;
     }
 
+    LOG.warn("Unsupported authentication mode: " + authMode);
     sendUnauthorizedResponse(httpResponse, "Unsupported authentication mode");
   }
 
@@ -126,6 +128,7 @@ public class AuthenticationFilter implements Filter {
     var org = request.getHeader(SONARQUBE_ORG_HEADER);
     if (serverOrg != null) {
       if (org != null && !org.isBlank()) {
+        LOG.warn("Rejected request with unexpected SONARQUBE_ORG header (server already has org configured)");
         sendBadRequestResponse(response,
           "The SONARQUBE_ORG header is not allowed: this server is already configured with an organization. " +
             "Remove the SONARQUBE_ORG header from your request.");
@@ -133,6 +136,7 @@ public class AuthenticationFilter implements Filter {
       }
     } else {
       if (org == null || org.isBlank()) {
+        LOG.warn("Rejected request missing required SONARQUBE_ORG header");
         sendBadRequestResponse(response,
           "A SONARQUBE_ORG header is required: this server is not configured with a default organization. " +
             "Provide your SonarQube Cloud organization key in the SONARQUBE_ORG request header.");
@@ -147,6 +151,7 @@ public class AuthenticationFilter implements Filter {
     if (value != null && !value.isBlank()) {
       var trimmed = value.trim();
       if (!"true".equalsIgnoreCase(trimmed) && !"false".equalsIgnoreCase(trimmed)) {
+        LOG.warn("Rejected request with invalid SONARQUBE_READ_ONLY header value");
         sendBadRequestResponse(response, "Invalid SONARQUBE_READ_ONLY header value. Expected 'true' or 'false'.");
         return false;
       }

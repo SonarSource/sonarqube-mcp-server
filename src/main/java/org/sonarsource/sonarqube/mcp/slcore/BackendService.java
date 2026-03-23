@@ -189,6 +189,7 @@ public class BackendService {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
+      LOG.error("Backend service initialization failed", e);
       backendFuture.cancel(true);
     }
   }
