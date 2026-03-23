@@ -38,15 +38,12 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
+import org.sonarsource.sonarqube.mcp.analytics.ToolInvocationResult;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -173,7 +170,7 @@ class ToolExecutorTest {
     doAnswer(invocation -> { ((Runnable) invocation.getArgument(0)).run(); return null; })
       .when(analyticsService).submit(any(Runnable.class));
     var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null);
-    var errorTypeCaptor = ArgumentCaptor.forClass(String.class);
+    var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
 
     executor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
       @Override
@@ -182,9 +179,8 @@ class ToolExecutorTest {
       }
     }, new McpSchema.CallToolRequest("", Map.of()));
 
-    verify(analyticsService, timeout(2000)).notifyToolInvoked(anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(),
-      errorTypeCaptor.capture(), anyLong(), anyLong());
-    assertThat(errorTypeCaptor.getValue()).isEqualTo(expectedErrorType);
+    verify(analyticsService, timeout(2000)).notifyToolInvoked(resultCaptor.capture());
+    assertThat(resultCaptor.getValue().errorType()).isEqualTo(expectedErrorType);
   }
 
   @Test
@@ -205,10 +201,7 @@ class ToolExecutorTest {
 
     executeDummyTool(executor);
 
-    verify(analyticsService).notifyToolInvoked(
-      anyString(), anyString(), any(), any(), any(),
-      anyString(), anyString(),
-      anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+    verify(analyticsService).notifyToolInvoked(any(ToolInvocationResult.class));
   }
 
   @Test
@@ -218,8 +211,7 @@ class ToolExecutorTest {
 
     executeDummyTool(executor);
 
-    verify(analyticsService, never()).notifyToolInvoked(
-      anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+    verify(analyticsService, never()).notifyToolInvoked(any(ToolInvocationResult.class));
   }
 
   @Test
@@ -231,8 +223,7 @@ class ToolExecutorTest {
     executeDummyTool(executor);
 
     verify(mockServerApi).isSonarQubeCloud();
-    verify(analyticsService).notifyToolInvoked(
-      anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+    verify(analyticsService).notifyToolInvoked(any(ToolInvocationResult.class));
   }
 
   @Test
@@ -243,8 +234,7 @@ class ToolExecutorTest {
 
     executeDummyTool(executor);
 
-    verify(analyticsService, never()).notifyToolInvoked(
-      anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+    verify(analyticsService, never()).notifyToolInvoked(any(ToolInvocationResult.class));
   }
 
   @Test
@@ -256,8 +246,7 @@ class ToolExecutorTest {
 
     executeDummyTool(executor);
 
-    verify(analyticsService, never()).notifyToolInvoked(
-      anyString(), anyString(), any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), anyLong(), anyLong());
+    verify(analyticsService, never()).notifyToolInvoked(any(ToolInvocationResult.class));
   }
 
   @Test
@@ -282,11 +271,11 @@ class ToolExecutorTest {
       .containsKey("invocation_id");
     var invocationId = capturedMeta.get("invocation_id").toString();
     assertThat(invocationId).isNotBlank();
-    var eventInvocationIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(analyticsService).notifyToolInvoked(
-      eventInvocationIdCaptor.capture(), eq("test_tool"), any(), any(), any(), any(), any(), anyLong(), eq(true), any(), anyLong(), anyLong()
-    );
-    assertThat(eventInvocationIdCaptor.getValue()).isEqualTo(invocationId);
+    var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
+    verify(analyticsService).notifyToolInvoked(resultCaptor.capture());
+    assertThat(resultCaptor.getValue().invocationId()).isEqualTo(invocationId);
+    assertThat(resultCaptor.getValue().toolName()).isEqualTo("test_tool");
+    assertThat(resultCaptor.getValue().isSuccessful()).isTrue();
   }
 
   /** Stubs submit() to run the Runnable synchronously so assertions need no async wait. */

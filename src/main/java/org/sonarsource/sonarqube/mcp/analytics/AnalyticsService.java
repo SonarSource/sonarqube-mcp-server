@@ -72,43 +72,28 @@ public class AnalyticsService {
 
   /**
    * Sends a McpToolInvoked event asynchronously. Errors are silently swallowed.
-   *
-   * @param invocationId             unique identifier of the tool invocation
-   * @param toolName                 the MCP tool name that was invoked
-   * @param organizationUuidV4       the SQC organisation UUID (null for SQS connections)
-   * @param sqsInstallationId        the SQS installation identifier (null for SQC connections)
-   * @param userUuid                 the user UUID (may be null when not available)
-   * @param callingAgentName         the MCP client name (null in HTTP/S mode)
-   * @param callingAgentVersion      the MCP client version (null in HTTP/S mode)
-   * @param toolExecutionDurationMs  duration of the tool execution in milliseconds
-   * @param isSuccessful             whether the tool execution completed without error
-   * @param errorType                error category when unsuccessful, null on success
-   * @param responseSizeBytes        byte size of the tool response content
-   * @param invocationTimestamp      epoch milliseconds when the tool invocation started
    */
-  public void notifyToolInvoked(String invocationId, String toolName, @Nullable String organizationUuidV4, @Nullable String sqsInstallationId, @Nullable String userUuid,
-    @Nullable String callingAgentName, @Nullable String callingAgentVersion, long toolExecutionDurationMs, boolean isSuccessful,
-    @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {
+  public void notifyToolInvoked(ToolInvocationResult result) {
     var connectionType = isSonarQubeCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS;
 
     var event = new McpToolInvokedEvent(
-      invocationId,
-      toolName,
+      result.invocationId(),
+      result.toolName(),
       connectionType,
-      isSonarQubeCloud ? organizationUuidV4 : null,
-      isSonarQubeCloud ? null : sqsInstallationId,
-      userUuid,
+      isSonarQubeCloud ? result.organizationUuidV4() : null,
+      isSonarQubeCloud ? null : result.sqsInstallationId(),
+      result.userUuid(),
       mcpServerId,
       mcpServerVersion,
       transportMode,
-      callingAgentName,
-      callingAgentVersion,
-      toolExecutionDurationMs,
-      isSuccessful,
-      errorType,
-      responseSizeBytes,
+      result.callingAgentName(),
+      result.callingAgentVersion(),
+      result.toolExecutionDurationMs(),
+      result.isSuccessful(),
+      result.errorType(),
+      result.responseSizeBytes(),
       containerArch,
-      invocationTimestamp
+      result.invocationTimestamp()
     );
 
     client.postEvent(event);

@@ -23,8 +23,9 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
-import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
+import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
+import org.sonarsource.sonarqube.mcp.analytics.ToolInvocationResult;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
@@ -131,10 +132,13 @@ public class ToolExecutor {
   private static void dispatchAnalyticsEvent(AnalyticsService service, String toolName, Supplier<ConnectionContext> ctxSupplier, InvocationMetrics metrics) {
     try {
       var ctx = ctxSupplier.get();
-      service.notifyToolInvoked(metrics.invocationId(), toolName, ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
-        ctx.getCallingAgentName(), ctx.getCallingAgentVersion(), metrics.durationMs(), metrics.successful(),
-        metrics.errorType(), metrics.responseSizeBytes(), metrics.invocationTimestamp()
-      );
+      service.notifyToolInvoked(new ToolInvocationResult(
+        metrics.invocationId(), toolName,
+        ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
+        ctx.getCallingAgentName(), ctx.getCallingAgentVersion(),
+        metrics.durationMs(), metrics.successful(), metrics.errorType(),
+        metrics.responseSizeBytes(), metrics.invocationTimestamp()
+      ));
     } catch (Exception e) {
       LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
     }
