@@ -122,7 +122,7 @@ class AnalyzeFileListToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java", "file2.java")
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("SonarQube for IDE is not available. Please ensure SonarQube for IDE is running.").build());
     }
@@ -142,7 +142,7 @@ class AnalyzeFileListToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java")
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Failed to request analysis of the list of files. Check logs for details.").build());
     }
@@ -155,7 +155,7 @@ class AnalyzeFileListToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java")
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertResultEquals(result, """
         {
@@ -178,7 +178,7 @@ class AnalyzeFileListToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java", "file2.java")
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertResultEquals(result, """
         {
@@ -214,7 +214,7 @@ class AnalyzeFileListToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of("file1.java")
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertThat(result.isError()).isFalse();
       // Verify we have all 150 findings in structured content
@@ -234,7 +234,7 @@ class AnalyzeFileListToolTests {
 
       var result = underTest.execute(new Tool.Arguments(Map.of(
         FILE_ABSOLUTE_PATHS_PROPERTY, List.of()
-      ))).toCallToolResult();
+      ), null)).toCallToolResult();
 
       assertThat(result.isError()).isTrue();
       assertThat(result.content().getFirst().toString()).contains("No files provided to analyze. Please provide a list of file paths using the '" + FILE_ABSOLUTE_PATHS_PROPERTY + "' property.");

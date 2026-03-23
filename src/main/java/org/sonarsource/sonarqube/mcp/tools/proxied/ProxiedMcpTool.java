@@ -61,7 +61,8 @@ public class ProxiedMcpTool extends Tool {
       var result = clientManager.executeTool(
         serverId,
         originalToolName,
-        arguments.toMap()
+        arguments.toMap(),
+        arguments.getMeta()
       );
 
       if (Boolean.TRUE.equals(result.isError())) {

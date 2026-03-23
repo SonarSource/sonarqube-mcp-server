@@ -131,7 +131,7 @@ class AnalyzeCodeSnippetToolTests {
     failedFuture.completeExceptionally(new RuntimeException("Initialization failed"));
     var tool = new AnalyzeCodeSnippetTool(mock(BackendService.class), mock(ServerApiProvider.class), failedFuture, null);
 
-    var callToolResult = tool.execute(new Tool.Arguments(Map.of()));
+    var callToolResult = tool.execute(new Tool.Arguments(Map.of(), null));
 
     assertThat(callToolResult.isError()).isTrue();
     assertThat(callToolResult.toCallToolResult().toString()).contains("Server initialization failed: Initialization failed. " +

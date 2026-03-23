@@ -29,7 +29,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_string_when_argument_is_string() {
-    var arguments = new Tool.Arguments(Map.of("stringArg", "testValue"));
+    var arguments = new Tool.Arguments(Map.of("stringArg", "testValue"), null);
 
     var result = arguments.getStringOrThrow("stringArg");
 
@@ -38,7 +38,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_stringified_value_when_argument_is_integer() {
-    var arguments = new Tool.Arguments(Map.of("intArg", 42));
+    var arguments = new Tool.Arguments(Map.of("intArg", 42), null);
 
     var result = arguments.getStringOrThrow("intArg");
 
@@ -47,7 +47,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_stringified_value_when_argument_is_boolean() {
-    var arguments = new Tool.Arguments(Map.of("boolArg", true));
+    var arguments = new Tool.Arguments(Map.of("boolArg", true), null);
 
     var result = arguments.getStringOrThrow("boolArg");
 
@@ -58,7 +58,7 @@ class ToolArgumentsTest {
   void should_throw_exception_when_argument_is_null() {
     var argsMap = new HashMap<String, Object>();
     argsMap.put("nullArg", null);
-    var arguments = new Tool.Arguments(argsMap);
+    var arguments = new Tool.Arguments(argsMap, null);
 
     assertThatThrownBy(() -> arguments.getStringOrThrow("nullArg"))
       .isInstanceOf(MissingRequiredArgumentException.class)
@@ -67,7 +67,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_throw_exception_when_argument_is_missing() {
-    var arguments = new Tool.Arguments(Map.of());
+    var arguments = new Tool.Arguments(Map.of(), null);
 
     assertThatThrownBy(() -> arguments.getStringOrThrow("missingArg"))
       .isInstanceOf(MissingRequiredArgumentException.class)
@@ -76,7 +76,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_integer_when_optional_integer_argument_is_integer() {
-    var arguments = new Tool.Arguments(Map.of("intArg", 42));
+    var arguments = new Tool.Arguments(Map.of("intArg", 42), null);
 
     var result = arguments.getOptionalInteger("intArg");
 
@@ -85,7 +85,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_parse_string_when_optional_integer_argument_is_string_integer() {
-    var arguments = new Tool.Arguments(Map.of("stringIntArg", "123"));
+    var arguments = new Tool.Arguments(Map.of("stringIntArg", "123"), null);
 
     var result = arguments.getOptionalInteger("stringIntArg");
 
@@ -96,7 +96,7 @@ class ToolArgumentsTest {
   void should_return_null_when_optional_integer_argument_is_null() {
     var argsMap = new HashMap<String, Object>();
     argsMap.put("nullArg", null);
-    var arguments = new Tool.Arguments(argsMap);
+    var arguments = new Tool.Arguments(argsMap, null);
 
     var result = arguments.getOptionalInteger("nullArg");
 
@@ -105,7 +105,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_null_when_optional_integer_argument_is_missing() {
-    var arguments = new Tool.Arguments(Map.of());
+    var arguments = new Tool.Arguments(Map.of(), null);
 
     var result = arguments.getOptionalInteger("missingArg");
 
@@ -114,7 +114,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_boolean_when_optional_boolean_argument_is_boolean() {
-    var arguments = new Tool.Arguments(Map.of("boolArg", true));
+    var arguments = new Tool.Arguments(Map.of("boolArg", true), null);
 
     var result = arguments.getOptionalBoolean("boolArg");
 
@@ -123,7 +123,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_parse_string_when_optional_boolean_argument_is_string_boolean() {
-    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "false"));
+    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "false"), null);
 
     var result = arguments.getOptionalBoolean("stringBoolArg");
 
@@ -134,7 +134,7 @@ class ToolArgumentsTest {
   void should_return_null_when_optional_boolean_argument_is_null() {
     var argsMap = new HashMap<String, Object>();
     argsMap.put("nullArg", null);
-    var arguments = new Tool.Arguments(argsMap);
+    var arguments = new Tool.Arguments(argsMap, null);
 
     var result = arguments.getOptionalBoolean("nullArg");
 
@@ -143,7 +143,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_null_when_optional_boolean_argument_is_missing() {
-    var arguments = new Tool.Arguments(Map.of());
+    var arguments = new Tool.Arguments(Map.of(), null);
 
     var result = arguments.getOptionalBoolean("missingArg");
 
@@ -152,7 +152,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_string_when_optional_string_argument_is_string() {
-    var arguments = new Tool.Arguments(Map.of("stringArg", "testValue"));
+    var arguments = new Tool.Arguments(Map.of("stringArg", "testValue"), null);
 
     var result = arguments.getOptionalString("stringArg");
 
@@ -161,7 +161,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_null_when_optional_string_argument_is_not_string() {
-    var arguments = new Tool.Arguments(Map.of("intArg", 42));
+    var arguments = new Tool.Arguments(Map.of("intArg", 42), null);
 
     var result = arguments.getOptionalString("intArg");
 
@@ -172,7 +172,7 @@ class ToolArgumentsTest {
   void should_return_null_when_optional_string_argument_is_null() {
     var argsMap = new HashMap<String, Object>();
     argsMap.put("nullArg", null);
-    var arguments = new Tool.Arguments(argsMap);
+    var arguments = new Tool.Arguments(argsMap, null);
 
     var result = arguments.getOptionalString("nullArg");
 
@@ -181,7 +181,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_value_when_int_or_default_argument_is_present() {
-    var arguments = new Tool.Arguments(Map.of("intArg", 42));
+    var arguments = new Tool.Arguments(Map.of("intArg", 42), null);
 
     var result = arguments.getIntOrDefault("intArg", 100);
 
@@ -190,7 +190,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_default_when_int_or_default_argument_is_missing() {
-    var arguments = new Tool.Arguments(Map.of());
+    var arguments = new Tool.Arguments(Map.of(), null);
 
     var result = arguments.getIntOrDefault("missingArg", 100);
 
@@ -200,7 +200,7 @@ class ToolArgumentsTest {
   @Test
   void should_return_list_when_string_list_argument_is_string_list() {
     var expectedList = List.of("item1", "item2", "item3");
-    var arguments = new Tool.Arguments(Map.of("listArg", expectedList));
+    var arguments = new Tool.Arguments(Map.of("listArg", expectedList), null);
 
     var result = arguments.getStringListOrThrow("listArg");
 
@@ -209,7 +209,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_throw_exception_when_string_list_argument_is_missing() {
-    var arguments = new Tool.Arguments(Map.of());
+    var arguments = new Tool.Arguments(Map.of(), null);
 
     assertThatThrownBy(() -> arguments.getStringListOrThrow("missingListArg"))
       .isInstanceOf(MissingRequiredArgumentException.class)
@@ -219,7 +219,7 @@ class ToolArgumentsTest {
   @Test
   void should_return_list_when_optional_string_list_argument_is_string_list() {
     var expectedList = List.of("item1", "item2");
-    var arguments = new Tool.Arguments(Map.of("listArg", expectedList));
+    var arguments = new Tool.Arguments(Map.of("listArg", expectedList), null);
 
     var result = arguments.getOptionalStringList("listArg");
 
@@ -228,7 +228,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_null_when_optional_string_list_argument_is_missing() {
-    var arguments = new Tool.Arguments(Map.of());
+    var arguments = new Tool.Arguments(Map.of(), null);
 
     var result = arguments.getOptionalStringList("missingListArg");
 
@@ -237,7 +237,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_boolean_when_boolean_argument_is_boolean_true() {
-    var arguments = new Tool.Arguments(Map.of("boolArg", true));
+    var arguments = new Tool.Arguments(Map.of("boolArg", true), null);
 
     var result = arguments.getBooleanOrThrow("boolArg");
 
@@ -246,7 +246,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_boolean_when_boolean_argument_is_boolean_false() {
-    var arguments = new Tool.Arguments(Map.of("boolArg", false));
+    var arguments = new Tool.Arguments(Map.of("boolArg", false), null);
 
     var result = arguments.getBooleanOrThrow("boolArg");
 
@@ -255,7 +255,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_parse_string_when_boolean_argument_is_string_true() {
-    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "true"));
+    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "true"), null);
 
     var result = arguments.getBooleanOrThrow("stringBoolArg");
 
@@ -264,7 +264,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_parse_string_when_boolean_argument_is_string_false() {
-    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "false"));
+    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "false"), null);
 
     var result = arguments.getBooleanOrThrow("stringBoolArg");
 
@@ -273,7 +273,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_return_false_when_boolean_argument_is_invalid_string() {
-    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "invalid"));
+    var arguments = new Tool.Arguments(Map.of("stringBoolArg", "invalid"), null);
 
     var result = arguments.getBooleanOrThrow("stringBoolArg");
 
@@ -284,7 +284,7 @@ class ToolArgumentsTest {
   void should_throw_exception_when_boolean_argument_is_null() {
     var argsMap = new HashMap<String, Object>();
     argsMap.put("nullArg", null);
-    var arguments = new Tool.Arguments(argsMap);
+    var arguments = new Tool.Arguments(argsMap, null);
 
     assertThatThrownBy(() -> arguments.getBooleanOrThrow("nullArg"))
       .isInstanceOf(MissingRequiredArgumentException.class)
@@ -293,7 +293,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_throw_exception_when_boolean_argument_is_missing() {
-    var arguments = new Tool.Arguments(Map.of());
+    var arguments = new Tool.Arguments(Map.of(), null);
 
     assertThatThrownBy(() -> arguments.getBooleanOrThrow("missingArg"))
       .isInstanceOf(MissingRequiredArgumentException.class)
@@ -302,7 +302,7 @@ class ToolArgumentsTest {
 
   @Test
   void should_throw_exception_when_boolean_argument_is_wrong_type() {
-    var arguments = new Tool.Arguments(Map.of("intArg", 42));
+    var arguments = new Tool.Arguments(Map.of("intArg", 42), null);
 
     assertThatThrownBy(() -> arguments.getBooleanOrThrow("intArg"))
       .isInstanceOf(MissingRequiredArgumentException.class)

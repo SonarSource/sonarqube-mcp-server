@@ -316,7 +316,7 @@ class ProxiedToolsLoaderMediumTest {
       .findFirst()
       .orElseThrow();
 
-    var arguments = new Tool.Arguments(Map.of("input", "test_input"));
+    var arguments = new Tool.Arguments(Map.of("input", "test_input"), null);
     var result = tool1.execute(arguments);
 
     assertThat(result.isError()).isFalse();
@@ -349,7 +349,7 @@ class ProxiedToolsLoaderMediumTest {
       .findFirst()
       .orElseThrow();
 
-    var arguments = new Tool.Arguments(Map.of("value", 42));
+    var arguments = new Tool.Arguments(Map.of("value", 42), null);
     var result = tool2.execute(arguments);
 
     assertThat(result.isError()).isFalse();
