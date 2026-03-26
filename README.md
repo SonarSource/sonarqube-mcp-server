@@ -577,13 +577,9 @@ You should add the following variable when running the MCP Server:
 | `SONARQUBE_DEBUG_ENABLED`        | When set to `true`, enables debug logging. Debug logs are written to both the log file and STDERR. Useful for troubleshooting connectivity or configuration issues. Default: `false`.                                       |
 | `SONARQUBE_LOG_TO_FILE_DISABLED` | When set to `true`, disables writing logs to disk entirely. No log files will be created under `STORAGE_PATH/logs/`. Useful in containerized or ephemeral environments where file logging is undesirable. Default: `false`. |
 
-### Advanced Analysis
-
-> **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud organizations. The server automatically detects whether advanced analysis is enabled for your organization — no manual configuration is required.
-
 ### Workspace Mount (Reducing Context Bloat)
 
-By default, analysis tools (`analyze_code_snippet` and `run_advanced_code_analysis`) require the agent to pass the full file content as a `fileContent` argument. For large files or when analyzing many files in a session, this significantly increases context window usage and cost.
+By default, analysis tool `analyze_code_snippet` requires the agent to pass the full file content as a `fileContent` argument. For large files or when analyzing many files in a session, this significantly increases context window usage and cost.
 
 **Solution:** mount your project directory into the container at `/app/mcp-workspace`. When this mount is detected, the server reads files directly from disk using the project-relative `filePath` argument — file content never passes through the agent context.
 
@@ -600,7 +596,7 @@ By default, analysis tools (`analyze_code_snippet` and `run_advanced_code_analys
 ```
 
 When the mount is active:
-- `run_advanced_code_analysis`: `fileContent` is no longer needed — the server resolves `filePath` (e.g., `src/main/java/MyClass.java`) against the mounted workspace
+- `run_advanced_code_analysis` becomes available if your organization is entitled to it
 - `analyze_code_snippet`: `filePath` is required and `fileContent` is not used — the server resolves the file the same way
 
 ### Selective Tool Enablement
@@ -926,13 +922,12 @@ SOCKS5 proxies are supported.
 
 **When advanced analysis is enabled for your SonarQube Cloud organization:**
 
-> **Beta availability:** The advanced analysis tool is currently in beta and only available to specific SonarQube Cloud organizations.
+> Requires having the workspace mounted at `/app/mcp-workspace`
 
 - **run_advanced_code_analysis** - Run advanced code analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.
     - `projectKey` - The key of the project - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
     - `branchName` - Branch name used to retrieve the latest analysis context - _Required String_
-    - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). When the workspace is mounted at `/app/mcp-workspace`, the server reads the file directly from this path (no `fileContent` needed) - _Required String_
-    - `fileContent` - The original content of the file to analyze. Required only when the workspace is not mounted - _String_
+    - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). - _Required String_
     - `fileScope` - Defines in which scope the file originates from: 'MAIN' or 'TEST' (default: MAIN) - _String_
 
 ### Coverage

@@ -16,13 +16,9 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
-import io.modelcontextprotocol.common.McpTransportContext;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -33,12 +29,10 @@ import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 
 public class RunAdvancedCodeAnalysisTool extends Tool {
 
   private static final McpLogger LOG = McpLogger.getInstance();
-  private static final int ENTITLEMENT_CHECK_TIMEOUT_SECONDS = 5;
 
   public static final String TOOL_NAME = "run_advanced_code_analysis";
 
@@ -51,33 +45,18 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private static final String[] VALID_FILE_SCOPES = {"MAIN", "TEST"};
 
   private final ServerApiProvider serverApiProvider;
-  /**
-   * Factory used exclusively for the per-request A3S entitlement check in {@link #isEnabledFor}.
-   * It takes (token, org) and returns a {@link ServerApi} without depending on any thread-local context.
-   * Null in stdio mode or when the tool is registered at startup with a fixed token.
-   */
-  @Nullable
-  private final BiFunction<String, String, ServerApi> apiFactory;
   @Nullable
   private final String configuredProjectKey;
-  @Nullable
   private final Path configuredWorkspacePath;
 
-  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
-    this(serverApiProvider, null, configuredProjectKey, configuredWorkspacePath);
-  }
-
-  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable BiFunction<String, String, ServerApi> apiFactory,
-    @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
-    super(buildSchema(configuredProjectKey, configuredWorkspacePath), ToolCategory.ANALYSIS);
+  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath) {
+    super(buildSchema(configuredProjectKey), ToolCategory.ANALYSIS);
     this.serverApiProvider = serverApiProvider;
-    this.apiFactory = apiFactory;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;
   }
 
-  private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
-    var workspaceConfigured = configuredWorkspacePath != null;
+  private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey) {
     var builder = SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("SonarQube Advanced Code Analysis")
@@ -87,42 +66,11 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The key of the project.", configuredProjectKey)
       .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "The branch name used to retrieve the latest analysis context from SonarQube Cloud.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
-    if (!workspaceConfigured) {
-      builder = builder.addRequiredStringProperty(FILE_CONTENT_PROPERTY, "The full content of the file to analyze.");
-    }
+
     return builder
       .addEnumProperty(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN).")
       .setReadOnlyHint()
       .build();
-  }
-
-  /**
-   * Checks per-request whether the requesting org has A3S enabled.
-   * Extracts token and org from the transport context, builds a {@link ServerApi} via
-   * the {@code apiFactory} (which takes token+org directly, with no thread-local dependency), then queries the SQ:C org-config endpoint.
-   * Returns {@code true} when no factory is configured — the tool was already gated at startup
-   */
-  @Override
-  public boolean isEnabledFor(McpTransportContext ctx) {
-    var factory = apiFactory;
-    if (factory == null) {
-      return true;
-    }
-    var token = (String) ctx.get(HttpServerTransportProvider.CONTEXT_TOKEN_KEY);
-    var org = (String) ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
-    if (token == null || token.isBlank() || org == null || org.isBlank()) {
-      LOG.debug("A3S entitlement check skipped: token or org missing from request context");
-      return false;
-    }
-    try {
-      var api = factory.apply(token, org);
-      return CompletableFuture.supplyAsync(() -> isA3sEnabled(api, org))
-        .orTimeout(ENTITLEMENT_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .join();
-    } catch (Exception e) {
-      LOG.debug("A3S entitlement check failed for org '" + org + "': " + e.getMessage());
-      return false;
-    }
   }
 
   public static boolean isA3sEnabled(ServerApi api, String orgKey) {

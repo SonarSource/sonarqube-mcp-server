@@ -19,7 +19,10 @@ package org.sonarsource.sonarqube.mcp.tools.analysis;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -36,6 +39,25 @@ class RunAdvancedCodeAnalysisToolTests {
 
   private static final String ORG_UUID_V4 = "00000000-0000-0000-0000-000000000001";
   private static final Map<String, String> ADVANCED_ANALYSIS_ENV = Map.of("SONARQUBE_ORG", "my-org");
+  private static Path workspaceDir;
+  private static Path fileToAnalyze;
+
+  @BeforeAll
+  static void setup() throws IOException {
+    workspaceDir = Files.createTempDirectory("sonar-mcp-workspace");
+    fileToAnalyze = workspaceDir.resolve("src/Main.java");
+    Files.createDirectories(fileToAnalyze.getParent());
+    Files.writeString(fileToAnalyze, "class Main {}");
+    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspaceDir.toString());
+  }
+
+  @AfterAll
+  static void tearDown() throws IOException {
+    System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
+    Files.deleteIfExists(fileToAnalyze);
+    Files.deleteIfExists(fileToAnalyze.getParent());
+    Files.deleteIfExists(workspaceDir);
+  }
 
   @SonarQubeMcpServerTest
   void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
@@ -67,8 +89,7 @@ class RunAdvancedCodeAnalysisToolTests {
       Map.of(
         "projectKey", "my-project",
         "branchName", "main",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
+        "filePath", "src/Main.java"
       ));
 
     assertResultEquals(result, """
@@ -109,8 +130,7 @@ class RunAdvancedCodeAnalysisToolTests {
       Map.of(
         "projectKey", "my-project",
         "branchName", "main",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
+        "filePath", "src/Main.java"
       ));
 
     assertResultEquals(result, """
@@ -150,8 +170,7 @@ class RunAdvancedCodeAnalysisToolTests {
       Map.of(
         "projectKey", "my-project",
         "branchName", "main",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
+        "filePath", "src/Main.java"
       ));
 
     assertResultEquals(result, """
@@ -179,8 +198,7 @@ class RunAdvancedCodeAnalysisToolTests {
       Map.of(
         "projectKey", "my-project",
         "branchName", "main",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
+        "filePath", "src/Main.java"
       ));
 
     assertResultEquals(result, """
@@ -205,13 +223,13 @@ class RunAdvancedCodeAnalysisToolTests {
       Map.of(
         "projectKey", "my-project",
         "branchName", "main",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
+        "filePath", "src/Main.java"
       ));
 
     assertThat(result).isEqualTo(McpSchema.CallToolResult.builder()
       .isError(true)
-      .addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.")
+      .addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the " +
+        "required permissions for this operation.")
       .build());
   }
 
@@ -226,8 +244,7 @@ class RunAdvancedCodeAnalysisToolTests {
       Map.of(
         "projectKey", "my-project",
         "branchName", "main",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
+        "filePath", "src/Main.java"
       ));
 
     assertResultEquals(result, """
@@ -259,8 +276,7 @@ class RunAdvancedCodeAnalysisToolTests {
       Map.of(
         "projectKey", "my-project",
         "branchName", "main",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
+        "filePath", "src/Main.java"
       ));
 
     assertResultEquals(result, """
@@ -277,83 +293,37 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_read_file_content_from_file_path_when_workspace_is_mounted(SonarQubeMcpServerTestHarness harness) throws IOException {
-    var workspaceDir = Files.createTempDirectory("sonar-mcp-workspace");
-    var fileToAnalyze = workspaceDir.resolve("src/Main.java");
-    Files.createDirectories(fileToAnalyze.getParent());
-    Files.writeString(fileToAnalyze, "class Main {}");
-    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspaceDir.toString());
-    try {
-      stubAdvancedAnalysisEnabled(harness);
-      stubAnalysisResponse(harness, SIMPLE_RESPONSE);
-      var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+  void it_should_return_error_when_file_path_is_outside_workspace(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
-      var result = mcpClient.callTool(
-        RunAdvancedCodeAnalysisTool.TOOL_NAME,
-        Map.of(
-          "projectKey", "my-project",
-          "branchName", "main",
-          "filePath", "src/Main.java"
-        ));
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "projectKey", "my-project",
+        "branchName", "main",
+        "filePath", "../../etc/passwd"
+      ));
 
-      assertResultEquals(result, """
-        {
-          "issues" : [ ]
-        }""");
-    } finally {
-      System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
-      Files.deleteIfExists(fileToAnalyze);
-      Files.deleteIfExists(fileToAnalyze.getParent());
-      Files.deleteIfExists(workspaceDir);
-    }
+    assertThat(result.isError()).isTrue();
+    assertThat(result.toString()).contains("outside the configured");
   }
 
   @SonarQubeMcpServerTest
-  void it_should_return_error_when_file_path_is_outside_workspace(SonarQubeMcpServerTestHarness harness) throws IOException {
-    var workspaceDir = Files.createTempDirectory("sonar-mcp-workspace");
-    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspaceDir.toString());
-    try {
-      stubAdvancedAnalysisEnabled(harness);
-      var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+  void it_should_return_error_when_file_does_not_exist_in_workspace(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
 
-      var result = mcpClient.callTool(
-        RunAdvancedCodeAnalysisTool.TOOL_NAME,
-        Map.of(
-          "projectKey", "my-project",
-          "branchName", "main",
-          "filePath", "../../etc/passwd"
-        ));
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "projectKey", "my-project",
+        "branchName", "main",
+        "filePath", "src/NonExistent.java"
+      ));
 
-      assertThat(result.isError()).isTrue();
-      assertThat(result.toString()).contains("outside the configured");
-    } finally {
-      System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
-      Files.deleteIfExists(workspaceDir);
-    }
-  }
-
-  @SonarQubeMcpServerTest
-  void it_should_return_error_when_file_does_not_exist_in_workspace(SonarQubeMcpServerTestHarness harness) throws IOException {
-    var workspaceDir = Files.createTempDirectory("sonar-mcp-workspace");
-    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspaceDir.toString());
-    try {
-      stubAdvancedAnalysisEnabled(harness);
-      var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
-
-      var result = mcpClient.callTool(
-        RunAdvancedCodeAnalysisTool.TOOL_NAME,
-        Map.of(
-          "projectKey", "my-project",
-          "branchName", "main",
-          "filePath", "src/NonExistent.java"
-        ));
-
-      assertThat(result.isError()).isTrue();
-      assertThat(result.toString()).contains("Could not read file");
-    } finally {
-      System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
-      Files.deleteIfExists(workspaceDir);
-    }
+    assertThat(result.isError()).isTrue();
+    assertThat(result.toString()).contains("Could not read file");
   }
 
   private static void stubAdvancedAnalysisEnabled(SonarQubeMcpServerTestHarness harness) {
@@ -390,8 +360,7 @@ class RunAdvancedCodeAnalysisToolTests {
       Map.of(
         "projectKey", "my-project",
         "branchName", "main",
-        "filePath", "src/Main.java",
-        "fileContent", "class Main {}"
+        "filePath", "src/Main.java"
       ));
 
     assertResultEquals(result, """

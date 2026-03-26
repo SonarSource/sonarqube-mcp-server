@@ -262,14 +262,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("CAG is not enabled for organization, skipping proxied server initialization");
     }
 
-    if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null && mcpConfiguration.isSonarQubeCloud()) {
-      // HTTP mode without a startup token on SQC: register the advanced analysis tool unconditionally.
-      // Per-request visibility is controlled by PerRequestToolFilteringHandler querying the org-config endpoint.
-      LOG.info("HTTP mode without startup token on SonarQube Cloud - advanced analysis tool will be shown per-request based on org config");
-      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, this::createServerApiWithTokenAndOrg, mcpConfiguration.getProjectKey(), null));
-    } else if (isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
-      LOG.info("Advanced analysis mode enabled");
-      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), mcpConfiguration.getWorkspacePath()));
+    var workspaceMount = mcpConfiguration.getWorkspacePath();
+
+    if (!mcpConfiguration.isHttpEnabled() && isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+      if (workspaceMount != null) {
+        LOG.info("Advanced analysis mode enabled");
+        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount));
+      } else {
+        LOG.info("Advanced analysis mode enabled, but no workspace path configured, skipping tool registration");
+      }
     } else {
       // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
       // token is configured (so plugins can be downloaded at startup).
