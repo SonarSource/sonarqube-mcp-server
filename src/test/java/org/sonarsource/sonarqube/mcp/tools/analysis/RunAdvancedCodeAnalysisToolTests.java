@@ -24,7 +24,6 @@ import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
-import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sConfigApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -358,7 +357,7 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   private static void stubAdvancedAnalysisEnabled(SonarQubeMcpServerTestHarness harness) {
-    harness.getMockSonarQubeServer().stubFor(get(A3sConfigApi.ORG_CONFIG_PATH + ORG_UUID_V4)
+    harness.getMockSonarQubeServer().stubFor(get(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + ORG_UUID_V4)
       .willReturn(okJson("""
         {"id":"%s","enabled":true,"eligible":true}
         """.formatted(ORG_UUID_V4))));

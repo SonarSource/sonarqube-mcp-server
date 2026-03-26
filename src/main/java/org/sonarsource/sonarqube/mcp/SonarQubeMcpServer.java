@@ -246,12 +246,20 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     setBaseInstructions();
 
-    // Initialize proxied MCP servers and load their tools synchronously (only when CAG toolset is enabled)
-    // To improve in https://sonarsource.atlassian.net/browse/MCP-337
-    if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)) {
+    // Initialize proxied MCP servers and load their tools synchronously
+    // Only when:
+    // 1. Running in stdio mode (CAG not supported in HTTP mode)
+    // 2. CAG toolset is enabled
+    // 3. Organization has CAG entitlement
+    if (mcpConfiguration.isHttpEnabled()) {
+      LOG.debug("HTTP mode detected - skipping CAG proxied server initialization (not supported in HTTP transport)");
+    } else if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)) {
+      LOG.debug("CAG toolset is not enabled, skipping proxied server initialization");
+    } else if (isCagEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+      LOG.info("CAG is enabled for organization");
       loadProxiedServerTools();
     } else {
-      LOG.debug("CAG toolset is not enabled, skipping proxied server initialization");
+      LOG.debug("CAG is not enabled for organization, skipping proxied server initialization");
     }
 
     if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null && mcpConfiguration.isSonarQubeCloud()) {
@@ -386,6 +394,26 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       return false;
     }
     return RunAdvancedCodeAnalysisTool.isA3sEnabled(api, orgKey);
+  }
+
+  private static boolean isCagEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
+    if (api == null || orgKey == null) {
+      return false;
+    }
+    var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+    if (orgUuidV4 == null) {
+      LOG.debug("CAG entitlement check: could not resolve UUID for org '" + orgKey + "' - skipping CAG");
+      return false;
+    }
+    var config = api.a3sAnalysisApi().getCagOrgConfig(orgUuidV4);
+    if (config == null) {
+      LOG.debug("CAG entitlement check: could not retrieve org config for org '" + orgKey + "' - skipping CAG");
+      return false;
+    }
+    if (!config.enabled()) {
+      LOG.debug("CAG entitlement check: CAG is not enabled for org '" + orgKey + "'");
+    }
+    return config.enabled();
   }
 
   /**

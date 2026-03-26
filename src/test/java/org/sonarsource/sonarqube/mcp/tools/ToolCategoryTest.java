@@ -124,7 +124,8 @@ class ToolCategoryTest {
       ToolCategory.MEASURES,
       ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.DEPENDENCY_RISKS,
-      ToolCategory.COVERAGE
+      ToolCategory.COVERAGE,
+      ToolCategory.CAG
     );
   }
 

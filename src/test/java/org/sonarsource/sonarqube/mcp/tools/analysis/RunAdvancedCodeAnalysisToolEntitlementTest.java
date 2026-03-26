@@ -28,7 +28,7 @@ import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
-import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sConfigApi;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 
@@ -81,7 +81,7 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
   @Test
   void is_a3s_enabled_returns_false_when_org_config_endpoint_fails() {
     stubOrg(ORG_UUID);
-    wireMock.stubFor(get(urlPathEqualTo(A3sConfigApi.ORG_CONFIG_PATH + ORG_UUID))
+    wireMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + ORG_UUID))
       .willReturn(aResponse().withStatus(500)));
 
     assertThat(RunAdvancedCodeAnalysisTool.isA3sEnabled(serverApi, ORG_KEY)).isFalse();
@@ -168,7 +168,7 @@ class RunAdvancedCodeAnalysisToolEntitlementTest {
   }
 
   private void stubOrgConfig(String uuidV4, boolean enabled) {
-    wireMock.stubFor(get(urlPathEqualTo(A3sConfigApi.ORG_CONFIG_PATH + uuidV4))
+    wireMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + uuidV4))
       .willReturn(jsonResponse("""
         {"id":"%s","enabled":%b,"eligible":true}
         """.formatted(uuidV4, enabled), 200)));

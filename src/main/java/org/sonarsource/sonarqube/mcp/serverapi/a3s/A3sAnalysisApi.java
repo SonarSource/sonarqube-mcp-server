@@ -17,6 +17,8 @@
 package org.sonarsource.sonarqube.mcp.serverapi.a3s;
 
 import com.google.gson.Gson;
+import javax.annotation.CheckForNull;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -24,8 +26,12 @@ import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
 public class A3sAnalysisApi {
 
   public static final String ANALYSES_PATH = "/a3s-analysis/analyses";
+  public static final String A3S_ORG_CONFIG_PATH = "/a3s-analysis/org-config/";
+  public static final String CAG_ORG_CONFIG_PATH = "/a3s-analysis/cag-org-config/";
+
   private static final String JSON_CONTENT_TYPE = "application/json";
   private static final Gson GSON = new Gson();
+  private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ServerApiHelper helper;
 
@@ -38,5 +44,31 @@ public class A3sAnalysisApi {
     try (var response = helper.postApiSubdomain(ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
       return GSON.fromJson(response.bodyAsString(), AnalysisResponse.class);
     }
+  }
+
+  @CheckForNull
+  public OrgConfigResponse getA3sOrgConfig(String organizationUuidV4) {
+    try (var response = helper.getApiSubdomain(A3S_ORG_CONFIG_PATH + organizationUuidV4)) {
+      return GSON.fromJson(response.bodyAsString(), OrgConfigResponse.class);
+    } catch (Exception e) {
+      LOG.warn("Could not retrieve A3S org config for organization '" + organizationUuidV4 + "': " + e.getMessage());
+      return null;
+    }
+  }
+
+  @CheckForNull
+  public CagConfigResponse getCagOrgConfig(String organizationUuidV4) {
+    try (var response = helper.getApiSubdomain(CAG_ORG_CONFIG_PATH + organizationUuidV4)) {
+      return GSON.fromJson(response.bodyAsString(), CagConfigResponse.class);
+    } catch (Exception e) {
+      LOG.warn("Could not retrieve CAG org config for organization '" + organizationUuidV4 + "': " + e.getMessage());
+      return null;
+    }
+  }
+
+  public record OrgConfigResponse(String id, boolean enabled, boolean eligible) {
+  }
+
+  public record CagConfigResponse(String id, boolean enabled, boolean eligible) {
   }
 }

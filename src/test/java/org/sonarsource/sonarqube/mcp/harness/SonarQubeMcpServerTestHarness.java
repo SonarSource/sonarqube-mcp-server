@@ -42,7 +42,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
-import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sConfigApi;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
@@ -278,8 +278,8 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       }
 
       // Stub A3S org-config API — disabled by default; tests that need advanced analysis should override
-      if (!mockSonarQubeServer.isStubConfigured(A3sConfigApi.ORG_CONFIG_PATH + orgUuidV4)) {
-        mockSonarQubeServer.stubFor(get(A3sConfigApi.ORG_CONFIG_PATH + orgUuidV4)
+      if (!mockSonarQubeServer.isStubConfigured(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + orgUuidV4)) {
+        mockSonarQubeServer.stubFor(get(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + orgUuidV4)
           .willReturn(okJson("""
             {"id":"%s","enabled":false,"eligible":true}
             """.formatted(orgUuidV4))));
