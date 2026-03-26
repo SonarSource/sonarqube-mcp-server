@@ -131,7 +131,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       LOG.debug("A3S entitlement check: could not resolve UUID for org '" + orgKey + "' - falling back to standard analysis");
       return false;
     }
-    var config = api.a3sConfigApi().getOrgConfig(orgUuidV4);
+    var config = api.a3sAnalysisApi().getA3sOrgConfig(orgUuidV4);
     if (config == null) {
       LOG.debug("A3S entitlement check: could not retrieve org config for org '" + orgKey + "' - falling back to standard analysis");
       return false;

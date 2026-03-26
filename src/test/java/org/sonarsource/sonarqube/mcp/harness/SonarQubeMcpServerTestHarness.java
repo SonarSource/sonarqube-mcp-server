@@ -42,7 +42,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
-import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sConfigApi;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
@@ -278,8 +278,16 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       }
 
       // Stub A3S org-config API — disabled by default; tests that need advanced analysis should override
-      if (!mockSonarQubeServer.isStubConfigured(A3sConfigApi.ORG_CONFIG_PATH + orgUuidV4)) {
-        mockSonarQubeServer.stubFor(get(A3sConfigApi.ORG_CONFIG_PATH + orgUuidV4)
+      if (!mockSonarQubeServer.isStubConfigured(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + orgUuidV4)) {
+        mockSonarQubeServer.stubFor(get(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + orgUuidV4)
+          .willReturn(okJson("""
+            {"id":"%s","enabled":false,"eligible":true}
+            """.formatted(orgUuidV4))));
+      }
+
+      // Stub CAG org-config API — disabled by default; tests that need CAG should call stubCagOrgConfig(true)
+      if (!mockSonarQubeServer.isStubConfigured(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + orgUuidV4)) {
+        mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + orgUuidV4)
           .willReturn(okJson("""
             {"id":"%s","enabled":false,"eligible":true}
             """.formatted(orgUuidV4))));
@@ -301,6 +309,28 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       }
     }
 
+  }
+
+  /**
+   * Stub CAG org config API to enable/disable CAG for the organization.
+   * Must be called before prepareMockWebServer() to override the default (disabled) stub.
+   */
+  public void stubCagOrgConfig(boolean enabled) {
+    var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
+    mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + orgUuidV4)
+      .willReturn(okJson("""
+        {"id":"%s","enabled":%b,"eligible":true}
+        """.formatted(orgUuidV4, enabled))));
+  }
+
+  /**
+   * Stub CAG org config API to return an error (500).
+   * Tests fail-safe behavior when CAG API is unavailable.
+   */
+  public void stubCagOrgConfigError() {
+    var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
+    mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + orgUuidV4)
+      .willReturn(aResponse().withStatus(500)));
   }
 
   private static void printLogs(McpSchema.LoggingMessageNotification notification) {

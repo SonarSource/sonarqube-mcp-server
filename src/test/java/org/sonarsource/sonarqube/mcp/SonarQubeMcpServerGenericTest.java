@@ -156,6 +156,63 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
+  void should_not_start_proxied_server_when_cag_is_not_enabled_for_org(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TOOLSETS", "cag");
+    harness.prepareMockWebServer(environment);
+    harness.stubCagOrgConfig(false); // CAG disabled for org
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getSupportedTools())
+      .as("Should not load proxied CAG tools when org doesn't have CAG entitlement")
+      .noneMatch(ProxiedMcpTool.class::isInstance);
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_start_proxied_server_when_cag_api_fails(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TOOLSETS", "cag");
+    harness.prepareMockWebServer(environment);
+    harness.stubCagOrgConfigError(); // CAG API returns 500
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getSupportedTools())
+      .as("Should not load proxied CAG tools when CAG API fails (fail-safe)")
+      .noneMatch(ProxiedMcpTool.class::isInstance);
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_start_proxied_server_in_http_mode_even_when_cag_enabled(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TOOLSETS", "cag");
+    harness.prepareMockWebServer(environment);
+    harness.stubCagOrgConfig(true); // CAG enabled but HTTP mode not supported
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    assertThat(server.getSupportedTools())
+      .as("Should not load proxied CAG tools in HTTP mode (only stdio supported)")
+      .noneMatch(ProxiedMcpTool.class::isInstance);
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
   void should_skip_analyzer_download_when_analysis_tools_disabled(SonarQubeMcpServerTestHarness harness) throws Exception {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_TOOLSETS", "projects");

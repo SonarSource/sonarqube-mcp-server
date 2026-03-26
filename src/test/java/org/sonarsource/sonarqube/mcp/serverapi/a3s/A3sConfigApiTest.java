@@ -42,23 +42,23 @@ class A3sConfigApiTest {
     .options(wireMockConfig().dynamicPort())
     .build();
 
-  private A3sConfigApi a3sConfigApi;
+  private A3sAnalysisApi a3sAnalysisApi;
 
   @BeforeAll
   void init() {
     var httpClient = new HttpClientProvider("test").getHttpClient("token");
     var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "my-org", null, true), httpClient);
-    a3sConfigApi = new A3sConfigApi(helper);
+    a3sAnalysisApi = new A3sAnalysisApi(helper);
   }
 
   @Test
-  void it_should_return_config_when_org_is_enabled() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sConfigApi.ORG_CONFIG_PATH + ORG_UUID))
+  void it_should_return_a3s_config_when_org_is_enabled() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + ORG_UUID))
       .willReturn(jsonResponse("""
         {"id":"%s","enabled":true,"eligible":true}
         """.formatted(ORG_UUID), 200)));
 
-    var config = a3sConfigApi.getOrgConfig(ORG_UUID);
+    var config = a3sAnalysisApi.getA3sOrgConfig(ORG_UUID);
 
     assertThat(config).isNotNull();
     assertThat(config.enabled()).isTrue();
@@ -66,34 +66,82 @@ class A3sConfigApiTest {
   }
 
   @Test
-  void it_should_return_config_when_org_is_disabled() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sConfigApi.ORG_CONFIG_PATH + ORG_UUID))
+  void it_should_return_a3s_config_when_org_is_disabled() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + ORG_UUID))
       .willReturn(jsonResponse("""
         {"id":"%s","enabled":false,"eligible":true}
         """.formatted(ORG_UUID), 200)));
 
-    var config = a3sConfigApi.getOrgConfig(ORG_UUID);
+    var config = a3sAnalysisApi.getA3sOrgConfig(ORG_UUID);
 
     assertThat(config).isNotNull();
     assertThat(config.enabled()).isFalse();
   }
 
   @Test
-  void it_should_return_null_on_server_error() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sConfigApi.ORG_CONFIG_PATH + ORG_UUID))
+  void it_should_return_null_on_a3s_server_error() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + ORG_UUID))
       .willReturn(aResponse().withStatus(500)));
 
-    var config = a3sConfigApi.getOrgConfig(ORG_UUID);
+    var config = a3sAnalysisApi.getA3sOrgConfig(ORG_UUID);
 
     assertThat(config).isNull();
   }
 
   @Test
-  void it_should_return_null_on_not_found() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sConfigApi.ORG_CONFIG_PATH + ORG_UUID))
+  void it_should_return_null_on_a3s_not_found() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + ORG_UUID))
       .willReturn(aResponse().withStatus(404)));
 
-    var config = a3sConfigApi.getOrgConfig(ORG_UUID);
+    var config = a3sAnalysisApi.getA3sOrgConfig(ORG_UUID);
+
+    assertThat(config).isNull();
+  }
+
+  @Test
+  void it_should_return_cag_config_when_org_is_enabled() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + ORG_UUID))
+      .willReturn(jsonResponse("""
+        {"id":"%s","enabled":true,"eligible":true}
+        """.formatted(ORG_UUID), 200)));
+
+    var config = a3sAnalysisApi.getCagOrgConfig(ORG_UUID);
+
+    assertThat(config).isNotNull();
+    assertThat(config.enabled()).isTrue();
+    assertThat(config.eligible()).isTrue();
+  }
+
+  @Test
+  void it_should_return_cag_config_when_org_is_disabled() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + ORG_UUID))
+      .willReturn(jsonResponse("""
+        {"id":"%s","enabled":false,"eligible":true}
+        """.formatted(ORG_UUID), 200)));
+
+    var config = a3sAnalysisApi.getCagOrgConfig(ORG_UUID);
+
+    assertThat(config).isNotNull();
+    assertThat(config.enabled()).isFalse();
+    assertThat(config.eligible()).isTrue();
+  }
+
+  @Test
+  void it_should_return_null_on_cag_server_error() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + ORG_UUID))
+      .willReturn(aResponse().withStatus(500)));
+
+    var config = a3sAnalysisApi.getCagOrgConfig(ORG_UUID);
+
+    assertThat(config).isNull();
+  }
+
+  @Test
+  void it_should_return_null_on_cag_not_found() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + ORG_UUID))
+      .willReturn(aResponse().withStatus(404)));
+
+    var config = a3sAnalysisApi.getCagOrgConfig(ORG_UUID);
 
     assertThat(config).isNull();
   }
