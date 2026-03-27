@@ -235,11 +235,14 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
     }
 
     private void handleIncomingMessages() {
-      this.inboundSink.asFlux().flatMap(message -> session.handle(message)).doOnTerminate(() -> {
-        // The outbound processing will dispose its scheduler upon completion
-        this.outboundSink.tryEmitComplete();
-        this.inboundScheduler.dispose();
-      }).subscribe();
+      // Note: inboundScheduler is NOT disposed here because this callback runs on the inbound
+      // thread itself. Calling dispose() would trigger ExecutorService.shutdownNow(), which
+      // interrupts the current thread, causing the shutdown callback to fail with
+      // InterruptedException. The inbound scheduler is disposed at the end of
+      // startInboundProcessing() instead.
+      this.inboundSink.asFlux().flatMap(message -> session.handle(message))
+        .doOnTerminate(this.outboundSink::tryEmitComplete)
+        .subscribe();
     }
 
     /**
@@ -297,6 +300,12 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
                 logger.error("Error during graceful shutdown", e);
               }
             }
+
+            // Dispose the inbound scheduler last, after the shutdown callback has completed.
+            // This must NOT happen in handleIncomingMessages()'s doOnTerminate because that
+            // callback runs on this same thread — dispose() calls shutdownNow() which would
+            // interrupt the thread and break the shutdown callback.
+            inboundScheduler.dispose();
           }
         });
       }

@@ -153,7 +153,7 @@ class StdioServerTransportProviderTest {
     // Wire up the transport by setting the session factory (this starts the inbound/outbound threads)
     var mockSession = mock(McpServerSession.class);
     when(mockSession.closeGracefully()).thenReturn(Mono.empty());
-    provider.setSessionFactory((transport) -> mockSession);
+    provider.setSessionFactory(transport -> mockSession);
 
     // Close stdin to simulate Docker/Claude disconnecting
     pipedOut.close();
