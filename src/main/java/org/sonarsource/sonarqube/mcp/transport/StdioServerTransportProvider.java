@@ -105,7 +105,8 @@ public class StdioServerTransportProvider implements McpServerTransportProvider 
     this(inputStream, outputStream, shutdownCallback, Duration.ofSeconds(10));
   }
 
-  private StdioServerTransportProvider(InputStream inputStream, OutputStream outputStream, @Nullable Runnable shutdownCallback, Duration gracefulShutdownTimeout) {
+  // Package-private for testing
+  StdioServerTransportProvider(InputStream inputStream, OutputStream outputStream, @Nullable Runnable shutdownCallback, Duration gracefulShutdownTimeout) {
     Assert.notNull(inputStream, "The InputStream can not be null");
     Assert.notNull(outputStream, "The OutputStream can not be null");
     Assert.notNull(gracefulShutdownTimeout, "The gracefulShutdownTimeout can not be null");
