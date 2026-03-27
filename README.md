@@ -1170,7 +1170,7 @@ SOCKS5 proxies are supported.
     - `fields` - Comma-separated list of fields to include in the response - _String_
 
 
-- **get_classlike_structure_hierarchy** - Get the full inheritance hierarchy for a class-like structure (class, interface, enum, record, exception, struct). Essential for understanding inheritance trees and refactoring.
+- **get_type_hierarchy** - Get the full inheritance hierarchy for a class-like structure (class, interface, enum, record, exception, struct). Essential for understanding inheritance trees and refactoring.
     - `fqn` - Fully qualified name of the class-like structure - _Required String_
     - `fields` - Comma-separated list of fields to include in the response - _String_
 
