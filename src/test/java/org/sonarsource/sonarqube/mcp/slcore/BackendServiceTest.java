@@ -27,7 +27,9 @@ import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -135,6 +137,39 @@ class BackendServiceTest {
     backendService.shutdown();
 
     verify(mockLauncher).close();
+  }
+
+  @Test
+  void shutdown_should_close_launcher_even_when_thread_is_interrupted() {
+    // Reproduces the Docker container hang: the stdio inbound scheduler thread gets interrupted
+    // by handleIncomingMessages' doOnTerminate before the shutdown callback runs.
+    // The real ClientJsonRpcLauncher.close() calls awaitTermination() which throws
+    // InterruptedException when the thread's interrupt flag is set, preventing cleanup.
+    var interruptFlagWhenCloseCalled = new boolean[]{false};
+    doAnswer(invocation -> {
+      interruptFlagWhenCloseCalled[0] = Thread.currentThread().isInterrupted();
+      if (Thread.currentThread().isInterrupted()) {
+        // Simulate real ClientJsonRpcLauncher.close() behavior: awaitTermination throws
+        throw new IllegalStateException("Interrupted!", new InterruptedException());
+      }
+      return null;
+    }).when(mockLauncher).close();
+
+    var initialAnalyzers = new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class));
+    backendService.initialize(initialAnalyzers);
+
+    // Simulate the interrupt that the inbound scheduler disposal sets on this thread
+    Thread.currentThread().interrupt();
+
+    backendService.shutdown();
+
+    // The launcher must be called with interrupt flag cleared so awaitTermination succeeds
+    verify(mockLauncher).close();
+    assertThat(interruptFlagWhenCloseCalled[0])
+      .as("clientLauncher.close() should be called with interrupt flag cleared")
+      .isFalse();
+    // Clean up interrupt flag for test framework
+    Thread.interrupted();
   }
 
 }

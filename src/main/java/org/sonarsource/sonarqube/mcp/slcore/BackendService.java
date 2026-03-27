@@ -294,10 +294,15 @@ public class BackendService {
     } catch (Exception e) {
       LOG.error("Unable to shutdown the MCP backend", e);
     } finally {
+      // Clear interrupt flag so clientLauncher.close() (which calls awaitTermination) can complete
+      boolean wasInterrupted = Thread.interrupted();
       try {
         clientLauncher.close();
       } catch (Exception e) {
         LOG.error("Unable to stop the MCP backend launcher", e);
+      }
+      if (wasInterrupted) {
+        Thread.currentThread().interrupt();
       }
     }
   }
