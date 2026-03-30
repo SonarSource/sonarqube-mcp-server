@@ -84,7 +84,7 @@ class ProxiedMcpToolTest {
   }
 
   @Test
-  void execute_should_handle_error_result_from_proxied_server() throws Exception {
+  void execute_should_handle_error_result_from_proxied_server() {
     var tool = new ProxiedMcpTool("weather", "get_weather", originalTool, clientManager);
 
     var errorResult = McpSchema.CallToolResult.builder()
@@ -104,7 +104,7 @@ class ProxiedMcpToolTest {
   }
 
   @Test
-  void execute_should_ignore_image_content_in_error_result() throws Exception {
+  void execute_should_ignore_image_content_in_error_result() {
     var tool = new ProxiedMcpTool("img", "process_image", originalTool, clientManager);
 
     var imageContent = new McpSchema.ImageContent(
