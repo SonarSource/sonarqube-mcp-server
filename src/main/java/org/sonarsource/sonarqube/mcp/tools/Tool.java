@@ -21,6 +21,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.CheckForNull;
@@ -253,7 +254,8 @@ public abstract class Tool {
      * Used for forwarding arguments to proxied MCP servers.
      */
     public Map<String, Object> toMap() {
-      return Map.copyOf(argumentsMap);
+      // create a new HashMap to preserve null values
+      return new HashMap<>(argumentsMap);
     }
   }
 

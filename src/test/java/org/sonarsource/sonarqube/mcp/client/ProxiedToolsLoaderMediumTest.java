@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -358,6 +359,38 @@ class ProxiedToolsLoaderMediumTest {
     var textContent = (McpSchema.TextContent) callToolResult.content().getFirst();
     assertThat(textContent.text()).contains("Test Tool 2 executed");
     assertThat(textContent.text()).contains("42");
+  }
+
+  @Test
+  void proxied_tools_should_handle_null_parameters() {
+    createTestConfig(List.of(
+      Map.of(
+        "name", "test-server",
+        "command", "python3",
+        "args", List.of(testServerScript.toString()),
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
+      )
+    ));
+
+    loader = new ProxiedToolsLoader();
+    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+
+    var tool2 = (ProxiedMcpTool) tools.stream()
+      .filter(t -> t.definition().name().equals("test_tool_1"))
+      .findFirst()
+      .orElseThrow();
+    var args = new HashMap<String, Object>();
+    args.put("input", null);
+
+    var arguments = new Tool.Arguments(args, null);
+    var result = tool2.execute(arguments);
+
+    assertThat(result.isError()).isFalse();
+
+    var callToolResult = result.toCallToolResult();
+    var textContent = (McpSchema.TextContent) callToolResult.content().getFirst();
+    assertThat(textContent.text()).contains("Test Tool 1 executed with input: None");
   }
 
   @Test
