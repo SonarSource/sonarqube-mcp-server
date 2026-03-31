@@ -157,14 +157,15 @@ The proxied server receives:
   "env": {
     "DEBUG": "true"
   },
-  "inherits": ["SONARQUBE_TOKEN", "SONARQUBE_URL"]
+  "inherits": ["SONARQUBE_TOKEN", "SONARQUBE_URL", "TELEMETRY_DISABLED"]
 }
 ```
 
-If the parent process has `SONARQUBE_TOKEN=secret123` and `SONARQUBE_URL=https://sonar.example.com`, the proxied server receives:
+If the parent process has `SONARQUBE_TOKEN=secret123`, `SONARQUBE_URL=https://sonar.example.com`, and `TELEMETRY_DISABLED=true`, the proxied server receives:
 - `DEBUG=true` (explicit value from config)
 - `SONARQUBE_TOKEN=secret123` (inherited from parent)
 - `SONARQUBE_URL=https://sonar.example.com` (inherited from parent)
+- `TELEMETRY_DISABLED=true` (inherited from parent)
 
 **Example 3: Overriding inherited values**
 ```json
