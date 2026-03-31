@@ -1233,7 +1233,6 @@ Mount the project workspace to give the Context Augmentation server direct acces
       ],
       "env": {
         "SONARQUBE_URL": "https://sonarcloud.io",
-        "SONARQUBE_TOKEN": "<token>",
         "SONARQUBE_ORG": "<my_org>",
         "SONAR_LOG_LEVEL": "INFO",
         "SONARQUBE_PROJECT_KEY": "<my-org_my-project>"
@@ -1242,6 +1241,8 @@ Mount the project workspace to give the Context Augmentation server direct acces
   }
 }
 ```
+
+**Important**: In a project-scoped config (for example, .mcp.json committed to your repo), do not put `SONARQUBE_TOKEN` in the env block. Export it in your shell or configure it via your MCP client’s secret mechanism instead (for example, `export SONARQUBE_TOKEN=...`). Docker will forward it into the container via -e SONARQUBE_TOKEN.
 
 </details>
 
