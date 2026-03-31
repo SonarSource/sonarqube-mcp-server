@@ -152,4 +152,26 @@ class ProxiedMcpToolTest {
     verify(clientManager).executeTool("weather", "get_weather", Map.of("location", "Paris"), expectedMeta);
   }
 
+  @Test
+  void execute_should_forward_mcp_server_id_in_meta_to_client_manager() {
+    var tool = new ProxiedMcpTool("weather", "get_weather", originalTool, clientManager);
+    var successResult = McpSchema.CallToolResult.builder()
+      .isError(false)
+      .addTextContent("Weather is good")
+      .build();
+    when(clientManager.executeTool(eq("weather"), eq("get_weather"), anyMap(), any()))
+      .thenReturn(successResult);
+    var expectedMeta = Map.<String, Object>of(
+      "invocation_id", "123-abc",
+      "mcp_server_id", "server-uuid-456",
+      "extra_meta", "value"
+    );
+    var arguments = new Tool.Arguments(Map.of("location", "Paris"), expectedMeta);
+    
+    var result = tool.execute(arguments);
+    
+    assertThat(result.isError()).isFalse();
+    verify(clientManager).executeTool("weather", "get_weather", Map.of("location", "Paris"), expectedMeta);
+  }
+
 }

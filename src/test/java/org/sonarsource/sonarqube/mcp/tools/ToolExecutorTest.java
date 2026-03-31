@@ -169,7 +169,7 @@ class ToolExecutorTest {
     var analyticsService = mock(AnalyticsService.class);
     doAnswer(invocation -> { ((Runnable) invocation.getArgument(0)).run(); return null; })
       .when(analyticsService).submit(any(Runnable.class));
-    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null);
     var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
 
     executor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
@@ -185,7 +185,7 @@ class ToolExecutorTest {
 
   @Test
   void it_should_skip_analytics_when_service_is_null() {
-    var executor = new ToolExecutor(mockBackendService, null, ConnectionContext.empty(), null);
+    var executor = new ToolExecutor(mockBackendService, null, ConnectionContext.empty(), null, null);
 
     var result = executeDummyTool(executor);
 
@@ -197,7 +197,7 @@ class ToolExecutorTest {
     var analyticsService = syncAnalyticsService();
     var ctx = ConnectionContext.empty();
     ctx.captureCallingAgent("cursor", "1.0.0");
-    var executor = new ToolExecutor(mockBackendService, analyticsService, ctx, null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ctx, null, null);
 
     executeDummyTool(executor);
 
@@ -207,7 +207,7 @@ class ToolExecutorTest {
   @Test
   void it_should_skip_analytics_when_both_context_and_supplier_are_null() {
     var analyticsService = syncAnalyticsService();
-    var executor = new ToolExecutor(mockBackendService, analyticsService, null, null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null, null, null);
 
     executeDummyTool(executor);
 
@@ -218,7 +218,7 @@ class ToolExecutorTest {
   void it_should_dispatch_event_in_http_mode_and_resolve_context_from_server_api() {
     var analyticsService = syncAnalyticsService();
     var mockServerApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
-    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi, null);
 
     executeDummyTool(executor);
 
@@ -230,7 +230,7 @@ class ToolExecutorTest {
   void it_should_skip_analytics_in_http_mode_when_supplier_throws() {
     var analyticsService = syncAnalyticsService();
     var executor = new ToolExecutor(mockBackendService, analyticsService, null,
-      () -> { throw new RuntimeException("no transport context"); });
+      () -> { throw new RuntimeException("no transport context"); }, null);
 
     executeDummyTool(executor);
 
@@ -242,7 +242,7 @@ class ToolExecutorTest {
     var analyticsService = syncAnalyticsService();
     var mockServerApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
     doThrow(new RuntimeException("API unavailable")).when(mockServerApi).isSonarQubeCloud();
-    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi, null);
 
     executeDummyTool(executor);
 
@@ -252,7 +252,7 @@ class ToolExecutorTest {
   @Test
   void it_should_inject_invocation_id_into_tool_arguments_and_analytics() {
     var analyticsService = syncAnalyticsService();
-    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null);
     var tool = mock(Tool.class);
     var toolDefinition = new McpSchema.Tool("test_tool", "desc", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of());
     record DummyResponse(String message) {}
@@ -268,7 +268,8 @@ class ToolExecutorTest {
     assertThat(capturedMeta)
       .isNotNull()
       .containsEntry("client_meta", "client_value")
-      .containsKey("invocation_id");
+      .containsKey("invocation_id")
+      .doesNotContainKey("mcp_server_id");
     var invocationId = capturedMeta.get("invocation_id").toString();
     assertThat(invocationId).isNotBlank();
     var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
@@ -276,6 +277,30 @@ class ToolExecutorTest {
     assertThat(resultCaptor.getValue().invocationId()).isEqualTo(invocationId);
     assertThat(resultCaptor.getValue().toolName()).isEqualTo("test_tool");
     assertThat(resultCaptor.getValue().isSuccessful()).isTrue();
+  }
+
+  @Test
+  void it_should_inject_mcp_server_id_into_tool_arguments() {
+    var analyticsService = syncAnalyticsService();
+    var mcpServerId = "test-server-id-12345";
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, mcpServerId);
+    var tool = mock(Tool.class);
+    var toolDefinition = new McpSchema.Tool("test_tool", "desc", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of());
+    record DummyResponse(String message) {}
+    when(tool.definition()).thenReturn(toolDefinition);
+    when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
+
+    var toolRequest = new McpSchema.CallToolRequest("test_tool", Map.of("arg", "value"), Map.of("client_meta", "client_value"));
+    executor.execute(tool, toolRequest);
+
+    var argumentsCaptor = ArgumentCaptor.forClass(Tool.Arguments.class);
+    verify(tool).execute(argumentsCaptor.capture());
+    var capturedMeta = argumentsCaptor.getValue().getMeta();
+    assertThat(capturedMeta)
+      .isNotNull()
+      .containsEntry("client_meta", "client_value")
+      .containsEntry("invocation_id", capturedMeta.get("invocation_id"))
+      .containsEntry("mcp_server_id", mcpServerId);
   }
 
   /** Stubs submit() to run the Runnable synchronously so assertions need no async wait. */
