@@ -1242,7 +1242,7 @@ Mount the project workspace to give the Context Augmentation server direct acces
 }
 ```
 
-**Important**: In a project-scoped config (for example, .mcp.json committed to your repo), do not put `SONARQUBE_TOKEN` in the env block. Export it in your shell or configure it via your MCP client’s secret mechanism instead (for example, `export SONARQUBE_TOKEN=...`). Docker will forward it into the container via -e SONARQUBE_TOKEN.
+**Important**: In a project-scoped config, do not put `SONARQUBE_TOKEN` in the env block. Export it as an environment variable `export SONARQUBE_TOKEN=...`). Docker will forward it into the container via `-e SONARQUBE_TOKEN`.
 
 </details>
 
