@@ -228,8 +228,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     // In stdio mode: pass the shared pre-resolved ConnectionContext
     // In HTTP mode: pass a supplier that captures the request-scoped ServerApi synchronously to the async analytics task
     this.toolExecutor = mcpConfiguration.isHttpEnabled()
-      ? new ToolExecutor(backendService, analyticsService, null, this)
-      : new ToolExecutor(backendService, analyticsService, connectionContext, null);
+      ? new ToolExecutor(backendService, analyticsService, null, this, mcpConfiguration.getMcpServerId())
+      : new ToolExecutor(backendService, analyticsService, connectionContext, null, mcpConfiguration.getMcpServerId());
 
     // Create ServerApi for startup probing (version check, SCA availability, plugin sync).
     // In HTTP mode this is optional — only created when a startup token is configured.

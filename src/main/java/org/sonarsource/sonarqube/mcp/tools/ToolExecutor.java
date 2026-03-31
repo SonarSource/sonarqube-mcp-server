@@ -55,16 +55,23 @@ public class ToolExecutor {
   @Nullable
   private final Supplier<ServerApi> httpServerApiSupplier;
 
+  /**
+   * MCP server ID to include in the _meta field for proxied servers to correlate telemetry.
+   */
+  @Nullable
+  private final String mcpServerId;
+
   public ToolExecutor(BackendService backendService) {
-    this(backendService, null, null, null);
+    this(backendService, null, null, null, null);
   }
 
   public ToolExecutor(BackendService backendService, @Nullable AnalyticsService analyticsService,
-    @Nullable ConnectionContext stdioContext, @Nullable Supplier<ServerApi> httpServerApiSupplier) {
+    @Nullable ConnectionContext stdioContext, @Nullable Supplier<ServerApi> httpServerApiSupplier, @Nullable String mcpServerId) {
     this.backendService = backendService;
     this.analyticsService = analyticsService;
     this.stdioContext = stdioContext;
     this.httpServerApiSupplier = httpServerApiSupplier;
+    this.mcpServerId = mcpServerId;
   }
 
   public McpSchema.CallToolResult execute(Tool tool, McpSchema.CallToolRequest toolRequest) {
@@ -80,6 +87,9 @@ public class ToolExecutor {
       meta.putAll(toolRequest.meta());
     }
     meta.put("invocation_id", invocationId);
+    if (mcpServerId != null) {
+      meta.put("mcp_server_id", mcpServerId);
+    }
 
     try {
       result = tool.execute(new Tool.Arguments(toolRequest.arguments(), meta));
