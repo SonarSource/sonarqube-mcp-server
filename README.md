@@ -1189,7 +1189,7 @@ SOCKS5 proxies are supported.
 <summary>Guidelines Tools</summary>
 
 - **get_guidelines** - Get coding guidelines based on SonarQube project issues, catalog categories, or a combination of both.
-    - `mode` - Guidelines retrieval mode: `project_based`, `category_based`, or `combined` - _Required String_
+    - `mode` - Guidelines retrieval mode: `project_based`, `category_based`, or `combined` - _String_
     - `categories` - List of category names (required for `category_based` and `combined` modes) - _String[]_
     - `languages` - List of target languages in SonarQube repository key format (required when `categories` is provided) - _String[]_
     - `file_paths` - Optional list of file paths to filter guidelines by - _String[]_
