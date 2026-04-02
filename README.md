@@ -611,24 +611,24 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 <details>
 <summary>Available Toolsets</summary>
 
-| Toolset               | Key                 | Description                                                              |
-|-----------------------|---------------------|--------------------------------------------------------------------------|
-| **Analysis**          | `analysis`          | Code analysis tools (local analysis and advanced remote analysis)        |
-| **Issues**            | `issues`            | Search and manage SonarQube issues                                       |
-| **Security Hotspots** | `security-hotspots` | Search and review Security Hotspots                                      |
-| **Projects**          | `projects`          | Browse and search SonarQube projects                                     |
-| **Quality Gates**     | `quality-gates`     | Access quality gates and their status                                    |
-| **Rules**             | `rules`             | Browse and search SonarQube rules                                        |
-| **Sources**           | `sources`           | Access source code and SCM information                                   |
-| **Duplications**      | `duplications`      | Find code duplications across projects                                   |
-| **Measures**          | `measures`          | Retrieve metrics and measures (includes both measures and metrics tools) |
-| **Languages**         | `languages`         | List supported programming languages                                     |
-| **Portfolios**        | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                     |
-| **System**            | `system`            | System administration tools (Server only)                                |
-| **Webhooks**          | `webhooks`          | Manage webhooks                                                          |
-| **Dependency Risks**  | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                       |
-| **Coverage**          | `coverage`          | Test coverage analysis and improvement tools                             |
-| **CAG**               | `cag`               | Context Augmentation tools (stdio mode only, requires org entitlement)   |
+| Toolset                  | Key                 | Description                                                              |
+|--------------------------|---------------------|--------------------------------------------------------------------------|
+| **Analysis**             | `analysis`          | Code analysis tools (local analysis and advanced remote analysis)        |
+| **Issues**               | `issues`            | Search and manage SonarQube issues                                       |
+| **Security Hotspots**    | `security-hotspots` | Search and review Security Hotspots                                      |
+| **Projects**             | `projects`          | Browse and search SonarQube projects                                     |
+| **Quality Gates**        | `quality-gates`     | Access quality gates and their status                                    |
+| **Rules**                | `rules`             | Browse and search SonarQube rules                                        |
+| **Sources**              | `sources`           | Access source code and SCM information                                   |
+| **Duplications**         | `duplications`      | Find code duplications across projects                                   |
+| **Measures**             | `measures`          | Retrieve metrics and measures (includes both measures and metrics tools) |
+| **Languages**            | `languages`         | List supported programming languages                                     |
+| **Portfolios**           | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                     |
+| **System**               | `system`            | System administration tools (Server only)                                |
+| **Webhooks**             | `webhooks`          | Manage webhooks                                                          |
+| **Dependency Risks**     | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                       |
+| **Coverage**             | `coverage`          | Test coverage analysis and improvement tools                             |
+| **Context Augmentation** | `cag`               | Context Augmentation tools (stdio mode only, requires org entitlement)   |
 
 #### Examples
 
@@ -1128,7 +1128,7 @@ SOCKS5 proxies are supported.
 <details>
 <summary>Architecture Tools</summary>
 
-- **search_by_signature_patterns** - Find code elements (classes, methods, interfaces) by their declaration signatures using regex patterns.
+- **search_by_signature_patterns** - Find code elements (classes, methods, interfaces, ...) by their declaration signatures using regex patterns.
     - `include_code_regex_list` - List of regex patterns to match against signatures - _Required String[]_
     - `exclude_code_regex_list` - List of regex patterns to exclude from results - _String[]_
     - `include_glob` - File filter glob pattern (e.g., `*.java`) - _String_
@@ -1199,27 +1199,36 @@ SOCKS5 proxies are supported.
 <details>
 <summary>Context Augmentation Environment Variables</summary>
 
-| Variable                | Description                                                        | Required | Default                 |
-|-------------------------|--------------------------------------------------------------------|----------|-------------------------|
-| `SONARQUBE_URL`         | SonarQube server URL                                               | Yes      | `https://sonarcloud.io` |
-| `SONARQUBE_TOKEN`       | Authentication token                                               | Yes      | None                    |
-| `SONARQUBE_ORG`         | Organization key (SonarCloud only)                                 | Yes*     | None                    |
-| `SONARQUBE_PROJECT_KEY` | Explicit project key override                                      | No       | None                    |
-| `SONAR_LOG_LEVEL`       | Logging verbosity (`TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`)   | No | `INFO`                  |
+| Variable                 | Description                                                        | Required | Default                 |
+|--------------------------|--------------------------------------------------------------------|----------|-------------------------|
+| `SONARQUBE_URL`          | SonarQube Cloud URL                                                | Yes      | `https://sonarcloud.io` |
+| `SONARQUBE_TOKEN`        | Authentication token                                               | Yes      | None                    |
+| `SONARQUBE_ORG`          | Organization key on SonarQube Cloud                                | Yes      | None                    |
+| `SONARQUBE_PROJECT_KEY`  | Project key on SonarQube Cloud                                     | Yes      | None                    |
+| `SONAR_SQ_BRANCH`        | Explicit SonarQube branch override *                               | No       | None                    |
+| `SONARQUBE_DEBUG_ENABLED`| Activate debug logging (for troubleshooting)                       | No       | False                   |
+| `SONAR_LOG_LEVEL`        | Logging verbosity (`TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`)   | No       | `INFO`                  |
 
-\* Required only for SonarCloud connections.
+* To be provided when not using git, or when the git branch name doesn't match the branch name in SonarQube.
 
 </details>
 
 <details>
 <summary>Project-Specific Configuration (Recommended)</summary>
 
-Mount the project workspace to give the Context Augmentation server direct access to your source files:
+First, export the `SONARQUBE_TOKEN` [environment variable](https://docs.sonarsource.com/sonarqube-mcp-server/build-and-configure/environment-variables#common-variables) with a valid [Personal Access Token (PAT)](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens) for your project.
+
+```bash
+# macOS/Linux (Bash/Zsh)
+export SONARQUBE_TOKEN="{<YourUserToken>}"
+```
+
+Then, mount the project workspace to give the Context Augmentation server direct access to your source files:
 
 ```json
 {
   "mcpServers": {
-    "sonarqube-and-cag-mcp": {
+    "sonarqube-mcp-server": {
       "command": "docker",
       "args": [
         "run", "-i", "--rm", "--pull=always",
