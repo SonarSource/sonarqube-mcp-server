@@ -1222,26 +1222,27 @@ Mount the project workspace to give the Context Augmentation server direct acces
     "sonarqube-and-cag-mcp": {
       "command": "docker",
       "args": [
-        "run", "-i", "--rm", "--init", "--pull=always",
+        "run", "-i", "--rm", "--pull=always",
         "-e", "SONARQUBE_URL",
         "-e", "SONARQUBE_TOKEN",
         "-e", "SONARQUBE_ORG",
         "-e", "SONARQUBE_PROJECT_KEY",
-        "-e", "SONAR_LOG_LEVEL",
-        "-v", "/path/to/your/project:/app/mcp-workspace",
+        "-e", "SONARQUBE_TOOLSETS",
+        "-v", "/ABSOLUTE/PATH/TO/YOUR/PROJECT:/app/mcp-workspace:rw",
         "mcp/sonarqube"
       ],
       "env": {
         "SONARQUBE_URL": "https://sonarcloud.io",
-        "SONARQUBE_TOKEN": "<token>",
-        "SONARQUBE_ORG": "<my_org>",
-        "SONAR_LOG_LEVEL": "INFO",
-        "SONARQUBE_PROJECT_KEY": "<my-org_my-project>"
+        "SONARQUBE_ORG": "<YourOrganizationKey>",
+        "SONARQUBE_PROJECT_KEY": "<YourProjectKey>",
+        "SONARQUBE_TOOLSETS": "cag"
       }
     }
   }
 }
 ```
+
+**Important**: In a project-scoped config, do not put `SONARQUBE_TOKEN` in the env block. Export it as an environment variable (`export SONARQUBE_TOKEN=...`). Docker will forward it into the container via `-e SONARQUBE_TOKEN`.
 
 </details>
 
