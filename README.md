@@ -1216,27 +1216,27 @@ SOCKS5 proxies are supported.
 <details>
 <summary>Project-Specific Configuration (Recommended)</summary>
 
-First export the `SONARQUBE_TOKEN` [environment variable](https://docs.sonarsource.com/sonarqube-mcp-server/build-and-configure/environment-variables#common-variables) with a valid [Personal Access Token (PAT)](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens) for your project.
+First, export the `SONARQUBE_TOKEN` [environment variable](https://docs.sonarsource.com/sonarqube-mcp-server/build-and-configure/environment-variables#common-variables) with a valid [Personal Access Token (PAT)](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens) for your project.
 
 ```bash
 # macOS/Linux (Bash/Zsh)
 export SONARQUBE_TOKEN="{<YourUserToken>}"
 ```
 
-Then mount the project workspace to give the Context Augmentation server direct access to your source files:
+Then, mount the project workspace to give the Context Augmentation server direct access to your source files:
 
 ```json
 {
   "mcpServers": {
-    "sonarqube-and-cag-mcp": {
+    "sonarqube-mcp-server": {
       "command": "docker",
       "args": [
-        "run", "-i", "--rm", "--init", "--pull=always",
+        "run", "-i", "--rm", "--pull=always",
         "-e", "SONARQUBE_URL",
         "-e", "SONARQUBE_TOKEN",
         "-e", "SONARQUBE_ORG",
         "-e", "SONARQUBE_PROJECT_KEY",
-        "-v", "/path/to/your/project:/app/mcp-workspace",
+        "-v", "/ABSOLUTE/PATH/TO/YOUR/PROJECT:/app/mcp-workspace:rw",
         "mcp/sonarqube"
       ],
       "env": {
