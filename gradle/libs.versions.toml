@@ -5,7 +5,7 @@ sonarqube = "7.2.3.7755"
 
 license-plugin = "0.16.1"
 artifactory-plugin = "6.0.4"
-cyclonedx-plugin = "2.4.1"
+cyclonedx-plugin = "3.2.2"
 
 sonar-php = "3.55.0.15704"
 
@@ -15,7 +15,7 @@ commons-text = "1.15.0"
 ayza = "10.0.3"
 logback = "1.5.32"
 jetty = "12.1.7"
-jsonschema-generator = "4.38.0"
+jsonschema-generator = "5.0.0"
 
 junit = "6.0.3"
 mockito = "5.23.0"
@@ -23,7 +23,7 @@ assertj = "3.27.7"
 awaitility = "4.3.0"
 wiremock = "3.13.2"
 
-testcontainers = "1.21.4"
+testcontainers = "2.0.4"
 
 [libraries]
 sonarlint-java-client-utils = { module = "org.sonarsource.sonarlint.core:sonarlint-java-client-utils", version.ref = "sonarlint-core" }
