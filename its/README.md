@@ -29,14 +29,14 @@ its/
 │   └── resources/
 │       ├── proxied-mcp-servers-its.json
 │       └── binaries/
-│           └── sonar-code-context-mcp    # Alpine Linux binary
+│           └── sonar-context-augmentation    # Alpine Linux binary (Rust, musl)
 ```
 
 ## Architecture
 
 Tests use [Testcontainers](https://www.testcontainers.org/) to run the server and proxied server binary in Alpine Linux containers.
 
-The `sonar-code-context-mcp` binary is compiled for Alpine Linux (musl libc) and cannot run directly on most host systems.
+The `sonar-context-augmentation` binary is compiled for Alpine Linux (musl libc) and cannot run directly on most host systems.
 
 ## Test Container Dependencies
 

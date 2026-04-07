@@ -1,7 +1,7 @@
 [
   {
     "name": "caas",
-    "command": "/app/binaries/sonar-code-context-mcp",
+    "command": "/app/binaries/sonar-context-augmentation",
     "args": [],
     "env": {},
     "inherits": [],
