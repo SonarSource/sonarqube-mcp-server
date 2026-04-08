@@ -416,6 +416,7 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
     assertThat(configuration.getSonarQubeToken()).isNull();
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("sonarsource");
   }
 
   @Test
@@ -428,6 +429,7 @@ class McpServerLaunchConfigurationTest {
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.isSonarQubeCloud()).isTrue();
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("sonarsource");
   }
 
   @Test
@@ -441,6 +443,7 @@ class McpServerLaunchConfigurationTest {
 
     assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("sonarsource");
   }
 
   @Test
@@ -496,6 +499,7 @@ class McpServerLaunchConfigurationTest {
 
     assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://test.sc-test.io");
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("sonarsource");
   }
 
   @Test

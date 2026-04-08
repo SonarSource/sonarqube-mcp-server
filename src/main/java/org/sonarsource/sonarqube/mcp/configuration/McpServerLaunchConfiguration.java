@@ -47,6 +47,11 @@ public class McpServerLaunchConfiguration {
   private static final String SONARQUBE_CLOUD_URL = "SONARQUBE_CLOUD_URL";
   private static final String SONARQUBE_URL = "SONARQUBE_URL";
   public static final String SONARQUBE_ORG = "SONARQUBE_ORG";
+  /**
+   * POC only: when {@link #isSonarQubeCloud()} is true and {@code SONARQUBE_ORG} is unset, this value is used so
+   * HTTP clients (e.g. OAuth connect without custom headers) still get a server-level org. Remove before production.
+   */
+  private static final String POC_HARDCODED_SONARQUBE_CLOUD_ORG = "sonarsource";
   public static final String SONARQUBE_TOKEN = "SONARQUBE_TOKEN";
   private static final String SONARQUBE_IDE_PORT_ENV = "SONARQUBE_IDE_PORT";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
@@ -153,7 +158,7 @@ public class McpServerLaunchConfiguration {
     this.isHttpsEnabled = transportMode.equals("https");
 
     // Read configuration values
-    this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
+    var sonarqubeOrgFromEnvironment = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
     var sonarqubeUrlFromEnv = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, null);
     
     // Check for deprecated SONARQUBE_CLOUD_URL (backward compatibility)
@@ -163,8 +168,9 @@ public class McpServerLaunchConfiguration {
     }
 
     var forceSonarQubeCloud = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_IS_CLOUD, "false"));
-    validateStdioConfiguration(isHttpEnabled, sonarqubeUrlFromEnv, this.sonarqubeOrg);
-    this.isSonarQubeCloud = resolveSonarQubeCloud(forceSonarQubeCloud, this.sonarqubeOrg, sonarqubeUrlFromEnv);
+    validateStdioConfiguration(isHttpEnabled, sonarqubeUrlFromEnv, sonarqubeOrgFromEnvironment);
+    this.isSonarQubeCloud = resolveSonarQubeCloud(forceSonarQubeCloud, sonarqubeOrgFromEnvironment, sonarqubeUrlFromEnv);
+    this.sonarqubeOrg = effectiveSonarqubeOrgForPoc(sonarqubeOrgFromEnvironment, this.isSonarQubeCloud);
     this.sonarqubeUrl = resolveUrl(this.isSonarQubeCloud, sonarqubeUrlFromEnv);
 
     this.sonarqubeCloudApiUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_API_URL, null);
@@ -399,6 +405,17 @@ public class McpServerLaunchConfiguration {
           "or set SONARQUBE_ORG to connect to SonarQube Cloud."
       );
     }
+  }
+
+  @Nullable
+  private static String effectiveSonarqubeOrgForPoc(@Nullable String orgFromEnvironment, boolean sonarQubeCloud) {
+    if (!sonarQubeCloud) {
+      return orgFromEnvironment;
+    }
+    if (orgFromEnvironment != null && !orgFromEnvironment.isBlank()) {
+      return orgFromEnvironment;
+    }
+    return POC_HARDCODED_SONARQUBE_CLOUD_ORG;
   }
 
   /**
