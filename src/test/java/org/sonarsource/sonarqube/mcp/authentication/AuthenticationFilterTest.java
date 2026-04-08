@@ -109,7 +109,7 @@ class AuthenticationFilterTest {
     filter.doFilter(request, response, filterChain);
 
     verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-    verify(response).setHeader("WWW-Authenticate", "Bearer realm=\"MCP Server\"");
+    verify(response).setHeader("WWW-Authenticate", AuthenticationFilter.WWW_AUTHENTICATE_CHALLENGE);
     verify(filterChain, never()).doFilter(request, response);
     var responseJson = responseWriter.toString();
     assertThat(responseJson)
@@ -154,7 +154,7 @@ class AuthenticationFilterTest {
 
     filter.doFilter(request, response, filterChain);
 
-    verify(response).setHeader("WWW-Authenticate", "Bearer realm=\"MCP Server\"");
+    verify(response).setHeader("WWW-Authenticate", AuthenticationFilter.WWW_AUTHENTICATE_CHALLENGE);
     verify(response).setContentType("application/json");
   }
 

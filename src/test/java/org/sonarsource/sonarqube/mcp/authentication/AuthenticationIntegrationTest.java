@@ -90,7 +90,7 @@ class AuthenticationIntegrationTest {
         .isPresent()
         .get()
         .asString()
-        .contains("Bearer");
+        .isEqualTo(AuthenticationFilter.WWW_AUTHENTICATE_CHALLENGE);
       var body = response.body();
       assertThat(body)
         .contains("\"jsonrpc\":\"2.0\"")

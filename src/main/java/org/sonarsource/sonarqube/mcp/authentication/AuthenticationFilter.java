@@ -55,6 +55,16 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 public class AuthenticationFilter implements Filter {
 
   private static final McpLogger LOG = McpLogger.getInstance();
+
+  /**
+   * Hardcoded Protected Resource Metadata URL for OAuth discovery (RFC 9728) — POC.
+   */
+  static final String OAUTH_PROTECTED_RESOURCE_METADATA_URL =
+    "https://api.sc-dev10.io/authentication/.well-known/oauth-protected-resource";
+
+  static final String WWW_AUTHENTICATE_CHALLENGE =
+    "Bearer realm=\"mcp\", resource_metadata=\"" + OAUTH_PROTECTED_RESOURCE_METADATA_URL + "\"";
+
   static final String AUTHORIZATION_HEADER = "Authorization";
   static final String BEARER_PREFIX = "Bearer ";
   private static final String SONARQUBE_TOKEN_HEADER = McpServerLaunchConfiguration.SONARQUBE_TOKEN;
@@ -194,7 +204,7 @@ public class AuthenticationFilter implements Filter {
   private static void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     response.setContentType("application/json");
-    response.setHeader("WWW-Authenticate", "Bearer realm=\"MCP Server\"");
+    response.setHeader("WWW-Authenticate", WWW_AUTHENTICATE_CHALLENGE);
     response.getWriter().write(jsonRpcError(message));
   }
 
