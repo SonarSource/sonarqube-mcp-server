@@ -177,19 +177,42 @@ class AuthenticationFilterTest {
   }
 
   @Test
-  void should_return_unauthorized_for_oauth_mode() throws Exception {
+  void should_return_unauthorized_for_oauth_mode_when_no_bearer_token() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.OAUTH, false, null);
     when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn(null);
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    verify(response).setHeader("WWW-Authenticate", AuthenticationFilter.WWW_AUTHENTICATE_CHALLENGE);
+    verify(filterChain, never()).doFilter(request, response);
+    assertThat(responseWriter.toString()).isEmpty();
+  }
+
+  @Test
+  void should_allow_oauth_mode_with_authorization_bearer() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.OAUTH, false, null);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn("Bearer oauth_access_token_xyz");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+  }
+
+  @Test
+  void should_not_accept_legacy_sonarqube_token_header_in_oauth_mode() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.OAUTH, false, null);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn(null);
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_legacy_only");
 
     filter.doFilter(request, response, filterChain);
 
     verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     verify(filterChain, never()).doFilter(request, response);
-    var responseJson = responseWriter.toString();
-    assertThat(responseJson)
-      .contains("\"jsonrpc\":\"2.0\"")
-      .contains("\"code\":-32000")
-      .contains("OAuth authentication not yet implemented");
   }
 
   @ParameterizedTest(name = "[{index}] org={0} -> allowed={1}")

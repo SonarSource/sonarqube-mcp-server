@@ -99,29 +99,27 @@ class McpServerLaunchConfigurationHttpTest {
   }
 
   @Test
-  void should_default_to_token_auth_for_non_localhost_binding() {
+  void should_default_to_oauth_auth_for_non_localhost_binding_poc() {
     var environment = createMinimalTestEnvironment();
     environment.put("SONARQUBE_TRANSPORT", "http");
     environment.put("SONARQUBE_HTTP_HOST", "0.0.0.0");
-    // No authentication configured - should default to TOKEN
-    
+
     var config = new McpServerLaunchConfiguration(environment);
-    
+
     assertThat(config.getHttpHost()).isEqualTo("0.0.0.0");
-    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.TOKEN);
+    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.OAUTH);
   }
 
   @Test
-  void should_default_to_token_auth_for_localhost_binding() {
+  void should_default_to_oauth_auth_for_localhost_binding_poc() {
     var environment = createMinimalTestEnvironment();
     environment.put("SONARQUBE_TRANSPORT", "http");
     environment.put("SONARQUBE_HTTP_HOST", "127.0.0.1");
-    // No authentication configured - should default to TOKEN
-    
+
     var config = new McpServerLaunchConfiguration(environment);
-    
+
     assertThat(config.getHttpHost()).isEqualTo("127.0.0.1");
-    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.TOKEN);
+    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.OAUTH);
   }
 
   @Test

@@ -43,7 +43,11 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
  * <ul>
  *   <li>TOKEN (default) - Client must provide a SonarQube token via {@code Authorization: Bearer <token>}
  *       (or the deprecated {@code SONARQUBE_TOKEN} header) on every request</li>
- *   <li>OAUTH - OAuth 2.1 with PKCE (not yet implemented)</li>
+ *   <li>OAUTH (POC) - Resource-server only: unauthenticated requests get {@code 401} with a
+ *       {@code WWW-Authenticate: Bearer} challenge ({@code realm}, {@code resource_metadata}, {@code scope}) and
+ *       <strong>no response body</strong>. The MCP client must fetch PRM, talk to the authorization server
+ *       (browser login, authorization code + PKCE), then send {@code Authorization: Bearer &lt;access_token&gt;}.
+ *       Tokens are issued by your AS, not this JVM. Bearer tokens are forwarded to SonarQube as-is (POC: not introspected).</li>
  * </ul>
  * <p>
  * Org validation (SonarQube Cloud only):
@@ -57,19 +61,34 @@ public class AuthenticationFilter implements Filter {
   private static final McpLogger LOG = McpLogger.getInstance();
 
   /**
-   * Hardcoded Protected Resource Metadata URL for OAuth discovery (RFC 9728) — POC.
+   * POC: URL of the Protected Resource Metadata document (RFC 9728). Hosted on platform; must match what that JSON declares,
+   * e.g. {@code resource} {@code https://api.sc-dev10.io/mcp}, {@code authorization_servers} including
+   * {@code https://api.sc-dev10.io/authentication}, {@code scopes_supported} {@code mcp:read}, {@code mcp:tools}.
+   *
+   * @see <a href="https://modelcontextprotocol.io/docs/tutorials/security/authorization">MCP authorization tutorial</a>
    */
   static final String OAUTH_PROTECTED_RESOURCE_METADATA_URL =
     "https://api.sc-dev10.io/authentication/.well-known/oauth-protected-resource";
 
+  /**
+   * Space-separated scopes for the {@code WWW-Authenticate} {@code scope} param (RFC 6750); kept in sync with PRM {@code scopes_supported}.
+   */
+  private static final String OAUTH_SCOPE_CHALLENGE = "mcp:read mcp:tools";
+
+  /**
+   * POC: {@code WWW-Authenticate} for {@code 401} responses — aligns with PRM so clients request the same scopes at the AS.
+   */
   static final String WWW_AUTHENTICATE_CHALLENGE =
-    "Bearer realm=\"mcp\", resource_metadata=\"" + OAUTH_PROTECTED_RESOURCE_METADATA_URL + "\"";
+    "Bearer realm=\"mcp\", resource_metadata=\"" + OAUTH_PROTECTED_RESOURCE_METADATA_URL + "\", scope=\"" + OAUTH_SCOPE_CHALLENGE + "\"";
 
   static final String AUTHORIZATION_HEADER = "Authorization";
   static final String BEARER_PREFIX = "Bearer ";
   private static final String SONARQUBE_TOKEN_HEADER = McpServerLaunchConfiguration.SONARQUBE_TOKEN;
   private static final String SONARQUBE_ORG_HEADER = McpServerLaunchConfiguration.SONARQUBE_ORG;
   private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
+
+  private static final String TOKEN_REQUIRED_MESSAGE =
+    "SonarQube token required. Provide via Authorization: Bearer <token> header.";
 
   private final AuthMode authMode;
   private final boolean isSonarQubeCloud;
@@ -100,25 +119,12 @@ public class AuthenticationFilter implements Filter {
     }
 
     if (authMode == AuthMode.TOKEN) {
-      var token = extractToken(httpRequest);
-      if (token == null || token.isBlank()) {
-        LOG.warn("Missing or empty SonarQube token for URI '" + httpRequest.getRequestURI() + "'");
-        sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via Authorization: Bearer <token> header.");
-        return;
-      }
-      if (!validateOrg(httpRequest, httpResponse)) {
-        return;
-      }
-      if (!validateReadOnly(httpRequest, httpResponse)) {
-        return;
-      }
-      filterChain.doFilter(req, resp);
+      authenticateBearerOrLegacy(httpRequest, httpResponse, filterChain, TOKEN_REQUIRED_MESSAGE);
       return;
     }
 
     if (authMode == AuthMode.OAUTH) {
-      LOG.warn("OAuth authentication attempted but not yet implemented");
-      sendUnauthorizedResponse(httpResponse, "OAuth authentication not yet implemented");
+      authenticateOAuthBearer(httpRequest, httpResponse, filterChain);
       return;
     }
 
@@ -129,6 +135,47 @@ public class AuthenticationFilter implements Filter {
   @Override
   public void destroy() {
     // No cleanup needed
+  }
+
+  private void authenticateBearerOrLegacy(HttpServletRequest httpRequest, HttpServletResponse httpResponse, FilterChain filterChain,
+    String missingTokenMessage) throws IOException, ServletException {
+    var token = extractToken(httpRequest);
+    if (token == null || token.isBlank()) {
+      LOG.warn("Missing or empty SonarQube token for URI '" + httpRequest.getRequestURI() + "'");
+      sendUnauthorizedResponse(httpResponse, missingTokenMessage);
+      return;
+    }
+    continueAfterTokenValidated(httpRequest, httpResponse, filterChain);
+  }
+
+  private void authenticateOAuthBearer(HttpServletRequest httpRequest, HttpServletResponse httpResponse, FilterChain filterChain)
+    throws IOException, ServletException {
+    var token = extractBearerToken(httpRequest);
+    if (token == null || token.isBlank()) {
+      LOG.warn("Missing Bearer access token for URI '" + httpRequest.getRequestURI() + "' — sending OAuth resource-server 401 (challenge only)");
+      sendOAuthUnauthorizedChallenge(httpResponse);
+      return;
+    }
+    continueAfterTokenValidated(httpRequest, httpResponse, filterChain);
+  }
+
+  private void continueAfterTokenValidated(HttpServletRequest httpRequest, HttpServletResponse httpResponse, FilterChain filterChain)
+    throws IOException, ServletException {
+    if (!validateOrg(httpRequest, httpResponse)) {
+      return;
+    }
+    if (!validateReadOnly(httpRequest, httpResponse)) {
+      return;
+    }
+    filterChain.doFilter(httpRequest, httpResponse);
+  }
+
+  /**
+   * RFC 6750 / OAuth resource server: challenge only, no JSON body. MCP client performs PRM + AS browser flow, then retries with Bearer token.
+   */
+  private static void sendOAuthUnauthorizedChallenge(HttpServletResponse response) {
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.setHeader("WWW-Authenticate", WWW_AUTHENTICATE_CHALLENGE);
   }
 
   private boolean validateOrg(HttpServletRequest request, HttpServletResponse response) throws IOException {

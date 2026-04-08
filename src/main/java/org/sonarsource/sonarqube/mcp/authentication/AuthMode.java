@@ -33,6 +33,11 @@ public enum AuthMode {
    */
   TOKEN,
 
+  /**
+   * Resource server (OAuth 2.1): unauthenticated requests are {@code 401} with {@code WWW-Authenticate} only
+   * (no JSON body). The MCP client completes authorization code + PKCE with the AS (browser); this server
+   * only receives the resulting {@code Authorization: Bearer} access token (no {@code SONARQUBE_TOKEN} header).
+   */
   OAUTH;
   
   /**

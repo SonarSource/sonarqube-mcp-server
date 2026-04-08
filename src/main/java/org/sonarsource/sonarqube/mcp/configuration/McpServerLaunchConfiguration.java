@@ -91,9 +91,6 @@ public class McpServerLaunchConfiguration {
   private static final String DEFAULT_KEYSTORE_PATH = "/etc/ssl/mcp/keystore.p12";
   private static final String DEFAULT_TRUSTSTORE_PATH = "/etc/ssl/mcp/truststore.p12";
   
-  // HTTP authentication configuration
-  private static final String SONARQUBE_HTTP_AUTH_MODE = "SONARQUBE_HTTP_AUTH_MODE";
-
   private final Path storagePath;
   private final String hostMachineAddress;
   private final String sonarqubeUrl;
@@ -459,8 +456,9 @@ public class McpServerLaunchConfiguration {
   @CheckForNull
   private AuthMode parseAuthMode(Map<String, String> environment) {
     if (isHttpEnabled) {
-      var authModeStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_AUTH_MODE, "TOKEN");
-      return AuthMode.fromString(authModeStr);
+      // POC: always OAuth-style HTTP auth (401 + WWW-Authenticate resource_metadata, Bearer only). Revert to
+      // parsing SONARQUBE_HTTP_AUTH_MODE after the experiment. Intentionally ignores that env var for now.
+      return AuthMode.OAUTH;
     }
     // Stdio mode: No HTTP authentication, AuthenticationFilter not registered
     return null;
