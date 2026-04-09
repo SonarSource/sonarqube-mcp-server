@@ -173,6 +173,22 @@ After editing `docs/config-generator.html`:
 2. Confirm every `switch (state.agent)` branch still uses the correct path for HTTP (`httpClientObj`, Windsurf/Gemini/Kiro/Codex exceptions per [agents.md](agents.md)) vs stdio/launch.
 3. Spot-check the **State machine** table in this skill (transport × `httpMode` × Step 4 mode).
 4. If HTTP client headers or Cloud behavior changed, cross-check [README.md](../../../README.md) Transport Modes (org header vs server-pinned org).
+5. Run the **Playwright** suite locally (optional but recommended before commit): see [Local E2E tests](#local-e2e-tests-playwright) below.
+
+## Local E2E tests (Playwright)
+
+The package at [`docs/config-generator-e2e`](../../docs/config-generator-e2e) drives the real page in Chromium and asserts on generated output (SQC `/mcp` URL, org header, stdio env, transport toggles, project key). **Not run in CI** — for contributors only.
+
+```bash
+cd docs/config-generator-e2e
+npm ci
+npx playwright install chromium   # once per machine / after Playwright upgrades
+npm test
+```
+
+Playwright’s `webServer` serves the parent [`docs/`](../../docs) directory and loads `/config-generator.html`.
+
+If `playwright install` fails with a TLS / certificate error (e.g. SSL inspection), fix corporate trust store or, **only for the install step**, use `NODE_TLS_REJECT_UNAUTHORIZED=0 npx playwright install chromium` (insecure — do not use routinely).
 
 ## Checking for agent config format changes
 
