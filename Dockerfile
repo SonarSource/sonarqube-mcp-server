@@ -42,7 +42,7 @@ RUN apk add --no-cache \
         chmod 0440 /etc/sudoers.d/appuser
 
 ARG TARGETARCH
-ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.6.0.2
+ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.6.0.17
 
 RUN case "$TARGETARCH" in \
         amd64) ARCH="x64" ;; \
