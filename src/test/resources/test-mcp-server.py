@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # SonarQube MCP Server
-# Copyright (C) 2025 SonarSource
+# Copyright (C) SonarSource
 # mailto:info AT sonarsource DOT com
 #
 # This program is free software; you can redistribute it and/or

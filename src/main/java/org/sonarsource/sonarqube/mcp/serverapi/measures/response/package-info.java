@@ -1,6 +1,6 @@
 /*
  * SonarQube MCP Server
- * Copyright (C) 2025 SonarSource
+ * Copyright (C) SonarSource
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -14,7 +14,6 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-
 /**
  * SonarQube measures response objects.
  */

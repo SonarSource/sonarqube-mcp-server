@@ -1,5 +1,13 @@
 plugins {
     java
+    alias(libs.plugins.license)
+}
+
+license {
+    header = rootProject.file("HEADER")
+    mapping(mapOf("java" to "SLASHSTAR_STYLE"))
+    excludes(listOf("**/*.json"))
+    strictCheck = true
 }
 
 // The environment variables ARTIFACTORY_USER and ARTIFACTORY_ACCESS_TOKEN are used on CI env
