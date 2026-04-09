@@ -1197,6 +1197,14 @@ SOCKS5 proxies are supported.
 </details>
 
 <details>
+<summary>Third-party Dependency Tools</summary>
+
+- **check_dependency** - Check a third-party dependency for security vulnerabilities, supply-chain malware, and license compliance before adding or updating it.
+    - `purl` - Package URL (purl) with version, per [purl-spec](https://github.com/package-url/purl-spec). Format: `pkg:<type>/<namespace>/<name>@<version>` (e.g. `pkg:npm/lodash@4.17.21`, `pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1`, `pkg:pypi/django@3.2.0`) - _Required String_
+
+</details>
+
+<details>
 <summary>Context Augmentation Environment Variables</summary>
 
 | Variable                 | Description                                                        | Required | Default                 |
