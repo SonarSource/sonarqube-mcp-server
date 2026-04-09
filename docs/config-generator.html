@@ -802,7 +802,7 @@
                 <div class="form-group">
                     <label>Enabled Toolsets</label>
                     <div class="grid-options" id="toolsetsGrid">
-                        <label class="checkbox-label"><input type="checkbox" id="tool-analysis" checked onchange="generateConfig()">
+                        <label class="checkbox-label" title="run_advanced_code_analysis requires workspace mount at /app/mcp-workspace (stdio)."><input type="checkbox" id="tool-analysis" checked onchange="generateConfig()">
                             Analysis</label>
                         <label class="checkbox-label" style="opacity: 0.7;" title="The Projects toolset is required and automatically enabled."><input type="checkbox" id="tool-projects" checked disabled onchange="generateConfig()">
                             Projects</label>
@@ -822,7 +822,7 @@
                             Dependency Risks</label>
                         <label class="checkbox-label"><input type="checkbox" id="tool-coverage" checked onchange="generateConfig()">
                             Coverage</label>
-                        <label class="checkbox-label"><input type="checkbox" id="tool-cag" onchange="generateConfig()">
+                        <label class="checkbox-label" id="tool-cag-label" title="Context Augmentation works only with Local Execution (Stdio). Requires workspace mount at /app/mcp-workspace when enabled."><input type="checkbox" id="tool-cag" checked onchange="generateConfig()">
                             Context Augmentation</label>
                         <label class="checkbox-label"><input type="checkbox" id="tool-sources" onchange="generateConfig()"> Sources</label>
                         <label class="checkbox-label"><input type="checkbox" id="tool-languages" onchange="generateConfig()">
@@ -850,11 +850,32 @@
                                 Certs</label>
                         </div>
                     </div>
+                    <div class="form-group" id="projectKeyWrap" style="margin-top:12px; margin-bottom:0;">
+                        <label for="projectKey">Default project key <span
+                                style="color:var(--text-muted);font-weight:normal;">(optional)</span></label>
+                        <span class="help-text">Sets <code>SONARQUBE_PROJECT_KEY</code> in the container environment (stdio or HTTP(S) launch only). Single-project workflows: tools omit <code>projectKey</code> from their schema when this is set.</span>
+                        <input type="text" id="projectKey" placeholder="my_project_key" oninput="generateConfig()">
+                    </div>
                 </div>
 
                 <div class="form-group hidden fade-in" id="certsGroup" style="margin-top:8px;">
                     <label for="certPath">Certificate Folder Path</label>
                     <input type="text" id="certPath" placeholder="/usr/local/share/ca-certificates" oninput="generateConfig()">
+                </div>
+
+                <div class="form-group" id="workspaceMountWrap"
+                     style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-color);">
+                    <label>Workspace mount</label>
+                    <span class="help-text"><strong>Required</strong> for <code>run_advanced_code_analysis</code> and for Context Augmentation when using those features. Stdio only. Mounts your project at <code>/app/mcp-workspace</code> so tools can read the tree via <code>filePath</code> instead of full file content. Use an absolute host path.</span>
+                    <div style="margin-top:8px;">
+                        <label class="checkbox-label"><input type="checkbox" id="opt-workspace-mount" onchange="toggleWorkspaceMount()">
+                            Mount project directory</label>
+                    </div>
+                    <div class="form-group" style="margin-top:10px; margin-bottom:0;">
+                        <label for="workspaceHostPath">Host path</label>
+                        <input type="text" id="workspaceHostPath" placeholder="/absolute/path/to/your/project" disabled
+                               oninput="generateConfig()">
+                    </div>
                 </div>
             </div>
 
@@ -904,11 +925,11 @@
     };
 
     const SQC_URLS = {
-        eu: 'https://api.sonarcloud.io/api',
-        us: 'https://api.sonarqube.us/api'
+        eu: 'https://api.sonarcloud.io/mcp',
+        us: 'https://api.sonarqube.us/mcp'
     };
 
-    const DEFAULT_TOOLSETS = ['analysis', 'projects', 'issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks', 'coverage'];
+    const DEFAULT_TOOLSETS = ['analysis', 'projects', 'issues', 'security-hotspots', 'quality-gates', 'rules', 'duplications', 'measures', 'dependency-risks', 'coverage', 'cag'];
 
     // Initial setup
     document.addEventListener('DOMContentLoaded', () => {
@@ -917,6 +938,8 @@
         if (state.env === 'server') {
             document.getElementById('card-sqc').style.display = 'none';
         }
+        syncWorkspaceMountVisibility();
+        syncCagToolsetState();
         updateUI();
     });
 
@@ -994,6 +1017,8 @@
             applyAdvancedCardMode('stdio');
         }
 
+        syncWorkspaceMountVisibility();
+        syncCagToolsetState();
         generateConfig();
     }
 
@@ -1033,7 +1058,7 @@
     // mode: 'stdio' = full server options, 'http-client' = toolsets + read-only only (sent as headers)
     function applyAdvancedCardMode(mode) {
         const card = document.getElementById('advancedCard');
-        const serverOnlyControls = ['opt-debug-wrap', 'opt-certs-wrap', 'certsGroup'];
+        const serverOnlyControls = ['opt-debug-wrap', 'opt-certs-wrap', 'certsGroup', 'projectKeyWrap', 'workspaceMountWrap'];
         const helpText = document.getElementById('advancedHelpText');
 
         card.style.display = 'block';
@@ -1046,6 +1071,7 @@
         } else {
             serverOnlyControls.forEach(id => document.getElementById(id).style.display = '');
             helpText.style.display = 'none';
+            syncWorkspaceMountVisibility();
         }
     }
 
@@ -1060,12 +1086,39 @@
         generateConfig();
     }
 
+    function syncWorkspaceMountVisibility() {
+        const wrap = document.getElementById('workspaceMountWrap');
+        if (!wrap) return;
+        wrap.style.display = state.transport === 'stdio' ? '' : 'none';
+    }
+
+    /** Context Augmentation (cag) is only available when the MCP transport is stdio (local Docker), not HTTP(S) client or SQC. */
+    function syncCagToolsetState() {
+        const cb = document.getElementById('tool-cag');
+        const label = document.getElementById('tool-cag-label');
+        if (!cb) return;
+        const stdio = state.transport === 'stdio';
+        if (!stdio) {
+            cb.checked = false;
+        }
+        cb.disabled = !stdio;
+        if (label) label.style.opacity = stdio ? '' : '0.55';
+    }
+
+    function toggleWorkspaceMount() {
+        const on = document.getElementById('opt-workspace-mount').checked;
+        document.getElementById('workspaceHostPath').disabled = !on;
+        generateConfig();
+    }
+
     function resetToolsets() {
-        document.querySelectorAll('.grid-options input[type="checkbox"]').forEach(cb => {
-            if (!cb.disabled && cb.id.startsWith('tool-')) cb.checked = false;
+        document.querySelectorAll('#toolsetsGrid input[type="checkbox"]').forEach(cb => {
+            if (cb.id.startsWith('tool-') && !cb.disabled) cb.checked = false;
         });
+        syncCagToolsetState();
         DEFAULT_TOOLSETS.forEach(t => {
-            document.getElementById(`tool-${t}`).checked = true;
+            const el = document.getElementById(`tool-${t}`);
+            if (el && !el.disabled) el.checked = true;
         });
         generateConfig();
     }
@@ -1098,6 +1151,7 @@
         const rawToken = document.getElementById('token').value.trim();
         const token = rawToken || '<YOUR_TOKEN>';
         const org = document.getElementById('orgKey').value.trim() || '<YOUR_ORG>';
+        const projectKey = document.getElementById('projectKey').value.trim();
         const url = document.getElementById('serverUrl').value.trim() || '<YOUR_SERVER_URL>';
         const httpHost = document.getElementById('httpHost').value.trim() || 'http://127.0.0.1';
         const httpPort = document.getElementById('httpPort').value.trim() || '8080';
@@ -1112,12 +1166,13 @@
             let hasNonDefault = false;
             document.querySelectorAll('#toolsetsGrid input[type="checkbox"]').forEach(cb => {
                 if (cb.id.startsWith('tool-')) {
+                    if (cb.disabled) return;
                     const name = cb.id.replace('tool-', '');
                     if (cb.checked) {
                         selectedToolsets.push(name);
                         if (!DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
                     } else {
-                        if (!cb.disabled && DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
+                        if (DEFAULT_TOOLSETS.includes(name)) hasNonDefault = true;
                     }
                 }
             });
@@ -1133,6 +1188,9 @@
         if (isHttpClient) {
             // For HTTP client modes, auth token and options are sent as request headers
             httpHeaders['Authorization'] = `Bearer ${token}`;
+            if (state.env === 'cloud' || state.env === 'cloud-us') {
+                httpHeaders['SONARQUBE_ORG'] = org;
+            }
             const toolsets = getToolsetsValue();
             if (toolsets) httpHeaders['SONARQUBE_TOOLSETS'] = toolsets;
             if (document.getElementById('opt-readonly').checked) httpHeaders['SONARQUBE_READ_ONLY'] = 'true';
@@ -1170,11 +1228,20 @@
 
             const toolsets = getToolsetsValue();
             if (toolsets) envVars['SONARQUBE_TOOLSETS'] = toolsets;
+            if (projectKey) envVars['SONARQUBE_PROJECT_KEY'] = projectKey;
         }
 
         // Cert path
         const needsCerts = document.getElementById('opt-certs').checked;
         const certPath = needsCerts ? (document.getElementById('certPath').value.trim() || '/usr/local/share/ca-certificates') : null;
+
+        // Stdio-only: mount host project at /app/mcp-workspace (see README « Workspace Mount »)
+        const workspaceMountHost = (() => {
+            if (state.transport !== 'stdio') return null;
+            if (!document.getElementById('opt-workspace-mount').checked) return null;
+            const p = document.getElementById('workspaceHostPath').value.trim();
+            return p || null;
+        })();
 
         // Generate Output Context
         let code = '';
@@ -1190,6 +1257,9 @@
             }
             if (certPath) {
                 args.push('-v', `${certPath}:/usr/local/share/ca-certificates/:ro`);
+            }
+            if (workspaceMountHost) {
+                args.push('-v', `${workspaceMountHost}:/app/mcp-workspace:rw`);
             }
             for (const [k, v] of Object.entries(envVars)) {
                 args.push('-e', k);
@@ -1266,6 +1336,7 @@
                         // directly in the Docker command instead, avoiding --env entirely
                         let dockerArgs = ['run', '--init', '--pull=always', '-i', '--rm'];
                         if (certPath) dockerArgs.push('-v', `${certPath}:/usr/local/share/ca-certificates/:ro`);
+                        if (workspaceMountHost) dockerArgs.push('-v', `${workspaceMountHost}:/app/mcp-workspace:rw`);
                         for (const [k, v] of Object.entries(envVars)) dockerArgs.push('-e', `${k}=${v}`);
                         dockerArgs.push('mcp/sonarqube');
                         const dockerCmd = 'docker ' + dockerArgs.join(' ');
