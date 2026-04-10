@@ -20,7 +20,7 @@ package org.sonarsource.sonarqube.mcp.analytics;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public class AnalyticsService {
 

@@ -22,8 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
@@ -73,7 +72,7 @@ public class LanguageUtils {
       .toArray(String[]::new);
   }
 
-  @CheckForNull
+  @Nullable
   public static SonarLanguage getSonarLanguageFromInput(@Nullable String languageInput) {
     if (languageInput == null) {
       return null;
@@ -88,7 +87,7 @@ public class LanguageUtils {
     return null;
   }
 
-  @CheckForNull
+  @Nullable
   public static Language mapSonarLanguageToLanguage(SonarLanguage sonarLanguage) {
     for (var language : Language.values()) {
       if (language.name().equalsIgnoreCase(sonarLanguage.name())) {

@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.authentication;
 
 import java.util.Locale;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 /**
  * Defines the authentication mode for the MCP HTTP server.

@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.issues;
 import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;

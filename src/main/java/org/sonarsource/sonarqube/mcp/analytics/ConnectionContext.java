@@ -17,8 +17,7 @@
 package org.sonarsource.sonarqube.mcp.analytics;
 
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 
 /**
@@ -76,28 +75,28 @@ public class ConnectionContext {
     callingAgent.compareAndSet(null, new CallingAgent(name, version));
   }
 
-  @CheckForNull
+  @Nullable
   public String getOrganizationUuidV4() {
     return organizationUuidV4;
   }
 
-  @CheckForNull
+  @Nullable
   public String getSqsInstallationId() {
     return sqsInstallationId;
   }
 
-  @CheckForNull
+  @Nullable
   public String getUserUuid() {
     return userUuid;
   }
 
-  @CheckForNull
+  @Nullable
   public String getCallingAgentName() {
     var agent = callingAgent.get();
     return agent != null ? agent.name() : null;
   }
 
-  @CheckForNull
+  @Nullable
   public String getCallingAgentVersion() {
     var agent = callingAgent.get();
     return agent != null ? agent.version() : null;

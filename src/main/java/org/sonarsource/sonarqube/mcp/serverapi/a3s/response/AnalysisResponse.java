@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.a3s.response;
 
 import java.util.List;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public record AnalysisResponse(String id, List<Issue> issues, @Nullable PatchResult patchResult, @Nullable List<AnalysisError> errors) {
 

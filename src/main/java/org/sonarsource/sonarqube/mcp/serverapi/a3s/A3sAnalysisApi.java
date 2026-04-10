@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.a3s;
 
 import com.google.gson.Gson;
-import javax.annotation.CheckForNull;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
@@ -46,7 +46,7 @@ public class A3sAnalysisApi {
     }
   }
 
-  @CheckForNull
+  @Nullable
   public OrgConfigResponse getA3sOrgConfig(String organizationUuidV4) {
     try (var response = helper.getApiSubdomain(A3S_ORG_CONFIG_PATH + organizationUuidV4)) {
       return GSON.fromJson(response.bodyAsString(), OrgConfigResponse.class);
@@ -56,7 +56,7 @@ public class A3sAnalysisApi {
     }
   }
 
-  @CheckForNull
+  @Nullable
   public CagConfigResponse getCagOrgConfig(String organizationUuidV4) {
     try (var response = helper.getApiSubdomain(CAG_ORG_CONFIG_PATH + organizationUuidV4)) {
       return GSON.fromJson(response.bodyAsString(), CagConfigResponse.class);

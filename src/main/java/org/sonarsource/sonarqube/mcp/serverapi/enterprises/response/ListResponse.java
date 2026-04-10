@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.enterprises.response;
 
 import java.util.List;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 // Note: This represents a direct array response, not wrapped in an object
 // The API returns an array of enterprises directly

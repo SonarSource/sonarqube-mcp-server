@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.measures;
 
 import java.util.List;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public record ComponentTreeParams(
   @Nullable String component,

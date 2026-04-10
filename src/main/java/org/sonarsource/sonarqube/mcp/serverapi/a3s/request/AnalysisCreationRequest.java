@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.a3s.request;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 /**
  * Request body for POST /a3s-analysis/analyses

@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.views.response;
 
 import java.util.List;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public record SearchResponse(List<Component> components, Paging paging) {
 

@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;

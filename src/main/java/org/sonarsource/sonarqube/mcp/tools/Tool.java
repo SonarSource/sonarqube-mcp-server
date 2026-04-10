@@ -24,8 +24,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
 public abstract class Tool {
@@ -111,7 +110,7 @@ public abstract class Tool {
       };
     }
 
-    @CheckForNull
+    @Nullable
     public Integer getOptionalInteger(String argumentName) {
       var arg = argumentsMap.get(argumentName);
       return switch (arg) {
@@ -121,7 +120,7 @@ public abstract class Tool {
       };
     }
 
-    @CheckForNull
+    @Nullable
     public Boolean getOptionalBoolean(String argumentName) {
       var arg = argumentsMap.get(argumentName);
       return switch (arg) {
@@ -131,7 +130,7 @@ public abstract class Tool {
       };
     }
 
-    @CheckForNull
+    @Nullable
     public String getOptionalString(String argumentName) {
       var arg = argumentsMap.get(argumentName);
       if (arg instanceof String string) {
@@ -174,13 +173,13 @@ public abstract class Tool {
       return (List<String>) argumentsMap.get(argumentName);
     }
 
-    @CheckForNull
+    @Nullable
     @SuppressWarnings("unchecked")
     public List<String> getOptionalStringList(String argumentName) {
       return (List<String>) argumentsMap.get(argumentName);
     }
 
-    @CheckForNull
+    @Nullable
     public String getOptionalEnumValue(String argumentName, String[] validValues) {
       var arg = argumentsMap.get(argumentName);
       if (arg == null) {
@@ -226,7 +225,7 @@ public abstract class Tool {
       return value != null ? value : defaultValue;
     }
 
-    @CheckForNull
+    @Nullable
     public List<String> getOptionalEnumList(String argumentName, String[] validValues) {
       var values = getOptionalStringList(argumentName);
       if (values != null) {

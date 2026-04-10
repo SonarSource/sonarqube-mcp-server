@@ -23,8 +23,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
@@ -46,7 +45,7 @@ public class ServerApiHelper {
     this.client = client;
   }
 
-  @CheckForNull
+  @Nullable
   public String getOrganization() {
     return endpointParams.organization();
   }
@@ -202,7 +201,7 @@ public class ServerApiHelper {
     return "Error " + failedResponse.code() + " on " + failedResponse.url() + (errorMsg != null ? (": " + errorMsg) : "");
   }
 
-  @CheckForNull
+  @Nullable
   private static String tryParseAsJsonError(String content) {
     if (StringUtils.isBlank(content)) {
       return null;

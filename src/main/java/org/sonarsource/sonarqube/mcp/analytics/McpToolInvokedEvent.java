@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.analytics;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record McpToolInvokedEvent(

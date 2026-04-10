@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.exception;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public class SonarMcpException extends RuntimeException {
 

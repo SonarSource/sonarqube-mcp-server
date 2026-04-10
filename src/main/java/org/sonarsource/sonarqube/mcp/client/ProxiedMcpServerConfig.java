@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.client;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public record ProxiedMcpServerConfig(String name, String command, List<String> args, Map<String, String> env,
                                      List<String> inherits, Set<TransportMode> supportedTransports, @Nullable String instructions) {

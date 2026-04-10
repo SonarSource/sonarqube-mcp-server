@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.webhooks;
 
 import com.google.gson.Gson;
 import java.util.ArrayList;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.CreateResponse;

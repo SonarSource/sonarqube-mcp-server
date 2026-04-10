@@ -86,6 +86,7 @@ dependencies {
 	implementation(libs.jetty.ee10.servlet)
 	implementation(libs.jsonschema.generator)
 	implementation(libs.jsonschema.module.jackson)
+	compileOnly(libs.jsr305)
 	runtimeOnly(libs.logback.classic)
 	testImplementation(libs.logback.classic)
 	testImplementation(platform(libs.junit.bom))
