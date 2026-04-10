@@ -33,13 +33,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - Has correct permissions
  * - Can execute in the target environment (Alpine Linux)
  * <p>
- * Note: Tests are only enabled when the sonar-code-context-mcp binary exists in resources.
+ * Note: Tests are only enabled when the sonar-context-augmentation binary exists in resources.
  */
 @Testcontainers
 @Disabled("Waiting for a way to download the binary")
 class ProxiedServerITest {
   
-  private static final String BINARY_PATH = "binaries/sonar-code-context-mcp";
+  private static final String BINARY_PATH = "binaries/sonar-context-augmentation";
 
   @Container
   private static final GenericContainer<?> stdioServerContainer = createStdioServerContainer();
@@ -61,7 +61,7 @@ class ProxiedServerITest {
   private static GenericContainer<?> createStdioServerContainer() {
     return McpServerTestContainers.builder()
       .withProxiedServersConfig("proxied-mcp-servers-its.json")
-      .withCopyFileToContainer(BINARY_PATH, "/app/binaries/sonar-code-context-mcp", 0755)
+      .withCopyFileToContainer(BINARY_PATH, "/app/binaries/sonar-context-augmentation", 0755)
       .withStartupTimeout(Duration.ofMinutes(3))
       .withLogPrefix("STDIO-Container")
       .build();

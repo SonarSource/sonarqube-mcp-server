@@ -34,8 +34,6 @@ RUN apk add --no-cache \
         git \
         nodejs=~24 \
         npm \
-        py3-pip \
-        python3=~3.12 \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
         mkdir -p /home/appuser/.sonarlint /app/storage && \
@@ -44,27 +42,19 @@ RUN apk add --no-cache \
         chmod 0440 /etc/sudoers.d/appuser
 
 ARG TARGETARCH
-ARG SONAR_CODE_CONTEXT_VERSION=0.5.1.291
+ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.6.0.17
 
 RUN case "$TARGETARCH" in \
         amd64) ARCH="x64" ;; \
         arm64) ARCH="arm64" ;; \
         *) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
     esac && \
-    wget -qO- "https://binaries.sonarsource.com/Distribution/sonar-code-context-mcp-alpine-${ARCH}/sonar-code-context-mcp-alpine-${ARCH}-${SONAR_CODE_CONTEXT_VERSION}.tar.gz" \
+    wget -qO- "https://binaries.sonarsource.com/Distribution/sonar-context-augmentation-alpine-${ARCH}/sonar-context-augmentation-alpine-${ARCH}-${SONAR_CONTEXT_AUGMENTATION_VERSION}.tar.gz" \
     | tar -xz -C /tmp && \
-    install -m 755 /tmp/sonar-code-context-mcp /usr/local/bin/sonar-code-context-mcp && \
-    cp /tmp/requirements.txt /app/requirements.txt && \
-    if [ -d /tmp/wheels ]; then \
-        python3 -m pip install --no-cache-dir --break-system-packages /tmp/wheels/*.whl; \
-    fi && \
-    rm -rf /tmp/sonar-code-context-mcp /tmp/requirements.txt /tmp/wheels
+    install -m 755 /tmp/sonar-context-augmentation /usr/local/bin/sonar-context-augmentation && \
+    rm -f /tmp/sonar-context-augmentation
 
-# Install Python dependencies for sonar-code-context
 USER appuser
-RUN python3 -m pip install --no-cache-dir --break-system-packages --user -r /app/requirements.txt
-
-ENV PATH="/home/appuser/.local/bin:${PATH}"
 
 COPY --from=builder --chown=appuser:appgroup --chmod=755 /app/sonarqube-mcp-server.jar /app/sonarqube-mcp-server.jar
 COPY --chown=appuser:appgroup --chmod=755 scripts/install-certificates.sh /usr/local/bin/install-certificates
