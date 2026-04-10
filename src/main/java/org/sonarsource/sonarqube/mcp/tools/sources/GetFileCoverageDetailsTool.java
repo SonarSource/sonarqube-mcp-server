@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.SourceLinesResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;

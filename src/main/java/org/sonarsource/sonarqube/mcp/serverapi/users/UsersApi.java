@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.users;
 
 import com.google.gson.Gson;
-import javax.annotation.CheckForNull;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
@@ -35,7 +35,7 @@ public class UsersApi {
   /**
    * Returns the UUID of the currently authenticated user. Available on SonarQube Cloud and SonarQube Server 2025.6+.
    */
-  @CheckForNull
+  @Nullable
   public String getCurrentUserId() {
     try (var response = helper.get(CURRENT_USER_PATH)) {
       var dto = new Gson().fromJson(response.bodyAsString(), CurrentUserResponse.class);

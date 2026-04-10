@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
-import javax.annotation.CheckForNull;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.HotspotsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.response.SearchResponse;
@@ -78,7 +78,7 @@ public class SearchSecurityHotspotsTool extends Tool {
     return Tool.Result.success(toolResponse);
   }
 
-  @CheckForNull
+  @Nullable
   private static String validateArguments(Tool.Arguments arguments) {
     var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
     var hotspotKeys = arguments.getOptionalStringList(HOTSPOT_KEYS_PROPERTY);

@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response;
 
 import java.util.List;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public record ListResponse(List<QualityGate> qualitygates, long default_id, Actions actions) {
 

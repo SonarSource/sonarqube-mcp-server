@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.system.response;
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public record InfoResponse(
   @Nullable @SerializedName("Health") String health,

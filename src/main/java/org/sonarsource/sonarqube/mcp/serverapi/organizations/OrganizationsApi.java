@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.organizations;
 
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
-import javax.annotation.CheckForNull;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
@@ -37,7 +37,7 @@ public class OrganizationsApi {
   /**
    * Returns the UUID v4 of the organization identified by the given key. Only available on SonarQube Cloud.
    */
-  @CheckForNull
+  @Nullable
   public String getOrganizationUuidV4(String organizationKey) {
     var path = new UrlBuilder(ORGANIZATIONS_PATH)
       .addParam("organizationKey", organizationKey)

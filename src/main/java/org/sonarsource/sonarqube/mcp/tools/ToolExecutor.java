@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;

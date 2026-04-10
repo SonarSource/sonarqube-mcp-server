@@ -1,5 +1,5 @@
 [versions]
-sonarlint-core = "10.47.0.84936"
+sonarlint-core = "11.0.0.85168"
 
 sonarqube = "7.2.3.7755"
 
@@ -37,6 +37,7 @@ commons-langs3 = { module = "org.apache.commons:commons-lang3", version.ref = "c
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
 ayza = { module = "io.github.hakky54:ayza", version.ref = "ayza" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+jsr305 = { module = "com.google.code.findbugs:jsr305", version = "3.0.2" }
 jsonschema-generator = { module = "com.github.victools:jsonschema-generator", version.ref = "jsonschema-generator" }
 jsonschema-module-jackson = { module = "com.github.victools:jsonschema-module-jackson", version.ref = "jsonschema-generator" }
 

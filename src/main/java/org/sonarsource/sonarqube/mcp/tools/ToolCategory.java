@@ -21,8 +21,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 /**
  * Categories of tools that can be selectively enabled or disabled.
@@ -56,7 +55,7 @@ public enum ToolCategory {
     return key;
   }
 
-  @CheckForNull
+  @Nullable
   public static ToolCategory fromKey(@Nullable String key) {
     if (key == null || key.isBlank()) {
       return null;

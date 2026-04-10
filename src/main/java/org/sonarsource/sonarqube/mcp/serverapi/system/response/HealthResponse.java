@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.system.response;
 
 import java.util.List;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public record HealthResponse(String health, @Nullable List<Cause> causes, @Nullable List<Node> nodes) {
 

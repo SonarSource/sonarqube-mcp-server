@@ -26,8 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
@@ -328,7 +327,7 @@ public class McpServerLaunchConfiguration {
     return httpAllowedOrigins;
   }
 
-  @CheckForNull
+  @Nullable
   private static String getValueViaEnvOrPropertyOrDefault(Map<String, String> environment, String propertyName, @Nullable String defaultValue) {
     var value = environment.get(propertyName);
     if (isNullOrBlank(value)) {
@@ -355,7 +354,7 @@ public class McpServerLaunchConfiguration {
     return implementationVersion;
   }
 
-  @CheckForNull
+  @Nullable
   private static Integer parsePortValue(@Nullable String portStr) {
     if (isNullOrBlank(portStr)) {
       return null;
@@ -456,7 +455,7 @@ public class McpServerLaunchConfiguration {
     return "localhost";
   }
 
-  @CheckForNull
+  @Nullable
   private AuthMode parseAuthMode(Map<String, String> environment) {
     if (isHttpEnabled) {
       var authModeStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_AUTH_MODE, "TOKEN");

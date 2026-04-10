@@ -16,7 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.analytics;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public record ToolInvocationResult(
   String invocationId,
