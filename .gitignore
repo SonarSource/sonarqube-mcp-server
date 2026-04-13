@@ -39,6 +39,9 @@ out/
 ### MCP Registry ###
 .mcpregistry*
 
+# Downloaded Context Augmentation binary for integration tests
+its/src/test/resources/binaries/
+
 # Sonar Code Context configuration (track settings.json but ignore other files)
 !.sonar-code-context/
 .sonar-code-context/*

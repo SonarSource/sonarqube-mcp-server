@@ -58,7 +58,10 @@ class McpServerTestContainers {
   }
 
   static class ContainerBuilder {
+    private static final String MCP_WORKSPACE_PATH = "/app/mcp-workspace";
+
     private final Map<String, String> envVars = new HashMap<>();
+    private final Map<String, String> jvmSystemProperties = new HashMap<>();
     private final Map<MountableFile, String> additionalFiles = new HashMap<>();
     private String proxiedServersConfigResource = "empty-proxied-mcp-servers-its.json";
     private String command;
@@ -66,6 +69,7 @@ class McpServerTestContainers {
     private String waitLogMessage = ".*SonarQube MCP Server Started.*";
     private Duration startupTimeout = DEFAULT_STARTUP_TIMEOUT;
     private Integer exposedPort;
+    private boolean mountWorkspace;
 
     private ContainerBuilder() {
       envVars.put("STORAGE_PATH", "/app/storage");
@@ -105,6 +109,11 @@ class McpServerTestContainers {
       return this;
     }
 
+    ContainerBuilder withJvmSystemProperty(String key, String value) {
+      this.jvmSystemProperties.put(key, value);
+      return this;
+    }
+
     ContainerBuilder withAdditionalApkPackages(String... packages) {
       String apkInstall = packages.length > 0 ? "apk add --no-cache " + String.join(" ", packages) + " && " : "";
       this.command = apkInstall +
@@ -118,11 +127,26 @@ class McpServerTestContainers {
       return this;
     }
 
+    /**
+     * Mount a tmpfs at {@code /app/mcp-workspace} to simulate a workspace volume mount.
+     */
+    ContainerBuilder withWorkspaceMount() {
+      this.mountWorkspace = true;
+      return this;
+    }
+
     @SuppressWarnings("resource")
     GenericContainer<?> build() {
       if (command == null) {
         // Default packages: git, nodejs, npm
         withAdditionalApkPackages("git", "nodejs", "npm");
+      }
+
+      if (!jvmSystemProperties.isEmpty()) {
+        var propsStr = new StringBuilder();
+        jvmSystemProperties.forEach((k, v) -> propsStr.append("-D").append(k).append("=").append(v).append(" "));
+        command = command.replace("-jar /app/server.jar",
+          propsStr + "-jar /app/server.jar");
       }
 
       var container = new GenericContainer<>(BASE_IMAGE)
@@ -140,6 +164,11 @@ class McpServerTestContainers {
 
       // Add environment variables
       envVars.forEach(container::withEnv);
+
+      // Mount workspace tmpfs if requested
+      if (mountWorkspace) {
+        container.withTmpFs(Map.of(MCP_WORKSPACE_PATH, "rw"));
+      }
 
       // Expose port if specified
       if (exposedPort != null) {
