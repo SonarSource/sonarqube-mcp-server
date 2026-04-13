@@ -82,4 +82,14 @@ class ProxiedToolsLoaderTest {
     assertThat(tools2).isNotNull();
   }
 
+  @Test
+  void isCommandAvailable_should_return_true_for_existing_command() {
+    assertThat(ProxiedToolsLoader.isCommandAvailable("cat")).isTrue();
+  }
+
+  @Test
+  void isCommandAvailable_should_return_false_for_missing_absolute_command() {
+    assertThat(ProxiedToolsLoader.isCommandAvailable("/non/existent/command")).isFalse();
+  }
+
 }

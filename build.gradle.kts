@@ -1,9 +1,3 @@
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.util.zip.ZipFile
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
-
 plugins {
 	application
 	jacoco

@@ -250,12 +250,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     // Only when:
     // 1. Running in stdio mode (CAG not supported in HTTP mode)
     // 2. CAG toolset is enabled
-    // 3. Organization has CAG entitlement
+    // 3. Organization has CAG entitlement (can be bypassed for testing)
     if (mcpConfiguration.isHttpEnabled()) {
       LOG.debug("HTTP mode detected - skipping CAG proxied server initialization (not supported in HTTP transport)");
     } else if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)) {
       LOG.debug("CAG toolset is not enabled, skipping proxied server initialization");
-    } else if (isCagEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+    } else if (Boolean.getBoolean("cag.skip.entitlement.check") || isCagEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
       LOG.info("CAG is enabled for organization");
       loadProxiedServerTools();
     } else {
