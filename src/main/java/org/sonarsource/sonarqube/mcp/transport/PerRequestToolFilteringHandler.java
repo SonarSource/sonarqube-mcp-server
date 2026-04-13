@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import jakarta.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import reactor.core.publisher.Mono;
@@ -54,8 +55,23 @@ import reactor.core.publisher.Mono;
  *
  * <p>Each tool can further gate its own visibility per-request by overriding
  * {@link Tool#isEnabledFor(McpTransportContext)}.
+ *
+ * <p>Additionally, this handler works around
+ * <a href="https://github.com/modelcontextprotocol/java-sdk/issues/784">java-sdk#784</a>:
+ * when the SDK receives a request for an unregistered method (e.g. {@code resources/list}),
+ * it returns {@code Mono.error(McpError)} instead of a proper JSON-RPC {@code -32601} response,
+ * causing HTTP 500. This handler intercepts such methods and returns the correct error response.
  */
 public class PerRequestToolFilteringHandler implements McpStatelessServerHandler {
+
+  private static final McpLogger LOG = McpLogger.getInstance();
+
+  private static final Set<String> SUPPORTED_REQUEST_METHODS = Set.of(
+    McpSchema.METHOD_INITIALIZE,
+    McpSchema.METHOD_PING,
+    McpSchema.METHOD_TOOLS_LIST,
+    McpSchema.METHOD_TOOLS_CALL
+  );
 
   private final McpStatelessServerHandler delegate;
   private final List<Tool> allTools;
@@ -78,6 +94,12 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
         var error = new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.METHOD_NOT_FOUND, "Tool not found: " + toolName, null);
         return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
       }
+    }
+    // https://github.com/modelcontextprotocol/java-sdk/issues/784
+    if (!SUPPORTED_REQUEST_METHODS.contains(request.method())) {
+      LOG.debug("Rejecting unsupported method: " + request.method());
+      var error = new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.METHOD_NOT_FOUND, "Method not found: " + request.method(), null);
+      return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
     }
     return delegate.handleRequest(transportContext, request);
   }

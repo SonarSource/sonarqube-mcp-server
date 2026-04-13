@@ -203,6 +203,9 @@ public class HttpServerTransportProvider {
     var servletContextHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
     servletContextHandler.setContextPath("/");
 
+    var errorFilter = new FilterHolder(new ErrorHandlingFilter());
+    servletContextHandler.addFilter(errorFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
+
     var securityFilter = new FilterHolder(new McpSecurityFilter(host, allowedOrigins));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
