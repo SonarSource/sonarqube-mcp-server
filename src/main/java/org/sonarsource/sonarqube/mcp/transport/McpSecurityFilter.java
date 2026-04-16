@@ -65,10 +65,6 @@ public class McpSecurityFilter implements Filter {
     this.extraAllowedOrigins = Set.copyOf(extraAllowedOrigins);
     this.serverVersion = serverVersion;
 
-    if (allowAllOrigins) {
-      LOG.warn("MCP HTTP server is bound to all network interfaces (0.0.0.0). " +
-        "This is less secure. Consider binding to 127.0.0.1 for local use only.");
-    }
     if (!this.extraAllowedOrigins.isEmpty()) {
       LOG.info("MCP HTTP server configured with additional allowed origins: " + this.extraAllowedOrigins);
     }

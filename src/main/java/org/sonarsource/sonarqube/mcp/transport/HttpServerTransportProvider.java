@@ -21,6 +21,7 @@ import io.modelcontextprotocol.server.McpStatelessServerHandler;
 import io.modelcontextprotocol.server.transport.HttpServletStatelessServerTransport;
 import io.modelcontextprotocol.spec.McpStatelessServerTransport;
 import jakarta.servlet.DispatcherType;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -150,11 +151,13 @@ public class HttpServerTransportProvider {
     LOG.info("Created " + protocol.toUpperCase(Locale.getDefault()) + " transport provider for "
       + protocol + "://" + host + ":" + port + MCP_ENDPOINT + " with authentication: " + authMode);
 
-    // Warn about security risk when binding to all interfaces
-    if ("0.0.0.0".equals(host)) {
+    // Warn about security risk when binding to all interfaces outside Docker.
+    // In Docker, 0.0.0.0 is required for port mapping (-p) to work; the host-side -p flag controls exposure.
+    // Outside Docker (e.g. JAR), 0.0.0.0 exposes the server on all host interfaces and enables DNS rebinding attacks.
+    if ("0.0.0.0".equals(host) && !isRunningInDocker()) {
       LOG.warn("SECURITY WARNING: MCP HTTP server is configured to bind to all network interfaces (0.0.0.0). " +
-        "This exposes the server to your entire network. " +
-        "For local development, consider using 127.0.0.1 instead.");
+        "This exposes the server to your entire network and is susceptible to DNS rebinding attacks. " +
+        "For local use, consider using 127.0.0.1 instead.");
     }
 
     // Warn about HTTP without HTTPS
@@ -286,6 +289,10 @@ public class HttpServerTransportProvider {
   public String getServerUrl() {
     var protocol = httpsEnabled ? "https" : "http";
     return protocol + "://" + host + ":" + port + MCP_ENDPOINT;
+  }
+
+  private static boolean isRunningInDocker() {
+    return new File("/.dockerenv").exists();
   }
 
   /**
