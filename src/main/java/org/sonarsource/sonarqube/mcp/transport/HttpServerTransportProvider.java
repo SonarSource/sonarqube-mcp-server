@@ -148,7 +148,7 @@ public class HttpServerTransportProvider {
       + protocol + "://" + host + ":" + port + MCP_ENDPOINT + " with authentication: " + authMode);
 
     // Warn about security risk when binding to all interfaces
-    if ("0.0.0.0".equals(host)) {
+    if ("0.0.0.0".equals(host) && !httpsEnabled) {
       LOG.warn("SECURITY WARNING: MCP HTTP server is configured to bind to all network interfaces (0.0.0.0). " +
         "This exposes the server to your entire network. " +
         "For local development, consider using 127.0.0.1 instead.");
