@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__atlassian__search",
+      "mcp__atlassian__getJiraIssue",
+      "mcp__atlassian__getJiraIssueRemoteIssueLinks",
+      "mcp__atlassian__getVisibleJiraProjects",
+      "mcp__atlassian__createJiraIssue",
+      "Bash(./gradlew test *)"
+    ]
+  }
+}
