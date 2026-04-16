@@ -708,10 +708,27 @@ Secure multi-user transport with TLS encryption. Requires SSL certificates.
 | `SONARQUBE_HTTPS_KEYSTORE_TYPE`    | Keystore type (PKCS12 or JKS)        | `PKCS12`                    |
 
 **Example - Docker with SonarQube Cloud:**
+
+> **Note:** `SONARQUBE_HTTP_HOST=0.0.0.0` is required when running in Docker so that the container listens on all interfaces and Docker's `-p` port mapping works. The host-side `-p` flag controls who can reach the server from outside the container.
+
+For a server running **locally on your machine** (accessible only from localhost):
+```bash
+docker run --init --pull=always -p 127.0.0.1:8443:8443 \
+  -v $(pwd)/keystore.p12:/etc/ssl/mcp/keystore.p12:ro \
+  -e SONARQUBE_TRANSPORT=https \
+  -e SONARQUBE_HTTP_HOST=0.0.0.0 \
+  -e SONARQUBE_HTTP_PORT=8443 \
+  -e SONARQUBE_TOKEN="<init-token>" \
+  -e SONARQUBE_ORG="<your-org>" \
+  mcp/sonarqube
+```
+
+For a server **accessible from the network** (remote deployments):
 ```bash
 docker run --init --pull=always -p 8443:8443 \
   -v $(pwd)/keystore.p12:/etc/ssl/mcp/keystore.p12:ro \
   -e SONARQUBE_TRANSPORT=https \
+  -e SONARQUBE_HTTP_HOST=0.0.0.0 \
   -e SONARQUBE_HTTP_PORT=8443 \
   -e SONARQUBE_TOKEN="<init-token>" \
   -e SONARQUBE_ORG="<your-org>" \
