@@ -903,7 +903,7 @@ SOCKS5 proxies are supported.
   - Add optional `codeSnippet` to filter results - only issues within the snippet will be reported (snippet location auto-detected)
   
   Parameters:
-  - `projectKey` - The SonarQube project key - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
+  - `projectKey` - The SonarQube project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). Used when the workspace is mounted at `/app/mcp-workspace` - _String_
   - `fileContent` - Complete file content as a string. Required when workspace is not mounted - _String_
   - `codeSnippet` - Code snippet to filter issues (must match content in fileContent) - _String_
@@ -925,7 +925,7 @@ SOCKS5 proxies are supported.
 > Requires having the workspace mounted at `/app/mcp-workspace`
 
 - **run_advanced_code_analysis** - Run advanced code analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.
-    - `projectKey` - The key of the project - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
+    - `projectKey` - The key of the project - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
     - `branchName` - Branch name used to retrieve the latest analysis context - _Required String_
     - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). - _Required String_
     - `fileScope` - Defines in which scope the file originates from: 'MAIN' or 'TEST' (default: MAIN) - _String_
@@ -933,7 +933,7 @@ SOCKS5 proxies are supported.
 ### Coverage
 
 - **search_files_by_coverage** - Search for files in a project sorted by coverage (ascending - worst coverage first). This tool helps identify files that need test coverage improvements.
-  - `projectKey` - The project key to search in - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
+  - `projectKey` - The project key to search in - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `pullRequest` - Pull request id to analyze - _String_
   - `maxCoverage` - Maximum coverage threshold (0-100). Only return files with coverage <= this value - _Number_
   - `pageIndex` - Page index (1-based, default: 1) - _Number_
@@ -951,7 +951,7 @@ SOCKS5 proxies are supported.
 **Note: Dependency risks are only available when connecting to SonarQube Server 2025.4 Enterprise or higher with SonarQube Advanced Security enabled.**
 
 - **search_dependency_risks** - Search for software composition analysis issues (dependency risks) of a SonarQube project, paired with releases that appear in the analyzed project, application, or portfolio.
-  - `projectKey` - Project key - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
+  - `projectKey` - Project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `branchKey` - Optional branch key - _String_
   - `pullRequestKey` - Optional pull request key - _String_
 
@@ -982,7 +982,7 @@ SOCKS5 proxies are supported.
 ### Security Hotspots
 
 - **search_security_hotspots** - Search for Security Hotspots in a SonarQube project.
-  - `projectKey` - Project or application key - _String_
+  - `projectKey` - Project or application key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `hotspotKeys` - Comma-separated list of specific Security Hotspot keys to retrieve - _String[]_
   - `branch` - Optional branch key - _String_
   - `pullRequest` - Optional pull request key - _String_
@@ -1048,7 +1048,7 @@ SOCKS5 proxies are supported.
 
 
 - **list_pull_requests** - List all pull requests for a project. Use this tool to discover available pull requests before analyzing their coverage, issues, or quality. Returns the pull request key/ID which can be used with other tools (e.g., search_files_by_coverage, get_file_coverage_details).
-  - `projectKey` - Project key (e.g. my_project) - _Required String_
+  - `projectKey` - Project key (e.g. my_project) - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
 
 ### Quality Gates
 
@@ -1069,7 +1069,7 @@ SOCKS5 proxies are supported.
 ### Duplications
 
 - **search_duplicated_files** - Search for files with code duplications in a SonarQube project. By default, automatically fetches all duplicated files across all pages (up to 10,000 files max). Returns only files with duplications.
-  - `projectKey` - Project key - _Required String_ _(omitted when `SONARQUBE_PROJECT_KEY` is configured)_
+  - `projectKey` - Project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `pullRequest` - Optional pull request id - _String_
   - `pageSize` - Optional number of results per page for manual pagination (max: 500). If not specified, auto-fetches all duplicated files - _Integer_
   - `pageIndex` - Optional page number for manual pagination (starts at 1). If not specified, auto-fetches all duplicated files - _Integer_
