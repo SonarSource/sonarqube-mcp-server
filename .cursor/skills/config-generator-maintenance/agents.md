@@ -1,10 +1,10 @@
-# Supported Agents — Config Formats & Doc Links
+# Supported agents -- config formats & doc links
 
-When an agent's MCP configuration format changes, check its docs link below, then update the corresponding `case` in `generateConfig()` inside `docs/config-generator.html`.
+When an agent's MCP configuration format changes, check its docs link below, then update the agent's entry in `docs/config-flow.json` (the `output.stdio` / `output.http` descriptor). Changing the generic renderer in `docs/config-generator.html` is only needed if the agent requires a genuinely new output shape -- see the formatter table in [SKILL.md](SKILL.md).
 
-## Hosted SonarQube Cloud MCP (official HTTP transport)
+## Hosted SonarQube Cloud MCP (embedded HTTP transport)
 
-Client URL for the Sonar-hosted MCP endpoint (not the Cloud REST API base used internally by the Java server): EU `https://api.sonarcloud.io/mcp`, US `https://api.sonarqube.us/mcp`. These are the `SQC_URLS` values in `docs/config-generator.html`. Orchestration (when to send `SONARQUBE_ORG` as a header vs env) is documented in [SKILL.md](SKILL.md).
+Client URL for the Sonar-hosted MCP endpoint (not the Cloud REST API base used internally by the Java server): EU `https://api.sonarcloud.io/mcp`, US `https://api.sonarqube.us/mcp`. These live in `transports[].urls` under the `sqc` entry of `config-flow.json`. Orchestration (when to send `SONARQUBE_ORG` as a header vs env) is documented in [SKILL.md](SKILL.md).
 
 ---
 
