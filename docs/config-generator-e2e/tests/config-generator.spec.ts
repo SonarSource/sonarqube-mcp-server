@@ -261,6 +261,91 @@ test.describe('config-generator.html', () => {
     }
   });
 
+  test('Antigravity HTTP uses serverUrl (not url) and no type field', async ({ page }) => {
+    // Per https://antigravity.google/docs/mcp, HTTP transport uses "serverUrl"
+    // and has no "type" field (transport inferred from which key is present).
+    await page.goto('/config-generator.html');
+    await page.locator('#agent').selectOption('antigravity');
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#token').fill('test-token');
+    await page.locator('#card-sqc').click();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.serverUrl).toBeDefined();
+    expect(parsed.mcpServers.sonarqube.url).toBeUndefined();
+    expect(parsed.mcpServers.sonarqube.type).toBeUndefined();
+  });
+
+  test('Windsurf HTTP uses serverUrl (not url) and no type field', async ({ page }) => {
+    await page.goto('/config-generator.html');
+    await page.locator('#agent').selectOption('windsurf');
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#token').fill('test-token');
+    await page.locator('#card-sqc').click();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.serverUrl).toBeDefined();
+    expect(parsed.mcpServers.sonarqube.url).toBeUndefined();
+    expect(parsed.mcpServers.sonarqube.type).toBeUndefined();
+  });
+
+  test('Gemini HTTP uses httpUrl (not url)', async ({ page }) => {
+    await page.goto('/config-generator.html');
+    await page.locator('#agent').selectOption('gemini');
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#token').fill('test-token');
+    await page.locator('#card-sqc').click();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.httpUrl).toBeDefined();
+    expect(parsed.mcpServers.sonarqube.url).toBeUndefined();
+  });
+
+  test('VS Code uses root key "servers" (not mcpServers)', async ({ page }) => {
+    await page.goto('/config-generator.html');
+    await page.locator('#agent').selectOption('vscode');
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#card-stdio').click();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.servers).toBeDefined();
+    expect(parsed.mcpServers).toBeUndefined();
+  });
+
+  test('Kiro HTTP has no type field', async ({ page }) => {
+    await page.goto('/config-generator.html');
+    await page.locator('#agent').selectOption('kiro');
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#token').fill('test-token');
+    await page.locator('#card-sqc').click();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.url).toBeDefined();
+    expect(parsed.mcpServers.sonarqube.type).toBeUndefined();
+  });
+
+  test('Copilot CLI stdio uses type:"local" and tools:["*"]', async ({ page }) => {
+    await page.goto('/config-generator.html');
+    await page.locator('#agent').selectOption('copilot-cli');
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#card-stdio').click();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.type).toBe('local');
+    expect(parsed.mcpServers.sonarqube.tools).toEqual(['*']);
+  });
+
+  test('Copilot Agent stdio env values are COPILOT_MCP_* references', async ({ page }) => {
+    await page.goto('/config-generator.html');
+    await page.locator('#agent').selectOption('copilot-agent');
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#card-stdio').click();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.env.SONARQUBE_TOKEN).toBe('COPILOT_MCP_SONARQUBE_TOKEN');
+    expect(parsed.mcpServers.sonarqube.env.SONARQUBE_ORG).toBe('COPILOT_MCP_SONARQUBE_ORG');
+  });
+
   test('project key: stdio emits SONARQUBE_PROJECT_KEY; SQC JSON headers omit it', async ({ page }) => {
     await selectCursor(page);
     await page.locator('#card-stdio').click();
