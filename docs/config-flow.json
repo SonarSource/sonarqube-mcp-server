@@ -1,0 +1,294 @@
+{
+  "dockerImage": "mcp/sonarqube",
+  "communityUrl": "https://community.sonarsource.com/c/mcp/54",
+  "referenceUrl": "llms.txt",
+
+  "snippetDefaults": {
+    "SONARQUBE_TOKEN": "<YourSonarQubeUserToken>",
+    "SONARQUBE_ORG": "<YourSonarQubeOrganizationKey>",
+    "SONARQUBE_URL": "<YourSonarQubeServerURL>",
+    "SONARQUBE_PROJECT_KEY": "<YourSonarQubeProjectKey>"
+  },
+
+  "platforms": [
+    {
+      "id": "cloud",
+      "label": "SonarQube Cloud",
+      "fields": [
+        { "id": "org", "envVar": "SONARQUBE_ORG", "label": "Organization key", "placeholder": "my-organization", "required": true },
+        { "id": "token", "envVar": "SONARQUBE_TOKEN", "label": "User token", "required": true, "secret": true, "placeholder": "sqp_xxxxxxxxxxxxxxxxxxx" }
+      ],
+      "tokenDocsUrl": "https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/"
+    },
+    {
+      "id": "cloud-us",
+      "label": "SonarQube Cloud US",
+      "fields": [
+        { "id": "org", "envVar": "SONARQUBE_ORG", "label": "Organization key", "placeholder": "my-organization", "required": true },
+        { "id": "token", "envVar": "SONARQUBE_TOKEN", "label": "User token", "required": true, "secret": true, "placeholder": "sqp_xxxxxxxxxxxxxxxxxxx" }
+      ],
+      "implicitEnv": { "SONARQUBE_URL": "https://sonarqube.us" },
+      "tokenDocsUrl": "https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/"
+    },
+    {
+      "id": "server",
+      "label": "SonarQube Server",
+      "fields": [
+        { "id": "url", "envVar": "SONARQUBE_URL", "label": "Server URL", "placeholder": "https://sonarqube.mycompany.com", "required": true },
+        { "id": "token", "envVar": "SONARQUBE_TOKEN", "label": "User token", "required": true, "secret": true, "placeholder": "sqp_xxxxxxxxxxxxxxxxxxx" }
+      ],
+      "tokenDocsUrl": "https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token"
+    }
+  ],
+
+  "transports": [
+    {
+      "id": "stdio",
+      "label": "Local execution (stdio)",
+      "description": "The AI agent runs the server in Docker locally. Best for single users.",
+      "valueDelivery": "env",
+      "dockerMode": "interactive",
+      "features": ["workspace-mount", "cag", "debug", "certs", "project-key", "toolsets", "read-only"],
+      "availableFor": ["cloud", "cloud-us", "server"]
+    },
+    {
+      "id": "sqc",
+      "label": "SonarQube Cloud (embedded)",
+      "description": "Connect directly to the Sonar-hosted SonarQube Cloud server via HTTP.",
+      "valueDelivery": "headers",
+      "availableFor": ["cloud", "cloud-us"],
+      "urls": { "cloud": "https://api.sonarcloud.io/mcp", "cloud-us": "https://api.sonarqube.us/mcp" },
+      "features": ["toolsets", "read-only"]
+    },
+    {
+      "id": "http",
+      "label": "Remote server (HTTP)",
+      "description": "Connect to an MCP server running remotely via HTTP. Best for teams.",
+      "availableFor": ["cloud", "cloud-us", "server"],
+      "modes": {
+        "client": {
+          "label": "Configure client settings",
+          "valueDelivery": "headers",
+          "features": ["toolsets", "read-only"],
+          "fields": [
+            { "id": "httpHost", "label": "Full server URL (e.g. http://host:port/mcp)", "default": "http://127.0.0.1" }
+          ]
+        },
+        "launch": {
+          "label": "Generate launch command",
+          "valueDelivery": "env",
+          "dockerMode": "daemon",
+          "features": ["debug", "certs", "project-key", "toolsets", "read-only"],
+          "fields": [
+            { "id": "httpHost", "label": "Host IP", "default": "http://127.0.0.1" },
+            { "id": "httpPort", "label": "Port", "default": "8080", "envVar": "SONARQUBE_HTTP_PORT" }
+          ],
+          "implicitEnv": { "SONARQUBE_TRANSPORT": "http" }
+        }
+      }
+    },
+    {
+      "id": "https",
+      "label": "Remote server (HTTPS)",
+      "description": "Connect via TLS. Requires a keystore configured on the server.",
+      "availableFor": ["cloud", "cloud-us", "server"],
+      "modes": {
+        "client": {
+          "label": "Configure client settings",
+          "valueDelivery": "headers",
+          "features": ["toolsets", "read-only"],
+          "fields": [
+            { "id": "httpHost", "label": "Full server URL (e.g. https://host:port/mcp)", "default": "https://127.0.0.1" }
+          ]
+        },
+        "launch": {
+          "label": "Generate launch command",
+          "valueDelivery": "env",
+          "dockerMode": "daemon",
+          "features": ["debug", "certs", "project-key", "toolsets", "read-only"],
+          "fields": [
+            { "id": "httpHost", "label": "Host IP", "default": "https://127.0.0.1" },
+            { "id": "httpPort", "label": "Port", "default": "8080", "envVar": "SONARQUBE_HTTP_PORT" }
+          ],
+          "implicitEnv": { "SONARQUBE_TRANSPORT": "https" },
+          "extraFields": [
+            { "id": "keystorePath", "envVar": "SONARQUBE_HTTPS_KEYSTORE_PATH", "label": "Keystore path", "placeholder": "/etc/ssl/mcp/keystore.p12" },
+            { "id": "keystorePassword", "envVar": "SONARQUBE_HTTPS_KEYSTORE_PASSWORD", "label": "Keystore password", "secret": true, "placeholder": "sonarlint" },
+            { "id": "truststorePath", "envVar": "SONARQUBE_HTTPS_TRUSTSTORE_PATH", "label": "Truststore path", "placeholder": "/etc/ssl/mcp/truststore.p12" },
+            { "id": "truststorePassword", "envVar": "SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD", "label": "Truststore password", "secret": true, "placeholder": "sonarlint" }
+          ]
+        }
+      }
+    }
+  ],
+
+  "toolsets": [
+    { "key": "analysis", "label": "Analysis", "defaultEnabled": true, "onlyForTransports": ["stdio", "http", "https"], "hint": "run_advanced_code_analysis requires workspace mount at /app/mcp-workspace (stdio)." },
+    { "key": "projects", "label": "Projects", "defaultEnabled": true, "alwaysOn": true, "hint": "The Projects toolset is required and automatically enabled." },
+    { "key": "issues", "label": "Issues", "defaultEnabled": true },
+    { "key": "security-hotspots", "label": "Security hotspots", "defaultEnabled": true },
+    { "key": "quality-gates", "label": "Quality gates", "defaultEnabled": true },
+    { "key": "rules", "label": "Rules", "defaultEnabled": true },
+    { "key": "duplications", "label": "Duplications", "defaultEnabled": true },
+    { "key": "measures", "label": "Measures", "defaultEnabled": true },
+    { "key": "dependency-risks", "label": "Dependency risks", "defaultEnabled": true },
+    { "key": "coverage", "label": "Coverage", "defaultEnabled": true },
+    { "key": "cag", "label": "Context augmentation", "defaultEnabled": true, "onlyForTransports": ["stdio"], "hint": "Context augmentation works only with local execution (stdio). Requires workspace mount at /app/mcp-workspace when enabled." },
+    { "key": "sources", "label": "Sources", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },
+    { "key": "languages", "label": "Languages", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },
+    { "key": "portfolios", "label": "Portfolios", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },
+    { "key": "system", "label": "System", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },
+    { "key": "webhooks", "label": "Webhooks", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] }
+  ],
+
+  "agents": [
+    {
+      "id": "claude",
+      "label": "Claude Desktop / Claude Code",
+      "instructions": {
+        "stdio": "<strong>Claude Code / Desktop</strong>: Run the command below for Claude Code, or select 'Generic JSON' to copy the config for Claude Desktop.",
+        "http": "<strong>Claude Code / Desktop</strong>: Run the command below for Claude Code, or select 'Generic JSON' to copy the config for Claude Desktop."
+      },
+      "output": {
+        "stdio": { "format": "cli-claude-stdio" },
+        "http":  { "format": "cli-claude-http" }
+      }
+    },
+    {
+      "id": "codex",
+      "label": "Codex CLI",
+      "instructions": {
+        "stdio": "<strong>Codex CLI</strong>: Append these lines directly to your <code>~/.codex/config.toml</code> or project-scoped <code>.codex/config.toml</code> file.",
+        "http": "<strong>Codex CLI</strong>: Append these lines directly to your <code>~/.codex/config.toml</code> or project-scoped <code>.codex/config.toml</code> file."
+      },
+      "output": {
+        "stdio": { "format": "toml", "sectionKey": "mcp_servers.sonarqube", "envSectionKey": "mcp_servers.sonarqube.env" },
+        "http":  { "format": "toml", "sectionKey": "mcp_servers.sonarqube", "urlKey": "url", "headersKey": "http_headers", "headersInline": true }
+      }
+    },
+    {
+      "id": "cursor",
+      "label": "Cursor IDE",
+      "instructions": {
+        "stdio": "<strong>Cursor IDE config</strong>: Add this to your <code>.cursor/mcp.json</code> file in your workspace.",
+        "http": "<strong>Cursor IDE config</strong>: Add this to your <code>.cursor/mcp.json</code> file in your workspace."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker" },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers" }
+      }
+    },
+    {
+      "id": "gemini",
+      "label": "Gemini CLI",
+      "instructions": {
+        "stdio": "<strong>Gemini CLI</strong>: Add this to your <code>~/.gemini/settings.json</code> (global) or <code>.gemini/settings.json</code> (project).",
+        "http": "<strong>Gemini CLI</strong>: Add this to your <code>~/.gemini/settings.json</code> (global) or <code>.gemini/settings.json</code> (project)."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker" },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "httpUrl", "headersKey": "headers" }
+      }
+    },
+    {
+      "id": "generic",
+      "label": "Generic / other (JSON)",
+      "instructions": {
+        "stdio": "<strong>Generic JSON</strong>: Useful for integrations that accept pure MCP schemas.",
+        "http": "<strong>Generic JSON</strong>: Useful for integrations that accept pure MCP schemas."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker" },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers" }
+      }
+    },
+    {
+      "id": "copilot-agent",
+      "label": "GitHub Copilot Agent",
+      "instructions": {
+        "stdio": "<strong>GitHub Copilot Workspace</strong>: Paste this JSON object into your GitHub Copilot Workspace repository settings (Settings -> Copilot -> Coding agent -> MCP Servers).",
+        "http": "<strong>GitHub Copilot Workspace</strong>: Paste this JSON object into your GitHub Copilot Workspace repository settings (Settings -> Copilot -> Coding agent -> MCP Servers)."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker", "envValuePrefix": "COPILOT_MCP_", "extraFields": { "type": "local", "tools": ["*"] } },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers", "extraFields": { "tools": ["*"] } }
+      }
+    },
+    {
+      "id": "copilot-cli",
+      "label": "GitHub Copilot CLI",
+      "instructions": {
+        "stdio": "<strong>GitHub Copilot CLI</strong>: Run <code>/mcp add</code> in your terminal and step through the prompts, or paste this into <code>~/.copilot/mcp-config.json</code> (global) or <code>.copilot/mcp-config.json</code> (workspace).",
+        "http": "<strong>GitHub Copilot CLI</strong>: Run <code>/mcp add</code> in your terminal and step through the prompts, or paste this into <code>~/.copilot/mcp-config.json</code> (global) or <code>.copilot/mcp-config.json</code> (workspace)."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker", "extraFields": { "type": "local", "tools": ["*"] } },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers", "extraFields": { "tools": ["*"] } }
+      }
+    },
+    {
+      "id": "antigravity",
+      "label": "Google Antigravity",
+      "instructions": {
+        "stdio": "<strong>Google Antigravity config</strong>: In the Agent Side Panel, click the three dots, select <strong>MCP Store</strong> &gt; <strong>Manage MCP Servers</strong> &gt; <strong>View raw config</strong>, and paste this into the <code>mcp_config.json</code> file.",
+        "http": "<strong>Google Antigravity config</strong>: In the Agent Side Panel, click the three dots, select <strong>MCP Store</strong> &gt; <strong>Manage MCP Servers</strong> &gt; <strong>View raw config</strong>, and paste this into the <code>mcp_config.json</code> file."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker" },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers" }
+      }
+    },
+    {
+      "id": "kiro",
+      "label": "Kiro",
+      "instructions": {
+        "stdio": "<strong>Kiro config</strong>: Add this to your <code>mcp.json</code> file (workspace: <code>.kiro/settings/mcp.json</code> or global: <code>~/.kiro/settings/mcp.json</code>).",
+        "http": "<strong>Kiro config</strong>: Add this to your <code>mcp.json</code> file (workspace: <code>.kiro/settings/mcp.json</code> or global: <code>~/.kiro/settings/mcp.json</code>)."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker" },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "headersKey": "headers" }
+      }
+    },
+    {
+      "id": "vscode",
+      "label": "VS Code",
+      "instructions": {
+        "stdio": "<strong>VS Code config</strong>: Add this to your MCP configuration file (e.g., <code>cline_mcp_settings.json</code> if using Roo Cline, or <code>.vscode/mcp.json</code> for native VS Code MCP).",
+        "http": "<strong>VS Code config</strong>: Add this to your MCP configuration file (e.g., <code>cline_mcp_settings.json</code> if using Roo Cline, or <code>.vscode/mcp.json</code> for native VS Code MCP)."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "servers", "schema": "standard-docker" },
+        "http":  { "format": "json", "rootKey": "servers", "urlKey": "url", "typeField": "http", "headersKey": "headers" }
+      }
+    },
+    {
+      "id": "windsurf",
+      "label": "Windsurf",
+      "instructions": {
+        "stdio": "<strong>Windsurf config</strong>: Add this configuration to your <code>mcp_config.json</code> file (typically in <code>~/.codeium/windsurf/</code>).",
+        "http": "<strong>Windsurf config</strong>: Add this configuration to your <code>mcp_config.json</code> file (typically in <code>~/.codeium/windsurf/</code>)."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker" },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "serverUrl", "headersKey": "headers" }
+      }
+    },
+    {
+      "id": "zed",
+      "label": "Zed",
+      "instructions": {
+        "stdio": "<strong>Zed IDE</strong>: Install the 'SonarQube' extension in Zed. Then add this block to your Zed <code>settings.json</code> file (Cmd + , -> Open Settings JSON).",
+        "http": "<strong>Zed IDE HTTP</strong>: The SonarQube Zed extension currently only supports Docker/stdio transport, not HTTP. Please switch to stdio."
+      },
+      "output": {
+        "stdio": {
+          "format": "custom-json",
+          "keyMap": { "SONARQUBE_TOKEN": "sonarqube_token", "SONARQUBE_URL": "sonarqube_url", "SONARQUBE_ORG": "sonarqube_org" },
+          "staticFields": { "docker_path": "/usr/local/bin/docker" }
+        },
+        "http": { "format": "unsupported", "message": "HTTP is not supported by the SonarQube Zed Extension." }
+      }
+    }
+  ]
+}

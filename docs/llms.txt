@@ -1,0 +1,327 @@
+# SonarQube MCP Server
+
+> Configuration reference for the SonarQube MCP Server. Self-contained and
+> versioned alongside the server source code, so it remains available to AI
+> agents even if external documentation at docs.sonarsource.com changes.
+
+- Documentation: https://docs.sonarsource.com/sonarqube-mcp-server
+- Configuration generator: https://mcp.sonarqube.com/config-generator.html
+- Source: https://github.com/SonarSource/sonar-mcp-server
+- Docker image: mcp/sonarqube
+
+## Related products
+
+- SonarQube CLI: https://cli.sonarqube.com (code quality and security in your
+  terminal; can also expose SonarQube tools over MCP)
+
+================================================
+SONARQUBE MCP SERVER -- CONFIGURATION REFERENCE
+================================================
+
+Last updated: see git history of this file.
+
+
+1. OVERVIEW
+-----------
+
+The SonarQube MCP Server exposes SonarQube Cloud or SonarQube Server as a
+Model Context Protocol (MCP) server that AI agents (Claude, Cursor, VS Code,
+Copilot, Gemini, Codex, Kiro, Zed, etc.) can use to query issues, quality
+gates, measures, rules, and more.
+
+It is distributed as a Docker image: `mcp/sonarqube`.
+
+Three things must be configured:
+
+  1. PLATFORM            -- SonarQube Cloud / SonarQube Cloud US / SonarQube Server
+  2. TRANSPORT MODE      -- how the AI agent talks to the MCP server
+  3. AUTHENTICATION      -- a SonarQube user token
+
+Everything else (toolsets, workspace mount, TLS, project key, etc.) is optional.
+
+
+2. PLATFORMS
+------------
+
+  2.1 SonarQube Cloud (EU region)
+      URL        : https://sonarcloud.io (implicit, no env var needed)
+      Env vars   : SONARQUBE_ORG=<YourSonarQubeOrganizationKey>
+                   SONARQUBE_TOKEN=<YourSonarQubeUserToken>
+      Get token  : https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/
+
+  2.2 SonarQube Cloud (US region)
+      URL        : https://sonarqube.us (set SONARQUBE_URL explicitly)
+      Env vars   : SONARQUBE_URL=https://sonarqube.us
+                   SONARQUBE_ORG=<YourSonarQubeOrganizationKey>
+                   SONARQUBE_TOKEN=<YourSonarQubeUserToken>
+
+  2.3 SonarQube Server (self-hosted)
+      Env vars   : SONARQUBE_URL=<YourSonarQubeServerURL>
+                   SONARQUBE_TOKEN=<YourSonarQubeUserToken>
+      Get token  : https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/
+
+Either SONARQUBE_URL or SONARQUBE_ORG must always be set (in stdio mode).
+
+
+3. TRANSPORT MODES
+------------------
+
+  3.1 stdio (local execution)
+      What       : The agent launches the MCP server in Docker as a child
+                   process and communicates over standard input / output.
+      Best for   : Single users, local development.
+      Values via : environment variables passed to `docker run -e KEY=VALUE`.
+      Docker     : `docker run --init --pull=always -i --rm -e ... mcp/sonarqube`
+
+  3.2 SonarQube Cloud (embedded) server
+      What       : The agent talks to the official Sonar-hosted MCP server
+                   over HTTP. No local Docker required.
+      URL (EU)   : https://api.sonarcloud.io/mcp
+      URL (US)   : https://api.sonarqube.us/mcp
+      Available  : only for SonarQube Cloud / SonarQube Cloud US (not Server)
+      Values via : HTTP headers (Authorization: Bearer ..., SONARQUBE_ORG, ...)
+      Limitation : a restricted set of toolsets is exposed -- see section 4.
+
+  3.3 Remote server (HTTP / HTTPS) -- client mode
+      What       : Connect your agent to an MCP server already running on
+                   another host via plain HTTP or TLS.
+      Values via : HTTP headers.
+      Fields     : full server URL (e.g. http://host:port/mcp).
+
+  3.4 Remote server (HTTP / HTTPS) -- launch mode
+      What       : Run a Docker container in the background that hosts the
+                   MCP server, exposing it on a given port for remote agents.
+      Values via : environment variables.
+      Env vars   : SONARQUBE_TRANSPORT=http|https
+                   SONARQUBE_HTTP_PORT=<port>
+                   (for HTTPS, see section 6 "TLS / keystore")
+      Docker     : `docker run --init --pull=always -d -p PORT:PORT -e ... mcp/sonarqube`
+
+Key concept:
+  - When values are delivered as env vars, they set server-wide defaults at
+    startup.
+  - When values are delivered as HTTP headers, they are applied per request
+    and can only narrow the server's startup settings, never widen them.
+
+
+4. TOOLSETS
+-----------
+
+The MCP server groups tools into 16 toolsets. Users select which ones to
+expose via the SONARQUBE_TOOLSETS env var (or HTTP header) as a
+comma-separated list of keys. If unset, the DEFAULT SET is enabled.
+
+  Key                     Default  Notes
+  ---                     -------  -----
+  analysis                yes      Requires workspace mount (stdio). Not
+                                   available in SonarQube Cloud (embedded)
+                                   server.
+  projects                yes      Always on (required to find project keys).
+                                   Cannot be disabled.
+  issues                  yes
+  security-hotspots       yes
+  quality-gates           yes
+  rules                   yes
+  duplications            yes
+  measures                yes
+  dependency-risks        yes
+  coverage                yes
+  cag                     yes      Context augmentation. Only in stdio mode.
+                                   Requires workspace mount.
+  sources                 no       Not available in embedded SonarQube Cloud.
+  languages               no       Not available in embedded SonarQube Cloud.
+  portfolios              no       Not available in embedded SonarQube Cloud.
+  system                  no       Not available in embedded SonarQube Cloud.
+  webhooks                no       Not available in embedded SonarQube Cloud.
+
+SonarQube Cloud (embedded) server limitation:
+  Only the DEFAULT SET minus `analysis` and `cag` is exposed. That is:
+  projects, issues, security-hotspots, quality-gates, rules, duplications,
+  measures, dependency-risks, coverage.
+  You cannot enable toolsets beyond this subset in embedded mode.
+
+
+5. ADVANCED OPTIONS
+-------------------
+
+  SONARQUBE_READ_ONLY=true
+      When enabled, only tools whose annotations include `readOnlyHint` are
+      exposed. Write tools are filtered out.
+
+  SONARQUBE_DEBUG_ENABLED=true
+      Enables verbose logging in the container. Stdio / launch mode only.
+
+  SONARQUBE_PROJECT_KEY=<YourSonarQubeProjectKey>
+      Sets a default project key. When set, tools that accept a project key
+      omit it from their schema (the server uses this fallback). Stdio or
+      HTTP(S) launch mode only.
+
+  Custom CA certificates
+      Mount a folder of .crt files to /usr/local/share/ca-certificates/:ro
+      on the container:
+        -v /path/to/certs:/usr/local/share/ca-certificates/:ro
+
+  Workspace mount (stdio only)
+      Required for `run_advanced_code_analysis` and for context augmentation.
+      Mounts your project at /app/mcp-workspace so tools can read the tree
+      via `filePath` instead of full file content:
+        -v /absolute/path/to/project:/app/mcp-workspace:rw
+
+
+6. TLS / KEYSTORE (HTTPS launch mode only)
+------------------------------------------
+
+  SONARQUBE_HTTPS_KEYSTORE_PATH       default: /etc/ssl/mcp/keystore.p12
+  SONARQUBE_HTTPS_KEYSTORE_PASSWORD   default: sonarlint
+  SONARQUBE_HTTPS_TRUSTSTORE_PATH     default: /etc/ssl/mcp/truststore.p12
+  SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD default: sonarlint
+
+  All four are optional; defaults are shown. The keystore format is PKCS12.
+
+
+7. AGENT-SPECIFIC OUTPUT FORMATS
+--------------------------------
+
+Each AI agent has its own configuration file shape. The rules below describe
+how to assemble a config for each. All of them can be generated interactively
+at https://mcp.sonarqube.com.
+
+Common building blocks (used for stdio configs):
+
+  Docker args (stdio, interactive):
+    ["run", "--init", "--pull=always", "-i", "--rm",
+     "-v", "<certPath>:/usr/local/share/ca-certificates/:ro",     (optional)
+     "-v", "<workspaceHost>:/app/mcp-workspace:rw",                (optional)
+     "-e", "KEY_1", "-e", "KEY_2", ...,
+     "mcp/sonarqube"]
+
+  Docker args (HTTP/HTTPS launch, daemon):
+    ["run", "--init", "--pull=always", "-d", "-p", "<port>:<port>",
+     ... same optional flags ...,
+     "mcp/sonarqube"]
+
+  HTTP headers (client mode):
+    Authorization: Bearer <YourSonarQubeUserToken>
+    SONARQUBE_ORG: <YourSonarQubeOrganizationKey>            (cloud platforms)
+    SONARQUBE_TOOLSETS: <csv>                                (if non-default)
+    SONARQUBE_READ_ONLY: true                                (if enabled)
+
+  7.1 Cursor IDE, Kiro, Antigravity, Generic, Gemini, Windsurf
+      File       : varies (see each agent's docs)
+      Stdio shape:
+        { "mcpServers": { "sonarqube": {
+            "command": "docker", "args": [...], "env": { ... }
+        }}}
+      HTTP shape (Cursor, Kiro, Antigravity, Generic):
+        { "mcpServers": { "sonarqube": {
+            "url": "<url>", "type": "http", "headers": { ... }
+        }}}
+      HTTP shape (Windsurf):  uses "serverUrl" instead of "url"; no "type".
+      HTTP shape (Gemini):    uses "httpUrl" instead of "url"; no "type".
+      HTTP shape (Kiro):      omits the "type" field.
+
+  7.2 VS Code (native MCP, Roo Cline, etc.)
+      File       : .vscode/mcp.json, or cline_mcp_settings.json
+      Root key   : "servers" instead of "mcpServers".
+      Shape      : identical to section 7.1 otherwise.
+
+  7.3 Claude Code / Claude Desktop
+      Stdio: run `claude mcp add --transport stdio sonarqube -- docker run ...`
+             IMPORTANT: pass env vars inline as `-e KEY=VALUE` (Claude's
+             `--env` parser is unreliable). Example:
+               claude mcp add --transport stdio sonarqube \
+                 -- docker run --init --pull=always -i --rm \
+                    -e SONARQUBE_TOKEN=<YourSonarQubeUserToken> \
+                    -e SONARQUBE_ORG=<YourSonarQubeOrganizationKey> \
+                    mcp/sonarqube
+      HTTP : run `claude mcp add --transport http sonarqube <url>` with
+             one or more `--header "KEY: VALUE"` flags.
+
+  7.4 GitHub Copilot CLI and Copilot Agent
+      File       : ~/.copilot/mcp-config.json (global) or .copilot/mcp-config.json
+      Stdio shape:
+        { "mcpServers": { "sonarqube": {
+            "type": "local", "command": "docker", "args": [...],
+            "env": { ... }, "tools": ["*"]
+        }}}
+      Copilot Agent twist: for stdio, env values are references, not values:
+        "env": { "SONARQUBE_TOKEN": "COPILOT_MCP_SONARQUBE_TOKEN", ... }
+        and you set the actual secret value in repository settings.
+      HTTP shape:
+        { "mcpServers": { "sonarqube": {
+            "url": "<url>", "type": "http", "headers": { ... },
+            "tools": ["*"]
+        }}}
+
+  7.5 Codex CLI
+      File       : ~/.codex/config.toml (global) or .codex/config.toml
+      Stdio (TOML):
+        [mcp_servers.sonarqube]
+        command = "docker"
+        args = ["run", "--init", ...]
+
+        [mcp_servers.sonarqube.env]
+        SONARQUBE_TOKEN = "<YourSonarQubeUserToken>"
+        SONARQUBE_ORG = "<YourSonarQubeOrganizationKey>"
+      HTTP (TOML):
+        [mcp_servers.sonarqube]
+        url = "<url>"
+        http_headers = { "Authorization" = "Bearer ...", "SONARQUBE_ORG" = "..." }
+
+  7.6 Zed IDE
+      File       : Zed settings.json (Cmd + , -> Open Settings JSON)
+      Prereq     : install the "SonarQube" extension for Zed.
+      HTTP       : NOT SUPPORTED. Stdio only.
+      Stdio shape:
+        {
+          "sonarqube_token": "<YourSonarQubeUserToken>",
+          "sonarqube_url":   "<YourSonarQubeServerURL>",        (if set)
+          "sonarqube_org":   "<YourSonarQubeOrganizationKey>",  (if set)
+          "docker_path":     "/usr/local/bin/docker"
+        }
+
+
+8. COMPLETE ENVIRONMENT VARIABLE REFERENCE
+------------------------------------------
+
+  Mandatory (stdio / launch)
+    SONARQUBE_TOKEN                 -- user token (see section 2)
+    SONARQUBE_URL or SONARQUBE_ORG  -- at least one, in stdio mode
+
+  Platform
+    SONARQUBE_URL                   -- server URL; for Cloud US set to
+                                      https://sonarqube.us
+    SONARQUBE_ORG                   -- SonarQube Cloud organization key
+
+  Transport (launch mode only)
+    SONARQUBE_TRANSPORT             -- "http" or "https"
+    SONARQUBE_HTTP_PORT             -- default 8080
+
+  TLS (HTTPS launch mode only)
+    SONARQUBE_HTTPS_KEYSTORE_PATH
+    SONARQUBE_HTTPS_KEYSTORE_PASSWORD
+    SONARQUBE_HTTPS_TRUSTSTORE_PATH
+    SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD
+
+  Toolset / behavior
+    SONARQUBE_TOOLSETS              -- comma-separated keys (see section 4)
+    SONARQUBE_READ_ONLY             -- "true" to filter out write tools
+    SONARQUBE_DEBUG_ENABLED         -- "true" for verbose logging
+    SONARQUBE_PROJECT_KEY           -- default project key
+
+
+9. PLACEHOLDER CONVENTION
+-------------------------
+
+Snippets in this reference and in the output of the configuration generator
+use <AngleBracketPascalCase> for user-supplied values:
+
+  <YourSonarQubeUserToken>
+  <YourSonarQubeOrganizationKey>
+  <YourSonarQubeServerURL>
+  <YourSonarQubeProjectKey>
+
+Replace these with your actual values before copying into a config file.
+
+
+END OF REFERENCE
