@@ -8,21 +8,30 @@ It also supports the analysis of code snippet directly within the agent context.
 
 ## Quick setup
 
-The simplest method is to rely on our container image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below if you want to build it locally.
-
-> **Note:** While the examples below use `docker`, any OCI-compatible container runtime works (e.g., Podman, nerdctl). Simply replace `docker` with your preferred tool.
-
-### Security Best Practices
+<details>
+<summary>Security best practices</summary>
 
 > 🔒 **Important**: Your SonarQube token is a sensitive credential. Follow these security practices:
 
 **When using CLI commands:**
-- **Avoid hardcoding tokens** in command-line arguments - they get saved in shell history
-- **Use environment variables** - set tokens in environment variables before running commands
+- **Avoid hardcoding tokens** in command-line arguments – they get saved in shell history
+- **Use environment variables** – set tokens in environment variables before running commands
 
 **When using configuration files:**
 - **Never commit tokens** to version control
 - **Use environment variable substitution** in config files when possible
+
+</details>
+
+### 🚀 Generate your configuration
+
+The fastest way to get started is the **[SonarQube MCP Server Configuration Generator](https://mcp.sonarqube.com/config-generator.html)** – an interactive tool that produces a ready-to-use configuration for your preferred AI agent client.
+
+### Manual setup
+
+If you prefer to configure things yourself, the simplest method is to use our container image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below if you want to build it locally.
+
+> **Note:** While the examples below use `docker`, any OCI-compatible container runtime works (e.g., Podman, nerdctl). Simply replace `docker` with your preferred tool.
 
 <details>
 <summary>Antigravity</summary>
@@ -476,6 +485,9 @@ You can manually install the SonarQube MCP server by copying the following snipp
 
 The SonarQube MCP Server can integrate with [SonarQube for IDE](https://www.sonarsource.com/products/sonarlint/) to further enhance your development workflow, providing better code analysis and insights directly within your IDE.
 
+<details>
+<summary>Configuration</summary>
+
 When using SonarQube for IDE, the `SONARQUBE_IDE_PORT` environment variable should be set with the correct port number. SonarQube for VS Code includes a Quick Install button, which automatically sets the correct port configuration.
 
 For example, with SonarQube Cloud:
@@ -509,57 +521,7 @@ For example, with SonarQube Cloud:
 
 > When running the MCP server in a container on Linux, the container cannot access the SonarQube for IDE embedded server running on localhost. To allow the container to connect to the SonarQube for IDE server, add the `--network=host` option to your container run command.
 
-## Build
-
-SonarQube MCP Server requires a Java Development Kit (JDK) version 21 or later to build.
-
-Run the following Gradle command to clean the project and build the application:
-
-```bash
-./gradlew clean build -x test
-```
-
-The JAR file will be created in `build/libs/`.
-
-You will then need to manually copy and paste the MCP configuration, as follows:
-
-* To connect with SonarQube Cloud:
-
-```JSON
-{
-  "sonarqube": {
-    "command": "java",
-    "args": [
-      "-jar",
-      "<path_to_sonarqube_mcp_server_jar>"
-    ],
-    "env": {
-      "STORAGE_PATH": "<path_to_your_mcp_storage>",
-      "SONARQUBE_TOKEN": "<token>",
-      "SONARQUBE_ORG": "<org>"
-    }
-  }
-}
-```
-
-* To connect with SonarQube Server:
-
-```JSON
-{
-  "sonarqube": {
-    "command": "java",
-    "args": [
-      "-jar",
-      "<path_to_sonarqube_mcp_server_jar>"
-    ],
-    "env": {
-      "STORAGE_PATH": "<path_to_your_mcp_storage>",
-      "SONARQUBE_TOKEN": "<token>",
-      "SONARQUBE_URL": "<url>"
-    }
-  }
-}
-```
+</details>
 
 ## Configuration
 
@@ -1367,6 +1329,65 @@ What are the most common rule violations across all our projects? We might need 
 
 ```
 Show me all the issues that were marked as false positives in the last month. Are we seeing patterns that suggest our rules need adjustment?
+```
+
+</details>
+
+## Build
+
+Prefer the container image from [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube) — build from source only if you need to run a locally modified version of the server.
+
+<details>
+<summary>Build from source</summary>
+
+SonarQube MCP Server requires a Java Development Kit (JDK) version 21 or later to build.
+
+Run the following Gradle command to clean the project and build the application:
+
+```bash
+./gradlew clean build -x test
+```
+
+The JAR file will be created in `build/libs/`.
+
+You will then need to manually copy and paste the MCP configuration, as follows:
+
+* To connect with SonarQube Cloud:
+
+```JSON
+{
+  "sonarqube": {
+    "command": "java",
+    "args": [
+      "-jar",
+      "<path_to_sonarqube_mcp_server_jar>"
+    ],
+    "env": {
+      "STORAGE_PATH": "<path_to_your_mcp_storage>",
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_ORG": "<org>"
+    }
+  }
+}
+```
+
+* To connect with SonarQube Server:
+
+```JSON
+{
+  "sonarqube": {
+    "command": "java",
+    "args": [
+      "-jar",
+      "<path_to_sonarqube_mcp_server_jar>"
+    ],
+    "env": {
+      "STORAGE_PATH": "<path_to_your_mcp_storage>",
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_URL": "<url>"
+    }
+  }
+}
 ```
 
 </details>
