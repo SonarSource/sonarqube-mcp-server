@@ -10,11 +10,12 @@ Client URL for the Sonar-hosted MCP endpoint (not the Cloud REST API base used i
 
 ## antigravity — Google Antigravity
 
-- **Doc**: https://antigravity.google/docs/mcp#how-to-connect
+- **Doc**: https://antigravity.google/docs/mcp
+- **Config file**: `~/.gemini/antigravity/mcp_config.json`
 - **Config key**: `mcpServers`
-- **Stdio format**: `{ command, args, env }`
-- **HTTP format**: `{ type: "http", url, headers? }`
-- **Quirks**: none known
+- **Stdio format**: `{ command, args, env, cwd? }`
+- **HTTP format**: `{ serverUrl, headers? }` — **uses `serverUrl`, not `url`; no `type` field** (transport is inferred from which key is present: `command` = stdio, `serverUrl` = Streamable HTTP)
+- **Quirks**: same HTTP shape as Windsurf
 
 ---
 
