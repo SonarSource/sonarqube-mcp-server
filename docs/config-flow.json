@@ -230,12 +230,12 @@
       "id": "antigravity",
       "label": "Google Antigravity",
       "instructions": {
-        "stdio": "<strong>Google Antigravity config</strong>: In the Agent Side Panel, click the three dots, select <strong>MCP Store</strong> &gt; <strong>Manage MCP Servers</strong> &gt; <strong>View raw config</strong>, and paste this into the <code>mcp_config.json</code> file.",
-        "http": "<strong>Google Antigravity config</strong>: In the Agent Side Panel, click the three dots, select <strong>MCP Store</strong> &gt; <strong>Manage MCP Servers</strong> &gt; <strong>View raw config</strong>, and paste this into the <code>mcp_config.json</code> file."
+        "stdio": "<strong>Google Antigravity config</strong>: In the Agent Side Panel, click the three dots, select <strong>MCP Store</strong> &gt; <strong>Manage MCP Servers</strong> &gt; <strong>View raw config</strong>, and paste this into the <code>mcp_config.json</code> file (<code>~/.gemini/antigravity/mcp_config.json</code>).",
+        "http": "<strong>Google Antigravity config</strong>: In the Agent Side Panel, click the three dots, select <strong>MCP Store</strong> &gt; <strong>Manage MCP Servers</strong> &gt; <strong>View raw config</strong>, and paste this into the <code>mcp_config.json</code> file (<code>~/.gemini/antigravity/mcp_config.json</code>)."
       },
       "output": {
         "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker" },
-        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers" }
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "serverUrl", "headersKey": "headers" }
       }
     },
     {
