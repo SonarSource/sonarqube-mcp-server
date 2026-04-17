@@ -1,32 +1,57 @@
 ---
 name: config-generator-maintenance
-description: Maintains docs/config-generator.html, the SonarQube MCP Server configuration generator page. Use when adding a new AI agent client, changing transport options, updating env vars, modifying the UI flow, or fixing per-agent output format. Includes canonical config format per agent and links to their official MCP docs.
+description: Maintains the SonarQube MCP Server configuration generator at mcp.sonarqube.com. Use when adding a new AI agent client, toolset, platform (cloud region), or transport; changing output format; or updating UI copy. The generator is data-driven, most changes are JSON edits.
 ---
 
 # Config Generator Maintenance
 
-The generator is a single self-contained file: `docs/config-generator.html` (HTML + CSS + JS, no framework).
+The configuration generator is **data-driven**. A single JSON file describes every
+platform, transport, agent, and toolset; the HTML is a generic renderer with ~5
+output formatters. Adding a new agent, toolset, or platform is usually a JSON
+edit -- no JS changes needed.
 
-For detailed per-agent documentation links and hosted SonarQube Cloud MCP URLs, see [agents.md](agents.md).
+Style is aligned with the [SonarQube CLI docs](https://cli.sonarqube.com) (same
+palette, Poppins/Inter/SF Mono fonts, top nav with theme toggle, `llms.txt`
+reference file).
 
-## Division of responsibility
+## Files
 
-| Source | Owns |
-|--------|------|
-| [agents.md](agents.md) | Per-client config shape (JSON / CLI / TOML), top-level keys (`mcpServers` vs `servers`), official doc links, quirks |
-| This skill | `docs/config-generator.html` state machine, `httpHeaders` vs `envVars`, `SQC_URLS`, Step 4 visibility, flow invariants, post-change checklist |
+| File                                             | Purpose                                                                                                      |
+|--------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| `docs/config-flow.json`                          | **Source of truth**: platforms, transports, toolsets, agents, per-agent output descriptors, snippet defaults |
+| `docs/config-generator.html`                     | Generic renderer (fetches the JSON, builds UI, runs the Value Collector + formatters)                        |
+| `docs/assets/style.css`                          | Design system (dark + light themes) copied from the CLI docs                                                 |
+| `docs/favicon.svg`                               | Page icon                                                                                                    |
+| `docs/index.html`                                | Redirect to `config-generator.html`                                                                          |
+| `docs/llms.txt`                                  | Self-contained plain-text reference for AI agents (**ASCII-only**)                                           |
+| `docs/CNAME`                                     | Custom domain (`mcp.sonarqube.com`)                                                                          |
+| `docs/config-generator-e2e/`                     | Playwright end-to-end tests                                                                                  |
+| [`agents.md`](agents.md)                         | Per-agent config formats, official doc links, quirks                                                         |
+| `src/test/java/.../docs/ConfigFlowSyncTest.java` | Java guard test: JSON ↔ `ToolCategory` / env var constants                                                   |
+| `.github/workflows/deploy-docs.yml`              | Deploys `docs/` to `gh-pages` on push to `master`                                                            |
 
-## Architecture at a glance
+## Architecture
 
 ```
-state = { agent, env, transport, httpMode, sqcRegion }
-          ↓
-generateConfig()
-  → isHttpClient  (http/https client mode, or sqc)  → httpHeaders{}
-  → isHttpLaunch  (http/https launch mode)           → envVars{}
-  → stdio                                            → envVars{}
-          ↓
-  per-agent switch → code string + instructions HTML
+ docs/config-flow.json  (JSON source of truth)
+        │
+        │ fetch()
+        ▼
+ docs/config-generator.html (generic renderer)
+        │
+        ├─ builds UI from JSON (agents <select>, platform segmented control,
+        │   transport radio cards, toolset checkboxes, HTTPS keystore fields)
+        │
+        ├─ collectValues()  →  envVars{} or httpHeaders{}
+        │     (based on active transport's valueDelivery: "env" | "headers")
+        │
+        └─ formatOutput(agent, vals)  →  string
+              switch on agent.output[stdio|http].format:
+                • json            (9 agents)
+                • toml            (Codex)
+                • custom-json     (Zed)
+                • cli-claude-stdio / cli-claude-http  (Claude)
+                • unsupported     (Zed HTTP)
 ```
 
 ## State machine
@@ -38,175 +63,233 @@ generateConfig()
 | `http` / `https`  | `launch`         | false          | **true**       | full (env vars)            |
 | `sqc`             | —                | **true**       | false          | http-client (headers only) |
 
-**SQC card visibility rule**: hidden when `state.env === 'server'`; if already selected, falls back to `stdio`.
+**SQC card visibility rule**: hidden when `state.env === 'server'`. If SQC was active, `setEnv` falls back to `stdio`.
 
-## Adding a new transport option
+## Adding a new toolset
 
-1. Add a `<label class="radio-card">` with `id="card-{mode}"` and `onclick="setTransport('{mode}')"`.
-2. Add a `<input type="radio" name="transport" value="{mode}">` inside it.
-3. In `setTransport()`: extend the `['stdio','http','https','sqc']` array and add the mode's show/hide logic.
-4. In `generateConfig()`: update `isHttpClient` / `isHttpLaunch` booleans if needed.
-5. Update every `switch(state.agent)` case.
+1. Add the enum value in `src/main/java/.../tools/ToolCategory.java`.
+2. If it should be on by default, add it to `ToolCategory.defaultEnabled()`.
+3. Append to `toolsets[]` in `docs/config-flow.json`:
+   ```json
+   { "key": "my-toolset", "label": "My toolset", "defaultEnabled": true }
+   ```
+   Optional fields:
+   - `alwaysOn: true` — cannot be disabled (currently only `projects`).
+   - `onlyForTransports: ["stdio", "http", "https"]` — hide entirely for other transports (used to gate SQC and stdio-only features).
+   - `hint: "..."` — tooltip on the checkbox label.
+4. Update `docs/llms.txt` section 4 (TOOLSETS) with the new row (ASCII only).
+5. Run `./gradlew test --tests "*ConfigFlowSyncTest*"` — it verifies the JSON and the enum are in sync.
+6. Run the Playwright suite (see below).
 
 ## Adding a new agent
 
-1. Add `<option value="{id}">{Label}</option>` in the Step 1 `<select>`.
-2. Add a `case '{id}':` block in the `switch(state.agent)` inside `generateConfig()`.
-3. Follow the pattern below. Check [agents.md](agents.md) for the correct config format.
+1. Append to `agents[]` in `docs/config-flow.json`, **in alphabetical order by `label`**:
+   ```json
+   {
+     "id": "myagent",
+     "label": "My Agent",
+     "instructions": {
+       "stdio": "<strong>My Agent config</strong>: Add this to ...",
+       "http":  "<strong>My Agent config</strong>: Add this to ..."
+     },
+     "output": {
+       "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker" },
+       "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url",
+                  "typeField": "http", "headersKey": "headers" }
+     }
+   }
+   ```
+2. Pick the right `output.format` -- see the formatter table below. **Reuse existing formats first**; only add a new formatter in JS if the agent truly needs a new output shape.
+3. Document the agent in [`agents.md`](agents.md): official MCP doc link, config file path, key quirks (e.g. `rootKey`, `urlKey` variations, extra fields).
+4. Update `docs/llms.txt` section 7 (AGENT-SPECIFIC OUTPUT FORMATS) with the new agent block.
+5. Run the Playwright suite.
 
-### Per-agent case pattern
+## Adding a new platform (e.g. a new SonarQube Cloud region)
 
-```js
-case 'myagent':
-    instructions = `📄 <strong>MyAgent config</strong>: <how to apply it>.`;
-    if (isHttpClient) {
-        // JSON-based clients: use httpClientObj() — injects url, type, headers automatically
-        code = JSON.stringify({mcpServers: {sonarqube: httpClientObj()}}, null, 2);
-        // ⚠️ Exceptions: some clients have different HTTP schemas — check agents.md:
-        //   - VS Code: top-level key `servers` not `mcpServers`
-        //   - Windsurf: { serverUrl, headers? } — no `type`
-        //   - Kiro: { url, headers? } — no "type" field
-        //   - Gemini: { httpUrl, headers? } — uses httpUrl not url
-        //   - Codex: TOML with http_headers inline table
-        //   - Copilot CLI / Agent: type + tools: ["*"]; agent env remapping for workspace
-        //   - Zed: HTTP not supported (extension is stdio/docker only)
-        // CLI-based clients (e.g. Claude Code): all options before server name
-        // let cmd = `mytool mcp add --transport http`;
-        // for (const [k,v] of Object.entries(httpHeaders)) cmd += ` \\\n  --header "${k}: ${v}"`;
-        // cmd += ` \\\n  sonarqube ${getHttpClientUrl()}`;
-    } else {
-        // Stdio / launch: use envVars + getDockerArgs()
-        let env = {};
-        for (const [k,v] of Object.entries(envVars)) env[k] = v;
-        code = JSON.stringify({mcpServers: {sonarqube: {command:"docker", args:getDockerArgs(), env}}}, null, 2);
-    }
-    break;
-```
+Append to `platforms[]` in `docs/config-flow.json`:
 
-**Key helpers available inside `generateConfig()`:**
-
-| Helper | Returns |
-|---|---|
-| `httpClientObj(extraFields?)` | `{url, type:"http", headers?, ...extra}` — always use for JSON HTTP configs |
-| `getHttpClientUrl()` | The effective URL (SQC endpoint or user-entered host) |
-| `getDockerArgs()` | `docker run …` args array with all `-e KEY` flags |
-| `getJsonConfigStdio()` | JSON string for stdio docker config |
-| `renderJsonForClient()` | JSON string, switches automatically on `isHttpClient` |
-
-## HTTP client headers (when `isHttpClient`)
-
-Built in `generateConfig()` inside the `if (isHttpClient)` block (search `httpHeaders['Authorization']`).
-
-```js
-httpHeaders = {
-  "Authorization": "Bearer <token>",       // always
-  "SONARQUBE_ORG": "...",                  // Step 2 Cloud (EU or US) — required for stateless hosted SQC / multi-tenant Cloud
-  "SONARQUBE_TOOLSETS": "...",             // only if non-default selection
-  "SONARQUBE_READ_ONLY": "true"            // only if checked
+```json
+{
+  "id": "cloud-apac",
+  "label": "SonarQube Cloud APAC",
+  "fields": [
+    { "id": "org",   "envVar": "SONARQUBE_ORG",   "label": "Organization key", "required": true },
+    { "id": "token", "envVar": "SONARQUBE_TOKEN", "label": "User token", "required": true, "secret": true }
+  ],
+  "implicitEnv": { "SONARQUBE_URL": "https://sonarqube.apac" },
+  "tokenDocsUrl": "https://docs.sonarsource.com/..."
 }
 ```
 
-**Hosted SQC URL (`SQC_URLS`)**: must be the **MCP** endpoint (`https://api.sonarcloud.io/mcp`, `https://api.sonarqube.us/mcp`), not the Cloud **REST API** path (`.../api`). The `/api` base is used internally by the Java server (`ServerApiHelper`); MCP clients connect to `/mcp`.
+If the embedded SQC server covers this region, also add an entry under `transports[sqc].urls` and update `availableFor`.
 
-**Server semantics**: See [README.md](../../../README.md) section **Transport Modes** (HTTP/HTTPS): Bearer token; if `SONARQUBE_ORG` is not fixed at server launch, clients must send `SONARQUBE_ORG` on each request; optional `SONARQUBE_TOOLSETS` / `SONARQUBE_READ_ONLY` headers narrow scope. `SONARQUBE_PROJECT_KEY` is **not** a per-request MCP header in the current server — set it only via container env (stdio / launch), not in `httpHeaders` for remote clients.
+## Adding a new transport
 
-## Env vars reference (stdio / launch)
+Only needed when the MCP server gains a new transport (a new way to talk to it, not a new agent). Append to `transports[]`:
 
-| Var                                   | When set                                                 |
-|---------------------------------------|----------------------------------------------------------|
-| `SONARQUBE_TOKEN`                     | always                                                   |
-| `SONARQUBE_ORG`                       | cloud / cloud-us                                         |
-| `SONARQUBE_URL`                       | cloud-us (`https://sonarqube.us`) or server (user value) |
-| `SONARQUBE_DEBUG_ENABLED`             | debug checkbox                                           |
-| `SONARQUBE_READ_ONLY`                 | read-only checkbox                                       |
-| `SONARQUBE_PROJECT_KEY`               | optional; Step 4 field when stdio or HTTP(S) launch (not HTTP client / SQC) |
-| `SONARQUBE_TOOLSETS`                  | non-default toolset selection                            |
-| `SONARQUBE_TRANSPORT`                 | `http` or `https` (launch mode only)                     |
-| `SONARQUBE_HTTP_PORT`                 | launch mode only                                         |
-| `SONARQUBE_HTTPS_KEYSTORE_PATH`       | HTTPS launch, if filled                                  |
-| `SONARQUBE_HTTPS_KEYSTORE_PASSWORD`   | HTTPS launch, if filled                                  |
-| `SONARQUBE_HTTPS_TRUSTSTORE_PATH`     | HTTPS launch, if filled                                  |
-| `SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD` | HTTPS launch, if filled                                  |
+```json
+{
+  "id": "mytransport",
+  "label": "My transport",
+  "description": "...",
+  "valueDelivery": "env" | "headers",
+  "availableFor": ["cloud", "cloud-us", "server"],
+  "features": ["toolsets", "read-only", ...],
+  "modes": { ... }   // only if the transport has client/launch sub-modes like http
+}
+```
 
-## Docker volume: workspace mount (stdio only)
+`valueDelivery` is the key abstraction: `"env"` means the renderer builds Docker `-e` flags; `"headers"` means HTTP headers. The renderer doesn't need more logic.
 
-When **Local Execution (Stdio)** is selected, Step 4 can add:
+## Output formatters
 
-`-v <hostAbsolutePath>:/app/mcp-workspace:rw`
+The 5 formatters live in `generateConfig()` / `formatOutput()` in `docs/config-generator.html`. Adding a sixth is a last resort.
 
-This mount is **required** to use **`run_advanced_code_analysis`** and **Context Augmentation** (`cag` toolset) in practice: the server needs the project tree at `/app/mcp-workspace`. It is **not** an env var; it is extra `docker run` args from `getDockerArgs()` (and duplicated in the Claude stdio branch). Hidden whenever Step 4 is in `http-client` mode (HTTP/HTTPS client or SQC). See [README.md](../../../README.md) **Workspace Mount (Reducing Context Bloat)**.
+| Format                                | Used by                                                                                             | Properties on the JSON `output` descriptor                                                    |
+|---------------------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| `json`                                | Cursor, VS Code, Windsurf, Gemini, Copilot CLI, Copilot Agent, Kiro, Antigravity, Generic (9 total) | `rootKey`, `urlKey`, `typeField`, `headersKey`, `extraFields`, `envValuePrefix`               |
+| `toml`                                | Codex                                                                                               | `sectionKey`, `envSectionKey`, `urlKey`, `headersKey`, `headersInline`                        |
+| `custom-json`                         | Zed                                                                                                 | `keyMap` (env-var → JSON-key), `staticFields`                                                 |
+| `cli-claude-stdio`, `cli-claude-http` | Claude                                                                                              | hardcoded -- Claude bakes env vars into docker args for stdio, uses `--header` flags for HTTP |
+| `unsupported`                         | Zed HTTP                                                                                            | `message`                                                                                     |
 
-## Step 4 (Toolsets & Advanced) visibility rules
+## Value Collector (transport-agnostic)
 
-- **Stdio / HTTP+HTTPS launch**: full card shown — all checkboxes visible including Debug, Custom SSL Certs, optional **Default project key** (`SONARQUBE_PROJECT_KEY`), and **Workspace mount** (mount row is shown only when `state.transport === 'stdio'`; still hidden in `http-client` card mode).
-- **HTTP/HTTPS client / SQC**: card shown but Debug, SSL Certs, Default project key, and Workspace mount hidden; help note reads "These options are sent as HTTP request headers".
-- **HTTP/HTTPS client mode**: `advancedCard` shown via `applyAdvancedCardMode('http-client')`.
-- **SQC transport**: always `http-client` mode (no launch option).
+`collectValues()` in the HTML gathers what the user typed plus implicit defaults and returns:
 
-## README cross-reference (transport semantics)
+```js
+{
+  envVars: {...},       // populated when valueDelivery = "env"
+  httpHeaders: {...},   // populated when valueDelivery = "headers"
+  isHttpClient, isHttpLaunch,
+  certPath, workspaceMountHost,
+  httpHost, httpPort, clientUrl,
+  rawToken
+}
+```
 
-When changing HTTP client behavior, re-read the SonarQube MCP Server [README.md](../../../README.md):
+Rules (implemented once, not per agent):
 
-- **Transport Modes** — stateless HTTP(S): `Authorization: Bearer`, org header rules vs server-pinned org, toolsets/read-only headers.
-- **Workspace Mount (Reducing Context Bloat)** — `/app/mcp-workspace` bind mount for stdio Docker runs.
-- Environment tables for launch (`SONARQUBE_TRANSPORT`, `SONARQUBE_HTTP_PORT`, `SONARQUBE_HTTP_HOST`, TLS vars, etc.).
+- `SONARQUBE_TOKEN` from the token input (or `snippetDefaults.SONARQUBE_TOKEN` placeholder).
+- Each platform field contributes its own `envVar` (or `SONARQUBE_ORG` header for http-client).
+- `platform.implicitEnv` merged (e.g. `SONARQUBE_URL: https://sonarqube.us` for Cloud US).
+- `transport.implicitEnv` merged when launching (e.g. `SONARQUBE_TRANSPORT: http`).
+- `SONARQUBE_TOOLSETS` only emitted when user deviates from default set (see below).
+- Toolsets **hidden via `onlyForTransports`** are marked `disabled`, which causes them to be ignored by the default-deviation check -- see invariants.
 
-The generator maps **UI state** (`state.env`, `state.transport`, `state.httpMode`) to those rules: Cloud + `isHttpClient` ⇒ headers (token, org, optional toolsets/readonly); stdio / HTTP launch ⇒ `envVars` only for token/org/url/debug/etc.
+## Toolset availability via `onlyForTransports`
 
-## Flow invariants (must stay true)
+Each toolset can restrict itself:
 
-Verify by searching `generateConfig()` in `docs/config-generator.html` (not by stale line numbers):
+```json
+{ "key": "cag",      "onlyForTransports": ["stdio"] }
+{ "key": "analysis", "onlyForTransports": ["stdio", "http", "https"] }   // not SQC
+{ "key": "sources",  "onlyForTransports": ["stdio", "http", "https"] }   // not SQC
+```
 
-- **`isHttpClient`** (`http`/`https` + client mode, or `sqc`): populate `httpHeaders` with `Authorization`; for Step 2 **Cloud** or **Cloud US** also `SONARQUBE_ORG` (same `org` variable as stdio); optional `SONARQUBE_TOOLSETS` / `SONARQUBE_READ_ONLY` per checkbox/toolset logic.
-- **`!isHttpClient`** (stdio or HTTP/HTTPS **launch**): token and org/url/debug/toolsets/read-only live in `envVars` as today; do not rely on request headers for auth/org in those modes. Optional `SONARQUBE_PROJECT_KEY` from the Step 4 field when non-empty (`projectKey` input id).
-- **Stdio + workspace mount**: `state.transport === 'stdio'`, `opt-workspace-mount` checked, and non-empty `workspaceHostPath` ⇒ docker args include a `-v` mapping that path to `/app/mcp-workspace:rw` (after cert `-v` if any). Claude stdio must mirror `getDockerArgs()` volume list. Product-wise this mount is **required** for `run_advanced_code_analysis` and Context Augmentation (`cag`).
-- **Context Augmentation (`cag`)**: stdio transport only — `syncCagToolsetState()` disables `tool-cag` when `state.transport !== 'stdio'`; `getToolsetsValue()` skips disabled checkboxes so `cag` is never emitted for HTTP client / SQC / launch.
-- **`SQC_URLS`**: hosted MCP base URLs ending in `/mcp`; update [agents.md](agents.md) if product URLs change.
-- **SQC card**: hidden when `state.env === 'server'`; if transport was `sqc`, fall back to `stdio` (`setEnv`).
-- **New README env/header**: any variable documented in README transport/env tables should appear in this skill’s **HTTP client headers** or **Env vars reference** (or both), with clear client vs server-launch semantics.
+Semantics: when the active transport is not in the list, `syncToolsetStates()` **hides** the checkbox (`display:none`) AND marks it `disabled`. Disabling is required so the "did the user deviate from defaults?" check in `getToolsetsValue()` ignores it -- otherwise SQC would spuriously emit `SONARQUBE_TOOLSETS=...` because default-enabled toolsets (analysis, cag) appear "unchecked".
 
-## Post-change checklist
+## Snippet defaults (Pascal-case placeholders)
 
-After editing `docs/config-generator.html`:
+When the user leaves a field empty, the snippet shows a placeholder instead of an empty string. These placeholders are centralized in `config-flow.json`:
 
-1. Re-read `generateConfig()`: `isHttpClient`, `isHttpLaunch`, `httpHeaders`, `envVars`, `getHttpClientUrl`, `SQC_URLS`, `getToolsetsValue`, `projectKey` / `SONARQUBE_PROJECT_KEY`, `workspaceMountHost`, `getDockerArgs`, Claude stdio `dockerArgs`.
-2. Confirm every `switch (state.agent)` branch still uses the correct path for HTTP (`httpClientObj`, Windsurf/Gemini/Kiro/Codex exceptions per [agents.md](agents.md)) vs stdio/launch.
-3. Spot-check the **State machine** table in this skill (transport × `httpMode` × Step 4 mode).
-4. If HTTP client headers or Cloud behavior changed, cross-check [README.md](../../../README.md) Transport Modes (org header vs server-pinned org).
-5. Run the **Playwright** suite locally (optional but recommended before commit): see [Local E2E tests](#local-e2e-tests-playwright) below.
+```json
+"snippetDefaults": {
+  "SONARQUBE_TOKEN":       "<YourSonarQubeUserToken>",
+  "SONARQUBE_ORG":         "<YourSonarQubeOrganizationKey>",
+  "SONARQUBE_URL":         "<YourSonarQubeServerURL>",
+  "SONARQUBE_PROJECT_KEY": "<YourSonarQubeProjectKey>"
+}
+```
 
-## Local E2E tests (Playwright)
+Convention: angle brackets + PascalCase (matches the SonarSource doc style).
 
-The package at [`docs/config-generator-e2e`](../../docs/config-generator-e2e) drives the real page in Chromium and asserts on generated output (SQC `/mcp` URL, org header, stdio env, transport toggles, project key). **Not run in CI** — for contributors only.
+## Theme toggle
+
+Top-nav button (☀ / ☾) sets `data-theme="light"` on `<html>` and persists to `localStorage` under `mcpdoc-theme` (keyed to avoid colliding with the CLI's `clidoc-theme`). The early inline `<script>` in `<head>` applies the preference before paint to prevent flash.
+
+## Invariants (enforced by tests)
+
+- Every `ToolCategory` enum value has a matching entry in `toolsets[]`. (Java guard test)
+- `defaultEnabled` flags match `ToolCategory.defaultEnabled()`. (Java guard test)
+- `alwaysOn: true` is `projects`. (Java guard test)
+- All `envVar` references in the JSON resolve to known constants. (Java guard test)
+- Agents dropdown is alphabetical by `label`. (Playwright)
+- **Product name**: always "SonarQube MCP Server" (never "SonarQube MCP server"). (Playwright)
+- **`llms.txt` is pure ASCII** -- no em-dashes, arrows, smart quotes. Mojibake in Latin-1 pipelines is a real problem. (Playwright)
+- Footer reads `© <year> SonarSource Sàrl` + Documentation + SonarQube CLI + llms.txt + GitHub. (Playwright)
+- `config-flow.json` is **not** advertised in the UI (implementation detail).
+- SQC + default toolsets → generated config omits `SONARQUBE_TOOLSETS` entirely. (Playwright)
+- Claude stdio bakes env vars as `-e KEY=VALUE` into the docker command (not `--env`), because Claude's `--env` parser is unreliable. (See [`agents.md`](agents.md).)
+
+## Style rules
+
+- **Sentence case** everywhere except product names: "User token" not "User Token", "Target client" not "Target Client".
+- **Product names always capitalized**: "SonarQube MCP Server", "SonarQube Cloud", "SonarQube Server".
+- **"User token"** not just "token" -- Sonar has multiple token types and being explicit avoids confusion.
+- **No emoticons** in UI copy or instructions.
+- **Placeholders** use Pascal case in angle brackets (see `snippetDefaults` above).
+
+## Environment variables reference (for stdio / launch)
+
+| Var                                   | When set                                                                 |
+|---------------------------------------|--------------------------------------------------------------------------|
+| `SONARQUBE_TOKEN`                     | always (stdio / launch); as `Authorization: Bearer ...` for http-client |
+| `SONARQUBE_ORG`                       | cloud / cloud-us; in headers for http-client, env for stdio / launch    |
+| `SONARQUBE_URL`                       | cloud-us implicit (`https://sonarqube.us`); server (user-entered)       |
+| `SONARQUBE_DEBUG_ENABLED`             | debug checkbox, stdio / launch only                                      |
+| `SONARQUBE_READ_ONLY`                 | read-only checkbox                                                       |
+| `SONARQUBE_PROJECT_KEY`               | Step 4 field when stdio or HTTP(S) launch (NOT http-client / SQC)        |
+| `SONARQUBE_TOOLSETS`                  | emitted only when selection differs from `defaultEnabled` set            |
+| `SONARQUBE_TRANSPORT`                 | `http` or `https` (launch only)                                          |
+| `SONARQUBE_HTTP_PORT`                 | launch only                                                              |
+| `SONARQUBE_HTTPS_KEYSTORE_PATH`       | HTTPS launch, if filled                                                  |
+| `SONARQUBE_HTTPS_KEYSTORE_PASSWORD`   | HTTPS launch, if filled                                                  |
+| `SONARQUBE_HTTPS_TRUSTSTORE_PATH`     | HTTPS launch, if filled                                                  |
+| `SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD` | HTTPS launch, if filled                                                  |
+
+## Workspace mount (stdio only)
+
+When **Local execution (stdio)** is selected, Step 4 can add:
+
+```
+-v <hostAbsolutePath>:/app/mcp-workspace:rw
+```
+
+Required for `run_advanced_code_analysis` and for the `cag` (Context augmentation) toolset. The mount is built in `buildDockerArgs(vals)` and mirrored in `formatClaudeStdio(vals)`. Hidden whenever `state.transport !== 'stdio'`.
+
+## Tests
+
+**Java guard test** (runs in CI):
+
+```bash
+./gradlew test --tests "org.sonarsource.sonarqube.mcp.docs.ConfigFlowSyncTest"
+```
+
+**Playwright E2E** (local only, contributors):
 
 ```bash
 cd docs/config-generator-e2e
 npm ci
-npx playwright install chromium   # once per machine / after Playwright upgrades
+npx playwright install chromium   # once per machine
 npm test
 ```
 
-Playwright’s `webServer` serves the parent [`docs/`](../../docs) directory and loads `/config-generator.html`.
+Playwright's `webServer` serves the parent `docs/` directory and loads `/config-generator.html`. Current suite: 21 tests covering smoke flow, per-transport behaviour, toolset filtering, Pascal-case placeholders, theme toggle, footer, llms.txt ASCII constraint, favicon, external stylesheet, alphabetical agent order, product-name capitalization, project key behaviour.
 
-If `playwright install` fails with a TLS / certificate error (e.g. SSL inspection), fix corporate trust store or, **only for the install step**, use `NODE_TLS_REJECT_UNAUTHORIZED=0 npx playwright install chromium` (insecure — do not use routinely).
+## Post-change checklist
 
-## Checking for agent config format changes
+After editing any of the doc files:
 
-When a client updates its MCP config format, check the docs link in [agents.md](agents.md), then update:
-1. The `case '{id}':` block in `generateConfig()`.
-2. The JSON shape or CLI flags (especially the top-level key: `mcpServers` vs `servers`).
-3. Any agent-specific quirks noted in [agents.md](agents.md).
+1. **Java guard test**: `./gradlew test --tests "*ConfigFlowSyncTest*"` -- catches JSON ↔ source drift.
+2. **Playwright suite**: `cd docs/config-generator-e2e && npm test` -- catches UI / output shape drift.
+3. **Smoke test manually**: `cd docs && python3 -m http.server 8080`, open `http://localhost:8080/config-generator.html`. `fetch()` needs HTTP so `file://` will NOT work.
+4. **If you added an agent**: toggle it in the dropdown and verify BOTH stdio and http-client outputs by switching transports.
+5. **If you added a toolset or platform**: update `docs/llms.txt` (ASCII only!) and confirm the Java guard test still passes.
+6. **If you changed output copy**: re-read the sentence-case, product-name, "User token" style rules above; the Playwright capitalization guard catches the obvious slips.
 
-## Default toolsets
+## Deployment
 
-```js
-const DEFAULT_TOOLSETS = [
-  'analysis','projects','issues','security-hotspots',
-  'quality-gates','rules','duplications','measures',
-  'dependency-risks','coverage','cag'
-];
-```
+Pushing to `master` with changes under `docs/` triggers `.github/workflows/deploy-docs.yml`, which publishes the folder to the `gh-pages` branch. GitHub Pages serves that branch at `https://mcp.sonarqube.com`.
 
-`SONARQUBE_TOOLSETS` is only emitted when the selection differs from these defaults.
-
-The `cag` toolset (Context Augmentation) is included in the defaults for **stdio** only: `tool-cag` is checked by default when `state.transport === 'stdio'`. For HTTP/HTTPS client, SQC, or HTTP(S) launch, the generator **disables** `tool-cag`, unchecks it, and omits `cag` from `SONARQUBE_TOOLSETS` (CAG is not available outside stdio MCP transport). **Reset Default Tools** runs `syncCagToolsetState()` then re-checks defaults only on enabled toolsets. Using CAG (and `run_advanced_code_analysis`) **requires** the workspace mount in stdio mode; keep UI hints aligned.
+Watched paths: `docs/config-generator.html`, `docs/config-flow.json`, `docs/index.html`, `docs/llms.txt`, `docs/favicon.svg`, `docs/CNAME`, `docs/assets/**`.
