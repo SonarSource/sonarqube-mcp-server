@@ -216,9 +216,10 @@ Common building blocks (used for stdio configs):
         { "mcpServers": { "sonarqube": {
             "url": "<url>", "type": "http", "headers": { ... }
         }}}
-      HTTP shape (Windsurf):  uses "serverUrl" instead of "url"; no "type".
-      HTTP shape (Gemini):    uses "httpUrl" instead of "url"; no "type".
-      HTTP shape (Kiro):      omits the "type" field.
+      HTTP shape (Antigravity): uses "serverUrl" instead of "url"; no "type".
+      HTTP shape (Windsurf):    uses "serverUrl" instead of "url"; no "type".
+      HTTP shape (Gemini):      uses "httpUrl" instead of "url"; no "type".
+      HTTP shape (Kiro):        omits the "type" field.
 
   7.2 VS Code (native MCP, Roo Cline, etc.)
       File       : .vscode/mcp.json, or cline_mcp_settings.json
