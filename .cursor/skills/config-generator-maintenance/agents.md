@@ -82,7 +82,7 @@ Client URL for the Sonar-hosted MCP endpoint (not the Cloud REST API base used i
 
 ---
 
-## copilot-agent — GitHub Copilot Workspace Agent
+## copilot-agent — GitHub Copilot cloud agent
 
 - **Doc**: https://docs.github.com/en/copilot/customizing-copilot/extending-copilot-coding-agent-with-mcp
 - **Config location**: GitHub repository settings → Copilot → Coding agent → MCP Servers
