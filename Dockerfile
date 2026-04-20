@@ -23,7 +23,7 @@ RUN "$JAVA_HOME"/bin/jlink \
          --compress=2 \
          --output /optimized-jdk-21
 
-FROM alpine:3.23.3
+FROM alpine:3.23.4
 ENV JAVA_HOME=/opt/jdk/jdk-21
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
