@@ -9,7 +9,6 @@ on:
       - 'docs/config-flow.json'
       - 'docs/index.html'
       - 'docs/llms.txt'
-      - 'docs/favicon.svg'
       - 'docs/CNAME'
       - 'docs/assets/**'
   workflow_dispatch:
