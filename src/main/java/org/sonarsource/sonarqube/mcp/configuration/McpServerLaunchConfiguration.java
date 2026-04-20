@@ -151,9 +151,11 @@ public class McpServerLaunchConfiguration {
     this.isHttpEnabled = transportMode.equals("http") || transportMode.equals("https");
     this.isHttpsEnabled = transportMode.equals("https");
 
-    // Read configuration values
-    this.sonarqubeOrg = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null);
-    var sonarqubeUrlFromEnv = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, null);
+    // Read configuration values.
+    // SONARQUBE_ORG and SONARQUBE_URL may be forwarded as literal "${VAR}" strings by MCP clients
+    // when the corresponding host environment variable is unset; treat those as unset.
+    this.sonarqubeOrg = ignoreUnresolvedPlaceholder(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null), SONARQUBE_ORG);
+    var sonarqubeUrlFromEnv = ignoreUnresolvedPlaceholder(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, null), SONARQUBE_URL);
     
     // Check for deprecated SONARQUBE_CLOUD_URL (backward compatibility)
     var sonarqubeCloudUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_URL, null);
@@ -341,6 +343,16 @@ public class McpServerLaunchConfiguration {
 
   private static boolean isNullOrBlank(@Nullable String value) {
     return value == null || value.isBlank();
+  }
+
+  /**
+   * Returns null when {@code value} is the literal unresolved placeholder {@code ${propertyName}},
+   * otherwise returns {@code value} unchanged. MCP clients forward such literals when the
+   * corresponding host environment variable is unset.
+   */
+  @Nullable
+  private static String ignoreUnresolvedPlaceholder(@Nullable String value, String propertyName) {
+    return ("${" + propertyName + "}").equals(value) ? null : value;
   }
 
   private static String fetchAppVersion() {

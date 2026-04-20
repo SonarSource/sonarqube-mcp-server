@@ -511,4 +511,33 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isSonarQubeCloud()).isFalse();
   }
 
+  @Test
+  void should_ignore_unresolved_org_and_url_placeholders_forwarded_by_mcp_client(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TRANSPORT", "http",
+      "SONARQUBE_ORG", "${SONARQUBE_ORG}",
+      "SONARQUBE_URL", "${SONARQUBE_URL}"
+    );
+
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getSonarqubeOrg()).isNull();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+  }
+
+  @Test
+  void should_throw_when_stdio_org_and_url_are_both_unresolved_placeholders(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "${SONARQUBE_ORG}",
+      "SONARQUBE_URL", "${SONARQUBE_URL}"
+    );
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+  }
+
 }
