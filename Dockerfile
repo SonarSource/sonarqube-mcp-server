@@ -43,6 +43,7 @@ RUN apk upgrade --no-cache && \
         chmod 0440 /etc/sudoers.d/appuser
 
 ARG TARGETARCH
+# Keep in sync with sonarContextAugmentationVersion in gradle.properties
 ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.7.0.70
 
 RUN case "$TARGETARCH" in \

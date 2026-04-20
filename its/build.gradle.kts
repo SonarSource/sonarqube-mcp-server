@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     java
     alias(libs.plugins.license)
@@ -10,22 +12,22 @@ license {
     strictCheck = true
 }
 
-// The environment variables ARTIFACTORY_USER and ARTIFACTORY_ACCESS_TOKEN are used on CI env
-// On local box, please add artifactoryUrl, artifactoryUsername and artifactoryPassword to ~/.gradle/gradle.properties
-val artifactoryUrl = System.getenv("ARTIFACTORY_URL")
-    ?: (if (project.hasProperty("artifactoryUrl")) project.property("artifactoryUrl").toString() else "")
-val artifactoryUsername = System.getenv("ARTIFACTORY_USER")
-    ?: (if (project.hasProperty("artifactoryUsername")) project.property("artifactoryUsername").toString() else "")
-val artifactoryPassword = System.getenv("ARTIFACTORY_ACCESS_TOKEN")
-    ?: (if (project.hasProperty("artifactoryPassword")) project.property("artifactoryPassword").toString() else "")
-
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
 repositories {
+    // CI sets ARTIFACTORY_*. For local builds, put artifactoryUrl / artifactoryUsername /
+    // artifactoryPassword in ~/.gradle/gradle.properties; otherwise we fall back to Maven Central.
+    val artifactoryUrl = System.getenv("ARTIFACTORY_URL").orEmpty()
+        .ifEmpty { project.findProperty("artifactoryUrl")?.toString().orEmpty() }
+    val artifactoryUsername = System.getenv("ARTIFACTORY_USER").orEmpty()
+        .ifEmpty { project.findProperty("artifactoryUsername")?.toString().orEmpty() }
+    val artifactoryPassword = System.getenv("ARTIFACTORY_ACCESS_TOKEN").orEmpty()
+        .ifEmpty { project.findProperty("artifactoryPassword")?.toString().orEmpty() }
+
     if (artifactoryUrl.isNotEmpty() && artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
         maven("$artifactoryUrl/sonarsource") {
             credentials {
@@ -40,48 +42,79 @@ repositories {
 
 dependencies {
     testImplementation(project(":"))
-
-    // Testcontainers
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.jupiter)
-
-    // Test frameworks
     testImplementation(libs.assertj)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.launcher)
 }
 
+val cagVersion = rootProject.property("sonarContextAugmentationVersion") as String
+val cagArch = when (System.getProperty("os.arch")) {
+    "aarch64", "arm64" -> "arm64"
+    else -> "x64"
+}
+
+val downloadCagBinary = tasks.register("downloadCagBinary") {
+    description = "Downloads the sonar-context-augmentation Alpine binary for integration tests"
+    group = "verification"
+
+    val outputDir = layout.buildDirectory.dir("cag-binary")
+    outputs.dir(outputDir)
+    inputs.property("version", cagVersion)
+    inputs.property("arch", cagArch)
+
+    doLast {
+        val targetDir = outputDir.get().asFile.apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        val tarGz = layout.buildDirectory.file("tmp/sonar-context-augmentation.tar.gz").get().asFile
+        tarGz.parentFile.mkdirs()
+
+        val url = "https://binaries.sonarsource.com/Distribution/" +
+            "sonar-context-augmentation-alpine-$cagArch/" +
+            "sonar-context-augmentation-alpine-$cagArch-$cagVersion.tar.gz"
+        logger.lifecycle("Downloading CAG binary from: $url")
+
+        URI(url).toURL().openStream().use { input ->
+            tarGz.outputStream().use { output -> input.copyTo(output) }
+        }
+
+        exec { commandLine("tar", "-xzf", tarGz.absolutePath, "-C", targetDir.absolutePath) }
+        tarGz.delete()
+
+        File(targetDir, "sonar-context-augmentation").setExecutable(true)
+        logger.lifecycle("CAG binary extracted to: ${targetDir.absolutePath}")
+    }
+}
+
+tasks.named<ProcessResources>("processTestResources") {
+    from(downloadCagBinary) {
+        into("binaries")
+    }
+}
+
 tasks.test {
-    // Don't run ITs in regular test task
     enabled = false
 }
 
-// Custom task for integration tests
 tasks.register<Test>("integrationTest") {
     description = "Runs integration tests for proxied MCP servers using Testcontainers"
     group = "verification"
-    
-    // Check if we should use a downloaded JAR from environment variable
+
+    useJUnitPlatform()
+
     val downloadedJarPath = System.getenv("DOWNLOADED_JAR_PATH")
-    
-    // Only build the JAR if we're not using a downloaded one
     if (downloadedJarPath.isNullOrEmpty()) {
         dependsOn(":jar")
     }
-    
-    useJUnitPlatform()
-    
-    // Pass the JAR path as a system property to the tests
+
     doFirst {
-        val jarPath = if (!downloadedJarPath.isNullOrEmpty()) {
-            println("Using downloaded JAR from: $downloadedJarPath")
-            downloadedJarPath
-        } else {
-            val jarTask = project(":").tasks.named<Jar>("jar").get()
-            val path = jarTask.archiveFile.get().asFile.absolutePath
-            println("Using locally built JAR from: $path")
-            path
+        val jarPath = downloadedJarPath?.takeIf { it.isNotEmpty() } ?: run {
+            project(":").tasks.named<Jar>("jar").get().archiveFile.get().asFile.absolutePath
         }
+        logger.lifecycle("Using JAR: $jarPath")
         systemProperty("sonarqube.mcp.jar.path", jarPath)
     }
 
@@ -90,4 +123,3 @@ tasks.register<Test>("integrationTest") {
         showStandardStreams = true
     }
 }
-

@@ -16,8 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
+import java.nio.file.Path;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -80,6 +82,22 @@ class ProxiedToolsLoaderTest {
     
     assertThat(tools1).isNotNull();
     assertThat(tools2).isNotNull();
+  }
+
+  @Test
+  void isCommandAvailable_should_return_true_for_existing_command() {
+    assertThat(ProxiedToolsLoader.isCommandAvailable("cat")).isTrue();
+  }
+
+  @Test
+  void isCommandAvailable_should_return_false_for_missing_absolute_command() {
+    assertThat(ProxiedToolsLoader.isCommandAvailable("/non/existent/command")).isFalse();
+  }
+
+  @Test
+  void isCommandAvailable_should_return_false_when_absolute_path_points_to_directory(@TempDir Path tempDir) {
+    assertThat(tempDir.toFile().canExecute()).isTrue();
+    assertThat(ProxiedToolsLoader.isCommandAvailable(tempDir.toAbsolutePath().toString())).isFalse();
   }
 
 }
