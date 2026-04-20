@@ -12,9 +12,11 @@ docs/
 ├── config-generator.html               # Generic renderer (fetches the JSON at init)
 ├── llms.txt                            # AI- and human-readable reference (standalone)
 ├── index.html                          # Redirects to config-generator.html
-├── favicon.svg                         # Page icon
 ├── CNAME                               # Custom domain (mcp.sonarqube.com)
 ├── assets/
+│   ├── favicon.ico                     # Page icon
+│   ├── Sonar_Mark_Dark Backgrounds.png # Nav logo shown in dark theme
+│   ├── Sonar_Mark_Light Backgrounds.png# Nav logo shown in light theme
 │   └── style.css                       # Design tokens + component styles (CLI-aligned)
 └── config-generator-e2e/               # Playwright end-to-end tests
 ```
@@ -150,9 +152,8 @@ The workflow triggers on changes to any of:
 - `docs/config-flow.json`
 - `docs/index.html`
 - `docs/llms.txt`
-- `docs/favicon.svg`
 - `docs/CNAME`
-- `docs/assets/**`
+- `docs/assets/**` (favicon, logo, stylesheet)
 
 ## Quick reference
 

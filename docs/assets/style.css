@@ -84,7 +84,12 @@ a:hover { text-decoration: underline; }
   color: var(--text);
 }
 .logo:hover { text-decoration: none; opacity: 0.85; }
-.logo svg { display: block; flex-shrink: 0; }
+.logo svg,
+.logo img { display: block; flex-shrink: 0; height: 40px; width: auto; }
+/* Show the logo variant that matches the current theme. Default theme is dark. */
+.logo .logo-mark-light { display: none; }
+[data-theme="light"] .logo .logo-mark-dark { display: none; }
+[data-theme="light"] .logo .logo-mark-light { display: block; }
 .nav-links {
   display: flex;
   align-items: center;
