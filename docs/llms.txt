@@ -238,14 +238,15 @@ Common building blocks (used for stdio configs):
       HTTP : run `claude mcp add --transport http sonarqube <url>` with
              one or more `--header "KEY: VALUE"` flags.
 
-  7.4 GitHub Copilot CLI and Copilot Agent
+  7.4 GitHub Copilot CLI and GitHub Copilot cloud agent
       File       : ~/.copilot/mcp-config.json (global) or .copilot/mcp-config.json
       Stdio shape:
         { "mcpServers": { "sonarqube": {
             "type": "local", "command": "docker", "args": [...],
             "env": { ... }, "tools": ["*"]
         }}}
-      Copilot Agent twist: for stdio, env values are references, not values:
+      GitHub Copilot cloud agent twist: for stdio, env values are references,
+      not values:
         "env": { "SONARQUBE_TOKEN": "COPILOT_MCP_SONARQUBE_TOKEN", ... }
         and you set the actual secret value in repository settings.
       HTTP shape:

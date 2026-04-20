@@ -217,12 +217,13 @@ test.describe('config-generator.html', () => {
     expect(await page.locator('html').getAttribute('data-theme')).toBeNull();
   });
 
-  test('favicon is served', async ({ request }) => {
-    const response = await request.get('/favicon.svg');
-    expect(response.status()).toBe(200);
-    const body = await response.text();
-    expect(body).toContain('<svg');
-    expect(body).toContain('#126ED3'); // SonarSource blue
+  test('favicon and logo assets are served', async ({ request }) => {
+    const favicon = await request.get('/assets/favicon.ico');
+    expect(favicon.status()).toBe(200);
+    const darkLogo = await request.get('/assets/Sonar_Mark_Dark%20Backgrounds.png');
+    expect(darkLogo.status()).toBe(200);
+    const lightLogo = await request.get('/assets/Sonar_Mark_Light%20Backgrounds.png');
+    expect(lightLogo.status()).toBe(200);
   });
 
   test('external stylesheet is served and defines the CLI design tokens', async ({ request }) => {
@@ -335,7 +336,7 @@ test.describe('config-generator.html', () => {
     expect(parsed.mcpServers.sonarqube.tools).toEqual(['*']);
   });
 
-  test('Copilot Agent stdio env values are COPILOT_MCP_* references', async ({ page }) => {
+  test('GitHub Copilot cloud agent stdio env values are COPILOT_MCP_* references', async ({ page }) => {
     await page.goto('/config-generator.html');
     await page.locator('#agent').selectOption('copilot-agent');
     await page.locator('#envControl .segment-btn[data-value="cloud"]').click();

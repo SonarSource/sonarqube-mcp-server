@@ -203,18 +203,6 @@
       }
     },
     {
-      "id": "copilot-agent",
-      "label": "GitHub Copilot Agent",
-      "instructions": {
-        "stdio": "<strong>GitHub Copilot Workspace</strong>: Paste this JSON object into your GitHub Copilot Workspace repository settings (Settings -> Copilot -> Coding agent -> MCP Servers).",
-        "http": "<strong>GitHub Copilot Workspace</strong>: Paste this JSON object into your GitHub Copilot Workspace repository settings (Settings -> Copilot -> Coding agent -> MCP Servers)."
-      },
-      "output": {
-        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker", "envValuePrefix": "COPILOT_MCP_", "extraFields": { "type": "local", "tools": ["*"] } },
-        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers", "extraFields": { "tools": ["*"] } }
-      }
-    },
-    {
       "id": "copilot-cli",
       "label": "GitHub Copilot CLI",
       "instructions": {
@@ -223,6 +211,18 @@
       },
       "output": {
         "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker", "extraFields": { "type": "local", "tools": ["*"] } },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers", "extraFields": { "tools": ["*"] } }
+      }
+    },
+    {
+      "id": "copilot-agent",
+      "label": "GitHub Copilot cloud agent",
+      "instructions": {
+        "stdio": "<strong>GitHub Copilot cloud agent</strong>: Paste this JSON object into your GitHub repository settings (Settings -> Copilot -> Coding agent -> MCP Servers).",
+        "http": "<strong>GitHub Copilot cloud agent</strong>: Paste this JSON object into your GitHub repository settings (Settings -> Copilot -> Coding agent -> MCP Servers)."
+      },
+      "output": {
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker", "envValuePrefix": "COPILOT_MCP_", "extraFields": { "type": "local", "tools": ["*"] } },
         "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers", "extraFields": { "tools": ["*"] } }
       }
     },

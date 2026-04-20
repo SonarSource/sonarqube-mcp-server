@@ -21,7 +21,9 @@ reference file).
 | `docs/config-flow.json`                          | **Source of truth**: platforms, transports, toolsets, agents, per-agent output descriptors, snippet defaults |
 | `docs/config-generator.html`                     | Generic renderer (fetches the JSON, builds UI, runs the Value Collector + formatters)                        |
 | `docs/assets/style.css`                          | Design system (dark + light themes) copied from the CLI docs                                                 |
-| `docs/favicon.svg`                               | Page icon                                                                                                    |
+| `docs/assets/favicon.ico`                        | Page icon                                                                                                    |
+| `docs/assets/Sonar_Mark_Dark Backgrounds.png`    | Nav logo used in dark theme (default)                                                                        |
+| `docs/assets/Sonar_Mark_Light Backgrounds.png`   | Nav logo used in light theme (swapped via CSS based on `[data-theme="light"]`)                               |
 | `docs/index.html`                                | Redirect to `config-generator.html`                                                                          |
 | `docs/llms.txt`                                  | Self-contained plain-text reference for AI agents (**ASCII-only**)                                           |
 | `docs/CNAME`                                     | Custom domain (`mcp.sonarqube.com`)                                                                          |
@@ -147,7 +149,7 @@ The 5 formatters live in `generateConfig()` / `formatOutput()` in `docs/config-g
 
 | Format                                | Used by                                                                                             | Properties on the JSON `output` descriptor                                                    |
 |---------------------------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
-| `json`                                | Cursor, VS Code, Windsurf, Gemini, Copilot CLI, Copilot Agent, Kiro, Antigravity, Generic (9 total) | `rootKey`, `urlKey`, `typeField`, `headersKey`, `extraFields`, `envValuePrefix`               |
+| `json`                                | Cursor, VS Code, Windsurf, Gemini, Copilot CLI, Copilot cloud agent, Kiro, Antigravity, Generic (9 total) | `rootKey`, `urlKey`, `typeField`, `headersKey`, `extraFields`, `envValuePrefix`               |
 | `toml`                                | Codex                                                                                               | `sectionKey`, `envSectionKey`, `urlKey`, `headersKey`, `headersInline`                        |
 | `custom-json`                         | Zed                                                                                                 | `keyMap` (env-var → JSON-key), `staticFields`                                                 |
 | `cli-claude-stdio`, `cli-claude-http` | Claude                                                                                              | hardcoded -- Claude bakes env vars into docker args for stdio, uses `--header` flags for HTTP |
@@ -292,4 +294,4 @@ After editing any of the doc files:
 
 Pushing to `master` with changes under `docs/` triggers `.github/workflows/deploy-docs.yml`, which publishes the folder to the `gh-pages` branch. GitHub Pages serves that branch at `https://mcp.sonarqube.com`.
 
-Watched paths: `docs/config-generator.html`, `docs/config-flow.json`, `docs/index.html`, `docs/llms.txt`, `docs/favicon.svg`, `docs/CNAME`, `docs/assets/**`.
+Watched paths: `docs/config-generator.html`, `docs/config-flow.json`, `docs/index.html`, `docs/llms.txt`, `docs/CNAME`, `docs/assets/**`.
