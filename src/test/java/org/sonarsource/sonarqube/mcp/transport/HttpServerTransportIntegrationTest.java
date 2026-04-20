@@ -44,7 +44,7 @@ class HttpServerTransportIntegrationTest {
     // Use a random available port for testing
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0");
   }
 
   @AfterEach
@@ -121,6 +121,26 @@ class HttpServerTransportIntegrationTest {
   }
 
   @Test
+  void should_respond_to_info_endpoint_without_authentication() throws Exception {
+    httpServer.startServer().join();
+
+    await().atMost(5, TimeUnit.SECONDS).until(() -> isServerRunning(httpServer.getServerUrl()));
+
+    try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
+      var infoUrl = "http://127.0.0.1:" + testPort + McpSecurityFilter.INFO_ENDPOINT;
+      var request = HttpRequest.newBuilder()
+        .uri(URI.create(infoUrl))
+        .GET()
+        .build();
+
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      assertThat(response.statusCode()).isEqualTo(200);
+      assertThat(response.body()).isEqualTo("{\"version\":\"1.0.0\"}");
+    }
+  }
+
+  @Test
   void should_reject_get_requests_with_token() throws Exception {
     httpServer.startServer().join();
 
@@ -145,7 +165,7 @@ class HttpServerTransportIntegrationTest {
   void should_use_custom_host_and_port() {
     var customPort = findAvailablePort();
     var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of());
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0");
 
     try {
       customServer.startServer().join();

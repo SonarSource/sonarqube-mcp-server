@@ -58,7 +58,8 @@ class HttpsServerTransportIntegrationTest {
       Path.of(""),
       "",
       "",
-      List.of()
+      List.of(),
+      "1.0.0"
     );
   }
 
@@ -126,7 +127,8 @@ class HttpsServerTransportIntegrationTest {
       Path.of(""),
       "",
       "",
-      List.of()
+      List.of(),
+      "1.0.0"
     );
 
     try {
