@@ -170,7 +170,7 @@ public class McpServerLaunchConfiguration {
 
     this.sonarqubeCloudApiUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_API_URL, null);
 
-    this.sonarqubeToken = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null);
+    this.sonarqubeToken = ignoreUnresolvedPlaceholder(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOKEN, null), SONARQUBE_TOKEN);
     // In HTTP mode the token is provided per-request via the Authorization: Bearer header; not required at startup.
     if (sonarqubeToken == null && !isHttpEnabled) {
       throw new IllegalArgumentException("SONARQUBE_TOKEN environment variable or property must be set");
@@ -351,8 +351,8 @@ public class McpServerLaunchConfiguration {
    * corresponding host environment variable is unset.
    */
   @Nullable
-  private static String ignoreUnresolvedPlaceholder(@Nullable String value, String propertyName) {
-    return ("${" + propertyName + "}").equals(value) ? null : value;
+  private static String ignoreUnresolvedPlaceholder(@Nullable String value, String envName) {
+    return ("${" + envName + "}").equals(value) ? null : value;
   }
 
   private static String fetchAppVersion() {
