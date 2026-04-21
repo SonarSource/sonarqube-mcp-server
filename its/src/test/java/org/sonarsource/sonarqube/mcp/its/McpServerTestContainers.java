@@ -58,6 +58,8 @@ class McpServerTestContainers {
   }
 
   static class ContainerBuilder {
+    private static final String MCP_WORKSPACE_PATH = "/app/mcp-workspace";
+
     private final Map<String, String> envVars = new HashMap<>();
     private final Map<MountableFile, String> additionalFiles = new HashMap<>();
     private String proxiedServersConfigResource = "empty-proxied-mcp-servers-its.json";
@@ -66,12 +68,15 @@ class McpServerTestContainers {
     private String waitLogMessage = ".*SonarQube MCP Server Started.*";
     private Duration startupTimeout = DEFAULT_STARTUP_TIMEOUT;
     private Integer exposedPort;
+    private boolean mountWorkspace;
 
     private ContainerBuilder() {
       envVars.put("STORAGE_PATH", "/app/storage");
       envVars.put("SONARQUBE_TOKEN", getSonarCloudToken());
       envVars.put("SONARQUBE_ORG", "sonarlint-it");
       envVars.put("SONARQUBE_URL", "https://sc-staging.io");
+      envVars.put("SONARQUBE_CLOUD_API_URL", "https://api.sc-staging.io");
+      envVars.put("SONARQUBE_IS_CLOUD", "true");
       envVars.put("TELEMETRY_DISABLED", "true");
     }
 
@@ -118,13 +123,20 @@ class McpServerTestContainers {
       return this;
     }
 
+    /**
+     * Mount a tmpfs at {@code /app/mcp-workspace} to simulate a workspace volume mount.
+     */
+    ContainerBuilder withWorkspaceMount() {
+      this.mountWorkspace = true;
+      return this;
+    }
+
     @SuppressWarnings("resource")
     GenericContainer<?> build() {
       if (command == null) {
         // Default packages: git, nodejs, npm
         withAdditionalApkPackages("git", "nodejs", "npm");
       }
-
       var container = new GenericContainer<>(BASE_IMAGE)
         .withCopyFileToContainer(MountableFile.forHostPath(getJarPath()), "/app/server.jar")
         .withCopyFileToContainer(
@@ -141,6 +153,11 @@ class McpServerTestContainers {
       // Add environment variables
       envVars.forEach(container::withEnv);
 
+      // Mount workspace tmpfs if requested
+      if (mountWorkspace) {
+        container.withTmpFs(Map.of(MCP_WORKSPACE_PATH, "rw"));
+      }
+
       // Expose port if specified
       if (exposedPort != null) {
         container.withExposedPorts(exposedPort);
@@ -152,4 +169,5 @@ class McpServerTestContainers {
       return container;
     }
   }
+
 }

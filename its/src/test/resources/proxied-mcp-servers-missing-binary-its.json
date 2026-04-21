@@ -1,0 +1,11 @@
+[
+  {
+    "name": "missing-server",
+    "transport": "stdio",
+    "command": "/app/binaries/this-binary-does-not-exist",
+    "args": [],
+    "env": {},
+    "inherits": [],
+    "supportedTransports": ["stdio"]
+  }
+]

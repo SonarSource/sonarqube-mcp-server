@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
+import java.io.File;
 import java.util.List;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -69,10 +70,25 @@ public class ProxiedToolsLoader {
       return List.of();
     }
     
-    LOG.info("Initializing " + compatibleConfigs.size() + " proxied MCP server(s)...");
+    var reachableConfigs = compatibleConfigs.stream().filter(config -> {
+        if (isCommandAvailable(config.command())) {
+          return true;
+        } else {
+          LOG.warn("Binary '" + config.command() + "' not found or not executable, skipping proxied server '" + config.name() + "'");
+          return false;
+        }
+      })
+      .toList();
+
+    if (reachableConfigs.isEmpty()) {
+      LOG.warn("No proxied server binaries are reachable (configured: " + compatibleConfigs.stream().map(ProxiedMcpServerConfig::command).toList() + ")");
+      return List.of();
+    }
+
+    LOG.info("Initializing " + reachableConfigs.size() + " proxied MCP server(s)...");
     
     try {
-      mcpClientManager = new McpClientManager(compatibleConfigs);
+      mcpClientManager = new McpClientManager(reachableConfigs);
       mcpClientManager.initialize();
 
       var tools = mcpClientManager.getAllProxiedTools().values().stream()
@@ -117,6 +133,24 @@ public class ProxiedToolsLoader {
         LOG.error("Error shutting down proxied MCP servers: " + e.getMessage(), e);
       }
     }
+  }
+
+  static boolean isCommandAvailable(String command) {
+    var file = new File(command);
+    if (file.isAbsolute()) {
+      return file.isFile() && file.canExecute();
+    }
+    var path = System.getenv("PATH");
+    if (path == null) {
+      return false;
+    }
+    for (var dir : path.split(File.pathSeparator)) {
+      var candidate = new File(dir, command);
+      if (candidate.isFile() && candidate.canExecute()) {
+        return true;
+      }
+    }
+    return false;
   }
 
 }
