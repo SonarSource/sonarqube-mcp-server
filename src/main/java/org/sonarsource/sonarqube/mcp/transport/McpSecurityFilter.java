@@ -39,6 +39,7 @@ public class McpSecurityFilter implements Filter {
   private static final McpLogger LOG = McpLogger.getInstance();
 
   static final String HEALTH_ENDPOINT = "/health";
+  static final String INFO_ENDPOINT = "/info";
 
   // Allowed hosts for localhost deployments (exact match only)
   private static final Set<String> ALLOWED_LOCALHOST_HOSTS = Set.of(
@@ -50,17 +51,19 @@ public class McpSecurityFilter implements Filter {
   private final String hostBinding;
   private final boolean allowAllOrigins;
   private final Set<String> extraAllowedOrigins;
+  private final String serverVersion;
 
-  public McpSecurityFilter(String hostBinding) {
-    this(hostBinding, List.of());
+  public McpSecurityFilter(String hostBinding, String serverVersion) {
+    this(hostBinding, List.of(), serverVersion);
   }
 
-  public McpSecurityFilter(String hostBinding, List<String> extraAllowedOrigins) {
+  public McpSecurityFilter(String hostBinding, List<String> extraAllowedOrigins, String serverVersion) {
     this.hostBinding = hostBinding;
     // Only allow all origins if explicitly bound to all interfaces (0.0.0.0)
     // Otherwise, restrict to localhost origins
     this.allowAllOrigins = "0.0.0.0".equals(hostBinding);
     this.extraAllowedOrigins = Set.copyOf(extraAllowedOrigins);
+    this.serverVersion = serverVersion;
 
     if (allowAllOrigins) {
       LOG.warn("MCP HTTP server is bound to all network interfaces (0.0.0.0). " +
@@ -83,6 +86,13 @@ public class McpSecurityFilter implements Filter {
 
     if (HEALTH_ENDPOINT.equals(httpRequest.getRequestURI())) {
       httpResponse.setStatus(HttpServletResponse.SC_OK);
+      return;
+    }
+
+    if (INFO_ENDPOINT.equals(httpRequest.getRequestURI())) {
+      httpResponse.setStatus(HttpServletResponse.SC_OK);
+      httpResponse.setContentType("application/json");
+      httpResponse.getWriter().write("{\"version\":\"" + escapeJson(serverVersion) + "\"}");
       return;
     }
 
@@ -126,8 +136,11 @@ public class McpSecurityFilter implements Filter {
    * Uses -32000 (server-defined error) since these are HTTP transport-layer rejections, not JSON-RPC payload errors.
    */
   private static String jsonRpcError(String message) {
-    var escapedMessage = message.replace("\\", "\\\\").replace("\"", "\\\"");
-    return String.format("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32000,\"message\":\"%s\"}}", escapedMessage);
+    return String.format("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32000,\"message\":\"%s\"}}", escapeJson(message));
+  }
+
+  private static String escapeJson(String value) {
+    return value.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
   /**

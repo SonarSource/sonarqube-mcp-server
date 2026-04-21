@@ -74,6 +74,7 @@ public class HttpServerTransportProvider {
   private final String httpsTruststorePassword;
   private final String httpsTruststoreType;
   private final List<String> allowedOrigins;
+  private final String appVersion;
   private final HttpServletStatelessServerTransport mcpTransportProvider;
   private Server httpServer;
 
@@ -93,11 +94,12 @@ public class HttpServerTransportProvider {
    * @param httpsTruststorePassword Truststore password (optional)
    * @param httpsTruststoreType Truststore type (optional)
    * @param allowedOrigins Additional allowed origins beyond localhost defaults (e.g. for reverse-proxy deployments)
+   * @param appVersion The version of the MCP server
    */
   public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
     boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
     Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
-    List<String> allowedOrigins) {
+    List<String> allowedOrigins, String appVersion) {
     this.port = port;
     this.host = host;
     this.authMode = authMode;
@@ -111,6 +113,7 @@ public class HttpServerTransportProvider {
     this.httpsTruststorePassword = httpsTruststorePassword;
     this.httpsTruststoreType = httpsTruststoreType;
     this.allowedOrigins = List.copyOf(allowedOrigins);
+    this.appVersion = appVersion;
 
     this.mcpTransportProvider = HttpServletStatelessServerTransport.builder()
       .messageEndpoint(MCP_ENDPOINT)
@@ -206,7 +209,7 @@ public class HttpServerTransportProvider {
     var errorFilter = new FilterHolder(new ErrorHandlingFilter());
     servletContextHandler.addFilter(errorFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    var securityFilter = new FilterHolder(new McpSecurityFilter(host, allowedOrigins));
+    var securityFilter = new FilterHolder(new McpSecurityFilter(host, allowedOrigins, appVersion));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarQubeCloud, serverOrg));

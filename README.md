@@ -753,6 +753,17 @@ docker run --init --pull=always -p 8443:8443 \
 
 **Note:** For local development, use Stdio transport instead (the default). HTTPS is intended for multi-user production deployments with proper SSL certificates.
 
+#### Service Endpoints
+
+When running in **HTTP** or **HTTPS** transport mode, the server exposes a few unauthenticated service endpoints in addition to the MCP endpoint at `/mcp`. These are intended for service-to-service use (monitoring, orchestration, client compatibility checks) and do not require an `Authorization` header.
+
+| Endpoint  | Method | Description                                                                                   | Example response                  |
+|-----------|--------|-----------------------------------------------------------------------------------------------|-----------------------------------|
+| `/health` | `GET`  | Liveness probe. Returns `200 OK` with an empty body once the server is accepting requests.    | *(empty body)*                    |
+| `/info`   | `GET`  | Returns the MCP server version as JSON. Useful for verifying the deployed server version.     | `{"version":"1.16.0"}`            |
+
+These endpoints are not available when running with the **Stdio** transport.
+
 ### Custom Certificates
 
 If your SonarQube Server uses a self-signed certificate or a certificate from a private Certificate Authority (CA), you can add custom certificates to the container that will automatically be installed.
