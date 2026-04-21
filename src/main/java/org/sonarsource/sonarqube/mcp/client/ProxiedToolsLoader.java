@@ -136,10 +136,10 @@ public class ProxiedToolsLoader {
   }
 
   static boolean isCommandAvailable(String command) {
-    if (new File(command).isAbsolute()) {
-      var file = new File(command);
-      return file.isFile() && file.canExecute();
-    }
+  var file = new File(command);
+  if (file.isAbsolute()) {
+    return file.isFile() && file.canExecute();
+  }
     var path = System.getenv("PATH");
     if (path == null) {
       return false;
