@@ -1,0 +1,24 @@
+name: "Copilot Setup Steps"
+
+# Run when this workflow is edited (validation) and allow manual runs from the Actions tab.
+# Copilot only consumes this file from the default branch — merge before relying on it in agent sessions.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be named `copilot-setup-steps` (GitHub Copilot cloud agent contract).
+  copilot-setup-steps:
+    runs-on: sonar-xs-public
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Copilot setup (self-hosted runner)
+        run: echo "Using sonar-xs-public for Copilot cloud agent setup (PREQ-5358)."
