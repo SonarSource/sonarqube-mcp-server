@@ -16,4 +16,4 @@ jobs:
     uses: SonarSource/gh-action_release/.github/workflows/main.yaml@c52861bb0e5dd564187f3fd74e048f20aef0f761 # 6.5.0
     with:
       publishToBinaries: true
-      slackChannel: squad-ide-private
+      slackChannel: C02E6L5C01H # squad-devex-private

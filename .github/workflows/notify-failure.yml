@@ -28,8 +28,9 @@ jobs:
         with:
           method: chat.postMessage
           token: ${{ fromJSON(steps.secrets.outputs.vault).SLACK_BOT_TOKEN }}
+          # Slack channel squad-devex-flow-interrupts
           payload: |
-            channel: squad-ide-flow-interrupts
+            channel: C0ADM04C59A
             text: "Workflow failed in ${{ github.repository }}"
             blocks:
               - type: "section"
