@@ -59,7 +59,8 @@ class HttpsServerTransportIntegrationTest {
       "",
       "",
       List.of(),
-      "1.0.0"
+      "1.0.0",
+      false
     );
   }
 
@@ -128,7 +129,8 @@ class HttpsServerTransportIntegrationTest {
       "",
       "",
       List.of(),
-      "1.0.0"
+      "1.0.0",
+      false
     );
 
     try {

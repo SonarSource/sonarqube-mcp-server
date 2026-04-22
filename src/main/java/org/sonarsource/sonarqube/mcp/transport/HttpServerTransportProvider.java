@@ -21,7 +21,6 @@ import io.modelcontextprotocol.server.McpStatelessServerHandler;
 import io.modelcontextprotocol.server.transport.HttpServletStatelessServerTransport;
 import io.modelcontextprotocol.spec.McpStatelessServerTransport;
 import jakarta.servlet.DispatcherType;
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -96,11 +95,12 @@ public class HttpServerTransportProvider {
    * @param httpsTruststoreType Truststore type (optional)
    * @param allowedOrigins Additional allowed origins beyond localhost defaults (e.g. for reverse-proxy deployments)
    * @param appVersion The version of the MCP server
+   * @param isRunningInContainer Whether the server is running inside a container (suppresses the 0.0.0.0 security warning)
    */
   public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
     boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
     Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
-    List<String> allowedOrigins, String appVersion) {
+    List<String> allowedOrigins, String appVersion, boolean isRunningInContainer) {
     this.port = port;
     this.host = host;
     this.authMode = authMode;
@@ -151,10 +151,10 @@ public class HttpServerTransportProvider {
     LOG.info("Created " + protocol.toUpperCase(Locale.getDefault()) + " transport provider for "
       + protocol + "://" + host + ":" + port + MCP_ENDPOINT + " with authentication: " + authMode);
 
-    // Warn about security risk when binding to all interfaces outside Docker.
-    // In Docker, 0.0.0.0 is required for port mapping (-p) to work; the host-side -p flag controls exposure.
-    // Outside Docker (e.g. JAR), 0.0.0.0 exposes the server on all host interfaces and enables DNS rebinding attacks.
-    if ("0.0.0.0".equals(host) && !isRunningInDocker()) {
+    // Warn about security risk when binding to all interfaces outside a container.
+    // In containers, 0.0.0.0 is required for port mapping to work; the host-side flag controls exposure.
+    // Outside a container (e.g. JAR), 0.0.0.0 exposes the server on all host interfaces and enables DNS rebinding attacks.
+    if ("0.0.0.0".equals(host) && !isRunningInContainer) {
       LOG.warn("SECURITY WARNING: MCP HTTP server is configured to bind to all network interfaces (0.0.0.0). " +
         "This exposes the server to your entire network and is susceptible to DNS rebinding attacks. " +
         "For local use, consider using 127.0.0.1 instead.");
@@ -289,10 +289,6 @@ public class HttpServerTransportProvider {
   public String getServerUrl() {
     var protocol = httpsEnabled ? "https" : "http";
     return protocol + "://" + host + ":" + port + MCP_ENDPOINT;
-  }
-
-  private static boolean isRunningInDocker() {
-    return new File("/.dockerenv").exists();
   }
 
   /**

@@ -19,6 +19,10 @@ package org.sonarsource.sonarqube.mcp.transport;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -32,19 +36,27 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 class HttpServerTransportIntegrationTest {
 
   private HttpServerTransportProvider httpServer;
   private int testPort;
+  private ListAppender<ILoggingEvent> logAppender;
+  private Logger mcpLogger;
 
   @BeforeEach
   void setUp() {
-    // Use a random available port for testing
     testPort = findAvailablePort();
     httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0");
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
+
+    mcpLogger = (Logger) LoggerFactory.getLogger(McpLogger.class);
+    logAppender = new ListAppender<>();
+    logAppender.start();
+    mcpLogger.addAppender(logAppender);
   }
 
   @AfterEach
@@ -52,6 +64,8 @@ class HttpServerTransportIntegrationTest {
     if (httpServer != null) {
       httpServer.stopServer();
     }
+    mcpLogger.detachAppender(logAppender);
+    logAppender.stop();
   }
 
   @Test
@@ -165,7 +179,7 @@ class HttpServerTransportIntegrationTest {
   void should_use_custom_host_and_port() {
     var customPort = findAvailablePort();
     var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0");
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
 
     try {
       customServer.startServer().join();
@@ -206,6 +220,28 @@ class HttpServerTransportIntegrationTest {
 
     assertThat(secondStartFuture).isCompleted();
     assertThat(isServerRunning(httpServer.getServerUrl())).isTrue();
+  }
+
+  @Test
+  void should_not_warn_about_all_interfaces_when_running_in_container() {
+    new HttpServerTransportProvider(8080, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+
+    assertThat(logAppender.list)
+      .filteredOn(event -> event.getLevel() == Level.WARN)
+      .extracting(ILoggingEvent::getFormattedMessage)
+      .noneMatch(msg -> msg.contains("all network interfaces"));
+  }
+
+  @Test
+  void should_warn_about_all_interfaces_when_not_running_in_container() {
+    new HttpServerTransportProvider(8080, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
+
+    assertThat(logAppender.list)
+      .filteredOn(event -> event.getLevel() == Level.WARN)
+      .extracting(ILoggingEvent::getFormattedMessage)
+      .anyMatch(msg -> msg.contains("all network interfaces"));
   }
 
   private boolean isServerRunning(String serverUrl) {
