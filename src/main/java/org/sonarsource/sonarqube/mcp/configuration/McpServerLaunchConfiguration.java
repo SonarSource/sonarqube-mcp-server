@@ -93,6 +93,8 @@ public class McpServerLaunchConfiguration {
   // HTTP authentication configuration
   private static final String SONARQUBE_HTTP_AUTH_MODE = "SONARQUBE_HTTP_AUTH_MODE";
 
+  private static final String SONARQUBE_MCP_IN_CONTAINER = "SONARQUBE_MCP_IN_CONTAINER";
+
   private final Path storagePath;
   private final String hostMachineAddress;
   private final String sonarqubeUrl;
@@ -136,6 +138,7 @@ public class McpServerLaunchConfiguration {
   private final Path workspacePath;
 
   private final boolean isFileLoggingDisabled;
+  private final boolean isRunningInContainer;
 
   private final String mcpServerId;
 
@@ -209,6 +212,7 @@ public class McpServerLaunchConfiguration {
     this.workspacePath = resolveWorkspacePath();
 
     this.isFileLoggingDisabled = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_LOG_TO_FILE_DISABLED, "false"));
+    this.isRunningInContainer = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_MCP_IN_CONTAINER, "false"));
 
     this.mcpServerId = UUID.randomUUID().toString();
   }
@@ -524,6 +528,10 @@ public class McpServerLaunchConfiguration {
 
   public boolean isFileLoggingDisabled() {
     return isFileLoggingDisabled;
+  }
+
+  public boolean isRunningInContainer() {
+    return isRunningInContainer;
   }
 
   /**
