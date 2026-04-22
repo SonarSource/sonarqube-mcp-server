@@ -152,7 +152,7 @@ public class McpServerLaunchConfiguration {
     this.isHttpsEnabled = transportMode.equals("https");
 
     // Read configuration values.
-    // SONARQUBE_ORG and SONARQUBE_URL may be forwarded as literal "${VAR}" strings by MCP clients
+    // SONARQUBE_TOKEN, SONARQUBE_ORG, and SONARQUBE_URL may be forwarded as literal "${VAR}" strings by MCP clients
     // when the corresponding host environment variable is unset; treat those as unset.
     this.sonarqubeOrg = ignoreUnresolvedPlaceholder(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null), SONARQUBE_ORG);
     var sonarqubeUrlFromEnv = ignoreUnresolvedPlaceholder(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, null), SONARQUBE_URL);

@@ -512,18 +512,20 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_ignore_unresolved_org_and_url_placeholders_forwarded_by_mcp_client(@TempDir Path tempDir) {
+  void should_ignore_unresolved_placeholders_from_mcp_client(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TRANSPORT", "http",
       "SONARQUBE_ORG", "${SONARQUBE_ORG}",
-      "SONARQUBE_URL", "${SONARQUBE_URL}"
+      "SONARQUBE_URL", "${SONARQUBE_URL}",
+      "SONARQUBE_TOKEN", "${SONARQUBE_TOKEN}"
     );
 
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.getSonarqubeOrg()).isNull();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(configuration.getSonarQubeToken()).isNull();
   }
 
   @Test
@@ -538,6 +540,19 @@ class McpServerLaunchConfigurationTest {
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+  }
+
+  @Test
+  void should_throw_when_stdio_token_is_an_unresolved_placeholder(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_ORG", "my-org",
+      "SONARQUBE_TOKEN", "${SONARQUBE_TOKEN}"
+    );
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("SONARQUBE_TOKEN environment variable or property must be set");
   }
 
 }
