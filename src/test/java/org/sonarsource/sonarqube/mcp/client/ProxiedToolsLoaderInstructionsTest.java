@@ -59,7 +59,7 @@ class ProxiedToolsLoaderInstructionsTest {
 
     var composed = ProxiedToolsLoader.composeInstructions(BASE_INSTRUCTIONS, List.of(config));
 
-    assertThat(composed).isEqualTo(BASE_INSTRUCTIONS + " Use context_get_context before analyzing code.");
+    assertThat(composed).isEqualTo(BASE_INSTRUCTIONS + "\n\nUse context_get_context before analyzing code.");
   }
 
   @Test
@@ -71,7 +71,7 @@ class ProxiedToolsLoaderInstructionsTest {
 
     var composed = ProxiedToolsLoader.composeInstructions(BASE_INSTRUCTIONS, List.of(config1, config2));
 
-    assertThat(composed).isEqualTo(BASE_INSTRUCTIONS + " Use context tools for code analysis. Use security tools for vulnerability scanning.");
+    assertThat(composed).isEqualTo(BASE_INSTRUCTIONS + "\n\nUse context tools for code analysis.\n\nUse security tools for vulnerability scanning.");
   }
 
   @Test
@@ -84,7 +84,7 @@ class ProxiedToolsLoaderInstructionsTest {
 
     var composed = ProxiedToolsLoader.composeInstructions(BASE_INSTRUCTIONS, List.of(config1, config2, config3));
 
-    assertThat(composed).isEqualTo(BASE_INSTRUCTIONS + " Provider 1 instructions. Provider 3 instructions.");
+    assertThat(composed).isEqualTo(BASE_INSTRUCTIONS + "\n\nProvider 1 instructions.\n\nProvider 3 instructions.");
   }
 
 }
