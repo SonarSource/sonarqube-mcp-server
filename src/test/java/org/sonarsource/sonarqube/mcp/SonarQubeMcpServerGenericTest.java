@@ -213,6 +213,119 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
+  void should_append_cag_instructions_when_cag_enabled_for_org(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "cag");
+    harness.prepareMockWebServer(environment);
+    harness.stubCagOrgConfig(true);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getComposedInstructions())
+      .as("Context Augmentation nudge should be appended to server instructions when CAG is enabled for the org")
+      .contains("## Context Augmentation")
+      .contains("search_by_signature_patterns")
+      .contains("search_by_body_patterns")
+      .contains("get_source_code")
+      .contains("get_upstream_call_flow")
+      .contains("get_downstream_call_flow")
+      .contains("get_references")
+      .contains("get_type_hierarchy")
+      .contains("get_current_architecture")
+      .contains("get_intended_architecture")
+      .contains("get_guidelines")
+      .contains("check_dependency");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_append_cag_instructions_when_cag_disabled_for_org(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "cag");
+    harness.prepareMockWebServer(environment);
+    harness.stubCagOrgConfig(false);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getComposedInstructions())
+      .as("Context Augmentation nudge should not be present when CAG is disabled for the org")
+      .doesNotContain("## Context Augmentation");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_append_cag_instructions_when_cag_toolset_is_not_enabled(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "projects,issues");
+    harness.prepareMockWebServer(environment);
+    harness.stubCagOrgConfig(true); // Even if entitled, toolset filter takes precedence
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getComposedInstructions())
+      .as("Context Augmentation nudge should not be present when the CAG toolset is disabled")
+      .doesNotContain("## Context Augmentation");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_append_cag_instructions_in_http_mode_even_when_cag_enabled(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "cag");
+    harness.prepareMockWebServer(environment);
+    harness.stubCagOrgConfig(true); // CAG enabled but HTTP mode does not support it
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    assertThat(server.getComposedInstructions())
+      .as("Context Augmentation nudge should not be present in HTTP mode (CAG is stdio-only)")
+      .doesNotContain("## Context Augmentation");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_append_cag_instructions_when_cag_api_fails(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "cag");
+    harness.prepareMockWebServer(environment);
+    harness.stubCagOrgConfigError(); // CAG API returns 500 - fail-safe should skip the nudge
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getComposedInstructions())
+      .as("Context Augmentation nudge should not be present when the CAG entitlement API fails")
+      .doesNotContain("## Context Augmentation");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
   void should_skip_analyzer_download_when_analysis_tools_disabled(SonarQubeMcpServerTestHarness harness) throws Exception {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_TOOLSETS", "projects");
