@@ -120,7 +120,7 @@ public class ProxiedToolsLoader {
 
     configs.stream()
       .filter(c -> c.instructions() != null && !c.instructions().isBlank())
-      .forEach(c -> builder.append(" ").append(c.instructions()));
+      .forEach(c -> builder.append("\n\n").append(c.instructions()));
     
     return builder.toString();
   }

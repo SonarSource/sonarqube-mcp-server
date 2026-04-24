@@ -721,6 +721,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     return List.copyOf(supportedTools);
   }
 
+  @VisibleForTesting
+  public String getComposedInstructions() {
+    return composedInstructions;
+  }
+
   /**
    * For testing: wait for background initialization to complete.
    * This ensures tools are fully loaded before tests proceed.

@@ -16,8 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -434,5 +437,25 @@ class ProxiedServerConfigParserTest {
     assertThat(result.success()).isTrue();
     assertThat(result.configs().getFirst().inherits()).isEmpty();
   }
-  
+
+  @Test
+  void cag_instructions_in_bundled_config_must_match_cag_instructions_md() throws IOException {
+    var parseResult = ProxiedServerConfigParser.parse();
+    assertThat(parseResult.success()).isTrue();
+
+    var cagConfig = parseResult.configs().stream()
+      .filter(c -> "sonar-cag".equals(c.name()))
+      .findFirst()
+      .orElseThrow(() -> new AssertionError("Expected a 'sonar-cag' entry in proxied-mcp-servers.json"));
+
+    try (var mdStream = Objects.requireNonNull(
+      ProxiedServerConfigParserTest.class.getResourceAsStream("/cag-instructions.md"),
+      "cag-instructions.md not found on the test classpath")) {
+      var expected = new String(mdStream.readAllBytes(), StandardCharsets.UTF_8);
+      assertThat(cagConfig.instructions())
+        .as("The 'instructions' field for sonar-cag in src/main/resources/proxied-mcp-servers.json must stay in sync with "
+          + "src/test/resources/cag-instructions.md. Regenerate it from the markdown source if this assertion fails.")
+        .isEqualTo(expected);
+    }
+  }
 }
