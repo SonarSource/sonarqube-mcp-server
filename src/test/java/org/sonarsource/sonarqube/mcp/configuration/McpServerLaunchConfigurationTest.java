@@ -42,21 +42,27 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_if_no_storage_path() {
-    var arg = Map.<String, String>of();
+  void should_fall_back_to_os_default_when_storage_path_missing() {
+    var arg = Map.of("SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("STORAGE_PATH environment variable or property must be set");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getStoragePath())
+      .isAbsolute()
+      .asString()
+      .endsWith("sonarqube-mcp");
   }
 
   @Test
-  void should_throw_error_if_storage_path_is_empty() {
-    var arg = Map.of("STORAGE_PATH", "");
+  void should_fall_back_to_os_default_when_storage_path_is_empty() {
+    var arg = Map.of("STORAGE_PATH", "", "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("STORAGE_PATH environment variable or property must be set");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getStoragePath())
+      .isAbsolute()
+      .asString()
+      .endsWith("sonarqube-mcp");
   }
 
   @Test

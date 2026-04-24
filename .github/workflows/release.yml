@@ -17,3 +17,55 @@ jobs:
     with:
       publishToBinaries: true
       slackChannel: C02E6L5C01H # squad-devex-private
+
+  publish-npm:
+    needs: [release]
+    name: Publish npm packages
+    runs-on: github-ubuntu-latest-m
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        with:
+          version: 2026.4.14
+
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Vault (npm token + Artifactory reader)
+        id: secrets-npm
+        uses: SonarSource/vault-action-wrapper@c154b4a417b51cb98dd71137f49bf20e77c56820 # 3.4.0
+        with:
+          secrets: |
+            development/kv/data/npmjs token | NPM_TOKEN;
+            development/kv/data/repox url | ARTIFACTORY_URL;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader username | ARTIFACTORY_USER;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
+
+      - name: Stage and pack all npm packages
+        env:
+          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets-npm.outputs.vault).ARTIFACTORY_URL }}
+          ARTIFACTORY_USER: ${{ fromJSON(steps.secrets-npm.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_ACCESS_TOKEN: ${{ fromJSON(steps.secrets-npm.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+        run: ./gradlew assembleAllNpmPackages packAllNpmPackages --info
+
+      - name: Publish tarballs to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ fromJSON(steps.secrets-npm.outputs.vault).NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tarballs=(build/npm-tarballs/*.tgz)
+          if [ "${#tarballs[@]}" -eq 0 ]; then
+            echo "No npm tarballs produced" >&2
+            exit 1
+          fi
+          for tarball in "${tarballs[@]}"; do
+            echo "Publishing $tarball"
+            npm publish --access public --provenance "$tarball"
+          done

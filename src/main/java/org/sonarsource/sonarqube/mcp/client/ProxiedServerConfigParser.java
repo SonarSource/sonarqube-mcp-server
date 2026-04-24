@@ -28,6 +28,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -36,7 +39,12 @@ public class ProxiedServerConfigParser {
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final String DEFAULT_CONFIG_RESOURCE = "/proxied-mcp-servers.json";
-  
+  /**
+   * Matches {@code ${VAR}} and {@code ${VAR:-default}} substitutions.
+   * The default value (after {@code :-}) is substituted when the env var is absent or blank.
+   */
+  private static final Pattern ENV_VAR_PATTERN = Pattern.compile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?}");
+
   private ProxiedServerConfigParser() {
     // Utility class
   }
@@ -79,11 +87,15 @@ public class ProxiedServerConfigParser {
   }
 
   static ParseResult parseAndValidateProxiedConfig(String json) {
+    return parseAndValidateProxiedConfig(json, System::getenv);
+  }
+
+  static ParseResult parseAndValidateProxiedConfig(String json, Function<String, String> envResolver) {
     try {
       var jsonConfigs = OBJECT_MAPPER.readValue(json, new TypeReference<List<JsonServerConfig>>() {});
 
       var configs = jsonConfigs.stream()
-        .map(ProxiedServerConfigParser::toProxiedMcpServerConfig)
+        .map(config -> toProxiedMcpServerConfig(config, envResolver))
         .toList();
 
       LOG.info("Successfully loaded " + configs.size() + " proxied MCP server(s)");
@@ -94,17 +106,47 @@ public class ProxiedServerConfigParser {
       return ParseResult.failure(error);
     }
   }
-  
-  private static ProxiedMcpServerConfig toProxiedMcpServerConfig(JsonServerConfig jsonConfig) {
+
+  private static ProxiedMcpServerConfig toProxiedMcpServerConfig(JsonServerConfig jsonConfig, Function<String, String> envResolver) {
+    var args = jsonConfig.args != null ? jsonConfig.args : Collections.<String>emptyList();
     return new ProxiedMcpServerConfig(
       jsonConfig.name,
-      jsonConfig.command,
-      jsonConfig.args != null ? jsonConfig.args : Collections.emptyList(),
+      substituteEnvVars(jsonConfig.command, envResolver),
+      args.stream().map(arg -> substituteEnvVars(arg, envResolver)).toList(),
       jsonConfig.env != null ? jsonConfig.env : Collections.emptyMap(),
       jsonConfig.inherits != null ? jsonConfig.inherits : Collections.emptyList(),
       jsonConfig.supportedTransports,
       jsonConfig.instructions
     );
+  }
+
+  /**
+   * Expands {@code ${VAR}} and {@code ${VAR:-default}} placeholders in the input string
+   * using the supplied resolver. If the env var is unset or blank and no default is provided,
+   * the placeholder is replaced with the empty string.
+   */
+  static String substituteEnvVars(String input, Function<String, String> envResolver) {
+    if (input == null || input.indexOf('$') < 0) {
+      return input;
+    }
+    var matcher = ENV_VAR_PATTERN.matcher(input);
+    var result = new StringBuilder();
+    while (matcher.find()) {
+      var varName = matcher.group(1);
+      var defaultValue = matcher.group(2);
+      var resolved = envResolver.apply(varName);
+      String replacement;
+      if (resolved != null && !resolved.isBlank()) {
+        replacement = resolved;
+      } else if (defaultValue != null) {
+        replacement = defaultValue;
+      } else {
+        replacement = "";
+      }
+      matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+    }
+    matcher.appendTail(result);
+    return result.toString();
   }
 
   /**

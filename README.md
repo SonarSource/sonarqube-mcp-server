@@ -29,9 +29,30 @@ The fastest way to get started is the **[SonarQube MCP Server Configuration Gene
 
 ### Manual setup
 
-If you prefer to configure things yourself, the simplest method is to use our container image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below if you want to build it locally.
+The simplest way to run the SonarQube MCP Server is via [`npx`](https://docs.npmjs.com/cli/v10/commands/npx). Published platform packages bundle a trimmed Temurin 21 JRE, the MCP server JAR, and the `sonar-context-augmentation` binary, so no Java or Docker installation is required on the host.
 
-> **Note:** While the examples below use `docker`, any OCI-compatible container runtime works (e.g., Podman, nerdctl). Simply replace `docker` with your preferred tool.
+```json
+{
+  "mcpServers": {
+    "sonarqube": {
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
+      "env": {
+        "SONARQUBE_TOKEN": "<YOUR_TOKEN>",
+        "SONARQUBE_ORG": "<YOUR_ORG>"
+      }
+    }
+  }
+}
+```
+
+For **SonarQube Server**, set `SONARQUBE_URL` instead of (or in addition to) `SONARQUBE_ORG`. For **SonarQube Cloud US**, set `SONARQUBE_URL` to `https://sonarqube.us`.
+
+Supported platforms: `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`, `win32-x64`, `win32-arm64`.
+
+Node.js 18 or newer is required on the host to run `npx`.
+
+> **Note:** A Docker image is still published at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube) as a legacy option. See the [Docker (legacy)](#docker-legacy) section at the end of this file.
 
 <details>
 <summary>Antigravity</summary>
@@ -55,8 +76,8 @@ In the Agent Side Panel, click the three dots (**...**) -> **MCP Store** -> **Ma
 {
   "mcpServers": {
     "sonarqube": {
-      "command": "docker",
-      "args": ["run", "--init", "--pull=always", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"],
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
       "env": {
         "SONARQUBE_TOKEN": "<YOUR_TOKEN>",
         "SONARQUBE_ORG": "<YOUR_ORG>"
@@ -66,7 +87,7 @@ In the Agent Side Panel, click the three dots (**...**) -> **MCP Store** -> **Ma
 }
 ```
 
-For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section and `"-e", "SONARQUBE_URL"` to the `args` array.
+For **SonarQube Cloud US**, add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section.
 
 * To connect with SonarQube Server:
 
@@ -74,8 +95,8 @@ For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us
 {
   "mcpServers": {
     "sonarqube": {
-      "command": "docker",
-      "args": ["run", "--init", "--pull=always", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_URL", "mcp/sonarqube"],
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
       "env": {
         "SONARQUBE_TOKEN": "<YOUR_USER_TOKEN>",
         "SONARQUBE_URL": "<YOUR_SERVER_URL>"
@@ -96,7 +117,7 @@ For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us
 claude mcp add sonarqube \
   --env SONARQUBE_TOKEN=$SONAR_TOKEN \
   --env SONARQUBE_ORG=$SONAR_ORG \
-  -- docker run --init --pull=always -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube
+  -- npx -y @sonarsource/sonarqube-mcp-server
 ```
 
 For **SonarQube Cloud US**, add `--env SONARQUBE_URL=https://sonarqube.us` to the command.
@@ -107,7 +128,7 @@ For **SonarQube Cloud US**, add `--env SONARQUBE_URL=https://sonarqube.us` to th
 claude mcp add sonarqube \
   --env SONARQUBE_TOKEN=$SONAR_USER_TOKEN \
   --env SONARQUBE_URL=$SONAR_URL \
-  -- docker run --init --pull=always -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_URL mcp/sonarqube
+  -- npx -y @sonarsource/sonarqube-mcp-server
 ```
 
 </details>
@@ -121,19 +142,19 @@ Manually edit the configuration file at `~/.codex/config.toml` and add the follo
 
 ```toml
 [mcp_servers.sonarqube]
-command = "docker"
-args = ["run", "--init", "--pull=always", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"]
+command = "npx"
+args = ["-y", "@sonarsource/sonarqube-mcp-server"]
 env = { "SONARQUBE_TOKEN" = "<YOUR_USER_TOKEN>", "SONARQUBE_ORG" = "<YOUR_ORG>" }
 ```
 
-For **SonarQube Cloud US**, add `"SONARQUBE_URL" = "https://sonarqube.us"` to the `env` section and `"-e", "SONARQUBE_URL"` to the `args` array.
+For **SonarQube Cloud US**, add `"SONARQUBE_URL" = "https://sonarqube.us"` to the `env` section.
 
 * To connect with SonarQube Server:
 
 ```toml
 [mcp_servers.sonarqube]
-command = "docker"
-args = ["run", "--init", "--pull=always", "--rm", "-i", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_URL", "mcp/sonarqube"]
+command = "npx"
+args = ["-y", "@sonarsource/sonarqube-mcp-server"]
 env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>" }
 ```
 
@@ -144,13 +165,13 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>
 
 * To connect with SonarQube Cloud:
 
-[![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=sonarqube&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9UT0tFTiIsIlNPTkFSUVVCRV9PUkciOiJZT1VSX1NPTkFSUVVCRV9PUkcifSwiY29tbWFuZCI6ImRvY2tlciBydW4gLS1pbml0IC0tcHVsbD1hbHdheXMgLWkgLS1ybSAtZSBTT05BUlFVQkVfVE9LRU4gLWUgU09OQVJRVUJFX09SRyBtY3Avc29uYXJxdWJlIn0%3D)
+[![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=sonarqube&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9UT0tFTiIsIlNPTkFSUVVCRV9PUkciOiJZT1VSX1NPTkFSUVVCRV9PUkcifSwiY29tbWFuZCI6Im5weCAteSBAc29uYXJzb3VyY2Uvc29uYXJxdWJlLW1jcC1zZXJ2ZXIifQ%3D%3D)
 
 For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section in your MCP configuration after installation.
 
 * To connect with SonarQube Server:
 
-[![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=sonarqube&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9VU0VSX1RPS0VOIiwiU09OQVJRVUJFX1VSTCI6IllPVVJfU09OQVJRVUJFX1VSTCJ9LCJjb21tYW5kIjoiZG9ja2VyIHJ1biAtLWluaXQgLS1wdWxsPWFsd2F5cyAtaSAtLXJtIC1lIFNPTkFSUVVCRV9UT0tFTiAtZSBTT05BUlFVQkVfVVJMIG1jcC9zb25hcnF1YmUifQ%3D%3D)
+[![Install for SonarQube Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=sonarqube&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9VU0VSX1RPS0VOIiwiU09OQVJRVUJFX1VSTCI6IllPVVJfU09OQVJRVUJFX1VSTCJ9LCJjb21tYW5kIjoibnB4IC15IEBzb25hcnNvdXJjZS9zb25hcnF1YmUtbWNwLXNlcnZlciJ9)
 
 </details>
 
@@ -196,21 +217,21 @@ You will have to provide different information about the MCP server, you can use
 ```
 Server Name: sonarqube
 Server Type: Local (Press 1)
-Command: docker
-Arguments: run, --init, --pull=always, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_ORG, mcp/sonarqube
+Command: npx
+Arguments: -y, @sonarsource/sonarqube-mcp-server
 Environment Variables: SONARQUBE_TOKEN=<YOUR_TOKEN>,SONARQUBE_ORG=<YOUR_ORG>
 Tools: *
 ```
 
-For **SonarQube Cloud US**, add `-e, SONARQUBE_URL` to Arguments and `SONARQUBE_URL=https://sonarqube.us` to Environment Variables.
+For **SonarQube Cloud US**, add `SONARQUBE_URL=https://sonarqube.us` to Environment Variables.
 
 * To connect with SonarQube Server:
 
 ```
 Server Name: sonarqube
 Server Type: Local (Press 1)
-Command: docker
-Arguments: run, --init, --pull=always, --rm, -i, -e, SONARQUBE_TOKEN, -e, SONARQUBE_URL, mcp/sonarqube
+Command: npx
+Arguments: -y, @sonarsource/sonarqube-mcp-server
 Environment Variables: SONARQUBE_TOKEN=<YOUR_USER_TOKEN>,SONARQUBE_URL=<YOUR_SERVER_URL>
 Tools: *
 ```
@@ -235,22 +256,11 @@ In your GitHub repository, navigate under **Settings -> Copilot -> Coding agent*
   "mcpServers": {
     "sonarqube": {
       "type": "local",
-      "command": "docker",
-      "args": [
-        "run",
-        "--init",
-        "--pull=always",
-        "--rm",
-        "-i",
-        "-e",
-        "SONARQUBE_TOKEN=$SONAR_TOKEN",
-        "-e",
-        "SONARQUBE_ORG=$SONAR_ORG",
-        "mcp/sonarqube"
-      ],
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
       "env": {
-        "SONAR_TOKEN": "COPILOT_MCP_SONARQUBE_TOKEN",
-        "SONAR_ORG": "COPILOT_MCP_SONARQUBE_ORG"
+        "SONARQUBE_TOKEN": "COPILOT_MCP_SONARQUBE_TOKEN",
+        "SONARQUBE_ORG": "COPILOT_MCP_SONARQUBE_ORG"
       },
       "tools": ["*"]
     }
@@ -258,7 +268,7 @@ In your GitHub repository, navigate under **Settings -> Copilot -> Coding agent*
 }
 ```
 
-For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL=$SONAR_URL"` to the `args` array and `"SONAR_URL": "COPILOT_MCP_SONARQUBE_URL"` to the `env` section, then set the secret `COPILOT_MCP_SONARQUBE_URL=https://sonarqube.us`.
+For **SonarQube Cloud US**, add `"SONARQUBE_URL": "COPILOT_MCP_SONARQUBE_URL"` to the `env` section, then set the secret `COPILOT_MCP_SONARQUBE_URL=https://sonarqube.us`.
 
 * To connect with SonarQube Server:
 
@@ -267,22 +277,11 @@ For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL=$SONAR_URL"` to the `args`
   "mcpServers": {
     "sonarqube": {
       "type": "local",
-      "command": "docker",
-      "args": [
-        "run",
-        "--init",
-        "--pull=always",
-        "--rm",
-        "-i",
-        "-e",
-        "SONARQUBE_TOKEN=$SONAR_TOKEN",
-        "-e",
-        "SONARQUBE_URL=$SONAR_URL",
-        "mcp/sonarqube"
-      ],
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
       "env": {
-        "SONAR_TOKEN": "COPILOT_MCP_SONARQUBE_USER_TOKEN",
-        "SONAR_URL": "COPILOT_MCP_SONARQUBE_URL"
+        "SONARQUBE_TOKEN": "COPILOT_MCP_SONARQUBE_USER_TOKEN",
+        "SONARQUBE_URL": "COPILOT_MCP_SONARQUBE_URL"
       },
       "tools": ["*"]
     }
@@ -303,19 +302,8 @@ Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if 
 {
   "mcpServers": {
     "sonarqube": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--init",
-        "--pull=always",
-        "-i",
-        "--rm",
-        "-e", 
-        "SONARQUBE_TOKEN",
-        "-e",
-        "SONARQUBE_ORG",
-        "mcp/sonarqube"
-      ],
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
       "env": {
         "SONARQUBE_TOKEN": "<YOUR_TOKEN>",
         "SONARQUBE_ORG": "<YOUR_ORG>"
@@ -327,7 +315,7 @@ Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if 
 }
 ```
 
-For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL"` to the `args` array and `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section.
+For **SonarQube Cloud US**, add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section.
 
 * To connect with SonarQube Server:
 
@@ -335,19 +323,8 @@ For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL"` to the `args` array and 
 {
   "mcpServers": {
     "sonarqube": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--init",
-        "--pull=always",
-        "-i",
-        "--rm",
-        "-e", 
-        "SONARQUBE_TOKEN",
-        "-e",
-        "SONARQUBE_URL",
-        "mcp/sonarqube"
-      ],
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
       "env": {
         "SONARQUBE_TOKEN": "<YOUR_USER_TOKEN>",
         "SONARQUBE_URL": "<YOUR_SERVER_URL>"
@@ -366,11 +343,11 @@ For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL"` to the `args` array and 
 
 You can use the following buttons to simplify the installation process within VS Code.
 
-[![Install for SonarQube Cloud](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_ORG%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Cloud%20Organization%20Key%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22--init%22%2C%22--pull%3Dalways%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_ORG%22%3A%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
+[![Install for SonarQube Cloud](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Cloud-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%20%22SONARQUBE_TOKEN%22%2C%20%22type%22%3A%20%22promptString%22%2C%20%22description%22%3A%20%22SonarQube%20Cloud%20Token%22%2C%20%22password%22%3A%20true%7D%2C%20%7B%22id%22%3A%20%22SONARQUBE_ORG%22%2C%20%22type%22%3A%20%22promptString%22%2C%20%22description%22%3A%20%22SonarQube%20Cloud%20Organization%20Key%22%2C%20%22password%22%3A%20false%7D%5D&config=%7B%22command%22%3A%20%22npx%22%2C%20%22args%22%3A%20%5B%22-y%22%2C%20%22%40sonarsource%2Fsonarqube-mcp-server%22%5D%2C%20%22env%22%3A%20%7B%22SONARQUBE_TOKEN%22%3A%20%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%20%22SONARQUBE_ORG%22%3A%20%22%24%7Binput%3ASONARQUBE_ORG%7D%22%7D%7D)
 
 For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section in your MCP configuration after installation.
 
-[![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22--init%22%2C%22--pull%3Dalways%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
+[![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%20%22SONARQUBE_TOKEN%22%2C%20%22type%22%3A%20%22promptString%22%2C%20%22description%22%3A%20%22SonarQube%20Server%20User%20Token%22%2C%20%22password%22%3A%20true%7D%2C%20%7B%22id%22%3A%20%22SONARQUBE_URL%22%2C%20%22type%22%3A%20%22promptString%22%2C%20%22description%22%3A%20%22SonarQube%20Server%20URL%22%2C%20%22password%22%3A%20false%7D%5D&config=%7B%22command%22%3A%20%22npx%22%2C%20%22args%22%3A%20%5B%22-y%22%2C%20%22%40sonarsource%2Fsonarqube-mcp-server%22%5D%2C%20%22env%22%3A%20%7B%22SONARQUBE_TOKEN%22%3A%20%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%20%22SONARQUBE_URL%22%3A%20%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
 
 </details>
 <details>
@@ -398,8 +375,7 @@ When installing the extension, you will be prompted to provide the necessary env
 ```
 {
   "sonarqube_token": "YOUR_SONARQUBE_TOKEN",
-  "sonarqube_org": "SONARQUBE_ORGANIZATION_KEY",
-  "docker_path": "DOCKER_PATH"
+  "sonarqube_org": "SONARQUBE_ORGANIZATION_KEY"
 }
 ```
 
@@ -410,20 +386,15 @@ For **SonarQube Cloud US**, add `"sonarqube_url": "https://sonarqube.us"` to the
 ```
 {
   "sonarqube_token": "YOUR_SONARQUBE_USER_TOKEN",
-  "sonarqube_url": "YOUR_SONARQUBE_SERVER_URL",
-  "docker_path": "DOCKER_PATH"
+  "sonarqube_url": "YOUR_SONARQUBE_SERVER_URL"
 }
 ```
 
-The `docker_path` is the path to a docker executable. Examples:
-
-Linux/macOS: `/usr/bin/docker` or `/usr/local/bin/docker`
-
-Windows: `C:\Program Files\Docker\Docker\resources\bin\docker.exe`
+The SonarQube MCP server itself is launched through `npx`, so make sure Node.js is installed and available on your system `PATH`.
 
 </details>
 
-> 💡 **Tip:** We recommend pulling the latest image regularly or before reporting issues to ensure you have the most up-to-date features and fixes.
+> 💡 **Tip:** Run `npx -y @sonarsource/sonarqube-mcp-server@latest` occasionally (or bump the version you pin) to get the newest features and fixes.
 
 ## Manual installation
 
@@ -434,19 +405,8 @@ You can manually install the SonarQube MCP server by copying the following snipp
 ```JSON
 {
   "sonarqube": {
-    "command": "docker",
-    "args": [
-      "run",
-      "--init",
-      "--pull=always",
-      "-i",
-      "--rm",
-      "-e",
-      "SONARQUBE_TOKEN",
-      "-e",
-      "SONARQUBE_ORG",
-      "mcp/sonarqube"
-    ],
+    "command": "npx",
+    "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
     "env": {
       "SONARQUBE_TOKEN": "<token>",
       "SONARQUBE_ORG": "<org>"
@@ -460,19 +420,8 @@ You can manually install the SonarQube MCP server by copying the following snipp
 ```JSON
 {
   "sonarqube": {
-    "command": "docker",
-    "args": [
-      "run",
-      "--init",
-      "--pull=always",
-      "-i",
-      "--rm",
-      "-e",
-      "SONARQUBE_TOKEN",
-      "-e",
-      "SONARQUBE_URL",
-      "mcp/sonarqube"
-    ],
+    "command": "npx",
+    "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
     "env": {
       "SONARQUBE_TOKEN": "<token>",
       "SONARQUBE_URL": "<url>"
@@ -495,21 +444,8 @@ For example, with SonarQube Cloud:
 ```JSON
 {
   "sonarqube": {
-    "command": "docker",
-    "args": [
-      "run",
-      "--init",
-      "--pull=always",
-      "-i",
-      "--rm",
-      "-e",
-      "SONARQUBE_TOKEN",
-      "-e",
-      "SONARQUBE_ORG",
-      "-e",
-      "SONARQUBE_IDE_PORT",
-      "mcp/sonarqube"
-    ],
+    "command": "npx",
+    "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
     "env": {
       "SONARQUBE_TOKEN": "<token>",
       "SONARQUBE_ORG": "<org>",
@@ -519,7 +455,7 @@ For example, with SonarQube Cloud:
 }
 ```
 
-> When running the MCP server in a container on Linux, the container cannot access the SonarQube for IDE embedded server running on localhost. To allow the container to connect to the SonarQube for IDE server, add the `--network=host` option to your container run command.
+> The `SONARQUBE_IDE_PORT` must point to the loopback address where SonarQube for IDE's embedded server is listening; because `npx` runs on your host it can reach `localhost` directly without any extra networking flags.
 
 </details>
 
@@ -533,31 +469,33 @@ You should add the following variable when running the MCP Server:
 
 | Environment variable             | Description                                                                                                                                                                                                                 |
 |----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `STORAGE_PATH`                   | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using the container image                 |
+| `STORAGE_PATH`                   | Optional absolute path to a writable directory where SonarQube MCP Server stores its files (creation, updates, persistence). When omitted, the npm launcher picks an OS-appropriate location (`~/.local/share/sonarqube-mcp` on Linux, `~/Library/Application Support/sonarqube-mcp` on macOS, `%LOCALAPPDATA%\sonarqube-mcp` on Windows). The Docker image sets this to `/app/storage` automatically. |
 | `SONARQUBE_PROJECT_KEY`          | Optional default project key. When set, all tools that require a project key will use this value automatically — the `projectKey` parameter is removed from their schema entirely. Useful when working on a single project. |
 | `SONARQUBE_IDE_PORT`             | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                                                   |
 | `SONARQUBE_DEBUG_ENABLED`        | When set to `true`, enables debug logging. Debug logs are written to both the log file and STDERR. Useful for troubleshooting connectivity or configuration issues. Default: `false`.                                       |
 | `SONARQUBE_LOG_TO_FILE_DISABLED` | When set to `true`, disables writing logs to disk entirely. No log files will be created under `STORAGE_PATH/logs/`. Useful in containerized or ephemeral environments where file logging is undesirable. Default: `false`. |
 
-### Workspace Mount (Reducing Context Bloat)
+### Workspace Directory (Reducing Context Bloat)
 
 By default, analysis tool `analyze_code_snippet` requires the agent to pass the full file content as a `fileContent` argument. For large files or when analyzing many files in a session, this significantly increases context window usage and cost.
 
-**Solution:** mount your project directory into the container at `/app/mcp-workspace`. When this mount is detected, the server reads files directly from disk using the project-relative `filePath` argument — file content never passes through the agent context.
+**Solution:** point the server at your project root via `SONAR_WORKSPACE_DIR`. When this is set (and the directory exists), the server reads files directly from disk using the project-relative `filePath` argument — file content never passes through the agent context.
 
 ```json
 {
-  "args": [
-    "run", "-i", "--rm", "--init", "--pull=always",
-    "-e", "SONARQUBE_TOKEN",
-    "-e", "SONARQUBE_ORG",
-    "-v", "/path/to/your/project:/app/mcp-workspace",
-    "mcp/sonarqube"
-  ]
+  "command": "npx",
+  "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
+  "env": {
+    "SONARQUBE_TOKEN": "<token>",
+    "SONARQUBE_ORG": "<org>",
+    "SONAR_WORKSPACE_DIR": "/path/to/your/project"
+  }
 }
 ```
 
-When the mount is active:
+If you're using the Docker image, mount your project at `/app/mcp-workspace` instead; the server picks that up automatically.
+
+When a workspace directory is active:
 - `run_advanced_code_analysis` becomes available if your organization is entitled to it
 - `analyze_code_snippet`: `filePath` is required and `fileContent` is not used — the server resolves the file the same way
 
@@ -594,26 +532,24 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 
 #### Examples
 
-**Enable analysis, issues, and quality gates toolsets (using Docker with SonarQube Cloud):**
+**Enable analysis, issues, and quality gates toolsets (via npx with SonarQube Cloud):**
 
 ```bash
-docker run --init --pull=always -i --rm \
-  -e SONARQUBE_TOKEN="<token>" \
-  -e SONARQUBE_ORG="<org>" \
-  -e SONARQUBE_TOOLSETS="analysis,issues,quality-gates" \
-  mcp/sonarqube
+SONARQUBE_TOKEN=<token> \
+SONARQUBE_ORG=<org> \
+SONARQUBE_TOOLSETS="analysis,issues,quality-gates" \
+  npx -y @sonarsource/sonarqube-mcp-server
 ```
 
 Note: The `projects` toolset is always enabled automatically, so you don't need to include it in `SONARQUBE_TOOLSETS`.
 
-**Enable read-only mode (using Docker with SonarQube Cloud):**
+**Enable read-only mode (via npx with SonarQube Cloud):**
 
 ```bash
-docker run --init --pull=always -i --rm \
-  -e SONARQUBE_TOKEN="<token>" \
-  -e SONARQUBE_ORG="<org>" \
-  -e SONARQUBE_READ_ONLY="true" \
-  mcp/sonarqube
+SONARQUBE_TOKEN=<token> \
+SONARQUBE_ORG=<org> \
+SONARQUBE_READ_ONLY=true \
+  npx -y @sonarsource/sonarqube-mcp-server
 ```
 
 </details>
@@ -651,13 +587,13 @@ The SonarQube MCP Server supports three transport modes:
 #### 1. **Stdio** (Default - Recommended for Local Development)
 The recommended mode for local development and single-user setups, used by all MCP clients.
 
-**Example - Docker with SonarQube Cloud:**
+**Example - npx with SonarQube Cloud:**
 ```json
 {
   "mcpServers": {
     "sonarqube": {
-      "command": "docker",
-      "args": ["run", "--init", "--pull=always", "-i", "--rm", "-e", "SONARQUBE_TOKEN", "-e", "SONARQUBE_ORG", "mcp/sonarqube"],
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
       "env": {
         "SONARQUBE_TOKEN": "<your-token>",
         "SONARQUBE_ORG": "<your-org>"
@@ -705,15 +641,14 @@ Secure multi-user transport with TLS encryption. Requires SSL certificates.
 | `SONARQUBE_HTTPS_KEYSTORE_PASSWORD`| Keystore password                     | `sonarlint`                 |
 | `SONARQUBE_HTTPS_KEYSTORE_TYPE`    | Keystore type (PKCS12 or JKS)        | `PKCS12`                    |
 
-**Example - Docker with SonarQube Cloud:**
+**Example - launch via npx with SonarQube Cloud:**
 ```bash
-docker run --init --pull=always -p 8443:8443 \
-  -v $(pwd)/keystore.p12:/etc/ssl/mcp/keystore.p12:ro \
-  -e SONARQUBE_TRANSPORT=https \
-  -e SONARQUBE_HTTP_PORT=8443 \
-  -e SONARQUBE_TOKEN="<init-token>" \
-  -e SONARQUBE_ORG="<your-org>" \
-  mcp/sonarqube
+SONARQUBE_TRANSPORT=https \
+SONARQUBE_HTTP_PORT=8443 \
+SONARQUBE_HTTPS_KEYSTORE_PATH="$(pwd)/keystore.p12" \
+SONARQUBE_TOKEN="<init-token>" \
+SONARQUBE_ORG="<your-org>" \
+  npx -y @sonarsource/sonarqube-mcp-server
 ```
 
 **Client Configuration (SonarQube Cloud):**
@@ -766,14 +701,38 @@ These endpoints are not available when running with the **Stdio** transport.
 
 ### Custom Certificates
 
-If your SonarQube Server uses a self-signed certificate or a certificate from a private Certificate Authority (CA), you can add custom certificates to the container that will automatically be installed.
+If your SonarQube Server uses a self-signed certificate or a certificate from a private Certificate Authority (CA), you can point the server at extra PEM files.
 
 <details>
 <summary>Configuration</summary>
 
-#### Using Volume Mount
+#### Using the npm package
 
-Mount a directory containing your certificates when running the container:
+Set `SONARQUBE_MCP_CA_CERTS` (or `NODE_EXTRA_CA_CERTS`) to a `:`/`;`-separated list of PEM files. The npm launcher copies the bundled JRE `cacerts` truststore into the per-user storage directory, imports every listed PEM via `keytool`, and passes `-Djavax.net.ssl.trustStore=...` to Java on startup.
+
+```JSON
+{
+  "sonarqube": {
+    "command": "npx",
+    "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
+    "env": {
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_URL": "<url>",
+      "SONARQUBE_MCP_CA_CERTS": "/path/to/your/certificates/company-ca.pem:/path/to/your/certificates/second-ca.pem"
+    }
+  }
+}
+```
+
+#### Supported Certificate Formats
+
+The npm launcher supports the following certificate formats:
+- `.crt` files (PEM or DER encoded)
+- `.pem` files (PEM encoded)
+
+#### Using the Docker image
+
+When using the legacy Docker image, mount a directory containing your certificates and they are installed at startup:
 
 ```bash
 docker run --init --pull=always -i --rm \
@@ -781,42 +740,6 @@ docker run --init --pull=always -i --rm \
   -e SONARQUBE_TOKEN="<token>" \
   -e SONARQUBE_URL="<url>" \
   mcp/sonarqube
-```
-
-#### Supported Certificate Formats
-
-The container supports the following certificate formats:
-- `.crt` files (PEM or DER encoded)
-- `.pem` files (PEM encoded)
-
-#### MCP Configuration with Certificates
-
-When using custom certificates, you can modify your MCP configuration to mount the certificates:
-
-```JSON
-{
-  "sonarqube": {
-    "command": "docker",
-    "args": [
-      "run",
-      "--init",
-      "--pull=always",
-      "-i",
-      "--rm",
-      "-v",
-      "/path/to/your/certificates/:/usr/local/share/ca-certificates/:ro",
-      "-e",
-      "SONARQUBE_TOKEN",
-      "-e",
-      "SONARQUBE_URL",
-      "mcp/sonarqube"
-    ],
-    "env": {
-      "SONARQUBE_TOKEN": "<token>",
-      "SONARQUBE_URL": "<url>"
-    }
-  }
-}
 ```
 
 </details>
@@ -1204,35 +1127,27 @@ First, export the `SONARQUBE_TOKEN` [environment variable](https://docs.sonarsou
 export SONARQUBE_TOKEN="{<YourUserToken>}"
 ```
 
-Then, mount the project workspace to give the Context Augmentation server direct access to your source files:
+Then point the Context Augmentation server at your project root so it can read your source files directly:
 
 ```json
 {
   "mcpServers": {
     "sonarqube-mcp-server": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm", "--pull=always",
-        "-e", "SONARQUBE_URL",
-        "-e", "SONARQUBE_TOKEN",
-        "-e", "SONARQUBE_ORG",
-        "-e", "SONARQUBE_PROJECT_KEY",
-        "-e", "SONARQUBE_TOOLSETS",
-        "-v", "/ABSOLUTE/PATH/TO/YOUR/PROJECT:/app/mcp-workspace:rw",
-        "mcp/sonarqube"
-      ],
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server"],
       "env": {
         "SONARQUBE_URL": "https://sonarcloud.io",
         "SONARQUBE_ORG": "<YourOrganizationKey>",
         "SONARQUBE_PROJECT_KEY": "<YourProjectKey>",
-        "SONARQUBE_TOOLSETS": "cag"
+        "SONARQUBE_TOOLSETS": "cag",
+        "SONAR_WORKSPACE_DIR": "/ABSOLUTE/PATH/TO/YOUR/PROJECT"
       }
     }
   }
 }
 ```
 
-**Important**: In a project-scoped config, do not put `SONARQUBE_TOKEN` in the env block. Export it as an environment variable (`export SONARQUBE_TOKEN=...`). Docker will forward it into the container via `-e SONARQUBE_TOKEN`.
+**Important**: In a project-scoped config, do not put `SONARQUBE_TOKEN` in the env block. Export it as an environment variable (`export SONARQUBE_TOKEN=...`) and the npm launcher will forward it to the server process automatically.
 
 </details>
 
@@ -1346,7 +1261,7 @@ Show me all the issues that were marked as false positives in the last month. Ar
 
 ## Build
 
-Prefer the container image from [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube) — build from source only if you need to run a locally modified version of the server.
+Prefer the published [`@sonarsource/sonarqube-mcp-server`](https://www.npmjs.com/package/@sonarsource/sonarqube-mcp-server) npm package — build from source only if you need to run a locally modified version of the server.
 
 <details>
 <summary>Build from source</summary>
@@ -1411,21 +1326,28 @@ Application logs are written to the `STORAGE_PATH/logs/mcp.log` file by default.
 
 #### "Feature is not working" or "Missing tools/functionality"
 
-You may be running an outdated Docker image. Docker caches images locally, so you won't automatically receive updates.
+You may be running an outdated version. `npx` caches packages locally by default, so you won't automatically pick up updates.
 
-**Solution:** Update to the latest version:
-
-```bash
-docker pull mcp/sonarqube:latest
-```
-
-After pulling the latest image, restart your MCP client to use the updated version.
-
-Optionally, add the `--pull=always` flag to your docker run command to always check for and pull the latest version:
+**Solution:** Force a fresh resolution of the latest version:
 
 ```bash
-docker run --init --pull=always -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube
+npx -y @sonarsource/sonarqube-mcp-server@latest --help
 ```
+
+Then restart your MCP client to use the updated version.
+
+## Docker (legacy)
+
+The Docker image is still published at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube) for users who prefer a container-based deployment. It will continue to be maintained until the npm distribution has been fully rolled out.
+
+```bash
+docker run --init --pull=always -i --rm \
+  -e SONARQUBE_TOKEN="<token>" \
+  -e SONARQUBE_ORG="<org>" \
+  mcp/sonarqube
+```
+
+See the [previous release of this README](https://github.com/SonarSource/sonarqube-mcp-server/blob/1.16.0/README.md) for Docker-specific client configuration snippets. The environment variables documented above apply to both the npm and Docker distributions.
 
 ## Data and telemetry
 

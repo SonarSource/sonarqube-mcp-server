@@ -1,0 +1,27 @@
+{
+  "name": "@sonarsource/sonarqube-mcp-server-@@TARGET_ID@@",
+  "version": "@@VERSION@@",
+  "description": "SonarQube MCP Server platform package for @@TARGET_ID@@ (bundled JRE, server JAR, and sonar-context-augmentation).",
+  "homepage": "https://github.com/SonarSource/sonarqube-mcp-server",
+  "bugs": {
+    "url": "https://github.com/SonarSource/sonarqube-mcp-server/issues"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "SonarSource",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SonarSource/sonarqube-mcp-server.git"
+  },
+  "os": ["@@NPM_OS@@"],
+  "cpu": ["@@NPM_CPU@@"],
+  "files": [
+    "jre/**/*",
+    "bin/**/*",
+    "sonarqube-mcp-server.jar",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

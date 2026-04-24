@@ -1,0 +1,43 @@
+{
+  "name": "@sonarsource/sonarqube-mcp-server",
+  "version": "@@VERSION@@",
+  "description": "SonarQube MCP Server - Model Context Protocol server for SonarQube Server and SonarQube Cloud, distributed with a bundled JRE.",
+  "keywords": [
+    "sonarqube",
+    "mcp",
+    "model-context-protocol",
+    "code-quality",
+    "security",
+    "sonarsource"
+  ],
+  "homepage": "https://github.com/SonarSource/sonarqube-mcp-server",
+  "bugs": {
+    "url": "https://github.com/SonarSource/sonarqube-mcp-server/issues"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "SonarSource",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SonarSource/sonarqube-mcp-server.git"
+  },
+  "main": "bin/sonarqube-mcp-server.js",
+  "bin": {
+    "sonarqube-mcp-server": "bin/sonarqube-mcp-server.js"
+  },
+  "files": [
+    "bin/sonarqube-mcp-server.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@sonarsource/sonarqube-mcp-server-linux-x64": "@@VERSION@@",
+    "@sonarsource/sonarqube-mcp-server-linux-arm64": "@@VERSION@@",
+    "@sonarsource/sonarqube-mcp-server-darwin-x64": "@@VERSION@@",
+    "@sonarsource/sonarqube-mcp-server-darwin-arm64": "@@VERSION@@",
+    "@sonarsource/sonarqube-mcp-server-win32-x64": "@@VERSION@@",
+    "@sonarsource/sonarqube-mcp-server-win32-arm64": "@@VERSION@@"
+  }
+}

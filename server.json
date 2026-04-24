@@ -9,6 +9,44 @@
   "version": "1.16",
   "packages": [
     {
+      "registryType": "npm",
+      "identifier": "@sonarsource/sonarqube-mcp-server",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeHint": "npx",
+      "runtimeArguments": [
+        {
+          "type": "positional",
+          "valueHint": "-y",
+          "value": "-y"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "description": "Your SonarQube USER token",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true,
+          "name": "SONARQUBE_TOKEN"
+        },
+        {
+          "description": "Your SonarQube Cloud organization key (if using SonarQube Cloud)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "SONARQUBE_ORG"
+        },
+        {
+          "description": "Your SonarQube Server URL (if using SonarQube Server)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "SONARQUBE_URL"
+        }
+      ]
+    },
+    {
       "registryType": "oci",
       "identifier": "docker.io/mcp/sonarqube:latest",
       "transport": {

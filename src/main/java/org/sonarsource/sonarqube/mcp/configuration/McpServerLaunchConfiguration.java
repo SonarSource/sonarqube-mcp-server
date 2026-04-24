@@ -142,7 +142,10 @@ public class McpServerLaunchConfiguration {
   public McpServerLaunchConfiguration(Map<String, String> environment) {
     var storagePathString = getValueViaEnvOrPropertyOrDefault(environment, STORAGE_PATH, null);
     if (storagePathString == null) {
-      throw new IllegalArgumentException("STORAGE_PATH environment variable or property must be set");
+      // The npm launcher always sets STORAGE_PATH to a per-user directory before spawning the JVM.
+      // When the JAR is invoked directly (e.g. during development, from CI, or via the Docker entrypoint)
+      // we fall back to a sensible OS-specific location so that the server can still start.
+      storagePathString = resolveDefaultStoragePath(environment).toString();
     }
     this.storagePath = Paths.get(storagePathString);
     this.hostMachineAddress = resolveHostMachineAddress();
@@ -343,6 +346,38 @@ public class McpServerLaunchConfiguration {
 
   private static boolean isNullOrBlank(@Nullable String value) {
     return value == null || value.isBlank();
+  }
+
+  /**
+   * Resolves an OS-appropriate default location for persistent server state when neither the
+   * {@code STORAGE_PATH} environment variable nor the corresponding system property is set.
+   * Matches the JavaScript launcher's default so that users migrating between invocation styles
+   * see the same on-disk layout.
+   */
+  private static Path resolveDefaultStoragePath(Map<String, String> environment) {
+    var home = Paths.get(requireNonNull(System.getProperty("user.home"), "user.home not set"));
+    var osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+    if (osName.contains("mac") || osName.contains("darwin")) {
+      return home.resolve("Library").resolve("Application Support").resolve("sonarqube-mcp");
+    }
+    if (osName.contains("windows")) {
+      var localAppData = environment.get("LOCALAPPDATA");
+      if (isNullOrBlank(localAppData)) {
+        localAppData = System.getenv("LOCALAPPDATA");
+      }
+      var base = isNullOrBlank(localAppData)
+        ? home.resolve("AppData").resolve("Local")
+        : Paths.get(localAppData);
+      return base.resolve("sonarqube-mcp");
+    }
+    var xdgDataHome = environment.get("XDG_DATA_HOME");
+    if (isNullOrBlank(xdgDataHome)) {
+      xdgDataHome = System.getenv("XDG_DATA_HOME");
+    }
+    var base = isNullOrBlank(xdgDataHome)
+      ? home.resolve(".local").resolve("share")
+      : Paths.get(xdgDataHome);
+    return base.resolve("sonarqube-mcp");
   }
 
   /**

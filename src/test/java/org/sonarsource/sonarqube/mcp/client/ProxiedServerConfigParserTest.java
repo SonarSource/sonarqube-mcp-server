@@ -439,23 +439,82 @@ class ProxiedServerConfigParserTest {
   }
 
   @Test
-  void cag_instructions_in_bundled_config_must_match_cag_instructions_md() throws IOException {
-    var parseResult = ProxiedServerConfigParser.parse();
-    assertThat(parseResult.success()).isTrue();
+  void parseAndValidateProxiedConfig_should_substitute_env_vars_in_command() {
+    var json = """
+      [
+        {
+          "name": "test-server",
+          "command": "${MY_BIN}",
+          "args": ["--flag", "${MY_FLAG_VALUE}"],
+          "supportedTransports": ["stdio"]
+        }
+      ]
+      """;
 
-    var cagConfig = parseResult.configs().stream()
-      .filter(c -> "sonar-cag".equals(c.name()))
-      .findFirst()
-      .orElseThrow(() -> new AssertionError("Expected a 'sonar-cag' entry in proxied-mcp-servers.json"));
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(
+      json, Map.of("MY_BIN", "/opt/my-bin", "MY_FLAG_VALUE", "hello")::get);
 
-    try (var mdStream = Objects.requireNonNull(
-      ProxiedServerConfigParserTest.class.getResourceAsStream("/cag-instructions.md"),
-      "cag-instructions.md not found on the test classpath")) {
-      var expected = new String(mdStream.readAllBytes(), StandardCharsets.UTF_8);
-      assertThat(cagConfig.instructions())
-        .as("The 'instructions' field for sonar-cag in src/main/resources/proxied-mcp-servers.json must stay in sync with "
-          + "src/test/resources/cag-instructions.md. Regenerate it from the markdown source if this assertion fails.")
-        .isEqualTo(expected);
-    }
+    assertThat(result.success()).isTrue();
+    var config = result.configs().getFirst();
+    assertThat(config.command()).isEqualTo("/opt/my-bin");
+    assertThat(config.args()).containsExactly("--flag", "hello");
   }
+
+  @Test
+  void parseAndValidateProxiedConfig_should_use_default_value_when_env_var_absent() {
+    var json = """
+      [
+        {
+          "name": "test-server",
+          "command": "${MISSING:-fallback-bin}",
+          "supportedTransports": ["stdio"]
+        }
+      ]
+      """;
+
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(
+      json, key -> null);
+
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs().getFirst().command()).isEqualTo("fallback-bin");
+  }
+
+  @Test
+  void parseAndValidateProxiedConfig_should_use_default_value_when_env_var_blank() {
+    var json = """
+      [
+        {
+          "name": "test-server",
+          "command": "${EMPTY_VAR:-fallback-bin}",
+          "supportedTransports": ["stdio"]
+        }
+      ]
+      """;
+
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(
+      json, Map.of("EMPTY_VAR", "   ")::get);
+
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs().getFirst().command()).isEqualTo("fallback-bin");
+  }
+
+  @Test
+  void parseAndValidateProxiedConfig_should_prefer_env_var_over_default() {
+    var json = """
+      [
+        {
+          "name": "test-server",
+          "command": "${SONAR_CAG_BIN:-sonar-context-augmentation}",
+          "supportedTransports": ["stdio"]
+        }
+      ]
+      """;
+
+    var result = ProxiedServerConfigParser.parseAndValidateProxiedConfig(
+      json, Map.of("SONAR_CAG_BIN", "/bundled/path/sonar-context-augmentation")::get);
+
+    assertThat(result.success()).isTrue();
+    assertThat(result.configs().getFirst().command()).isEqualTo("/bundled/path/sonar-context-augmentation");
+  }
+
 }

@@ -1,0 +1,11 @@
+# @sonarsource/sonarqube-mcp-server-@@TARGET_ID@@
+
+Platform-specific package for the SonarQube MCP Server on **@@TARGET_ID@@**. Do not install this package directly - install `@sonarsource/sonarqube-mcp-server` and your package manager will select the correct platform package automatically.
+
+Contents:
+
+- `jre/` - a jlink-stripped Temurin 21 runtime for this platform
+- `sonarqube-mcp-server.jar` - the fat JAR of the MCP server
+- `bin/sonar-context-augmentation[.exe]` - the context augmentation binary
+
+See the main package for configuration and usage.

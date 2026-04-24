@@ -166,6 +166,8 @@ application {
 	mainClass = mainClassName
 }
 
+apply(from = "gradle/npm-packaging.gradle.kts")
+
 artifactory {
 	clientConfig.info.buildName = "sonarqube-mcp-server"
 	clientConfig.info.buildNumber = System.getenv("BUILD_NUMBER")
