@@ -270,7 +270,7 @@ public class BackendService {
         null,
         null,
         false,
-        new LanguageSpecificRequirements(null, null),
+        new LanguageSpecificRequirements(null, false),
         false,
         null,
         LogLevel.DEBUG));
