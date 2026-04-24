@@ -17,15 +17,17 @@
 package org.sonarsource.sonarqube.mcp;
 
 import io.modelcontextprotocol.common.McpTransportContext;
-import java.io.ByteArrayOutputStream;
+import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.ServerSocket;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
@@ -58,9 +60,7 @@ class SonarQubeMcpServerGenericTest {
   @SonarQubeMcpServerTest
   void should_log_sanitized_config_when_elevated_debug_enabled(SonarQubeMcpServerTestHarness harness) {
     System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
-    var originalErr = System.err;
-    var errBuffer = new ByteArrayOutputStream();
-    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+    List<McpSchema.LoggingMessageNotification> capturedNotifications = new CopyOnWriteArrayList<>();
 
     try {
       var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
@@ -71,6 +71,9 @@ class SonarQubeMcpServerGenericTest {
         null,
         environment);
       server.start();
+      // Override the server-installed notifier with a capturing one so we can assert on the
+      // notifications/message payloads emitted during the asynchronous startup logging.
+      McpLogger.getInstance().setNotifier(capturedNotifications::add);
       var configuration = server.getMcpConfiguration();
 
       assertThat(System.getProperty("os.name")).isNotNull().isNotEmpty();
@@ -81,10 +84,12 @@ class SonarQubeMcpServerGenericTest {
       assertThat(configuration.getLogFilePath().toAbsolutePath().toString()).isNotNull().isNotEmpty();
 
       await().atMost(2, SECONDS).untilAsserted(() -> {
-        var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
+        var joined = capturedNotifications.stream()
+          .map(McpSchema.LoggingMessageNotification::data)
+          .collect(Collectors.joining("\n"));
         var proxySelector = java.net.ProxySelector.getDefault();
         var proxySelectorName = proxySelector != null ? proxySelector.getClass().getName() : "none";
-        assertThat(stderrOutput)
+        assertThat(joined)
           .contains("SSL/TLS - OS: " + System.getProperty("os.name"))
           .contains("SSL/TLS configured - protocol: TLS")
           .contains("Proxy selector: " + proxySelectorName)
@@ -102,7 +107,7 @@ class SonarQubeMcpServerGenericTest {
       server.shutdown();
     } finally {
       System.clearProperty("SONARQUBE_DEBUG_ENABLED");
-      System.setErr(originalErr);
+      McpLogger.getInstance().clearNotifier();
     }
   }
 

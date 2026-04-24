@@ -17,9 +17,10 @@
 package org.sonarsource.sonarqube.mcp.serverapi;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
+import io.modelcontextprotocol.spec.McpSchema;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.AfterEach;
@@ -31,6 +32,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
@@ -50,8 +52,6 @@ class ServerApiTests {
 
   private static final String USER_AGENT = "SonarQube MCP tests";
   private ServerApiHelper serverApiHelper;
-  private PrintStream originalErr;
-  private ByteArrayOutputStream errBuffer;
 
   @RegisterExtension
   static WireMockExtension sonarqubeMock = WireMockExtension.newInstance()
@@ -69,11 +69,7 @@ class ServerApiTests {
   @AfterEach
   void tearDown() {
     System.clearProperty("SONARQUBE_DEBUG_ENABLED");
-    if (originalErr != null) {
-      System.setErr(originalErr);
-      originalErr = null;
-      errBuffer = null;
-    }
+    McpLogger.getInstance().clearNotifier();
   }
 
   static Stream<Arguments> getErrorResponses() {
@@ -121,16 +117,17 @@ class ServerApiTests {
   @Test
   void it_should_log_error_response_code() {
     System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
-    originalErr = System.err;
-    errBuffer = new ByteArrayOutputStream();
-    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+    List<McpSchema.LoggingMessageNotification> capturedNotifications = new CopyOnWriteArrayList<>();
+    McpLogger.getInstance().setNotifier(capturedNotifications::add);
 
     sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"errors\": [{\"msg\": \"Missing permission\",\"code\":\"insufficient_privileges\"}]}", HttpStatus.SC_FORBIDDEN)));
 
     assertThrows(ForbiddenException.class, () -> serverApiHelper.get("/test"));
 
-    var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
-    assertThat(stderrOutput)
+    var joined = capturedNotifications.stream()
+      .map(McpSchema.LoggingMessageNotification::data)
+      .collect(Collectors.joining("\n"));
+    assertThat(joined)
       .contains("HTTP error - URL: " + sonarqubeMock.baseUrl() + "/test")
       .contains("status: 403");
   }

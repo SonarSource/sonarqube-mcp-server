@@ -16,19 +16,32 @@
  */
 package org.sonarsource.sonarqube.mcp.log;
 
+import io.modelcontextprotocol.spec.McpSchema;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Objects;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * MCP-specific logger that outputs to both:
- * - STDERR: for MCP clients (the MCP protocol uses STDERR for diagnostic logs, STDOUT is reserved for JSON-RPC messages)
+ * MCP-specific logger that outputs to:
  * - Log file: via SLF4J/Logback for persistence and debugging
+ * - MCP client: as {@code notifications/message} (per the MCP logging spec) when a notifier is configured.
+ *   Outside of a session (e.g. during startup, before the MCP server is built) the notifier is a no-op
+ *   and only SLF4J file logging happens.
  */
 public class McpLogger {
 
   private static final Logger LOG = LoggerFactory.getLogger(McpLogger.class);
   private static final McpLogger INSTANCE = new McpLogger();
   private static final String SONARQUBE_DEBUG_ENABLED = "SONARQUBE_DEBUG_ENABLED";
+  private static final String LOGGER_NAME = "sonarqube-mcp-server";
+  private static final Consumer<McpSchema.LoggingMessageNotification> NO_OP = notification -> {
+    // no-op
+  };
+
+  private Consumer<McpSchema.LoggingMessageNotification> notifier = NO_OP;
 
   public static McpLogger getInstance() {
     return INSTANCE;
@@ -46,36 +59,53 @@ public class McpLogger {
     return "true".equalsIgnoreCase(System.getProperty(SONARQUBE_DEBUG_ENABLED));
   }
 
+  public void setNotifier(Consumer<McpSchema.LoggingMessageNotification> notifier) {
+    this.notifier = Objects.requireNonNull(notifier);
+  }
+
+  public void clearNotifier() {
+    this.notifier = NO_OP;
+  }
+
   public void info(String message) {
     LOG.info(message);
-    logToStderr("INFO", message);
+    notify(McpSchema.LoggingLevel.INFO, message);
   }
 
   public void debug(String message) {
     if (isDebugEnabled()) {
       LOG.debug(message);
-      logToStderr("DEBUG", message);
+      notify(McpSchema.LoggingLevel.DEBUG, message);
     }
   }
 
   public void warn(String message) {
     LOG.warn(message);
-    logToStderr("WARN", message);
+    notify(McpSchema.LoggingLevel.WARNING, message);
   }
 
   public void error(String message, Throwable throwable) {
     LOG.error(message, throwable);
-    logToStderr("ERROR", message);
-    throwable.printStackTrace(System.err);
+    notify(McpSchema.LoggingLevel.ERROR, message + System.lineSeparator() + stackTraceOf(throwable));
   }
 
   public void error(String message) {
     LOG.error(message);
-    logToStderr("ERROR", message);
+    notify(McpSchema.LoggingLevel.ERROR, message);
   }
 
-  private static void logToStderr(String level, String message) {
-    System.err.println(level + " SonarQube MCP Server - " + message);
+  private void notify(McpSchema.LoggingLevel level, String message) {
+    try {
+      notifier.accept(new McpSchema.LoggingMessageNotification(level, LOGGER_NAME, message, null));
+    } catch (Exception e) {
+      LOG.warn("Failed to dispatch MCP log notification", e);
+    }
+  }
+
+  private static String stackTraceOf(Throwable throwable) {
+    var writer = new StringWriter();
+    throwable.printStackTrace(new PrintWriter(writer));
+    return writer.toString();
   }
 
 }

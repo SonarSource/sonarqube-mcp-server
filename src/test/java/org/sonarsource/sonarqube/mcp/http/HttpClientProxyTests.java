@@ -17,22 +17,23 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -50,8 +51,6 @@ class HttpClientProxyTests {
     .build();
 
   private ProxySelector originalProxySelector;
-  private PrintStream originalErr;
-  private ByteArrayOutputStream errBuffer;
 
   @AfterEach
   void tearDown() {
@@ -59,11 +58,7 @@ class HttpClientProxyTests {
     if (originalProxySelector != null) {
       ProxySelector.setDefault(originalProxySelector);
     }
-    if (originalErr != null) {
-      System.setErr(originalErr);
-      originalErr = null;
-      errBuffer = null;
-    }
+    McpLogger.getInstance().clearNotifier();
     // Clear proxy system properties
     System.clearProperty("http.proxyHost");
     System.clearProperty("http.proxyPort");
@@ -75,6 +70,18 @@ class HttpClientProxyTests {
     System.clearProperty("java.net.socks.username");
     System.clearProperty("java.net.socks.password");
     System.clearProperty("SONARQUBE_DEBUG_ENABLED");
+  }
+
+  private static List<McpSchema.LoggingMessageNotification> captureLogNotifications() {
+    var captured = new CopyOnWriteArrayList<McpSchema.LoggingMessageNotification>();
+    McpLogger.getInstance().setNotifier(captured::add);
+    return captured;
+  }
+
+  private static String joinedLogData(List<McpSchema.LoggingMessageNotification> notifications) {
+    return notifications.stream()
+      .map(McpSchema.LoggingMessageNotification::data)
+      .collect(Collectors.joining("\n"));
   }
 
   @Test
@@ -163,15 +170,13 @@ class HttpClientProxyTests {
     System.setProperty("https.proxyHost", "proxy.local");
     System.setProperty("https.proxyPort", "3129");
 
-    originalErr = System.err;
-    errBuffer = new ByteArrayOutputStream();
-    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+    var captured = captureLogNotifications();
 
     var provider = new HttpClientProvider(USER_AGENT);
     provider.logConnectionSettings();
 
-    var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
-    assertThat(stderrOutput)
+    var output = joinedLogData(captured);
+    assertThat(output)
       .contains("SSL/TLS - OS: ")
       .contains("SSL/TLS configured - protocol: ")
       .contains("Proxy selector: ")
@@ -187,15 +192,13 @@ class HttpClientProxyTests {
     System.setProperty("socksProxyHost", "socks.local");
     System.setProperty("socksProxyPort", "1080");
 
-    originalErr = System.err;
-    errBuffer = new ByteArrayOutputStream();
-    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+    var captured = captureLogNotifications();
 
     var provider = new HttpClientProvider(USER_AGENT);
     provider.logConnectionSettings();
 
-    var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
-    assertThat(stderrOutput)
+    var output = joinedLogData(captured);
+    assertThat(output)
       .contains("SOCKS proxy: socks.local:1080")
       .doesNotContain("No proxy system properties configured");
   }
@@ -204,15 +207,13 @@ class HttpClientProxyTests {
   void should_log_no_proxy_when_no_proxy_properties_set() {
     System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
 
-    originalErr = System.err;
-    errBuffer = new ByteArrayOutputStream();
-    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+    var captured = captureLogNotifications();
 
     var provider = new HttpClientProvider(USER_AGENT);
     provider.logConnectionSettings();
 
-    var stderrOutput = errBuffer.toString(StandardCharsets.UTF_8);
-    assertThat(stderrOutput).contains("No proxy system properties configured");
+    var output = joinedLogData(captured);
+    assertThat(output).contains("No proxy system properties configured");
   }
 
   @Test

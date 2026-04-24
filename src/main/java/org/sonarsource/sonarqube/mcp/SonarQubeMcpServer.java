@@ -198,6 +198,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
         .tools(filterForEnabledTools(supportedTools).stream().map(this::toStdioSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
         .build();
+      LOG.setNotifier(notification -> transportProvider.notifyClients(McpSchema.METHOD_NOTIFICATION_MESSAGE, notification)
+        .subscribe(v -> {
+          // success: nothing to do, already written to file
+        }, e -> {
+          // swallow: notification the SDK already logs dispatch failure
+        }));
     }
 
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
@@ -629,6 +635,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     shutdownMcpServer();
     shutdownAnalytics();
     shutdownBackend();
+    LOG.clearNotifier();
   }
 
   private void shutdownAnalytics() {
