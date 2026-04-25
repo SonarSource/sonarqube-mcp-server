@@ -173,7 +173,7 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 - Headers:
   - `Authorization: Bearer <token>` — **preferred**, required on every request
   - `SONARQUBE_TOKEN: <token>` — **deprecated**, still accepted for backward compatibility; will be removed in a future version
-  - `SONARQUBE_ORG: <org>` — for SonarQube Cloud, identifies the organization. **Mutually exclusive with the server-level `SONARQUBE_ORG` env var**: if the env var is set at startup, clients must not send this header (results in an error); if the env var is not set, clients must send this header on every request
+  - `SONARQUBE_ORG: <org>` — for SonarQube Cloud, identifies the organization. **Mutually exclusive with the server-level `SONARQUBE_ORG` env var**: if the env var is set at startup, clients must not send this header (results in an error). If the env var is not set, the header is optional — clients may either send it per request or supply an `organization` argument on each tool call that needs one. Use the `list_sonarqube_organizations` tool to discover available keys.
   - `SONARQUBE_TOOLSETS: <comma-separated-keys>` — optional; narrows the server-level toolset for this request (cannot add toolsets beyond what the server was launched with)
   - `SONARQUBE_READ_ONLY: true|false` — optional; can further restrict to read-only for this request (cannot lift a server-level read-only restriction)
 

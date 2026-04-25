@@ -22,10 +22,12 @@ import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.response.SearchMemberOrganizationsResponse;
 
 public class OrganizationsApi {
 
   public static final String ORGANIZATIONS_PATH = "/organizations/organizations";
+  public static final String SEARCH_PATH = "/api/organizations/search";
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private final ServerApiHelper helper;
@@ -52,6 +54,21 @@ public class OrganizationsApi {
     } catch (Exception e) {
       LOG.debug("Could not retrieve organization UUID for key '" + organizationKey + "': " + e.getMessage());
       return null;
+    }
+  }
+
+  /**
+   * Searches for organizations the authenticated user is a member of.
+   * Only available on SonarQube Cloud.
+   */
+  public SearchMemberOrganizationsResponse searchMemberOrganizations(int page, int pageSize) {
+    var path = new UrlBuilder(SEARCH_PATH)
+      .addParam("member", "true")
+      .addParam("p", page)
+      .addParam("ps", pageSize)
+      .build();
+    try (var response = helper.get(path)) {
+      return new Gson().fromJson(response.bodyAsString(), SearchMemberOrganizationsResponse.class);
     }
   }
 

@@ -129,6 +129,19 @@ public class SchemaToolBuilder {
   }
 
   /**
+   * Adds an organization property only when no default organization is configured/resolved at startup.
+   * When {@code configuredOrganization} is non-null, the property is omitted from the schema entirely —
+   * the configured default is used automatically at runtime.
+   * When {@code null}, the property is added as a required parameter so the caller must supply an organization per call.
+   */
+  public SchemaToolBuilder addOrganizationProperty(String propertyName, String description, @Nullable String configuredOrganization) {
+    if (configuredOrganization != null) {
+      return this;
+    }
+    return addRequiredStringProperty(propertyName, description);
+  }
+
+  /**
    * Marks this tool as read-only, indicating it only reads data and doesn't modify any state.
    */
   public SchemaToolBuilder setReadOnlyHint() {

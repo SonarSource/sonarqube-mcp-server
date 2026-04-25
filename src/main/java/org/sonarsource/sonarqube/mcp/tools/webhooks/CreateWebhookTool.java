@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -29,21 +30,27 @@ public class CreateWebhookTool extends Tool {
   public static final String URL_PROPERTY = "url";
   public static final String PROJECT_PROPERTY = "projectKey";
   public static final String SECRET_PROPERTY = "secret";
+  public static final String ORGANIZATION_PROPERTY = "organization";
 
   private final ServerApiProvider serverApiProvider;
+  private final boolean isSonarQubeCloud;
+  @Nullable
+  private final String configuredOrganization;
 
-  public CreateWebhookTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
-    super(createToolDefinition(isSonarQubeCloud),
+  public CreateWebhookTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
+    super(createToolDefinition(isSonarQubeCloud, configuredOrganization),
       ToolCategory.WEBHOOKS);
     this.serverApiProvider = serverApiProvider;
+    this.isSonarQubeCloud = isSonarQubeCloud;
+    this.configuredOrganization = configuredOrganization;
   }
 
-  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
+  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
     var scope = isSonarQubeCloud ? "organization or project" : "instance or project";
     var description = "Create a new webhook for the " + scope + ". " +
       "Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
-    
-    return SchemaToolBuilder.forOutput(CreateWebhookToolResponse.class)
+
+    var builder = SchemaToolBuilder.forOutput(CreateWebhookToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Create SonarQube Webhook")
       .setDescription(description)
@@ -51,8 +58,16 @@ public class CreateWebhookTool extends Tool {
       .addRequiredStringProperty(URL_PROPERTY, "Server endpoint that will receive the webhook payload (max 512 chars)")
       .addStringProperty(PROJECT_PROPERTY, "The key of the project that will own the webhook (max 400 chars)")
       .addStringProperty(SECRET_PROPERTY, "If provided, secret will be used as the key to generate the HMAC hex digest value " +
-        "in the 'X-Sonar-Webhook-HMAC-SHA256' header (16-200 chars)")
-      .build();
+        "in the 'X-Sonar-Webhook-HMAC-SHA256' header (16-200 chars)");
+
+    if (isSonarQubeCloud) {
+      builder.addOrganizationProperty(ORGANIZATION_PROPERTY,
+        "The SonarQube Cloud organization key. Required when SONARQUBE_ORG is not configured at the server level. "
+          + "Use list_sonarqube_organizations to discover available keys.",
+        configuredOrganization);
+    }
+
+    return builder.build();
   }
 
   @Override
@@ -61,8 +76,11 @@ public class CreateWebhookTool extends Tool {
     var url = arguments.getStringOrThrow(URL_PROPERTY);
     var project = arguments.getOptionalString(PROJECT_PROPERTY);
     var secret = arguments.getOptionalString(SECRET_PROPERTY);
+    var orgOverride = isSonarQubeCloud
+      ? arguments.getOrganizationWithFallback(ORGANIZATION_PROPERTY, configuredOrganization)
+      : null;
 
-    var apiResponse = serverApiProvider.get().webhooksApi().createWebhook(name, url, project, secret);
+    var apiResponse = serverApiProvider.get(orgOverride).webhooksApi().createWebhook(name, url, project, secret);
     var webhook = apiResponse.webhook();
 
     var response = new CreateWebhookToolResponse(webhook.key(), webhook.name(), webhook.url(), webhook.hasSecret());

@@ -83,26 +83,32 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_in_stdio_mode_when_neither_url_nor_org_is_set(@TempDir Path tempDir) {
+  void should_default_to_sonarqube_cloud_in_stdio_mode_when_neither_url_nor_org_is_set(@TempDir Path tempDir) {
+    // With optional SONARQUBE_ORG, stdio mode without URL/ORG defaults to SonarQube Cloud;
+    // the organization will be auto-resolved or requested per tool call at runtime.
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.isSonarQubeCloud()).isTrue();
+    assertThat(config.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(config.getSonarqubeOrg()).isNull();
+    assertThat(config.getConfiguredSonarqubeOrg()).isNull();
   }
 
   @Test
-  void should_throw_error_in_stdio_mode_when_only_is_cloud_flag_is_set(@TempDir Path tempDir) {
-    // SONARQUBE_IS_CLOUD alone is not enough in stdio — org resolution is per-request in HTTP only
+  void should_default_to_sonarqube_cloud_in_stdio_mode_when_only_is_cloud_flag_is_set(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
       "SONARQUBE_IS_CLOUD", "true"
     );
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.isSonarQubeCloud()).isTrue();
+    assertThat(config.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(config.getSonarqubeOrg()).isNull();
   }
 
   @Test
@@ -529,7 +535,7 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_when_stdio_org_and_url_are_both_unresolved_placeholders(@TempDir Path tempDir) {
+  void should_default_to_sonarqube_cloud_when_stdio_org_and_url_are_both_unresolved_placeholders(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
@@ -537,9 +543,41 @@ class McpServerLaunchConfigurationTest {
       "SONARQUBE_URL", "${SONARQUBE_URL}"
     );
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.isSonarQubeCloud()).isTrue();
+    assertThat(config.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(config.getSonarqubeOrg()).isNull();
+    assertThat(config.getConfiguredSonarqubeOrg()).isNull();
+  }
+
+  @Test
+  void should_return_null_for_getSonarqubeOrg_when_neither_configured_nor_resolved(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.getSonarqubeOrg()).isNull();
+    assertThat(config.getConfiguredSonarqubeOrg()).isNull();
+  }
+
+  @Test
+  void should_prefer_resolved_org_over_null_configured_org(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
+    var config = new McpServerLaunchConfiguration(arg);
+
+    config.setResolvedSonarqubeOrg("auto-resolved-org");
+
+    assertThat(config.getSonarqubeOrg()).isEqualTo("auto-resolved-org");
+    assertThat(config.getConfiguredSonarqubeOrg()).isNull();
+  }
+
+  @Test
+  void should_prefer_configured_org_when_no_resolved_org(@TempDir Path tempDir) {
+    var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "configured-org");
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.getSonarqubeOrg()).isEqualTo("configured-org");
+    assertThat(config.getConfiguredSonarqubeOrg()).isEqualTo("configured-org");
   }
 
   @Test

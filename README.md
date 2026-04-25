@@ -625,13 +625,17 @@ To enable full functionality, the following environment variables must be set be
 | Environment variable  | Description                                                                                                               | Required |
 |-----------------------|---------------------------------------------------------------------------------------------------------------------------|----------|
 | `SONARQUBE_TOKEN`     | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/)         | Yes      |
-| `SONARQUBE_ORG`       | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                                      | Yes      |
+| `SONARQUBE_ORG`       | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                                      | No       |
 | `SONARQUBE_URL`       | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarQube Cloud US: `https://sonarqube.us` | No       |
 
 **Examples:**
 
-- **SonarQube Cloud**: Only `SONARQUBE_TOKEN` and `SONARQUBE_ORG` are needed
-- **SonarQube Cloud US**: Set `SONARQUBE_TOKEN`, `SONARQUBE_ORG`, and `SONARQUBE_URL=https://sonarqube.us`
+- **SonarQube Cloud**: `SONARQUBE_TOKEN` is always required; `SONARQUBE_ORG` is optional
+- **SonarQube Cloud US**: Set `SONARQUBE_TOKEN` and `SONARQUBE_URL=https://sonarqube.us` (add `SONARQUBE_ORG` if you want to pin a single organization)
+
+> 💡 **`SONARQUBE_ORG` is optional**. When it is not set at startup:
+> - If the authenticated user is a member of **exactly one** SonarQube Cloud organization, it is auto-resolved and used for every call.
+> - Otherwise (zero or multiple organizations), the server leaves the organization unresolved. Tools that need an organization expose a required `organization` parameter, and the `list_sonarqube_organizations` tool lets you discover the available keys.
 
 #### SonarQube Server
 
@@ -642,7 +646,7 @@ To enable full functionality, the following environment variables must be set be
 
 > ⚠️ Connection to SonarQube Server requires a token of type **USER** and will not function properly if project tokens or global tokens are used.
 
-> 💡 **Configuration Tip (stdio mode)**: The presence of `SONARQUBE_ORG` determines whether you're connecting to SonarQube Cloud or Server. If `SONARQUBE_ORG` is set, SonarQube Cloud is used; otherwise, SonarQube Server is used.
+> 💡 **Configuration Tip (stdio mode)**: When `SONARQUBE_ORG` is set, the server connects to SonarQube Cloud. When it is not set, the server connects to SonarQube Cloud if `SONARQUBE_URL` points to a known Cloud host (or is unset) or if `SONARQUBE_IS_CLOUD=true` is provided; otherwise it connects to SonarQube Server using `SONARQUBE_URL`.
 
 ### Transport Modes
 
@@ -680,7 +684,7 @@ Unencrypted HTTP transport. Use HTTPS instead for multi-user deployments.
 
 **Note:** In HTTP(S) mode, the server is stateless — each client request must include an `Authorization: Bearer <token>` header carrying the user's own SonarQube token. For SonarQube Cloud, the organization is resolved as follows:
 - If `SONARQUBE_ORG` is set at server startup, all requests are routed to that organization. Clients must **not** send a `SONARQUBE_ORG` header — doing so will result in an error.
-- If `SONARQUBE_ORG` is not set at server startup, each client **must** supply a `SONARQUBE_ORG` header on every request.
+- If `SONARQUBE_ORG` is not set at server startup, clients may supply a `SONARQUBE_ORG` header per request, or provide an `organization` argument on each tool call that needs one. Clients can also call the `list_sonarqube_organizations` tool to discover the available organization keys.
 Clients can also narrow the visible tools per-request by supplying `SONARQUBE_TOOLSETS` and/or `SONARQUBE_READ_ONLY` headers; these apply additional filtering on top of the server-level configuration — they can only reduce the scope, never expand it.
 No session state is maintained between requests.
 

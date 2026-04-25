@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
+import jakarta.annotation.Nullable;
 import java.util.function.Supplier;
 
 /**
@@ -25,5 +26,15 @@ import java.util.function.Supplier;
  * - In HTTP mode: Creates per-request ServerApi instances using the client token from the Authorization: Bearer header
  */
 public interface ServerApiProvider extends Supplier<ServerApi> {
+
+  /**
+   * Returns a ServerApi for the current request, optionally overriding the organization key.
+   * When {@code orgOverride} is non-null and non-blank, the returned ServerApi is bound to that
+   * organization instead of the one configured/resolved at startup (or provided per-request via
+   * HTTP header). Implementations should fall back to {@link #get()} when no override applies.
+   */
+  default ServerApi get(@Nullable String orgOverride) {
+    return get();
+  }
 }
 

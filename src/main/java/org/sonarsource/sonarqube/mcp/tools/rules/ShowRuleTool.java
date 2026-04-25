@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.rules;
 
+import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Nullable;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
@@ -27,25 +29,44 @@ public class ShowRuleTool extends Tool {
 
   public static final String TOOL_NAME = "show_rule";
   public static final String KEY_PROPERTY = "key";
+  public static final String ORGANIZATION_PROPERTY = "organization";
 
   private final ServerApiProvider serverApiProvider;
+  private final boolean isSonarQubeCloud;
+  @Nullable
+  private final String configuredOrganization;
 
-  public ShowRuleTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ShowRuleToolResponse.class)
+  public ShowRuleTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
+    super(buildSchema(isSonarQubeCloud, configuredOrganization), ToolCategory.RULES);
+    this.serverApiProvider = serverApiProvider;
+    this.isSonarQubeCloud = isSonarQubeCloud;
+    this.configuredOrganization = configuredOrganization;
+  }
+
+  private static McpSchema.Tool buildSchema(boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
+    var builder = SchemaToolBuilder.forOutput(ShowRuleToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Rule Details")
       .setDescription("Shows detailed information about a SonarQube rule.")
-      .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)")
-      .setReadOnlyHint()
-      .build(),
-      ToolCategory.RULES);
-    this.serverApiProvider = serverApiProvider;
+      .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)");
+
+    if (isSonarQubeCloud) {
+      builder.addOrganizationProperty(ORGANIZATION_PROPERTY,
+        "The SonarQube Cloud organization key. Required when SONARQUBE_ORG is not configured at the server level. "
+          + "Use list_sonarqube_organizations to discover available keys.",
+        configuredOrganization);
+    }
+
+    return builder.setReadOnlyHint().build();
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var ruleKey = arguments.getStringOrThrow(KEY_PROPERTY);
-    var response = serverApiProvider.get().rulesApi().showRule(ruleKey);
+    var orgOverride = isSonarQubeCloud
+      ? arguments.getOrganizationWithFallback(ORGANIZATION_PROPERTY, configuredOrganization)
+      : null;
+    var response = serverApiProvider.get(orgOverride).rulesApi().showRule(ruleKey);
     var toolResponse = buildStructuredContent(response.rule());
     return Tool.Result.success(toolResponse);
   }

@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.projects;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
@@ -29,30 +30,43 @@ public class SearchMyProjectsTool extends Tool {
   public static final String PAGE_PROPERTY = "page";
   public static final String PAGE_SIZE_PROPERTY = "pageSize";
   public static final String SEARCH_QUERY_PROPERTY = "q";
+  public static final String ORGANIZATION_PROPERTY = "organization";
   public static final int MAX_PAGE_SIZE = 500;
 
   private final ServerApiProvider serverApiProvider;
+  private final boolean isSonarQubeCloud;
+  @Nullable
+  private final String configuredOrganization;
 
-  public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
-    super(createToolDefinition(isSonarQubeCloud),
+  public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
+    super(createToolDefinition(isSonarQubeCloud, configuredOrganization),
       ToolCategory.PROJECTS);
     this.serverApiProvider = serverApiProvider;
+    this.isSonarQubeCloud = isSonarQubeCloud;
+    this.configuredOrganization = configuredOrganization;
   }
 
-  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
+  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
     var scope = isSonarQubeCloud ? "organization" : "instance";
     var description = "Find SonarQube projects in your " + scope + ". Supports searching by project name or key. " +
       "Use this first when projectKey is unknown - most other tools require the project key from this response.";
 
-    return SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
+    var builder = SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
       .setDescription(description)
       .addStringProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 500.")
-      .addStringProperty(SEARCH_QUERY_PROPERTY, "An optional search query to filter projects by name (partial match) or key (exact match).")
-      .setReadOnlyHint()
-      .build();
+      .addStringProperty(SEARCH_QUERY_PROPERTY, "An optional search query to filter projects by name (partial match) or key (exact match).");
+
+    if (isSonarQubeCloud) {
+      builder.addOrganizationProperty(ORGANIZATION_PROPERTY,
+        "The SonarQube Cloud organization key. Required when SONARQUBE_ORG is not configured at the server level. "
+          + "Use list_sonarqube_organizations to discover available keys.",
+        configuredOrganization);
+    }
+
+    return builder.setReadOnlyHint().build();
   }
 
   @Override
@@ -64,8 +78,11 @@ public class SearchMyProjectsTool extends Tool {
     if (pageSize <= 0 || pageSize > MAX_PAGE_SIZE) {
       return Tool.Result.failure("Page size must be greater than 0 and less than or equal to " + MAX_PAGE_SIZE);
     }
-    
-    var projects = serverApiProvider.get().componentsApi().searchProjects(page, pageSize, searchQuery);
+
+    var orgOverride = isSonarQubeCloud
+      ? arguments.getOrganizationWithFallback(ORGANIZATION_PROPERTY, configuredOrganization)
+      : null;
+    var projects = serverApiProvider.get(orgOverride).componentsApi().searchProjects(page, pageSize, searchQuery);
     var toolResponse = buildStructuredContent(projects);
     return Tool.Result.success(toolResponse);
   }
