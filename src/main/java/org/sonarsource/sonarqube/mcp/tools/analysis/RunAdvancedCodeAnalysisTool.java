@@ -115,6 +115,9 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       return Result.failure("run_advanced_code_analysis requires an organization. Set SONARQUBE_ORG or pass the 'organization' argument. "
         + "Use list_sonarqube_organizations to discover available keys.");
     }
+    if (!isA3sEnabled(serverApi, organizationKey)) {
+      return Result.failure("Advanced code analysis is not enabled for organization '" + organizationKey + "'.");
+    }
 
     String fileContent;
     try {

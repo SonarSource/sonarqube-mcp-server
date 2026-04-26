@@ -282,19 +282,23 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
-    if (!mcpConfiguration.isHttpEnabled() && isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+    var orgKeyForA3s = mcpConfiguration.getSonarqubeOrg();
+    var isA3sDefinitivelyEnabled = false;
+    
+    if (!mcpConfiguration.isHttpEnabled() && mcpConfiguration.isSonarQubeCloud() && (orgKeyForA3s == null || isAdvancedAnalysisEnabledForOrg(serverApi, orgKeyForA3s))) {
+      if (orgKeyForA3s != null) {
+        isA3sDefinitivelyEnabled = true;
+      }
       if (workspaceMount != null) {
-        LOG.info("Advanced analysis mode enabled");
-        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount, mcpConfiguration.getSonarqubeOrg()));
+        LOG.info("Advanced analysis mode potentially enabled");
+        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount, orgKeyForA3s));
       } else {
         LOG.info("Advanced analysis mode enabled, but no workspace path configured, skipping tool registration");
       }
-    } else {
-      // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
-      // token is configured (so plugins can be downloaded at startup).
-      if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
-        loadBackendDependentTools();
-      }
+    }
+
+    if (!isA3sDefinitivelyEnabled && (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null)) {
+      loadBackendDependentTools();
     }
 
     logToolsLoaded();
@@ -403,7 +407,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       // In HTTP mode there is no startup token to probe SCA availability
       supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey, isSonarQubeCloud, effectiveOrg));
     } else {
-      var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();
+      var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && (effectiveOrg == null || serverApi.scaApi().isScaEnabled());
       var scaSupportedOnSQS = !serverApi.isSonarQubeCloud() && serverApi.featuresApi().listFeatures().contains(Feature.SCA);
       if (scaSupportedOnSQC || scaSupportedOnSQS) {
         supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey, isSonarQubeCloud, effectiveOrg));
@@ -606,6 +610,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     var baseServerApi = Objects.requireNonNull(serverApi, "ServerApi not initialized");
     if (normalizedOverride == null || !mcpConfiguration.isSonarQubeCloud()) {
+      return baseServerApi;
+    }
+    if (Objects.equals(normalizedOverride, baseServerApi.getOrganization())) {
       return baseServerApi;
     }
     return createServerApiWithTokenAndOrg(mcpConfiguration.getSonarQubeToken(), normalizedOverride);
