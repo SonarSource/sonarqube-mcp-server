@@ -41,7 +41,6 @@ public enum ToolCategory {
   PORTFOLIOS("portfolios"),
   SYSTEM("system"),
   WEBHOOKS("webhooks"),
-  DEPENDENCY_RISKS("dependency-risks"),
   SECURITY_HOTSPOTS("security-hotspots"),
   CAG("cag");
 
@@ -97,7 +96,6 @@ public enum ToolCategory {
       DUPLICATIONS,
       MEASURES,
       SECURITY_HOTSPOTS,
-      DEPENDENCY_RISKS,
       COVERAGE,
       CAG
     );

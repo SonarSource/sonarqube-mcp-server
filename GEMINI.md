@@ -35,7 +35,7 @@ The user should provide the following environment variables:
 - "List all bugs in my codebase"
 - "Find all blocker issues in my codebase"
 
-**What to do:** Use `search_sonar_issues`. This unified tool returns classic code issues (bugs, vulnerabilities, code smells), Security Hotspots, and SCA dependency risks in one call; use the `issueTypes` filter to narrow down. You can filter by project, software quality (MAINTAINABILITY, RELIABILITY, SECURITY), severity, issue status, files, pull request, or specific issue keys.
+**What to do:** Use `search_sonar_issues`. This unified tool returns classic code issues (bugs, vulnerabilities, code smells), Security Hotspots, and SCA dependency risks in one call; use the `issueTypes` filter to narrow down. You can filter by project, software quality (MAINTAINABILITY, RELIABILITY, SECURITY), severity, status (OPEN or RESOLVED), files, branch, pull request, or specific keys.
 
 ### Code Snippet Analysis
 **Example user requests:**

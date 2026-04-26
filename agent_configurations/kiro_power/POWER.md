@@ -111,13 +111,13 @@ search_sonar_issues({
 search_sonar_issues({
     issueTypes: ["ISSUE"],
     projects: ["my-project"],
-    issueStatuses: ["OPEN", "CONFIRMED"]
+    status: "OPEN"
 });
 
 // Get a specific issue by key
 search_sonar_issues({
     issueTypes: ["ISSUE"],
-    issueKeys: ["AYz123abc"]
+    keys: ["AYz123abc"]
 });
 
 // Query everything at once (issues + hotspots + dependency risks)
@@ -178,7 +178,7 @@ docker run --init --pull=always -i --rm \
   mcp/sonarqube
 ```
 
-Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`, `dependency-risks`. Note: `projects` is always enabled.
+Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`. Note: `projects` is always enabled.
 
 **Read-Only Mode** - Disable write operations for safer exploration:
 
@@ -273,7 +273,7 @@ const issues = search_sonar_issues({
     issueTypes: ["ISSUE"],
     projects: ["my-project"],
     severities: ["HIGH", "BLOCKER"],
-    issueStatuses: ["OPEN", "CONFIRMED"]
+    status: "OPEN"
 });
 
 // Step 4: Generate report or alert if thresholds exceeded
@@ -285,8 +285,7 @@ const issues = search_sonar_issues({
 // Step 1: Search for dependency risks (requires Server 2025.4+ Enterprise or SonarQube Cloud, with Advanced Security)
 const risks = search_sonar_issues({
     issueTypes: ["DEPENDENCY_RISK"],
-    projects: ["my-project"],
-    branchKey: "main"
+    projects: ["my-project"]
 });
 
 // Step 2: Review high-severity vulnerabilities

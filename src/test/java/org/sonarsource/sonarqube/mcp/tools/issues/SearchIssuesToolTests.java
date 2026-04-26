@@ -55,15 +55,14 @@ class SearchIssuesToolTests {
         SearchIssuesTool.PROJECTS_PROPERTY,
         SearchIssuesTool.FILES_PROPERTY,
         SearchIssuesTool.PULL_REQUEST_ID_PROPERTY,
-        SearchIssuesTool.BRANCH_KEY_PROPERTY,
         SearchIssuesTool.PAGE_PROPERTY,
         SearchIssuesTool.PAGE_SIZE_PROPERTY,
+        SearchIssuesTool.STATUS_PROPERTY,
         SearchIssuesTool.SEVERITIES_PROPERTY,
         SearchIssuesTool.IMPACT_SOFTWARE_QUALITIES_PROPERTY,
-        SearchIssuesTool.ISSUE_STATUSES_PROPERTY,
-        SearchIssuesTool.ISSUE_KEYS_PROPERTY,
-        SearchIssuesTool.HOTSPOT_STATUS_PROPERTY,
-        SearchIssuesTool.HOTSPOT_RESOLUTION_PROPERTY);
+        SearchIssuesTool.KEYS_PROPERTY);
+    assertThat(tool.inputSchema().properties())
+      .doesNotContainKeys("issueStatuses", "hotspotStatus", "hotspotResolution", "branchKey");
   }
 
   @Nested
@@ -71,7 +70,7 @@ class SearchIssuesToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_issues_for_specific_projects(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?componentKeys=project1,project2&organization=org")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?componentKeys=project1,project2&issueStatuses=OPEN,CONFIRMED&organization=org")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -124,7 +123,7 @@ class SearchIssuesToolTests {
       harness.getMockSonarQubeServer()
         .stubFor(get(IssuesApi.SEARCH_PATH
           + "?components=project1&impactSeverities=HIGH,BLOCKER&impactSoftwareQualities=SECURITY"
-          + "&issueStatuses=OPEN,CONFIRMED&issues=k1&p=2&ps=50")
+          + "&issueStatuses=FALSE_POSITIVE,ACCEPTED,FIXED&issues=k1&p=2&ps=50")
           .willReturn(aResponse().withResponseBody(
             Body.fromJsonBytes("""
               {
@@ -144,8 +143,8 @@ class SearchIssuesToolTests {
           SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1"},
           SearchIssuesTool.SEVERITIES_PROPERTY, new String[] {"HIGH", "BLOCKER"},
           SearchIssuesTool.IMPACT_SOFTWARE_QUALITIES_PROPERTY, new String[] {"SECURITY"},
-          SearchIssuesTool.ISSUE_STATUSES_PROPERTY, new String[] {"OPEN", "CONFIRMED"},
-          SearchIssuesTool.ISSUE_KEYS_PROPERTY, List.of("k1"),
+          SearchIssuesTool.STATUS_PROPERTY, SearchIssuesTool.STATUS_RESOLVED,
+          SearchIssuesTool.KEYS_PROPERTY, List.of("k1"),
           SearchIssuesTool.PAGE_PROPERTY, 2,
           SearchIssuesTool.PAGE_SIZE_PROPERTY, 50));
 
@@ -173,7 +172,7 @@ class SearchIssuesToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_hotspots_for_a_project(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project&status=TO_REVIEW")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -252,9 +251,9 @@ class SearchIssuesToolTests {
     }
 
     @SonarQubeMcpServerTest
-    void it_should_forward_hotspot_status_and_pagination(SonarQubeMcpServerTestHarness harness) {
+    void it_should_map_resolved_status_to_reviewed_hotspot_status(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer()
-        .stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project&status=REVIEWED&resolution=SAFE&p=2&ps=50")
+        .stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project&status=REVIEWED&p=2&ps=50")
           .willReturn(aResponse().withResponseBody(
             Body.fromJsonBytes("""
               {
@@ -270,8 +269,7 @@ class SearchIssuesToolTests {
         Map.of(
           SearchIssuesTool.ISSUE_TYPES_PROPERTY, new String[] {SearchIssuesTool.TYPE_SECURITY_HOTSPOT},
           SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"my-project"},
-          SearchIssuesTool.HOTSPOT_STATUS_PROPERTY, "REVIEWED",
-          SearchIssuesTool.HOTSPOT_RESOLUTION_PROPERTY, "SAFE",
+          SearchIssuesTool.STATUS_PROPERTY, SearchIssuesTool.STATUS_RESOLVED,
           SearchIssuesTool.PAGE_PROPERTY, 2,
           SearchIssuesTool.PAGE_SIZE_PROPERTY, 50));
 
@@ -286,7 +284,7 @@ class SearchIssuesToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_fetch_dependency_risks_for_a_project(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project&statuses=OPEN,CONFIRMED")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -326,9 +324,65 @@ class SearchIssuesToolTests {
               "assignee" : {
                 "name" : "John Doe"
               }
-            } ]
+            } ],
+            "paging" : {
+              "pageIndex" : 1,
+              "pageSize" : 100,
+              "total" : 1
+            }
           }
         }""");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_forward_page_and_page_size_to_sca(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project&statuses=OPEN,CONFIRMED&pageIndex=2&pageSize=50")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+              "issuesReleases": [%s],
+              "branches": [],
+              "countWithoutFilters": 1,
+              "page": {"pageIndex": 2, "pageSize": 50, "total": 200}
+            }
+            """.formatted(generateIssueRelease()).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(
+          SearchIssuesTool.ISSUE_TYPES_PROPERTY, new String[] {SearchIssuesTool.TYPE_DEPENDENCY_RISK},
+          SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"my-project"},
+          SearchIssuesTool.PAGE_PROPERTY, 2,
+          SearchIssuesTool.PAGE_SIZE_PROPERTY, 50));
+
+      assertThat(result.isError()).isFalse();
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_query_for_open_dependency_risks_by_default(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project&statuses=OPEN,CONFIRMED")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+              "issuesReleases": [%s],
+              "branches": [],
+              "countWithoutFilters": 1,
+              "page": {"pageIndex": 1, "pageSize": 100, "total": 1}
+            }
+            """.formatted(generateIssueRelease()).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(
+          SearchIssuesTool.ISSUE_TYPES_PROPERTY, new String[] {SearchIssuesTool.TYPE_DEPENDENCY_RISK},
+          SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"my-project"}));
+
+      assertThat(result.isError()).isFalse();
+      var payload = ((McpSchema.TextContent) result.content().get(0)).text();
+      assertThat(payload)
+        .contains("\"status\" : \"OPEN\"");
     }
 
     @SonarQubeMcpServerTest
@@ -392,7 +446,7 @@ class SearchIssuesToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_query_all_three_apis_by_default(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?components=my-project")
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?components=my-project&issueStatuses=OPEN,CONFIRMED")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -403,7 +457,7 @@ class SearchIssuesToolTests {
                 "users": []
               }
             """.formatted(generateIssue("issueKey1", "ruleName1", "projectName1")).getBytes(StandardCharsets.UTF_8)))));
-      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project&status=TO_REVIEW")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -412,7 +466,7 @@ class SearchIssuesToolTests {
                 "components": []
               }
             """.formatted(generateHotspot("AXJMFm6ERa2AinNL_0fP")).getBytes(StandardCharsets.UTF_8)))));
-      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project&statuses=OPEN,CONFIRMED")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -439,7 +493,7 @@ class SearchIssuesToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_record_per_group_errors_and_still_return_other_groups(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH)
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?issueStatuses=OPEN,CONFIRMED")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {

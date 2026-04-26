@@ -47,8 +47,10 @@ public record SearchIssuesToolResponse(
     @JsonPropertyDescription("Pagination information for the results") Paging paging
   ) {}
 
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public record DependencyRisksGroup(
-    @JsonPropertyDescription("List of dependency risk issues") List<IssueRelease> items
+    @JsonPropertyDescription("List of dependency risk issues") List<IssueRelease> items,
+    @JsonPropertyDescription("Pagination from the SCA issues-releases API") @Nullable Paging paging
   ) {}
 
   public record Issue(
