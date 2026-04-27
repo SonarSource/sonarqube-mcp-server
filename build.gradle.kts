@@ -66,6 +66,30 @@ configurations {
 		extendsFrom(sqplugins)
 		isTransitive = true
 	}
+	all {
+		resolutionStrategy.eachDependency {
+			// Pulled in by xodus-entity-store:2.0.1
+			if (requested.group == "org.jetbrains.kotlin" && requested.name in listOf("kotlin-stdlib", "kotlin-stdlib-common")) {
+				useVersion("2.2.0")
+				because("CVE-2020-29582")
+			}
+			// Pulled in transitively by mcp-json-jackson2 and sonarlint-rpc-impl
+            if (requested.group == "com.fasterxml.jackson.core" && requested.name != "jackson-annotations") {
+                useVersion("2.21.1")
+				because("GHSA-72hv-8253-57qq")
+			}
+			// Pulled in by mcp-json-jackson3
+			if (requested.group == "tools.jackson.core") {
+				useVersion("3.1.2")
+				because("CVE-2026-29062 + GHSA-72hv-8253-57qq")
+			}
+			// Pulled in transitively by sonarlint-core
+			if (requested.group == "org.apache.commons" && requested.name == "commons-compress") {
+				useVersion("1.28.0")
+				because("CVE-2024-25710 + CVE-2024-26308")
+			}
+		}
+	}
 }
 
 dependencies {

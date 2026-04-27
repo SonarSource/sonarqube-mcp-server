@@ -40,6 +40,16 @@ repositories {
     }
 }
 
+configurations.all {
+    resolutionStrategy.eachDependency {
+        // Pulled in transitively by testcontainers:1.21.x
+        if (requested.group == "org.apache.commons" && requested.name == "commons-compress") {
+            useVersion("1.28.0")
+            because("CVE-2024-25710 + CVE-2024-26308")
+        }
+    }
+}
+
 dependencies {
     testImplementation(project(":"))
     testImplementation(libs.testcontainers)
