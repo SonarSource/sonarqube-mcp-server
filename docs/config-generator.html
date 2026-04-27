@@ -30,6 +30,7 @@
     <a href="index.html" class="nav-link active">Home</a>
     <a href="https://github.com/SonarSource/sonar-mcp-server" class="nav-link" target="_blank" rel="noopener">GitHub</a>
     <a href="llms.txt" class="nav-link">llms.txt</a>
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLScxL13mwhcYO8IImi1r8jhLAmxulSwSEhCoETo3F4DFP_4rkA/viewform" class="nav-link nav-feedback" target="_blank" rel="noopener">Feedback</a>
     <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">☀</button>
   </div>
 </nav>
@@ -211,6 +212,22 @@
 </footer>
 
 <div class="toast" id="copyToast">Copied to clipboard</div>
+
+<!-- ─── Feedback FAB ──────────────────────────────────────── -->
+<div class="feedback-fab" id="feedbackFab">
+  <div class="feedback-fab-popover">
+    <button class="feedback-fab-x" onclick="document.getElementById('feedbackFab').classList.remove('open')" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="feedback-fab-title">How useful was this site?</div>
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLScxL13mwhcYO8IImi1r8jhLAmxulSwSEhCoETo3F4DFP_4rkA/viewform" target="_blank" rel="noopener" class="btn">Share Feedback</a>
+    <button class="feedback-fab-close" onclick="document.getElementById('feedbackFab').classList.remove('open')">Feedback</button>
+  </div>
+  <button class="feedback-fab-btn" onclick="document.getElementById('feedbackFab').classList.toggle('open')" aria-label="Give feedback">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Feedback
+  </button>
+</div>
 
 <script>
   // ── Theme toggle ─────────────────────────────────────────────
@@ -812,6 +829,23 @@
       }, 2000);
     });
   }
+
+  // ── Feedback FAB trigger ──────────────────────────────────────
+  (function () {
+    var fab = document.getElementById('feedbackFab');
+    if (!fab) return;
+    var triggered = false;
+    function show() {
+      if (triggered) return;
+      triggered = true;
+      fab.classList.add('open');
+      window.removeEventListener('scroll', onScroll);
+    }
+    function onScroll() {
+      if (window.scrollY > 200) show();
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+  })();
 </script>
 </body>
 </html>
