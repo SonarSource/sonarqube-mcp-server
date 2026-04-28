@@ -1361,6 +1361,13 @@ Run the following Gradle command to clean the project and build the application:
 
 The JAR file will be created in `build/libs/`.
 
+After adding or updating dependencies, regenerate the lock files:
+
+```bash
+./gradlew :dependencies --write-locks
+./gradlew :its:dependencies --write-locks
+```
+
 You will then need to manually copy and paste the MCP configuration, as follows:
 
 * To connect with SonarQube Cloud:
