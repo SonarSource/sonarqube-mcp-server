@@ -32,7 +32,7 @@ COPY --from=builder /optimized-jdk-21 $JAVA_HOME
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
         ca-certificates \
-        nodejs=~25 \
+        nodejs=~24 \
         sudo && \
         apk del curl && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
