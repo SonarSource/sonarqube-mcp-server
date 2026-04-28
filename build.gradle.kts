@@ -29,6 +29,14 @@ java {
 	}
 }
 
+// Locks resolved dependency versions to gradle.lockfile (required by S8569).
+// To regenerate after adding or updating dependencies:
+//   ./gradlew :dependencies --write-locks
+//   ./gradlew :its:dependencies --write-locks
+dependencyLocking {
+	lockAllConfigurations()
+}
+
 repositories {
 	if (artifactoryUrl.isNotEmpty() && artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
 		maven("$artifactoryUrl/sonarsource") {
