@@ -157,10 +157,12 @@ For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us
 <details>
 <summary>Gemini CLI</summary>
 
+> **Note:** The Gemini CLI extension has moved to the [sonarqube-agent-plugins](https://github.com/SonarSource/sonarqube-agent-plugins) repository. Please install it from there going forward.
+
 You can install our MCP server extension by using the following command:
 
 ```bash
-gemini extensions install https://github.com/SonarSource/sonarqube-mcp-server
+gemini extensions install https://github.com/SonarSource/sonarqube-agent-plugins
 ```
 
 You will need to set the required environment variables before starting Gemini:
@@ -176,7 +178,7 @@ You will need to set the required environment variables before starting Gemini:
   - `SONARQUBE_TOKEN` - Your SonarQube Server USER token
   - `SONARQUBE_URL` - Your SonarQube Server URL
 
-Once installed, the extension will be installed under `<home>/.gemini/extensions/sonarqube-mcp-server/gemini-extension.json`.
+Once installed, the extension will be installed under `<home>/.gemini/extensions/sonarqube/gemini-extension.json`.
 
 </details>
 
