@@ -53,7 +53,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -62,10 +61,8 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
-import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ChangeSecurityHotspotStatusTool;
-import org.sonarsource.sonarqube.mcp.tools.hotspots.SearchSecurityHotspotsTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ShowSecurityHotspotTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
@@ -237,7 +234,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     // Per-request tool calls in HTTP mode always use a fresh ServerApi from the request headers.
     this.serverApi = initializeServerApi(mcpConfiguration);
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-    loadBackendIndependentTools(serverApi);
+    loadBackendIndependentTools();
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
 
@@ -341,7 +338,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    * These can be loaded BEFORE plugin synchronization (which is slow).
    * This makes most tools available to users within seconds instead of minutes.
    */
-  private void loadBackendIndependentTools(ServerApi serverApi) {
+  private void loadBackendIndependentTools() {
     if (mcpConfiguration.isSonarQubeCloud()) {
       supportedTools.add(new ListEnterprisesTool(this));
     } else {
@@ -358,8 +355,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     supportedTools.addAll(List.of(
       new ChangeIssueStatusTool(this),
       new SearchMyProjectsTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new SearchIssuesTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new SearchSecurityHotspotsTool(this),
+      new SearchIssuesTool(this, sonarQubeVersionChecker, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey),
       new ShowSecurityHotspotTool(this),
       new ChangeSecurityHotspotStatusTool(this),
       new ProjectStatusTool(this),
@@ -378,17 +374,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new SearchDuplicatedFilesTool(this, configuredProjectKey),
       new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
       new ListPullRequestsTool(this, configuredProjectKey)));
-
-    if (mcpConfiguration.isHttpEnabled()) {
-      // In HTTP mode there is no startup token to probe SCA availability
-      supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
-    } else {
-      var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();
-      var scaSupportedOnSQS = !serverApi.isSonarQubeCloud() && serverApi.featuresApi().listFeatures().contains(Feature.SCA);
-      if (scaSupportedOnSQC || scaSupportedOnSQS) {
-        supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
-      }
-    }
   }
 
   private static boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {

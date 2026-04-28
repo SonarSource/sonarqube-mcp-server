@@ -97,25 +97,32 @@ The `analyze_code_snippet` tool supports the following languages: Java, Kotlin, 
 **Filter issues effectively** to focus on what matters:
 
 ```javascript
-// Search for high-severity security issues
-search_sonar_issues_in_projects({
+// Search for high-severity security issues (classic code issues only)
+search_sonar_issues({
+    issueTypes: ["ISSUE"],
     projects: ["my-project"],
     severities: ["HIGH", "BLOCKER"],
     impactSoftwareQualities: ["SECURITY", "RELIABILITY"],
-    p: 1,
-    ps: 100
+    page: 1,
+    pageSize: 100
 });
 
 // Filter by issue status
-search_sonar_issues_in_projects({
+search_sonar_issues({
+    issueTypes: ["ISSUE"],
     projects: ["my-project"],
-    issueStatuses: ["OPEN", "CONFIRMED"],
-    branch: "main"
+    status: "OPEN"
 });
 
 // Get a specific issue by key
-search_sonar_issues_in_projects({
-    issueKey: "AYz123abc"
+search_sonar_issues({
+    issueTypes: ["ISSUE"],
+    keys: ["AYz123abc"]
+});
+
+// Query everything at once (issues + hotspots + dependency risks)
+search_sonar_issues({
+    projects: ["my-project"]
 });
 ```
 
@@ -171,7 +178,7 @@ docker run --init --pull=always -i --rm \
   mcp/sonarqube
 ```
 
-Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`, `dependency-risks`. Note: `projects` is always enabled.
+Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`. Note: `projects` is always enabled.
 
 **Read-Only Mode** - Disable write operations for safer exploration:
 
@@ -217,7 +224,8 @@ const analysis = analyze_code_snippet({
 
 ```javascript
 // Step 1: Search for issues in the pull request
-const issues = search_sonar_issues_in_projects({
+const issues = search_sonar_issues({
+    issueTypes: ["ISSUE"],
     projects: ["my-project"],
     pullRequestId: "123",
     severities: ["HIGH", "BLOCKER"],
@@ -261,10 +269,11 @@ const qgStatus = get_project_quality_gate_status({
 });
 
 // Step 3: Search for unresolved issues
-const issues = search_sonar_issues_in_projects({
+const issues = search_sonar_issues({
+    issueTypes: ["ISSUE"],
     projects: ["my-project"],
     severities: ["HIGH", "BLOCKER"],
-    issueStatuses: ["OPEN", "CONFIRMED"]
+    status: "OPEN"
 });
 
 // Step 4: Generate report or alert if thresholds exceeded
@@ -273,10 +282,10 @@ const issues = search_sonar_issues_in_projects({
 ### Workflow 4: Analyze Dependencies for Security Risks
 
 ```javascript
-// Step 1: Search for dependency risks (requires Server 2025.4+ Enterprise with Advanced Security)
-const risks = search_dependency_risks({
-    projectKey: "my-project",
-    branchKey: "main"
+// Step 1: Search for dependency risks (requires Server 2025.4+ Enterprise or SonarQube Cloud, with Advanced Security)
+const risks = search_sonar_issues({
+    issueTypes: ["DEPENDENCY_RISK"],
+    projects: ["my-project"]
 });
 
 // Step 2: Review high-severity vulnerabilities

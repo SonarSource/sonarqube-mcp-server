@@ -35,7 +35,7 @@ The user should provide the following environment variables:
 - "List all bugs in my codebase"
 - "Find all blocker issues in my codebase"
 
-**What to do:** Use `search_sonar_issues_in_projects`. You can filter by project, software quality (MAINTAINABILITY, RELIABILITY, SECURITY), severity, issue status, branch, pull request, or search for a specific issue by key.
+**What to do:** Use `search_sonar_issues`. This unified tool returns classic code issues (bugs, vulnerabilities, code smells), Security Hotspots, and SCA dependency risks in one call; use the `issueTypes` filter to narrow down. You can filter by project, software quality (MAINTAINABILITY, RELIABILITY, SECURITY), severity, status (OPEN or RESOLVED), files, branch, pull request, or specific keys.
 
 ### Code Snippet Analysis
 **Example user requests:**
@@ -95,7 +95,7 @@ Always resolve the project key using the following lookup order — **never gues
 - Pull request analysis is available for PR-specific insights
 
 ### Code Issues and Violations
-- After fixing issues, do not attempt to verify them using `search_sonar_issues_in_projects`, as the server will not yet reflect the updates
+- After fixing issues, do not attempt to verify them using `search_sonar_issues`, as the server will not yet reflect the updates
 
 ## Common Troubleshooting
 

@@ -567,7 +567,7 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 
 | Environment variable   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 |------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Context Augmentation tools are only available in stdio mode and require organization entitlement. In HTTP(S) mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [HTTP/HTTPS Transport](#2-http) below). |
+| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Context Augmentation tools are only available in stdio mode and require organization entitlement. In HTTP(S) mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [HTTP/HTTPS Transport](#2-http) below). |
 | `SONARQUBE_READ_ONLY`  | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`. In HTTP(S) mode, clients can send a `SONARQUBE_READ_ONLY` HTTP header to further restrict individual requests to read-only, but cannot lift a server-level read-only restriction (see [HTTP/HTTPS Transport](#2-http) below).                                                                                                                                                                                                                                                                                                         |
 
 <details>
@@ -588,7 +588,6 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 | **Portfolios**           | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                     |
 | **System**               | `system`            | System administration tools (Server only)                                |
 | **Webhooks**             | `webhooks`          | Manage webhooks                                                          |
-| **Dependency Risks**     | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                       |
 | **Coverage**             | `coverage`          | Test coverage analysis and improvement tools                             |
 | **Context Augmentation** | `cag`               | Context Augmentation tools (stdio mode only, requires org entitlement)   |
 
@@ -919,15 +918,6 @@ SOCKS5 proxies are supported.
   - `from` - First line to analyze (1-based, default: 1) - _Number_
   - `to` - Last line to analyze (inclusive). If not specified, all lines are returned - _Number_
 
-### Dependency Risks
-
-**Note: Dependency risks are only available when connecting to SonarQube Server 2025.4 Enterprise or higher with SonarQube Advanced Security enabled.**
-
-- **search_dependency_risks** - Search for software composition analysis issues (dependency risks) of a SonarQube project, paired with releases that appear in the analyzed project, application, or portfolio.
-  - `projectKey` - Project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `branchKey` - Optional branch key - _String_
-  - `pullRequestKey` - Optional pull request key - _String_
-
 ### Enterprises
 
 **Note: Enterprises are only available when connecting to SonarQube Cloud.**
@@ -942,31 +932,22 @@ SOCKS5 proxies are supported.
   - `status` - New issue's status - _Required Enum {"accept", "falsepositive", "reopen"}_
 
 
-- **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects.
-  - `projects` - Optional list of Sonar projects - _String[]_
-  - `pullRequestId` - Optional Pull Request's identifier - _String_
-  - `severities` - Optional list of severities to filter by. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER - _String[]_
-  - `impactSoftwareQualities` - Optional list of software qualities to filter by. Possible values: MAINTAINABILITY, RELIABILITY, SECURITY - _String[]_
-  - `issueStatuses` - Optional list of issue statuses to filter by. Possible values: OPEN, CONFIRMED, FALSE_POSITIVE, ACCEPTED, FIXED, IN_SANDBOX - _String[]_
-  - `issueKey` - Optional issue key to fetch a specific issue - _String_
-  - `p` - Optional page number (default: 1) - _Integer_
-  - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
+- **search_sonar_issues** - Unified search for Sonar issues across three sources: classic code issues (bugs, vulnerabilities, code smells), Security Hotspots, and SCA dependency risks. All types are queried by default; use `issueTypes` to narrow down.
+  - `issueTypes` - Optional filter. Possible values: `ISSUE`, `SECURITY_HOTSPOT`, `DEPENDENCY_RISK` - _String[]_
+  - `projects` - Optional Sonar project keys. Required (exactly one) when `SECURITY_HOTSPOT` or `DEPENDENCY_RISK` is requested - _String[]_
+  - `files` - Optional list of file/component keys to filter (applies to `ISSUE` and `SECURITY_HOTSPOT`) - _String[]_
+  - `branch` - Optional branch name to filter by - _String_
+  - `pullRequestId` - Optional Pull Request identifier - _String_
+  - `page` - Optional page number (default: 1; applies to `ISSUE`, `SECURITY_HOTSPOT`, and `DEPENDENCY_RISK`) - _Integer_
+  - `pageSize` - Optional page size. Must be > 0 and ≤ 500 (default: 100; applies to `ISSUE`, `SECURITY_HOTSPOT`, and `DEPENDENCY_RISK`) - _Integer_
+  - `status` - Optional status filter: OPEN or RESOLVED. Applies to all issue types - _String_
+  - `severities` - Optional severities (ISSUE only). Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER - _String[]_
+  - `impactSoftwareQualities` - Optional software qualities (ISSUE only). Possible values: MAINTAINABILITY, RELIABILITY, SECURITY - _String[]_
+  - `keys` - Optional keys to fetch specific items (applies to `ISSUE` and `SECURITY_HOTSPOT`) - _String[]_
+
+  **Note: Dependency risks are only available when connecting to SonarQube Server 2025.4 Enterprise or higher, or SonarQube Cloud, with SonarQube Advanced Security enabled. When unavailable, the corresponding group is omitted and an entry is appended to the response's `errors` array.**
 
 ### Security Hotspots
-
-- **search_security_hotspots** - Search for Security Hotspots in a SonarQube project.
-  - `projectKey` - Project or application key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `hotspotKeys` - Comma-separated list of specific Security Hotspot keys to retrieve - _String[]_
-  - `branch` - Optional branch key - _String_
-  - `pullRequest` - Optional pull request key - _String_
-  - `files` - Optional list of file paths to filter - _String[]_
-  - `status` - Optional status filter: TO_REVIEW, REVIEWED - _String_
-  - `resolution` - Optional resolution filter: FIXED, SAFE, ACKNOWLEDGED - _String_
-  - `sinceLeakPeriod` - Filter hotspots created since the leak period (new code) - _Boolean_
-  - `onlyMine` - Show only hotspots assigned to me - _Boolean_
-  - `p` - Optional page number (default: 1) - _Integer_
-  - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
-
 
 - **show_security_hotspot** - Get detailed information about a specific Security Hotspot, including rule details, code context, flows, and comments.
   - `hotspotKey` - Security Hotspot key - _Required String_

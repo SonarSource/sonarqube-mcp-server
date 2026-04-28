@@ -36,7 +36,7 @@ class ToolCategoryTest {
     assertThat(ToolCategory.PORTFOLIOS.getKey()).isEqualTo("portfolios");
     assertThat(ToolCategory.SYSTEM.getKey()).isEqualTo("system");
     assertThat(ToolCategory.WEBHOOKS.getKey()).isEqualTo("webhooks");
-    assertThat(ToolCategory.DEPENDENCY_RISKS.getKey()).isEqualTo("dependency-risks");
+    assertThat(ToolCategory.SECURITY_HOTSPOTS.getKey()).isEqualTo("security-hotspots");
     assertThat(ToolCategory.CAG.getKey()).isEqualTo("cag");
   }
 
@@ -45,7 +45,6 @@ class ToolCategoryTest {
     assertThat(ToolCategory.fromKey("analysis")).isEqualTo(ToolCategory.ANALYSIS);
     assertThat(ToolCategory.fromKey("issues")).isEqualTo(ToolCategory.ISSUES);
     assertThat(ToolCategory.fromKey("quality-gates")).isEqualTo(ToolCategory.QUALITY_GATES);
-    assertThat(ToolCategory.fromKey("dependency-risks")).isEqualTo(ToolCategory.DEPENDENCY_RISKS);
   }
 
   @Test
@@ -123,7 +122,6 @@ class ToolCategoryTest {
       ToolCategory.DUPLICATIONS,
       ToolCategory.MEASURES,
       ToolCategory.SECURITY_HOTSPOTS,
-      ToolCategory.DEPENDENCY_RISKS,
       ToolCategory.COVERAGE,
       ToolCategory.CAG
     );
@@ -147,15 +145,14 @@ class ToolCategoryTest {
       ToolCategory.PORTFOLIOS,
       ToolCategory.SYSTEM,
       ToolCategory.WEBHOOKS,
-      ToolCategory.DEPENDENCY_RISKS,
       ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.CAG
     );
   }
 
   @Test
-  void should_have_exactly_16_categories() {
-    assertThat(ToolCategory.values()).hasSize(16);
+  void should_have_exactly_15_categories() {
+    assertThat(ToolCategory.values()).hasSize(15);
   }
 }
 

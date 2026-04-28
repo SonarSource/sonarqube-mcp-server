@@ -22,6 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.FeatureEnabledResponse;
+import java.util.List;
 
 public class ScaApi {
 
@@ -46,19 +47,31 @@ public class ScaApi {
     }
   }
 
-  public DependencyRisksResponse getDependencyRisks(String projectKey, @Nullable String branchKey, @Nullable String pullRequestKey) {
-    var path = buildPath(projectKey, branchKey, pullRequestKey);
+  public record SearchParams(
+    @Nullable String projectKey,
+    @Nullable String branchKey,
+    @Nullable String pullRequestKey,
+    @Nullable List<String> severities,
+    @Nullable List<String> qualities,
+    @Nullable List<String> statuses,
+    @Nullable Integer pageIndex,
+    @Nullable Integer pageSize
+  ) {}
+
+  public DependencyRisksResponse getDependencyRisks(SearchParams params) {
+    var path = new UrlBuilder(DEPENDENCY_RISKS_PATH)
+      .addParam("projectKey", params.projectKey())
+      .addParam("branchKey", params.branchKey())
+      .addParam("pullRequestKey", params.pullRequestKey())
+      .addParam("severities", params.severities())
+      .addParam("qualities", params.qualities())
+      .addParam("statuses", params.statuses())
+      .addParam("pageIndex", params.pageIndex())
+      .addParam("pageSize", params.pageSize())
+      .build();
     try (var response = helper.isSonarQubeCloud() ? helper.getApiSubdomain(path) : helper.get("/api/v2" + path)) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, DependencyRisksResponse.class);
     }
-  }
-
-  private static String buildPath(String projectKey, @Nullable String branchKey, @Nullable String pullRequestKey) {
-    var builder = new UrlBuilder(DEPENDENCY_RISKS_PATH);
-    builder.addParam("projectKey", projectKey);
-    builder.addParam("branchKey", branchKey);
-    builder.addParam("pullRequestKey", pullRequestKey);
-    return builder.build();
   }
 }
