@@ -102,8 +102,7 @@ public class ProxiedServerConfigParser {
       jsonConfig.args != null ? jsonConfig.args : Collections.emptyList(),
       jsonConfig.env != null ? jsonConfig.env : Collections.emptyMap(),
       jsonConfig.inherits != null ? jsonConfig.inherits : Collections.emptyList(),
-      jsonConfig.supportedTransports,
-      jsonConfig.instructions
+      jsonConfig.supportedTransports
     );
   }
 
@@ -119,8 +118,7 @@ public class ProxiedServerConfigParser {
     @JsonProperty("args") @Nullable List<String> args,
     @JsonProperty("env") @Nullable Map<String, String> env,
     @JsonProperty("inherits") @Nullable List<String> inherits,
-    @JsonProperty("supportedTransports") Set<TransportMode> supportedTransports,
-    @JsonProperty("instructions") @Nullable String instructions
+    @JsonProperty("supportedTransports") Set<TransportMode> supportedTransports
   ) {}
 
   public record ParseResult(boolean success, List<ProxiedMcpServerConfig> configs, @Nullable String error) {

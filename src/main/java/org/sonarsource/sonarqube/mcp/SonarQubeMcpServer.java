@@ -42,7 +42,6 @@ import org.sonarsource.sonarqube.mcp.analytics.AnalyticsClient;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
-import org.sonarsource.sonarqube.mcp.client.ProxiedServerConfigParser;
 import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
@@ -452,10 +451,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var proxiedTools = proxiedToolsLoader.loadProxiedTools(currentTransportMode, mcpConfiguration.getMcpServerId());
     supportedTools.addAll(proxiedTools);
 
-    var parseResult = ProxiedServerConfigParser.parse();
-    if (parseResult.success() && !parseResult.configs().isEmpty()) {
-      composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, parseResult.configs());
-    }
+    composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, proxiedToolsLoader.getProxiedInstructions());
   }
 
   private void setBaseInstructions() {

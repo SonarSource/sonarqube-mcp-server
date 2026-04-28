@@ -212,37 +212,10 @@ class SonarQubeMcpServerGenericTest {
     server.shutdown();
   }
 
-  @SonarQubeMcpServerTest
-  void should_append_cag_instructions_when_cag_enabled_for_org(SonarQubeMcpServerTestHarness harness) {
-    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("SONARQUBE_ORG", "org");
-    environment.put("SONARQUBE_TOOLSETS", "cag");
-    harness.prepareMockWebServer(environment);
-    harness.stubCagOrgConfig(true);
-
-    var server = new SonarQubeMcpServer(
-      new StdioServerTransportProvider(null),
-      null,
-      environment);
-    server.start();
-
-    assertThat(server.getComposedInstructions())
-      .as("Context Augmentation nudge should be appended to server instructions when CAG is enabled for the org")
-      .contains("## Context Augmentation")
-      .contains("search_by_signature_patterns")
-      .contains("search_by_body_patterns")
-      .contains("get_source_code")
-      .contains("get_upstream_call_flow")
-      .contains("get_downstream_call_flow")
-      .contains("get_references")
-      .contains("get_type_hierarchy")
-      .contains("get_current_architecture")
-      .contains("get_intended_architecture")
-      .contains("get_guidelines")
-      .contains("check_dependency");
-
-    server.shutdown();
-  }
+  // The positive "should_append_cag_instructions_when_cag_enabled_for_org" test was removed:
+  // CAG instruction content is now sourced from the proxied server's InitializeResult, not from
+  // bundled JSON. Verifying the content requires a real sonar-context-augmentation binary on PATH,
+  // which is out of scope for this harness. The CAG repo owns and tests its own instruction text.
 
   @SonarQubeMcpServerTest
   void should_not_append_cag_instructions_when_cag_disabled_for_org(SonarQubeMcpServerTestHarness harness) {

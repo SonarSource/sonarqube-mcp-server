@@ -50,6 +50,7 @@ public class McpClientManager {
   private final Map<String, McpSyncClient> clients = new ConcurrentHashMap<>();
   private final Map<String, List<McpSchema.Tool>> serverTools = new ConcurrentHashMap<>();
   private final Map<String, String> serverErrors = new ConcurrentHashMap<>();
+  private final Map<String, String> serverInstructions = new ConcurrentHashMap<>();
   private volatile boolean initialized = false;
 
   public McpClientManager(List<ProxiedMcpServerConfig> serverConfigs, String mcpServerId) {
@@ -122,14 +123,18 @@ public class McpClientManager {
         .loggingConsumer(notification -> handleProxiedServerLog(config.name(), notification))
         .build();
 
-      client.initialize();
+      var initializeResult = client.initialize();
       setLoggingLevel(client, config.name());
       var listToolsResult = client.listTools();
       var tools = listToolsResult.tools();
-      
+
       LOG.info("Connected to '" + config.name() + "' - discovered " + tools.size() + " tool(s)");
       clients.put(serverName, client);
       serverTools.put(serverName, tools);
+      var instructions = initializeResult.instructions();
+      if (instructions != null && !instructions.isBlank()) {
+        serverInstructions.put(serverName, instructions);
+      }
       tools.forEach(tool -> LOG.debug(" - " + tool.name()));
     } catch (Exception e) {
       LOG.error("Failed to initialize '" + config.name() + "': " + e.getMessage(), e);
@@ -186,6 +191,7 @@ public class McpClientManager {
     clients.clear();
     serverTools.clear();
     serverErrors.clear();
+    serverInstructions.clear();
     initialized = false;
     
     LOG.info("MCP client manager shutdown completed");
@@ -201,6 +207,19 @@ public class McpClientManager {
 
   public int getTotalCount() {
     return serverConfigs.size();
+  }
+
+  /**
+   * Instructions reported by each connected proxied server in its
+   * {@code initialize} response, ordered to match {@link #serverConfigs}.
+   * Only non-blank entries from servers that initialized successfully
+   * are included.
+   */
+  public List<String> getProxiedInstructions() {
+    return serverConfigs.stream()
+      .map(config -> serverInstructions.get(config.name()))
+      .filter(s -> s != null && !s.isBlank())
+      .toList();
   }
   
   @VisibleForTesting
