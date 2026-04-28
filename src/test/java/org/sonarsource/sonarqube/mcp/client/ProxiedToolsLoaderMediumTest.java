@@ -20,6 +20,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
@@ -30,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -102,7 +104,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     assertThat(tools)
       .isNotEmpty()
@@ -125,7 +127,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     assertThat(tools)
       .isNotEmpty()
@@ -147,7 +149,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     var tool1 = tools.stream()
       .filter(t -> t.definition().name().equals("test_tool_1"))
@@ -181,7 +183,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     // Note: Without namespace prefixing, we'll only get 2 tools since both servers expose the same tool names
     // The second server's tools will overwrite the first server's tools in the map
@@ -211,7 +213,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     assertThat(tools).hasSize(2);
     var toolNames2 = tools.stream().map(t -> t.definition().name()).toList();
@@ -232,7 +234,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     // The test server includes the TEST_ENV_VAR in the tool description
     var tool1 = tools.stream()
@@ -259,7 +261,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     // Server should load successfully even with empty env values
     // If PATH wasn't inherited, python3 command wouldn't be found
@@ -286,7 +288,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     // The test server includes TEST_ENV_VAR in the tool description
     var tool1 = tools.stream()
@@ -310,7 +312,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     var tool1 = (ProxiedMcpTool) tools.stream()
       .filter(t -> t.definition().name().equals("test_tool_1"))
@@ -343,7 +345,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     var tool2 = (ProxiedMcpTool) tools.stream()
       .filter(t -> t.definition().name().equals("test_tool_2"))
@@ -374,7 +376,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     var tool2 = (ProxiedMcpTool) tools.stream()
       .filter(t -> t.definition().name().equals("test_tool_1"))
@@ -391,6 +393,36 @@ class ProxiedToolsLoaderMediumTest {
     var callToolResult = result.toCallToolResult();
     var textContent = (McpSchema.TextContent) callToolResult.content().getFirst();
     assertThat(textContent.text()).contains("Test Tool 1 executed with input: None");
+  }
+
+  @Test
+  void loadProxiedTools_should_forward_mcp_server_id_in_initialize_meta() throws IOException {
+    var capturePath = Files.createTempFile("init-meta-", ".json");
+    Files.deleteIfExists(capturePath);
+    try {
+      createTestConfig(List.of(
+        Map.of(
+          "name", "test-server",
+          "command", "python3",
+          "args", List.of(testServerScript.toString()),
+          "env", Map.of("TEST_CAPTURE_INIT_META_PATH", capturePath.toString()),
+          "supportedTransports", Set.of("stdio")
+        )
+      ));
+
+      loader = new ProxiedToolsLoader();
+      var tools = loader.loadProxiedTools(TransportMode.STDIO, "server-uuid-42");
+
+      assertThat(tools).isNotEmpty();
+      assertThat(capturePath).exists();
+      var capturedMeta = OBJECT_MAPPER.readValue(capturePath.toFile(), new TypeReference<Map<String, Object>>() {});
+      assertThat(capturedMeta)
+        .containsEntry("mcp_server_id", "server-uuid-42")
+        .containsKey("invocation_id");
+      assertThat(capturedMeta.get("invocation_id")).isInstanceOf(String.class).asString().isNotBlank();
+    } finally {
+      Files.deleteIfExists(capturePath);
+    }
   }
 
   @Test
@@ -414,7 +446,7 @@ class ProxiedToolsLoaderMediumTest {
     ));
 
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     assertThat(tools).isEmpty();
   }

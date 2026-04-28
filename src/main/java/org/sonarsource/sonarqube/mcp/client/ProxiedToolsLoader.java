@@ -38,7 +38,7 @@ public class ProxiedToolsLoader {
    * 5. Discovers tools from connected servers
    * 6. Creates tool wrappers for integration
    */
-  public List<Tool> loadProxiedTools(TransportMode currentTransportMode) {
+  public List<Tool> loadProxiedTools(TransportMode currentTransportMode, String mcpServerId) {
     var parseResult = ProxiedServerConfigParser.parse();
     
     if (!parseResult.success()) {
@@ -88,7 +88,7 @@ public class ProxiedToolsLoader {
     LOG.info("Initializing " + reachableConfigs.size() + " proxied MCP server(s)...");
     
     try {
-      mcpClientManager = new McpClientManager(reachableConfigs);
+      mcpClientManager = new McpClientManager(reachableConfigs, mcpServerId);
       mcpClientManager.initialize();
 
       var tools = mcpClientManager.getAllProxiedTools().values().stream()

@@ -449,7 +449,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void loadProxiedServerTools() {
     proxiedToolsLoader = new ProxiedToolsLoader();
     var currentTransportMode = mcpConfiguration.isHttpEnabled() ? TransportMode.HTTP : TransportMode.STDIO;
-    var proxiedTools = proxiedToolsLoader.loadProxiedTools(currentTransportMode);
+    var proxiedTools = proxiedToolsLoader.loadProxiedTools(currentTransportMode, mcpConfiguration.getMcpServerId());
     supportedTools.addAll(proxiedTools);
 
     var parseResult = ProxiedServerConfigParser.parse();
