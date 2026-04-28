@@ -32,9 +32,7 @@ COPY --from=builder /optimized-jdk-21 $JAVA_HOME
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
         ca-certificates \
-        git \
         nodejs=~24 \
-        npm \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
         mkdir -p /home/appuser/.sonarlint /app/storage && \

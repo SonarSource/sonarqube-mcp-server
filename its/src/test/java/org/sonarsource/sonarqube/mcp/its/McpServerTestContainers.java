@@ -134,8 +134,8 @@ class McpServerTestContainers {
     @SuppressWarnings("resource")
     GenericContainer<?> build() {
       if (command == null) {
-        // Default packages: git, nodejs, npm
-        withAdditionalApkPackages("git", "nodejs", "npm");
+        // Default packages: nodejs
+        withAdditionalApkPackages("nodejs");
       }
       var container = new GenericContainer<>(BASE_IMAGE)
         .withCopyFileToContainer(MountableFile.forHostPath(getJarPath()), "/app/server.jar")

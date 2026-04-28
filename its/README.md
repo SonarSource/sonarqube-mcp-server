@@ -41,6 +41,5 @@ The `sonar-context-augmentation` binary is compiled for Alpine Linux (musl libc)
 ## Test Container Dependencies
 
 The following dependencies are automatically installed in test containers to match the production Dockerfile:
-- **git**: Required by proxied servers
-- **nodejs/npm**: Runtime dependencies
+- **nodejs**: Runtime dependencies
 - **wget**: HTTP testing utility

@@ -63,7 +63,7 @@ class HttpTransportITest {
       .withEnv("SONARQUBE_TRANSPORT", "http")
       .withEnv("SONARQUBE_HTTP_PORT", String.valueOf(MCP_HTTP_PORT))
       .withEnv("SONARQUBE_HTTP_HOST", "0.0.0.0")
-      .withAdditionalApkPackages("wget", "git", "nodejs", "npm")
+      .withAdditionalApkPackages("wget", "nodejs")
       .withWaitLogMessage(".*started.*")
       .withLogPrefix("HTTP-Container")
       .build();
