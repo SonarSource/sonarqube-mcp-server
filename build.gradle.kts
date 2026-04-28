@@ -29,6 +29,10 @@ java {
 	}
 }
 
+dependencyLocking {
+	lockAllConfigurations()
+}
+
 repositories {
 	if (artifactoryUrl.isNotEmpty() && artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
 		maven("$artifactoryUrl/sonarsource") {

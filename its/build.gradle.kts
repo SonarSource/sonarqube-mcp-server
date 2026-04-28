@@ -18,6 +18,10 @@ java {
     }
 }
 
+dependencyLocking {
+    lockAllConfigurations()
+}
+
 repositories {
     // CI sets ARTIFACTORY_*. For local builds, put artifactoryUrl / artifactoryUsername /
     // artifactoryPassword in ~/.gradle/gradle.properties; otherwise we fall back to Maven Central.
