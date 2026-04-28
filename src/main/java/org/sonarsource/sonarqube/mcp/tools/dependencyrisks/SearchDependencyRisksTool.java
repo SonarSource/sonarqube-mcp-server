@@ -31,33 +31,54 @@ public class SearchDependencyRisksTool extends Tool {
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
   public static final String BRANCH_KEY_PROPERTY = "branchKey";
   public static final String PULL_REQUEST_KEY_PROPERTY = "pullRequestKey";
+  public static final String ORGANIZATION_PROPERTY = "organization";
 
   private final ServerApiProvider serverApiProvider;
   private final SonarQubeVersionChecker sonarQubeVersionChecker;
   @Nullable
   private final String configuredProjectKey;
+  private final boolean isSonarQubeCloud;
+  @Nullable
+  private final String configuredOrganization;
 
   public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker,
-    @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(SearchDependencyRisksToolResponse.class)
+    @Nullable String configuredProjectKey, boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
+    super(buildSchema(configuredProjectKey, isSonarQubeCloud, configuredOrganization),
+      ToolCategory.DEPENDENCY_RISKS);
+    this.serverApiProvider = serverApiProvider;
+    this.sonarQubeVersionChecker = sonarQubeVersionChecker;
+    this.configuredProjectKey = configuredProjectKey;
+    this.isSonarQubeCloud = isSonarQubeCloud;
+    this.configuredOrganization = configuredOrganization;
+  }
+
+  private static io.modelcontextprotocol.spec.McpSchema.Tool buildSchema(@Nullable String configuredProjectKey,
+    boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
+    var builder = SchemaToolBuilder.forOutput(SearchDependencyRisksToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +
         "paired with releases that appear in the analyzed project, application, or portfolio.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key", configuredProjectKey)
       .addStringProperty(BRANCH_KEY_PROPERTY, "The branch key")
-      .addStringProperty(PULL_REQUEST_KEY_PROPERTY, "The pull request key")
-      .setReadOnlyHint()
-      .build(),
-      ToolCategory.DEPENDENCY_RISKS);
-    this.serverApiProvider = serverApiProvider;
-    this.sonarQubeVersionChecker = sonarQubeVersionChecker;
-    this.configuredProjectKey = configuredProjectKey;
+      .addStringProperty(PULL_REQUEST_KEY_PROPERTY, "The pull request key");
+
+    if (isSonarQubeCloud) {
+      builder.addOrganizationProperty(ORGANIZATION_PROPERTY,
+        "The SonarQube Cloud organization key. Required when SONARQUBE_ORG is not configured at the server level. "
+          + "Use list_sonarqube_organizations to discover available keys.",
+        configuredOrganization);
+    }
+
+    return builder.setReadOnlyHint().build();
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var provider = serverApiProvider.get();
+    var orgOverride = isSonarQubeCloud
+      ? arguments.getOrganizationWithFallback(ORGANIZATION_PROPERTY, configuredOrganization)
+      : null;
+    var provider = serverApiProvider.get(orgOverride);
     if (!provider.isSonarQubeCloud() && !sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
       return Tool.Result.failure("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
     }

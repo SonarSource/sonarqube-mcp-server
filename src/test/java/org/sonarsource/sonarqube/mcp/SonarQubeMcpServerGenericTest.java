@@ -488,6 +488,70 @@ class SonarQubeMcpServerGenericTest {
   }
 
 
+  @SonarQubeMcpServerTest
+  void should_auto_resolve_single_member_organization_on_sonarqube_cloud(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get("/api/organizations/search?member=true&p=1&ps=2")
+      .willReturn(com.github.tomakehurst.wiremock.client.WireMock.okJson("""
+        {"paging":{"pageIndex":1,"pageSize":2,"total":1},"organizations":[{"key":"the-only-org","name":"The Only Org"}]}
+        """)));
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_IS_CLOUD", "true");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getMcpConfiguration().getConfiguredSonarqubeOrg()).isNull();
+    assertThat(server.getMcpConfiguration().getSonarqubeOrg()).isEqualTo("the-only-org");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_auto_resolve_when_multiple_member_organizations_exist(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get("/api/organizations/search?member=true&p=1&ps=2")
+      .willReturn(com.github.tomakehurst.wiremock.client.WireMock.okJson("""
+        {"paging":{"pageIndex":1,"pageSize":2,"total":3},"organizations":[
+          {"key":"org-a","name":"Org A"},{"key":"org-b","name":"Org B"}
+        ]}
+        """)));
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_IS_CLOUD", "true");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getMcpConfiguration().getConfiguredSonarqubeOrg()).isNull();
+    assertThat(server.getMcpConfiguration().getSonarqubeOrg()).isNull();
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_keep_configured_organization_without_auto_resolving(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "configured-org");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getMcpConfiguration().getConfiguredSonarqubeOrg()).isEqualTo("configured-org");
+    assertThat(server.getMcpConfiguration().getSonarqubeOrg()).isEqualTo("configured-org");
+
+    server.shutdown();
+  }
+
   private Map<String, String> createSonarCloudHttpEnvironment() {
     var environment = new HashMap<String, String>();
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir"));

@@ -65,7 +65,7 @@ public class HttpServerTransportProvider {
   private final AuthMode authMode;
   private final boolean isSonarQubeCloud;
   @Nullable
-  private final String serverOrg;
+  private volatile String serverOrg;
   private final boolean httpsEnabled;
   private final Path httpsKeystorePath;
   private final String httpsKeystorePassword;
@@ -127,7 +127,8 @@ public class HttpServerTransportProvider {
           contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
           if (isSonarQubeCloud) {
             var orgHeader = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
-            var org = (orgHeader != null && !orgHeader.isBlank()) ? orgHeader.trim() : serverOrg;
+            var currentServerOrg = this.serverOrg;
+            var org = (orgHeader != null && !orgHeader.isBlank()) ? orgHeader.trim() : currentServerOrg;
             if (org != null && !org.isBlank()) {
               contextBuilder.put(CONTEXT_ORG_KEY, org);
             }
@@ -169,6 +170,14 @@ public class HttpServerTransportProvider {
    * Returns transport preloaded with {@code enabledTools}. Pass it to {@code McpServer.sync(...).build()}:
    * when the SDK calls {@code setMcpHandler}, the transport immediately installs a {@link PerRequestToolFilteringHandler} wrapping the SDK handler.
    */
+  /**
+   * Updates the server-level organization after it has been auto-resolved at startup.
+   * Safe to call only before {@link #startServer()} (i.e. before the authentication filter is registered).
+   */
+  public void setServerOrg(@Nullable String serverOrg) {
+    this.serverOrg = serverOrg;
+  }
+
   public McpStatelessServerTransport getFilteringTransport(List<Tool> enabledTools) {
     return new McpStatelessServerTransport() {
       private final List<Tool> tools = List.copyOf(enabledTools);

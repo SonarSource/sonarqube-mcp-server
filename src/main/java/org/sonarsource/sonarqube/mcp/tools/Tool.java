@@ -157,6 +157,23 @@ public abstract class Tool {
       throw new MissingRequiredArgumentException(argumentName);
     }
 
+    /**
+     * Resolves an organization argument with a fallback to a configured/resolved default.
+     * If the argument is provided in the tool call, it takes precedence.
+     * If not provided and a configured default exists, the default is used.
+     * If neither is available, a {@link MissingRequiredArgumentException} is thrown.
+     */
+    public String getOrganizationWithFallback(String argumentName, @Nullable String configuredDefault) {
+      var fromArg = getOptionalString(argumentName);
+      if (fromArg != null && !fromArg.isBlank()) {
+        return fromArg;
+      }
+      if (configuredDefault != null && !configuredDefault.isBlank()) {
+        return configuredDefault;
+      }
+      throw new MissingRequiredArgumentException(argumentName);
+    }
+
     public int getIntOrDefault(String argumentName, int defaultValue) {
       var intArgument = getOptionalInteger(argumentName);
       if (intArgument == null) {

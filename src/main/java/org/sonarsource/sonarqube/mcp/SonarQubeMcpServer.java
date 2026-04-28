@@ -73,6 +73,7 @@ import org.sonarsource.sonarqube.mcp.tools.languages.ListLanguagesTool;
 import org.sonarsource.sonarqube.mcp.tools.measures.GetComponentMeasuresTool;
 import org.sonarsource.sonarqube.mcp.tools.measures.SearchFilesByCoverageTool;
 import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
+import org.sonarsource.sonarqube.mcp.tools.organizations.ListOrganizationsTool;
 import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
@@ -107,6 +108,19 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     4. When a user mentions a project by name, use `search_my_sonarqube_projects` to find the exact key.
     5. If no key is found, use `search_my_sonarqube_projects` to list projects.
     An incorrect project key will silently return results from the wrong project.
+    """;
+  private static final String ORG_RESOLUTION_INSTRUCTIONS = """
+    ## SonarQube Cloud Organization Resolution
+    No SonarQube Cloud organization is configured at the server level (SONARQUBE_ORG is unset
+    and the authenticated user is a member of zero or more than one organization).
+    Tools that require an organization expose an `organization` parameter — resolve the value
+    using the following lookup order:
+    1. Check for a `.sonarlint/connectedMode.json` file in the workspace root or any parent directory — use the `sonarCloudOrganization` field.
+    2. Search for `sonar.organization` in project config files at the root folder: `sonar-project.properties`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `package.json`.
+    3. Search for `sonar.organization` in CI/CD pipeline files: `.github/workflows/*.yml`, `Jenkinsfile`, `.gitlab-ci.yml`, `azure-pipelines.yml`, `.circleci/config.yml`.
+    4. When a user mentions an organization by name, use `list_sonarqube_organizations` to find the exact key.
+    5. If no organization can be resolved, call `list_sonarqube_organizations` and ask the user which one to use.
+    Pass the resolved key as the `organization` argument on every SonarQube Cloud tool call.
     """;
   private static final String BASE_INSTRUCTIONS_WITH_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
     "Analyze code, monitor project health, investigate issues, and understand quality gates. " +
@@ -236,6 +250,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     // In HTTP mode this is optional — only created when a startup token is configured.
     // Per-request tool calls in HTTP mode always use a fresh ServerApi from the request headers.
     this.serverApi = initializeServerApi(mcpConfiguration);
+    this.serverApi = autoResolveSonarQubeOrg(this.serverApi);
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     loadBackendIndependentTools(serverApi);
 
@@ -256,6 +271,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("HTTP mode detected - skipping CAG proxied server initialization (not supported in HTTP transport)");
     } else if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)) {
       LOG.debug("CAG toolset is not enabled, skipping proxied server initialization");
+    } else if (mcpConfiguration.getSonarqubeOrg() == null) {
+      LOG.info("Skipping CAG/advanced analysis auto-detection — no organization resolved; tools that require one will request it per call");
     } else if (isCagEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
       LOG.info("CAG is enabled for organization");
       loadProxiedServerTools();
@@ -265,19 +282,23 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
-    if (!mcpConfiguration.isHttpEnabled() && isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+    var orgKeyForA3s = mcpConfiguration.getSonarqubeOrg();
+    var isA3sDefinitivelyEnabled = false;
+    
+    if (!mcpConfiguration.isHttpEnabled() && mcpConfiguration.isSonarQubeCloud() && (orgKeyForA3s == null || isAdvancedAnalysisEnabledForOrg(serverApi, orgKeyForA3s))) {
+      if (orgKeyForA3s != null) {
+        isA3sDefinitivelyEnabled = true;
+      }
       if (workspaceMount != null) {
-        LOG.info("Advanced analysis mode enabled");
-        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount));
+        LOG.info("Advanced analysis mode potentially enabled");
+        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount, orgKeyForA3s));
       } else {
         LOG.info("Advanced analysis mode enabled, but no workspace path configured, skipping tool registration");
       }
-    } else {
-      // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
-      // token is configured (so plugins can be downloaded at startup).
-      if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
-        loadBackendDependentTools();
-      }
+    }
+
+    if (!isA3sDefinitivelyEnabled && (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null)) {
+      loadBackendDependentTools();
     }
 
     logToolsLoaded();
@@ -342,8 +363,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    * This makes most tools available to users within seconds instead of minutes.
    */
   private void loadBackendIndependentTools(ServerApi serverApi) {
-    if (mcpConfiguration.isSonarQubeCloud()) {
+    var isSonarQubeCloud = mcpConfiguration.isSonarQubeCloud();
+    if (isSonarQubeCloud) {
       supportedTools.add(new ListEnterprisesTool(this));
+      supportedTools.add(new ListOrganizationsTool(this));
     } else {
       supportedTools.addAll(List.of(
         new SystemHealthTool(this),
@@ -354,17 +377,18 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
 
     var configuredProjectKey = mcpConfiguration.getProjectKey();
+    var effectiveOrg = mcpConfiguration.getSonarqubeOrg();
 
     supportedTools.addAll(List.of(
       new ChangeIssueStatusTool(this),
-      new SearchMyProjectsTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new SearchIssuesTool(this, mcpConfiguration.isSonarQubeCloud()),
+      new SearchMyProjectsTool(this, isSonarQubeCloud, effectiveOrg),
+      new SearchIssuesTool(this, isSonarQubeCloud, effectiveOrg),
       new SearchSecurityHotspotsTool(this),
       new ShowSecurityHotspotTool(this),
       new ChangeSecurityHotspotStatusTool(this),
       new ProjectStatusTool(this),
-      new ShowRuleTool(this),
-      new ListQualityGatesTool(this),
+      new ShowRuleTool(this, isSonarQubeCloud, effectiveOrg),
+      new ListQualityGatesTool(this, isSonarQubeCloud, effectiveOrg),
       new ListLanguagesTool(this),
       new GetComponentMeasuresTool(this),
       new SearchFilesByCoverageTool(this, configuredProjectKey),
@@ -372,21 +396,21 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new SearchMetricsTool(this),
       new GetScmInfoTool(this),
       new GetRawSourceTool(this),
-      new CreateWebhookTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new ListWebhooksTool(this, mcpConfiguration.isSonarQubeCloud()),
+      new CreateWebhookTool(this, isSonarQubeCloud, effectiveOrg),
+      new ListWebhooksTool(this, isSonarQubeCloud, effectiveOrg),
       new GetDuplicationsTool(this),
       new SearchDuplicatedFilesTool(this, configuredProjectKey),
-      new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
+      new ListPortfoliosTool(this, isSonarQubeCloud),
       new ListPullRequestsTool(this, configuredProjectKey)));
 
     if (mcpConfiguration.isHttpEnabled()) {
       // In HTTP mode there is no startup token to probe SCA availability
-      supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
+      supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey, isSonarQubeCloud, effectiveOrg));
     } else {
-      var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();
+      var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && (effectiveOrg == null || serverApi.scaApi().isScaEnabled());
       var scaSupportedOnSQS = !serverApi.isSonarQubeCloud() && serverApi.featuresApi().listFeatures().contains(Feature.SCA);
       if (scaSupportedOnSQC || scaSupportedOnSQS) {
-        supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
+        supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey, isSonarQubeCloud, effectiveOrg));
       }
     }
   }
@@ -464,6 +488,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
     if (mcpConfiguration.getProjectKey() == null) {
       composedInstructions += "\n" + PROJECT_KEY_INSTRUCTIONS;
+    }
+    if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.getSonarqubeOrg() == null) {
+      composedInstructions += "\n" + ORG_RESOLUTION_INSTRUCTIONS;
     }
   }
 
@@ -562,6 +589,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   @Override
   public ServerApi get() {
+    return get(null);
+  }
+
+  @Override
+  public ServerApi get(@Nullable String orgOverride) {
+    var normalizedOverride = (orgOverride != null && !orgOverride.isBlank()) ? orgOverride : null;
     if (mcpConfiguration.isHttpEnabled()) {
       var ctx = currentTransportContext.get();
       if (ctx == null) {
@@ -572,14 +605,23 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         throw new IllegalStateException("No SONARQUBE_TOKEN in transport context");
       }
       var orgFromRequest = (String) ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
-      var organization = getOrganization(orgFromRequest);
+      var organization = resolveOrganization(normalizedOverride, orgFromRequest);
       return createServerApiWithTokenAndOrg(token, organization);
-    } else {
-      return Objects.requireNonNull(serverApi, "ServerApi not initialized");
     }
+    var baseServerApi = Objects.requireNonNull(serverApi, "ServerApi not initialized");
+    if (normalizedOverride == null || !mcpConfiguration.isSonarQubeCloud()) {
+      return baseServerApi;
+    }
+    if (Objects.equals(normalizedOverride, baseServerApi.getOrganization())) {
+      return baseServerApi;
+    }
+    return createServerApiWithTokenAndOrg(mcpConfiguration.getSonarQubeToken(), normalizedOverride);
   }
 
-  private String getOrganization(@Nullable String orgFromRequest) {
+  private String resolveOrganization(@Nullable String orgOverride, @Nullable String orgFromRequest) {
+    if (orgOverride != null) {
+      return orgOverride;
+    }
     var serverOrg = mcpConfiguration.getSonarqubeOrg();
     if (serverOrg != null) {
       return serverOrg;
@@ -590,6 +632,48 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
     var token = mcpConfiguration.getSonarQubeToken();
     return createServerApiWithToken(token);
+  }
+
+  /**
+   * When connecting to SonarQube Cloud without a configured SONARQUBE_ORG, query the list of
+   * organizations the authenticated user is a member of. If exactly one is found, adopt it as the
+   * effective organization and rebuild the ServerApi so that subsequent API calls include it.
+   * Otherwise, leave the organization unresolved: tools that require one will expose an
+   * `organization` parameter and the list_sonarqube_organizations tool helps users discover keys.
+   */
+  private ServerApi autoResolveSonarQubeOrg(ServerApi currentServerApi) {
+    if (!mcpConfiguration.isSonarQubeCloud() || mcpConfiguration.getConfiguredSonarqubeOrg() != null) {
+      return currentServerApi;
+    }
+    var token = mcpConfiguration.getSonarQubeToken();
+    if (token == null || token.isBlank()) {
+      LOG.debug("Skipping SonarQube Cloud organization auto-resolution: no startup token available");
+      return currentServerApi;
+    }
+    try {
+      var response = currentServerApi.organizationsApi().searchMemberOrganizations(1, 2);
+      var orgs = response.organizations();
+      var total = response.paging().total();
+      if (total == 1 && orgs != null && !orgs.isEmpty()) {
+        var resolved = orgs.get(0).key();
+        LOG.info("Auto-resolved SonarQube Cloud organization: '" + resolved + "'");
+        mcpConfiguration.setResolvedSonarqubeOrg(resolved);
+        if (httpServerManager != null) {
+          httpServerManager.setServerOrg(resolved);
+        }
+        return createServerApiWithToken(token);
+      }
+      if (total == 0) {
+        LOG.info("No SonarQube Cloud organization auto-resolved: authenticated user is not a member of any organization. " +
+          "Tools that require an organization will ask for one per call.");
+      } else {
+        LOG.info("No SonarQube Cloud organization auto-resolved: the authenticated user is a member of " + total + " organizations. " +
+          "Use the list_sonarqube_organizations tool to discover keys and pass 'organization' per tool call.");
+      }
+    } catch (Exception e) {
+      LOG.debug("Could not auto-resolve SonarQube Cloud organization: " + e.getMessage());
+    }
+    return currentServerApi;
   }
   
   private ServerApi createServerApiWithToken(@Nullable String token) {

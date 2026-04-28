@@ -29,6 +29,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
 public class RunAdvancedCodeAnalysisTool extends Tool {
 
@@ -41,22 +42,27 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   public static final String FILE_PATH_PROPERTY = "filePath";
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
   public static final String FILE_SCOPE_PROPERTY = "fileScope";
-  
+  public static final String ORGANIZATION_PROPERTY = "organization";
+
   private static final String[] VALID_FILE_SCOPES = {"MAIN", "TEST"};
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
   private final String configuredProjectKey;
   private final Path configuredWorkspacePath;
+  @Nullable
+  private final String configuredOrganization;
 
-  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath) {
-    super(buildSchema(configuredProjectKey), ToolCategory.ANALYSIS);
+  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey,
+    Path configuredWorkspacePath, @Nullable String configuredOrganization) {
+    super(buildSchema(configuredProjectKey, configuredOrganization), ToolCategory.ANALYSIS);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;
+    this.configuredOrganization = configuredOrganization;
   }
 
-  private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey) {
+  private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey, @Nullable String configuredOrganization) {
     var builder = SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("SonarQube Advanced Code Analysis")
@@ -65,10 +71,14 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
         "Always specify the file scope (MAIN or TEST) for more accurate results.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The key of the project.", configuredProjectKey)
       .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "The branch name used to retrieve the latest analysis context from SonarQube Cloud.")
-      .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
+      .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').")
+      .addEnumProperty(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN).")
+      .addOrganizationProperty(ORGANIZATION_PROPERTY,
+        "The SonarQube Cloud organization key. Required when SONARQUBE_ORG is not configured at the server level. "
+          + "Use list_sonarqube_organizations to discover available keys.",
+        configuredOrganization);
 
     return builder
-      .addEnumProperty(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN).")
       .setReadOnlyHint()
       .build();
   }
@@ -92,10 +102,21 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
-    var serverApi = serverApiProvider.get();
+    String orgOverride;
+    try {
+      orgOverride = arguments.getOrganizationWithFallback(ORGANIZATION_PROPERTY, configuredOrganization);
+    } catch (MissingRequiredArgumentException e) {
+      return Result.failure("run_advanced_code_analysis requires an organization. Set SONARQUBE_ORG or pass the 'organization' argument. "
+        + "Use list_sonarqube_organizations to discover available keys.");
+    }
+    var serverApi = serverApiProvider.get(orgOverride);
     var organizationKey = serverApi.getOrganization();
     if (organizationKey == null) {
-      throw new IllegalStateException("run_advanced_code_analysis requires an organization to be configured in MCP (SONARQUBE_ORG).");
+      return Result.failure("run_advanced_code_analysis requires an organization. Set SONARQUBE_ORG or pass the 'organization' argument. "
+        + "Use list_sonarqube_organizations to discover available keys.");
+    }
+    if (!isA3sEnabled(serverApi, organizationKey)) {
+      return Result.failure("Advanced code analysis is not enabled for organization '" + organizationKey + "'.");
     }
 
     String fileContent;

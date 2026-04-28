@@ -454,6 +454,85 @@ class SearchMyProjectsToolTests {
     }
   }
 
+  @Nested
+  class WithUnresolvedOrganizationOnCloud {
+
+    @SonarQubeMcpServerTest
+    void it_should_expose_required_organization_property_in_schema(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get("/api/organizations/search?member=true&p=1&ps=2")
+        .willReturn(aResponse().withResponseBody(Body.fromJsonBytes("""
+          {"paging":{"pageIndex":1,"pageSize":2,"total":0},"organizations":[]}
+          """.getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of("SONARQUBE_IS_CLOUD", "true"));
+
+      var tool = mcpClient.listTools().stream()
+        .filter(t -> t.name().equals(SearchMyProjectsTool.TOOL_NAME))
+        .findFirst().orElseThrow();
+      var inputSchema = tool.inputSchema();
+
+      assertThat(inputSchema.properties()).containsKey("organization");
+      assertThat(inputSchema.required()).contains("organization");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_fail_when_no_organization_is_provided(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get("/api/organizations/search?member=true&p=1&ps=2")
+        .willReturn(aResponse().withResponseBody(Body.fromJsonBytes("""
+          {"paging":{"pageIndex":1,"pageSize":2,"total":0},"organizations":[]}
+          """.getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of("SONARQUBE_IS_CLOUD", "true"));
+
+      var result = mcpClient.callTool(SearchMyProjectsTool.TOOL_NAME);
+
+      assertThat(result.isError()).isTrue();
+      assertThat(result.content().getFirst().toString()).contains("organization");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_use_organization_argument_override(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get("/api/organizations/search?member=true&p=1&ps=2")
+        .willReturn(aResponse().withResponseBody(Body.fromJsonBytes("""
+          {"paging":{"pageIndex":1,"pageSize":2,"total":0},"organizations":[]}
+          """.getBytes(StandardCharsets.UTF_8)))));
+      harness.getMockSonarQubeServer().stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&ps=500&organization=picked-org")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateResponse("key", "name", 1, 500, 1).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of("SONARQUBE_IS_CLOUD", "true"));
+
+      var result = mcpClient.callTool(SearchMyProjectsTool.TOOL_NAME, Map.of("organization", "picked-org"));
+
+      assertThat(result.isError()).isFalse();
+    }
+  }
+
+  @Nested
+  class SchemaToggle {
+
+    @SonarQubeMcpServerTest
+    void it_should_not_expose_organization_property_on_sonarqube_server(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient();
+
+      var tool = mcpClient.listTools().stream()
+        .filter(t -> t.name().equals(SearchMyProjectsTool.TOOL_NAME))
+        .findFirst().orElseThrow();
+      var inputSchema = tool.inputSchema();
+
+      assertThat(inputSchema.properties()).doesNotContainKey("organization");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_not_expose_organization_property_when_org_is_configured(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient(Map.of("SONARQUBE_ORG", "my-org"));
+
+      var tool = mcpClient.listTools().stream()
+        .filter(t -> t.name().equals(SearchMyProjectsTool.TOOL_NAME))
+        .findFirst().orElseThrow();
+      var inputSchema = tool.inputSchema();
+
+      assertThat(inputSchema.properties()).doesNotContainKey("organization");
+    }
+  }
+
   private static String generateResponse(String projectKey, String projectName, int pageIndex, int pageSize, int totalItems) {
     return """
       {

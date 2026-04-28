@@ -71,6 +71,12 @@ This document focuses on the **Stdio Transport**.
    ├─> Initialize SonarQube connection
    │   ├─> Version check
    │   └─> Plugin synchronization
+   ├─> Resolve SonarQube Cloud organization (when SONARQUBE_ORG is not set)
+   │   ├─> Call GET /api/organizations/search?member=true
+   │   ├─> If exactly one organization is returned, adopt it
+   │   └─> Otherwise leave it unresolved; tools that require it will
+   │       expose an `organization` parameter per call, and the
+   │       list_sonarqube_organizations tool can help clients discover keys
    ├─> Detect and connect to SonarQube for IDE bridge (optional)
    └─> Register MCP tools
 

@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
@@ -35,6 +36,7 @@ public class SearchIssuesTool extends Tool {
   public static final String IMPACT_SOFTWARE_QUALITIES_PROPERTY = "impactSoftwareQualities";
   public static final String ISSUE_STATUSES_PROPERTY = "issueStatuses";
   public static final String ISSUE_KEY_PROPERTY = "issueKey";
+  public static final String ORGANIZATION_PROPERTY = "organization";
   public static final String PAGE_PROPERTY = "p";
   public static final String PAGE_SIZE_PROPERTY = "ps";
   
@@ -43,19 +45,24 @@ public class SearchIssuesTool extends Tool {
   private static final String[] VALID_ISSUE_STATUSES = {"OPEN", "CONFIRMED", "FALSE_POSITIVE", "ACCEPTED", "FIXED", "IN_SANDBOX"};
   
   private final ServerApiProvider serverApiProvider;
+  private final boolean isSonarQubeCloud;
+  @Nullable
+  private final String configuredOrganization;
 
-  public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
-    super(createToolDefinition(isSonarQubeCloud),
+  public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
+    super(createToolDefinition(isSonarQubeCloud, configuredOrganization),
       ToolCategory.ISSUES);
     this.serverApiProvider = serverApiProvider;
+    this.isSonarQubeCloud = isSonarQubeCloud;
+    this.configuredOrganization = configuredOrganization;
   }
 
-  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
+  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud, @Nullable String configuredOrganization) {
     var scope = isSonarQubeCloud ? "my organization's projects" : "my projects";
     var description = "Search for issues (bugs, vulnerabilities, code smells) in " + scope + ". " +
       "Filter by severities=['HIGH','BLOCKER'] for critical issues, impactSoftwareQualities=['SECURITY'] for security, issueStatuses=['OPEN'] to exclude resolved.";
-    
-    return SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
+
+    var builder = SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues")
       .setDescription(description)
@@ -67,17 +74,33 @@ public class SearchIssuesTool extends Tool {
       .addEnumProperty(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES, "An optional list of issue statuses to filter by. Note: IN_SANDBOX is valid only for SonarQube Server")
       .addArrayProperty(ISSUE_KEY_PROPERTY, "string", "An optional list of issue keys to fetch specific issues")
       .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
-      .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
-      .setReadOnlyHint()
-      .build();
+      .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.");
+
+    if (isSonarQubeCloud) {
+      builder.addOrganizationProperty(ORGANIZATION_PROPERTY,
+        "The SonarQube Cloud organization key. Required when SONARQUBE_ORG is not configured at the server level. "
+          + "Use list_sonarqube_organizations to discover available keys.",
+        configuredOrganization);
+    }
+
+    return builder.setReadOnlyHint().build();
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var searchParams = extractSearchParams(arguments);
-    var response = serverApiProvider.get().issuesApi().search(searchParams);
+    var orgOverride = resolveOrgOverride(arguments);
+    var response = serverApiProvider.get(orgOverride).issuesApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
+  }
+
+  @Nullable
+  private String resolveOrgOverride(Tool.Arguments arguments) {
+    if (!isSonarQubeCloud) {
+      return null;
+    }
+    return arguments.getOrganizationWithFallback(ORGANIZATION_PROPERTY, configuredOrganization);
   }
 
   private static IssuesApi.SearchParams extractSearchParams(Tool.Arguments arguments) {

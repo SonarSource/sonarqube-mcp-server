@@ -27,6 +27,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
@@ -82,6 +83,49 @@ class OrganizationsApiTest {
       .willReturn(aResponse().withStatus(403)));
 
     assertThat(organizationsApi.getOrganizationUuidV4("my-org")).isNull();
+  }
+
+  @Test
+  void it_should_parse_search_member_organizations_response() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(OrganizationsApi.SEARCH_PATH))
+      .willReturn(jsonResponse("""
+        {
+          "paging": {"pageIndex": 1, "pageSize": 100, "total": 2},
+          "organizations": [
+            {"key": "org-1", "name": "Org One", "description": "First", "url": "https://one", "avatar": "https://a1"},
+            {"key": "org-2", "name": "Org Two"}
+          ]
+        }
+        """, 200)));
+
+    var response = organizationsApi.searchMemberOrganizations(1, 100);
+
+    assertThat(response.paging().pageIndex()).isEqualTo(1);
+    assertThat(response.paging().pageSize()).isEqualTo(100);
+    assertThat(response.paging().total()).isEqualTo(2);
+    assertThat(response.organizations()).hasSize(2);
+    assertThat(response.organizations().get(0).key()).isEqualTo("org-1");
+    assertThat(response.organizations().get(0).name()).isEqualTo("Org One");
+    assertThat(response.organizations().get(0).description()).isEqualTo("First");
+    assertThat(response.organizations().get(0).url()).isEqualTo("https://one");
+    assertThat(response.organizations().get(1).key()).isEqualTo("org-2");
+    assertThat(response.organizations().get(1).description()).isNull();
+    assertThat(response.organizations().get(1).url()).isNull();
+
+    sonarqubeMock.verify(getRequestedFor(urlPathEqualTo(OrganizationsApi.SEARCH_PATH)));
+  }
+
+  @Test
+  void it_should_handle_empty_organizations_list() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(OrganizationsApi.SEARCH_PATH))
+      .willReturn(jsonResponse("""
+        {"paging": {"pageIndex": 1, "pageSize": 100, "total": 0}, "organizations": []}
+        """, 200)));
+
+    var response = organizationsApi.searchMemberOrganizations(1, 100);
+
+    assertThat(response.paging().total()).isZero();
+    assertThat(response.organizations()).isEmpty();
   }
 
 }
