@@ -236,11 +236,6 @@ class SonarQubeMcpServerGenericTest {
     server.shutdown();
   }
 
-  // The positive "should_append_cag_instructions_when_cag_enabled_for_org" test was removed:
-  // CAG instruction content is now sourced from the proxied server's InitializeResult, not from
-  // bundled JSON. Verifying the content requires a real sonar-context-augmentation binary on PATH,
-  // which is out of scope for this harness. The CAG repo owns and tests its own instruction text.
-
   @SonarQubeMcpServerTest
   void should_not_append_cag_instructions_when_cag_disabled_for_org(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());

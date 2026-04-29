@@ -61,6 +61,9 @@ class ProxiedServerITest {
       .containsPattern("Connected to 'caas' - discovered 10 tool\\(s\\)")
       .contains("MCP client manager initialization completed. 1/1 server(s) connected")
       .containsPattern("Loaded 10 proxied tool\\(s\\) from 1/1 server\\(s\\)")
+      .contains("Forwarded instructions from 1 proxied server(s)")
+      .contains("Proxied instructions: ")
+      .contains("## Context Augmentation")
       .contains("All tools loaded: 34 tools after category filtering");
   }
 

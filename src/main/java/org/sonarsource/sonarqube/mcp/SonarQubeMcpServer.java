@@ -451,7 +451,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var proxiedTools = proxiedToolsLoader.loadProxiedTools(currentTransportMode, mcpConfiguration.getMcpServerId());
     supportedTools.addAll(proxiedTools);
 
-    composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, proxiedToolsLoader.getProxiedInstructions());
+    var proxiedInstructions = proxiedToolsLoader.getProxiedInstructions();
+    composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, proxiedInstructions);
+    LOG.info("Forwarded instructions from " + proxiedInstructions.size() + " proxied server(s)");
+    proxiedInstructions.forEach(s -> LOG.info("Proxied instructions: " + s));
   }
 
   private void setBaseInstructions() {
