@@ -28,8 +28,7 @@ import reactor.core.publisher.Mono;
 
 /**
  * Decorator around an {@link McpClientTransport} that rewrites outgoing {@code initialize} JSON-RPC requests so that
- * their {@code _meta} field carries startup telemetry correlation data (e.g. {@code mcp_server_id},
- * {@code invocation_id}).
+ * their {@code _meta} field carries startup telemetry correlation data (e.g. {@code mcp_server_id}.
  *
  * <p>The MCP Java SDK's {@code McpSyncClient#initialize()} does not expose
  * (<a href="https://github.com/modelcontextprotocol/java-sdk/issues/940">#940</a>) a way to set {@code _meta} on the
