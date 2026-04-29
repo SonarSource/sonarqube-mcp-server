@@ -149,18 +149,15 @@ class SearchDependencyRisksToolTests {
                "properties":{
                   "pageIndex":{
                      "type":"integer",
-                     "description":"Current page index (1-based)",
-                     "format":"int32"
+                     "description":"Current page index (1-based)"
                   },
                   "pageSize":{
                      "type":"integer",
-                     "description":"Number of items per page",
-                     "format":"int32"
+                     "description":"Number of items per page"
                   },
                   "total":{
                      "type":"integer",
-                     "description":"Total number of items across all pages",
-                     "format":"int32"
+                     "description":"Total number of items across all pages"
                   }
                },
                "required":[
