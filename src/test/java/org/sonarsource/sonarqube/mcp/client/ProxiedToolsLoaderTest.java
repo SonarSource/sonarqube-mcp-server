@@ -86,6 +86,21 @@ class ProxiedToolsLoaderTest {
   }
 
   @Test
+  void getProxiedInstructions_should_return_empty_before_load() {
+    loader = new ProxiedToolsLoader();
+
+    assertThat(loader.getProxiedInstructions()).isEmpty();
+  }
+
+  @Test
+  void getProxiedInstructions_should_return_empty_when_no_servers_configured() {
+    loader = new ProxiedToolsLoader();
+    loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
+
+    assertThat(loader.getProxiedInstructions()).isEmpty();
+  }
+
+  @Test
   void isCommandAvailable_should_return_true_for_existing_command() {
     assertThat(ProxiedToolsLoader.isCommandAvailable("cat")).isTrue();
   }

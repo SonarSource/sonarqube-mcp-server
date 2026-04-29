@@ -212,6 +212,30 @@ class SonarQubeMcpServerGenericTest {
     server.shutdown();
   }
 
+  @SonarQubeMcpServerTest
+  void should_not_append_cag_instructions_when_cag_enabled_for_org_but_binary_not_available(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "cag");
+    harness.stubCagOrgConfig(true);
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getComposedInstructions())
+      .as("No proxied instructions should be appended when the CAG binary is not on PATH")
+      .doesNotContain("## Context Augmentation");
+    assertThat(server.getSupportedTools())
+      .as("No proxied CAG tools should be loaded when the CAG binary is not on PATH")
+      .noneMatch(ProxiedMcpTool.class::isInstance);
+
+    server.shutdown();
+  }
+
   // The positive "should_append_cag_instructions_when_cag_enabled_for_org" test was removed:
   // CAG instruction content is now sourced from the proxied server's InitializeResult, not from
   // bundled JSON. Verifying the content requires a real sonar-context-augmentation binary on PATH,

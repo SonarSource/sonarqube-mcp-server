@@ -170,6 +170,33 @@ class McpClientManagerTest {
   }
 
   @Test
+  void getProxiedInstructions_should_return_empty_before_initialization() {
+    var configs = List.of(
+      new ProxiedMcpServerConfig("server1", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString());
+
+    assertThat(manager.getProxiedInstructions()).isEmpty();
+  }
+
+  @Test
+  void getProxiedInstructions_should_return_empty_when_no_servers() {
+    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
+    manager.initialize();
+
+    assertThat(manager.getProxiedInstructions()).isEmpty();
+  }
+
+  @Test
+  void getProxiedInstructions_should_return_empty_when_server_failed_to_connect() {
+    var configs = List.of(
+      new ProxiedMcpServerConfig("failing-server", "/non/existent/command", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString());
+    manager.initialize();
+
+    assertThat(manager.getProxiedInstructions()).isEmpty();
+  }
+
+  @Test
   void buildEnvironmentVariables_should_skip_inherited_var_not_in_parent() {
     var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
     var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),

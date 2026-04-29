@@ -21,9 +21,12 @@ Simple MCP Server for testing proxied MCP server integration.
 This server provides a few test tools that can be discovered and executed.
 """
 
+import argparse
 import json
 import sys
 import os
+
+INSTRUCTIONS = None
 
 def send_message(message):
     """Send a JSON-RPC message to stdout"""
@@ -56,19 +59,22 @@ def handle_initialize(request):
         except Exception:
             pass
 
+    result = {
+        "protocolVersion": "2024-11-05",
+        "capabilities": {
+            "tools": {}
+        },
+        "serverInfo": {
+            "name": "test-mcp-server",
+            "version": "1.0.0"
+        }
+    }
+    if INSTRUCTIONS:
+        result["instructions"] = INSTRUCTIONS
     send_message({
         "jsonrpc": "2.0",
         "id": request.get("id"),
-        "result": {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {
-                "tools": {}
-            },
-            "serverInfo": {
-                "name": "test-mcp-server",
-                "version": "1.0.0"
-            }
-        }
+        "result": result
     })
 
 
@@ -197,4 +203,8 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--instructions", help="Instructions to include in initialize response", default=None)
+    args = parser.parse_args()
+    INSTRUCTIONS = args.instructions
     main()

@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -210,15 +211,14 @@ public class McpClientManager {
   }
 
   /**
-   * Instructions reported by each connected proxied server in its
+   * Non-blank instructions reported by each connected proxied server in its
    * {@code initialize} response, ordered to match {@link #serverConfigs}.
-   * Only non-blank entries from servers that initialized successfully
-   * are included.
+   * Blank entries are filtered out at write time in {@link #initializeClient}.
    */
   public List<String> getProxiedInstructions() {
     return serverConfigs.stream()
       .map(config -> serverInstructions.get(config.name()))
-      .filter(s -> s != null && !s.isBlank())
+      .filter(Objects::nonNull)
       .toList();
   }
   

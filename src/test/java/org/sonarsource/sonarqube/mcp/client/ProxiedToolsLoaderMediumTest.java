@@ -449,6 +449,44 @@ class ProxiedToolsLoaderMediumTest {
   }
 
   @Test
+  void getProxiedInstructions_should_return_instructions_when_server_provides_them() {
+    createTestConfig(List.of(
+      Map.of(
+        "name", "test-server",
+        "command", "python3",
+        "args", List.of(testServerScript.toString(), "--instructions", "Context server instructions for testing."),
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
+      )
+    ));
+
+    loader = new ProxiedToolsLoader();
+    loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
+
+    assertThat(loader.getProxiedInstructions())
+      .hasSize(1)
+      .containsExactly("Context server instructions for testing.");
+  }
+
+  @Test
+  void getProxiedInstructions_should_return_empty_when_server_sends_no_instructions() {
+    createTestConfig(List.of(
+      Map.of(
+        "name", "test-server",
+        "command", "python3",
+        "args", List.of(testServerScript.toString()),
+        "env", Map.of(),
+        "supportedTransports", Set.of("stdio")
+      )
+    ));
+
+    loader = new ProxiedToolsLoader();
+    loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
+
+    assertThat(loader.getProxiedInstructions()).isEmpty();
+  }
+
+  @Test
   void should_log_DEBUG_notifications_at_debug_level() {
     try {
       System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
