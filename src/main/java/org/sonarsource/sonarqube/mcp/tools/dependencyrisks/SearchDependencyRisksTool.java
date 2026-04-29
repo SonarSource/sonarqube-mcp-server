@@ -31,6 +31,8 @@ public class SearchDependencyRisksTool extends Tool {
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
   public static final String BRANCH_KEY_PROPERTY = "branchKey";
   public static final String PULL_REQUEST_KEY_PROPERTY = "pullRequestKey";
+  public static final String PAGE_INDEX_PROPERTY = "pageIndex";
+  public static final String PAGE_SIZE_PROPERTY = "pageSize";
 
   private final ServerApiProvider serverApiProvider;
   private final SonarQubeVersionChecker sonarQubeVersionChecker;
@@ -47,6 +49,8 @@ public class SearchDependencyRisksTool extends Tool {
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key", configuredProjectKey)
       .addStringProperty(BRANCH_KEY_PROPERTY, "The branch key")
       .addStringProperty(PULL_REQUEST_KEY_PROPERTY, "The pull request key")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional page index (1-based). Defaults to 1.")
+      .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
       .build(),
       ToolCategory.DEPENDENCY_RISKS);
@@ -70,8 +74,10 @@ public class SearchDependencyRisksTool extends Tool {
     var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
     var branchKey = arguments.getOptionalString(BRANCH_KEY_PROPERTY);
     var pullRequestKey = arguments.getOptionalString(PULL_REQUEST_KEY_PROPERTY);
+    var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
+    var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
 
-    var response = provider.scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey);
+    var response = provider.scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey, pageIndex, pageSize);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }
@@ -100,7 +106,10 @@ public class SearchDependencyRisksTool extends Tool {
       })
       .toList();
 
-    return new SearchDependencyRisksToolResponse(issuesReleases);
+    var page = response.page();
+    var paging = new SearchDependencyRisksToolResponse.Paging(page.pageIndex(), page.pageSize(), page.total());
+
+    return new SearchDependencyRisksToolResponse(issuesReleases, paging);
   }
 
 }
