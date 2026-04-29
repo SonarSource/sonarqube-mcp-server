@@ -416,10 +416,7 @@ class ProxiedToolsLoaderMediumTest {
       assertThat(tools).isNotEmpty();
       assertThat(capturePath).exists();
       var capturedMeta = OBJECT_MAPPER.readValue(capturePath.toFile(), new TypeReference<Map<String, Object>>() {});
-      assertThat(capturedMeta)
-        .containsEntry("mcp_server_id", "server-uuid-42")
-        .containsKey("invocation_id");
-      assertThat(capturedMeta.get("invocation_id")).isInstanceOf(String.class).asString().isNotBlank();
+      assertThat(capturedMeta).containsEntry("mcp_server_id", "server-uuid-42");
     } finally {
       Files.deleteIfExists(capturePath);
     }

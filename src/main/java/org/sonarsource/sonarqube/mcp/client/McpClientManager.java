@@ -26,7 +26,6 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -237,9 +236,7 @@ public class McpClientManager {
   }
 
   private McpClientTransport wrapWithInitializeMeta(McpClientTransport transport) {
-    var meta = Map.<String, Object>of(
-      "mcp_server_id", mcpServerId,
-      "invocation_id", UUID.randomUUID().toString());
+    var meta = Map.<String, Object>of("mcp_server_id", mcpServerId);
     return new InitializeMetaInjectingClientTransport(transport, meta);
   }
 

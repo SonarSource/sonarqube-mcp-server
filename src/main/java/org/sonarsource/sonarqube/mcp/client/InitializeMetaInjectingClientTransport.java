@@ -31,7 +31,8 @@ import reactor.core.publisher.Mono;
  * their {@code _meta} field carries startup telemetry correlation data (e.g. {@code mcp_server_id},
  * {@code invocation_id}).
  *
- * <p>The MCP Java SDK's {@code McpSyncClient#initialize()} does not expose a way to set {@code _meta} on the
+ * <p>The MCP Java SDK's {@code McpSyncClient#initialize()} does not expose
+ * (<a href="https://github.com/modelcontextprotocol/java-sdk/issues/940">#940</a>) a way to set {@code _meta} on the
  * {@link McpSchema.InitializeRequest} it builds internally. By wrapping the underlying transport, we can intercept the
  * outgoing message and rebuild it with meta populated — mirroring what {@code ToolExecutor} already does for
  * {@code tools/call}. All other transport responsibilities are delegated unchanged.
@@ -43,7 +44,7 @@ public class InitializeMetaInjectingClientTransport implements McpClientTranspor
 
   public InitializeMetaInjectingClientTransport(McpClientTransport delegate, Map<String, Object> initializeMeta) {
     this.delegate = delegate;
-    this.initializeMeta = Map.copyOf(initializeMeta);
+    this.initializeMeta = initializeMeta;
   }
 
   @Override
@@ -82,9 +83,6 @@ public class InitializeMetaInjectingClientTransport implements McpClientTranspor
   }
 
   McpSchema.JSONRPCMessage maybeInjectInitializeMeta(McpSchema.JSONRPCMessage message) {
-    if (initializeMeta.isEmpty()) {
-      return message;
-    }
     if (message instanceof McpSchema.JSONRPCRequest(String jsonrpc, String method, Object id, Object params)
       && McpSchema.METHOD_INITIALIZE.equals(method)
       && params instanceof McpSchema.InitializeRequest(

@@ -19,7 +19,6 @@ package org.sonarsource.sonarqube.mcp.client;
 import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,7 +35,7 @@ class InitializeMetaInjectingClientTransportTest {
   void sendMessage_should_populate_meta_on_initialize_request() {
     var capture = new CapturingTransport();
     var transport = new InitializeMetaInjectingClientTransport(capture,
-      Map.of("mcp_server_id", "server-123", "invocation_id", "inv-abc"));
+      Map.of("mcp_server_id", "server-123"));
 
     var message = initializeMessage(null);
 
@@ -45,9 +44,7 @@ class InitializeMetaInjectingClientTransportTest {
     var sent = (McpSchema.JSONRPCRequest) capture.lastMessage.get();
     assertThat(sent.method()).isEqualTo(McpSchema.METHOD_INITIALIZE);
     var init = (McpSchema.InitializeRequest) sent.params();
-    assertThat(init.meta())
-      .containsEntry("mcp_server_id", "server-123")
-      .containsEntry("invocation_id", "inv-abc");
+    assertThat(init.meta()).containsEntry("mcp_server_id", "server-123");
   }
 
   @Test
@@ -85,18 +82,6 @@ class InitializeMetaInjectingClientTransportTest {
   }
 
   @Test
-  void sendMessage_should_pass_through_when_meta_is_empty() {
-    var capture = new CapturingTransport();
-    var transport = new InitializeMetaInjectingClientTransport(capture, Map.of());
-
-    var message = initializeMessage(null);
-
-    transport.sendMessage(message).block();
-
-    assertThat(capture.lastMessage.get()).isSameAs(message);
-  }
-
-  @Test
   void sendMessage_should_not_touch_non_initialize_requests() {
     var capture = new CapturingTransport();
     var transport = new InitializeMetaInjectingClientTransport(capture, Map.of("mcp_server_id", "server-123"));
@@ -119,22 +104,6 @@ class InitializeMetaInjectingClientTransportTest {
     transport.sendMessage(notification).block();
 
     assertThat(capture.lastMessage.get()).isSameAs(notification);
-  }
-
-  @Test
-  void constructor_should_defensively_copy_meta() {
-    var capture = new CapturingTransport();
-    var meta = new HashMap<String, Object>();
-    meta.put("mcp_server_id", "server-123");
-    var transport = new InitializeMetaInjectingClientTransport(capture, meta);
-
-    meta.clear();
-
-    transport.sendMessage(initializeMessage(null)).block();
-
-    var sent = (McpSchema.JSONRPCRequest) capture.lastMessage.get();
-    var init = (McpSchema.InitializeRequest) sent.params();
-    assertThat(init.meta()).containsEntry("mcp_server_id", "server-123");
   }
 
   @Test
