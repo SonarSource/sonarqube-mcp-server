@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.client;
 
 import java.nio.file.Path;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -38,7 +39,7 @@ class ProxiedToolsLoaderTest {
   @Test
   void loadProxiedTools_should_return_empty_when_no_servers_configured() {
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     assertThat(tools).isEmpty();
   }
@@ -46,7 +47,7 @@ class ProxiedToolsLoaderTest {
   @Test
   void shutdown_should_not_fail_when_called_multiple_times() {
     loader = new ProxiedToolsLoader();
-    loader.loadProxiedTools(TransportMode.STDIO);
+    loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     assertThatCode(() -> {
       loader.shutdown();
@@ -60,8 +61,8 @@ class ProxiedToolsLoaderTest {
     var loader1 = new ProxiedToolsLoader();
     var loader2 = new ProxiedToolsLoader();
 
-    var tools1 = loader1.loadProxiedTools(TransportMode.STDIO);
-    var tools2 = loader2.loadProxiedTools(TransportMode.HTTP);
+    var tools1 = loader1.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
+    var tools2 = loader2.loadProxiedTools(TransportMode.HTTP, UUID.randomUUID().toString());
 
     assertThat(tools1).isNotNull().isEmpty();
     assertThat(tools2).isNotNull().isEmpty();
@@ -74,11 +75,11 @@ class ProxiedToolsLoaderTest {
   void loadProxiedTools_after_shutdown_should_work() {
     loader = new ProxiedToolsLoader();
     
-    var tools1 = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools1 = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
     loader.shutdown();
     
     // Loading again after shutdown should still work
-    var tools2 = loader.loadProxiedTools(TransportMode.STDIO);
+    var tools2 = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
     
     assertThat(tools1).isNotNull();
     assertThat(tools2).isNotNull();

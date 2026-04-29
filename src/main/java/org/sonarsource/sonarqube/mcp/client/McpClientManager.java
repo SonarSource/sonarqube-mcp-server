@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.ServerParameters;
+import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.time.Duration;
 import java.util.HashMap;
@@ -45,13 +46,15 @@ public class McpClientManager {
     Integer.parseInt(System.getProperty("mcp.client.init.timeout.seconds", "60")));
   
   private final List<ProxiedMcpServerConfig> serverConfigs;
+  private final String mcpServerId;
   private final Map<String, McpSyncClient> clients = new ConcurrentHashMap<>();
   private final Map<String, List<McpSchema.Tool>> serverTools = new ConcurrentHashMap<>();
   private final Map<String, String> serverErrors = new ConcurrentHashMap<>();
   private volatile boolean initialized = false;
-  
-  public McpClientManager(List<ProxiedMcpServerConfig> serverConfigs) {
+
+  public McpClientManager(List<ProxiedMcpServerConfig> serverConfigs, String mcpServerId) {
     this.serverConfigs = List.copyOf(serverConfigs);
+    this.mcpServerId = mcpServerId;
   }
 
   public void initialize() {
@@ -104,8 +107,9 @@ public class McpClientManager {
       serverParamsBuilder.env(filteredEnv);
 
       var serverParams = serverParamsBuilder.build();
-      var transport = new ManagedStdioClientTransport(config.name(), serverParams, McpJsonMappers.DEFAULT);
-      transport.setStdErrorHandler(line -> LOG.debug("[" + config.name() + "] stderr: " + line));
+      var stdioTransport = new ManagedStdioClientTransport(config.name(), serverParams, McpJsonMappers.DEFAULT);
+      stdioTransport.setStdErrorHandler(line -> LOG.debug("[" + config.name() + "] stderr: " + line));
+      var transport = wrapWithInitializeMeta(stdioTransport);
 
       var client = McpClient.sync(transport)
         .requestTimeout(DEFAULT_REQUEST_TIMEOUT)
@@ -229,6 +233,11 @@ public class McpClientManager {
     }
     
     return filteredEnv;
+  }
+
+  private McpClientTransport wrapWithInitializeMeta(McpClientTransport transport) {
+    var meta = Map.<String, Object>of("mcp_server_id", mcpServerId);
+    return new InitializeMetaInjectingClientTransport(transport, meta);
   }
 
   public record ToolMapping(String serverId, String originalToolName, McpSchema.Tool tool) {}

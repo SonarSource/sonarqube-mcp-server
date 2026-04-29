@@ -45,6 +45,17 @@ def receive_message():
 
 def handle_initialize(request):
     """Handle the initialize request"""
+    # Optionally capture the _meta field to a file (for tests that assert on startup meta).
+    capture_path = os.environ.get("TEST_CAPTURE_INIT_META_PATH")
+    if capture_path:
+        params = request.get("params") or {}
+        meta = params.get("_meta")
+        try:
+            with open(capture_path, "w") as f:
+                json.dump(meta if meta is not None else {}, f)
+        except Exception:
+            pass
+
     send_message({
         "jsonrpc": "2.0",
         "id": request.get("id"),
