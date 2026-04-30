@@ -143,10 +143,34 @@ class SearchDependencyRisksToolTests {
                      "type"
                   ]
                }
+            },
+            "paging":{
+               "type":"object",
+               "properties":{
+                  "pageIndex":{
+                     "type":"integer",
+                     "description":"Current page index (1-based)"
+                  },
+                  "pageSize":{
+                     "type":"integer",
+                     "description":"Number of items per page"
+                  },
+                  "total":{
+                     "type":"integer",
+                     "description":"Total number of items across all pages"
+                  }
+               },
+               "required":[
+                  "pageIndex",
+                  "pageSize",
+                  "total"
+               ],
+               "description":"Pagination information for the results"
             }
          },
          "required":[
-            "issuesReleases"
+            "issuesReleases",
+            "paging"
          ]
       }
       """);
@@ -262,7 +286,12 @@ class SearchDependencyRisksToolTests {
             "assignee" : {
               "name" : "John Doe"
             }
-          } ]
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
@@ -311,7 +340,12 @@ class SearchDependencyRisksToolTests {
             "assignee" : {
               "name" : "John Doe"
             }
-          } ]
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
@@ -360,7 +394,12 @@ class SearchDependencyRisksToolTests {
             "assignee" : {
               "name" : "John Doe"
             }
-          } ]
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
@@ -388,7 +427,12 @@ class SearchDependencyRisksToolTests {
 
       assertResultEquals(result, """
         {
-          "issuesReleases" : [ ]
+          "issuesReleases" : [ ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 0
+          }
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
@@ -430,7 +474,12 @@ class SearchDependencyRisksToolTests {
               "newlyIntroduced" : false,
               "directSummary" : false
             }
-          } ]
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
@@ -491,10 +540,49 @@ class SearchDependencyRisksToolTests {
               "newlyIntroduced" : false,
               "directSummary" : false
             }
-          } ]
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 2
+          }
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_forward_pagination_parameters(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get("/api/v2" + ScaApi.DEPENDENCY_RISKS_PATH + "?projectKey=my-project&pageIndex=2&pageSize=50")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+              "issuesReleases": [],
+              "branches": [],
+              "countWithoutFilters": 0,
+              "page": {
+                "pageIndex": 2,
+                "pageSize": 50,
+                "total": 0
+              }
+            }
+            """.getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(
+        SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project",
+        SearchDependencyRisksTool.PAGE_INDEX_PROPERTY, 2,
+        SearchDependencyRisksTool.PAGE_SIZE_PROPERTY, 50));
+
+      assertResultEquals(result, """
+        {
+          "issuesReleases" : [ ],
+          "paging" : {
+            "pageIndex" : 2,
+            "pageSize" : 50,
+            "total" : 0
+          }
+        }""");
     }
   }
 

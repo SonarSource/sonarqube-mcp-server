@@ -929,6 +929,8 @@ SOCKS5 proxies are supported.
   - `projectKey` - Project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `branchKey` - Optional branch key - _String_
   - `pullRequestKey` - Optional pull request key - _String_
+  - `pageIndex` - Optional page index (1-based, default: 1) - _Integer_
+  - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
 ### Enterprises
 
