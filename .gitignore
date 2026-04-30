@@ -46,3 +46,6 @@ its/src/test/resources/binaries/
 !.sonar-code-context/
 .sonar-code-context/*
 !.sonar-code-context/settings.json
+
+.claude/
+.cursor/

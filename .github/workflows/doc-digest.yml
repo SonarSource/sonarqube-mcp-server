@@ -1,0 +1,194 @@
+---
+# Documentation Change Digest
+#
+# Summarises changes since the last release that are relevant to public-facing
+# documentation. Useful for flagging items the documentation team should act on.
+#
+# Triggers:
+#   - Manually via "Run workflow" in the Actions tab (workflow_dispatch)
+#   - Automatically on every pull request
+#   - Later: add `release: [published]` to also run on each release
+
+name: Documentation Change Digest
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  doc-digest:
+    name: Generate doc digest
+    runs-on: github-ubuntu-latest-s
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0  # full history required for git log/diff across tags
+
+      - name: Vault Secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@c154b4a417b51cb98dd71137f49bf20e77c56820 # 3.4.0
+        with:
+          secrets: |
+            development/kv/data/devex-claude-code API_KEY | CLAUDE_CODE_API_KEY;
+
+      - name: Find last release tag
+        id: last-tag
+        run: |
+          TAG=$(git tag --sort=-creatordate \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
+            | head -1)
+          if [[ -z "$TAG" ]]; then
+            echo "No release tag found — aborting." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Last release tag: $TAG"
+
+      - name: Collect changes since last release
+        id: diff
+        run: |
+          TAG="${{ steps.last-tag.outputs.tag }}"
+          COMMIT_LOG=$(git log "${TAG}..HEAD" --oneline)
+          if [[ -z "$COMMIT_LOG" ]]; then
+            echo "no_changes=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          DIFF_STAT=$(git diff "${TAG}..HEAD" --stat)
+          FULL_DIFF=$(git diff "${TAG}..HEAD")
+          {
+            echo "## Commits since ${TAG}"
+            echo ""
+            echo "${COMMIT_LOG}"
+            echo ""
+            echo "## Changed files (stat)"
+            echo ""
+            echo "${DIFF_STAT}"
+          } > /tmp/changes.txt
+          FULL_DIFF_LEN=${#FULL_DIFF}
+          if [[ $FULL_DIFF_LEN -gt 0 && $FULL_DIFF_LEN -le 100000 ]]; then
+            {
+              echo ""
+              echo "## Full diff"
+              echo ""
+              echo "${FULL_DIFF}"
+            } >> /tmp/changes.txt
+          fi
+          echo "no_changes=false" >> "$GITHUB_OUTPUT"
+
+      - name: Build prompt
+        if: steps.diff.outputs.no_changes != 'true'
+        run: |
+          TAG="${{ steps.last-tag.outputs.tag }}"
+          CHANGES=$(cat /tmp/changes.txt)
+          {
+            echo "You are a technical writer assistant for a software project called SonarQube MCP Server."
+            echo "Given the following git changes since the last release, identify ONLY changes that are relevant to public-facing documentation:"
+            echo "  - New or removed MCP tools"
+            echo "  - Changed tool parameters, descriptions, or behaviour"
+            echo "  - New or changed configuration options / environment variables"
+            echo "  - Breaking changes or deprecations"
+            echo "  - New features that end-users or integrators need to know about"
+            echo ""
+            echo "Ignore: internal refactors, test-only changes, CI/build changes, dependency version bumps, code style fixes."
+            echo ""
+            echo "Output a concise Markdown bullet list grouped by category."
+            echo "Start with a one-sentence summary line."
+            echo "If there is nothing documentation-relevant, say so explicitly."
+            echo ""
+            echo "--- CHANGES SINCE ${TAG} ---"
+            echo ""
+            echo "${CHANGES}"
+          } > /tmp/prompt.txt
+
+      - name: Call Anthropic API
+        id: anthropic
+        if: steps.diff.outputs.no_changes != 'true'
+        env:
+          CLAUDE_CODE_API_KEY: ${{ fromJSON(steps.secrets.outputs.vault).CLAUDE_CODE_API_KEY }}
+        run: |
+          REQUEST_BODY=$(jq -n --rawfile prompt /tmp/prompt.txt '{
+            "model": "claude-haiku-4-5",
+            "max_tokens": 2048,
+            "messages": [{ "role": "user", "content": $prompt }]
+          }')
+
+          RESPONSE=$(curl -s -X POST \
+            "https://api.anthropic.com/v1/messages" \
+            -H "x-api-key: ${CLAUDE_CODE_API_KEY}" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "Content-Type: application/json" \
+            -d "$REQUEST_BODY")
+
+          if echo "$RESPONSE" | jq -e '.error' &>/dev/null; then
+            echo "Anthropic API error:" >&2
+            echo "$RESPONSE" | jq '.error' >&2
+            exit 1
+          fi
+
+          jq -r '.content[0].text // "No summary returned."' <<< "$RESPONSE" > /tmp/summary.txt
+
+      - name: No changes notice
+        if: steps.diff.outputs.no_changes == 'true'
+        run: |
+          echo "No commits found since ${{ steps.last-tag.outputs.tag }}." > /tmp/summary.txt
+
+      - name: Write job summary
+        run: |
+          TAG="${{ steps.last-tag.outputs.tag }}"
+          SUMMARY=$(cat /tmp/summary.txt)
+          {
+            echo "## Documentation Change Digest"
+            echo ""
+            echo "> Changes since **${TAG}**"
+            echo ""
+            echo "${SUMMARY}"
+            echo ""
+            echo "---"
+            echo "*Generated by \`doc-digest\` workflow using Claude claude-haiku-4-5*"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('/tmp/summary.txt', 'utf8');
+            const tag = '${{ steps.last-tag.outputs.tag }}';
+            const body = `## Documentation Change Digest\n\n> Changes since **${tag}**\n\n${summary}\n\n---\n*Generated by \`doc-digest\` workflow using Claude claude-haiku-4-5*`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.includes('Documentation Change Digest')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
