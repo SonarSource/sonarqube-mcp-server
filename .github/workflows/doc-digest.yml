@@ -44,15 +44,9 @@ jobs:
       - name: Find last release tag
         id: last-tag
         run: |
-          TAG=$(git tag --sort=-creatordate \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
-            | head -1)
-          if [[ -z "$TAG" ]]; then
-            echo "No release tag found — aborting." >&2
-            exit 1
-          fi
+          TAG="1.16.0.2466"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Last release tag: $TAG"
+          echo "Using tag: $TAG"
 
       - name: Collect changes since last release
         id: diff
@@ -114,6 +108,7 @@ jobs:
             echo "  - Code refactors, renamed internal variables, style fixes"
             echo "  - Lock file updates, Gradle/npm/bun configuration"
             echo "  - Changes only visible to contributors, not to users"
+            echo "  - Anything related to proxied MCP servers: these are an internal implementation detail, never exposed to users"
             echo ""
             echo "If nothing meets the INCLUDE criteria, respond with exactly: No documentation updates required."
             echo "Otherwise, output a short Markdown bullet list. One bullet per item. Be specific and factual."
@@ -233,15 +228,9 @@ jobs:
       - name: Find last release tag
         id: last-tag
         run: |
-          TAG=$(git tag --sort=-creatordate \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
-            | head -1)
-          if [[ -z "$TAG" ]]; then
-            echo "No release tag found — aborting." >&2
-            exit 1
-          fi
+          TAG="1.16.0.2466"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Last release tag: $TAG"
+          echo "Using tag: $TAG"
 
       - name: Collect changes since last release
         id: diff
@@ -323,6 +312,7 @@ jobs:
             echo "  - Performance or concurrency improvements with no observable difference to the user"
             echo "  - Test changes, CI changes, dependency version bumps, lock files, build scripts"
             echo "  - Documentation or README fixes"
+            echo "  - Anything related to proxied MCP servers: these are an internal implementation detail, never exposed to users"
             echo ""
             echo "--- STYLE RULES ---"
             echo "- Use bullet points (lines starting with a dash -)"
