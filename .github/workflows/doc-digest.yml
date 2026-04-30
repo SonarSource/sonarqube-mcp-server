@@ -1,8 +1,9 @@
 ---
-# Documentation Change Digest
+# Documentation Digest & Release Notes Draft
 #
-# Summarises changes since the last release that are relevant to public-facing
-# documentation. Useful for flagging items the documentation team should act on.
+# Two jobs:
+#   doc-digest        — flags changes the documentation WEBSITE needs to reflect
+#   release-notes     — drafts the GitHub Release description in the project's house style
 #
 # Triggers:
 #   - Manually via "Run workflow" in the Actions tab (workflow_dispatch)
@@ -188,6 +189,211 @@ jobs:
             const existing = comments.find(c =>
               c.user.login === 'github-actions[bot]' &&
               c.body.includes('Documentation Change Digest')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  release-notes:
+    name: Draft release notes
+    runs-on: github-ubuntu-latest-s
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Vault Secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@c154b4a417b51cb98dd71137f49bf20e77c56820 # 3.4.0
+        with:
+          secrets: |
+            development/kv/data/devex-claude-code API_KEY | CLAUDE_CODE_API_KEY;
+
+      - name: Find last release tag
+        id: last-tag
+        run: |
+          TAG=$(git tag --sort=-creatordate \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
+            | head -1)
+          if [[ -z "$TAG" ]]; then
+            echo "No release tag found — aborting." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Last release tag: $TAG"
+
+      - name: Collect changes since last release
+        id: diff
+        run: |
+          TAG="${{ steps.last-tag.outputs.tag }}"
+          COMMIT_LOG=$(git log "${TAG}..HEAD" --oneline)
+          if [[ -z "$COMMIT_LOG" ]]; then
+            echo "no_changes=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          DIFF_STAT=$(git diff "${TAG}..HEAD" --stat)
+          FULL_DIFF=$(git diff "${TAG}..HEAD")
+          {
+            echo "## Commits since ${TAG}"
+            echo ""
+            echo "${COMMIT_LOG}"
+            echo ""
+            echo "## Changed files (stat)"
+            echo ""
+            echo "${DIFF_STAT}"
+          } > /tmp/changes.txt
+          FULL_DIFF_LEN=${#FULL_DIFF}
+          if [[ $FULL_DIFF_LEN -gt 0 && $FULL_DIFF_LEN -le 100000 ]]; then
+            {
+              echo ""
+              echo "## Full diff"
+              echo ""
+              echo "${FULL_DIFF}"
+            } >> /tmp/changes.txt
+          fi
+          echo "no_changes=false" >> "$GITHUB_OUTPUT"
+
+      - name: Build release notes prompt
+        if: steps.diff.outputs.no_changes != 'true'
+        run: |
+          TAG="${{ steps.last-tag.outputs.tag }}"
+          CHANGES=$(cat /tmp/changes.txt)
+          {
+            echo "You are a technical writer for Sonar, the company behind SonarQube."
+            echo "Write the GitHub Release description for the SonarQube MCP Server."
+            echo "The audience is developers who use the MCP server to connect AI agents to SonarQube."
+            echo ""
+            echo "Here are real examples of past release notes for this project, so you can match the exact style:"
+            echo ""
+            echo "--- EXAMPLE 1.13.0 ---"
+            echo "Removed the SONARQUBE_ADVANCED_ANALYSIS_ENABLED environment variable. Advanced analysis enablement is now automatically determined at runtime based on token permissions."
+            echo "Introduced a new environment variable, SONARQUBE_LOG_TO_FILE_DISABLED, which disables file-based logging. This is particularly useful when hosting the SonarQube MCP Server."
+            echo "Added support for SOCKS5 proxy configuration."
+            echo "Fixed an issue in the search_metrics tool where the description field was incorrectly required, even when not provided."
+            echo "For full release notes, see JIRA"
+            echo ""
+            echo "--- EXAMPLE 1.12.0 ---"
+            echo "Added support for the SONARQUBE_TOOLSETS and SONARQUBE_READ_ONLY HTTP headers. These allow clients to further restrict which tools are available when interacting with the server."
+            echo "Introduced support for Context Augmentation (CAG), now available in Open Beta. This feature is currently available only in STDIO mode and for restricted users."
+            echo "Added support for the SONARQUBE_PROJECT_KEY environment variable. When set, all tools automatically use this project key, removing the need to pass projectKey as a parameter for tools that require it."
+            echo "For full release notes, see JIRA"
+            echo ""
+            echo "--- EXAMPLE 1.14.0 ---"
+            echo "Add support for workspace mount integration with analysis tools. This eliminates the need to rely on file content during analysis and prevents the agent from loading full file contents into its context."
+            echo "Resolve a concurrency issue in the Context Augmentation tools."
+            echo "Enhance HTTP logging to improve troubleshooting and diagnosis of potential issues."
+            echo "For full release notes, see JIRA"
+            echo ""
+            echo "--- STYLE RULES ---"
+            echo "- Each item is a single sentence on its own line, no bullet points, no markdown formatting"
+            echo "- Start each sentence with a verb (Added, Removed, Introduced, Fixed, Improved, Enhanced, etc.)"
+            echo "- Name env vars in code style: SONARQUBE_TOKEN, SONARQUBE_TOOLSETS, etc."
+            echo "- Name tools in code style: search_metrics, analyze_code_snippet, etc."
+            echo "- Group related items together naturally, no explicit section headers"
+            echo "- End with exactly this line: For full release notes, see JIRA"
+            echo "- Do NOT include a version number header — that is added separately"
+            echo "- Keep it short: 3–8 items maximum, only user-visible changes"
+            echo ""
+            echo "EXCLUDE from the release notes:"
+            echo "  - Internal Java/code refactors with no user-visible effect"
+            echo "  - Internal telemetry or logging changes users do not observe"
+            echo "  - Docker build dependency changes (apt packages) that do not affect usage"
+            echo "  - Test, CI, dependency bump, or build system changes"
+            echo "  - Lock file or Gradle/npm configuration changes"
+            echo ""
+            echo "If there are truly no user-visible changes, output only: No user-visible changes in this release."
+            echo ""
+            echo "--- CHANGES SINCE ${TAG} ---"
+            echo ""
+            echo "${CHANGES}"
+          } > /tmp/relnotes-prompt.txt
+
+      - name: Call Anthropic API for release notes
+        id: anthropic-relnotes
+        if: steps.diff.outputs.no_changes != 'true'
+        env:
+          CLAUDE_CODE_API_KEY: ${{ fromJSON(steps.secrets.outputs.vault).CLAUDE_CODE_API_KEY }}
+        run: |
+          REQUEST_BODY=$(jq -n --rawfile prompt /tmp/relnotes-prompt.txt '{
+            "model": "claude-haiku-4-5",
+            "max_tokens": 1024,
+            "messages": [{ "role": "user", "content": $prompt }]
+          }')
+
+          RESPONSE=$(curl -s -X POST \
+            "https://api.anthropic.com/v1/messages" \
+            -H "x-api-key: ${CLAUDE_CODE_API_KEY}" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "Content-Type: application/json" \
+            -d "$REQUEST_BODY")
+
+          if echo "$RESPONSE" | jq -e '.error' &>/dev/null; then
+            echo "Anthropic API error:" >&2
+            echo "$RESPONSE" | jq '.error' >&2
+            exit 1
+          fi
+
+          jq -r '.content[0].text // "No release notes generated."' <<< "$RESPONSE" > /tmp/relnotes.txt
+
+      - name: No changes notice
+        if: steps.diff.outputs.no_changes == 'true'
+        run: |
+          echo "No commits found since ${{ steps.last-tag.outputs.tag }}." > /tmp/relnotes.txt
+
+      - name: Write job summary
+        run: |
+          TAG="${{ steps.last-tag.outputs.tag }}"
+          NOTES=$(cat /tmp/relnotes.txt)
+          {
+            echo "## Release Notes Draft"
+            echo ""
+            echo "> Changes since **${TAG}** — copy/paste into the GitHub Release description"
+            echo ""
+            echo '```'
+            echo "${NOTES}"
+            echo '```'
+            echo ""
+            echo "---"
+            echo "*Generated by \`release-notes\` job using Claude claude-haiku-4-5*"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const notes = fs.readFileSync('/tmp/relnotes.txt', 'utf8');
+            const tag = '${{ steps.last-tag.outputs.tag }}';
+            const body = `## Release Notes Draft\n\n> Changes since **${tag}**\n\n\`\`\`\n${notes}\n\`\`\`\n\n---\n*Generated by \`release-notes\` job using Claude claude-haiku-4-5*`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.includes('Release Notes Draft')
             );
 
             if (existing) {
