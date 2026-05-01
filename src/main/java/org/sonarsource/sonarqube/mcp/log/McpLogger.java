@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.log;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.helpers.MessageFormatter;
 
 /**
  * MCP-specific logger that outputs to both:
@@ -53,6 +54,14 @@ public class McpLogger {
 
   public void debug(String message) {
     if (isDebugEnabled()) {
+      LOG.debug(message);
+      logToStderr("DEBUG", message);
+    }
+  }
+
+  public void debug(String format, Object... args) {
+    if (isDebugEnabled()) {
+      var message = MessageFormatter.arrayFormat(format, args).getMessage();
       LOG.debug(message);
       logToStderr("DEBUG", message);
     }
