@@ -46,19 +46,24 @@ public class ScaApi {
     }
   }
 
-  public DependencyRisksResponse getDependencyRisks(String projectKey, @Nullable String branchKey, @Nullable String pullRequestKey) {
-    var path = buildPath(projectKey, branchKey, pullRequestKey);
+  public DependencyRisksResponse getDependencyRisks(String projectKey, @Nullable String branchKey, @Nullable String pullRequestKey,
+    @Nullable Integer pageIndex, @Nullable Integer pageSize) {
+    var path = buildPath(projectKey, branchKey, pullRequestKey, pageIndex, pageSize);
     try (var response = helper.isSonarQubeCloud() ? helper.getApiSubdomain(path) : helper.get("/api/v2" + path)) {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, DependencyRisksResponse.class);
     }
   }
 
-  private static String buildPath(String projectKey, @Nullable String branchKey, @Nullable String pullRequestKey) {
+  private static String buildPath(String projectKey, @Nullable String branchKey, @Nullable String pullRequestKey,
+    @Nullable Integer pageIndex, @Nullable Integer pageSize) {
     var builder = new UrlBuilder(DEPENDENCY_RISKS_PATH);
     builder.addParam("projectKey", projectKey);
     builder.addParam("branchKey", branchKey);
     builder.addParam("pullRequestKey", pullRequestKey);
+    builder.addParam("pageIndex", pageIndex);
+    builder.addParam("pageSize", pageSize);
     return builder.build();
   }
+
 }

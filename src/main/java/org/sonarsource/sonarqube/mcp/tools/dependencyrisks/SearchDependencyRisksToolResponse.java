@@ -23,7 +23,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SearchDependencyRisksToolResponse(
-  @JsonPropertyDescription("List of dependency risk issues") List<IssueRelease> issuesReleases
+  @JsonPropertyDescription("List of dependency risk issues") List<IssueRelease> issuesReleases,
+  @JsonPropertyDescription("Pagination information for the results") Paging paging
 ) {
   
   public record IssueRelease(
@@ -49,6 +50,12 @@ public record SearchDependencyRisksToolResponse(
   
   public record Assignee(
     @JsonPropertyDescription("Assignee name") String name
+  ) {}
+
+  public record Paging(
+    @JsonPropertyDescription("Current page index (1-based)") int pageIndex,
+    @JsonPropertyDescription("Number of items per page") int pageSize,
+    @JsonPropertyDescription("Total number of items across all pages") int total
   ) {}
 }
 
