@@ -82,6 +82,7 @@ class ProxiedServerITest {
       .withProxiedServersConfig("proxied-mcp-servers-its.json")
       .withCopyFileToContainer(BINARY_PATH, "/app/binaries/sonar-context-augmentation", 0755)
       .withWorkspaceMount()
+      .withEnv("SONARQUBE_DEBUG_ENABLED", "true")
       .withStartupTimeout(Duration.ofMinutes(3))
       .withLogPrefix("STDIO-Container")
       .build();
