@@ -51,6 +51,14 @@ configurations.all {
             useVersion("1.28.0")
             because("CVE-2024-25710 + CVE-2024-26308")
         }
+        if (requested.group == "com.fasterxml.jackson.core" && requested.name != "jackson-annotations") {
+            useVersion("2.21.1")
+            because("GHSA-72hv-8253-57qq")
+        }
+        if (requested.group == "tools.jackson.core") {
+            useVersion("3.1.2")
+            because("CVE-2026-29062 + GHSA-72hv-8253-57qq")
+        }
     }
 }
 
