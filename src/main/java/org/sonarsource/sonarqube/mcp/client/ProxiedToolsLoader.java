@@ -111,18 +111,32 @@ public class ProxiedToolsLoader {
     }
   }
 
-  public static String composeInstructions(String baseInstructions, List<ProxiedMcpServerConfig> configs) {
-    if (configs.isEmpty()) {
+  /**
+   * Append each proxied server's runtime-reported {@code instructions} to the base instructions.
+   * The proxied servers are responsible for deciding what (if anything) to include based on
+   * their own runtime state; this method just forwards what they sent in their
+   * {@code initialize} response.
+   */
+  public static String composeInstructions(String baseInstructions, List<String> proxiedInstructions) {
+    if (proxiedInstructions.isEmpty()) {
       return baseInstructions;
     }
-    
-    var builder = new StringBuilder(baseInstructions);
 
-    configs.stream()
-      .filter(c -> c.instructions() != null && !c.instructions().isBlank())
-      .forEach(c -> builder.append("\n\n").append(c.instructions()));
-    
+    var builder = new StringBuilder(baseInstructions);
+    proxiedInstructions.stream()
+      .filter(s -> s != null && !s.isBlank())
+      .forEach(s -> builder.append("\n\n").append(s));
+
     return builder.toString();
+  }
+
+  /**
+   * Instructions reported by each connected proxied server in its {@code initialize}
+   * response. Empty when the loader has not been initialized or no proxied server
+   * shipped instructions.
+   */
+  public List<String> getProxiedInstructions() {
+    return mcpClientManager == null ? List.of() : mcpClientManager.getProxiedInstructions();
   }
 
   public void shutdown() {

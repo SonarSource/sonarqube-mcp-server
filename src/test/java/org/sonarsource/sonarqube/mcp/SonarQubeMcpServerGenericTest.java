@@ -213,12 +213,12 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_append_cag_instructions_when_cag_enabled_for_org(SonarQubeMcpServerTestHarness harness) {
+  void should_not_append_cag_instructions_when_cag_enabled_for_org_but_binary_not_available(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     environment.put("SONARQUBE_TOOLSETS", "cag");
-    harness.prepareMockWebServer(environment);
     harness.stubCagOrgConfig(true);
+    harness.prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -227,19 +227,11 @@ class SonarQubeMcpServerGenericTest {
     server.start();
 
     assertThat(server.getComposedInstructions())
-      .as("Context Augmentation nudge should be appended to server instructions when CAG is enabled for the org")
-      .contains("## Context Augmentation")
-      .contains("search_by_signature_patterns")
-      .contains("search_by_body_patterns")
-      .contains("get_source_code")
-      .contains("get_upstream_call_flow")
-      .contains("get_downstream_call_flow")
-      .contains("get_references")
-      .contains("get_type_hierarchy")
-      .contains("get_current_architecture")
-      .contains("get_intended_architecture")
-      .contains("get_guidelines")
-      .contains("check_dependency");
+      .as("No proxied instructions should be appended when the CAG binary is not on PATH")
+      .doesNotContain("## Context Augmentation");
+    assertThat(server.getSupportedTools())
+      .as("No proxied CAG tools should be loaded when the CAG binary is not on PATH")
+      .noneMatch(ProxiedMcpTool.class::isInstance);
 
     server.shutdown();
   }

@@ -50,8 +50,8 @@ class McpClientManagerTest {
   @Test
   void getTotalCount_should_match_config_count() {
     var configs = List.of(
-      new ProxiedMcpServerConfig("server1", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), null),
-      new ProxiedMcpServerConfig("server2", "uv", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), null)
+      new ProxiedMcpServerConfig("server1", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)),
+      new ProxiedMcpServerConfig("server2", "uv", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO))
     );
 
     var manager = new McpClientManager(configs, UUID.randomUUID().toString());
@@ -61,7 +61,7 @@ class McpClientManagerTest {
 
   @Test
   void getAllProxiedTools_should_return_empty_map_before_initialization() {
-    var configs = List.of(new ProxiedMcpServerConfig("server1", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), null));
+    var configs = List.of(new ProxiedMcpServerConfig("server1", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
 
     var manager = new McpClientManager(configs, UUID.randomUUID().toString());
 
@@ -103,7 +103,7 @@ class McpClientManagerTest {
 
   @Test
   void executeTool_should_include_error_message_for_failed_server() {
-    var configs = List.of(new ProxiedMcpServerConfig("failing-server", "/non/existent/command", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO), null));
+    var configs = List.of(new ProxiedMcpServerConfig("failing-server", "/non/existent/command", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
     var manager = new McpClientManager(configs, UUID.randomUUID().toString());
     var emptyMap = Map.<String, Object>of();
 
@@ -117,9 +117,9 @@ class McpClientManagerTest {
   @Test
   void buildEnvironmentVariables_should_include_explicit_values_from_config() {
     var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
-    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), 
-      Map.of("EXPLICIT_VAR1", "value1", "EXPLICIT_VAR2", "value2"), 
-      List.of(), Set.of(TransportMode.STDIO), null);
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
+      Map.of("EXPLICIT_VAR1", "value1", "EXPLICIT_VAR2", "value2"),
+      List.of(), Set.of(TransportMode.STDIO));
     var parentEnv = Map.of("PARENT_VAR", "parent_value");
 
     var result = manager.buildEnvironmentVariables(config, parentEnv);
@@ -134,10 +134,10 @@ class McpClientManagerTest {
   @Test
   void buildEnvironmentVariables_should_inherit_variables_from_parent() {
     var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
-    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), 
-      Map.of(), 
-      List.of("INHERITED_VAR1", "INHERITED_VAR2"), 
-      Set.of(TransportMode.STDIO), null);
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
+      Map.of(),
+      List.of("INHERITED_VAR1", "INHERITED_VAR2"),
+      Set.of(TransportMode.STDIO));
     var parentEnv = Map.of(
       "INHERITED_VAR1", "inherited_value1",
       "INHERITED_VAR2", "inherited_value2",
@@ -156,10 +156,10 @@ class McpClientManagerTest {
   @Test
   void buildEnvironmentVariables_should_prioritize_explicit_values_over_inherited() {
     var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
-    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), 
-      Map.of("OVERRIDE_VAR", "explicit_value"), 
-      List.of("OVERRIDE_VAR"), 
-      Set.of(TransportMode.STDIO), null);
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
+      Map.of("OVERRIDE_VAR", "explicit_value"),
+      List.of("OVERRIDE_VAR"),
+      Set.of(TransportMode.STDIO));
     var parentEnv = Map.of("OVERRIDE_VAR", "parent_value");
 
     var result = manager.buildEnvironmentVariables(config, parentEnv);
@@ -170,12 +170,39 @@ class McpClientManagerTest {
   }
 
   @Test
+  void getProxiedInstructions_should_return_empty_before_initialization() {
+    var configs = List.of(
+      new ProxiedMcpServerConfig("server1", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString());
+
+    assertThat(manager.getProxiedInstructions()).isEmpty();
+  }
+
+  @Test
+  void getProxiedInstructions_should_return_empty_when_no_servers() {
+    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
+    manager.initialize();
+
+    assertThat(manager.getProxiedInstructions()).isEmpty();
+  }
+
+  @Test
+  void getProxiedInstructions_should_return_empty_when_server_failed_to_connect() {
+    var configs = List.of(
+      new ProxiedMcpServerConfig("failing-server", "/non/existent/command", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString());
+    manager.initialize();
+
+    assertThat(manager.getProxiedInstructions()).isEmpty();
+  }
+
+  @Test
   void buildEnvironmentVariables_should_skip_inherited_var_not_in_parent() {
     var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
-    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), 
-      Map.of(), 
-      List.of("MISSING_VAR", "EXISTING_VAR"), 
-      Set.of(TransportMode.STDIO), null);
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
+      Map.of(),
+      List.of("MISSING_VAR", "EXISTING_VAR"),
+      Set.of(TransportMode.STDIO));
     var parentEnv = Map.of("EXISTING_VAR", "existing_value");
 
     var result = manager.buildEnvironmentVariables(config, parentEnv);
