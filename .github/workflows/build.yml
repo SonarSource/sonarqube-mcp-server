@@ -34,7 +34,7 @@ jobs:
           version: 2026.4.20
 
       - id: build-step
-        uses: SonarSource/ci-github-actions/build-gradle@23d3a5700259f9890438851083904c6d5e87ff4e # 1.3.34
+        uses: SonarSource/ci-github-actions/build-gradle@8254c75f98a200109cdf200856c9e74d56cfa235 # 1.3.35
         with:
           deploy-pull-request: true
           artifactory-reader-role: private-reader
@@ -107,6 +107,6 @@ jobs:
     runs-on: github-ubuntu-latest-s  # Public repository runner
     name: Promote
     steps:
-      - uses: SonarSource/ci-github-actions/promote@23d3a5700259f9890438851083904c6d5e87ff4e # 1.3.34
+      - uses: SonarSource/ci-github-actions/promote@8254c75f98a200109cdf200856c9e74d56cfa235 # 1.3.35
         with:
           promote-pull-request: true
