@@ -55,6 +55,10 @@ configurations.all {
             useVersion("2.21.1")
             because("GHSA-72hv-8253-57qq")
         }
+        if (requested.group == "tools.jackson.core") {
+            useVersion("3.1.2")
+            because("CVE-2026-29062 + GHSA-72hv-8253-57qq")
+        }
     }
 }
 
