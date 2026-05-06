@@ -53,7 +53,7 @@
     },
     {
       "id": "sqc",
-      "label": "SonarQube Cloud (embedded)",
+      "label": "SonarQube Cloud-hosted",
       "description": "Connect directly to the Sonar-hosted SonarQube Cloud server via HTTP.",
       "valueDelivery": "headers",
       "availableFor": ["cloud", "cloud-us"],
