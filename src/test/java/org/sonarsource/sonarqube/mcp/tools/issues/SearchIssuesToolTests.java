@@ -121,16 +121,12 @@ class SearchIssuesToolTests {
                      }
                   },
                   "required":[
-                     "author",
-                     "cleanCodeAttribute",
-                     "cleanCodeAttributeCategory",
                      "component",
                      "creationDate",
                      "key",
                      "message",
                      "project",
                      "rule",
-                     "severity",
                      "status"
                   ]
                }
@@ -572,6 +568,50 @@ class SearchIssuesToolTests {
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_handle_issues_with_null_author_and_other_optional_fields(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?organization=org")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssueWithNullOptionalFields(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME);
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "creationDate" : "2013-05-13T17:55:39+0200"
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
     }
 
     @SonarQubeMcpServerTest
@@ -1374,6 +1414,38 @@ class SearchIssuesToolTests {
         "ruleDescriptionContextKey": "spring",
         "cleanCodeAttributeCategory": "INTENTIONAL",
         "cleanCodeAttribute": "CLEAR",
+        "impacts": [
+          {
+            "softwareQuality": "MAINTAINABILITY",
+            "severity": "HIGH"
+          }
+        ]
+      }""".formatted(issueKey, projectName, ruleName);
+  }
+
+  private static String generateIssueWithNullOptionalFields(String issueKey, String ruleName, String projectName) {
+    return """
+        {
+        "key": "%s",
+        "component": "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+        "project": "%s",
+        "rule": "%s",
+        "issueStatus": "CLOSED",
+        "status": "RESOLVED",
+        "resolution": "FALSE-POSITIVE",
+        "message": "'3' is a magic number.",
+        "line": 81,
+        "hash": "a227e508d6646b55a086ee11d63b21e9",
+        "effort": "2h1min",
+        "creationDate": "2013-05-13T17:55:39+0200",
+        "updateDate": "2013-05-13T17:55:39+0200",
+        "tags": [],
+        "type": "RELIABILITY",
+        "comments": [],
+        "attr": {},
+        "transitions": [],
+        "actions": [],
+        "flows": [],
         "impacts": [
           {
             "softwareQuality": "MAINTAINABILITY",
