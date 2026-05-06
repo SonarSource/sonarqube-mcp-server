@@ -93,7 +93,8 @@ Either SONARQUBE_URL or SONARQUBE_ORG must always be set (in stdio mode).
                    MCP server, exposing it on a given port for remote agents.
       Values via : environment variables.
       Env vars   : SONARQUBE_TRANSPORT=http|https
-                   SONARQUBE_HTTP_PORT=<port>
+                   SONARQUBE_HTTP_PORT=<port>       (default: 8080)
+                   SONARQUBE_HTTP_HOST=<bind-addr>  (default: 127.0.0.1)
                    (for HTTPS, see section 6 "TLS / keystore")
       Docker     : `docker run --init --pull=always -d -p PORT:PORT -e ... mcp/sonarqube`
 
@@ -168,9 +169,14 @@ SonarQube Cloud-hosted server limitation:
         -v /absolute/path/to/project:/app/mcp-workspace:rw
 
 
-6. TLS / KEYSTORE (HTTPS launch mode only)
+6. TLS / KEYSTORE AND HTTP LAUNCH OPTIONS
 ------------------------------------------
 
+  HTTP(S) launch mode env vars:
+  SONARQUBE_HTTP_PORT   Port the MCP server listens on. Default: 8080.
+  SONARQUBE_HTTP_HOST   Bind address for the MCP server.  Default: 127.0.0.1.
+
+  HTTPS keystore env vars (all optional; defaults shown):
   SONARQUBE_HTTPS_KEYSTORE_PATH       default: /etc/ssl/mcp/keystore.p12
   SONARQUBE_HTTPS_KEYSTORE_PASSWORD   default: sonarlint
   SONARQUBE_HTTPS_TRUSTSTORE_PATH     default: /etc/ssl/mcp/truststore.p12

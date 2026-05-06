@@ -129,10 +129,10 @@ test.describe('config-generator.html', () => {
     await expect(page.locator('.card-title').filter({ hasText: 'Connection Mode' })).toHaveCount(0);
   });
 
-  test('SQC transport is labeled "cloud-hosted" not "official"', async ({ page }) => {
+  test('SQC transport is labeled "Cloud-hosted" not "official"', async ({ page }) => {
     await page.goto('/config-generator.html');
     const sqcCard = page.locator('#card-sqc .radio-title');
-    await expect(sqcCard).toContainText('cloud-hosted');
+    await expect(sqcCard).toContainText('Cloud-hosted');
     await expect(sqcCard).not.toContainText('Official');
   });
 
