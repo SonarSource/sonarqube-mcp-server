@@ -245,6 +245,7 @@ Top-nav button (☀ / ☾) sets `data-theme="light"` on `<html>` and persists to
 | `SONARQUBE_TOOLSETS`                  | emitted only when selection differs from `defaultEnabled` set            |
 | `SONARQUBE_TRANSPORT`                 | `http` or `https` (launch only)                                          |
 | `SONARQUBE_HTTP_PORT`                 | launch only                                                              |
+| `SONARQUBE_HTTP_HOST`                 | launch only, emitted only when value differs from default `127.0.0.1`   |
 | `SONARQUBE_HTTPS_KEYSTORE_PATH`       | HTTPS launch, if filled                                                  |
 | `SONARQUBE_HTTPS_KEYSTORE_PASSWORD`   | HTTPS launch, if filled                                                  |
 | `SONARQUBE_HTTPS_TRUSTSTORE_PATH`     | HTTPS launch, if filled                                                  |
