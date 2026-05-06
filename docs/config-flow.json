@@ -34,7 +34,7 @@
       "id": "server",
       "label": "SonarQube Server",
       "fields": [
-        { "id": "url", "envVar": "SONARQUBE_URL", "label": "Server URL", "placeholder": "https://sonarqube.mycompany.com", "required": true },
+        { "id": "url", "envVar": "SONARQUBE_URL", "label": "Server URL", "placeholder": "https://sonarqube.mycompany.com", "required": true, "envOnly": true },
         { "id": "token", "envVar": "SONARQUBE_TOKEN", "label": "User token", "required": true, "secret": true, "placeholder": "sqp_xxxxxxxxxxxxxxxxxxx" }
       ],
       "tokenDocsUrl": "https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token"
@@ -80,7 +80,7 @@
           "dockerMode": "daemon",
           "features": ["debug", "certs", "project-key", "toolsets", "read-only"],
           "fields": [
-            { "id": "httpHost", "label": "Host IP", "default": "http://127.0.0.1" },
+            { "id": "httpHost", "label": "Bind address", "default": "127.0.0.1", "envVar": "SONARQUBE_HTTP_HOST" },
             { "id": "httpPort", "label": "Port", "default": "8080", "envVar": "SONARQUBE_HTTP_PORT" }
           ],
           "implicitEnv": { "SONARQUBE_TRANSPORT": "http" }
@@ -107,7 +107,7 @@
           "dockerMode": "daemon",
           "features": ["debug", "certs", "project-key", "toolsets", "read-only"],
           "fields": [
-            { "id": "httpHost", "label": "Host IP", "default": "https://127.0.0.1" },
+            { "id": "httpHost", "label": "Bind address", "default": "127.0.0.1", "envVar": "SONARQUBE_HTTP_HOST" },
             { "id": "httpPort", "label": "Port", "default": "8080", "envVar": "SONARQUBE_HTTP_PORT" }
           ],
           "implicitEnv": { "SONARQUBE_TRANSPORT": "https" },
