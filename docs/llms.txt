@@ -73,7 +73,7 @@ Either SONARQUBE_URL or SONARQUBE_ORG must always be set (in stdio mode).
       Values via : environment variables passed to `docker run -e KEY=VALUE`.
       Docker     : `docker run --init --pull=always -i --rm -e ... mcp/sonarqube`
 
-  3.2 SonarQube Cloud (embedded) server
+  3.2 SonarQube Cloud-hosted server
       What       : The agent talks to the official Sonar-hosted MCP server
                    over HTTP. No local Docker required.
       URL (EU)   : https://api.sonarcloud.io/mcp
@@ -114,7 +114,7 @@ comma-separated list of keys. If unset, the DEFAULT SET is enabled.
   Key                     Default  Notes
   ---                     -------  -----
   analysis                yes      Requires workspace mount (stdio). Not
-                                   available in SonarQube Cloud (embedded)
+                                   available in SonarQube Cloud-hosted
                                    server.
   projects                yes      Always on (required to find project keys).
                                    Cannot be disabled.
@@ -128,17 +128,17 @@ comma-separated list of keys. If unset, the DEFAULT SET is enabled.
   coverage                yes
   cag                     yes      Context augmentation. Only in stdio mode.
                                    Requires workspace mount.
-  sources                 no       Not available in embedded SonarQube Cloud.
-  languages               no       Not available in embedded SonarQube Cloud.
-  portfolios              no       Not available in embedded SonarQube Cloud.
-  system                  no       Not available in embedded SonarQube Cloud.
-  webhooks                no       Not available in embedded SonarQube Cloud.
+  sources                 no       Not available in SonarQube Cloud-hosted server.
+  languages               no       Not available in SonarQube Cloud-hosted server.
+  portfolios              no       Not available in SonarQube Cloud-hosted server.
+  system                  no       Not available in SonarQube Cloud-hosted server.
+  webhooks                no       Not available in SonarQube Cloud-hosted server.
 
-SonarQube Cloud (embedded) server limitation:
+SonarQube Cloud-hosted server limitation:
   Only the DEFAULT SET minus `analysis` and `cag` is exposed. That is:
   projects, issues, security-hotspots, quality-gates, rules, duplications,
   measures, dependency-risks, coverage.
-  You cannot enable toolsets beyond this subset in embedded mode.
+  You cannot enable toolsets beyond this subset in cloud-hosted mode.
 
 
 5. ADVANCED OPTIONS
