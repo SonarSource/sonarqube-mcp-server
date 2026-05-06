@@ -35,12 +35,12 @@ public record SearchIssuesToolResponse(
     @JsonPropertyDescription("Rule that triggered the issue") String rule,
     @JsonPropertyDescription("Project key where the issue was found") String project,
     @JsonPropertyDescription("Component (file) where the issue is located") String component,
-    @JsonPropertyDescription("Issue severity level (absent in MQR mode)") @Nullable String severity,
+    @JsonPropertyDescription("Issue severity level") @Nullable String severity,
     @JsonPropertyDescription("Current status of the issue") String status,
     @JsonPropertyDescription("Issue description message") String message,
-    @JsonPropertyDescription("Clean code attribute associated with the issue (absent on legacy rules or older SonarQube Server)") @Nullable String cleanCodeAttribute,
-    @JsonPropertyDescription("Clean code attribute category (absent on legacy rules or older SonarQube Server)") @Nullable String cleanCodeAttributeCategory,
-    @JsonPropertyDescription("Author who introduced the issue (absent when SCM blame unavailable, or anonymized)") @Nullable String author,
+    @JsonPropertyDescription("Clean code attribute associated with the issue") @Nullable String cleanCodeAttribute,
+    @JsonPropertyDescription("Clean code attribute category") @Nullable String cleanCodeAttributeCategory,
+    @JsonPropertyDescription("Author who introduced the issue") @Nullable String author,
     @JsonPropertyDescription("Date when the issue was created") String creationDate,
     @JsonPropertyDescription("Location of the issue in the source file") @Nullable TextRange textRange
   ) {}
