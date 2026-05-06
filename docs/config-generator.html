@@ -337,6 +337,18 @@
       container.appendChild(div);
     });
     document.getElementById('tokenDocsLink').href = platform.tokenDocsUrl || '#';
+    syncEnvOnlyFields();
+  }
+
+  function syncEnvOnlyFields() {
+    const platform = flow.platforms.find(p => p.id === state.env);
+    if (!platform) return;
+    const httpClient = getActiveTransport().valueDelivery === 'headers';
+    platform.fields.forEach(f => {
+      if (f.id === 'token' || !f.envOnly) return;
+      const div = document.getElementById('field-' + f.id);
+      if (div) div.style.display = httpClient ? 'none' : '';
+    });
   }
 
   function buildToolsetsGrid() {
@@ -403,12 +415,6 @@
     if (mode === 'http' || mode === 'https') {
       httpOptions.classList.remove('hidden');
       sqcOptions.classList.add('hidden');
-      const hostInput = document.getElementById('httpHost');
-      if (mode === 'https' && hostInput.value.startsWith('http://')) {
-        hostInput.value = hostInput.value.replace('http://', 'https://');
-      } else if (mode === 'http' && hostInput.value.startsWith('https://')) {
-        hostInput.value = hostInput.value.replace('https://', 'http://');
-      }
       setHttpMode(state.httpMode);
     } else if (mode === 'sqc') {
       httpOptions.classList.add('hidden');
@@ -421,6 +427,7 @@
       applyAdvancedCardMode('stdio');
     }
 
+    syncEnvOnlyFields();
     syncWorkspaceMountVisibility();
     syncToolsetStates();
     generateConfig();
@@ -452,6 +459,7 @@
         const hostField = modeObj.fields.find(f => f.id === 'httpHost');
         if (hostField) {
           document.getElementById('httpHostLabel').textContent = hostField.label;
+          document.getElementById('httpHost').value = hostField.default || '';
         }
       }
     }
@@ -464,6 +472,7 @@
     }
 
     applyAdvancedCardMode(isLaunch ? 'stdio' : 'http-client');
+    syncEnvOnlyFields();
     generateConfig();
   }
 
@@ -574,6 +583,7 @@
       if (platform) {
         platform.fields.forEach(f => {
           if (f.id === 'token') return;
+          if (f.envOnly) return;
           const val = document.getElementById('pf-' + f.id);
           if (val && val.value.trim()) {
             httpHeaders[f.envVar] = val.value.trim();
@@ -600,6 +610,8 @@
       if (isHttpLaunch) {
         const port = document.getElementById('httpPort').value.trim() || '8080';
         envVars['SONARQUBE_HTTP_PORT'] = port;
+        const host = document.getElementById('httpHost').value.trim();
+        if (host && host !== '127.0.0.1') envVars['SONARQUBE_HTTP_HOST'] = host;
         if (state.transport === 'https') {
           const httpsTransport = flow.transports.find(t => t.id === 'https');
           if (httpsTransport && httpsTransport.modes && httpsTransport.modes.launch && httpsTransport.modes.launch.extraFields) {
@@ -636,7 +648,7 @@
       return document.getElementById('workspaceHostPath').value.trim() || null;
     })();
 
-    const httpHost = document.getElementById('httpHost').value.trim() || 'http://127.0.0.1';
+    const httpHost = document.getElementById('httpHost').value.trim() || '127.0.0.1';
     const httpPort = document.getElementById('httpPort').value.trim() || '8080';
 
     const sqcTransport = flow.transports.find(t => t.id === 'sqc');
