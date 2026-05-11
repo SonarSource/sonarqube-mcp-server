@@ -6,7 +6,7 @@
     "url": "https://github.com/SonarSource/sonarqube-mcp-server",
     "source": "github"
   },
-  "version": "1.18",
+  "version": "1.18.1",
   "packages": [
     {
       "registryType": "oci",
