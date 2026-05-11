@@ -297,6 +297,8 @@ For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL=$SONAR_URL"` to the `args`
 <details>
 <summary>Kiro</summary>
 
+[![Add to Kiro](https://kiro.dev/images/add-to-kiro.svg)](https://kiro.dev/launch/mcp/add?name=sonarqube&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22--init%22%2C%22--pull%3Dalways%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_ORG%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22YOUR_TOKEN%22%2C%22SONARQUBE_ORG%22%3A%22YOUR_ORG%22%7D%7D)
+
 Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if it already exists), add the following configuration:
 
 * To connect with SonarQube Cloud:
