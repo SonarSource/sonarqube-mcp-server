@@ -307,7 +307,11 @@ public class HttpServerTransportProvider {
       .withDefaultTrustMaterial();
 
     if (!SystemUtils.IS_OS_WINDOWS) {
-      sslFactoryBuilder.withSystemTrustMaterial();
+      try {
+        sslFactoryBuilder.withSystemTrustMaterial();
+      } catch (Exception e) {
+        LOG.warn("Could not load system trust material, falling back to JDK defaults: " + e.getMessage());
+      }
     }
 
     if (Files.exists(keystorePath)) {
