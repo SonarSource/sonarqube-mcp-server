@@ -33,6 +33,12 @@ java {
 // To regenerate after adding or updating dependencies:
 //   ./gradlew :dependencies --write-locks
 //   ./gradlew :its:dependencies --write-locks
+if (gradle.startParameter.isWriteDependencyLocks) {
+	require(artifactoryUrl.isNotEmpty() && artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
+		"Dependency locks must be written using Repox (Artifactory) credentials to ensure consistent resolution.\n" +
+			"Set artifactoryUrl, artifactoryUsername, and artifactoryPassword in ~/.gradle/gradle.properties or via environment variables."
+	}
+}
 dependencyLocking {
 	lockAllConfigurations()
 }

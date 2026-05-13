@@ -18,20 +18,25 @@ java {
     }
 }
 
+val artifactoryUrl = System.getenv("ARTIFACTORY_URL").orEmpty()
+    .ifEmpty { project.findProperty("artifactoryUrl")?.toString().orEmpty() }
+val artifactoryUsername = System.getenv("ARTIFACTORY_USER").orEmpty()
+    .ifEmpty { project.findProperty("artifactoryUsername")?.toString().orEmpty() }
+val artifactoryPassword = System.getenv("ARTIFACTORY_ACCESS_TOKEN").orEmpty()
+    .ifEmpty { project.findProperty("artifactoryPassword")?.toString().orEmpty() }
+
+if (gradle.startParameter.isWriteDependencyLocks) {
+    require(artifactoryUrl.isNotEmpty() && artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
+        "Dependency locks must be written using Repox (Artifactory) credentials to ensure consistent resolution.\n" +
+            "Set artifactoryUrl, artifactoryUsername, and artifactoryPassword in ~/.gradle/gradle.properties or via environment variables."
+    }
+}
+
 dependencyLocking {
     lockAllConfigurations()
 }
 
 repositories {
-    // CI sets ARTIFACTORY_*. For local builds, put artifactoryUrl / artifactoryUsername /
-    // artifactoryPassword in ~/.gradle/gradle.properties; otherwise we fall back to Maven Central.
-    val artifactoryUrl = System.getenv("ARTIFACTORY_URL").orEmpty()
-        .ifEmpty { project.findProperty("artifactoryUrl")?.toString().orEmpty() }
-    val artifactoryUsername = System.getenv("ARTIFACTORY_USER").orEmpty()
-        .ifEmpty { project.findProperty("artifactoryUsername")?.toString().orEmpty() }
-    val artifactoryPassword = System.getenv("ARTIFACTORY_ACCESS_TOKEN").orEmpty()
-        .ifEmpty { project.findProperty("artifactoryPassword")?.toString().orEmpty() }
-
     if (artifactoryUrl.isNotEmpty() && artifactoryUsername.isNotEmpty() && artifactoryPassword.isNotEmpty()) {
         maven("$artifactoryUrl/sonarsource") {
             credentials {
