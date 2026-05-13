@@ -5,10 +5,10 @@
 CERT_DIR="/usr/local/share/ca-certificates/"
 
 if [ "$(ls -A "$CERT_DIR")" ]; then
-    echo "Installing custom certificates from $CERT_DIR..."
+    echo "Installing custom certificates from $CERT_DIR..." >&2
 
     # Run as root via sudo
-    sudo /usr/sbin/update-ca-certificates
+    sudo /usr/sbin/update-ca-certificates >&2
 
-    echo "Custom certificates installed successfully"
+    echo "Custom certificates installed successfully" >&2
 fi
