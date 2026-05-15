@@ -3,7 +3,7 @@ rootProject.name = "sonarqube-mcp-server"
 include("its")
 
 plugins {
-    id("com.gradle.develocity") version "3.19.2"
+    id("com.gradle.develocity") version "4.4.1"
     id("com.gradle.common-custom-user-data-gradle-plugin") version "2.6.0"
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
