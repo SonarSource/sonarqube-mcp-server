@@ -29,9 +29,11 @@ jobs:
     steps:
       - name: Compute checkout ref
         id: ref
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=refs/tags/${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "value=refs/tags/${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "value=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           else
@@ -45,9 +47,12 @@ jobs:
 
       - name: Resolve version
         id: version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.tag }}"
+            VERSION="${INPUT_TAG}"
           elif [ "${{ github.event_name }}" = "release" ]; then
             TAG="${{ github.event.release.tag_name }}"
             VERSION="${TAG#v}"
@@ -61,7 +66,7 @@ jobs:
           sonarsource/sonarqube-mcp-server:latest"
           fi
 
-          if [ "${{ github.event_name }}" = "release" ] || [ "${{ inputs.dry_run }}" = "false" ]; then
+          if [ "${{ github.event_name }}" = "release" ] || [ "${INPUT_DRY_RUN}" = "false" ]; then
             echo "push=true" >> "$GITHUB_OUTPUT"
           else
             echo "push=false" >> "$GITHUB_OUTPUT"
@@ -99,7 +104,7 @@ jobs:
           platforms: all
 
       - name: Build and push to temporary registry
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -174,7 +179,7 @@ jobs:
 
       - id: secrets
         name: Retrieve secrets from Vault
-        uses: SonarSource/vault-action-wrapper@v3
+        uses: SonarSource/vault-action-wrapper@c154b4a417b51cb98dd71137f49bf20e77c56820 # v3.4.0
         with:
           secrets: |
             development/kv/data/docker/sonardockerrw username | docker_username;
@@ -199,7 +204,7 @@ jobs:
           platforms: all
 
       - name: Build and push to Docker Hub
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
