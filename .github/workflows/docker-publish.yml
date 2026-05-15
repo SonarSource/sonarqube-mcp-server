@@ -21,11 +21,11 @@ jobs:
     permissions:
       contents: read
     outputs:
-      version: ${{ steps.version.outputs.value }}
-      tags: ${{ steps.version.outputs.tags }}
-      push: ${{ steps.version.outputs.push }}
+      version: ${{ steps.params.outputs.version }}
+      tags: ${{ steps.params.outputs.tags }}
+      push: ${{ steps.params.outputs.push }}
       ref: ${{ steps.ref.outputs.value }}
-      temp_image: ${{ steps.version.outputs.temp_image }}
+      temp_image: ${{ steps.params.outputs.temp_image }}
     steps:
       - name: Compute checkout ref
         id: ref
@@ -45,8 +45,8 @@ jobs:
         with:
           ref: ${{ steps.ref.outputs.value }}
 
-      - name: Resolve version
-        id: version
+      - name: Compute build parameters
+        id: params
         env:
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
@@ -62,8 +62,7 @@ jobs:
 
           TAGS="sonarsource/sonarqube-mcp-server:${VERSION}"
           if [ "${{ github.event_name }}" = "release" ]; then
-            TAGS="${TAGS}
-          sonarsource/sonarqube-mcp-server:latest"
+            TAGS="${TAGS}"$'\n'"sonarsource/sonarqube-mcp-server:latest"
           fi
 
           if [ "${{ github.event_name }}" = "release" ] || [ "${INPUT_DRY_RUN}" = "false" ]; then
@@ -71,7 +70,7 @@ jobs:
           else
             echo "push=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "temp_image=ttl.sh/sonarqube-mcp-server-${{ github.run_id }}:1h" >> "$GITHUB_OUTPUT"
           {
             echo "tags<<EOF"
