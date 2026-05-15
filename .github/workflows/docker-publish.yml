@@ -1,7 +1,6 @@
 name: Publish Docker Image
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       tag:
@@ -16,7 +15,7 @@ jobs:
   prepare:
     name: Resolve build parameters
     runs-on: warp-custom-ubuntu-24-04
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master'
     permissions:
       contents: read
     outputs:
@@ -30,13 +29,8 @@ jobs:
         id: ref
         env:
           INPUT_TAG: ${{ inputs.tag }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=refs/tags/${INPUT_TAG}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
-          fi
+          echo "value=refs/tags/${INPUT_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
@@ -49,11 +43,7 @@ jobs:
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${INPUT_TAG}"
-          else
-            VERSION=$(grep 'ARG MCP_SERVER_VERSION=' Dockerfile | cut -d= -f2)
-          fi
+          VERSION="${INPUT_TAG}"
 
           if [ "${INPUT_DRY_RUN}" = "false" ]; then
             echo "push=true" >> "$GITHUB_OUTPUT"
