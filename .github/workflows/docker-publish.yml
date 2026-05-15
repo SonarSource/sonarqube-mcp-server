@@ -1,0 +1,164 @@
+name: Publish Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version to publish (e.g. 1.18.1.2664)'
+        required: true
+      dry_run:
+        description: 'Build only, do not push to registry'
+        type: boolean
+        default: true
+
+jobs:
+  prepare:
+    name: Resolve build parameters
+    runs-on: warp-custom-ubuntu-24-04
+    if: github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.params.outputs.version }}
+      tags: ${{ steps.params.outputs.tags }}
+      push: ${{ steps.params.outputs.push }}
+      ref: ${{ steps.ref.outputs.value }}
+      temp_image: ${{ steps.params.outputs.temp_image }}
+    steps:
+      - name: Compute checkout ref
+        id: ref
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          echo "value=refs/tags/${INPUT_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
+        with:
+          ref: ${{ steps.ref.outputs.value }}
+
+      - name: Compute build parameters
+        id: params
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          VERSION="${INPUT_TAG}"
+
+          if [ "${INPUT_DRY_RUN}" = "false" ]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+            TAGS="sonarsource/sonarqube-mcp:${VERSION}"$'\n'"sonarsource/sonarqube-mcp:latest"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            TAGS="sonarsource/sonarqube-mcp:${VERSION}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "temp_image=ttl.sh/sonarqube-mcp-server-${{ github.run_id }}:1h" >> "$GITHUB_OUTPUT"
+          {
+            echo "tags<<EOF"
+            echo "${TAGS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build multi-platform image
+    needs: prepare
+    runs-on: warp-custom-ubuntu-24-04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+
+      - name: Build and push to temporary registry
+        uses: ./.github/actions/docker-build
+        with:
+          version: ${{ needs.prepare.outputs.version }}
+          tags: ${{ needs.prepare.outputs.temp_image }}
+
+  test:
+    name: Smoke test (${{ matrix.platform }})
+    needs: [prepare, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: warp-custom-ubuntu-24-04
+          - platform: linux/arm64
+            runner: github-ubuntu-24.04-arm-s
+    runs-on: ${{ matrix.runner }}
+    permissions: {}
+    steps:
+      - name: Smoke test
+        run: |
+          CONTAINER_ID=$(docker run -d -i \
+            --platform ${{ matrix.platform }} \
+            -e SONARQUBE_IS_CLOUD=true \
+            -e SONARQUBE_URL=https://sonarcloud.io \
+            -e SONARQUBE_TOKEN=smoke-test \
+            -e TELEMETRY_DISABLED=true \
+            ${{ needs.prepare.outputs.temp_image }})
+
+          echo "Container ID: ${CONTAINER_ID}"
+
+          SUCCESS=false
+          for i in $(seq 1 30); do
+            sleep 2
+            if docker logs "${CONTAINER_ID}" 2>&1 | grep -q 'SonarQube MCP Server Started'; then
+              SUCCESS=true
+              break
+            fi
+            if [ "$(docker inspect --format='{{.State.Status}}' "${CONTAINER_ID}" 2>/dev/null)" != "running" ]; then
+              echo "Container stopped unexpectedly"
+              break
+            fi
+          done
+
+          echo "--- Container logs ---"
+          docker logs "${CONTAINER_ID}" 2>&1
+          echo "--- End of logs ---"
+
+          docker stop "${CONTAINER_ID}" > /dev/null 2>&1 || true
+
+          if [ "${SUCCESS}" = "false" ]; then
+            echo "Smoke test FAILED: server did not log startup message within 60 seconds"
+            exit 1
+          fi
+          echo "Smoke test PASSED"
+
+  publish:
+    name: Publish to Docker Hub
+    needs: [prepare, test]
+    if: needs.prepare.outputs.push == 'true'
+    runs-on: warp-custom-ubuntu-24-04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+
+      - id: secrets
+        name: Retrieve secrets from Vault
+        uses: SonarSource/vault-action-wrapper@c154b4a417b51cb98dd71137f49bf20e77c56820 # v3.4.0
+        with:
+          secrets: |
+            development/kv/data/docker/sonardockerrw username | docker_username;
+            development/kv/data/docker/sonardockerrw access_token_rwd | docker_password;
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          username: ${{ fromJSON(steps.secrets.outputs.vault).docker_username }}
+          password: ${{ fromJSON(steps.secrets.outputs.vault).docker_password }}
+
+      - name: Build and push to Docker Hub
+        uses: ./.github/actions/docker-build
+        with:
+          version: ${{ needs.prepare.outputs.version }}
+          tags: ${{ needs.prepare.outputs.tags }}
