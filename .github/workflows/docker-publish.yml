@@ -16,27 +16,13 @@ jobs:
     name: Resolve build parameters
     runs-on: warp-custom-ubuntu-24-04
     if: github.ref == 'refs/heads/master'
-    permissions:
-      contents: read
+    permissions: {}
     outputs:
       version: ${{ steps.params.outputs.version }}
       tags: ${{ steps.params.outputs.tags }}
       push: ${{ steps.params.outputs.push }}
-      ref: ${{ steps.ref.outputs.value }}
       temp_image: ${{ steps.params.outputs.temp_image }}
     steps:
-      - name: Compute checkout ref
-        id: ref
-        env:
-          INPUT_TAG: ${{ inputs.tag }}
-        run: |
-          echo "value=refs/tags/${INPUT_TAG}" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
-        with:
-          ref: ${{ steps.ref.outputs.value }}
-
       - name: Compute build parameters
         id: params
         env:
@@ -69,8 +55,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
-        with:
-          ref: ${{ needs.prepare.outputs.ref }}
 
       - name: Build and push to temporary registry
         uses: ./.github/actions/docker-build
@@ -140,8 +124,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
-        with:
-          ref: ${{ needs.prepare.outputs.ref }}
 
       - id: secrets
         name: Retrieve secrets from Vault
