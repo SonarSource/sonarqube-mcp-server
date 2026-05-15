@@ -15,7 +15,7 @@ on:
 jobs:
   prepare:
     name: Resolve build parameters
-    runs-on: github-ubuntu-latest-s
+    runs-on: warp-custom-ubuntu-24-04
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
     permissions:
       contents: read
@@ -73,7 +73,7 @@ jobs:
   build:
     name: Build multi-platform image
     needs: prepare
-    runs-on: github-ubuntu-latest-s
+    runs-on: warp-custom-ubuntu-24-04
     permissions:
       contents: read
     steps:
@@ -96,7 +96,7 @@ jobs:
       matrix:
         include:
           - platform: linux/amd64
-            runner: github-ubuntu-latest-s
+            runner: warp-custom-ubuntu-24-04
           - platform: linux/arm64
             runner: github-ubuntu-24.04-arm-s
     runs-on: ${{ matrix.runner }}
@@ -143,7 +143,7 @@ jobs:
     name: Publish to Docker Hub
     needs: [prepare, test]
     if: needs.prepare.outputs.push == 'true'
-    runs-on: github-ubuntu-latest-s
+    runs-on: warp-custom-ubuntu-24-04
     permissions:
       id-token: write
       contents: read
