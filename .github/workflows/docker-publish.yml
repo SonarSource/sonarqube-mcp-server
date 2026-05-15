@@ -25,6 +25,7 @@ jobs:
       tags: ${{ steps.version.outputs.tags }}
       push: ${{ steps.version.outputs.push }}
       ref: ${{ steps.ref.outputs.value }}
+      temp_image: ${{ steps.version.outputs.temp_image }}
     steps:
       - name: Compute checkout ref
         id: ref
@@ -66,15 +67,50 @@ jobs:
             echo "push=false" >> "$GITHUB_OUTPUT"
           fi
           echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "temp_image=ttl.sh/sonarqube-mcp-server-${{ github.run_id }}:1h" >> "$GITHUB_OUTPUT"
           {
             echo "tags<<EOF"
             echo "${TAGS}"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+  build:
+    name: Build multi-platform image
+    needs: prepare
+    runs-on: github-ubuntu-latest-s
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        with:
+          name: multibuilder
+          driver: docker-container
+          install: true
+
+      - name: Set up QEMU for multi-arch builds
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        with:
+          platforms: all
+
+      - name: Build and push to temporary registry
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            MCP_SERVER_VERSION=${{ needs.prepare.outputs.version }}
+          tags: ${{ needs.prepare.outputs.temp_image }}
+
   test:
     name: Smoke test (${{ matrix.platform }})
-    needs: prepare
+    needs: [prepare, build]
     strategy:
       fail-fast: false
       matrix:
@@ -84,30 +120,16 @@ jobs:
           - platform: linux/arm64
             runner: github-ubuntu-24.04-arm-m
     runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
-        with:
-          ref: ${{ needs.prepare.outputs.ref }}
-
-      - name: Build image
-        run: |
-          docker build \
-            --platform ${{ matrix.platform }} \
-            --build-arg MCP_SERVER_VERSION=${{ needs.prepare.outputs.version }} \
-            --tag sonarqube-mcp-server:smoke-test \
-            .
-
       - name: Smoke test
         run: |
           CONTAINER_ID=$(docker run -d -i \
+            --platform ${{ matrix.platform }} \
             -e SONARQUBE_IS_CLOUD=true \
             -e SONARQUBE_URL=https://sonarcloud.io \
             -e SONARQUBE_TOKEN=smoke-test \
             -e TELEMETRY_DISABLED=true \
-            sonarqube-mcp-server:smoke-test)
+            ${{ needs.prepare.outputs.temp_image }})
 
           echo "Container ID: ${CONTAINER_ID}"
 
@@ -137,7 +159,7 @@ jobs:
           echo "Smoke test PASSED"
 
   publish:
-    name: Build and push multi-platform image
+    name: Publish to Docker Hub
     needs: [prepare, test]
     if: needs.prepare.outputs.push == 'true'
     runs-on: github-ubuntu-latest-s
@@ -145,11 +167,6 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
-        with:
-          ref: ${{ needs.prepare.outputs.ref }}
-
       - id: secrets
         name: Retrieve secrets from Vault
         uses: SonarSource/vault-action-wrapper@v3
@@ -166,22 +183,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-        with:
-          name: multibuilder
-          driver: docker-container
-          install: true
 
-      - name: Set up QEMU for multi-arch builds
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
-        with:
-          platforms: all
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args: |
-            MCP_SERVER_VERSION=${{ needs.prepare.outputs.version }}
-          tags: ${{ needs.prepare.outputs.tags }}
+      - name: Promote to Docker Hub
+        run: |
+          TAG_ARGS=""
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && TAG_ARGS="${TAG_ARGS} --tag ${tag}"
+          done <<< "${{ needs.prepare.outputs.tags }}"
+          docker buildx imagetools create ${TAG_ARGS} ${{ needs.prepare.outputs.temp_image }}
