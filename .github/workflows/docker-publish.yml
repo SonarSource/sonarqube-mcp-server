@@ -15,21 +15,32 @@ on:
         default: true
 
 jobs:
-  publish:
-    name: Build and Push Docker Image
+  prepare:
+    name: Resolve build parameters
     runs-on: github-ubuntu-latest-s
     permissions:
-      id-token: write
       contents: read
-
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      tags: ${{ steps.version.outputs.tags }}
+      push: ${{ steps.version.outputs.push }}
+      ref: ${{ steps.ref.outputs.value }}
     steps:
+      - name: Compute checkout ref
+        id: ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=refs/tags/${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "value=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
         with:
-          ref: ${{
-            github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) ||
-            github.event_name == 'pull_request' && github.event.pull_request.head.sha ||
-            '' }}
+          ref: ${{ steps.ref.outputs.value }}
 
       - name: Resolve version
         id: version
@@ -43,11 +54,10 @@ jobs:
             VERSION=$(grep 'ARG MCP_SERVER_VERSION=' Dockerfile | cut -d= -f2)
           fi
 
+          TAGS="sonarsource/sonarqube-mcp-server:${VERSION}"
           if [ "${{ github.event_name }}" = "release" ]; then
-            TAGS="sonarsource/sonarqube-mcp-server:${VERSION}
+            TAGS="${TAGS}
           sonarsource/sonarqube-mcp-server:latest"
-          else
-            TAGS="sonarsource/sonarqube-mcp-server:${VERSION}"
           fi
 
           if [ "${{ github.event_name }}" = "release" ] || [ "${{ inputs.dry_run }}" = "false" ]; then
@@ -61,6 +71,84 @@ jobs:
             echo "${TAGS}"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+
+  test:
+    name: Smoke test (${{ matrix.platform }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: github-ubuntu-latest-s
+          - platform: linux/arm64
+            runner: github-ubuntu-24.04-arm-m
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+
+      - name: Build image
+        run: |
+          docker build \
+            --platform ${{ matrix.platform }} \
+            --build-arg MCP_SERVER_VERSION=${{ needs.prepare.outputs.version }} \
+            --tag sonarqube-mcp-server:smoke-test \
+            .
+
+      - name: Smoke test
+        run: |
+          CONTAINER_ID=$(docker run -d -i \
+            -e SONARQUBE_IS_CLOUD=true \
+            -e SONARQUBE_URL=https://sonarcloud.io \
+            -e SONARQUBE_TOKEN=smoke-test \
+            -e TELEMETRY_DISABLED=true \
+            sonarqube-mcp-server:smoke-test)
+
+          echo "Container ID: ${CONTAINER_ID}"
+
+          SUCCESS=false
+          for i in $(seq 1 30); do
+            sleep 2
+            if docker logs "${CONTAINER_ID}" 2>&1 | grep -q 'SonarQube MCP Server Started'; then
+              SUCCESS=true
+              break
+            fi
+            if [ "$(docker inspect --format='{{.State.Status}}' "${CONTAINER_ID}" 2>/dev/null)" != "running" ]; then
+              echo "Container stopped unexpectedly"
+              break
+            fi
+          done
+
+          echo "--- Container logs ---"
+          docker logs "${CONTAINER_ID}" 2>&1
+          echo "--- End of logs ---"
+
+          docker stop "${CONTAINER_ID}" > /dev/null 2>&1 || true
+
+          if [ "${SUCCESS}" = "false" ]; then
+            echo "Smoke test FAILED: server did not log startup message within 60 seconds"
+            exit 1
+          fi
+          echo "Smoke test PASSED"
+
+  publish:
+    name: Build and push multi-platform image
+    needs: [prepare, test]
+    if: needs.prepare.outputs.push == 'true'
+    runs-on: github-ubuntu-latest-s
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
 
       - id: secrets
         name: Retrieve secrets from Vault
@@ -93,7 +181,7 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ steps.version.outputs.push }}
+          push: true
           build-args: |
-            MCP_SERVER_VERSION=${{ steps.version.outputs.value }}
-          tags: ${{ steps.version.outputs.tags }}
+            MCP_SERVER_VERSION=${{ needs.prepare.outputs.version }}
+          tags: ${{ needs.prepare.outputs.tags }}
