@@ -123,7 +123,7 @@ jobs:
           - platform: linux/amd64
             runner: github-ubuntu-latest-s
           - platform: linux/arm64
-            runner: github-ubuntu-24.04-arm-m
+            runner: github-ubuntu-24.04-arm-s
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Smoke test
