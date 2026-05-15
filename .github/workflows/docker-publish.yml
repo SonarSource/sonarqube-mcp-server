@@ -30,11 +30,12 @@ jobs:
         id: ref
         env:
           INPUT_TAG: ${{ inputs.tag }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "value=refs/tags/${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            echo "value=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout repository
