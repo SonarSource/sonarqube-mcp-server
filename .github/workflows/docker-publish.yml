@@ -2,8 +2,6 @@ name: Publish Docker Image
 
 on:
   pull_request:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -18,6 +16,7 @@ jobs:
   prepare:
     name: Resolve build parameters
     runs-on: github-ubuntu-latest-s
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
     permissions:
       contents: read
     outputs:
@@ -34,10 +33,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "value=refs/tags/${INPUT_TAG}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "value=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=" >> "$GITHUB_OUTPUT"
+            echo "value=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout repository
@@ -53,22 +50,16 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${INPUT_TAG}"
-          elif [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
-            VERSION="${TAG#v}"
           else
             VERSION=$(grep 'ARG MCP_SERVER_VERSION=' Dockerfile | cut -d= -f2)
           fi
 
-          TAGS="sonarsource/sonarqube-mcp:${VERSION}"
-          if [ "${{ github.event_name }}" = "release" ]; then
-            TAGS="${TAGS}"$'\n'"sonarsource/sonarqube-mcp:latest"
-          fi
-
-          if [ "${{ github.event_name }}" = "release" ] || [ "${INPUT_DRY_RUN}" = "false" ]; then
+          if [ "${INPUT_DRY_RUN}" = "false" ]; then
             echo "push=true" >> "$GITHUB_OUTPUT"
+            TAGS="sonarsource/sonarqube-mcp:${VERSION}"$'\n'"sonarsource/sonarqube-mcp:latest"
           else
             echo "push=false" >> "$GITHUB_OUTPUT"
+            TAGS="sonarsource/sonarqube-mcp:${VERSION}"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "temp_image=ttl.sh/sonarqube-mcp-server-${{ github.run_id }}:1h" >> "$GITHUB_OUTPUT"
