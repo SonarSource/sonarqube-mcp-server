@@ -82,26 +82,10 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.ref }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-        with:
-          name: multibuilder
-          driver: docker-container
-          install: true
-
-      - name: Set up QEMU for multi-arch builds
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
-        with:
-          platforms: all
-
       - name: Build and push to temporary registry
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: ./.github/actions/docker-build
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args: |
-            MCP_SERVER_VERSION=${{ needs.prepare.outputs.version }}
+          version: ${{ needs.prepare.outputs.version }}
           tags: ${{ needs.prepare.outputs.temp_image }}
 
   test:
@@ -116,6 +100,7 @@ jobs:
           - platform: linux/arm64
             runner: github-ubuntu-24.04-arm-s
     runs-on: ${{ matrix.runner }}
+    permissions: {}
     steps:
       - name: Smoke test
         run: |
@@ -182,24 +167,8 @@ jobs:
           username: ${{ fromJSON(steps.secrets.outputs.vault).docker_username }}
           password: ${{ fromJSON(steps.secrets.outputs.vault).docker_password }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-        with:
-          name: multibuilder
-          driver: docker-container
-          install: true
-
-      - name: Set up QEMU for multi-arch builds
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
-        with:
-          platforms: all
-
       - name: Build and push to Docker Hub
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: ./.github/actions/docker-build
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args: |
-            MCP_SERVER_VERSION=${{ needs.prepare.outputs.version }}
+          version: ${{ needs.prepare.outputs.version }}
           tags: ${{ needs.prepare.outputs.tags }}
