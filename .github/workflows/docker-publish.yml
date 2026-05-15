@@ -60,9 +60,9 @@ jobs:
             VERSION=$(grep 'ARG MCP_SERVER_VERSION=' Dockerfile | cut -d= -f2)
           fi
 
-          TAGS="sonarsource/sonarqube-mcp-server:${VERSION}"
+          TAGS="sonarsource/sonarqube-mcp:${VERSION}"
           if [ "${{ github.event_name }}" = "release" ]; then
-            TAGS="${TAGS}"$'\n'"sonarsource/sonarqube-mcp-server:latest"
+            TAGS="${TAGS}"$'\n'"sonarsource/sonarqube-mcp:latest"
           fi
 
           if [ "${{ github.event_name }}" = "release" ] || [ "${INPUT_DRY_RUN}" = "false" ]; then
