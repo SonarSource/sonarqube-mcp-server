@@ -108,7 +108,11 @@ val downloadCagBinary = tasks.register("downloadCagBinary") {
             tarGz.outputStream().use { output -> input.copyTo(output) }
         }
 
-        exec { commandLine("tar", "-xzf", tarGz.absolutePath, "-C", targetDir.absolutePath) }
+        val exitCode = ProcessBuilder("tar", "-xzf", tarGz.absolutePath, "-C", targetDir.absolutePath)
+            .inheritIO()
+            .start()
+            .waitFor()
+        check(exitCode == 0) { "tar extraction failed with exit code $exitCode" }
         tarGz.delete()
 
         File(targetDir, "sonar-context-augmentation").setExecutable(true)
