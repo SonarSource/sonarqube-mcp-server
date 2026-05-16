@@ -5,6 +5,9 @@ plugins {
     alias(libs.plugins.license)
 }
 
+// This subproject contains only integration tests and should not contribute to the SBOM
+tasks.named("cyclonedxDirectBom") { enabled = false }
+
 license {
     header = rootProject.file("HEADER")
     mapping(mapOf("java" to "SLASHSTAR_STYLE"))

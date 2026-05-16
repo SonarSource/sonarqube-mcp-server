@@ -159,4 +159,4 @@ tools.jackson.core:jackson-core:3.1.2=compileClasspath,runtimeClasspath,testComp
 tools.jackson.core:jackson-databind:3.1.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 tools.jackson.dataformat:jackson-dataformat-yaml:3.1.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 tools.jackson:jackson-bom:3.1.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-empty=annotationProcessor,testAnnotationProcessor
+empty=annotationProcessor,cyclonedxBom,testAnnotationProcessor
