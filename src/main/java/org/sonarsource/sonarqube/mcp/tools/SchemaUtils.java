@@ -17,13 +17,14 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.victools.jsonschema.generator.OptionPreset;
 import com.github.victools.jsonschema.generator.SchemaGenerator;
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder;
 import com.github.victools.jsonschema.generator.SchemaVersion;
-import com.github.victools.jsonschema.module.jackson.JacksonModule;
 import com.github.victools.jsonschema.module.jackson.JacksonOption;
+import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jakarta.annotation.Nullable;
 import java.util.Map;
 
@@ -33,14 +34,15 @@ import java.util.Map;
  */
 public class SchemaUtils {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
-    .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
-  
+  private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder()
+    .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL))
+    .build();
+
   private static final SchemaGenerator SCHEMA_GENERATOR;
 
   static {
     var configBuilder = new SchemaGeneratorConfigBuilder(SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
-      .with(new JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED));
+      .with(new JacksonSchemaModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED));
     configBuilder.forFields()
       .withRequiredCheck(field -> field.getAnnotationConsideringFieldAndGetter(Nullable.class) == null);
     configBuilder.forMethods()
