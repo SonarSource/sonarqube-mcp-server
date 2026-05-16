@@ -1374,7 +1374,7 @@ Prefer the container image from [mcp/sonarqube](https://hub.docker.com/r/mcp/son
 <details>
 <summary>Build from source</summary>
 
-SonarQube MCP Server requires a Java Development Kit (JDK) version 25 or later to build.
+SonarQube MCP Server requires a Java Development Kit (JDK) version 21 or later to run Gradle. The project compiles with Java 25, which Gradle auto-provisions via the [Foojay toolchain resolver](https://github.com/gradle/foojay-toolchains).
 
 Run the following Gradle command to clean the project and build the application:
 
