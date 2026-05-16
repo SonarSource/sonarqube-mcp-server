@@ -14,7 +14,7 @@ Integration tests for the SonarQube MCP Server.
 ## Prerequisites
 
 - Docker installed and running
-- Java 21
+- Java 21 (Gradle runs on Java 21; Java 25 is auto-provisioned by the Foojay toolchain resolver)
 
 ## Test Structure
 
