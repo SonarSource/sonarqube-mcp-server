@@ -1,0 +1,88 @@
+name: Full release
+
+on:
+  workflow_dispatch:
+    inputs:
+      short-description:
+        description: 'A short description for the release ticket'
+        required: true
+        type: string
+      branch:
+        description: 'The branch from which to release.'
+        required: false
+        default: 'master'
+        type: string
+      new-version:
+        description: 'New Jira version to create after the release (e.g. 1.19). Leave empty to auto-increment the last segment.'
+        required: false
+        type: string
+      dry-run:
+        description: 'Test mode: use Jira sandbox and create a draft GitHub release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  release:
+    name: Release
+    uses: SonarSource/release-github-actions/.github/workflows/ide-automated-release.yml@706e44289960d7768dc6f953bc1c0df003e812cb # 1.5.9
+    permissions:
+      statuses: read
+      id-token: write
+      contents: write
+      actions: write
+      pull-requests: write
+    with:
+      jira-project-key: "MCP"
+      project-name: "SonarQube MCP Server"
+      short-description: ${{ inputs.short-description }}
+      branch: ${{ inputs.branch }}
+      slack-channel: "C02E6L5C01H"
+      is-test-run: ${{ inputs.dry-run }}
+      new-version: ${{ inputs.new-version }}
+
+  bump-version:
+    name: Create a PR to bump version and update version references
+    needs: [release]
+    # Dry-run safety: never open a bot PR against master during a sandbox test
+    if: ${{ !inputs.dry-run && needs.release.result == 'success' }}
+    runs-on: github-ubuntu-latest-s
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Update released-version references
+        env:
+          RELEASED_VERSION: ${{ needs.release.outputs.released-version }}
+        run: |
+          SHORT=$(echo "$RELEASED_VERSION" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/\1/')
+          if [[ -z "$SHORT" ]]; then
+            echo "ERROR: Could not extract 3-segment version from RELEASED_VERSION='$RELEASED_VERSION'" >&2
+            exit 1
+          fi
+          sed -i -E "s|(sonarqube-mcp-server-)[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(\.jar)|\1${RELEASED_VERSION}\2|" Dockerfile
+          grep -qE "sonarqube-mcp-server-${RELEASED_VERSION}\.jar" Dockerfile \
+            || { echo "ERROR: Dockerfile version was not updated" >&2; exit 1; }
+          sed -i -E "s|(\"version\":[[:space:]]*\")[0-9]+\.[0-9]+\.[0-9]+(\")|\1${SHORT}\2|" gemini-extension.json
+          grep -qE "\"version\":[[:space:]]*\"${SHORT}\"" gemini-extension.json \
+            || { echo "ERROR: gemini-extension.json version was not updated" >&2; exit 1; }
+          sed -i -E "s|(\"version\":[[:space:]]*\")[0-9]+\.[0-9]+\.[0-9]+(\")|\1${SHORT}\2|" server.json
+          grep -qE "\"version\":[[:space:]]*\"${SHORT}\"" server.json \
+            || { echo "ERROR: server.json version was not updated" >&2; exit 1; }
+
+      - name: Bump gradle.properties
+        env:
+          NEW_VERSION: ${{ needs.release.outputs.new-version }}
+        run: sed -i -E "s|^version=.*|version=${NEW_VERSION}-SNAPSHOT|" gradle.properties
+
+      - uses: SonarSource/release-github-actions/create-pull-request@706e44289960d7768dc6f953bc1c0df003e812cb # 1.5.9
+        with:
+          commit-message: Prepare next development iteration ${{ needs.release.outputs.new-version }}
+          title: Prepare next development iteration ${{ needs.release.outputs.new-version }}
+          branch: bot/prepare-next-development-iteration-${{ needs.release.outputs.new-version }}
+          base: ${{ inputs.branch }}
+          reviewers: ${{ github.actor }}
