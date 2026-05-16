@@ -6,6 +6,12 @@ on:
       version:
         description: 'Full version including build number, e.g. 1.2.3.456'
         required: true
+        type: string
+      dryRun:
+        description: 'Flag to enable the dry-run execution'
+        required: false
+        default: false
+        type: boolean
 
 env:
   PYTHONUNBUFFERED: 1
@@ -19,4 +25,5 @@ jobs:
     with:
       version: ${{ inputs.version }}
       publishToBinaries: true
+      dryRun: ${{ inputs.dryRun }}
       slackChannel: C02E6L5C01H # squad-devex-private
