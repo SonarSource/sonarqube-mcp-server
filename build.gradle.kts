@@ -25,7 +25,7 @@ val artifactoryPassword = System.getenv("ARTIFACTORY_ACCESS_TOKEN")
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
+		languageVersion = JavaLanguageVersion.of(25)
 	}
 }
 

@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:25-jdk-alpine AS builder
 
 RUN apk update &&  \
     apk add binutils
@@ -10,7 +10,7 @@ ADD https://binaries.sonarsource.com/Distribution/sonarqube-mcp-server/sonarqube
 
 RUN jdeps --ignore-missing-deps -q  \
     --recursive  \
-    --multi-release 21  \
+    --multi-release 25  \
     --print-module-deps  \
     /app/sonarqube-mcp-server.jar > modules.txt
 
@@ -22,13 +22,13 @@ RUN "$JAVA_HOME"/bin/jlink \
          --no-man-pages \
          --no-header-files \
          --compress=2 \
-         --output /optimized-jdk-21
+         --output /optimized-jdk-25
 
 FROM alpine:3.23.4
-ENV JAVA_HOME=/opt/jdk/jdk-21
+ENV JAVA_HOME=/opt/jdk/jdk-25
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-COPY --from=builder /optimized-jdk-21 $JAVA_HOME
+COPY --from=builder /optimized-jdk-25 $JAVA_HOME
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache \

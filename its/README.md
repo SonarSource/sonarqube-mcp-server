@@ -14,7 +14,7 @@ Integration tests for the SonarQube MCP Server.
 ## Prerequisites
 
 - Docker installed and running
-- Java 21
+- Java 25
 
 ## Test Structure
 

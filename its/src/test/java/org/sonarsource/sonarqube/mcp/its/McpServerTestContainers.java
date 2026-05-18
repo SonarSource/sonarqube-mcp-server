@@ -28,7 +28,7 @@ import org.testcontainers.utility.MountableFile;
  */
 class McpServerTestContainers {
 
-  private static final String BASE_IMAGE = "eclipse-temurin:21-jre-alpine";
+  private static final String BASE_IMAGE = "eclipse-temurin:25-jre-alpine";
   private static final String JAR_PATH_PROPERTY = "sonarqube.mcp.jar.path";
   private static final String TOKEN_ENV_VAR = "SONARCLOUD_IT_TOKEN";
   private static final Duration DEFAULT_STARTUP_TIMEOUT = Duration.ofMinutes(4);
