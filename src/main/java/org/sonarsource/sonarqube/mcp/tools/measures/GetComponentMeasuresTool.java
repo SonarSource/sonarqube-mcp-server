@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.measures;
 
+import jakarta.annotation.Nullable;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
@@ -31,27 +32,30 @@ public class GetComponentMeasuresTool extends Tool {
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
 
   private final ServerApiProvider serverApiProvider;
+  @Nullable
+  private final String configuredProjectKey;
 
-  public GetComponentMeasuresTool(ServerApiProvider serverApiProvider) {
+  public GetComponentMeasuresTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
     super(SchemaToolBuilder.forOutput(GetComponentMeasuresToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Measures")
       .setDescription("Get SonarQube measures for a project, such as ncloc, complexity, violations, coverage, etc.")
-      .addStringProperty(PROJECT_KEY_PROPERTY, "The project key")
+      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key", configuredProjectKey)
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
       .addStringProperty(PULL_REQUEST_PROPERTY, "The pull request identifier to analyze for measures")
       .setReadOnlyHint()
       .build(),
       ToolCategory.MEASURES);
     this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var component = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
+    var component = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
     var metricKeys = arguments.getOptionalStringList(METRIC_KEYS_PROPERTY);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
-    
+
     var response = serverApiProvider.get().measuresApi().getComponentMeasures(component, null, metricKeys, pullRequest);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
