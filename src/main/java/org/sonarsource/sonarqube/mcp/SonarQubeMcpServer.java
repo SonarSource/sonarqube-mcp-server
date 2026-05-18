@@ -366,7 +366,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ShowRuleTool(this),
       new ListQualityGatesTool(this),
       new ListLanguagesTool(this),
-      new GetComponentMeasuresTool(this),
+      new GetComponentMeasuresTool(this, configuredProjectKey),
       new SearchFilesByCoverageTool(this, configuredProjectKey),
       new GetFileCoverageDetailsTool(this),
       new SearchMetricsTool(this),

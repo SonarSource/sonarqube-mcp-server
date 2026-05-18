@@ -169,7 +169,9 @@ class GetComponentMeasuresToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT"));
 
       assertThat(result.isError()).isTrue();
       var content = result.content().getFirst().toString();
@@ -178,8 +180,37 @@ class GetComponentMeasuresToolTests {
     }
 
     @SonarQubeMcpServerTest
+    void it_should_return_an_error_when_no_project_key_provided_and_no_default_configured(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
+
+      assertThat(result.isError()).isTrue();
+      var content = result.content().getFirst().toString();
+      assertThat(content).contains("Missing required argument: " + GetComponentMeasuresTool.PROJECT_KEY_PROPERTY);
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_use_configured_project_key_as_fallback_when_not_passed(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("DEFAULT_PROJECT") + "&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateComponentMeasuresResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org",
+        "SONARQUBE_PROJECT_KEY", "DEFAULT_PROJECT"
+      ));
+
+      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
+
+      assertThat(result.isError()).isFalse();
+    }
+
+    @SonarQubeMcpServerTest
     void it_should_succeed_when_no_component_found(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT") + "&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
           {
@@ -193,7 +224,9 @@ class GetComponentMeasuresToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT"));
 
       assertResultEquals(result, """
         {
@@ -403,7 +436,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_handle_component_with_no_measures(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:EmptyFile.java") + "&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
           {
@@ -436,7 +469,9 @@ class GetComponentMeasuresToolTests {
         "SONARQUBE_ORG", "org"
       ));
 
-      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:EmptyFile.java"));
 
       assertResultEquals(result, """
         {
@@ -565,7 +600,9 @@ class GetComponentMeasuresToolTests {
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT"));
 
       assertThat(result.isError()).isTrue();
       var content = result.content().getFirst().toString();
@@ -575,7 +612,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_succeed_when_no_component_found(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT") + "&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
           {
@@ -587,7 +624,9 @@ class GetComponentMeasuresToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT"));
 
       assertResultEquals(result, """
         {
@@ -791,7 +830,7 @@ class GetComponentMeasuresToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_handle_component_with_no_measures(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?additionalFields=metrics")
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:EmptyFile.java") + "&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
           {
@@ -822,7 +861,9 @@ class GetComponentMeasuresToolTests {
         )));
       var mcpClient = harness.newClient();
 
-      var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:EmptyFile.java"));
 
       assertResultEquals(result, """
         {
