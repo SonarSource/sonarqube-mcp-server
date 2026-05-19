@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: sonar-s-public  # Public repository runner
+    runs-on: sonar-s
     name: Build
     outputs:
       PROJECT_VERSION: ${{ steps.build-step.outputs.project-version }}
