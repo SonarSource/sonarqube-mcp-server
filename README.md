@@ -1009,7 +1009,7 @@ SOCKS5 proxies are supported.
 ### Measures
 
 - **get_component_measures** - Get SonarQube measures for a component (project, directory, file).
-  - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
+  - `projectKey` - The project key - _Required String when `SONARQUBE_PROJECT_KEY` is not configured_
   - `metricKeys` - Optional metric keys to retrieve (e.g. ncloc, complexity, violations, coverage) - _String[]_
   - `pullRequest` - Optional pull request identifier to analyze for measures - _String_
 
