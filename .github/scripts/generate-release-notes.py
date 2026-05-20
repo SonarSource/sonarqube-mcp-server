@@ -19,12 +19,12 @@
 
 """
 Build-time script: generate GitHub release notes for the SonarQube MCP Server
-via the Anthropic API. Driven by the `generate-release-notes` job in
-.github/workflows/full-release.yml.
+via the Anthropic API. Driven by the `prepare-release-notes` job in
+.github/workflows/prepare-release-notes.yml.
 
 Can also be run locally for preview (no API call):
 
-    python3 .github/scripts/generate-release-notes.py --tag 1.18.1.2664 --dry-run
+    python3 .github/scripts/generate-release-notes.py --tag 1.19.0 --dry-run
 
 In CI (RELEASED_VERSION + CLAUDE_CODE_API_KEY set):
 
@@ -32,9 +32,10 @@ In CI (RELEASED_VERSION + CLAUDE_CODE_API_KEY set):
 
 The script:
 1. Resolves the previous release tag with `git describe`.
-2. Collects commit subjects between the previous tag and the released one.
+2. Collects commit subjects between the previous tag and the released one
+   (or HEAD when the release tag has not been pushed yet).
 3. Extracts JIRA keys from commit subjects and fetches their title/description
-   from the Atlassian REST API when JIRA_USER / JIRA_TOKEN are set.
+   and parent epic from the Atlassian REST API when JIRA_USER / JIRA_TOKEN are set.
 4. Sends a prompt to the Anthropic Messages API and writes the Markdown result.
 
 No third-party dependencies required — uses Python stdlib only.
@@ -79,7 +80,8 @@ JIRA_DESCRIPTION_MAX_CHARS = 800
 
 # ---------------------------------------------------------------------------
 # Static style examples used in the prompt. These show Claude the expected
-# tone, structure and level of detail for MCP Server releases.
+# tone, structure and level of detail for MCP Server releases, including the
+# Miscellaneous catch-all for internal/foundational work.
 # ---------------------------------------------------------------------------
 RELEASE_NOTES_FORMAT_EXAMPLE = """\
 # SonarQube MCP Server v1.17.0
@@ -105,12 +107,18 @@ an interactive wizard to generate your SonarQube MCP Server configuration
 
 # SonarQube MCP Server v1.18.0
 
-This release adds pagination support for dependency risk searches and keeps dependencies up to date.
+This release adds pagination support for dependency risk searches, updates dependencies, \
+and lays foundational groundwork for upcoming features.
 
 ## Improvements
 
 * Added pagination support for `search_dependency_risks` tool
-* Updated dependencies and resolved known CVEs"""
+* Updated dependencies and resolved known CVEs
+
+## Miscellaneous
+
+* Continued foundational work on the declarative tool-registration framework (not yet user-facing).
+* Internal refactors and dependency bumps."""
 
 
 # ---------------------------------------------------------------------------
@@ -123,10 +131,10 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="\n".join([
             "Environment variables:",
-            "  RELEASED_VERSION    Release tag (e.g. 1.18.1.2664). Required without --tag.",
+            "  RELEASED_VERSION    Release version (e.g. 1.19.0). Required without --tag.",
             "  CLAUDE_CODE_API_KEY Anthropic API key. Required unless --dry-run is set.",
             "  ANTHROPIC_MODEL     Override the model (default: " + DEFAULT_MODEL + ").",
-            "  GH_TOKEN            Forwarded to `gh release list`; set by GitHub Actions.",
+            "  GH_TOKEN            Forwarded to `gh`; set by GitHub Actions.",
             "  JIRA_USER           JIRA account email for ticket context (optional).",
             "  JIRA_TOKEN          JIRA API token paired with JIRA_USER (optional).",
             "  JIRA_BASE_URL       Override the JIRA base URL (default: " + JIRA_DEFAULT_BASE_URL + ").",
@@ -155,27 +163,28 @@ def short_version(tag: str) -> str:
     return ".".join(parts[:SHORT_VERSION_SEGMENT_COUNT]) if len(parts) >= SHORT_VERSION_SEGMENT_COUNT else tag
 
 
-def assert_tag_exists(tag: str) -> None:
+def resolve_upper_bound(tag: str) -> str:
+    """Return the tag if it already exists in git, otherwise HEAD (pre-release mode)."""
     resolved = try_run_cmd(["git", "rev-parse", "--verify", "--quiet", f"{tag}^{{commit}}"])
-    if not resolved:
-        print(
-            f'Tag "{tag}" is not in the local git repository. '
-            "Make sure to check out with fetch-depth: 0 and fetch-tags: true.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    if resolved:
+        return tag
+    print(
+        f'Tag "{tag}" not found in local git; using HEAD as upper bound (pre-release mode).',
+        file=sys.stderr,
+    )
+    return "HEAD"
 
 
-def resolve_previous_tag(tag: str) -> str | None:
+def resolve_previous_tag(upper: str) -> str | None:
     prev = try_run_cmd([
         "git", "describe", "--tags", "--abbrev=0",
-        f"--match={RELEASE_TAG_GLOB}", f"{tag}^",
+        f"--match={RELEASE_TAG_GLOB}", f"{upper}^",
     ])
     return prev or None
 
 
-def list_commits(previous_tag: str | None, tag: str) -> list[dict[str, str]]:
-    range_ = f"{previous_tag}..{tag}" if previous_tag else tag
+def list_commits(previous_tag: str | None, upper: str) -> list[dict[str, str]]:
+    range_ = f"{previous_tag}..{upper}" if previous_tag else upper
     output = try_run_cmd(["git", "log", range_, "--no-merges", "--pretty=format:%h%x09%s"])
     if not output:
         return []
@@ -221,7 +230,9 @@ def extract_jira_keys(commits: list[dict[str, str]]) -> list[str]:
 def fetch_jira_ticket(base_url: str, auth_header: str, key: str) -> dict | None:
     # Atlassian REST API v2 returns description as plain text (wiki markup),
     # which is much easier to feed into a prompt than the v3 ADF JSON.
-    url = f"{base_url}/rest/api/2/issue/{key}?fields=summary,description,issuetype"
+    # `parent` gives the epic context so the prompt can decide whether a ticket
+    # belongs in user-facing sections or in Miscellaneous.
+    url = f"{base_url}/rest/api/2/issue/{key}?fields=summary,description,issuetype,parent"
     req = urllib.request.Request(url, headers={"Authorization": auth_header, "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -243,7 +254,23 @@ def fetch_jira_ticket(base_url: str, auth_header: str, key: str) -> dict | None:
     if len(description) > JIRA_DESCRIPTION_MAX_CHARS:
         description = description[:JIRA_DESCRIPTION_MAX_CHARS].rstrip() + "…"
     issue_type = ((fields.get("issuetype") or {}).get("name") or "").strip()
-    return {"key": key, "summary": summary, "description": description, "issueType": issue_type}
+
+    parent: dict | None = None
+    parent_raw = fields.get("parent")
+    if parent_raw and parent_raw.get("key"):
+        parent_fields = parent_raw.get("fields") or {}
+        status_raw = parent_fields.get("status") or {}
+        parent = {
+            "key": parent_raw["key"],
+            "summary": (parent_fields.get("summary") or "").strip(),
+            "issueType": ((parent_fields.get("issuetype") or {}).get("name") or "").strip(),
+            "status": (status_raw.get("name") or "").strip(),
+            # Jira's coarse status grouping: 'new' | 'indeterminate' | 'done' | 'undefined'.
+            # More reliable across configurations than the human-readable status name.
+            "statusCategory": ((status_raw.get("statusCategory") or {}).get("key") or "").strip(),
+        }
+
+    return {"key": key, "summary": summary, "description": description, "issueType": issue_type, "parent": parent}
 
 
 def fetch_jira_tickets(commits: list[dict[str, str]]) -> list[dict]:
@@ -271,6 +298,16 @@ def fetch_jira_tickets(commits: list[dict[str, str]]) -> list[dict]:
 # Prompt construction
 # ---------------------------------------------------------------------------
 
+def render_parent_line(parent: dict | None) -> str:
+    if not parent:
+        return ""
+    type_part = f" ({parent['issueType']})" if parent["issueType"] else ""
+    summary = parent["summary"] or "(no summary)"
+    status = parent["status"] or "unknown"
+    category_part = f" [{parent['statusCategory']}]" if parent["statusCategory"] else ""
+    return f"\n_Parent epic {parent['key']}{type_part}: {summary} — status: {status}{category_part}_"
+
+
 def build_prompt(released_version: str, commits: list[dict[str, str]], jira_tickets: list[dict]) -> str:
     short = short_version(released_version)
 
@@ -284,7 +321,9 @@ def build_prompt(released_version: str, commits: list[dict[str, str]], jira_tick
         for t in jira_tickets:
             issue_type_part = f" ({t['issueType']})" if t["issueType"] else ""
             header = f"### {t['key']}{issue_type_part}: {t['summary']}"
-            jira_parts.append(f"{header}\n\n{t['description']}" if t["description"] else header)
+            parent_line = render_parent_line(t.get("parent"))
+            body = f"\n\n{t['description']}" if t["description"] else ""
+            jira_parts.append(f"{header}{parent_line}{body}")
         jira_text = "\n\n".join(jira_parts)
     else:
         jira_text = "(No JIRA tickets resolved for this release.)"
@@ -299,22 +338,25 @@ def build_prompt(released_version: str, commits: list[dict[str, str]], jira_tick
         "",
         "Below is the list of commits included in this release (subject and short SHA).",
         'PR numbers like `(#123)` already inside subjects must be preserved verbatim.',
-        'Ignore release bookkeeping commits ("Prepare next development iteration", version bumps, etc.).',
+        'Ignore release bookkeeping commits and pure-CI changes (e.g., "Prepare next development iteration", project version bumps, GitHub Actions version/SHA bumps in `.github/workflows/`, internal CI tooling updates) — these MUST NOT appear anywhere in the release notes, not even in `## Miscellaneous`.',
         "",
         commits_text,
         "",
-        "Below are the JIRA tickets referenced by those commits, with their type, title, and description.",
+        "Below are the JIRA tickets referenced by those commits, with their type, title, description, and parent epic.",
         "Use them to write richer, user-facing entries when the commit subject alone is too terse,",
-        "and to decide whether an item is a bug fix, a feature, or something else.",
+        "and to decide whether an item is a bug fix, a feature, internal work, or something else.",
         "",
         jira_text,
         "",
         "Now produce the release notes as Markdown, following these rules:",
         f"- Start with a single H1 heading: `# SonarQube MCP Server v{short}`.",
         "- Optionally include a one-paragraph summary right after the heading when there is a clear theme.",
-        "- Use `## New Features` for new functionality / enhancements (omit the section if empty).",
-        "- Use `## Bug Fixes` for fixes (omit the section if empty).",
-        '- Add other `## ...` sections (e.g. "Security", "Improvements") only if they materially apply.',
+        "- **User-facing-only sections**: `## New Features`, `## Bug Fixes`, `## Security`, `## Performance`, and any other themed `## ...` section MUST contain only items that an end user can observe, use, or benefit from immediately upon installing this release. A hidden tool, work-in-progress functionality, a refactor, a dependency bump, a CI/tooling change, or any foundational scaffolding MUST NOT appear in these sections.",
+        '- **Litmus test for "user-facing"**: before placing an item in any non-Miscellaneous section, answer: "If a user connects to this MCP Server as they did before, will they notice anything different — a new tool available, a previously-failing call that now succeeds, different output, a noticeably faster response, or any other directly observable change?" If the honest answer is no, the item is internal and MUST go in `## Miscellaneous` (or be omitted). Restructuring code without changing externally observable behavior — even if it "enables future work", "harmonizes" an area, or "makes things easier to maintain" — is not user-facing.',
+        '- **Anti-patterns (these belong in `## Miscellaneous`, not Features)**: any item whose value statement is one of "introduce/refactor X framework", "declarative framework for X", "harmonize/consolidate/unify X", "make X easier to add/maintain/extend", "foundation/groundwork/scaffolding for X", "abstraction/interface/architecture for X", "internal restructuring of X". These describe DEVELOPER ergonomics, not USER value.',
+        '- **Epic-status hint**: when a ticket lists a parent epic whose status category is not `done`, treat the ticket as foundational/in-progress and place it in `## Miscellaneous` (or omit it). Only items belonging to a `done` epic — or items with no parent epic that are clearly user-facing on their own — qualify for the user-facing sections.',
+        '- **Suggested section names** (recommendations, not a fixed list): `## New Features` for new user-facing functionality and enhancements, `## Bug Fixes` for user-facing fixes, `## Security`, `## Performance`, `## Improvements` etc. when they materially apply. Omit any section that would be empty.',
+        '- **`## Miscellaneous`** is the catch-all for foundational work, internal improvements, dependency bumps, refactors, or items whose user impact is not visible in this release. Summarize at the level of themes rather than listing each commit/ticket. Omit the section if there is nothing meaningful to mention.',
         "- Keep entries short and user-facing. Group related commits / tickets when reasonable.",
         "- Do not include internal ticket prefixes (e.g. `MCP-123`), implementation details, or commit SHAs in the output.",
         "- Output Markdown only — no preamble, no closing remarks, no code fences around the document.",
@@ -379,15 +421,15 @@ def main() -> None:
         print("Missing released version: pass --tag or set RELEASED_VERSION.", file=sys.stderr)
         sys.exit(2)
 
-    assert_tag_exists(released_version)
+    upper = resolve_upper_bound(released_version)
 
-    previous_tag = resolve_previous_tag(released_version)
+    previous_tag = resolve_previous_tag(upper)
     if previous_tag:
         print(f"Using previous tag: {previous_tag}", file=sys.stderr)
     else:
-        print("No previous release tag found — using full history up to the released version.", file=sys.stderr)
+        print("No previous release tag found — using full history up to the upper bound.", file=sys.stderr)
 
-    commits = list_commits(previous_tag, released_version)
+    commits = list_commits(previous_tag, upper)
     print(f"Collected {len(commits)} commit(s).", file=sys.stderr)
 
     jira_tickets = fetch_jira_tickets(commits)
