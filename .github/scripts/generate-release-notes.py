@@ -52,7 +52,7 @@ from os import environ
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_API_VERSION = "2023-06-01"
-DEFAULT_MODEL = "claude-sonnet-4-5"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 2048
 ERROR_BODY_PREVIEW_CHARS = 500
 JIRA_ERROR_BODY_PREVIEW_CHARS = 200
@@ -72,7 +72,7 @@ COMMIT_NOISE_PATTERNS: list[re.Pattern[str]] = [
 ]
 
 # JIRA enrichment — issue keys look like `MCP-123`, `CODEFIX-456`, etc.
-JIRA_KEY_REGEX = re.compile(r"\b[A-Z][A-Z0-9_]+-\d+\b")
+JIRA_KEY_REGEX = re.compile(r"\b[A-Z][A-Z0-9]+-\d+\b")
 JIRA_DEFAULT_BASE_URL = "https://sonarsource.atlassian.net"
 JIRA_MAX_TICKETS = 40
 JIRA_DESCRIPTION_MAX_CHARS = 800
@@ -192,6 +192,17 @@ def list_commits(previous_tag: str | None, tag: str) -> list[dict[str, str]]:
 
 
 # ---------------------------------------------------------------------------
+# HTTP helpers
+# ---------------------------------------------------------------------------
+
+def _read_http_error_body(e: urllib.error.HTTPError, max_chars: int) -> str:
+    try:
+        return e.read().decode()[:max_chars]
+    except Exception:
+        return ""
+
+
+# ---------------------------------------------------------------------------
 # JIRA enrichment
 # ---------------------------------------------------------------------------
 
@@ -213,13 +224,10 @@ def fetch_jira_ticket(base_url: str, auth_header: str, key: str) -> dict | None:
     url = f"{base_url}/rest/api/2/issue/{key}?fields=summary,description,issuetype"
     req = urllib.request.Request(url, headers={"Authorization": auth_header, "Accept": "application/json"})
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read())
     except urllib.error.HTTPError as e:
-        try:
-            body = e.read().decode()[:JIRA_ERROR_BODY_PREVIEW_CHARS]
-        except Exception:
-            body = ""
+        body = _read_http_error_body(e, JIRA_ERROR_BODY_PREVIEW_CHARS)
         detail = f" — {body}" if body else ""
         print(f"  {key}: {e.code} {e.reason}, skipped{detail}", file=sys.stderr)
         return None
@@ -334,13 +342,10 @@ def call_anthropic(api_key: str, model: str, prompt: str) -> str:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=120) as resp:
             text = resp.read().decode()
     except urllib.error.HTTPError as e:
-        try:
-            body = e.read().decode()[:ERROR_BODY_PREVIEW_CHARS]
-        except Exception:
-            body = ""
+        body = _read_http_error_body(e, ERROR_BODY_PREVIEW_CHARS)
         raise RuntimeError(f"Anthropic API error {e.code} {e.reason}: {body}")
 
     try:
