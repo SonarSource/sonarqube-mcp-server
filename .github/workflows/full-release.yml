@@ -86,3 +86,53 @@ jobs:
           branch: bot/prepare-next-development-iteration-${{ needs.release.outputs.new-version }}
           base: ${{ inputs.branch }}
           reviewers: ${{ github.actor }}
+
+  generate-release-notes:
+    name: Generate release notes with Claude
+    runs-on: github-ubuntu-latest-s
+    needs:
+      - release
+    if: ${{ !inputs.dry-run && needs.release.result == 'success' }}
+    permissions:
+      id-token: write # required for Vault OIDC auth
+      contents: write # required to edit the GitHub release body
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Vault Secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@c154b4a417b51cb98dd71137f49bf20e77c56820 # 3.4.0
+        with:
+          secrets: |
+            development/kv/data/devex-claude-code API_KEY | CLAUDE_CODE_API_KEY;
+            development/kv/data/jira user | JIRA_USER;
+            development/kv/data/jira token | JIRA_TOKEN;
+
+      - name: Generate release notes
+        id: generate
+        continue-on-error: true
+        env:
+          RELEASED_VERSION: ${{ needs.release.outputs.released-version }}
+          CLAUDE_CODE_API_KEY: ${{ fromJSON(steps.secrets.outputs.vault).CLAUDE_CODE_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JIRA_USER: ${{ fromJSON(steps.secrets.outputs.vault).JIRA_USER }}
+          JIRA_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).JIRA_TOKEN }}
+        run: python3 .github/scripts/generate-release-notes.py --out release-notes.md
+
+      - name: Update GitHub release body
+        if: steps.generate.outcome == 'success'
+        env:
+          RELEASED_VERSION: ${{ needs.release.outputs.released-version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$RELEASED_VERSION" --notes-file release-notes.md
+
+      - name: Upload generated notes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
