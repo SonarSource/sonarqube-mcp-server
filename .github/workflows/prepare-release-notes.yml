@@ -48,11 +48,10 @@ jobs:
           VERSION: ${{ steps.version.outputs.release-version }}
         run: |
           echo "Looking for an existing draft release tagged '$VERSION'..."
-          EXISTING_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
-            --jq ".[] | select(.tag_name == \"$VERSION\" and .draft) | .id" | head -n1)
-          if [ -n "$EXISTING_ID" ]; then
-            echo "Deleting stale draft release id=$EXISTING_ID"
-            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$EXISTING_ID"
+          IS_DRAFT=$(gh release view "$VERSION" --json isDraft -q '.isDraft' 2>/dev/null || echo "missing")
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "Deleting stale draft release '$VERSION'..."
+            gh release delete "$VERSION" --yes
           else
             echo "No stale draft to delete."
           fi

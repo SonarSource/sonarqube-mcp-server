@@ -146,7 +146,7 @@ jobs:
           echo "Copying notes from draft '$DRAFT_VERSION' to published release '$RELEASED_VERSION'..."
           gh release view "$DRAFT_VERSION" --json body --jq '.body' > release-notes.md
           gh release edit "$RELEASED_VERSION" --notes-file release-notes.md
+          # Draft releases do not create a git tag, so --cleanup-tag is intentionally omitted.
           echo "Deleting draft '$DRAFT_VERSION'..."
-          DRAFT_ID=$(gh release view "$DRAFT_VERSION" --json id --jq '.id')
-          gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID"
+          gh release delete "$DRAFT_VERSION" --yes
           echo "Done."
