@@ -26,8 +26,11 @@ jobs:
   check-draft-exists:
     name: Check draft release exists
     runs-on: github-ubuntu-latest-s
+    # contents: write is required — draft releases are only visible to tokens with write access.
     permissions:
-      contents: read
+      contents: write
+    outputs:
+      release-version: ${{ steps.version.outputs.release-version }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -125,3 +128,25 @@ jobs:
           branch: bot/prepare-next-development-iteration-${{ needs.release.outputs.new-version }}
           base: ${{ inputs.branch }}
           reviewers: ${{ github.actor }}
+
+  publish-release-notes:
+    name: Copy reviewed notes to published release
+    runs-on: github-ubuntu-latest-s
+    needs: [check-draft-exists, release]
+    if: ${{ !inputs.dry-run && needs.release.result == 'success' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Copy draft body to published release and delete draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRAFT_VERSION: ${{ needs.check-draft-exists.outputs.release-version }}
+          RELEASED_VERSION: ${{ needs.release.outputs.released-version }}
+        run: |
+          echo "Copying notes from draft '$DRAFT_VERSION' to published release '$RELEASED_VERSION'..."
+          gh release view "$DRAFT_VERSION" --json body --jq '.body' > release-notes.md
+          gh release edit "$RELEASED_VERSION" --notes-file release-notes.md
+          echo "Deleting draft '$DRAFT_VERSION'..."
+          DRAFT_ID=$(gh release view "$DRAFT_VERSION" --json id --jq '.id')
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID"
+          echo "Done."
