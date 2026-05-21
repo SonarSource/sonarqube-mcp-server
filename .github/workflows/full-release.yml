@@ -23,9 +23,48 @@ on:
         type: boolean
 
 jobs:
+  check-draft-exists:
+    name: Check draft release exists
+    runs-on: github-ubuntu-latest-s
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Get release version
+        id: version
+        run: |
+          RAW=$(grep '^version=' gradle.properties | sed -E 's/^version=//; s/-SNAPSHOT$//')
+          IFS='.' read -ra PARTS <<< "$RAW"
+          while [ "${#PARTS[@]}" -lt 3 ]; do PARTS+=("0"); done
+          VERSION="${PARTS[0]}.${PARTS[1]}.${PARTS[2]}"
+          echo "release-version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved release version: $VERSION"
+
+      - name: Verify draft release exists for expected version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.release-version }}
+        run: |
+          echo "Expecting a draft release tagged '$VERSION'."
+          IS_DRAFT=$(gh release view "$VERSION" --json isDraft -q '.isDraft' 2>/dev/null || echo "missing")
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "Found a draft release tagged '$VERSION'. Proceeding."
+          elif [ "$IS_DRAFT" = "false" ]; then
+            echo "::error::Release '$VERSION' already exists and is published. Aborting to avoid duplicate publication."
+            exit 1
+          else
+            echo "::error::No draft release tagged '$VERSION' found. Run prepare-release-notes.yml first to generate and review the release notes."
+            exit 1
+          fi
+
   release:
     name: Release
-    uses: SonarSource/release-github-actions/.github/workflows/ide-automated-release.yml@baea6012647dfc12521bb994b97a2a9438412e6d # 1.5.10
+    needs:
+      - check-draft-exists
+    uses: SonarSource/release-github-actions/.github/workflows/ide-automated-release.yml@3f6dcbe90eb00c1017d35b40f402719fc8e47a70 # 1.6.0
     permissions:
       statuses: read
       id-token: write
@@ -51,7 +90,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ inputs.branch }}
 
@@ -79,7 +118,7 @@ jobs:
           NEW_VERSION: ${{ needs.release.outputs.new-version }}
         run: sed -i -E "s|^version=.*|version=${NEW_VERSION}-SNAPSHOT|" gradle.properties
 
-      - uses: SonarSource/release-github-actions/create-pull-request@baea6012647dfc12521bb994b97a2a9438412e6d # 1.5.10
+      - uses: SonarSource/release-github-actions/create-pull-request@3f6dcbe90eb00c1017d35b40f402719fc8e47a70 # 1.6.0
         with:
           commit-message: Prepare next development iteration ${{ needs.release.outputs.new-version }}
           title: Prepare next development iteration ${{ needs.release.outputs.new-version }}

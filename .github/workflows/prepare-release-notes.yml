@@ -1,0 +1,113 @@
+name: Prepare release notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'The branch from which to do the release.'
+        required: false
+        default: 'master'
+        type: string
+
+jobs:
+  prepare-release-notes:
+    name: Generate notes and create draft release
+    runs-on: github-ubuntu-latest-s
+    permissions:
+      id-token: write # required for Vault OIDC auth
+      contents: write # required to create the draft GitHub release
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Vault Secrets
+        id: secrets
+        uses: SonarSource/vault-action-wrapper@c154b4a417b51cb98dd71137f49bf20e77c56820 # 3.4.0
+        with:
+          secrets: |
+            development/kv/data/devex-claude-code API_KEY | CLAUDE_CODE_API_KEY;
+            development/kv/data/jira user | JIRA_USER;
+            development/kv/data/jira token | JIRA_TOKEN;
+
+      - name: Get release version
+        id: version
+        run: |
+          RAW=$(grep '^version=' gradle.properties | sed -E 's/^version=//; s/-SNAPSHOT$//')
+          IFS='.' read -ra PARTS <<< "$RAW"
+          while [ "${#PARTS[@]}" -lt 3 ]; do PARTS+=("0"); done
+          VERSION="${PARTS[0]}.${PARTS[1]}.${PARTS[2]}"
+          echo "release-version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved release version: $VERSION"
+
+      - name: Delete stale draft release if any
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.release-version }}
+        run: |
+          echo "Looking for an existing draft release tagged '$VERSION'..."
+          EXISTING_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"$VERSION\" and .draft) | .id" | head -n1)
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Deleting stale draft release id=$EXISTING_ID"
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$EXISTING_ID"
+          else
+            echo "No stale draft to delete."
+          fi
+
+      - name: Generate release notes
+        id: generate
+        continue-on-error: true
+        env:
+          RELEASED_VERSION: ${{ steps.version.outputs.release-version }}
+          CLAUDE_CODE_API_KEY: ${{ fromJSON(steps.secrets.outputs.vault).CLAUDE_CODE_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JIRA_USER: ${{ fromJSON(steps.secrets.outputs.vault).JIRA_USER }}
+          JIRA_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).JIRA_TOKEN }}
+        run: python3 .github/scripts/generate-release-notes.py --out release-notes.md
+
+      - name: Fallback notes on generation failure
+        if: steps.generate.outcome != 'success'
+        run: |
+          echo "::warning::Release notes generation failed; writing a placeholder so the draft can still be created."
+          echo "Release notes pending. Generation failed — please write them manually before running full-release.yml." > release-notes.md
+
+      - name: Create draft GitHub release
+        id: create-draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.release-version }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          echo "Creating draft release: tag='$VERSION' title='$VERSION' target='$BRANCH'"
+          URL=$(gh release create "$VERSION" \
+            --target "$BRANCH" \
+            --title "$VERSION" \
+            --notes-file release-notes.md \
+            --draft)
+          echo "draft-url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize for operator
+        env:
+          DRAFT_URL: ${{ steps.create-draft.outputs.draft-url }}
+          VERSION: ${{ steps.version.outputs.release-version }}
+          GENERATE_OUTCOME: ${{ steps.generate.outcome }}
+        run: |
+          {
+            echo "### Draft release prepared"
+            echo ""
+            echo "- Version: \`$VERSION\`"
+            echo "- Draft URL: $DRAFT_URL"
+            echo "- Notes generation: \`$GENERATE_OUTCOME\`"
+            echo ""
+            echo "Review and edit the notes on GitHub, then run **Full release** (\`full-release.yml\`) to publish."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload generated notes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-notes
+          path: release-notes.md
