@@ -81,9 +81,6 @@ configurations {
 		isTransitive = true
 	}
 	all {
-		if (name.startsWith("cyclonedx")) {
-			resolutionStrategy.deactivateDependencyLocking()
-		}
 		resolutionStrategy.eachDependency {
 			// Pulled in by xodus-entity-store:2.0.1
 			if (requested.group == "org.jetbrains.kotlin" && requested.name in listOf("kotlin-stdlib", "kotlin-stdlib-common")) {
