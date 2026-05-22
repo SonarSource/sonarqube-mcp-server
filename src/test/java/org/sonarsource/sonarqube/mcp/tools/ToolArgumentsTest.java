@@ -180,6 +180,15 @@ class ToolArgumentsTest {
   }
 
   @Test
+  void should_return_null_when_optional_string_argument_is_blank() {
+    var arguments = new Tool.Arguments(Map.of("blankArg", " "), null);
+
+    var result = arguments.getOptionalString("blankArg");
+
+    assertThat(result).isNull();
+  }
+
+  @Test
   void should_return_value_when_int_or_default_argument_is_present() {
     var arguments = new Tool.Arguments(Map.of("intArg", 42), null);
 

@@ -134,7 +134,7 @@ public abstract class Tool {
     public String getOptionalString(String argumentName) {
       var arg = argumentsMap.get(argumentName);
       if (arg instanceof String string) {
-        return string;
+        return string.isBlank() ? null : string;
       } else {
         return null;
       }
