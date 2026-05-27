@@ -16,13 +16,14 @@
  */
 package org.sonarsource.sonarqube.mcp.analysis;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
@@ -78,15 +79,16 @@ public class LanguageUtils {
   }
 
   public static String[] getValidLanguageNames() {
-    var names = new ArrayList<>(SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.values().stream()
-      .flatMap(Set::stream)
-      .map(Language::name)
-      .map(String::toLowerCase)
+    return Stream.concat(
+      SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.values().stream()
+        .flatMap(Set::stream)
+        .map(Language::name)
+        .map(s -> s.toLowerCase(Locale.ROOT)),
+      JSX_LANGUAGE_ALIASES.keySet().stream()
+    )
       .distinct()
       .sorted()
-      .toList());
-    names.addAll(JSX_LANGUAGE_ALIASES.keySet().stream().sorted().toList());
-    return names.toArray(String[]::new);
+      .toArray(String[]::new);
   }
 
   @Nullable
@@ -95,7 +97,7 @@ public class LanguageUtils {
       return null;
     }
 
-    var alias = JSX_LANGUAGE_ALIASES.get(languageInput.toLowerCase());
+    var alias = JSX_LANGUAGE_ALIASES.get(languageInput.toLowerCase(Locale.ROOT));
     if (alias != null) {
       return alias;
     }

@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -224,7 +225,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
   private static Path createTemporaryFileForLanguage(String analysisId, Path workDir, String fileContent,
     SonarLanguage language, @Nullable String languageInput) throws IOException {
-    var extension = languageInput != null ? JSX_FILE_EXTENSIONS.get(languageInput.toLowerCase()) : null;
+    var extension = languageInput != null ? JSX_FILE_EXTENSIONS.get(languageInput.toLowerCase(Locale.ROOT)) : null;
     if (extension == null) {
       var defaultFileSuffixes = language.getDefaultFileSuffixes();
       extension = defaultFileSuffixes.length > 0 ? defaultFileSuffixes[0] : ".txt";
