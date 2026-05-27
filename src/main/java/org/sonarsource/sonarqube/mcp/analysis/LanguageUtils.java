@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.analysis;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,6 +30,20 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 public class LanguageUtils {
 
   public static final Map<String, Set<Language>> SUPPORTED_LANGUAGES_BY_PLUGIN_KEY = new HashMap<>();
+
+  /**
+   * Aliases for JSX/TSX: these are not distinct SonarLanguage values, but require a different
+   * file extension so the TS/JS analyzer enables JSX parsing (it does so only for .tsx/.jsx files).
+   */
+  public static final Map<String, SonarLanguage> JSX_LANGUAGE_ALIASES = Map.of(
+    "tsx", SonarLanguage.TS,
+    "jsx", SonarLanguage.JS
+  );
+
+  public static final Map<String, String> JSX_FILE_EXTENSIONS = Map.of(
+    "tsx", ".tsx",
+    "jsx", ".jsx"
+  );
 
   static {
     SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.put("kotlin", Set.of(Language.KOTLIN));
@@ -63,19 +78,26 @@ public class LanguageUtils {
   }
 
   public static String[] getValidLanguageNames() {
-    return SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.values().stream()
+    var names = new ArrayList<>(SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.values().stream()
       .flatMap(Set::stream)
       .map(Language::name)
       .map(String::toLowerCase)
       .distinct()
       .sorted()
-      .toArray(String[]::new);
+      .toList());
+    names.addAll(JSX_LANGUAGE_ALIASES.keySet().stream().sorted().toList());
+    return names.toArray(String[]::new);
   }
 
   @Nullable
   public static SonarLanguage getSonarLanguageFromInput(@Nullable String languageInput) {
     if (languageInput == null) {
       return null;
+    }
+
+    var alias = JSX_LANGUAGE_ALIASES.get(languageInput.toLowerCase());
+    if (alias != null) {
+      return alias;
     }
 
     for (var sonarLanguage : getSupportedSonarLanguages()) {

@@ -53,7 +53,7 @@ The user should provide the following environment variables:
 - Python (including IPython notebooks)
 - Ruby
 - Go
-- JavaScript, TypeScript, JSP
+- JavaScript (js, jsx), TypeScript (ts, tsx), JSP
 - PHP
 - XML
 - HTML, CSS

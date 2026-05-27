@@ -40,6 +40,7 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static java.util.stream.Collectors.toMap;
+import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.JSX_FILE_EXTENSIONS;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getValidLanguageNames;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.mapSonarLanguageToLanguage;
@@ -179,7 +180,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
     Path tmpFile = null;
     try {
       tmpFile = createTemporaryFileForLanguage(analysisId.toString(), backendService.getWorkDir(), fileContent,
-        sonarLanguage);
+        sonarLanguage, language);
       var clientFileDto = backendService.toClientFileDto(tmpFile, fileContent, mapSonarLanguageToLanguage(sonarLanguage), isTest);
       backendService.addFile(clientFileDto);
       var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri())).get(30, TimeUnit.SECONDS);
@@ -221,11 +222,12 @@ public class AnalyzeCodeSnippetTool extends Tool {
     backendService.updateRulesConfiguration(activeRules);
   }
 
-  private static Path createTemporaryFileForLanguage(String analysisId, Path workDir, String fileContent, SonarLanguage language) throws IOException {
-    var defaultFileSuffixes = language.getDefaultFileSuffixes();
-    var extension = defaultFileSuffixes.length > 0 ? defaultFileSuffixes[0] : "";
-    if (extension.isBlank()) {
-      extension = ".txt";
+  private static Path createTemporaryFileForLanguage(String analysisId, Path workDir, String fileContent,
+    SonarLanguage language, @Nullable String languageInput) throws IOException {
+    var extension = languageInput != null ? JSX_FILE_EXTENSIONS.get(languageInput.toLowerCase()) : null;
+    if (extension == null) {
+      var defaultFileSuffixes = language.getDefaultFileSuffixes();
+      extension = defaultFileSuffixes.length > 0 ? defaultFileSuffixes[0] : ".txt";
     }
     var tempFile = workDir.resolve("analysis-" + analysisId + extension);
     Files.writeString(tempFile, fileContent);
