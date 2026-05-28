@@ -17,7 +17,7 @@ jobs:
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
           version: 2026.4.20
-      - uses: SonarSource/ci-github-actions/build-gradle@9456e3aab93a6c6d0c459b977aaa594bda102e29 # 1.4.0
+      - uses: SonarSource/ci-github-actions/build-gradle@5fca0c5e51b4b0bd2cccfd52d517e5d1a9a575d8 # 1.4.1
         with:
           run-shadow-scans: true
           artifactory-reader-role: private-reader
