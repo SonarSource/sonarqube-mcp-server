@@ -1,0 +1,65 @@
+name: Bug report
+description: Report something that isn't working as expected in the SonarQube MCP Server.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please fill in the fields below so we can reproduce and triage it quickly.
+  - type: input
+    id: version
+    attributes:
+      label: SonarQube MCP Server version
+      description: The image tag or release version you're running.
+      placeholder: e.g. 1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: run-mode
+    attributes:
+      label: How are you running the server?
+      options:
+        - Docker image
+        - Standalone JAR
+        - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client / agent
+      description: Which client connects to the server?
+      placeholder: e.g. Claude Desktop, Claude Code, Cursor, VS Code
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: SonarQube backend
+      options:
+        - SonarQube Cloud
+        - SonarQube Server
+        - SonarQube Community Build
+        - Not applicable / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: The error or unexpected behavior, including server logs (redact tokens and other secrets).
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we trigger this? Include relevant configuration (with secrets redacted).
+    validations:
+      required: false

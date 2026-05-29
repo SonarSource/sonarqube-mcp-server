@@ -1,0 +1,7 @@
+blank_issues_enabled: false
+contact_links:
+  # GitHub automatically adds a "Report a security vulnerability" link here because
+  # SECURITY.md exists, so we intentionally don't duplicate it in this file.
+  - name: General SonarQube product questions
+    url: https://community.sonarsource.com/
+    about: For questions not specific to the MCP server, ask the SonarSource Community forum.

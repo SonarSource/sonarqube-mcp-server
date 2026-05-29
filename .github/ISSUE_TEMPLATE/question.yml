@@ -1,0 +1,15 @@
+name: Question / feedback
+description: Ask a question about the SonarQube MCP Server or share general feedback.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about the MCP server, or feedback that isn't a bug or a feature request? Tell us here.
+
+        For general SonarQube product questions not specific to the MCP server, the [Community forum](https://community.sonarsource.com/) is usually the faster path.
+  - type: textarea
+    id: details
+    attributes:
+      label: Your question or feedback
+    validations:
+      required: true

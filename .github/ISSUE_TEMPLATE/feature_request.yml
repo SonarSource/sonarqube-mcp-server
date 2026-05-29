@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest an idea or improvement for the SonarQube MCP Server.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! We can't promise every idea ships, but describing the problem clearly helps us plan and prioritize.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What are you trying to do, and what's getting in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like the MCP server to do? New tool, new option, different behavior?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches or workarounds you've tried or thought about.
+    validations:
+      required: false
