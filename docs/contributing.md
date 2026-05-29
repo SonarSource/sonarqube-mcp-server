@@ -1,13 +1,10 @@
 Contributing
 ============
 
-If you would like to see a new feature, please create a new thread in the forum ["Suggest new features"](https://community.sonarsource.com/c/suggestions/features).
+We don't accept external pull requests on this project. This isn't about the quality of your change — keeping every change flowing through one place lets us properly track, plan, prioritize, and test what goes into the SonarQube MCP Server.
 
-Please be aware that we are not actively looking for feature contributions. The truth is that it's extremely difficult for someone outside
-Sonar to comply with our roadmap and expectations. Therefore, we typically only accept minor cosmetic changes and typo fixes.
+That doesn't mean we don't want to hear from you — we do. If you've hit a bug or have an idea, please [open a GitHub Issue](https://github.com/SonarSource/sonarqube-mcp-server/issues/new/choose) and we'll take it from there. That's where we now track and prioritize bugs and feature requests.
 
-With that in mind, if you would like to submit a code contribution, please create a pull request for this repository. Please explain your motives to contribute this change: what problem you are trying to fix, what improvement you are trying to make.
-
-Make sure that you follow our [code style](https://github.com/SonarSource/sonar-developer-toolset#code-style) and all tests are passing.
+The source is public, so you're always welcome to fork it, read it, and experiment.
 
 Thank You! The Sonar Team
