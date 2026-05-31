@@ -140,6 +140,7 @@ jobs:
       - name: Copy draft body to published release and delete draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           DRAFT_VERSION: ${{ needs.check-draft-exists.outputs.release-version }}
           RELEASED_VERSION: ${{ needs.release.outputs.released-version }}
         run: |
