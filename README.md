@@ -245,14 +245,14 @@ In your GitHub repository, navigate under **Settings -> Copilot -> Coding agent*
         "--rm",
         "-i",
         "-e",
-        "SONARQUBE_TOKEN=$SONAR_TOKEN",
+        "SONARQUBE_TOKEN",
         "-e",
-        "SONARQUBE_ORG=$SONAR_ORG",
+        "SONARQUBE_ORG",
         "mcp/sonarqube"
       ],
       "env": {
-        "SONAR_TOKEN": "COPILOT_MCP_SONARQUBE_TOKEN",
-        "SONAR_ORG": "COPILOT_MCP_SONARQUBE_ORG"
+        "SONARQUBE_TOKEN": "COPILOT_MCP_SONARQUBE_TOKEN",
+        "SONARQUBE_ORG": "COPILOT_MCP_SONARQUBE_ORG"
       },
       "tools": ["*"]
     }
@@ -260,7 +260,7 @@ In your GitHub repository, navigate under **Settings -> Copilot -> Coding agent*
 }
 ```
 
-For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL=$SONAR_URL"` to the `args` array and `"SONAR_URL": "COPILOT_MCP_SONARQUBE_URL"` to the `env` section, then set the secret `COPILOT_MCP_SONARQUBE_URL=https://sonarqube.us`.
+For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL"` to the `args` array and `"SONARQUBE_URL": "COPILOT_MCP_SONARQUBE_URL"` to the `env` section, then set the secret `COPILOT_MCP_SONARQUBE_URL=https://sonarqube.us`.
 
 * To connect with SonarQube Server:
 
@@ -277,14 +277,14 @@ For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL=$SONAR_URL"` to the `args`
         "--rm",
         "-i",
         "-e",
-        "SONARQUBE_TOKEN=$SONAR_TOKEN",
+        "SONARQUBE_TOKEN",
         "-e",
-        "SONARQUBE_URL=$SONAR_URL",
+        "SONARQUBE_URL",
         "mcp/sonarqube"
       ],
       "env": {
-        "SONAR_TOKEN": "COPILOT_MCP_SONARQUBE_USER_TOKEN",
-        "SONAR_URL": "COPILOT_MCP_SONARQUBE_URL"
+        "SONARQUBE_TOKEN": "COPILOT_MCP_SONARQUBE_USER_TOKEN",
+        "SONARQUBE_URL": "COPILOT_MCP_SONARQUBE_URL"
       },
       "tools": ["*"]
     }
