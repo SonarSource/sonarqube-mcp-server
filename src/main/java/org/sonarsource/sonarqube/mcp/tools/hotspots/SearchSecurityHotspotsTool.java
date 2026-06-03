@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.HotspotsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.response.SearchResponse;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -30,7 +31,8 @@ public class SearchSecurityHotspotsTool extends Tool {
 
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
   public static final String HOTSPOT_KEYS_PROPERTY = "hotspotKeys";
-  public static final String PULL_REQUEST_PROPERTY = "pullRequest";
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
+  public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
   public static final String FILES_PROPERTY = "files";
   public static final String STATUS_PROPERTY = "status";
   public static final String RESOLUTION_PROPERTY = "resolution";
@@ -51,7 +53,8 @@ public class SearchSecurityHotspotsTool extends Tool {
       .setDescription("Search for Security Hotspots in a project.")
       .addStringProperty(PROJECT_KEY_PROPERTY, "The key of the project or application to search in. Required unless hotspotKeys is provided.")
       .addArrayProperty(HOTSPOT_KEYS_PROPERTY, "string", "Comma-separated list of specific Security Hotspot keys to retrieve. Required unless projectKey is provided.")
-      .addStringProperty(PULL_REQUEST_PROPERTY, "The identifier of the Pull Request to search in")
+      .addBranchProperty()
+      .addPullRequestProperty()
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of file paths to filter Security Hotspots")
       .addEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "Filter by review status")
       .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "Filter by resolution (when status is REVIEWED)")
@@ -71,8 +74,15 @@ public class SearchSecurityHotspotsTool extends Tool {
     if (validationError != null) {
       return Tool.Result.failure(validationError);
     }
+
+    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
+    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
+    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
+    if (mutualExclusionError.isPresent()) {
+      return mutualExclusionError.get();
+    }
     
-    var searchParams = extractSearchParams(arguments);
+    var searchParams = extractSearchParams(arguments, branch);
     var response = serverApiProvider.get().hotspotsApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
@@ -93,10 +103,10 @@ public class SearchSecurityHotspotsTool extends Tool {
     return null;
   }
 
-  private static HotspotsApi.SearchParams extractSearchParams(Tool.Arguments arguments) {
+  private static HotspotsApi.SearchParams extractSearchParams(Tool.Arguments arguments, @Nullable String branch) {
     return new HotspotsApi.SearchParams(
       arguments.getOptionalString(PROJECT_KEY_PROPERTY),
-      null,
+      branch,
       arguments.getOptionalString(PULL_REQUEST_PROPERTY),
       arguments.getOptionalStringList(FILES_PROPERTY),
       arguments.getOptionalStringList(HOTSPOT_KEYS_PROPERTY),

@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.qualitygates;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ProjectStatusResponse;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -26,9 +27,10 @@ public class ProjectStatusTool extends Tool {
 
   public static final String TOOL_NAME = "get_project_quality_gate_status";
   public static final String ANALYSIS_ID_PROPERTY = "analysisId";
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String PROJECT_ID_PROPERTY = "projectId";
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
-  public static final String PULL_REQUEST_PROPERTY = "pullRequest";
+  public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
 
   private final ServerApiProvider serverApiProvider;
 
@@ -40,11 +42,12 @@ public class ProjectStatusTool extends Tool {
         Get the Quality Gate Status for a project. Either '%s', '%s' or '%s' must be provided.
         """.formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY))
       .addStringProperty(ANALYSIS_ID_PROPERTY, "The optional analysis ID to get the status for, for example 'AU-TpxcA-iU5OvuD2FL1'")
+      .addBranchProperty()
       .addStringProperty(PROJECT_ID_PROPERTY, """
-        The optional project ID to get the status for, for example 'AU-Tpxb--iU5OvuD2FLy'. Doesn't work with pull requests.
+        The optional project ID to get the status for, for example 'AU-Tpxb--iU5OvuD2FLy'. Doesn't work with branches or pull requests.
         """)
       .addStringProperty(PROJECT_KEY_PROPERTY, "The optional project key to get the status for, for example 'my_project'")
-      .addStringProperty(PULL_REQUEST_PROPERTY, "The optional pull request ID to get the status for, for example '5461'")
+      .addPullRequestProperty()
       .setReadOnlyHint()
       .build(),
       ToolCategory.QUALITY_GATES);
@@ -54,6 +57,7 @@ public class ProjectStatusTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var analysisId = arguments.getOptionalString(ANALYSIS_ID_PROPERTY);
+    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
     var projectId = arguments.getOptionalString(PROJECT_ID_PROPERTY);
     var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
@@ -62,11 +66,16 @@ public class ProjectStatusTool extends Tool {
       return Tool.Result.failure("Either '%s', '%s' or '%s' must be provided".formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY));
     }
 
-    if (projectId != null && pullRequest != null) {
-      return Tool.Result.failure("Project ID doesn't work with pull requests");
+    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
+    if (mutualExclusionError.isPresent()) {
+      return mutualExclusionError.get();
     }
 
-    var projectStatus = serverApiProvider.get().qualityGatesApi().getProjectQualityGateStatus(analysisId, null, projectId, projectKey, pullRequest);
+    if (projectId != null && (branch != null || pullRequest != null)) {
+      return Tool.Result.failure("Project ID doesn't work with branches or pull requests");
+    }
+
+    var projectStatus = serverApiProvider.get().qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
     var toolResponse = buildStructuredContent(projectStatus);
     return Tool.Result.success(toolResponse);
   }

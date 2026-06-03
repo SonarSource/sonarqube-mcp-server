@@ -90,9 +90,11 @@ Always resolve the project key using the following lookup order — **never gues
 - Note: Secrets detection works on all file types regardless of language
 
 ### Branch and Pull Request Context
-- Many operations support branch-specific analysis
-- If user mentions working on a feature branch, include the branch parameter
-- Pull request analysis is available for PR-specific insights
+- **Long-lived branches** (main, develop, release/*): use the `branch` parameter. Discover valid names with `list_branches`.
+- **Pull requests / feature branches**: use `pullRequest`. Discover PR keys with `list_pull_requests`.
+- Never pass a git branch name to a `pullRequest` parameter — it expects the SonarQube PR key.
+- Never provide both `branch` and `pullRequest` on the same call.
+- Omit both to query the default (main) branch analysis.
 
 ### Code Issues and Violations
 - After fixing issues, do not attempt to verify them using `search_sonar_issues_in_projects`, as the server will not yet reflect the updates

@@ -24,6 +24,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.ComponentTreeParams;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentTreeResponse;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -32,7 +33,8 @@ public class SearchFilesByCoverageTool extends Tool {
 
   public static final String TOOL_NAME = "search_files_by_coverage";
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
-  public static final String PULL_REQUEST_PROPERTY = "pullRequest";
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
+  public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
   public static final String MAX_COVERAGE_PROPERTY = "maxCoverage";
   public static final String PAGE_INDEX_PROPERTY = "pageIndex";
   public static final String PAGE_SIZE_PROPERTY = "pageSize";
@@ -53,7 +55,8 @@ public class SearchFilesByCoverageTool extends Tool {
         .setDescription("Search for files in a project sorted by coverage (ascending - worst coverage first). " +
           "This tool helps identify files that need test coverage improvements.")
         .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key to search in", configuredProjectKey)
-        .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id to analyze")
+        .addBranchProperty()
+        .addPullRequestProperty()
         .addNumberProperty(MAX_COVERAGE_PROPERTY, "Only return files with coverage below this threshold (0-100)")
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Page index (1-based, default: 1)")
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size (default: 100, max: 500)")
@@ -67,10 +70,16 @@ public class SearchFilesByCoverageTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
+    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
     var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
     var maxCoverage = arguments.getOptionalInteger(MAX_COVERAGE_PROPERTY);
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
+
+    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
+    if (mutualExclusionError.isPresent()) {
+      return mutualExclusionError.get();
+    }
 
     if (maxCoverage != null && (maxCoverage < 0 || maxCoverage > 100)) {
       return Tool.Result.failure("maxCoverage must be between 0 and 100");
@@ -80,7 +89,7 @@ public class SearchFilesByCoverageTool extends Tool {
     var actualPageSize = (pageSize != null && pageSize > 0) ? Math.min(pageSize, 500) : 100;
 
     // First, get project-level metrics for summary
-    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, null,
+    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch,
       List.of(METRIC_COVERAGE, METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES), pullRequest
     );
 
@@ -91,7 +100,7 @@ public class SearchFilesByCoverageTool extends Tool {
 
     var params = new ComponentTreeParams(
       projectKey,
-      null,
+      branch,
       metricKeys,
       pullRequest,
       // Only files

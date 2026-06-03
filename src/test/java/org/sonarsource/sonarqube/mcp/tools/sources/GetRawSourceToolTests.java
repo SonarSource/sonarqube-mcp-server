@@ -275,6 +275,47 @@ class GetRawSourceToolTests {
         .contains(new ReceivedRequest("Bearer token", ""));
     }
 
+    @SonarQubeMcpServerTest
+    void it_should_return_raw_source_code_with_branch_parameter(SonarQubeMcpServerTestHarness harness) {
+      var sourceCode = """
+        package org.sonar.check;
+
+        public enum Priority {
+          BLOCKER, CRITICAL, MAJOR, MINOR, INFO
+        }
+        """;
+
+      harness.getMockSonarQubeServer().stubFor(get(SourcesApi.SOURCES_RAW_PATH + "?key=" + urlEncode("my_project:src/foo/Bar.php") + "&branch=" + urlEncode("develop"))
+        .willReturn(aResponse().withBody(sourceCode)));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        GetRawSourceTool.TOOL_NAME,
+        Map.of("key", "my_project:src/foo/Bar.php", GetRawSourceTool.BRANCH_PROPERTY, "develop"));
+
+      assertResultEquals(result, """
+        {
+          "fileKey" : "my_project:src/foo/Bar.php",
+          "sourceCode" : "<?php\n"
+        }""".replace("<?php\n", sourceCode));
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_show_error_when_branch_and_pull_request_are_provided(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        GetRawSourceTool.TOOL_NAME,
+        Map.of(
+          "key", "my_project:src/foo/Bar.php",
+          GetRawSourceTool.BRANCH_PROPERTY, "develop",
+          "pullRequest", "5461"));
+
+      assertThat(result.isError()).isTrue();
+    }
+
   }
 
-} 
+}

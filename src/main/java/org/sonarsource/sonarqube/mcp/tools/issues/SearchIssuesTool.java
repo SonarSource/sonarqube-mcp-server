@@ -17,9 +17,11 @@
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -29,8 +31,9 @@ public class SearchIssuesTool extends Tool {
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
 
   public static final String PROJECTS_PROPERTY = "projects";
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String FILES_PROPERTY = "files";
-  public static final String PULL_REQUEST_ID_PROPERTY = "pullRequestId";
+  public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
   public static final String SEVERITIES_PROPERTY = "severities";
   public static final String IMPACT_SOFTWARE_QUALITIES_PROPERTY = "impactSoftwareQualities";
   public static final String ISSUE_STATUSES_PROPERTY = "issueStatuses";
@@ -61,7 +64,8 @@ public class SearchIssuesTool extends Tool {
       .setDescription(description)
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of component keys (files, directories, modules) to filter issues")
-      .addStringProperty(PULL_REQUEST_ID_PROPERTY, "The identifier of the Pull Request to look in")
+      .addBranchProperty()
+      .addPullRequestProperty()
       .addEnumProperty(SEVERITIES_PROPERTY, VALID_SEVERITIES, "An optional list of severities to filter by")
       .addEnumProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES, "An optional list of software qualities to filter by")
       .addEnumProperty(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES, "An optional list of issue statuses to filter by. Note: IN_SANDBOX is valid only for SonarQube Server")
@@ -74,18 +78,26 @@ public class SearchIssuesTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var searchParams = extractSearchParams(arguments);
+    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
+    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
+
+    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
+    if (mutualExclusionError.isPresent()) {
+      return mutualExclusionError.get();
+    }
+
+    var searchParams = extractSearchParams(arguments, branch);
     var response = serverApiProvider.get().issuesApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }
 
-  private static IssuesApi.SearchParams extractSearchParams(Tool.Arguments arguments) {
+  private static IssuesApi.SearchParams extractSearchParams(Tool.Arguments arguments, @Nullable String branch) {
     return new IssuesApi.SearchParams(
       arguments.getOptionalStringList(PROJECTS_PROPERTY),
-      null,
+      branch,
       arguments.getOptionalStringList(FILES_PROPERTY),
-      arguments.getOptionalString(PULL_REQUEST_ID_PROPERTY),
+      arguments.getOptionalString(PULL_REQUEST_PROPERTY),
       arguments.getOptionalEnumList(SEVERITIES_PROPERTY, VALID_SEVERITIES),
       arguments.getOptionalEnumList(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES),
       arguments.getOptionalEnumList(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES),

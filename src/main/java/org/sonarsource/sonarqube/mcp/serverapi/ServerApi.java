@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi;
 
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
+import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.duplications.DuplicationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.EnterprisesApi;
@@ -127,6 +128,10 @@ public class ServerApi {
 
   public PullRequestsApi pullRequestsApi() {
     return new PullRequestsApi(helper);
+  }
+
+  public ProjectBranchesApi projectBranchesApi() {
+    return new ProjectBranchesApi(helper);
   }
 
   public UsersApi usersApi() {

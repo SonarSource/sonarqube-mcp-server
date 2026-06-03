@@ -41,7 +41,7 @@ public class IssuesApi {
     @Nullable List<String> projects,
     @Nullable String branch,
     @Nullable List<String> files,
-    @Nullable String pullRequestId,
+    @Nullable String pullRequest,
     @Nullable List<String> severities,
     @Nullable List<String> impactSoftwareQualities,
     @Nullable List<String> issueStatuses,
@@ -84,7 +84,7 @@ public class IssuesApi {
     var builder = new UrlBuilder(SEARCH_PATH)
       .addParam(componentsParamName, mergedComponents(params.projects(), params.files()))
       .addParam("branch", params.branch())
-      .addParam("pullRequest", params.pullRequestId())
+      .addParam("pullRequest", params.pullRequest())
       .addParam("impactSeverities", params.severities())
       .addParam("impactSoftwareQualities", params.impactSoftwareQualities())
       .addParam("issueStatuses", params.issueStatuses())

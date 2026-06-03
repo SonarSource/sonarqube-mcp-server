@@ -135,7 +135,35 @@ class ProjectStatusToolTests {
         ProjectStatusTool.TOOL_NAME,
         Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "123", ProjectStatusTool.PULL_REQUEST_PROPERTY, "5461"));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Project ID doesn't work with pull requests").build());
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Project ID doesn't work with branches or pull requests").build());
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_show_error_when_project_id_and_branch_are_provided(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        ProjectStatusTool.TOOL_NAME,
+        Map.of(ProjectStatusTool.PROJECT_ID_PROPERTY, "123", ProjectStatusTool.BRANCH_PROPERTY, "main"));
+
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Project ID doesn't work with branches or pull requests").build());
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_show_error_when_branch_and_pull_request_are_provided(SonarQubeMcpServerTestHarness harness) {
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        ProjectStatusTool.TOOL_NAME,
+        Map.of(
+          ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey",
+          ProjectStatusTool.BRANCH_PROPERTY, "main",
+          ProjectStatusTool.PULL_REQUEST_PROPERTY, "5461"));
+
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent(
+        "Cannot use 'branch' and 'pullRequest' together. Use 'branch' for long-lived branches (see list_branches) or 'pullRequest' for pull requests (see list_pull_requests).").build());
     }
 
     @SonarQubeMcpServerTest
@@ -163,6 +191,59 @@ class ProjectStatusToolTests {
       var result = mcpClient.callTool(
         ProjectStatusTool.TOOL_NAME,
         Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey"));
+
+      assertResultEquals(result, """
+        {
+          "status" : "ERROR",
+          "conditions" : [ {
+            "metricKey" : "new_coverage",
+            "status" : "ERROR",
+            "errorThreshold" : "85",
+            "actualValue" : "82.50562381034781"
+          }, {
+            "metricKey" : "new_blocker_violations",
+            "status" : "ERROR",
+            "errorThreshold" : "0",
+            "actualValue" : "14"
+          }, {
+            "metricKey" : "new_critical_violations",
+            "status" : "ERROR",
+            "errorThreshold" : "0",
+            "actualValue" : "1"
+          }, {
+            "metricKey" : "new_sqale_debt_ratio",
+            "status" : "OK",
+            "errorThreshold" : "5",
+            "actualValue" : "0.6562109862671661"
+          }, {
+            "metricKey" : "reopened_issues",
+            "status" : "OK",
+            "actualValue" : "0"
+          }, {
+            "metricKey" : "open_issues",
+            "status" : "ERROR",
+            "actualValue" : "17"
+          }, {
+            "metricKey" : "skipped_tests",
+            "status" : "OK",
+            "actualValue" : "0"
+          } ]
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_return_the_project_status_with_project_key_and_branch(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(QualityGatesApi.PROJECT_STATUS_PATH + "?branch=" + urlEncode("develop") + "&projectKey=pkey")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generatePayload().getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        ProjectStatusTool.TOOL_NAME,
+        Map.of(ProjectStatusTool.PROJECT_KEY_PROPERTY, "pkey", ProjectStatusTool.BRANCH_PROPERTY, "develop"));
 
       assertResultEquals(result, """
         {
