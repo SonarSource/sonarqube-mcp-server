@@ -180,6 +180,86 @@ class ToolArgumentsTest {
   }
 
   @Test
+  void should_return_null_when_optional_string_argument_is_blank() {
+    var arguments = new Tool.Arguments(Map.of("blankArg", " ", "emptyArg", ""), null);
+
+    assertThat(arguments.getOptionalString("blankArg")).isNull();
+    assertThat(arguments.getOptionalString("emptyArg")).isNull();
+  }
+
+  @Test
+  void should_throw_exception_when_required_string_argument_is_blank() {
+    var arguments = new Tool.Arguments(Map.of("stringArg", ""), null);
+
+    assertThatThrownBy(() -> arguments.getStringOrThrow("stringArg"))
+      .isInstanceOf(MissingRequiredArgumentException.class)
+      .hasMessage("Missing required argument: stringArg");
+  }
+
+  @Test
+  void should_return_null_when_optional_integer_argument_is_blank_string() {
+    var arguments = new Tool.Arguments(Map.of("intArg", ""), null);
+
+    assertThat(arguments.getOptionalInteger("intArg")).isNull();
+  }
+
+  @Test
+  void should_return_null_when_optional_boolean_argument_is_blank_string() {
+    var arguments = new Tool.Arguments(Map.of("boolArg", "   "), null);
+
+    assertThat(arguments.getOptionalBoolean("boolArg")).isNull();
+  }
+
+  @Test
+  void should_return_null_when_optional_string_list_argument_is_empty() {
+    var arguments = new Tool.Arguments(Map.of("listArg", List.of()), null);
+
+    assertThat(arguments.getOptionalStringList("listArg")).isNull();
+  }
+
+  @Test
+  void should_return_null_when_optional_string_list_argument_contains_only_blank_values() {
+    var arguments = new Tool.Arguments(Map.of("listArg", List.of("", " ")), null);
+
+    assertThat(arguments.getOptionalStringList("listArg")).isNull();
+  }
+
+  @Test
+  void should_filter_blank_values_from_optional_string_list_argument() {
+    var arguments = new Tool.Arguments(Map.of("listArg", List.of("", "item1", " ")), null);
+
+    assertThat(arguments.getOptionalStringList("listArg")).containsExactly("item1");
+  }
+
+  @Test
+  void should_filter_null_elements_from_optional_string_list_argument() {
+    var listWithNull = new java.util.ArrayList<String>();
+    listWithNull.add(null);
+    listWithNull.add("item1");
+    var arguments = new Tool.Arguments(Map.of("listArg", listWithNull), null);
+
+    assertThat(arguments.getOptionalStringList("listArg")).containsExactly("item1");
+  }
+
+  @Test
+  void should_return_null_when_optional_enum_argument_is_blank() {
+    var arguments = new Tool.Arguments(Map.of("enumArg", ""), null);
+    var validValues = new String[] {"OPEN", "CLOSED"};
+
+    assertThat(arguments.getOptionalEnumValue("enumArg", validValues)).isNull();
+  }
+
+  @Test
+  void should_throw_exception_when_required_enum_argument_is_blank() {
+    var arguments = new Tool.Arguments(Map.of("enumArg", " "), null);
+    var validValues = new String[] {"OPEN", "CLOSED"};
+
+    assertThatThrownBy(() -> arguments.getEnumOrThrow("enumArg", validValues))
+      .isInstanceOf(MissingRequiredArgumentException.class)
+      .hasMessage("Missing required argument: enumArg");
+  }
+
+  @Test
   void should_return_value_when_int_or_default_argument_is_present() {
     var arguments = new Tool.Arguments(Map.of("intArg", 42), null);
 

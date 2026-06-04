@@ -159,15 +159,15 @@ class AnalyzeCodeSnippetToolTests {
   class Connected {
 
     @SonarQubeMcpServerTest
-    void it_should_find_no_issues_in_empty_content(SonarQubeMcpServerTestHarness harness) {
-      mockServerRules(harness, null, List.of("php:S1135"));
+    void it_should_return_an_error_if_fileContent_is_blank(SonarQubeMcpServerTestHarness harness) {
       var mcpClient = harness.withPlugins().newClient();
 
       var result = mcpClient.callTool(
         TOOL_NAME,
         Map.of(AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, ""));
 
-      assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
+      assertThat(result.isError()).isTrue();
+      assertThat(result.toString()).contains("Missing required argument: fileContent");
     }
 
     @SonarQubeMcpServerTest
