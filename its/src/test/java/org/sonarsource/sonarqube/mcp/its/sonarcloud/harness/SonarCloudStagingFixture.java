@@ -70,6 +70,7 @@ public final class SonarCloudStagingFixture {
     fixture.provisionProject();
     fixture.associateProjectToQualityProfile("java", HOTSPOT_QUALITY_PROFILE);
     fixture.analyzeMavenProject(sampleProjectDir());
+    fixture.awaitOpenIssue("java:S1118");
     return fixture;
   }
 
@@ -155,6 +156,40 @@ public final class SonarCloudStagingFixture {
       "/api/projects/bulk_delete",
       "projects", projectKey,
       "organization", SonarCloudStagingEnvironment.SONARQUBE_ORG);
+  }
+
+  /** Waits until at least one OPEN issue for {@code rule} exists on this project (post-analysis indexing). */
+  public void awaitOpenIssue(String rule) {
+    await().atMost(3, TimeUnit.MINUTES)
+      .pollInterval(3, TimeUnit.SECONDS)
+      .ignoreExceptions()
+      .until(() -> hasOpenIssue(rule));
+  }
+
+  public void deleteProjectWebhook(String webhookKey) {
+    postForm(
+      "/api/webhooks/destroy",
+      "webhook", webhookKey,
+      "project", projectKey,
+      "organization", SonarCloudStagingEnvironment.SONARQUBE_ORG);
+  }
+
+  private boolean hasOpenIssue(String rule) throws IOException, InterruptedException {
+    var path = "/api/issues/search?organization=" + encode(SonarCloudStagingEnvironment.SONARQUBE_ORG)
+      + "&projects=" + encode(projectKey)
+      + "&rules=" + encode(rule)
+      + "&issueStatuses=OPEN"
+      + "&ps=1";
+    var request = HttpRequest.newBuilder()
+      .uri(URI.create(SonarCloudStagingEnvironment.SONARQUBE_URL + path))
+      .timeout(Duration.ofSeconds(30))
+      .header("Authorization", "Bearer " + token)
+      .GET()
+      .build();
+    var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    return response.statusCode() == 200
+      && response.body().contains("\"issues\":[")
+      && !response.body().contains("\"issues\":[]");
   }
 
   private void awaitCeTaskSuccess(String taskId) {

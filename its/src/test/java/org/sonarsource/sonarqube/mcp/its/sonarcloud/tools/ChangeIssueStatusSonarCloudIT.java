@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarQubeMcpTestClient.assertStructuredContentContains;
 
 @Tag("SonarCloud")
@@ -34,21 +33,31 @@ class ChangeIssueStatusSonarCloudIT extends AbstractSonarCloudStagingIT {
   void should_call_change_sonar_issue_status_against_staging() {
     var searchResult = mcpClient.callTool(SearchIssuesTool.TOOL_NAME, Map.of(
       SearchIssuesTool.PROJECTS_PROPERTY, new String[] {fixture.projectKey()},
-      "ps", 1));
+      SearchIssuesTool.ISSUE_STATUSES_PROPERTY, new String[] {"OPEN"},
+      SearchIssuesTool.PAGE_SIZE_PROPERTY, 10));
     @SuppressWarnings("unchecked")
     var issues = (List<Map<String, Object>>) structuredContent(searchResult).get("issues");
-    assertThat(issues).isNotEmpty();
-    var issueKey = (String) issues.getFirst().get("key");
+    var issueKey = issues.stream()
+      .filter(issue -> "java:S1118".equals(issue.get("rule")))
+      .map(issue -> (String) issue.get("key"))
+      .findFirst()
+      .orElseThrow(() -> new AssertionError("No OPEN java:S1118 issue found for " + fixture.projectKey()));
 
-    var result = mcpClient.callTool(ChangeIssueStatusTool.TOOL_NAME, Map.of(
-      ChangeIssueStatusTool.KEY_PROPERTY, issueKey,
-      ChangeIssueStatusTool.STATUS_PROPERTY, "falsepositive"));
+    try {
+      var result = mcpClient.callTool(ChangeIssueStatusTool.TOOL_NAME, Map.of(
+        ChangeIssueStatusTool.KEY_PROPERTY, issueKey,
+        ChangeIssueStatusTool.STATUS_PROPERTY, "falsepositive"));
 
-    assertStructuredContentContains(result, """
-      {
-        "success" : true,
-        "issueKey" : "%s",
-        "newStatus" : "falsepositive"
-      }""".formatted(issueKey));
+      assertStructuredContentContains(result, """
+        {
+          "success" : true,
+          "issueKey" : "%s",
+          "newStatus" : "falsepositive"
+        }""".formatted(issueKey));
+    } finally {
+      mcpClient.callTool(ChangeIssueStatusTool.TOOL_NAME, Map.of(
+        ChangeIssueStatusTool.KEY_PROPERTY, issueKey,
+        ChangeIssueStatusTool.STATUS_PROPERTY, "reopen"));
+    }
   }
 }
