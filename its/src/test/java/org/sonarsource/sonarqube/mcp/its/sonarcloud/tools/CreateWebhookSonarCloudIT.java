@@ -30,7 +30,9 @@ class CreateWebhookSonarCloudIT extends AbstractSonarCloudStagingIT {
   @Test
   void should_call_create_webhook_against_staging() {
     var result = mcpClient.callTool(CreateWebhookTool.TOOL_NAME, Map.of(
-      CreateWebhookTool.NAME_PROPERTY, "mcp-medium-test-webhook"));
+      CreateWebhookTool.NAME_PROPERTY, "sonarqube-mcp-it-webhook",
+      CreateWebhookTool.URL_PROPERTY, "https://example.invalid/sonarqube-mcp-it",
+      CreateWebhookTool.PROJECT_PROPERTY, fixture.projectKey()));
 
     assertToolError(result);
   }

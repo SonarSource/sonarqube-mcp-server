@@ -135,6 +135,7 @@ public final class SonarCloudStagingFixture {
     var builder = buildMavenCommand(projectDir,
       "clean", "package", "sonar:sonar",
       "-Dsonar.projectKey=" + projectKey,
+      "-Dsonar.projectName=" + projectName(),
       "-Dsonar.host.url=" + SonarCloudStagingEnvironment.SONARQUBE_URL,
       "-Dsonar.organization=" + SonarCloudStagingEnvironment.SONARQUBE_ORG,
       "-Dsonar.scm.disabled=true",
