@@ -901,10 +901,10 @@ SOCKS5 proxies are supported.
   - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). Used when the workspace is mounted at `/app/mcp-workspace` - _String_
   - `fileContent` - Complete file content as a string. Required when workspace is not mounted - _String_
   - `codeSnippet` - Code snippet to filter issues (must match content in fileContent) - _String_
-  - `language` - Language of the code (e.g., 'java', 'python', 'javascript') - _String_
+  - `language` - Language of the code (e.g., 'java', 'python', 'js', 'ts', 'tsx', 'jsx') - _String_
   - `scope` - Scope of the file: MAIN or TEST (default: MAIN) - _String_
   
-  **Supported Languages:** Java, Kotlin, Python, Ruby, Go, JavaScript, TypeScript, JSP, PHP, XML, HTML, CSS, CloudFormation, Kubernetes, Terraform, Azure Resource Manager, Ansible, Docker, Secrets detection
+  **Supported Languages:** Java, Kotlin, Python, Ruby, Go, JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), JSP, PHP, XML, HTML, CSS, CloudFormation, Kubernetes, Terraform, Azure Resource Manager, Ansible, Docker, Secrets detection
 
 **When integration with SonarQube for IDE is enabled:**
 - **analyze_file_list** - Analyze files in the current working directory using SonarQube for IDE. This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.
