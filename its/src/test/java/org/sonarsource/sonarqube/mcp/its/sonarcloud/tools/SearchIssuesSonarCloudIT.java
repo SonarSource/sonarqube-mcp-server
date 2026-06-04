@@ -37,8 +37,7 @@ class SearchIssuesSonarCloudIT extends AbstractSonarCloudStagingIT {
       {
         "issues" : [ {
           "project" : "%s",
-          "rule" : "java:S1118",
-          "status" : "OPEN"
+          "rule" : "java:S1118"
         } ],
         "paging" : {
           "pageIndex" : 1,

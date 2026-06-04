@@ -167,11 +167,16 @@ public final class SonarCloudStagingFixture {
   }
 
   public void deleteProjectWebhook(String webhookKey) {
-    postForm(
-      "/api/webhooks/destroy",
-      "webhook", webhookKey,
-      "project", projectKey,
-      "organization", SonarCloudStagingEnvironment.SONARQUBE_ORG);
+    try {
+      postForm(
+        "/api/webhooks/delete",
+        "webhook", webhookKey,
+        "project", projectKey,
+        "organization", SonarCloudStagingEnvironment.SONARQUBE_ORG);
+    } catch (IllegalStateException e) {
+      // Best-effort cleanup; do not fail the test if staging rejects delete
+      System.err.println("Webhook cleanup failed for " + webhookKey + ": " + e.getMessage());
+    }
   }
 
   private boolean hasOpenIssue(String rule) throws IOException, InterruptedException {

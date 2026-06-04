@@ -33,15 +33,18 @@ class ChangeIssueStatusSonarCloudIT extends AbstractSonarCloudStagingIT {
   void should_call_change_sonar_issue_status_against_staging() {
     var searchResult = mcpClient.callTool(SearchIssuesTool.TOOL_NAME, Map.of(
       SearchIssuesTool.PROJECTS_PROPERTY, new String[] {fixture.projectKey()},
-      SearchIssuesTool.ISSUE_STATUSES_PROPERTY, new String[] {"OPEN"},
       SearchIssuesTool.PAGE_SIZE_PROPERTY, 10));
     @SuppressWarnings("unchecked")
     var issues = (List<Map<String, Object>>) structuredContent(searchResult).get("issues");
     var issueKey = issues.stream()
       .filter(issue -> "java:S1118".equals(issue.get("rule")))
+      .filter(issue -> {
+        var status = issue.get("status");
+        return "OPEN".equals(status) || "REOPENED".equals(status);
+      })
       .map(issue -> (String) issue.get("key"))
       .findFirst()
-      .orElseThrow(() -> new AssertionError("No OPEN java:S1118 issue found for " + fixture.projectKey()));
+      .orElseThrow(() -> new AssertionError("No unresolved java:S1118 issue found for " + fixture.projectKey()));
 
     try {
       var result = mcpClient.callTool(ChangeIssueStatusTool.TOOL_NAME, Map.of(

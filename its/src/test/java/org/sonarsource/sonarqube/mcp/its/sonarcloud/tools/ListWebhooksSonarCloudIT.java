@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.its.sonarcloud.tools;
 
+import java.util.Map;
 import org.sonarsource.sonarqube.mcp.its.sonarcloud.AbstractSonarCloudStagingIT;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,8 @@ class ListWebhooksSonarCloudIT extends AbstractSonarCloudStagingIT {
 
   @Test
   void should_call_list_webhooks_against_staging() {
-    var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME);
+    var result = mcpClient.callTool(ListWebhooksTool.TOOL_NAME, Map.of(
+      ListWebhooksTool.PROJECT_PROPERTY, fixture.projectKey()));
 
     assertResultEquals(result, """
       {
