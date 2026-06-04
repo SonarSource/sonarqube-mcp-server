@@ -33,6 +33,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
+import org.sonarsource.sonarqube.mcp.harness.BlockingQueueInputStream;
+import org.sonarsource.sonarqube.mcp.harness.BlockingQueueOutputStream;
+import org.sonarsource.sonarqube.mcp.harness.InMemoryClientTransport;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 

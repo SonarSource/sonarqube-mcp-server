@@ -65,10 +65,11 @@ Shared project (key prefix `sonarqube-mcp-its-sample-java-hotspot-…`), provisi
 
 ## CI
 
-| Workflow                     | Task                             | When                                            |
-|------------------------------|----------------------------------|-------------------------------------------------|
-| `build.yml`                  | `:its:integrationTest`           | Every PR (matrix: STDIO / HTTP / ProxiedServer) |
-| `sonarcloud-integration.yml` | `:its:sonarCloudIntegrationTest` | Weekly + manual                                 |
+| Workflow                     | Task                             | When                                                       |
+|------------------------------|----------------------------------|------------------------------------------------------------|
+| `build.yml`                  | `:its:integrationTest`           | Every PR (matrix: STDIO / HTTP / ProxiedServer)            |
+| `build.yml`                  | `:its:sonarCloudIntegrationTest` | Every PR in parallel (matrix: SonarQubeCloud; needs token) |
+| `sonarcloud-integration.yml` | `:its:sonarCloudIntegrationTest` | Weekly + manual (same tests as PR matrix job)              |
 
 ## Docker ITS architecture
 

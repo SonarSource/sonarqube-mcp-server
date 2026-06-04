@@ -70,6 +70,19 @@ configurations.all {
     }
 }
 
+val rootProjectTestOutput = project(":").sourceSets["test"].output
+
+sourceSets {
+    test {
+        compileClasspath += rootProjectTestOutput
+        runtimeClasspath += rootProjectTestOutput
+    }
+}
+
+tasks.named<JavaCompile>("compileTestJava") {
+    dependsOn(project(":").tasks.named("compileTestJava"))
+}
+
 dependencies {
     testImplementation(project(":"))
     testImplementation(libs.mcp.server)

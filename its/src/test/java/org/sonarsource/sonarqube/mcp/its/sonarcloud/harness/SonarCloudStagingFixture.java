@@ -29,12 +29,15 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.SystemUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 public final class SonarCloudStagingFixture {
+
+  private static final Pattern CE_TASK_ID = Pattern.compile("api/ce/task\\?id=([A-Za-z0-9_-]+)");
 
   private final String token;
   private final String logicalName;
@@ -137,8 +140,13 @@ public final class SonarCloudStagingFixture {
       "-Dsonar.scm.disabled=true",
       "-Dsonar.branch.autoconfig.disabled=true");
     builder.environment().put("SONAR_TOKEN", token);
-    runProcess(builder, projectDir);
-    awaitAnalysisQueueEmpty();
+    var mavenOutput = runProcess(builder, projectDir);
+    var ceTaskId = extractCeTaskId(mavenOutput);
+    if (ceTaskId != null) {
+      awaitCeTaskSuccess(ceTaskId);
+    } else {
+      awaitAnalysisReportEnqueuedThenDrained();
+    }
   }
 
   public void cleanup() {
@@ -148,20 +156,70 @@ public final class SonarCloudStagingFixture {
       "organization", SonarCloudStagingEnvironment.SONARQUBE_ORG);
   }
 
+  private void awaitCeTaskSuccess(String taskId) {
+    await().atMost(10, TimeUnit.MINUTES)
+      .pollInterval(2, TimeUnit.SECONDS)
+      .until(() -> {
+        try {
+          var body = fetchCeTaskBody(taskId);
+          if (body.contains("\"status\":\"FAILED\"") || body.contains("\"status\":\"CANCELED\"")) {
+            throw new IllegalStateException("CE task " + taskId + " did not succeed: " + body);
+          }
+          return body.contains("\"status\":\"SUCCESS\"");
+        } catch (IOException | InterruptedException e) {
+          if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
+          return false;
+        }
+      });
+  }
+
+  private String fetchCeTaskBody(String taskId) throws IOException, InterruptedException {
+    var path = "/api/ce/task?id=" + encode(taskId)
+      + "&organization=" + encode(SonarCloudStagingEnvironment.SONARQUBE_ORG);
+    var request = HttpRequest.newBuilder()
+      .uri(URI.create(SonarCloudStagingEnvironment.SONARQUBE_URL + path))
+      .timeout(Duration.ofSeconds(30))
+      .header("Authorization", "Bearer " + token)
+      .GET()
+      .build();
+    var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    if (response.statusCode() != 200) {
+      return "";
+    }
+    return response.body();
+  }
+
+  private void awaitAnalysisReportEnqueuedThenDrained() {
+    await().atMost(2, TimeUnit.MINUTES)
+      .pollInterval(2, TimeUnit.SECONDS)
+      .ignoreExceptions()
+      .until(() -> !isAnalysisQueueEmpty());
+    awaitAnalysisQueueEmpty();
+  }
+
   private void awaitAnalysisQueueEmpty() {
     await().atMost(3, TimeUnit.MINUTES)
       .pollInterval(2, TimeUnit.SECONDS)
       .ignoreExceptions()
-      .until(() -> {
-        var request = HttpRequest.newBuilder()
-          .uri(URI.create(SonarCloudStagingEnvironment.SONARQUBE_URL + "/api/analysis_reports/is_queue_empty"))
-          .timeout(Duration.ofSeconds(30))
-          .header("Authorization", "Bearer " + token)
-          .GET()
-          .build();
-        var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        return response.statusCode() == 200 && "true".equals(response.body());
-      });
+      .until(this::isAnalysisQueueEmpty);
+  }
+
+  private boolean isAnalysisQueueEmpty() throws IOException, InterruptedException {
+    var request = HttpRequest.newBuilder()
+      .uri(URI.create(SonarCloudStagingEnvironment.SONARQUBE_URL + "/api/analysis_reports/is_queue_empty"))
+      .timeout(Duration.ofSeconds(30))
+      .header("Authorization", "Bearer " + token)
+      .GET()
+      .build();
+    var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    return response.statusCode() == 200 && "true".equals(response.body());
+  }
+
+  private static String extractCeTaskId(String mavenOutput) {
+    var matcher = CE_TASK_ID.matcher(mavenOutput);
+    return matcher.find() ? matcher.group(1) : null;
   }
 
   private static ProcessBuilder buildMavenCommand(Path projectDir, String... args) {
@@ -182,7 +240,7 @@ public final class SonarCloudStagingFixture {
     return builder;
   }
 
-  private static void runProcess(ProcessBuilder builder, Path projectDir) {
+  private static String runProcess(ProcessBuilder builder, Path projectDir) {
     try {
       var process = builder.start();
       var output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -190,6 +248,7 @@ public final class SonarCloudStagingFixture {
       assertThat(exitCode)
         .withFailMessage("Maven failed in %s with exit %s:%n%s", projectDir, exitCode, output)
         .isZero();
+      return output;
     } catch (IOException | InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Maven analysis failed in " + projectDir, e);

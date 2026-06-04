@@ -41,10 +41,7 @@ public class SonarQubeMcpTestClient {
     assertThat(JsonParser.parseString(gson.toJson(actual.structuredContent()))).isEqualTo(JsonParser.parseString(expected));
   }
 
-  /**
-   * Asserts that {@code actual} structured content contains all fields from {@code expectedSubset}.
-   * For arrays, each expected element must match at least one actual element (deep subset match).
-   */
+  /** Asserts the tool result represents an error (flag or known error message text). */
   public static void assertToolError(McpSchema.CallToolResult actual) {
     var hasErrorFlag = Boolean.TRUE.equals(actual.isError());
     var hasErrorText = actual.content().stream()
@@ -57,6 +54,10 @@ public class SonarQubeMcpTestClient {
       .isTrue();
   }
 
+  /**
+   * Asserts that {@code actual} structured content contains all fields from {@code expectedSubset}.
+   * For arrays, each expected element must match at least one actual element (deep subset match).
+   */
   public static void assertStructuredContentContains(McpSchema.CallToolResult actual, String expectedSubset) {
     assertThat(actual.isError()).isFalse();
     assertThat(actual.structuredContent()).isNotNull();

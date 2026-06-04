@@ -16,6 +16,9 @@ jobs:
         with:
           version: 2026.4.20
 
+      - name: Install Maven
+        run: sudo apt-get update && sudo apt-get install -y maven
+
       - name: Vault (SonarQube Cloud IT token)
         id: secrets-sc
         uses: SonarSource/vault-action-wrapper@0a3114fe1230b784c35b53b099f9ab1f1e538cc7 # 3.5.0
@@ -29,8 +32,12 @@ jobs:
       - name: Run SonarQube Cloud integration tests
         env:
           SONARCLOUD_IT_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).SONARCLOUD_IT_TOKEN || '' }}
-          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL }}
-          ARTIFACTORY_USER: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER }}
-          ARTIFACTORY_ACCESS_TOKEN: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          ARTIFACTORY_URL: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL || '' }}
+          ARTIFACTORY_USER: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER || '' }}
+          ARTIFACTORY_ACCESS_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN || '' }}
         run: |
+          if [ -z "${SONARCLOUD_IT_TOKEN}" ]; then
+            echo "::error::SONARCLOUD_IT_TOKEN is required for SonarQube Cloud staging ITS"
+            exit 1
+          fi
           ./gradlew :its:sonarCloudIntegrationTest --info
