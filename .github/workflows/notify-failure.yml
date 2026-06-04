@@ -1,7 +1,7 @@
 name: Notify Failure
 on:
   workflow_run:
-    workflows: [ "Build" ]
+    workflows: [ "Build", "SonarQube Cloud integration tests" ]
     types:
       - completed
     branches:
