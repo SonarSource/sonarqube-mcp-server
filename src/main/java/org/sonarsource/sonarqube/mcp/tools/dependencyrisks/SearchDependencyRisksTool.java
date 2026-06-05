@@ -48,8 +48,7 @@ public class SearchDependencyRisksTool extends Tool {
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +
         "paired with releases that appear in the analyzed project, application, or portfolio.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key", configuredProjectKey)
-      .addBranchProperty()
-      .addPullRequestProperty()
+      .addBranchAndPullRequestProperties()
       .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional page index (1-based). Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
@@ -73,17 +72,17 @@ public class SearchDependencyRisksTool extends Tool {
       return Tool.Result.failure("Search Dependency Risks tool is not available for SonarQube Server because Advanced Security is not enabled.");
     }
     var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
 
-    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
-    if (mutualExclusionError.isPresent()) {
-      return mutualExclusionError.get();
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
     }
 
-    var response = provider.scaApi().getDependencyRisks(projectKey, branch, pullRequest, pageIndex, pageSize);
+    var response = provider.scaApi().getDependencyRisks(
+      projectKey, branchPullRequest.branch(), branchPullRequest.pullRequest(), pageIndex, pageSize);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }

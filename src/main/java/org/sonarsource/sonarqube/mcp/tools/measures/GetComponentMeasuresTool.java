@@ -43,9 +43,8 @@ public class GetComponentMeasuresTool extends Tool {
       .setTitle("Get SonarQube Project Measures")
       .setDescription("Get SonarQube measures for a project, such as ncloc, complexity, violations, coverage, etc.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key", configuredProjectKey)
-      .addBranchProperty()
+      .addBranchAndPullRequestProperties()
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
-      .addPullRequestProperty()
       .setReadOnlyHint()
       .build(),
       ToolCategory.MEASURES);
@@ -56,16 +55,16 @@ public class GetComponentMeasuresTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var component = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
     var metricKeys = arguments.getOptionalStringList(METRIC_KEYS_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
 
-    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
-    if (mutualExclusionError.isPresent()) {
-      return mutualExclusionError.get();
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
     }
 
-    var response = serverApiProvider.get().measuresApi().getComponentMeasures(component, branch, metricKeys, pullRequest);
+    var response = serverApiProvider.get().measuresApi().getComponentMeasures(
+      component, branchPullRequest.branch(), metricKeys, branchPullRequest.pullRequest());
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }

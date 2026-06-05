@@ -53,8 +53,7 @@ public class SearchSecurityHotspotsTool extends Tool {
       .setDescription("Search for Security Hotspots in a project.")
       .addStringProperty(PROJECT_KEY_PROPERTY, "The key of the project or application to search in. Required unless hotspotKeys is provided.")
       .addArrayProperty(HOTSPOT_KEYS_PROPERTY, "string", "Comma-separated list of specific Security Hotspot keys to retrieve. Required unless projectKey is provided.")
-      .addBranchProperty()
-      .addPullRequestProperty()
+      .addBranchAndPullRequestProperties()
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of file paths to filter Security Hotspots")
       .addEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "Filter by review status")
       .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "Filter by resolution (when status is REVIEWED)")
@@ -75,14 +74,13 @@ public class SearchSecurityHotspotsTool extends Tool {
       return Tool.Result.failure(validationError);
     }
 
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
-    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
-    if (mutualExclusionError.isPresent()) {
-      return mutualExclusionError.get();
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
+    var branchPullRequestError = branchPullRequest.validationError();
+    if (branchPullRequestError.isPresent()) {
+      return branchPullRequestError.get();
     }
-    
-    var searchParams = extractSearchParams(arguments, branch);
+
+    var searchParams = extractSearchParams(arguments, branchPullRequest);
     var response = serverApiProvider.get().hotspotsApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
@@ -103,11 +101,11 @@ public class SearchSecurityHotspotsTool extends Tool {
     return null;
   }
 
-  private static HotspotsApi.SearchParams extractSearchParams(Tool.Arguments arguments, @Nullable String branch) {
+  private static HotspotsApi.SearchParams extractSearchParams(Tool.Arguments arguments, BranchPullRequestContext.Params branchPullRequest) {
     return new HotspotsApi.SearchParams(
       arguments.getOptionalString(PROJECT_KEY_PROPERTY),
-      branch,
-      arguments.getOptionalString(PULL_REQUEST_PROPERTY),
+      branchPullRequest.branch(),
+      branchPullRequest.pullRequest(),
       arguments.getOptionalStringList(FILES_PROPERTY),
       arguments.getOptionalStringList(HOTSPOT_KEYS_PROPERTY),
       arguments.getOptionalEnumValue(STATUS_PROPERTY, VALID_STATUSES),

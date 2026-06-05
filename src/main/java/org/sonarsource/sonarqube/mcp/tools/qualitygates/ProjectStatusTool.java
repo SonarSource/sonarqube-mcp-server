@@ -42,12 +42,11 @@ public class ProjectStatusTool extends Tool {
         Get the Quality Gate Status for a project. Either '%s', '%s' or '%s' must be provided.
         """.formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY))
       .addStringProperty(ANALYSIS_ID_PROPERTY, "The optional analysis ID to get the status for, for example 'AU-TpxcA-iU5OvuD2FL1'")
-      .addBranchProperty()
+      .addBranchAndPullRequestProperties()
       .addStringProperty(PROJECT_ID_PROPERTY, """
         The optional project ID to get the status for, for example 'AU-Tpxb--iU5OvuD2FLy'. Doesn't work with branches or pull requests.
         """)
       .addStringProperty(PROJECT_KEY_PROPERTY, "The optional project key to get the status for, for example 'my_project'")
-      .addPullRequestProperty()
       .setReadOnlyHint()
       .build(),
       ToolCategory.QUALITY_GATES);
@@ -57,25 +56,25 @@ public class ProjectStatusTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var analysisId = arguments.getOptionalString(ANALYSIS_ID_PROPERTY);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
     var projectId = arguments.getOptionalString(PROJECT_ID_PROPERTY);
     var projectKey = arguments.getOptionalString(PROJECT_KEY_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
 
     if (analysisId == null && projectId == null && projectKey == null) {
       return Tool.Result.failure("Either '%s', '%s' or '%s' must be provided".formatted(ANALYSIS_ID_PROPERTY, PROJECT_ID_PROPERTY, PROJECT_KEY_PROPERTY));
     }
 
-    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
-    if (mutualExclusionError.isPresent()) {
-      return mutualExclusionError.get();
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
     }
 
-    if (projectId != null && (branch != null || pullRequest != null)) {
+    if (projectId != null && (branchPullRequest.branch() != null || branchPullRequest.pullRequest() != null)) {
       return Tool.Result.failure("Project ID doesn't work with branches or pull requests");
     }
 
-    var projectStatus = serverApiProvider.get().qualityGatesApi().getProjectQualityGateStatus(analysisId, branch, projectId, projectKey, pullRequest);
+    var projectStatus = serverApiProvider.get().qualityGatesApi().getProjectQualityGateStatus(
+      analysisId, branchPullRequest.branch(), projectId, projectKey, branchPullRequest.pullRequest());
     var toolResponse = buildStructuredContent(projectStatus);
     return Tool.Result.success(toolResponse);
   }

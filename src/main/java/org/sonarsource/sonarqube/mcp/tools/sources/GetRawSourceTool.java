@@ -37,8 +37,7 @@ public class GetRawSourceTool extends Tool {
       .setTitle("Get SonarQube Raw Source Code")
       .setDescription("Get source code as raw text. Requires 'See Source Code' permission on file.")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
-      .addBranchProperty()
-      .addPullRequestProperty()
+      .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
       .build(),
       ToolCategory.SOURCES);
@@ -48,16 +47,14 @@ public class GetRawSourceTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
-
-    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
-    if (mutualExclusionError.isPresent()) {
-      return mutualExclusionError.get();
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
     }
-    
+
     try {
-      var rawSource = serverApiProvider.get().sourcesApi().getRawSource(key, branch, pullRequest);
+      var rawSource = serverApiProvider.get().sourcesApi().getRawSource(key, branchPullRequest.branch(), branchPullRequest.pullRequest());
       var response = new GetRawSourceToolResponse(key, rawSource);
       return Tool.Result.success(response);
     } catch (Exception e) {

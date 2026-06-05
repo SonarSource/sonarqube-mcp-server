@@ -22,6 +22,10 @@ import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
+import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.isLongLivedBranchType;
+import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.parseBranchType;
+import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.parseQualityGateStatus;
+
 public class ListBranchesTool extends Tool {
 
   public static final String TOOL_NAME = "list_branches";
@@ -35,9 +39,9 @@ public class ListBranchesTool extends Tool {
     super(SchemaToolBuilder.forOutput(ListBranchesToolResponse.class)
         .setName(TOOL_NAME)
         .setTitle("List SonarQube Branches")
-        .setDescription("List branches for a project. " +
+        .setDescription("List long-lived branches for a project (e.g. main, develop, master). " +
           "Use returned branch names as the branch parameter on other tools (e.g. get_project_quality_gate_status, get_component_measures). " +
-          "For pull requests and feature branches, use list_pull_requests instead.")
+          "For pull requests, use list_pull_requests instead.")
         .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)", configuredProjectKey)
         .setReadOnlyHint()
         .build(),
@@ -53,11 +57,12 @@ public class ListBranchesTool extends Tool {
     var response = serverApiProvider.get().projectBranchesApi().listBranches(projectKey);
 
     var branches = response.branches().stream()
+      .filter(branch -> isLongLivedBranchType(branch.type()))
       .map(branch -> new ListBranchesToolResponse.Branch(
         branch.name(),
-        Boolean.TRUE.equals(branch.isMain()),
-        branch.type(),
-        branch.status() != null ? branch.status().qualityGateStatus() : null,
+        branch.isMain(),
+        parseBranchType(branch.type()),
+        branch.status() != null ? parseQualityGateStatus(branch.status().qualityGateStatus()) : null,
         branch.analysisDate(),
         branch.branchId()
       ))

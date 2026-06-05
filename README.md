@@ -1047,7 +1047,7 @@ SOCKS5 proxies are supported.
   - `page` - Optional page number - _String_
 
 
-- **list_branches** - List branches for a project. Use returned branch names as the `branch` parameter on other tools. For pull requests, use `list_pull_requests` instead.
+- **list_branches** - List long-lived branches for a project (e.g. main, develop, master). Returns only `LONG` branches on SonarQube Cloud and `BRANCH` entries on SonarQube Server — names safe for the `branch` parameter on other tools. For pull requests, use `list_pull_requests` instead.
   - `projectKey` - Project key (e.g. my_project) - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
 
 

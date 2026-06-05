@@ -38,8 +38,7 @@ public class GetDuplicationsTool extends Tool {
       .setTitle("Get SonarQube Code Duplications")
       .setDescription("Get duplications for a file. Requires Browse permission on file's project")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
-      .addBranchProperty()
-      .addPullRequestProperty()
+      .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
       .build(),
       ToolCategory.DUPLICATIONS);
@@ -49,15 +48,14 @@ public class GetDuplicationsTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
-
-    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
-    if (mutualExclusionError.isPresent()) {
-      return mutualExclusionError.get();
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
     }
-    
-    var duplicationsResponse = serverApiProvider.get().duplicationsApi().getDuplications(key, branch, pullRequest);
+
+    var duplicationsResponse = serverApiProvider.get().duplicationsApi().getDuplications(
+      key, branchPullRequest.branch(), branchPullRequest.pullRequest());
     var response = buildStructuredContent(duplicationsResponse);
     return Tool.Result.success(response);
   }

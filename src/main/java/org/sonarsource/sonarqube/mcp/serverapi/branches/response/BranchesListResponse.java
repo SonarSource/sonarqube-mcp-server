@@ -23,11 +23,11 @@ public record BranchesListResponse(List<Branch> branches) {
 
   public record Branch(
     String name,
-    @Nullable Boolean isMain,
-    @Nullable String type,
+    boolean isMain,
+    String type,
     @Nullable Status status,
     @Nullable String analysisDate,
-    @Nullable String branchId
+    String branchId
   ) {
   }
 

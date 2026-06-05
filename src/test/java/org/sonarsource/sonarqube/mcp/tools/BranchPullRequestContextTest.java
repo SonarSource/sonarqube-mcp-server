@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,6 +44,26 @@ class BranchPullRequestContextTest {
 
     assertThat(result).isPresent();
     assertThat(result.get().isError()).isTrue();
+  }
+
+  @Test
+  void params_from_should_extract_branch_and_pull_request() {
+    var arguments = new Tool.Arguments(Map.of(
+      BranchPullRequestContext.BRANCH_PROPERTY, "develop",
+      BranchPullRequestContext.PULL_REQUEST_PROPERTY, "42"), null);
+
+    var params = BranchPullRequestContext.from(arguments);
+
+    assertThat(params.branch()).isEqualTo("develop");
+    assertThat(params.pullRequest()).isEqualTo("42");
+    assertThat(params.validationError()).isPresent();
+  }
+
+  @Test
+  void params_validationError_should_return_empty_when_only_branch_is_set() {
+    var arguments = new Tool.Arguments(Map.of(BranchPullRequestContext.BRANCH_PROPERTY, "main"), null);
+
+    assertThat(BranchPullRequestContext.from(arguments).validationError()).isEmpty();
   }
 
 }

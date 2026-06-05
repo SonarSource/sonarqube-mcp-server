@@ -55,8 +55,7 @@ public class SearchFilesByCoverageTool extends Tool {
         .setDescription("Search for files in a project sorted by coverage (ascending - worst coverage first). " +
           "This tool helps identify files that need test coverage improvements.")
         .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key to search in", configuredProjectKey)
-        .addBranchProperty()
-        .addPullRequestProperty()
+        .addBranchAndPullRequestProperties()
         .addNumberProperty(MAX_COVERAGE_PROPERTY, "Only return files with coverage below this threshold (0-100)")
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Page index (1-based, default: 1)")
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size (default: 100, max: 500)")
@@ -70,15 +69,14 @@ public class SearchFilesByCoverageTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
     var maxCoverage = arguments.getOptionalInteger(MAX_COVERAGE_PROPERTY);
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
 
-    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
-    if (mutualExclusionError.isPresent()) {
-      return mutualExclusionError.get();
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
     }
 
     if (maxCoverage != null && (maxCoverage < 0 || maxCoverage > 100)) {
@@ -89,8 +87,8 @@ public class SearchFilesByCoverageTool extends Tool {
     var actualPageSize = (pageSize != null && pageSize > 0) ? Math.min(pageSize, 500) : 100;
 
     // First, get project-level metrics for summary
-    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch,
-      List.of(METRIC_COVERAGE, METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES), pullRequest
+    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branchPullRequest.branch(),
+      List.of(METRIC_COVERAGE, METRIC_LINES_TO_COVER, METRIC_UNCOVERED_LINES), branchPullRequest.pullRequest()
     );
 
     // Then get the file tree with coverage metrics
@@ -100,9 +98,9 @@ public class SearchFilesByCoverageTool extends Tool {
 
     var params = new ComponentTreeParams(
       projectKey,
-      branch,
+      branchPullRequest.branch(),
       metricKeys,
-      pullRequest,
+      branchPullRequest.pullRequest(),
       // Only files
       "FIL",
       // All files in tree

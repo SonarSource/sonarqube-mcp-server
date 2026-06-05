@@ -71,10 +71,12 @@ class ListBranchesToolTests {
                      },
                      "type":{
                         "type":"string",
-                        "description":"Branch type in SonarQube"
+                        "enum":["LONG","SHORT","BRANCH"],
+                        "description":"Branch type in SonarQube (LONG on SonarCloud, BRANCH on SonarQube Server)"
                      },
                      "qualityGateStatus":{
                         "type":"string",
+                        "enum":["OK","ERROR","WARN","NONE"],
                         "description":"Quality gate status for this branch"
                      },
                      "analysisDate":{
@@ -87,6 +89,7 @@ class ListBranchesToolTests {
                      }
                   },
                   "required":[
+                     "branchId",
                      "isMain",
                      "name"
                   ]
@@ -134,10 +137,10 @@ class ListBranchesToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_list_branches(SonarQubeMcpServerTestHarness harness) {
+  void it_should_list_long_lived_branches_for_sonarqube_server(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project")
       .willReturn(aResponse().withResponseBody(
-        Body.fromJsonBytes(generateBranchesResponse().getBytes(StandardCharsets.UTF_8))
+        Body.fromJsonBytes(generateSonarQubeServerBranchesResponse().getBytes(StandardCharsets.UTF_8))
       )));
     var mcpClient = harness.newClient();
 
@@ -168,6 +171,31 @@ class ListBranchesToolTests {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_filter_short_branches_on_sonarcloud(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project")
+      .willReturn(aResponse().withResponseBody(
+        Body.fromJsonBytes(generateSonarCloudBranchesResponse().getBytes(StandardCharsets.UTF_8))
+      )));
+    var mcpClient = harness.newClient();
+
+    var result = mcpClient.callTool(ListBranchesTool.TOOL_NAME, Map.of(ListBranchesTool.PROJECT_KEY_PROPERTY, "my_project"));
+
+    assertResultEquals(result, """
+      {
+        "projectKey" : "my_project",
+        "totalBranches" : 1,
+        "branches" : [ {
+          "name" : "master",
+          "isMain" : true,
+          "type" : "LONG",
+          "qualityGateStatus" : "ERROR",
+          "analysisDate" : "2017-04-01T01:15:42+0100",
+          "branchId" : "88471269-96e8-47f8-8c7d-e40e729f1373"
+        } ]
+      }""");
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_handle_server_error_response(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project")
       .willReturn(aResponse().withStatus(500)));
@@ -186,7 +214,7 @@ class ListBranchesToolTests {
       """;
   }
 
-  private static String generateBranchesResponse() {
+  private static String generateSonarQubeServerBranchesResponse() {
     return """
       {
         "branches": [
@@ -209,6 +237,39 @@ class ListBranchesToolTests {
             },
             "analysisDate": "2017-04-01T01:15:42+0100",
             "branchId": "57f02458-65db-4e7f-a144-20122af12a4c"
+          }
+        ]
+      }
+      """;
+  }
+
+  private static String generateSonarCloudBranchesResponse() {
+    return """
+      {
+        "branches": [
+          {
+            "name": "feature/foo",
+            "isMain": false,
+            "type": "SHORT",
+            "mergeBranch": "master",
+            "status": {
+              "qualityGateStatus": "OK",
+              "bugs": 1,
+              "vulnerabilities": 0,
+              "codeSmells": 0
+            },
+            "analysisDate": "2017-08-03T13:37:00+0100",
+            "branchId": "93cb33a1-b3dd-4226-b0a0-1d74e4dec194"
+          },
+          {
+            "name": "master",
+            "isMain": true,
+            "type": "LONG",
+            "status": {
+              "qualityGateStatus": "ERROR"
+            },
+            "analysisDate": "2017-04-01T01:15:42+0100",
+            "branchId": "88471269-96e8-47f8-8c7d-e40e729f1373"
           }
         ]
       }

@@ -36,6 +36,18 @@ public final class BranchPullRequestContext {
     // utility class
   }
 
+  public record Params(@Nullable String branch, @Nullable String pullRequest) {
+    public Optional<Tool.Result> validationError() {
+      return validateMutualExclusion(branch, pullRequest);
+    }
+  }
+
+  public static Params from(Tool.Arguments arguments) {
+    return new Params(
+      arguments.getOptionalString(BRANCH_PROPERTY),
+      arguments.getOptionalString(PULL_REQUEST_PROPERTY));
+  }
+
   public static Optional<Tool.Result> validateMutualExclusion(@Nullable String branch, @Nullable String pullRequest) {
     if (branch != null && pullRequest != null) {
       return Optional.of(Tool.Result.failure(

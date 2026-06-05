@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
@@ -64,8 +63,7 @@ public class SearchIssuesTool extends Tool {
       .setDescription(description)
       .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of component keys (files, directories, modules) to filter issues")
-      .addBranchProperty()
-      .addPullRequestProperty()
+      .addBranchAndPullRequestProperties()
       .addEnumProperty(SEVERITIES_PROPERTY, VALID_SEVERITIES, "An optional list of severities to filter by")
       .addEnumProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES, "An optional list of software qualities to filter by")
       .addEnumProperty(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES, "An optional list of issue statuses to filter by. Note: IN_SANDBOX is valid only for SonarQube Server")
@@ -78,26 +76,24 @@ public class SearchIssuesTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
-
-    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
-    if (mutualExclusionError.isPresent()) {
-      return mutualExclusionError.get();
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
     }
 
-    var searchParams = extractSearchParams(arguments, branch);
+    var searchParams = extractSearchParams(arguments, branchPullRequest);
     var response = serverApiProvider.get().issuesApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }
 
-  private static IssuesApi.SearchParams extractSearchParams(Tool.Arguments arguments, @Nullable String branch) {
+  private static IssuesApi.SearchParams extractSearchParams(Tool.Arguments arguments, BranchPullRequestContext.Params branchPullRequest) {
     return new IssuesApi.SearchParams(
       arguments.getOptionalStringList(PROJECTS_PROPERTY),
-      branch,
+      branchPullRequest.branch(),
       arguments.getOptionalStringList(FILES_PROPERTY),
-      arguments.getOptionalString(PULL_REQUEST_PROPERTY),
+      branchPullRequest.pullRequest(),
       arguments.getOptionalEnumList(SEVERITIES_PROPERTY, VALID_SEVERITIES),
       arguments.getOptionalEnumList(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES),
       arguments.getOptionalEnumList(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES),

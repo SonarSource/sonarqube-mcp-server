@@ -19,6 +19,8 @@ package org.sonarsource.sonarqube.mcp.tools.branches;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import java.util.List;
 import jakarta.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.BranchType;
+import org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.QualityGateStatus;
 
 public record ListBranchesToolResponse(
   @JsonPropertyDescription("Project key") String projectKey,
@@ -29,10 +31,10 @@ public record ListBranchesToolResponse(
   public record Branch(
     @JsonPropertyDescription("Branch name that can be used with other tools as the branch parameter") String name,
     @JsonPropertyDescription("Whether this is the main branch") boolean isMain,
-    @JsonPropertyDescription("Branch type in SonarQube") @Nullable String type,
-    @JsonPropertyDescription("Quality gate status for this branch") @Nullable String qualityGateStatus,
+    @JsonPropertyDescription("Branch type in SonarQube (LONG on SonarCloud, BRANCH on SonarQube Server)") @Nullable BranchType type,
+    @JsonPropertyDescription("Quality gate status for this branch") @Nullable QualityGateStatus qualityGateStatus,
     @JsonPropertyDescription("Date of the last analysis") @Nullable String analysisDate,
-    @JsonPropertyDescription("Internal branch identifier") @Nullable String branchId
+    @JsonPropertyDescription("Internal branch identifier") String branchId
   ) {
   }
 

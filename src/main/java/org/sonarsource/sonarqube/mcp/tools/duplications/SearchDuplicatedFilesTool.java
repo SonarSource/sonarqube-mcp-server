@@ -61,8 +61,7 @@ public class SearchDuplicatedFilesTool extends Tool {
         .setDescription("Search for files with code duplications in a project. " +
           "By default, automatically fetches all duplicated files across all pages (up to 10,000 files max).")
         .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)", configuredProjectKey)
-        .addBranchProperty()
-        .addPullRequestProperty()
+        .addBranchAndPullRequestProperties()
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Optional: Number of results per page for manual pagination (max: 500). " +
           "If not specified, auto-fetches all duplicated files.")
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Optional: Page number for manual pagination (starts at 1). " +
@@ -77,29 +76,28 @@ public class SearchDuplicatedFilesTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
-    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
     var requestedPageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
     var requestedPageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
 
-    var mutualExclusionError = BranchPullRequestContext.validateMutualExclusion(branch, pullRequest);
-    if (mutualExclusionError.isPresent()) {
-      return mutualExclusionError.get();
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
     }
 
     // If user explicitly provided pagination parameters, use single-page mode
     var manualPagination = requestedPageSize != null || requestedPageIndex != null;
 
     if (manualPagination) {
-      return executeSinglePage(projectKey, branch, pullRequest, requestedPageSize != null ? requestedPageSize : DEFAULT_PAGE_SIZE,
+      return executeSinglePage(projectKey, branchPullRequest, requestedPageSize != null ? requestedPageSize : DEFAULT_PAGE_SIZE,
         requestedPageIndex != null ? requestedPageIndex : DEFAULT_PAGE_INDEX);
     }
 
     // Auto-fetch mode: fetch all pages to get all duplicated files
-    return executeAutoFetch(projectKey, branch, pullRequest);
+    return executeAutoFetch(projectKey, branchPullRequest);
   }
 
-  private Tool.Result executeSinglePage(String projectKey, @Nullable String branch, @Nullable String pullRequest, int pageSize, int pageIndex) {
+  private Tool.Result executeSinglePage(String projectKey, BranchPullRequestContext.Params branchPullRequest, int pageSize, int pageIndex) {
     if (pageSize <= 0 || pageSize > MAX_PAGE_SIZE) {
       return Tool.Result.failure("Page size must be between 1 and " + MAX_PAGE_SIZE);
     }
@@ -107,9 +105,11 @@ public class SearchDuplicatedFilesTool extends Tool {
       return Tool.Result.failure("Page index must be greater than 0");
     }
 
-    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest);
-    
-    var params = new ComponentTreeParams(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest, FILE_QUALIFIER, STRATEGY, null,
+    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(
+      projectKey, branchPullRequest.branch(), DUPLICATION_METRIC_KEYS, branchPullRequest.pullRequest());
+
+    var params = new ComponentTreeParams(projectKey, branchPullRequest.branch(), DUPLICATION_METRIC_KEYS, branchPullRequest.pullRequest(),
+      FILE_QUALIFIER, STRATEGY, null,
       null, null, pageIndex, pageSize, "metrics");
     var componentTree = serverApiProvider.get().measuresApi().getComponentTree(params);
 
@@ -117,15 +117,17 @@ public class SearchDuplicatedFilesTool extends Tool {
     return Tool.Result.success(response);
   }
 
-  private Tool.Result executeAutoFetch(String projectKey, @Nullable String branch, @Nullable String pullRequest) {
-    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest);
+  private Tool.Result executeAutoFetch(String projectKey, BranchPullRequestContext.Params branchPullRequest) {
+    var projectMetrics = serverApiProvider.get().measuresApi().getComponentMeasures(
+      projectKey, branchPullRequest.branch(), DUPLICATION_METRIC_KEYS, branchPullRequest.pullRequest());
 
     var allDuplicatedFiles = new ArrayList<ComponentTreeResponse.Component>();
     var currentPage = 1;
     var shouldContinue = true;
 
     while (currentPage <= MAX_PAGES_TO_FETCH && shouldContinue) {
-      var params = new ComponentTreeParams(projectKey, branch, DUPLICATION_METRIC_KEYS, pullRequest, FILE_QUALIFIER, STRATEGY,
+      var params = new ComponentTreeParams(projectKey, branchPullRequest.branch(), DUPLICATION_METRIC_KEYS, branchPullRequest.pullRequest(),
+        FILE_QUALIFIER, STRATEGY,
         null, null, null, currentPage, MAX_PAGE_SIZE, "metrics");
       var componentTree = serverApiProvider.get().measuresApi().getComponentTree(params);
 
