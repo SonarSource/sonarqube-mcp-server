@@ -317,7 +317,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(
         SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project",
-        SearchDependencyRisksTool.BRANCH_KEY_PROPERTY, "feature/new-feature"));
+        SearchDependencyRisksTool.BRANCH_PROPERTY, "feature/new-feature"));
 
       assertResultEquals(result, """
         {
@@ -371,7 +371,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(
         SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, "my-project",
-        SearchDependencyRisksTool.PULL_REQUEST_KEY_PROPERTY, "123"));
+        SearchDependencyRisksTool.PULL_REQUEST_PROPERTY, "123"));
 
       assertResultEquals(result, """
         {

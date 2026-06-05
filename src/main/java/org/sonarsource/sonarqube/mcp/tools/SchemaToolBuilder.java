@@ -79,6 +79,11 @@ public class SchemaToolBuilder {
     return this;
   }
 
+  public SchemaToolBuilder addBranchAndPullRequestProperties() {
+    return addStringProperty(BranchPullRequestContext.BRANCH_PROPERTY, BranchPullRequestContext.BRANCH_PROPERTY_DESCRIPTION)
+      .addStringProperty(BranchPullRequestContext.PULL_REQUEST_PROPERTY, BranchPullRequestContext.PULL_REQUEST_PROPERTY_DESCRIPTION);
+  }
+
   public SchemaToolBuilder addRequiredStringProperty(String propertyName, String description) {
     addStringProperty(propertyName, description);
     requiredProperties.add(propertyName);

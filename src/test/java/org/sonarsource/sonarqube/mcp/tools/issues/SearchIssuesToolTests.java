@@ -828,7 +828,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PULL_REQUEST_ID_PROPERTY, "5461"));
+        Map.of(SearchIssuesTool.PULL_REQUEST_PROPERTY, "5461"));
 
       assertResultEquals(result, """
         {
@@ -899,7 +899,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of("pullRequestId", "1"));
+        Map.of("pullRequest", "1"));
 
       assertResultEquals(result, """
         {

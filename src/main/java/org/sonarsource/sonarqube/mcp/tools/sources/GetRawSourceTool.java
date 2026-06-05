@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -25,7 +26,8 @@ public class GetRawSourceTool extends Tool {
 
   public static final String TOOL_NAME = "get_raw_source";
   public static final String KEY_PROPERTY = "key";
-  public static final String PULL_REQUEST_PROPERTY = "pullRequest";
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
+  public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
 
   private final ServerApiProvider serverApiProvider;
 
@@ -35,7 +37,7 @@ public class GetRawSourceTool extends Tool {
       .setTitle("Get SonarQube Raw Source Code")
       .setDescription("Get source code as raw text. Requires 'See Source Code' permission on file.")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
-      .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")
+      .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
       .build(),
       ToolCategory.SOURCES);
@@ -45,10 +47,14 @@ public class GetRawSourceTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
-    
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
+    }
+
     try {
-      var rawSource = serverApiProvider.get().sourcesApi().getRawSource(key, null, pullRequest);
+      var rawSource = serverApiProvider.get().sourcesApi().getRawSource(key, branchPullRequest.branch(), branchPullRequest.pullRequest());
       var response = new GetRawSourceToolResponse(key, rawSource);
       return Tool.Result.success(response);
     } catch (Exception e) {

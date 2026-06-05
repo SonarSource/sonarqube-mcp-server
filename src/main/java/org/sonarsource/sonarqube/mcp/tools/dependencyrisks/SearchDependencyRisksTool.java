@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -29,8 +30,8 @@ public class SearchDependencyRisksTool extends Tool {
 
   public static final String TOOL_NAME = "search_dependency_risks";
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
-  public static final String BRANCH_KEY_PROPERTY = "branchKey";
-  public static final String PULL_REQUEST_KEY_PROPERTY = "pullRequestKey";
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
+  public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
   public static final String PAGE_INDEX_PROPERTY = "pageIndex";
   public static final String PAGE_SIZE_PROPERTY = "pageSize";
 
@@ -47,8 +48,7 @@ public class SearchDependencyRisksTool extends Tool {
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +
         "paired with releases that appear in the analyzed project, application, or portfolio.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key", configuredProjectKey)
-      .addStringProperty(BRANCH_KEY_PROPERTY, "The branch key")
-      .addStringProperty(PULL_REQUEST_KEY_PROPERTY, "The pull request key")
+      .addBranchAndPullRequestProperties()
       .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional page index (1-based). Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
@@ -72,12 +72,17 @@ public class SearchDependencyRisksTool extends Tool {
       return Tool.Result.failure("Search Dependency Risks tool is not available for SonarQube Server because Advanced Security is not enabled.");
     }
     var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
-    var branchKey = arguments.getOptionalString(BRANCH_KEY_PROPERTY);
-    var pullRequestKey = arguments.getOptionalString(PULL_REQUEST_KEY_PROPERTY);
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
 
-    var response = provider.scaApi().getDependencyRisks(projectKey, branchKey, pullRequestKey, pageIndex, pageSize);
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
+    }
+
+    var response = provider.scaApi().getDependencyRisks(
+      projectKey, branchPullRequest.branch(), branchPullRequest.pullRequest(), pageIndex, pageSize);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }

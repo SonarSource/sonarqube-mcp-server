@@ -106,17 +106,28 @@ search_sonar_issues_in_projects({
     ps: 100
 });
 
-// Filter by issue status
+// Filter by issue status on a long-lived branch
 search_sonar_issues_in_projects({
     projects: ["my-project"],
     issueStatuses: ["OPEN", "CONFIRMED"],
     branch: "main"
 });
+```
 
-// Get a specific issue by key
-search_sonar_issues_in_projects({
-    issueKey: "AYz123abc"
-});
+### Branch vs Pull Request Context
+
+- **Long-lived branches** (main, develop): use `branch`. Discover names with `list_branches`.
+- **Pull requests / feature branches**: use `pullRequest`. Discover keys with `list_pull_requests`.
+- Never pass a git branch name to a `pullRequest` parameter.
+
+```javascript
+// Compare quality gate on develop vs main
+list_branches({ projectKey: "my-project" });
+get_project_quality_gate_status({ projectKey: "my-project", branch: "develop" });
+
+// Analyze an open pull request
+list_pull_requests({ projectKey: "my-project" });
+search_sonar_issues_in_projects({ projects: ["my-project"], pullRequest: "123" });
 ```
 
 **Managing Issue Status:**
@@ -219,7 +230,7 @@ const analysis = analyze_code_snippet({
 // Step 1: Search for issues in the pull request
 const issues = search_sonar_issues_in_projects({
     projects: ["my-project"],
-    pullRequestId: "123",
+    pullRequest: "123",
     severities: ["HIGH", "BLOCKER"],
     impactSoftwareQualities: ["SECURITY", "RELIABILITY"]
 });
@@ -276,7 +287,7 @@ const issues = search_sonar_issues_in_projects({
 // Step 1: Search for dependency risks (requires Server 2025.4+ Enterprise with Advanced Security)
 const risks = search_dependency_risks({
     projectKey: "my-project",
-    branchKey: "main"
+    branch: "main"
 });
 
 // Step 2: Review high-severity vulnerabilities

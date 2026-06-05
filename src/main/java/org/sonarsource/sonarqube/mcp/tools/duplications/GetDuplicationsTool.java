@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.duplications;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.duplications.response.DuplicationsResponse;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -26,7 +27,8 @@ public class GetDuplicationsTool extends Tool {
 
   public static final String TOOL_NAME = "get_duplications";
   public static final String KEY_PROPERTY = "key";
-  public static final String PULL_REQUEST_PROPERTY = "pullRequest";
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
+  public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
 
   private final ServerApiProvider serverApiProvider;
 
@@ -36,7 +38,7 @@ public class GetDuplicationsTool extends Tool {
       .setTitle("Get SonarQube Code Duplications")
       .setDescription("Get duplications for a file. Requires Browse permission on file's project")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
-      .addStringProperty(PULL_REQUEST_PROPERTY, "Pull request id")
+      .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
       .build(),
       ToolCategory.DUPLICATIONS);
@@ -46,9 +48,14 @@ public class GetDuplicationsTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
-    
-    var duplicationsResponse = serverApiProvider.get().duplicationsApi().getDuplications(key, null, pullRequest);
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
+    }
+
+    var duplicationsResponse = serverApiProvider.get().duplicationsApi().getDuplications(
+      key, branchPullRequest.branch(), branchPullRequest.pullRequest());
     var response = buildStructuredContent(duplicationsResponse);
     return Tool.Result.success(response);
   }

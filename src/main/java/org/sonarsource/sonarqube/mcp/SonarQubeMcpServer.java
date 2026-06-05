@@ -87,9 +87,10 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemInfoTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemLogsTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
+import org.sonarsource.sonarqube.mcp.tools.branches.ListBranchesTool;
+import org.sonarsource.sonarqube.mcp.tools.pullrequests.ListPullRequestsTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
-import org.sonarsource.sonarqube.mcp.tools.pullrequests.ListPullRequestsTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
@@ -106,6 +107,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     4. When a user mentions a project by name, use `search_my_sonarqube_projects` to find the exact key.
     5. If no key is found, use `search_my_sonarqube_projects` to list projects.
     An incorrect project key will silently return results from the wrong project.
+    """;
+  private static final String BRANCH_PULL_REQUEST_INSTRUCTIONS = """
+    ## Branch vs Pull Request Context
+    - Long-lived branches (main, develop, release/*): use `branch`. Discover names with `list_branches`.
+    - Pull requests / feature branches: use `pullRequest`. Discover keys with `list_pull_requests`.
+    - Never pass a git branch name to a pullRequest parameter — it expects the SonarQube PR key.
+    - Never provide both branch and pullRequest on the same call.
+    - Omit both to query the default (main) branch analysis.
     """;
   private static final String BASE_INSTRUCTIONS_WITH_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
     "Analyze code, monitor project health, investigate issues, and understand quality gates. " +
@@ -377,7 +386,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new GetDuplicationsTool(this),
       new SearchDuplicatedFilesTool(this, configuredProjectKey),
       new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new ListPullRequestsTool(this, configuredProjectKey)));
+      new ListPullRequestsTool(this, configuredProjectKey),
+      new ListBranchesTool(this, configuredProjectKey)));
 
     if (mcpConfiguration.isHttpEnabled()) {
       // In HTTP mode there is no startup token to probe SCA availability
@@ -462,6 +472,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     composedInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
       ? BASE_INSTRUCTIONS_WITH_ANALYSIS
       : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
+    composedInstructions += "\n" + BRANCH_PULL_REQUEST_INSTRUCTIONS;
     if (mcpConfiguration.getProjectKey() == null) {
       composedInstructions += "\n" + PROJECT_KEY_INSTRUCTIONS;
     }

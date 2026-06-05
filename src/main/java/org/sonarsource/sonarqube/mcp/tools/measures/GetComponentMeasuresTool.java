@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -28,8 +29,9 @@ public class GetComponentMeasuresTool extends Tool {
 
   public static final String TOOL_NAME = "get_component_measures";
   public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String METRIC_KEYS_PROPERTY = "metricKeys";
-  public static final String PULL_REQUEST_PROPERTY = "pullRequest";
+  public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
@@ -41,8 +43,8 @@ public class GetComponentMeasuresTool extends Tool {
       .setTitle("Get SonarQube Project Measures")
       .setDescription("Get SonarQube measures for a project, such as ncloc, complexity, violations, coverage, etc.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key", configuredProjectKey)
+      .addBranchAndPullRequestProperties()
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
-      .addStringProperty(PULL_REQUEST_PROPERTY, "The pull request identifier to analyze for measures")
       .setReadOnlyHint()
       .build(),
       ToolCategory.MEASURES);
@@ -53,10 +55,16 @@ public class GetComponentMeasuresTool extends Tool {
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
     var component = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
+    var branchPullRequest = BranchPullRequestContext.from(arguments);
     var metricKeys = arguments.getOptionalStringList(METRIC_KEYS_PROPERTY);
-    var pullRequest = arguments.getOptionalString(PULL_REQUEST_PROPERTY);
 
-    var response = serverApiProvider.get().measuresApi().getComponentMeasures(component, null, metricKeys, pullRequest);
+    var validationError = branchPullRequest.validationError();
+    if (validationError.isPresent()) {
+      return validationError.get();
+    }
+
+    var response = serverApiProvider.get().measuresApi().getComponentMeasures(
+      component, branchPullRequest.branch(), metricKeys, branchPullRequest.pullRequest());
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }
@@ -97,4 +105,4 @@ public class GetComponentMeasuresTool extends Tool {
     return new GetComponentMeasuresToolResponse(componentResponse, measures, metrics);
   }
 
-} 
+}
