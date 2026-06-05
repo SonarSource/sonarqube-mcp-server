@@ -117,8 +117,7 @@ public abstract class Tool {
       var arg = argumentsMap.get(argumentName);
       return switch (arg) {
         case Integer integer -> integer;
-        case String string when string.isBlank() -> null;
-        case String string -> Integer.parseInt(string);
+        case String string when !string.isBlank() -> Integer.parseInt(string);
         case null, default -> null;
       };
     }
@@ -128,8 +127,7 @@ public abstract class Tool {
       var arg = argumentsMap.get(argumentName);
       return switch (arg) {
         case Boolean bool -> bool;
-        case String string when string.isBlank() -> null;
-        case String string -> Boolean.parseBoolean(string);
+        case String string when !string.isBlank() -> Boolean.parseBoolean(string);
         case null, default -> null;
       };
     }
