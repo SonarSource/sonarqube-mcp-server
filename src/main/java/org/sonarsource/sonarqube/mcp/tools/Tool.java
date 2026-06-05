@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
@@ -92,7 +93,8 @@ public abstract class Tool {
       }
       var arg = argumentsMap.get(argumentName);
       return switch (arg) {
-        case String string -> string;
+        case String string when !string.isBlank() -> string;
+        case String ignored -> throw new MissingRequiredArgumentException(argumentName);
         case null -> throw new MissingRequiredArgumentException(argumentName);
         default -> String.valueOf(arg);
       };
@@ -115,7 +117,7 @@ public abstract class Tool {
       var arg = argumentsMap.get(argumentName);
       return switch (arg) {
         case Integer integer -> integer;
-        case String string -> Integer.parseInt(string);
+        case String string when !string.isBlank() -> Integer.parseInt(string);
         case null, default -> null;
       };
     }
@@ -125,7 +127,7 @@ public abstract class Tool {
       var arg = argumentsMap.get(argumentName);
       return switch (arg) {
         case Boolean bool -> bool;
-        case String string -> Boolean.parseBoolean(string);
+        case String string when !string.isBlank() -> Boolean.parseBoolean(string);
         case null, default -> null;
       };
     }
@@ -134,10 +136,9 @@ public abstract class Tool {
     public String getOptionalString(String argumentName) {
       var arg = argumentsMap.get(argumentName);
       if (arg instanceof String string) {
-        return string;
-      } else {
-        return null;
+        return string.isBlank() ? null : string;
       }
+      return null;
     }
 
     /**
@@ -148,7 +149,7 @@ public abstract class Tool {
      */
     public String getProjectKeyWithFallback(String argumentName, @Nullable String configuredDefault) {
       var fromArg = getOptionalString(argumentName);
-      if (fromArg != null && !fromArg.isBlank()) {
+      if (fromArg != null) {
         return fromArg;
       }
       if (configuredDefault != null && !configuredDefault.isBlank()) {
@@ -174,49 +175,39 @@ public abstract class Tool {
     }
 
     @Nullable
-    @SuppressWarnings("unchecked")
     public List<String> getOptionalStringList(String argumentName) {
-      return (List<String>) argumentsMap.get(argumentName);
+      var arg = argumentsMap.get(argumentName);
+      if (!(arg instanceof List<?> list)) {
+        return null;
+      }
+      var values = list.stream()
+        .filter(Objects::nonNull)
+        .map(String::valueOf)
+        .filter(value -> !value.isBlank())
+        .toList();
+      return values.isEmpty() ? null : values;
     }
 
     @Nullable
     public String getOptionalEnumValue(String argumentName, String[] validValues) {
-      var arg = argumentsMap.get(argumentName);
-      if (arg == null) {
+      var value = resolveEnumArgumentValue(argumentName);
+      if (value == null) {
         return null;
       }
-      
-      var value = switch (arg) {
-        case String string -> string;
-        case List<?> list when !list.isEmpty() -> String.valueOf(list.getFirst());
-        case List<?> ignored -> null;
-        default -> String.valueOf(arg);
-      };
-      
-      if (value != null && !isValidEnumValue(value, validValues)) {
+      if (!isValidEnumValue(value, validValues)) {
         throw new IllegalArgumentException("Invalid " + argumentName + ": " + value + ". Possible values: " + String.join(", ", validValues));
       }
-      
       return value;
     }
 
     public String getEnumOrThrow(String argumentName, String[] validValues) {
-      var arg = argumentsMap.get(argumentName);
-      if (arg == null) {
+      var value = resolveEnumArgumentValue(argumentName);
+      if (value == null) {
         throw new MissingRequiredArgumentException(argumentName);
       }
-      
-      var value = switch (arg) {
-        case String string -> string;
-        case List<?> list when !list.isEmpty() -> String.valueOf(list.getFirst());
-        case List<?> ignored -> throw new MissingRequiredArgumentException(argumentName);
-        default -> String.valueOf(arg);
-      };
-      
       if (!isValidEnumValue(value, validValues)) {
         throw new IllegalArgumentException("Invalid " + argumentName + ": " + value + ". Possible values: " + String.join(", ", validValues));
       }
-      
       return value;
     }
 
@@ -238,6 +229,21 @@ public abstract class Tool {
       return values;
     }
     
+
+    @Nullable
+    private String resolveEnumArgumentValue(String argumentName) {
+      var arg = argumentsMap.get(argumentName);
+      if (arg == null) {
+        return null;
+      }
+      var value = switch (arg) {
+        case String string -> string;
+        case List<?> list when !list.isEmpty() -> String.valueOf(list.getFirst());
+        case List<?> ignored -> null;
+        default -> String.valueOf(arg);
+      };
+      return value != null && value.isBlank() ? null : value;
+    }
 
     private static boolean isValidEnumValue(String value, String[] validValues) {
       for (var validValue : validValues) {
