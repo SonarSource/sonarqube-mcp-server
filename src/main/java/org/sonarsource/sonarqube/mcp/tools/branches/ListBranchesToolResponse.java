@@ -31,7 +31,7 @@ public record ListBranchesToolResponse(
   public record Branch(
     @JsonPropertyDescription("Branch name that can be used with other tools as the branch parameter") String name,
     @JsonPropertyDescription("Whether this is the main branch") boolean isMain,
-    @JsonPropertyDescription("Branch type in SonarQube (LONG on SonarCloud, BRANCH on SonarQube Server)") @Nullable BranchType type,
+    @JsonPropertyDescription("Branch type in SonarQube (LONG on SonarQube Cloud, BRANCH on SonarQube Server)") @Nullable BranchType type,
     @JsonPropertyDescription("Quality gate status for this branch") @Nullable QualityGateStatus qualityGateStatus,
     @JsonPropertyDescription("Date of the last analysis") @Nullable String analysisDate,
     @JsonPropertyDescription("Internal branch identifier") String branchId
