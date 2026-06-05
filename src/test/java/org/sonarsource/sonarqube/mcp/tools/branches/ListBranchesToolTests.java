@@ -72,7 +72,7 @@ class ListBranchesToolTests {
                      "type":{
                         "type":"string",
                         "enum":["LONG","SHORT","BRANCH"],
-                        "description":"Branch type in SonarQube (LONG on SonarCloud, BRANCH on SonarQube Server)"
+                        "description":"Branch type in SonarQube (LONG on SonarQube Cloud, BRANCH on SonarQube Server)"
                      },
                      "qualityGateStatus":{
                         "type":"string",
