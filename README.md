@@ -679,6 +679,7 @@ Unencrypted HTTP transport. Use HTTPS instead for multi-user deployments.
 | `SONARQUBE_TRANSPORT`| Set to `http` to enable HTTP transport                           | Not set (stdio) |
 | `SONARQUBE_HTTP_PORT`| Port number (1024-65535)                                         | `8080`          |
 | `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)                | `127.0.0.1`     |
+| `SONARQUBE_HTTP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed for CORS (e.g. `https://my-app.example.com`) | Not set |
 | `SONARQUBE_MCP_IN_CONTAINER` | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false` |
 
 **Note:** In HTTP(S) mode, the server is stateless — each client request must include an `Authorization: Bearer <token>` header carrying the user's own SonarQube token. For SonarQube Cloud, the organization is resolved as follows:
@@ -694,12 +695,13 @@ Secure multi-user transport with TLS encryption. Requires SSL certificates.
 
 > ✅ **Recommended for Production:** Use HTTPS when deploying the MCP server for multiple users. The server binds to `127.0.0.1` (localhost) by default for security.
 
-| Environment variable | Description                                                      | Default         |
-|----------------------|------------------------------------------------------------------|-----------------|
-| `SONARQUBE_TRANSPORT`| Set to `https` to enable HTTPS transport                         | Not set (stdio) |
-| `SONARQUBE_HTTP_PORT`| Port number (typically 8443 for HTTPS)                          | `8080`          |
-| `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)               | `127.0.0.1`     |
-| `SONARQUBE_MCP_IN_CONTAINER` | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false` |
+| Environment variable             | Description                                                                                                                                                                        | Default         |
+|----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|
+| `SONARQUBE_TRANSPORT`            | Set to `https` to enable HTTPS transport                                                                                                                                           | Not set (stdio) |
+| `SONARQUBE_HTTP_PORT`            | Port number (typically 8443 for HTTPS)                                                                                                                                             | `8080`          |
+| `SONARQUBE_HTTP_HOST`            | Host to bind (defaults to localhost for security)                                                                                                                                  | `127.0.0.1`     |
+| `SONARQUBE_HTTP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed for CORS (e.g. `https://my-app.example.com`)                                                                                               | Not set         |
+| `SONARQUBE_MCP_IN_CONTAINER`     | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false`         |
 
 **SSL Certificate Configuration (Optional):**
 
@@ -711,7 +713,7 @@ Secure multi-user transport with TLS encryption. Requires SSL certificates.
 
 **Example - Docker with SonarQube Cloud:**
 
-> **Note:** When running in a container, set `SONARQUBE_HTTP_HOST=0.0.0.0` so the container listens on all interfaces and the runtime's port mapping works, and set `SONARQUBE_MCP_IN_CONTAINER=true` to tell the server it is inside a container. The official Docker image sets the latter automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). The host-side port flag controls who can reach the server from outside the container.
+> **Note:** When running in a container, set `SONARQUBE_HTTP_HOST=0.0.0.0` so the container listens on all interfaces and the runtime's port mapping works, and set `SONARQUBE_MCP_IN_CONTAINER=true` to tell the server it is inside a container. The official Docker image sets the latter automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). The host-side port flag controls who can reach the server from outside the container. `SONARQUBE_HTTP_HOST=0.0.0.0` only controls where the server listens inside the container — browser CORS still allows localhost origins by default.
 
 For a server running **locally on your machine** (accessible only from localhost):
 ```bash
