@@ -49,7 +49,6 @@ public class McpSecurityFilter implements Filter {
   );
 
   private final String hostBinding;
-  private final boolean allowAllOrigins;
   private final Set<String> extraAllowedOrigins;
   private final String serverVersion;
 
@@ -59,9 +58,6 @@ public class McpSecurityFilter implements Filter {
 
   public McpSecurityFilter(String hostBinding, List<String> extraAllowedOrigins, String serverVersion) {
     this.hostBinding = hostBinding;
-    // Only allow all origins if explicitly bound to all interfaces (0.0.0.0)
-    // Otherwise, restrict to localhost origins
-    this.allowAllOrigins = "0.0.0.0".equals(hostBinding);
     this.extraAllowedOrigins = Set.copyOf(extraAllowedOrigins);
     this.serverVersion = serverVersion;
 
@@ -105,7 +101,7 @@ public class McpSecurityFilter implements Filter {
 
     if (origin != null && isOriginAllowed(origin)) {
       httpResponse.setHeader("Access-Control-Allow-Origin", origin);
-    } else if (allowAllOrigins || isOptionsRequest) {
+    } else if (isOptionsRequest) {
       httpResponse.setHeader("Access-Control-Allow-Origin", "*");
     }
 
@@ -143,16 +139,12 @@ public class McpSecurityFilter implements Filter {
    * Check if the given origin is allowed based on the server's host binding and the configured extra allowed origins.
    */
   private boolean isOriginAllowed(String origin) {
-    if (allowAllOrigins) {
-      return true;
-    }
-
     if (extraAllowedOrigins.contains(origin)) {
       return true;
     }
 
-    // For localhost bindings, only allow localhost origins
-    if ("127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding)) {
+    // 0.0.0.0 is required for container port mapping; CORS policy stays restrictive.
+    if ("127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding) || "0.0.0.0".equals(hostBinding)) {
       return isLocalhostOrigin(origin);
     }
 

@@ -173,7 +173,8 @@ class McpSecurityFilterTest {
       Arguments.of("127.0.0.1", "http://[::1]:8080", "POST"),   // IPv6 localhost
       Arguments.of("127.0.0.1", "https://127.0.0.1:3000", "POST"),
       Arguments.of("127.0.0.1", "https://[::1]:8080", "POST"),  // IPv6 localhost over HTTPS
-      Arguments.of("0.0.0.0", "https://external-site.com", "POST")
+      Arguments.of("0.0.0.0", "http://localhost:3000", "POST"),
+      Arguments.of("0.0.0.0", "http://127.0.0.1:8080", "POST")
     );
   }
 
@@ -191,14 +192,26 @@ class McpSecurityFilterTest {
   }
 
   @Test
-  void should_use_wildcard_when_bound_to_all_interfaces_without_origin() throws Exception {
+  void should_reject_external_origin_when_bound_to_all_interfaces() throws Exception {
+    var filter = new McpSecurityFilter("0.0.0.0", "1.0.0");
+    when(request.getHeader("Origin")).thenReturn("https://external-site.com");
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain, never()).doFilter(any(), any());
+  }
+
+  @Test
+  void should_not_set_origin_header_when_no_origin_and_all_interfaces_binding() throws Exception {
     var filter = new McpSecurityFilter("0.0.0.0", "1.0.0");
     when(request.getHeader("Origin")).thenReturn(null);
     when(request.getMethod()).thenReturn("POST");
 
     filter.doFilter(request, response, filterChain);
 
-    verify(response).setHeader("Access-Control-Allow-Origin", "*");
+    verify(response, never()).setHeader(eq("Access-Control-Allow-Origin"), any());
     verify(filterChain).doFilter(request, response);
   }
 
@@ -268,7 +281,9 @@ class McpSecurityFilterTest {
       Arguments.of("localhost", "http://localhost:3000", "POST", true, "localhost binding accepts localhost origins"),
       Arguments.of("192.168.1.100", "http://localhost:3000", "POST", false, "custom host binding rejects all origins"),
       Arguments.of("127.0.0.1", "https://malicious.com", "GET", false, "GET with disallowed origin should be rejected"),
-      Arguments.of("127.0.0.1", "http://localhost:3000", "POST", true, "POST with allowed origin should be accepted")
+      Arguments.of("127.0.0.1", "http://localhost:3000", "POST", true, "POST with allowed origin should be accepted"),
+      Arguments.of("0.0.0.0", "https://external-site.com", "POST", false, "0.0.0.0 binding rejects external origins"),
+      Arguments.of("0.0.0.0", "http://localhost:3000", "POST", true, "0.0.0.0 binding accepts localhost origins")
     );
   }
 
@@ -276,6 +291,18 @@ class McpSecurityFilterTest {
   void should_accept_multiple_extra_allowed_origins() throws Exception {
     var filter = new McpSecurityFilter("127.0.0.1", List.of("https://sonarcloud.io", "https://sonarqube.us"), "1.0.0");
     when(request.getHeader("Origin")).thenReturn("https://sonarqube.us");
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain).doFilter(request, response);
+  }
+
+  @Test
+  void should_accept_extra_allowed_origin_when_bound_to_all_interfaces() throws Exception {
+    var filter = new McpSecurityFilter("0.0.0.0", List.of("https://sonarcloud.io"), "1.0.0");
+    when(request.getHeader("Origin")).thenReturn("https://sonarcloud.io");
     when(request.getMethod()).thenReturn("POST");
 
     filter.doFilter(request, response, filterChain);
