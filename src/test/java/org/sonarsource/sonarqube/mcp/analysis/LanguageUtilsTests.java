@@ -16,7 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp.analysis;
 
+import java.util.Arrays;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
@@ -40,9 +44,7 @@ class LanguageUtilsTests {
 
   @Test
   void should_return_null_for_null_string_input() {
-    var result = LanguageUtils.getSonarLanguageFromInput(null);
-
-    assertThat(result).isNull();
+    assertThat(LanguageUtils.getSonarLanguageFromInput(null)).isNull();
   }
 
   @Test
@@ -50,6 +52,84 @@ class LanguageUtilsTests {
     var result = LanguageUtils.mapSonarLanguageToLanguage(SonarLanguage.JAVA);
 
     assertThat(result).isEqualTo(Language.JAVA);
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "tsx, TS",
+    "TSX, TS",
+    "jsx, JS",
+    "JSX, JS"
+  })
+  void should_resolve_jsx_language_aliases(String input, SonarLanguage expected) {
+    assertThat(LanguageUtils.getSonarLanguageFromInput(input)).isEqualTo(expected);
+  }
+
+  @Test
+  void should_include_only_unambiguous_suffix_keys_in_valid_language_names() {
+    var names = Arrays.asList(LanguageUtils.getValidLanguageNames());
+    var keyCounts = new java.util.HashMap<String, Integer>();
+
+    for (var sonarLanguage : LanguageUtils.getSupportedSonarLanguages()) {
+      for (var suffix : sonarLanguage.getDefaultFileSuffixes()) {
+        var key = suffix.startsWith(".") ? suffix.substring(1).toLowerCase(Locale.ROOT) : suffix.toLowerCase(Locale.ROOT);
+        keyCounts.merge(key, 1, Integer::sum);
+        if (keyCounts.get(key) == 1) {
+          assertThat(names).as("missing unambiguous suffix key %s for %s", key, sonarLanguage).contains(key);
+        } else {
+          assertThat(names).as("ambiguous suffix key %s must not be exposed", key).doesNotContain(key);
+        }
+      }
+    }
+  }
+
+  @Test
+  void should_resolve_unambiguous_suffix_keys_only() {
+    var keyCounts = new java.util.HashMap<String, Integer>();
+    for (var sonarLanguage : LanguageUtils.getSupportedSonarLanguages()) {
+      for (var suffix : sonarLanguage.getDefaultFileSuffixes()) {
+        var key = suffix.startsWith(".") ? suffix.substring(1) : suffix;
+        keyCounts.merge(key, 1, Integer::sum);
+      }
+    }
+
+    for (var expected : LanguageUtils.getSupportedSonarLanguages()) {
+      for (var suffix : expected.getDefaultFileSuffixes()) {
+        var key = suffix.startsWith(".") ? suffix.substring(1) : suffix;
+        var resolved = LanguageUtils.getSonarLanguageFromInput(key);
+
+        if (keyCounts.get(key) == 1) {
+          assertThat(resolved).as("suffix key %s", key).isEqualTo(expected);
+          var expectedExtension = suffix.startsWith(".") ? suffix : "." + suffix;
+          assertThat(LanguageUtils.resolveAnalysisFileExtension(key, resolved)).isEqualTo(expectedExtension);
+        } else {
+          assertThat(resolved).as("ambiguous suffix key %s", key).isNull();
+        }
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "tsx, TS, .tsx",
+    "jsx, JS, .jsx",
+    "ts, TS, .ts",
+    "js, JS, .js",
+    "ipynb, IPYTHON, .ipynb",
+    "ipython, IPYTHON, .ipynb",
+    "java, JAVA, .java",
+    "jav, JAVA, .jav",
+    "kt, KOTLIN, .kt",
+    "kts, KOTLIN, .kts",
+    "kotlin, KOTLIN, .kt",
+    "php3, PHP, .php3",
+    "jspf, JSP, .jspf"
+  })
+  void should_resolve_language_and_extension(String languageInput, SonarLanguage expectedLanguage, String expectedExtension) {
+    var resolved = LanguageUtils.getSonarLanguageFromInput(languageInput);
+
+    assertThat(resolved).isEqualTo(expectedLanguage);
+    assertThat(LanguageUtils.resolveAnalysisFileExtension(languageInput, resolved)).isEqualTo(expectedExtension);
   }
 
 }
