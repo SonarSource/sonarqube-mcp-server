@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - Has correct permissions
  * - Can execute in the target environment (Alpine Linux)
  * - Is gracefully skipped when missing (no hang, clear error log)
- * - Discovers tools from the staging SonarCloud org (A3S is expected to be pre-enabled on
+ * - Discovers tools from the staging SonarQube Cloud org (A3S is expected to be pre-enabled on
  *   the {@code sonarlint-it} org in the staging environment)
  * <p>
  * The sonar-context-augmentation binary is downloaded automatically by the

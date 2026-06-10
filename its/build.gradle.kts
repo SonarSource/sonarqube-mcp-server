@@ -70,12 +70,29 @@ configurations.all {
     }
 }
 
+val rootProjectTestOutput = project(":").sourceSets["test"].output
+
+sourceSets {
+    test {
+        compileClasspath += rootProjectTestOutput
+        runtimeClasspath += rootProjectTestOutput
+    }
+}
+
+tasks.named<JavaCompile>("compileTestJava") {
+    dependsOn(project(":").tasks.named("compileTestJava"))
+}
+
 dependencies {
     testImplementation(project(":"))
+    testImplementation(libs.mcp.server)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.jupiter)
     testImplementation(libs.assertj)
+    testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.awaitility)
+    testImplementation(libs.commons.langs3)
     testRuntimeOnly(libs.junit.launcher)
 }
 
@@ -134,10 +151,15 @@ tasks.test {
 }
 
 tasks.register<Test>("integrationTest") {
-    description = "Runs integration tests for proxied MCP servers using Testcontainers"
+    description = "Runs Docker-based integration tests (Testcontainers)"
     group = "verification"
 
-    useJUnitPlatform()
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    useJUnitPlatform {
+        excludeTags("SonarCloud")
+    }
 
     val downloadedJarPath = System.getenv("DOWNLOADED_JAR_PATH")
     if (downloadedJarPath.isNullOrEmpty()) {
@@ -151,6 +173,27 @@ tasks.register<Test>("integrationTest") {
         logger.lifecycle("Using JAR: $jarPath")
         systemProperty("sonarqube.mcp.jar.path", jarPath)
     }
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+}
+
+tasks.register<Test>("sonarCloudIntegrationTest") {
+    description = "Runs SonarQube Cloud staging integration tests (requires SONARCLOUD_IT_TOKEN and Maven)"
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags("SonarCloud")
+    }
+
+    systemProperty("TELEMETRY_DISABLED", "true")
+    systemProperty("mcp.client.timeout.seconds", "120")
+    systemProperty("mcp.client.init.timeout.seconds", "120")
 
     testLogging {
         events("passed", "skipped", "failed")

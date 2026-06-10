@@ -53,10 +53,15 @@ jobs:
         include:
           - name: STDIO
             test_class: StdioTransportITest
+            sonarcloud: false
           - name: HTTP
             test_class: HttpTransportITest
+            sonarcloud: false
           - name: ProxiedServer
             test_class: ProxiedServerITest
+            sonarcloud: false
+          - name: SonarQubeCloud
+            sonarcloud: true
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -74,11 +79,16 @@ jobs:
             development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader username | ARTIFACTORY_USER;
             development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
 
+      - name: Install Maven
+        if: matrix.sonarcloud == true
+        run: sudo apt-get update && sudo apt-get install -y maven
+
       - name: Download plugin from Artifactory
+        if: matrix.sonarcloud != true
         env:
-          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL }}
-          ARTIFACTORY_PRIVATE_USERNAME: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER }}
-          ARTIFACTORY_PRIVATE_PASSWORD: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          ARTIFACTORY_URL: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL || '' }}
+          ARTIFACTORY_PRIVATE_USERNAME: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER || '' }}
+          ARTIFACTORY_PRIVATE_PASSWORD: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN || '' }}
           PROJECT_VERSION: ${{ needs.build.outputs.PROJECT_VERSION }}
         run: |
           set -euo pipefail
@@ -92,15 +102,30 @@ jobs:
           mkdir -p ${GITHUB_WORKSPACE}/downloaded-plugin
           mv sonarqube-mcp-server.jar ${GITHUB_WORKSPACE}/downloaded-plugin/
 
-      - name: Run Integration Tests
+      - name: Run Docker integration tests
+        if: matrix.sonarcloud != true
         env:
           SONARCLOUD_IT_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).SONARCLOUD_IT_TOKEN || '' }}
-          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL }}
-          ARTIFACTORY_USER: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER }}
-          ARTIFACTORY_ACCESS_TOKEN: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+          ARTIFACTORY_URL: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL || '' }}
+          ARTIFACTORY_USER: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER || '' }}
+          ARTIFACTORY_ACCESS_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN || '' }}
           DOWNLOADED_JAR_PATH: ${{ github.workspace }}/downloaded-plugin/sonarqube-mcp-server.jar
         run: |
           ./gradlew :its:integrationTest --tests "*${{ matrix.test_class }}" --info
+
+      - name: Run SonarQube Cloud staging integration tests
+        if: matrix.sonarcloud == true
+        env:
+          SONARCLOUD_IT_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).SONARCLOUD_IT_TOKEN || '' }}
+          ARTIFACTORY_URL: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL || '' }}
+          ARTIFACTORY_USER: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER || '' }}
+          ARTIFACTORY_ACCESS_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN || '' }}
+        run: |
+          if [ -z "${SONARCLOUD_IT_TOKEN}" ]; then
+            echo "::warning::SONARCLOUD_IT_TOKEN not available (e.g. fork PR); skipping SonarQube Cloud staging ITS"
+            exit 0
+          fi
+          ./gradlew :its:sonarCloudIntegrationTest --info
 
   promote:
     needs: [build, integration]
