@@ -27,14 +27,14 @@ jobs:
     outputs:
       PROJECT_VERSION: ${{ steps.build-step.outputs.project-version }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
         with:
           version: 2026.4.20
 
       - id: build-step
-        uses: SonarSource/ci-github-actions/build-gradle@2e3882b962944f14568afd6c3578a62c47616a60 # 1.5.1
+        uses: SonarSource/ci-github-actions/build-gradle@1ea2cea521e6c74144d9fc6053e854d6d8e5b379 # 1.5.4
         with:
           deploy-pull-request: true
           artifactory-reader-role: private-reader
@@ -58,15 +58,15 @@ jobs:
           - name: ProxiedServer
             test_class: ProxiedServerITest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
         with:
           version: 2026.4.20
 
       - name: Vault (SonarCloud IT token)
         id: secrets-sc
-        uses: SonarSource/vault-action-wrapper@0a3114fe1230b784c35b53b099f9ab1f1e538cc7 # 3.5.0
+        uses: SonarSource/vault-action-wrapper@881045d830534a70ec3c7c275fa3714412c8ff6e # 3.6.1
         with:
           secrets: |
             development/team/sonarlint/kv/data/sonarcloud-it token | SONARCLOUD_IT_TOKEN;
@@ -107,6 +107,6 @@ jobs:
     runs-on: github-ubuntu-latest-s  # Public repository runner
     name: Promote
     steps:
-      - uses: SonarSource/ci-github-actions/promote@2e3882b962944f14568afd6c3578a62c47616a60 # 1.5.1
+      - uses: SonarSource/ci-github-actions/promote@1ea2cea521e6c74144d9fc6053e854d6d8e5b379 # 1.5.4
         with:
           promote-pull-request: true
