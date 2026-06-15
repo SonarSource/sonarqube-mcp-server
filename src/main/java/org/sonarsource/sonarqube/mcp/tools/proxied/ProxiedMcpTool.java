@@ -43,15 +43,11 @@ public class ProxiedMcpTool extends Tool {
     var title = originalTool.title() != null ? originalTool.title() : originalTool.name();
     var description = originalTool.description() != null ? originalTool.description() : "Proxied MCP tool";
     
-    return new McpSchema.Tool(
-      toolName,
-      title,
-      description,
-      originalTool.inputSchema(),
-      null,
-      originalTool.annotations(),
-      null
-    );
+    return McpSchema.Tool.builder(toolName, originalTool.inputSchema())
+      .title(title)
+      .description(description)
+      .annotations(originalTool.annotations())
+      .build();
   }
   
   @Override

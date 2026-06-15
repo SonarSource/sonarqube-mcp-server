@@ -38,6 +38,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool.TOOL_NAME;
@@ -150,8 +151,7 @@ class AnalyzeCodeSnippetToolTests {
         TOOL_NAME,
         Map.of(AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, ""));
 
-      assertThat(result.isError()).isTrue();
-      assertThat(result.toString()).contains("Missing required argument: fileContent");
+      assertMissingRequiredArgument(result, "fileContent");
     }
   }
 
@@ -166,8 +166,7 @@ class AnalyzeCodeSnippetToolTests {
         TOOL_NAME,
         Map.of(AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, ""));
 
-      assertThat(result.isError()).isTrue();
-      assertThat(result.toString()).contains("Missing required argument: fileContent");
+      assertMissingRequiredArgument(result, "fileContent");
     }
 
     @SonarQubeMcpServerTest
@@ -263,7 +262,7 @@ class AnalyzeCodeSnippetToolTests {
             // TODO just do it
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php",
-          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, new String[] {"MAIN"}));
+          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, "MAIN"));
 
       assertResultEquals(result, """
         {
@@ -295,7 +294,7 @@ class AnalyzeCodeSnippetToolTests {
             // TODO just do it
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php",
-          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, new String[] {"TEST"}));
+          AnalyzeCodeSnippetTool.SCOPE_PROPERTY, "TEST"));
 
       assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
     }
@@ -519,7 +518,7 @@ class AnalyzeCodeSnippetToolTests {
           Map.of(AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
 
         assertThat(result.isError()).isTrue();
-        assertThat(result.toString()).contains("Missing required argument: filePath");
+        assertMissingRequiredArgument(result, "filePath");
       } finally {
         System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
         Files.deleteIfExists(workspaceDir);

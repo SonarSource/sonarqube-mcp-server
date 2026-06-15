@@ -92,8 +92,10 @@ public class AnalyzeCodeSnippetTool extends Tool {
       .setTitle("SonarQube Code Analysis")
       .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
         "Optionally provide a code snippet to filter issues — only issues within the snippet will be reported (snippet location is auto-detected). " +
-        "Always specify the language and the file scope (MAIN or TEST) for more accurate results.")
-      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key", configuredProjectKey);
+        "Always specify the language and the file scope (MAIN or TEST) for more accurate results.");
+    if (configuredProjectKey == null) {
+      builder = builder.addStringProperty(PROJECT_KEY_PROPERTY, "Optional SonarQube project key used to apply project quality profile rules.");
+    }
     if (workspaceConfigured) {
       builder = builder.addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
     } else {

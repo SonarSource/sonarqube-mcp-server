@@ -31,6 +31,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchDependencyRisksToolTests {
@@ -218,7 +219,7 @@ class SearchDependencyRisksToolTests {
 
       var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: projectKey").build());
+      assertMissingRequiredArgument(result, "projectKey");
     }
 
     @SonarQubeMcpServerTest

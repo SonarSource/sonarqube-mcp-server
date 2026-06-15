@@ -160,7 +160,7 @@ class ProxiedToolsLoaderMediumTest {
     assertThat(definition.title()).isEqualTo("Test Tool 1");
     assertThat(definition.description()).contains("A test tool");
     assertThat(definition.inputSchema()).isNotNull();
-    assertThat(definition.inputSchema().type()).isEqualTo("object");
+    assertThat((String) definition.inputSchema().get("type")).isEqualTo("object");
   }
 
   @Test

@@ -86,7 +86,7 @@ class InitializeMetaInjectingClientTransportTest {
     var capture = new CapturingTransport();
     var transport = new InitializeMetaInjectingClientTransport(capture, Map.of("mcp_server_id", "server-123"));
 
-    var callToolRequest = new McpSchema.CallToolRequest("some_tool", Map.of(), null);
+    var callToolRequest = McpSchema.CallToolRequest.builder("some_tool").arguments(Map.of()).build();
     var message = new McpSchema.JSONRPCRequest("2.0", McpSchema.METHOD_TOOLS_CALL, 2, callToolRequest);
 
     transport.sendMessage(message).block();
@@ -122,15 +122,14 @@ class InitializeMetaInjectingClientTransportTest {
   }
 
   private static McpSchema.JSONRPCRequest initializeMessage(Map<String, Object> meta) {
-    McpSchema.InitializeRequest init = meta == null
-      ? new McpSchema.InitializeRequest("2024-11-05",
-          McpSchema.ClientCapabilities.builder().build(),
-          new McpSchema.Implementation("client", "1.0"))
-      : new McpSchema.InitializeRequest("2024-11-05",
-          McpSchema.ClientCapabilities.builder().build(),
-          new McpSchema.Implementation("client", "1.0"),
-          meta);
-    return new McpSchema.JSONRPCRequest("2.0", McpSchema.METHOD_INITIALIZE, 1, init);
+    var initBuilder = McpSchema.InitializeRequest.builder(
+      "2024-11-05",
+      McpSchema.ClientCapabilities.builder().build(),
+      McpSchema.Implementation.builder("client", "1.0").build());
+    if (meta != null) {
+      initBuilder.meta(meta);
+    }
+    return new McpSchema.JSONRPCRequest("2.0", McpSchema.METHOD_INITIALIZE, 1, initBuilder.build());
   }
 
   /**

@@ -28,8 +28,10 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertToolExecutionError;
 
 class ChangeIssuesStatusToolTests {
 
@@ -39,22 +41,18 @@ class ChangeIssuesStatusToolTests {
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ChangeIssueStatusTool.TOOL_NAME)).findFirst().orElseThrow();
 
-    assertThat(tool.inputSchema()).isEqualTo(new McpSchema.JsonSchema(
-      "object",
-      Map.of(
+    assertThat(tool.inputSchema()).isEqualTo(Map.of(
+      "type", "object",
+      "properties", Map.of(
         "key", Map.of(
           "description", "The key of the issue which status should be changed",
           "type", "string"),
         "status", Map.of(
-          "type", "array",
+          "type", "string",
           "description", "The new status of the issue",
-          "items", Map.of(
-            "enum", List.of("accept", "falsepositive", "reopen"),
-            "type", "string"))),
-      List.of("key", "status"),
-      false,
-      Map.of(),
-      Map.of()));
+          "enum", List.of("accept", "falsepositive", "reopen"))),
+      "required", List.of("key", "status"),
+      "additionalProperties", false));
   }
 
   @SonarQubeMcpServerTest
@@ -109,10 +107,9 @@ class ChangeIssuesStatusToolTests {
 
       var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
-        Map.of("status", new String[] {"accept"}));
+        Map.of("status", "accept"));
 
-      assertThat(result)
-        .isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: key").build());
+      assertMissingRequiredArgument(result, "key");
     }
 
     @SonarQubeMcpServerTest
@@ -123,8 +120,7 @@ class ChangeIssuesStatusToolTests {
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k"));
 
-      assertThat(result)
-        .isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: status").build());
+      assertMissingRequiredArgument(result, "status");
     }
 
     @SonarQubeMcpServerTest
@@ -135,9 +131,9 @@ class ChangeIssuesStatusToolTests {
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of(
           "key", "k",
-          "status", new String[] {"yolo"}));
+          "status", "yolo"));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Invalid status: yolo. Possible values: accept, falsepositive, reopen").build());
+      assertToolExecutionError(result, "yolo");
     }
 
   }
@@ -154,7 +150,7 @@ class ChangeIssuesStatusToolTests {
       var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
-          "status", new String[] {"accept"}));
+          "status", "accept"));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true)
         .addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.")
@@ -170,7 +166,7 @@ class ChangeIssuesStatusToolTests {
       var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
-          "status", new String[] {"accept"}));
+          "status", "accept"));
 
       assertResultEquals(result, """
         {
@@ -192,7 +188,7 @@ class ChangeIssuesStatusToolTests {
       var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
-          "status", new String[] {"falsepositive"}));
+          "status", "falsepositive"));
 
       assertResultEquals(result, """
         {
@@ -214,7 +210,7 @@ class ChangeIssuesStatusToolTests {
       var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
-          "status", new String[] {"reopen"}));
+          "status", "reopen"));
 
       assertResultEquals(result, """
         {

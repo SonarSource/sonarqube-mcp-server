@@ -118,8 +118,6 @@ public class McpClientManager {
         .initializationTimeout(INITIALIZATION_TIMEOUT)
         .capabilities(McpSchema.ClientCapabilities.builder()
           .roots(false)
-          .elicitation()
-          .sampling()
           .build())
         .loggingConsumer(notification -> handleProxiedServerLog(config.name(), notification))
         .build();
@@ -173,7 +171,11 @@ public class McpClientManager {
 
     LOG.info("Executing tool: " + toolName);
 
-    var request = new McpSchema.CallToolRequest(toolName, arguments, meta);
+    var requestBuilder = McpSchema.CallToolRequest.builder(toolName).arguments(arguments);
+    if (meta != null) {
+      requestBuilder.meta(meta);
+    }
+    var request = requestBuilder.build();
     return client.callTool(request);
   }
 

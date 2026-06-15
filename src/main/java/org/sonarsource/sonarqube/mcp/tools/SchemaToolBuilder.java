@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,7 +108,19 @@ public class SchemaToolBuilder {
   }
 
   public SchemaToolBuilder addEnumProperty(String propertyName, String[] items, String description) {
-    var content = Map.of(TYPE_PROPERTY_NAME, ARRAY_TYPE, DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, "enum", items));
+    var content = new HashMap<String, Object>();
+    content.put(TYPE_PROPERTY_NAME, STRING_TYPE);
+    content.put(DESCRIPTION_KEY_NAME, description);
+    content.put("enum", List.of(items));
+    properties.put(propertyName, content);
+    return this;
+  }
+
+  public SchemaToolBuilder addEnumArrayProperty(String propertyName, String[] items, String description) {
+    var content = new HashMap<String, Object>();
+    content.put(TYPE_PROPERTY_NAME, ARRAY_TYPE);
+    content.put(DESCRIPTION_KEY_NAME, description);
+    content.put(ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, "enum", List.of(items)));
     properties.put(propertyName, content);
     return this;
   }
@@ -150,8 +161,11 @@ public class SchemaToolBuilder {
       throw new IllegalStateException("Cannot set a required property that does not exist.");
     }
 
-    var jsonSchema = new McpSchema.JsonSchema(OBJECT_TYPE, properties, requiredProperties, false, Collections.emptyMap(),
-      Collections.emptyMap());
+    var inputSchema = new HashMap<String, Object>();
+    inputSchema.put(TYPE_PROPERTY_NAME, OBJECT_TYPE);
+    inputSchema.put("properties", properties);
+    inputSchema.put("required", List.copyOf(requiredProperties));
+    inputSchema.put("additionalProperties", false);
 
     var toolAnnotations = new McpSchema.ToolAnnotations(
       null,
@@ -161,6 +175,11 @@ public class SchemaToolBuilder {
       true,
       null);
 
-    return new McpSchema.Tool(name, title, description, jsonSchema, outputSchemaFromClass, toolAnnotations, null);
+    return McpSchema.Tool.builder(name, inputSchema)
+      .title(title)
+      .description(description)
+      .outputSchema(outputSchemaFromClass)
+      .annotations(toolAnnotations)
+      .build();
   }
 }
