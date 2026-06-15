@@ -389,4 +389,34 @@ class ToolArgumentsTest {
       .hasMessage("Missing required argument: intArg");
   }
 
+  @Test
+  void should_prefer_argument_over_configured_project_key() {
+    var arguments = new Tool.Arguments(Map.of("projectKey", "from-arg"), null);
+
+    assertThat(arguments.getOptionalProjectKeyWithFallback("projectKey", "configured")).isEqualTo("from-arg");
+  }
+
+  @Test
+  void should_use_configured_project_key_when_argument_is_missing() {
+    var arguments = new Tool.Arguments(Map.of(), null);
+
+    assertThat(arguments.getOptionalProjectKeyWithFallback("projectKey", "configured")).isEqualTo("configured");
+  }
+
+  @Test
+  void should_return_null_when_neither_argument_nor_configured_project_key_is_available() {
+    var arguments = new Tool.Arguments(Map.of(), null);
+
+    assertThat(arguments.getOptionalProjectKeyWithFallback("projectKey", null)).isNull();
+  }
+
+  @Test
+  void should_throw_when_required_project_key_is_missing() {
+    var arguments = new Tool.Arguments(Map.of(), null);
+
+    assertThatThrownBy(() -> arguments.getProjectKeyWithFallback("projectKey", null))
+      .isInstanceOf(MissingRequiredArgumentException.class)
+      .hasMessage("Missing required argument: projectKey");
+  }
+
 }

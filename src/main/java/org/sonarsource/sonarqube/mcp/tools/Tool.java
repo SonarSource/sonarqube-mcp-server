@@ -148,6 +148,19 @@ public abstract class Tool {
      * If neither is available, a {@link MissingRequiredArgumentException} is thrown.
      */
     public String getProjectKeyWithFallback(String argumentName, @Nullable String configuredDefault) {
+      var resolved = getOptionalProjectKeyWithFallback(argumentName, configuredDefault);
+      if (resolved != null) {
+        return resolved;
+      }
+      throw new MissingRequiredArgumentException(argumentName);
+    }
+
+    /**
+     * Like {@link #getProjectKeyWithFallback}, but returns {@code null} when neither the argument
+     * nor a configured default is available.
+     */
+    @Nullable
+    public String getOptionalProjectKeyWithFallback(String argumentName, @Nullable String configuredDefault) {
       var fromArg = getOptionalString(argumentName);
       if (fromArg != null) {
         return fromArg;
@@ -155,7 +168,7 @@ public abstract class Tool {
       if (configuredDefault != null && !configuredDefault.isBlank()) {
         return configuredDefault;
       }
-      throw new MissingRequiredArgumentException(argumentName);
+      return null;
     }
 
     public int getIntOrDefault(String argumentName, int defaultValue) {

@@ -145,6 +145,18 @@ public class SchemaToolBuilder {
   }
 
   /**
+   * Adds an optional project key property, always exposed in the schema.
+   * When omitted at call time, a configured default may be applied at runtime; otherwise analysis
+   * may proceed without a project-specific quality profile.
+   */
+  public SchemaToolBuilder addOptionalProjectKeyProperty(String propertyName, @Nullable String configuredProjectKey) {
+    var description = configuredProjectKey != null
+      ? "Optional SonarQube project key. Defaults to the configured project when omitted."
+      : "Optional SonarQube project key. Uses organization default quality profiles when omitted.";
+    return addStringProperty(propertyName, description);
+  }
+
+  /**
    * Marks this tool as read-only, indicating it only reads data and doesn't modify any state.
    */
   public SchemaToolBuilder setReadOnlyHint() {
