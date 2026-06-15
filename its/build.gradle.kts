@@ -140,15 +140,16 @@ val downloadCagBinary = tasks.register("downloadCagBinary") {
     }
 }
 
-tasks.named<ProcessResources>("processTestResources") {
-    val skipCagDownload = gradle.startParameter.taskNames.any {
-        it.contains("sonarCloudIntegrationTest", ignoreCase = true)
+val cagTestResources = layout.buildDirectory.dir("integration-test-resources")
+
+val packageCagBinaryForIntegrationTest = tasks.register<Copy>("packageCagBinaryForIntegrationTest") {
+    description = "Packages the CAG binary on the Docker integration test classpath"
+    group = "verification"
+    dependsOn(downloadCagBinary)
+    from(layout.buildDirectory.dir("cag-binary")) {
+        include("sonar-context-augmentation")
     }
-    if (!skipCagDownload) {
-        from(downloadCagBinary) {
-            into("binaries")
-        }
-    }
+    into(cagTestResources.map { it.dir("binaries") })
 }
 
 tasks.test {
@@ -159,8 +160,10 @@ tasks.register<Test>("integrationTest") {
     description = "Runs Docker-based integration tests (Testcontainers)"
     group = "verification"
 
+    dependsOn(packageCagBinaryForIntegrationTest)
+
     testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
+    classpath = sourceSets["test"].runtimeClasspath + files(cagTestResources)
 
     useJUnitPlatform {
         excludeTags("SonarCloud")
