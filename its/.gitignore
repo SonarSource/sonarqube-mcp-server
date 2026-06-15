@@ -14,3 +14,6 @@ out/
 # Test outputs
 test-results/
 
+# Maven sample project build output
+projects/**/target/
+

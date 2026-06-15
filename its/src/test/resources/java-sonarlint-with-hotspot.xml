@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+
+    SonarQube MCP Server
+    Copyright (C) SonarSource
+    mailto:info AT sonarsource DOT com
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    See the Sonar Source-Available License for more details.
+
+    You should have received a copy of the Sonar Source-Available License
+    along with this program; if not, see https://sonarsource.com/license/ssal/
+
+-->
+<profile>
+  <name>SonarLint IT Java Hotspot</name>
+  <language>java</language>
+  <rules>
+    <!-- Security hotspot: unsafe logger configuration (Foo.configureLogging) -->
+    <rule>
+      <repositoryKey>java</repositoryKey>
+      <key>S4792</key>
+      <priority>BLOCKER</priority>
+    </rule>
+
+    <!-- Keep for pre 6.0 sonar-java version -->
+    <rule>
+      <repositoryKey>squid</repositoryKey>
+      <key>S4792</key>
+      <priority>BLOCKER</priority>
+    </rule>
+
+    <!-- Code smell: utility class without private constructor (Foo has only static members) -->
+    <rule>
+      <repositoryKey>java</repositoryKey>
+      <key>S1118</key>
+      <priority>MAJOR</priority>
+    </rule>
+  </rules>
+</profile>
