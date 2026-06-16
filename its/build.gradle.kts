@@ -103,8 +103,8 @@ val downloadCagBinary = tasks.register("downloadCagBinary") {
         tarGz.parentFile.mkdirs()
 
         val url = "https://binaries.sonarsource.com/Distribution/" +
-            "sonar-context-augmentation-alpine-$cagArch/" +
-            "sonar-context-augmentation-alpine-$cagArch-$cagVersion.tar.gz"
+            "sonar-context-augmentation-linux-$cagArch/" +
+            "sonar-context-augmentation-linux-$cagArch-$cagVersion.tar.gz"
         logger.lifecycle("Downloading CAG binary from: $url")
 
         URI(url).toURL().openStream().use { input ->
