@@ -571,8 +571,8 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 
 | Environment variable   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 |------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Context Augmentation tools are only available in stdio mode and require organization entitlement. In HTTP(S) mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [HTTP/HTTPS Transport](#2-http) below). |
-| `SONARQUBE_READ_ONLY`  | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`. In HTTP(S) mode, clients can send a `SONARQUBE_READ_ONLY` HTTP header to further restrict individual requests to read-only, but cannot lift a server-level read-only restriction (see [HTTP/HTTPS Transport](#2-http) below).                                                                                                                                                                                                                                                                                                         |
+| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Context Augmentation tools are only available in stdio mode and require organization entitlement. In Streamable HTTP mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [Streamable HTTP transport](#2-http-streamable-http) below). |
+| `SONARQUBE_READ_ONLY`  | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`. In Streamable HTTP mode, clients can send a `SONARQUBE_READ_ONLY` HTTP header to further restrict individual requests to read-only, but cannot lift a server-level read-only restriction (see [Streamable HTTP transport](#2-http-streamable-http) below).                                                                                                                                                                                                                                                                                                         |
 
 <details>
 <summary>Available Toolsets</summary>
@@ -650,10 +650,17 @@ To enable full functionality, the following environment variables must be set be
 
 ### Transport Modes
 
-The SonarQube MCP Server supports three transport modes:
+The [MCP specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) defines two transport mechanisms: **Stdio** and **Streamable HTTP**. The SonarQube MCP Server supports both:
+
+| MCP transport       | Server mode                           | Typical use                                                                                                            |
+|---------------------|---------------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| **Stdio**           | Default (no `SONARQUBE_TRANSPORT`)    | Local MCP clients that launch the server as a subprocess (Cursor, Claude Code, VS Code, etc.)                          |
+| **Streamable HTTP** | `SONARQUBE_TRANSPORT=http` or `https` | Remote or multi-user deployments; clients connect to `/mcp` over HTTP(S) (e.g. Windsurf with a self-hosted server URL) |
+
+> **Note:** **Streamable HTTP** is the current MCP network transport. The older SSE-only HTTP transport from earlier MCP versions is deprecated and not supported.
 
 #### 1. **Stdio** (Default - Recommended for Local Development)
-The recommended mode for local development and single-user setups, used by all MCP clients.
+The recommended mode for local development and single-user setups, used by most MCP clients.
 
 **Example - Docker with SonarQube Cloud:**
 ```json
@@ -671,20 +678,20 @@ The recommended mode for local development and single-user setups, used by all M
 }
 ```
 
-#### 2. **HTTP**
-Unencrypted HTTP transport. Use HTTPS instead for multi-user deployments.
+#### 2. **HTTP (Streamable HTTP)**
+Unencrypted Streamable HTTP transport. Use HTTPS instead for multi-user deployments.
 
-> ⚠️ **Not Recommended:** Use **Stdio** for local development or **HTTPS** for multi-user production deployments.
+> ⚠️ **Not Recommended:** Use **Stdio** for local development or **HTTPS (Streamable HTTP)** for multi-user production deployments.
 
 | Environment variable | Description                                                      | Default         |
 |----------------------|------------------------------------------------------------------|-----------------|
-| `SONARQUBE_TRANSPORT`| Set to `http` to enable HTTP transport                           | Not set (stdio) |
+| `SONARQUBE_TRANSPORT`| Set to `http` to enable Streamable HTTP transport                  | Not set (stdio) |
 | `SONARQUBE_HTTP_PORT`| Port number (1024-65535)                                         | `8080`          |
 | `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)                | `127.0.0.1`     |
 | `SONARQUBE_HTTP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed for CORS (e.g. `https://my-app.example.com`) | Not set |
 | `SONARQUBE_MCP_IN_CONTAINER` | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false` |
 
-**Note:** In HTTP(S) mode, the server is stateless — each client request must include an `Authorization: Bearer <token>` header carrying the user's own SonarQube token. For SonarQube Cloud, the organization is resolved as follows:
+**Note:** In Streamable HTTP mode (HTTP or HTTPS), the server is stateless — each client request must include an `Authorization: Bearer <token>` header carrying the user's own SonarQube token. For SonarQube Cloud, the organization is resolved as follows:
 - If `SONARQUBE_ORG` is set at server startup, all requests are routed to that organization. Clients must **not** send a `SONARQUBE_ORG` header — doing so will result in an error.
 - If `SONARQUBE_ORG` is not set at server startup, each client **must** supply a `SONARQUBE_ORG` header on every request.
 Clients can also narrow the visible tools per-request by supplying `SONARQUBE_TOOLSETS` and/or `SONARQUBE_READ_ONLY` headers; these apply additional filtering on top of the server-level configuration — they can only reduce the scope, never expand it.
@@ -692,14 +699,14 @@ No session state is maintained between requests.
 
 > **Deprecated:** The `SONARQUBE_TOKEN` request header is still accepted for backward compatibility but will be removed in a future version. Migrate to `Authorization: Bearer <token>`.
 
-#### 3. **HTTPS** (Recommended for Multi-User Production Deployments)
-Secure multi-user transport with TLS encryption. Requires SSL certificates.
+#### 3. **HTTPS (Streamable HTTP over TLS)** (Recommended for Multi-User Production Deployments)
+Secure Streamable HTTP transport with TLS encryption. Requires SSL certificates.
 
-> ✅ **Recommended for Production:** Use HTTPS when deploying the MCP server for multiple users. The server binds to `127.0.0.1` (localhost) by default for security.
+> ✅ **Recommended for Production:** Use HTTPS when deploying the MCP server for multiple users over Streamable HTTP. The server binds to `127.0.0.1` (localhost) by default for security.
 
 | Environment variable             | Description                                                                                                                                                                        | Default         |
 |----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|
-| `SONARQUBE_TRANSPORT`            | Set to `https` to enable HTTPS transport                                                                                                                                           | Not set (stdio) |
+| `SONARQUBE_TRANSPORT`            | Set to `https` to enable Streamable HTTP transport over TLS       | Not set (stdio) |
 | `SONARQUBE_HTTP_PORT`            | Port number (typically 8443 for HTTPS)                                                                                                                                             | `8080`          |
 | `SONARQUBE_HTTP_HOST`            | Host to bind (defaults to localhost for security)                                                                                                                                  | `127.0.0.1`     |
 | `SONARQUBE_HTTP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed for CORS (e.g. `https://my-app.example.com`)                                                                                               | Not set         |
@@ -776,11 +783,11 @@ docker run --init --pull=always -p 8443:8443 \
 
 > **Note:** `SONARQUBE_TOOLSETS` and `SONARQUBE_READ_ONLY` are optional per-request headers that narrow the server-level tool set for that specific request. They can only reduce scope — they cannot enable toolsets or lift restrictions beyond what the server was launched with.
 
-**Note:** For local development, use Stdio transport instead (the default). HTTPS is intended for multi-user production deployments with proper SSL certificates.
+**Note:** For local development, use Stdio transport instead (the default). HTTPS Streamable HTTP is intended for multi-user production deployments with proper SSL certificates.
 
 #### Service Endpoints
 
-When running in **HTTP** or **HTTPS** transport mode, the server exposes a few unauthenticated service endpoints in addition to the MCP endpoint at `/mcp`. These are intended for service-to-service use (monitoring, orchestration, client compatibility checks) and do not require an `Authorization` header.
+When running in **Streamable HTTP** mode (`http` or `https`), the server exposes a few unauthenticated service endpoints in addition to the MCP endpoint at `/mcp`. These are intended for service-to-service use (monitoring, orchestration, client compatibility checks) and do not require an `Authorization` header.
 
 | Endpoint  | Method | Description                                                                                   | Example response                  |
 |-----------|--------|-----------------------------------------------------------------------------------------------|-----------------------------------|
