@@ -31,6 +31,8 @@ The fastest way to get started is the **[SonarQube MCP Server Configuration Gene
 
 If you prefer to configure things yourself, the simplest method is to use our container image hosted at [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube). Read below if you want to build it locally.
 
+You can also use the Sonar image at [sonarsource/sonarqube-mcp](https://hub.docker.com/r/sonarsource/sonarqube-mcp/tags). Unlike Docker's MCP Hub, which only publishes a `latest` tag, the Sonar image provides versioned tags (e.g., `sonarsource/sonarqube-mcp:1.19.0.2785`) so you can pin to a specific release. The examples below use `mcp/sonarqube`; substitute `sonarsource/sonarqube-mcp:<version>` if you prefer version pinning.
+
 > **Note:** While the examples below use `docker`, any OCI-compatible container runtime works (e.g., Podman, nerdctl). Simply replace `docker` with your preferred tool.
 
 <details>
@@ -1383,7 +1385,7 @@ Show me all the issues that were marked as false positives in the last month. Ar
 
 ## Build
 
-Prefer the container image from [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube) — build from source only if you need to run a locally modified version of the server.
+Prefer a container image from [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube) or [sonarsource/sonarqube-mcp](https://hub.docker.com/r/sonarsource/sonarqube-mcp/tags) — build from source only if you need to run a locally modified version of the server.
 
 <details>
 <summary>Build from source</summary>
@@ -1461,6 +1463,8 @@ You may be running an outdated Docker image. Docker caches images locally, so yo
 
 ```bash
 docker pull mcp/sonarqube:latest
+# or, with the SonarSource image:
+docker pull sonarsource/sonarqube-mcp:latest
 ```
 
 After pulling the latest image, restart your MCP client to use the updated version.
@@ -1470,6 +1474,18 @@ Optionally, add the `--pull=always` flag to your docker run command to always ch
 ```bash
 docker run --init --pull=always -i --rm -e SONARQUBE_TOKEN -e SONARQUBE_ORG mcp/sonarqube
 ```
+
+#### "I want to pin to a specific version"
+
+Docker's MCP Hub image ([mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube)) only publishes a `latest` tag, so you cannot pin to a specific release there. Use the SonarSource image instead — browse available tags at [sonarsource/sonarqube-mcp](https://hub.docker.com/r/sonarsource/sonarqube-mcp/tags) and reference the version you want:
+
+```bash
+docker run --init -i --rm \
+  -e SONARQUBE_TOKEN -e SONARQUBE_ORG \
+  sonarsource/sonarqube-mcp:1.19.0.2785
+```
+
+In your MCP client config, replace `mcp/sonarqube` with `sonarsource/sonarqube-mcp:<version>` and remove `--pull=always` so Docker does not silently upgrade the image.
 
 ## Data and telemetry
 
