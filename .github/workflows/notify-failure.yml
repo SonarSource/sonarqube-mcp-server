@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Vault Secrets
         id: secrets
-        uses: SonarSource/vault-action-wrapper@0a3114fe1230b784c35b53b099f9ab1f1e538cc7 # 3.5.0
+        uses: SonarSource/vault-action-wrapper@881045d830534a70ec3c7c275fa3714412c8ff6e # 3.6.1
         with:
           secrets: |
             development/kv/data/slack token | SLACK_BOT_TOKEN;
