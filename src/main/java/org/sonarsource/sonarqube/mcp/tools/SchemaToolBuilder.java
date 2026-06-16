@@ -34,6 +34,14 @@ public class SchemaToolBuilder {
   private static final String NUMBER_TYPE = "number";
   private static final String OBJECT_TYPE = "object";
   private static final String STRING_TYPE = "string";
+  private static final String PROJECT_KEY_PROPERTY_DESCRIPTION =
+    "The SonarQube project key (e.g. my_project). Use search_my_sonarqube_projects when the key is unknown.";
+  private static final String OPTIONAL_PROJECT_KEY_WITH_DEFAULT_DESCRIPTION =
+    "Optional SonarQube project key (e.g. my_project). Defaults to the configured project when omitted. "
+      + "Use search_my_sonarqube_projects when the key is unknown.";
+  private static final String OPTIONAL_PROJECT_KEY_WITHOUT_DEFAULT_DESCRIPTION =
+    "Optional SonarQube project key (e.g. my_project). Uses organization default quality profiles when omitted. "
+      + "Use search_my_sonarqube_projects when the key is unknown.";
 
   private final Map<String, Object> properties;
   private final List<String> requiredProperties;
@@ -137,11 +145,11 @@ public class SchemaToolBuilder {
    * entirely — the configured default is used automatically at runtime.
    * When {@code null}, the property is added as a required parameter.
    */
-  public SchemaToolBuilder addProjectKeyProperty(String propertyName, String description, @Nullable String configuredProjectKey) {
+  public SchemaToolBuilder addProjectKeyProperty(String propertyName, @Nullable String configuredProjectKey) {
     if (configuredProjectKey != null) {
       return this;
     }
-    return addRequiredStringProperty(propertyName, description);
+    return addRequiredStringProperty(propertyName, PROJECT_KEY_PROPERTY_DESCRIPTION);
   }
 
   /**
@@ -150,10 +158,10 @@ public class SchemaToolBuilder {
    * may proceed without a project-specific quality profile.
    */
   public SchemaToolBuilder addOptionalProjectKeyProperty(String propertyName, @Nullable String configuredProjectKey) {
-    var description = configuredProjectKey != null
-      ? "Optional SonarQube project key. Defaults to the configured project when omitted."
-      : "Optional SonarQube project key. Uses organization default quality profiles when omitted.";
-    return addStringProperty(propertyName, description);
+    var projectKeyDescription = configuredProjectKey != null
+      ? OPTIONAL_PROJECT_KEY_WITH_DEFAULT_DESCRIPTION
+      : OPTIONAL_PROJECT_KEY_WITHOUT_DEFAULT_DESCRIPTION;
+    return addStringProperty(propertyName, projectKeyDescription);
   }
 
   /**

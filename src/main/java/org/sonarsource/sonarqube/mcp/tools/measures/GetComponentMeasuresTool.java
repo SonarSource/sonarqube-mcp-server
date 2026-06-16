@@ -42,7 +42,7 @@ public class GetComponentMeasuresTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Measures")
       .setDescription("Get SonarQube measures for a project, such as ncloc, complexity, violations, coverage, etc.")
-      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key", configuredProjectKey)
+      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
       .addBranchAndPullRequestProperties()
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
       .setReadOnlyHint()

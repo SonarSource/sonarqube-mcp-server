@@ -39,7 +39,7 @@ public class ListPullRequestsTool extends Tool {
           "Use this tool to discover available pull requests and their corresponding branch names before analyzing their coverage, issues, or quality. " +
           "Returns the pull request key/ID and source branch for each PR, which can be used with other tools that accept a pullRequest parameter. " +
           "For long-lived branches (main, develop), use list_branches instead.")
-        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)", configuredProjectKey)
+        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
         .setReadOnlyHint()
         .build(),
       ToolCategory.PROJECTS);

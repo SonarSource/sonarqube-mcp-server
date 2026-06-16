@@ -60,7 +60,7 @@ public class SearchDuplicatedFilesTool extends Tool {
         .setTitle("Search SonarQube Files With Duplications")
         .setDescription("Search for files with code duplications in a project. " +
           "By default, automatically fetches all duplicated files across all pages (up to 10,000 files max).")
-        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)", configuredProjectKey)
+        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
         .addBranchAndPullRequestProperties()
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Optional: Number of results per page for manual pagination (max: 500). " +
           "If not specified, auto-fetches all duplicated files.")

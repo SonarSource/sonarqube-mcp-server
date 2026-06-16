@@ -42,7 +42,7 @@ public class ListBranchesTool extends Tool {
         .setDescription("List long-lived branches for a project (e.g. main, develop, master). " +
           "Use returned branch names as the branch parameter on other tools (e.g. get_project_quality_gate_status, get_component_measures). " +
           "For pull requests, use list_pull_requests instead.")
-        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "Project key (e.g. my_project)", configuredProjectKey)
+        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
         .setReadOnlyHint()
         .build(),
       ToolCategory.PROJECTS);
