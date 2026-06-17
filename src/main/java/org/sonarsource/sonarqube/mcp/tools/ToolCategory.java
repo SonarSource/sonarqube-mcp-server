@@ -99,7 +99,8 @@ public enum ToolCategory {
       SECURITY_HOTSPOTS,
       DEPENDENCY_RISKS,
       COVERAGE,
-      CAG
+      CAG,
+      PORTFOLIOS
     );
   }
 

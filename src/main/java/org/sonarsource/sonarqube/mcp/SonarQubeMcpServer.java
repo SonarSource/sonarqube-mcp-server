@@ -67,9 +67,11 @@ import org.sonarsource.sonarqube.mcp.tools.hotspots.ChangeSecurityHotspotStatusT
 import org.sonarsource.sonarqube.mcp.tools.hotspots.SearchSecurityHotspotsTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ShowSecurityHotspotTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
+import org.sonarsource.sonarqube.mcp.tools.issues.GetIssueCountHistoryTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
 import org.sonarsource.sonarqube.mcp.tools.languages.ListLanguagesTool;
 import org.sonarsource.sonarqube.mcp.tools.measures.GetComponentMeasuresTool;
+import org.sonarsource.sonarqube.mcp.tools.measures.GetMeasuresHistoryTool;
 import org.sonarsource.sonarqube.mcp.tools.measures.SearchFilesByCoverageTool;
 import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
 import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
@@ -388,6 +390,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
       new ListPullRequestsTool(this, configuredProjectKey),
       new ListBranchesTool(this, configuredProjectKey)));
+
+    if (mcpConfiguration.isSonarQubeCloud()) {
+      supportedTools.addAll(List.of(
+        new GetMeasuresHistoryTool(this),
+        new GetIssueCountHistoryTool(this)));
+    }
 
     if (mcpConfiguration.isHttpEnabled()) {
       // In HTTP mode there is no startup token to probe SCA availability

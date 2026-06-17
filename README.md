@@ -580,14 +580,14 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 | Toolset                  | Key                 | Description                                                              |
 |--------------------------|---------------------|--------------------------------------------------------------------------|
 | **Analysis**             | `analysis`          | Code analysis tools (local analysis and advanced remote analysis)        |
-| **Issues**               | `issues`            | Search and manage SonarQube issues                                       |
+| **Issues**               | `issues`            | Search and manage SonarQube issues, including Cloud issue count history  |
 | **Security Hotspots**    | `security-hotspots` | Search and review Security Hotspots                                      |
 | **Projects**             | `projects`          | Browse and search SonarQube projects                                     |
 | **Quality Gates**        | `quality-gates`     | Access quality gates and their status                                    |
 | **Rules**                | `rules`             | Browse and search SonarQube rules                                        |
 | **Sources**              | `sources`           | Access source code and SCM information                                   |
 | **Duplications**         | `duplications`      | Find code duplications across projects                                   |
-| **Measures**             | `measures`          | Retrieve metrics and measures (includes both measures and metrics tools) |
+| **Measures**             | `measures`          | Retrieve metrics, measures, and Cloud measure history                    |
 | **Languages**            | `languages`         | List supported programming languages                                     |
 | **Portfolios**           | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                     |
 | **System**               | `system`            | System administration tools (Server only)                                |
@@ -989,6 +989,22 @@ SOCKS5 proxies are supported.
   - `p` - Optional page number (default: 1) - _Integer_
   - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
+- **get_issue_count_history** - Get SonarQube Cloud issue count history for a project branch or portfolio. For project branches, provide `projectKey` and optionally `branch`; when `branch` is omitted, the main branch is used. For portfolios, provide `portfolioId` or an exact `portfolioName`; if multiple portfolios match, retry with `portfolioId`.
+  - `targetType` - Target entity type. Possible values: PROJECT_BRANCH, PORTFOLIO - _Required String_
+  - `projectKey` - Project key used when `targetType` is PROJECT_BRANCH - _String_
+  - `branch` - Optional branch name used when `targetType` is PROJECT_BRANCH. Use `list_branches` to discover valid names - _String_
+  - `portfolioId` - Portfolio UUID used when `targetType` is PORTFOLIO. Use `list_portfolios` to discover portfolio IDs - _String_
+  - `portfolioName` - Exact portfolio name used when `targetType` is PORTFOLIO and `portfolioId` is not provided - _String_
+  - `enterpriseId` - Optional enterprise UUID used to resolve `portfolioName`; when omitted, favorite portfolios are searched - _String_
+  - `startDate` - Inclusive start of the date range in ISO-8601 format - _Required String_
+  - `endDate` - Inclusive end of the date range in ISO-8601 format. Defaults to current date - _String_
+  - `ruleKeys` - Optional rule keys to filter by - _String[]_
+  - `severities` - Optional severities to filter by. Possible values: BLOCKER, HIGH, INFO, LOW, MEDIUM - _String[]_
+  - `issueTypes` - Optional issue types to filter by. Possible values: BUG, CODE_SMELL, SECURITY_HOTSPOT, VULNERABILITY - _String[]_
+  - `statuses` - Optional statuses to filter by. Possible values: ACCEPTED, CONFIRMED, FALSE_POSITIVE, FIXED, OPEN, REVIEWED, SAFE, TO_REVIEW - _String[]_
+  - `impacts` - Optional impacts to filter by (e.g. MAINTAINABILITY:HIGH, SECURITY:MEDIUM) - _String[]_
+  - `sliceBy` - Optional dimension used to group issue counts. Possible values: RULE_KEY, SEVERITY, SOFTWARE_QUALITY, STATUS, TYPE - _String_
+
 ### Security Hotspots
 
 - **search_security_hotspots** - Search for Security Hotspots in a SonarQube project.
@@ -1027,6 +1043,17 @@ SOCKS5 proxies are supported.
   - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
   - `metricKeys` - Optional metric keys to retrieve (e.g. ncloc, complexity, violations, coverage) - _String[]_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
+
+- **get_measures_history** - Get SonarQube Cloud measures history for a project branch or portfolio. For project branches, provide `projectKey` and optionally `branch`; when `branch` is omitted, the main branch is used. For portfolios, provide `portfolioId` or an exact `portfolioName`; if multiple portfolios match, retry with `portfolioId`.
+  - `targetType` - Target entity type. Possible values: PROJECT_BRANCH, PORTFOLIO - _Required String_
+  - `projectKey` - Project key used when `targetType` is PROJECT_BRANCH - _String_
+  - `branch` - Optional branch name used when `targetType` is PROJECT_BRANCH. Use `list_branches` to discover valid names - _String_
+  - `portfolioId` - Portfolio UUID used when `targetType` is PORTFOLIO. Use `list_portfolios` to discover portfolio IDs - _String_
+  - `portfolioName` - Exact portfolio name used when `targetType` is PORTFOLIO and `portfolioId` is not provided - _String_
+  - `enterpriseId` - Optional enterprise UUID used to resolve `portfolioName`; when omitted, favorite portfolios are searched - _String_
+  - `metricKeys` - Metric keys to retrieve (e.g. ncloc, coverage, bugs) - _Required String[]_
+  - `startDate` - Inclusive start of the date range in ISO-8601 format - _Required String_
+  - `endDate` - Inclusive end of the date range in ISO-8601 format. Defaults to current date - _String_
 
 ### Metrics
 

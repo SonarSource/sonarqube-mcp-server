@@ -108,9 +108,27 @@ public class SchemaToolBuilder {
     return this;
   }
 
+  public SchemaToolBuilder addRequiredArrayProperty(String propertyName, String itemsType, String description) {
+    addArrayProperty(propertyName, itemsType, description);
+    requiredProperties.add(propertyName);
+    return this;
+  }
+
   public SchemaToolBuilder addEnumProperty(String propertyName, String[] items, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, ARRAY_TYPE, DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, "enum", items));
     properties.put(propertyName, content);
+    return this;
+  }
+
+  public SchemaToolBuilder addEnumValueProperty(String propertyName, String[] items, String description) {
+    var content = Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, DESCRIPTION_KEY_NAME, description, "enum", items);
+    properties.put(propertyName, content);
+    return this;
+  }
+
+  public SchemaToolBuilder addRequiredEnumValueProperty(String propertyName, String[] items, String description) {
+    addEnumValueProperty(propertyName, items, description);
+    requiredProperties.add(propertyName);
     return this;
   }
 
