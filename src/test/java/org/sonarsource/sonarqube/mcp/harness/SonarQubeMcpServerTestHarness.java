@@ -285,12 +285,12 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
             """.formatted(orgUuidV4))));
       }
 
-      // Stub CAG org-config API — disabled by default; tests that need CAG should call stubCagOrgConfig(true)
-      if (!mockSonarQubeServer.isStubConfigured(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + orgUuidV4)) {
-        mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + orgUuidV4)
+      // Stub CAG entitlement API — denied by default; tests that need CAG should call stubCagEntitlement(true)
+      if (!mockSonarQubeServer.isStubConfigured(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + orgUuidV4)) {
+        mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
           .willReturn(okJson("""
-            {"id":"%s","enabled":false,"eligible":true}
-            """.formatted(orgUuidV4))));
+            {"allowed":false}
+            """)));
       }
 
       if (!mockSonarQubeServer.isStubConfigured(ScaApi.FEATURE_ENABLED_PATH)) {
@@ -312,24 +312,24 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   }
 
   /**
-   * Stub CAG org config API to enable/disable CAG for the organization.
+   * Stub CAG entitlement API to allow/deny CAG for the organization.
    * Must be called before prepareMockWebServer() to override the default (disabled) stub.
    */
-  public void stubCagOrgConfig(boolean enabled) {
+  public void stubCagEntitlement(boolean allowed) {
     var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
-    mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + orgUuidV4)
+    mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
       .willReturn(okJson("""
-        {"id":"%s","enabled":%b,"eligible":true}
-        """.formatted(orgUuidV4, enabled))));
+        {"allowed":%b}
+        """.formatted(allowed))));
   }
 
   /**
-   * Stub CAG org config API to return an error (500).
+   * Stub CAG entitlement API to return an error (500).
    * Tests fail-safe behavior when CAG API is unavailable.
    */
-  public void stubCagOrgConfigError() {
+  public void stubCagEntitlementError() {
     var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
-    mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + orgUuidV4)
+    mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
       .willReturn(aResponse().withStatus(500)));
   }
 

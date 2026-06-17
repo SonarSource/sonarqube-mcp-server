@@ -160,7 +160,7 @@ class SonarQubeMcpServerGenericTest {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_TOOLSETS", "cag");
     harness.prepareMockWebServer(environment);
-    harness.stubCagOrgConfig(false); // CAG disabled for org
+    harness.stubCagEntitlement(false); // CAG denied for org
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -180,7 +180,7 @@ class SonarQubeMcpServerGenericTest {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_TOOLSETS", "cag");
     harness.prepareMockWebServer(environment);
-    harness.stubCagOrgConfigError(); // CAG API returns 500
+    harness.stubCagEntitlementError(); // CAG API returns 500
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -200,7 +200,7 @@ class SonarQubeMcpServerGenericTest {
     var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_TOOLSETS", "cag");
     harness.prepareMockWebServer(environment);
-    harness.stubCagOrgConfig(true); // CAG enabled but HTTP mode not supported
+    harness.stubCagEntitlement(true); // CAG allowed but HTTP mode not supported
 
     var server = new SonarQubeMcpServer(environment);
     server.start();
@@ -217,7 +217,7 @@ class SonarQubeMcpServerGenericTest {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     environment.put("SONARQUBE_TOOLSETS", "cag");
-    harness.stubCagOrgConfig(true);
+    harness.stubCagEntitlement(true);
     harness.prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(
@@ -242,7 +242,7 @@ class SonarQubeMcpServerGenericTest {
     environment.put("SONARQUBE_ORG", "org");
     environment.put("SONARQUBE_TOOLSETS", "cag");
     harness.prepareMockWebServer(environment);
-    harness.stubCagOrgConfig(false);
+    harness.stubCagEntitlement(false);
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -263,7 +263,7 @@ class SonarQubeMcpServerGenericTest {
     environment.put("SONARQUBE_ORG", "org");
     environment.put("SONARQUBE_TOOLSETS", "projects,issues");
     harness.prepareMockWebServer(environment);
-    harness.stubCagOrgConfig(true); // Even if entitled, toolset filter takes precedence
+    harness.stubCagEntitlement(true); // Even if entitled, toolset filter takes precedence
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -284,7 +284,7 @@ class SonarQubeMcpServerGenericTest {
     environment.put("SONARQUBE_ORG", "org");
     environment.put("SONARQUBE_TOOLSETS", "cag");
     harness.prepareMockWebServer(environment);
-    harness.stubCagOrgConfig(true); // CAG enabled but HTTP mode does not support it
+    harness.stubCagEntitlement(true); // CAG allowed but HTTP mode does not support it
 
     var server = new SonarQubeMcpServer(environment);
     server.start();
@@ -302,7 +302,7 @@ class SonarQubeMcpServerGenericTest {
     environment.put("SONARQUBE_ORG", "org");
     environment.put("SONARQUBE_TOOLSETS", "cag");
     harness.prepareMockWebServer(environment);
-    harness.stubCagOrgConfigError(); // CAG API returns 500 - fail-safe should skip the nudge
+    harness.stubCagEntitlementError(); // CAG API returns 500 - fail-safe should skip the nudge
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -514,4 +514,3 @@ class SonarQubeMcpServerGenericTest {
   }
 
 }
-

@@ -99,51 +99,62 @@ class A3sConfigApiTest {
   }
 
   @Test
-  void it_should_return_cag_config_when_org_is_enabled() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + ORG_UUID))
+  void it_should_return_cag_entitlement_when_org_is_allowed() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
       .willReturn(jsonResponse("""
-        {"id":"%s","enabled":true,"eligible":true}
-        """.formatted(ORG_UUID), 200)));
+        {"allowed":true}
+        """, 200)));
 
-    var config = a3sAnalysisApi.getCagOrgConfig(ORG_UUID);
+    var entitlement = a3sAnalysisApi.getCagEntitlement(ORG_UUID);
 
-    assertThat(config).isNotNull();
-    assertThat(config.enabled()).isTrue();
-    assertThat(config.eligible()).isTrue();
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.allowed()).isTrue();
   }
 
   @Test
-  void it_should_return_cag_config_when_org_is_disabled() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + ORG_UUID))
+  void it_should_return_cag_entitlement_when_org_is_denied() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
       .willReturn(jsonResponse("""
-        {"id":"%s","enabled":false,"eligible":true}
-        """.formatted(ORG_UUID), 200)));
+        {"allowed":false}
+        """, 200)));
 
-    var config = a3sAnalysisApi.getCagOrgConfig(ORG_UUID);
+    var entitlement = a3sAnalysisApi.getCagEntitlement(ORG_UUID);
 
-    assertThat(config).isNotNull();
-    assertThat(config.enabled()).isFalse();
-    assertThat(config.eligible()).isTrue();
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.allowed()).isFalse();
   }
 
   @Test
-  void it_should_return_null_on_cag_server_error() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + ORG_UUID))
+  void it_should_ignore_cag_entitlement_consumption() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+      .willReturn(jsonResponse("""
+        {"allowed":true,"consumption":{"consumed":500,"limit":1000}}
+        """, 200)));
+
+    var entitlement = a3sAnalysisApi.getCagEntitlement(ORG_UUID);
+
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.allowed()).isTrue();
+  }
+
+  @Test
+  void it_should_return_null_on_cag_entitlement_server_error() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
       .willReturn(aResponse().withStatus(500)));
 
-    var config = a3sAnalysisApi.getCagOrgConfig(ORG_UUID);
+    var entitlement = a3sAnalysisApi.getCagEntitlement(ORG_UUID);
 
-    assertThat(config).isNull();
+    assertThat(entitlement).isNull();
   }
 
   @Test
-  void it_should_return_null_on_cag_not_found() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ORG_CONFIG_PATH + ORG_UUID))
+  void it_should_return_null_on_cag_entitlement_not_found() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
       .willReturn(aResponse().withStatus(404)));
 
-    var config = a3sAnalysisApi.getCagOrgConfig(ORG_UUID);
+    var entitlement = a3sAnalysisApi.getCagEntitlement(ORG_UUID);
 
-    assertThat(config).isNull();
+    assertThat(entitlement).isNull();
   }
 
 }
