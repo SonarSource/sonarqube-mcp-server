@@ -265,20 +265,45 @@ class PerRequestToolFilteringHandlerTest {
   }
 
   @Test
-  void unsupported_method_returns_method_not_found_error() {
+  void resources_list_delegates_to_sdk_handler() {
     var delegate = mock(McpStatelessServerHandler.class);
+    when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
+      new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
     var handler = new PerRequestToolFilteringHandler(delegate, List.of());
     var context = contextWithToken();
     var resourcesListRequest = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_RESOURCES_LIST, REQUEST_ID, null);
 
-    var response = handler.handleRequest(context, resourcesListRequest).block();
+    handler.handleRequest(context, resourcesListRequest).block();
 
-    assertThat(response).isNotNull();
-    assertThat(response.error()).isNotNull();
-    assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
-    assertThat(response.error().message()).isEqualTo("Method not found: resources/list");
-    assertThat(response.result()).isNull();
-    verify(delegate, never()).handleRequest(any(), any());
+    verify(delegate).handleRequest(context, resourcesListRequest);
+  }
+
+  @Test
+  void resources_read_delegates_to_sdk_handler() {
+    var delegate = mock(McpStatelessServerHandler.class);
+    when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
+      new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
+    var context = contextWithToken();
+    var resourcesReadRequest = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_RESOURCES_READ, REQUEST_ID, Map.of("uri", "ui://sonarqube/hello-world.html"));
+
+    handler.handleRequest(context, resourcesReadRequest).block();
+
+    verify(delegate).handleRequest(context, resourcesReadRequest);
+  }
+
+  @Test
+  void resource_templates_list_delegates_to_sdk_handler() {
+    var delegate = mock(McpStatelessServerHandler.class);
+    when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
+      new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
+    var context = contextWithToken();
+    var resourceTemplatesListRequest = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_RESOURCES_TEMPLATES_LIST, REQUEST_ID, null);
+
+    handler.handleRequest(context, resourceTemplatesListRequest).block();
+
+    verify(delegate).handleRequest(context, resourceTemplatesListRequest);
   }
 
   @Test

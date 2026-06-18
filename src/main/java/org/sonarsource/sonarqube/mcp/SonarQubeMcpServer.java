@@ -41,6 +41,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsClient;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
+import org.sonarsource.sonarqube.mcp.apps.HelloWorldApp;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
@@ -61,6 +62,7 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.apps.OpenHelloWorldAppTool;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ChangeSecurityHotspotStatusTool;
@@ -199,15 +201,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools))
         .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
         .instructions(composedInstructions)
-        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
+        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).resources(false, false).build())
         .tools(enabledTools.stream().map(this::toStatelessSpec).toArray(McpStatelessServerFeatures.SyncToolSpecification[]::new))
+        .resources(toStatelessHelloWorldResourceSpec())
         .build();
     } else {
       stdioSyncServer = McpServer.sync(transportProvider)
         .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
         .instructions(composedInstructions)
-        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
+        .capabilities(McpSchema.ServerCapabilities.builder().tools(true).resources(false, false).logging().build())
         .tools(filterForEnabledTools(supportedTools).stream().map(this::toStdioSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
+        .resources(toStdioHelloWorldResourceSpec())
         .build();
     }
 
@@ -367,6 +371,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var configuredProjectKey = mcpConfiguration.getProjectKey();
 
     supportedTools.addAll(List.of(
+      new OpenHelloWorldAppTool(),
       new ChangeIssueStatusTool(this),
       new SearchMyProjectsTool(this, mcpConfiguration.isSonarQubeCloud()),
       new SearchIssuesTool(this, mcpConfiguration.isSonarQubeCloud()),
@@ -515,6 +520,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         return toolExecutor.execute(tool, toolRequest);
       })
       .build();
+  }
+
+  private McpStatelessServerFeatures.SyncResourceSpecification toStatelessHelloWorldResourceSpec() {
+    return new McpStatelessServerFeatures.SyncResourceSpecification(HelloWorldApp.resource(), (transportContext, request) -> HelloWorldApp.readResource());
+  }
+
+  private McpServerFeatures.SyncResourceSpecification toStdioHelloWorldResourceSpec() {
+    return new McpServerFeatures.SyncResourceSpecification(HelloWorldApp.resource(), (exchange, request) -> HelloWorldApp.readResource());
   }
 
   private void captureCallingAgent(McpSyncServerExchange exchange) {

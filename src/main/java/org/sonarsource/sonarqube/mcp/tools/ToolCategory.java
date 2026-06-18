@@ -28,6 +28,7 @@ import jakarta.annotation.Nullable;
  * Each tool belongs to exactly one category.
  */
 public enum ToolCategory {
+  APPS("apps"),
   ANALYSIS("analysis"),
   COVERAGE("coverage"),
   ISSUES("issues"),
@@ -89,6 +90,7 @@ public enum ToolCategory {
    */
   public static Set<ToolCategory> defaultEnabled() {
     return Set.of(
+      APPS,
       ANALYSIS,
       ISSUES,
       PROJECTS,
@@ -108,4 +110,3 @@ public enum ToolCategory {
     return Set.of(values());
   }
 }
-

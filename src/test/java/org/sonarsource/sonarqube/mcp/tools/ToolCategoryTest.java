@@ -24,6 +24,7 @@ class ToolCategoryTest {
 
   @Test
   void should_have_correct_keys() {
+    assertThat(ToolCategory.APPS.getKey()).isEqualTo("apps");
     assertThat(ToolCategory.ANALYSIS.getKey()).isEqualTo("analysis");
     assertThat(ToolCategory.COVERAGE.getKey()).isEqualTo("coverage");
     assertThat(ToolCategory.ISSUES.getKey()).isEqualTo("issues");
@@ -115,6 +116,7 @@ class ToolCategoryTest {
     var defaultCategories = ToolCategory.defaultEnabled();
 
     assertThat(defaultCategories).containsExactlyInAnyOrder(
+      ToolCategory.APPS,
       ToolCategory.ANALYSIS,
       ToolCategory.ISSUES,
       ToolCategory.PROJECTS,
@@ -125,7 +127,8 @@ class ToolCategoryTest {
       ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.DEPENDENCY_RISKS,
       ToolCategory.COVERAGE,
-      ToolCategory.CAG
+      ToolCategory.CAG,
+      ToolCategory.PORTFOLIOS
     );
   }
 
@@ -134,6 +137,7 @@ class ToolCategoryTest {
     var allCategories = ToolCategory.all();
     
     assertThat(allCategories).containsExactlyInAnyOrder(
+      ToolCategory.APPS,
       ToolCategory.ANALYSIS,
       ToolCategory.COVERAGE,
       ToolCategory.ISSUES,
@@ -155,7 +159,6 @@ class ToolCategoryTest {
 
   @Test
   void should_have_exactly_16_categories() {
-    assertThat(ToolCategory.values()).hasSize(16);
+    assertThat(ToolCategory.values()).hasSize(17);
   }
 }
-

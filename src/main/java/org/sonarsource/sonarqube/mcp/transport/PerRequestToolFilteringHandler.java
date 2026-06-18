@@ -69,6 +69,9 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
   private static final Set<String> SUPPORTED_REQUEST_METHODS = Set.of(
     McpSchema.METHOD_INITIALIZE,
     McpSchema.METHOD_PING,
+    McpSchema.METHOD_RESOURCES_LIST,
+    McpSchema.METHOD_RESOURCES_READ,
+    McpSchema.METHOD_RESOURCES_TEMPLATES_LIST,
     McpSchema.METHOD_TOOLS_LIST,
     McpSchema.METHOD_TOOLS_CALL
   );

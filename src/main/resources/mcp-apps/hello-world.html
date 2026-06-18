@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SonarQube Color Picker</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --active-color: #2d9cdb;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #f5f7fb;
+        color: #172033;
+      }
+
+      main {
+        width: min(560px, calc(100vw - 32px));
+        border: 1px solid #d8dee9;
+        border-radius: 8px;
+        padding: 28px;
+        background: #ffffff;
+        box-shadow: 0 12px 32px rgb(23 32 51 / 10%);
+      }
+
+      h1 {
+        margin: 0 0 20px;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #334155;
+      }
+
+      .picker {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 24px;
+        align-items: stretch;
+      }
+
+      .preview {
+        min-height: 160px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: var(--active-color);
+      }
+
+      .controls {
+        display: grid;
+        gap: 18px;
+      }
+
+      .fields {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 12px;
+      }
+
+      input[type="color"] {
+        width: 72px;
+        height: 44px;
+        padding: 0;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        height: 44px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0 12px;
+        font: 700 16px/1 Arial, Helvetica, sans-serif;
+        color: #172033;
+        background: #ffffff;
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(6, 36px);
+        gap: 10px;
+      }
+
+      .swatch {
+        width: 36px;
+        height: 36px;
+        border: 2px solid #ffffff;
+        border-radius: 999px;
+        box-shadow: 0 0 0 1px #cbd5e1;
+        cursor: pointer;
+      }
+
+      .readout {
+        border-top: 1px solid #e2e8f0;
+        padding-top: 16px;
+      }
+
+      .readout strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: #64748b;
+      }
+
+      .readout span {
+        display: block;
+        font: 700 18px/1 Arial, Helvetica, sans-serif;
+        color: #172033;
+      }
+
+      .status {
+        margin-top: 18px;
+        min-height: 22px;
+        font-size: 14px;
+        color: #475569;
+      }
+
+      .copy {
+        height: 40px;
+        width: max-content;
+        border: 1px solid #94a3b8;
+        border-radius: 8px;
+        padding: 0 14px;
+        background: #f8fafc;
+        color: #172033;
+        font: 700 14px/1 Arial, Helvetica, sans-serif;
+        cursor: pointer;
+      }
+
+      .copy:hover {
+        background: #eef2f7;
+      }
+
+      .copy:focus-visible,
+      .swatch:focus-visible,
+      input:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--active-color), white 35%);
+        outline-offset: 2px;
+      }
+
+      @media (max-width: 520px) {
+        .picker {
+          grid-template-columns: 1fr;
+        }
+
+        .preview {
+          min-height: 120px;
+        }
+      }
+
+      p {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.5;
+        color: #4a5568;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #111827;
+          color: #f8fafc;
+        }
+
+        main {
+          border-color: #334155;
+          background: #1f2937;
+          box-shadow: none;
+        }
+
+        label,
+        .readout span {
+          color: #f8fafc;
+        }
+
+        input[type="text"] {
+          border-color: #475569;
+          background: #111827;
+          color: #f8fafc;
+        }
+
+        .copy {
+          border-color: #64748b;
+          background: #111827;
+          color: #f8fafc;
+        }
+
+        .copy:hover {
+          background: #0f172a;
+        }
+
+        p {
+          color: #cbd5e1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Color Picker</h1>
+      <div class="picker">
+        <div class="preview" id="preview" aria-label="Selected color preview"></div>
+        <div class="controls">
+          <div>
+            <label for="color-input">Selected color</label>
+            <div class="fields">
+              <input id="color-input" type="color" value="#2d9cdb">
+              <input id="hex-input" type="text" value="#2D9CDB" spellcheck="false" inputmode="text" aria-label="Hex color value">
+            </div>
+          </div>
+          <div>
+            <label>Swatches</label>
+            <div class="swatches" id="swatches"></div>
+          </div>
+          <div class="readout">
+            <strong>Current value</strong>
+            <span id="value">#2D9CDB</span>
+          </div>
+          <button class="copy" id="copy" type="button">Copy hex</button>
+          <p class="status" id="status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </main>
+    <script>
+      const colorInput = document.querySelector("#color-input");
+      const hexInput = document.querySelector("#hex-input");
+      const preview = document.querySelector("#preview");
+      const value = document.querySelector("#value");
+      const status = document.querySelector("#status");
+      const copy = document.querySelector("#copy");
+      const swatches = document.querySelector("#swatches");
+      const swatchColors = ["#2D9CDB", "#27AE60", "#F2C94C", "#EB5757", "#9B51E0", "#172033"];
+
+      function normalizeHex(raw) {
+        const cleaned = raw.trim().replace(/^#/, "");
+        if (/^[0-9a-fA-F]{3}$/.test(cleaned)) {
+          return "#" + cleaned.split("").map((char) => char + char).join("").toUpperCase();
+        }
+        if (/^[0-9a-fA-F]{6}$/.test(cleaned)) {
+          return "#" + cleaned.toUpperCase();
+        }
+        return null;
+      }
+
+      function setColor(nextColor) {
+        const normalized = normalizeHex(nextColor);
+        if (!normalized) {
+          status.textContent = "Invalid hex value";
+          return;
+        }
+        document.documentElement.style.setProperty("--active-color", normalized);
+        colorInput.value = normalized;
+        hexInput.value = normalized;
+        value.textContent = normalized;
+        status.textContent = "";
+      }
+
+      swatchColors.forEach((swatchColor) => {
+        const button = document.createElement("button");
+        button.className = "swatch";
+        button.type = "button";
+        button.style.backgroundColor = swatchColor;
+        button.setAttribute("aria-label", swatchColor);
+        button.addEventListener("click", () => setColor(swatchColor));
+        swatches.append(button);
+      });
+
+      colorInput.addEventListener("input", (event) => setColor(event.target.value));
+      hexInput.addEventListener("input", (event) => setColor(event.target.value));
+      copy.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(value.textContent);
+          status.textContent = "Copied " + value.textContent;
+        } catch (error) {
+          status.textContent = value.textContent;
+        }
+      });
+    </script>
+  </body>
+</html>

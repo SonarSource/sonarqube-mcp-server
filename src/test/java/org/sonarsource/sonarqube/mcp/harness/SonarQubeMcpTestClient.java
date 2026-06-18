@@ -54,4 +54,12 @@ public class SonarQubeMcpTestClient {
     return mcpSyncClient.listTools().tools();
   }
 
+  public List<McpSchema.Resource> listResources() {
+    return mcpSyncClient.listResources().resources();
+  }
+
+  public McpSchema.ReadResourceResult readResource(String uri) {
+    return mcpSyncClient.readResource(new McpSchema.ReadResourceRequest(uri));
+  }
+
 }

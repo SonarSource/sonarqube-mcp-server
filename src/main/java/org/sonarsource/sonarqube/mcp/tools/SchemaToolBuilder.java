@@ -43,6 +43,7 @@ public class SchemaToolBuilder {
   private String title;
   private String description;
   private boolean isReadOnly;
+  private Map<String, Object> meta;
 
   public SchemaToolBuilder(Map<String, Object> outputSchemaFromClass) {
     this.properties = new HashMap<>();
@@ -70,6 +71,11 @@ public class SchemaToolBuilder {
 
   public SchemaToolBuilder setDescription(String description) {
     this.description = description;
+    return this;
+  }
+
+  public SchemaToolBuilder setMeta(Map<String, Object> meta) {
+    this.meta = meta;
     return this;
   }
 
@@ -179,6 +185,6 @@ public class SchemaToolBuilder {
       true,
       null);
 
-    return new McpSchema.Tool(name, title, description, jsonSchema, outputSchemaFromClass, toolAnnotations, null);
+    return new McpSchema.Tool(name, title, description, jsonSchema, outputSchemaFromClass, toolAnnotations, meta);
   }
 }
