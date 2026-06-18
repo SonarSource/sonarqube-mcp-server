@@ -479,6 +479,34 @@ class AnalyzeCodeSnippetToolTests {
     }
 
     @SonarQubeMcpServerTest
+    void it_should_accept_tsx_as_a_valid_language(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of());
+      var mcpClient = harness.withPlugins().newClient();
+
+      var result = mcpClient.callTool(
+        TOOL_NAME,
+        Map.of(
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, "const C = () => <div>hello</div>;",
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "tsx"));
+
+      assertThat(result.isError()).isFalse();
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_accept_jsx_as_a_valid_language(SonarQubeMcpServerTestHarness harness) {
+      mockServerRules(harness, null, List.of());
+      var mcpClient = harness.withPlugins().newClient();
+
+      var result = mcpClient.callTool(
+        TOOL_NAME,
+        Map.of(
+          AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, "const C = () => <div>hello</div>;",
+          AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "jsx"));
+
+      assertThat(result.isError()).isFalse();
+    }
+
+    @SonarQubeMcpServerTest
     void it_should_return_error_when_file_path_is_missing(SonarQubeMcpServerTestHarness harness) throws IOException {
       mockServerRules(harness, null, List.of("php:S1135"));
       var workspaceDir = Files.createTempDirectory("sonar-mcp-workspace");
