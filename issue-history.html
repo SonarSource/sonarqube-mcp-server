@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SonarQube Issue History</title>
+    <style>
+      :root { color-scheme: light dark; font-family: Arial, Helvetica, sans-serif; }
+      body { margin: 0; background: #f8fafc; color: #172033; }
+      main { padding: 24px; }
+      h1 { margin: 0 0 16px; font-size: 24px; line-height: 1.2; }
+      table { width: 100%; border-collapse: collapse; border: 1px solid #d8dee9; background: #ffffff; }
+      th, td { border-bottom: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 14px; line-height: 1.35; }
+      th { background: #eef2f7; color: #334155; font-weight: 700; }
+      td:last-child { font-variant-numeric: tabular-nums; }
+      .empty { color: #64748b; }
+      @media (prefers-color-scheme: dark) {
+        body { background: #111827; color: #f8fafc; }
+        table { border-color: #334155; background: #1f2937; }
+        th { background: #0f172a; color: #cbd5e1; }
+        th, td { border-bottom-color: #334155; }
+        .empty { color: #94a3b8; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Issue History</h1>
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Bucket</th><th>Issue Count</th></tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="3" class="empty">Loading&hellip;</td></tr>
+        </tbody>
+      </table>
+    </main>
+
+    <script>
+      // ------------------------------------------------------------------
+      // Minimal MCP Apps bridge (raw JSON-RPC over postMessage).
+      // For production, prefer the official @modelcontextprotocol/ext-apps
+      // `App` (AppBridge) SDK bundled into this HTML — it manages all of
+      // this for you. This hand-rolled version exists to make the missing
+      // handshake explicit and verifiable.
+      // ------------------------------------------------------------------
+      (function () {
+        var host = window.parent;
+        var nextId = 1;
+        var pending = new Map();
+
+        function send(message) {
+          // Production: replace "*" with the host sandbox origin.
+          host.postMessage(message, "*");
+        }
+        function request(method, params) {
+          var id = nextId++;
+          send({ jsonrpc: "2.0", id: id, method: method, params: params });
+          return new Promise(function (resolve, reject) {
+            pending.set(id, { resolve: resolve, reject: reject });
+          });
+        }
+        function notify(method, params) {
+          send({ jsonrpc: "2.0", method: method, params: params });
+        }
+
+        function renderRows(history) {
+          var tbody = document.getElementById("rows");
+          if (!history || history.length === 0) {
+            tbody.innerHTML =
+              '<tr><td colspan="3" class="empty">No issue history returned.</td></tr>';
+          } else {
+            tbody.innerHTML = history.map(function (row) {
+              return "<tr><td>" + row.date +
+                     "</td><td>" + (row.bucket || "all") +
+                     "</td><td>" + row.count + "</td></tr>";
+            }).join("");
+          }
+          // Let the host resize the iframe to fit the content.
+          notify("ui/notifications/size-changed", { height: document.body.scrollHeight });
+        }
+
+        function handleToolResult(params) {
+          // IMPORTANT: log this once and confirm the exact shape your host
+          // sends, then map accordingly. Shapes can vary by host version.
+          console.log("tool-result params:", params);
+          var structured =
+            params && (params.structuredContent ||
+                       (params.result && params.result.structuredContent));
+          renderRows(structured && structured.history);
+        }
+
+        window.addEventListener("message", function (event) {
+          var msg = event.data;
+          if (!msg || msg.jsonrpc !== "2.0") return;
+
+          // Resolve responses to requests we sent (e.g. ui/initialize).
+          if (msg.id !== undefined && pending.has(msg.id)) {
+            var p = pending.get(msg.id);
+            pending.delete(msg.id);
+            if (msg.error) { p.reject(msg.error); } else { p.resolve(msg.result); }
+            return;
+          }
+
+          // Handle notifications the host pushes to us.
+          switch (msg.method) {
+            case "ui/notifications/tool-result":
+              handleToolResult(msg.params);
+              break;
+            // case "ui/notifications/tool-input":
+            //   // the tool call arguments, if you need them
+            //   break;
+          }
+        });
+
+        // 1) Start the handshake. WITHOUT THIS the host never mounts the view.
+        //    Match protocolVersion to what the host advertises in `initialize`.
+        request("ui/initialize", { protocolVersion: "2025-11-25" })
+          .then(function () {
+            // 2) Tell the host we are ready; data delivery starts after this.
+            notify("ui/notifications/initialized");
+          })
+          .catch(function (err) {
+            console.error("ui/initialize failed:", err);
+          });
+      })();
+    </script>
+  </body>
+</html>
