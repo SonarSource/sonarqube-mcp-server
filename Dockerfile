@@ -43,14 +43,14 @@ RUN apk upgrade --no-cache && \
 
 ARG TARGETARCH
 # Keep in sync with sonarContextAugmentationVersion in gradle.properties
-ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.8.0.355
+ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.13.0.1985
 
 RUN case "$TARGETARCH" in \
         amd64) ARCH="x64" ;; \
         arm64) ARCH="arm64" ;; \
         *) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
     esac && \
-    wget -qO- "https://binaries.sonarsource.com/Distribution/sonar-context-augmentation-alpine-${ARCH}/sonar-context-augmentation-alpine-${ARCH}-${SONAR_CONTEXT_AUGMENTATION_VERSION}.tar.gz" \
+    wget -qO- "https://binaries.sonarsource.com/Distribution/sonar-context-augmentation-linux-${ARCH}/sonar-context-augmentation-linux-${ARCH}-${SONAR_CONTEXT_AUGMENTATION_VERSION}.tar.gz" \
     | tar -xz -C /tmp && \
     install -m 755 /tmp/sonar-context-augmentation /usr/local/bin/sonar-context-augmentation && \
     rm -f /tmp/sonar-context-augmentation
