@@ -43,6 +43,7 @@ import static java.util.stream.Collectors.toMap;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getValidLanguageNames;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.mapSonarLanguageToLanguage;
+import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.resolveAnalysisFileExtension;
 
 public class AnalyzeCodeSnippetTool extends Tool {
 
@@ -100,7 +101,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
     }
     return builder
       .addStringProperty(SNIPPET_PROPERTY, "Code snippet to filter issues - must match content within the analyzed file")
-      .addEnumProperty(LANGUAGE_PROPERTY, VALID_LANGUAGES, "Language of the code (e.g., 'java', 'python', 'js')")
+      .addEnumProperty(LANGUAGE_PROPERTY, VALID_LANGUAGES, "Language of the code (e.g., 'java', 'python', 'ts', 'tsx', 'js', 'jsx')")
       .addEnumProperty(SCOPE_PROPERTY, VALID_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN)")
       .setReadOnlyHint()
       .build();
@@ -179,7 +180,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
     Path tmpFile = null;
     try {
       tmpFile = createTemporaryFileForLanguage(analysisId.toString(), backendService.getWorkDir(), fileContent,
-        sonarLanguage);
+        language, sonarLanguage);
       var clientFileDto = backendService.toClientFileDto(tmpFile, fileContent, mapSonarLanguageToLanguage(sonarLanguage), isTest);
       backendService.addFile(clientFileDto);
       var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri())).get(30, TimeUnit.SECONDS);
@@ -221,12 +222,9 @@ public class AnalyzeCodeSnippetTool extends Tool {
     backendService.updateRulesConfiguration(activeRules);
   }
 
-  private static Path createTemporaryFileForLanguage(String analysisId, Path workDir, String fileContent, SonarLanguage language) throws IOException {
-    var defaultFileSuffixes = language.getDefaultFileSuffixes();
-    var extension = defaultFileSuffixes.length > 0 ? defaultFileSuffixes[0] : "";
-    if (extension.isBlank()) {
-      extension = ".txt";
-    }
+  private static Path createTemporaryFileForLanguage(String analysisId, Path workDir, String fileContent,
+    @Nullable String languageInput, SonarLanguage language) throws IOException {
+    var extension = resolveAnalysisFileExtension(languageInput, language);
     var tempFile = workDir.resolve("analysis-" + analysisId + extension);
     Files.writeString(tempFile, fileContent);
     return tempFile;

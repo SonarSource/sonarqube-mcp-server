@@ -912,10 +912,10 @@ SOCKS5 proxies are supported.
   - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). Used when the workspace is mounted at `/app/mcp-workspace` - _String_
   - `fileContent` - Complete file content as a string. Required when workspace is not mounted - _String_
   - `codeSnippet` - Code snippet to filter issues (must match content in fileContent) - _String_
-  - `language` - Language of the code (e.g., 'java', 'python', 'javascript') - _String_
+  - `language` - Language of the code (e.g., 'java', 'python', 'js', 'ts', 'tsx', 'jsx') - _String_
   - `scope` - Scope of the file: MAIN or TEST (default: MAIN) - _String_
   
-  **Supported Languages:** Java, Kotlin, Python, Ruby, Go, JavaScript, TypeScript, JSP, PHP, XML, HTML, CSS, CloudFormation, Kubernetes, Terraform, Azure Resource Manager, Ansible, Docker, Secrets detection
+  **Supported Languages:** Java, Kotlin, Python, Ruby, Go, JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), JSP, PHP, XML, HTML, CSS, CloudFormation, Kubernetes, Terraform, Azure Resource Manager, Ansible, Docker, Secrets detection
 
 **When integration with SonarQube for IDE is enabled:**
 - **analyze_file_list** - Analyze files in the current working directory using SonarQube for IDE. This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.
@@ -1392,29 +1392,14 @@ Show me all the issues that were marked as false positives in the last month. Ar
 
 ## Build
 
-Prefer a container image from [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube) or [sonarsource/sonarqube-mcp](https://hub.docker.com/r/sonarsource/sonarqube-mcp/tags) — build from source only if you need to run a locally modified version of the server.
+Prefer a container image from [mcp/sonarqube](https://hub.docker.com/r/mcp/sonarqube) or [sonarsource/sonarqube-mcp](https://hub.docker.com/r/sonarsource/sonarqube-mcp/tags).
+
+To run the server as a standalone JAR without Docker, download a pre-built release from the [SonarSource binaries repository](https://binaries.sonarsource.com/?prefix=Distribution/sonarqube-mcp-server/). Every released version is published there as `sonarqube-mcp-server-<version>.jar` (for example, `sonarqube-mcp-server-1.19.0.2785.jar`).
 
 <details>
-<summary>Build from source</summary>
+<summary>Run from JAR</summary>
 
-SonarQube MCP Server requires a Java Development Kit (JDK) version 21 or later to build.
-
-Run the following Gradle command to clean the project and build the application:
-
-```bash
-./gradlew clean build -x test
-```
-
-The JAR file will be created in `build/libs/`.
-
-After adding or updating dependencies, regenerate the lock files:
-
-```bash
-./gradlew :dependencies --write-locks
-./gradlew :its:dependencies --write-locks
-```
-
-You will then need to manually copy and paste the MCP configuration, as follows:
+Download the JAR for the version you want from the [binaries repository](https://binaries.sonarsource.com/?prefix=Distribution/sonarqube-mcp-server/), then configure your MCP client to run it with Java 21 or later:
 
 * To connect with SonarQube Cloud:
 
@@ -1453,6 +1438,30 @@ You will then need to manually copy and paste the MCP configuration, as follows:
   }
 }
 ```
+
+</details>
+
+<details>
+<summary>Build from source</summary>
+
+SonarQube MCP Server requires a Java Development Kit (JDK) version 21 or later to build.
+
+Run the following Gradle command to clean the project and build the application:
+
+```bash
+./gradlew clean build -x test
+```
+
+The JAR file will be created in `build/libs/`.
+
+After adding or updating dependencies, regenerate the lock files:
+
+```bash
+./gradlew :dependencies --write-locks
+./gradlew :its:dependencies --write-locks
+```
+
+Use the **Run from JAR** configuration above, pointing `<path_to_sonarqube_mcp_server_jar>` to the JAR in `build/libs/`.
 
 </details>
 
