@@ -1,7 +1,7 @@
 [versions]
 sonarlint-core = "11.4.0.85676"
 
-sonarqube = "7.3.0.8198"
+sonarqube = "7.3.1.8318"
 
 license-plugin = "0.16.1"
 artifactory-plugin = "6.0.4"
