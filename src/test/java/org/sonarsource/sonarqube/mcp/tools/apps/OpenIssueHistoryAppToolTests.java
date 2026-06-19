@@ -42,7 +42,7 @@ class OpenIssueHistoryAppToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_render_issue_history_as_a_table(SonarQubeMcpServerTestHarness harness) {
+  void it_should_render_issue_history_as_a_multi_line_chart(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project")
       .willReturn(aResponse().withBody("""
         {
@@ -93,10 +93,16 @@ class OpenIssueHistoryAppToolTests {
     assertThat(textResource.mimeType()).isEqualTo(IssueHistoryApp.MIME_TYPE);
     assertThat(textResource.text())
       .contains("<h1>Issue History</h1>")
-      .contains("<tbody id=\"rows\">")
+      .contains("<section class=\"chart-widget\"")
+      .contains("<svg id=\"issue-history-chart\"")
+      .contains("<div class=\"legend\" id=\"chart-legend\"></div>")
       .contains("<script>")
+      .contains("var initialIssueHistory =[{\"date\":\"2024-01-01T00:00:00Z\"")
       .contains("var initializeProtocolVersions = [\"2025-11-25\", \"2025-06-18\", \"2024-11-05\"]")
       .contains("function renderIssueHistory(history)")
+      .contains("function buildSeries(history)")
+      .contains("createSvgElement(\"path\", { class: \"series-line\"")
+      .contains("createSvgElement(\"circle\",")
       .contains("structured.issueHistory.issueCountHistory")
       .contains("hydrateFromMessage(message)")
       .contains("request(\"ui/initialize\", {")
@@ -106,22 +112,17 @@ class OpenIssueHistoryAppToolTests {
       .contains("appCapabilities: {}")
       .contains("}, 2000)")
       .contains("notify(\"ui/notifications/initialized\")")
-      .contains("window.requestAnimationFrame(notifySizeChanged)")
-      .contains("<td>2024-01-01T00:00:00Z</td>")
-      .contains("<td>HIGH</td>")
-      .contains("<td>4</td>")
-      .contains("<td>MEDIUM</td>")
-      .contains("<td>9</td>")
-      .contains("<td>2024-01-02T00:00:00Z</td>")
-      .contains("<td>3</td>");
+      .contains("window.requestAnimationFrame(function ()")
+      .contains("\"key\":\"HIGH\",\"value\":4")
+      .contains("\"key\":\"MEDIUM\",\"value\":9")
+      .contains("\"key\":\"HIGH\",\"value\":3");
 
     var readResourceResult = mcpClient.readResource(IssueHistoryApp.RESOURCE_URI);
     var readResource = (McpSchema.TextResourceContents) readResourceResult.contents().getFirst();
     assertThat(readResource.text())
-      .contains("<tbody id=\"rows\">")
-      .contains("<td>2024-01-01T00:00:00Z</td>")
-      .contains("<td>HIGH</td>")
-      .contains("<td>4</td>");
+      .contains("<svg id=\"issue-history-chart\"")
+      .contains("var initialIssueHistory =[{\"date\":\"2024-01-01T00:00:00Z\"")
+      .contains("\"key\":\"HIGH\",\"value\":4");
   }
 
 }

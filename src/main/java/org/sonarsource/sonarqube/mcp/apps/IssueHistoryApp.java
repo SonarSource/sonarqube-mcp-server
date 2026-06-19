@@ -130,47 +130,114 @@ public class IssueHistoryApp {
               font-size: 24px;
               line-height: 1.2;
             }
-            table {
-              width: 100%;
-              border-collapse: collapse;
+            .chart-widget {
               border: 1px solid #d8dee9;
               background: #ffffff;
+              padding: 16px;
             }
-            th,
-            td {
-              border-bottom: 1px solid #e2e8f0;
-              padding: 10px 12px;
-              text-align: left;
-              font-size: 14px;
-              line-height: 1.35;
+            .chart-frame {
+              position: relative;
+              height: 320px;
+              min-height: 260px;
+              min-width: 0;
+              width: 100%;
             }
-            th {
-              background: #eef2f7;
+            svg {
+              display: block;
+              height: 100%;
+              min-height: 0;
+              min-width: 0;
+              width: 100%;
+            }
+            .axis {
+              stroke: #e0e0e0;
+              stroke-width: 1;
+            }
+            .grid-line {
+              opacity: 0.075;
+              stroke: currentColor;
+              stroke-dasharray: 4,1;
+              stroke-width: 1;
+            }
+            .tick-label {
+              fill: #64748b;
+              font-size: 12px;
+            }
+            .series-line {
+              fill: none;
+              stroke-linecap: round;
+              stroke-linejoin: round;
+              stroke-width: 2;
+            }
+            .series-dot {
+              stroke: #ffffff;
+              stroke-width: 2;
+            }
+            .legend {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px 16px;
+              margin-top: 12px;
+            }
+            .legend-item {
+              align-items: center;
               color: #334155;
-              font-weight: 700;
+              display: inline-flex;
+              font-size: 12px;
+              gap: 6px;
+              min-width: 0;
             }
-            td:last-child {
-              font-variant-numeric: tabular-nums;
+            .legend-swatch {
+              border-radius: 999px;
+              display: inline-block;
+              height: 10px;
+              width: 10px;
+            }
+            .tooltip {
+              background: #172033;
+              border-radius: 6px;
+              color: #ffffff;
+              display: none;
+              font-size: 12px;
+              max-width: 260px;
+              padding: 8px 10px;
+              pointer-events: none;
+              position: absolute;
+              z-index: 1;
+            }
+            .tooltip strong {
+              display: block;
+              margin-bottom: 4px;
+            }
+            .tooltip-row {
+              align-items: center;
+              display: flex;
+              gap: 6px;
+              justify-content: space-between;
+            }
+            .tooltip-swatch {
+              border-radius: 999px;
+              display: inline-block;
+              height: 8px;
+              width: 8px;
             }
             .empty {
               color: #64748b;
+              margin: 16px 0 0;
             }
             @media (prefers-color-scheme: dark) {
               body {
                 background: #111827;
                 color: #f8fafc;
               }
-              table {
+              .chart-widget {
                 border-color: #334155;
                 background: #1f2937;
               }
-              th {
-                background: #0f172a;
+              .legend-item,
+              .tick-label {
                 color: #cbd5e1;
-              }
-              th,
-              td {
-                border-bottom-color: #334155;
+                fill: #cbd5e1;
               }
               .empty {
                 color: #94a3b8;
@@ -181,21 +248,19 @@ public class IssueHistoryApp {
         <body>
           <main>
             <h1>Issue History</h1>
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Bucket</th>
-                  <th>Issue Count</th>
-                </tr>
-              </thead>
-              <tbody id="rows">
-      """ + renderRows(response) + """
-              </tbody>
-            </table>
+            <section class="chart-widget" aria-label="Issue history by bucket">
+              <div class="chart-frame" id="chart-frame">
+                <svg id="issue-history-chart" role="img" aria-label="Issue history by bucket"></svg>
+                <div class="tooltip" id="chart-tooltip" role="tooltip"></div>
+              </div>
+              <div class="legend" id="chart-legend"></div>
+              <p class="empty" id="empty-state" hidden>No issue history returned.</p>
+            </section>
           </main>
           <script>
             (function () {
+              var initialIssueHistory = """ + renderIssueHistoryJson(response) + ";\n" + """
+              var currentIssueHistory = initialIssueHistory;
               var host = window.parent;
               var nextId = 1;
               var pending = new Map();
@@ -233,29 +298,206 @@ public class IssueHistoryApp {
                   .replace(/"/g, "&quot;");
               }
 
-              function renderIssueHistory(history) {
-                var rows = document.getElementById("rows");
-                if (!rows) {
-                  return;
+              function createSvgElement(name, attributes) {
+                var element = document.createElementNS("http://www.w3.org/2000/svg", name);
+                Object.keys(attributes || {}).forEach(function (key) {
+                  element.setAttribute(key, attributes[key]);
+                });
+                return element;
+              }
+
+              function formatDate(value) {
+                return new Date(value).toLocaleString(undefined, { month: "short", day: "numeric" });
+              }
+
+              function formatValue(value) {
+                return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+              }
+
+              function niceCeiling(value) {
+                if (value <= 0) {
+                  return 1;
                 }
-                if (!Array.isArray(history) || history.length === 0) {
-                  rows.innerHTML = '<tr><td colspan="3" class="empty">No issue history returned.</td></tr>';
-                  notifySizeChanged();
+                var roughStep = value / 5;
+                var magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+                var normalized = roughStep / magnitude;
+                var step = magnitude;
+                if (normalized > 5) {
+                  step = 10 * magnitude;
+                } else if (normalized > 2) {
+                  step = 5 * magnitude;
+                } else if (normalized > 1) {
+                  step = 2 * magnitude;
+                }
+                return Math.ceil(value / step) * step;
+              }
+
+              function buildSeries(history) {
+                var byKey = {};
+                if (!Array.isArray(history)) {
+                  return [];
+                }
+
+                history.forEach(function (item) {
+                  var timestamp = new Date(item.date).getTime();
+                  if (!Number.isFinite(timestamp)) {
+                    return;
+                  }
+                  var distribution = Array.isArray(item.distribution) && item.distribution.length > 0
+                    ? item.distribution
+                    : [{ key: "No bucket", value: 0 }];
+                  distribution.forEach(function (bucket) {
+                    var value = Number(bucket.value);
+                    if (!Number.isFinite(value)) {
+                      return;
+                    }
+                    var key = String(bucket.key || "all");
+                    if (!byKey[key]) {
+                      byKey[key] = [];
+                    }
+                    byKey[key].push({ x: timestamp, y: value, date: item.date });
+                  });
+                });
+
+                return Object.keys(byKey).sort().map(function (key, index) {
+                  return {
+                    color: ["#2d9cdb", "#27ae60", "#f2c94c", "#eb5757", "#9b51e0", "#172033", "#f2994a", "#56ccf2"][index % 8],
+                    key: key,
+                    points: byKey[key].sort(function (left, right) {
+                      return left.x - right.x;
+                    })
+                  };
+                }).filter(function (series) {
+                  return series.points.length > 0;
+                });
+              }
+
+              function renderIssueHistory(history) {
+                currentIssueHistory = history;
+                var frame = document.getElementById("chart-frame");
+                var svg = document.getElementById("issue-history-chart");
+                var legend = document.getElementById("chart-legend");
+                var emptyState = document.getElementById("empty-state");
+                var tooltip = document.getElementById("chart-tooltip");
+                if (!frame || !svg || !legend || !emptyState || !tooltip) {
                   return;
                 }
 
-                rows.innerHTML = history.map(function (item) {
-                  if (!Array.isArray(item.distribution) || item.distribution.length === 0) {
-                    return "<tr><td>" + escapeHtml(item.date) +
-                      '</td><td class="empty">No bucket</td><td>0</td></tr>';
-                  }
-                  return item.distribution.map(function (bucket) {
-                    return "<tr><td>" + escapeHtml(item.date) +
-                      "</td><td>" + escapeHtml(bucket.key) +
-                      "</td><td>" + escapeHtml(bucket.value) +
-                      "</td></tr>";
+                var series = buildSeries(history);
+                svg.innerHTML = "";
+                legend.innerHTML = "";
+                tooltip.style.display = "none";
+
+                if (series.length === 0) {
+                  emptyState.hidden = false;
+                  notifySizeChanged();
+                  return;
+                }
+                emptyState.hidden = true;
+
+                var width = Math.max(frame.clientWidth || 0, 520);
+                var height = Math.max(frame.clientHeight || 0, 300);
+                var padding = { top: 16, right: 24, bottom: 42, left: 58 };
+                var availableWidth = width - padding.left - padding.right;
+                var availableHeight = height - padding.top - padding.bottom;
+                var allPoints = [];
+                series.forEach(function (item) {
+                  item.points.forEach(function (point) {
+                    allPoints.push(point);
+                  });
+                });
+                var xMin = Math.min.apply(null, allPoints.map(function (point) { return point.x; }));
+                var xMax = Math.max.apply(null, allPoints.map(function (point) { return point.x; }));
+                var yMax = niceCeiling(Math.max.apply(null, allPoints.map(function (point) { return point.y; })));
+                if (xMin === xMax) {
+                  xMin -= 24 * 60 * 60 * 1000;
+                  xMax += 24 * 60 * 60 * 1000;
+                }
+
+                function xScale(value) {
+                  return padding.left + ((value - xMin) / (xMax - xMin)) * availableWidth;
+                }
+
+                function yScale(value) {
+                  return padding.top + ((yMax - value) / yMax) * availableHeight;
+                }
+
+                function append(element) {
+                  svg.appendChild(element);
+                }
+
+                svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+                append(createSvgElement("line", { class: "axis", x1: padding.left, x2: padding.left, y1: padding.top, y2: padding.top + availableHeight }));
+                append(createSvgElement("line", { class: "axis", x1: padding.left, x2: padding.left + availableWidth, y1: padding.top + availableHeight, y2: padding.top + availableHeight }));
+
+                for (var i = 0; i <= 5; i++) {
+                  var tick = (yMax / 5) * i;
+                  var y = yScale(tick);
+                  append(createSvgElement("line", { class: "grid-line", x1: padding.left, x2: padding.left + availableWidth, y1: y, y2: y }));
+                  var yLabel = createSvgElement("text", { class: "tick-label", "text-anchor": "end", x: padding.left - 10, y: y + 4 });
+                  yLabel.textContent = formatValue(tick);
+                  append(yLabel);
+                }
+
+                var uniqueDates = Array.from(new Set(allPoints.map(function (point) { return point.x; }))).sort(function (left, right) { return left - right; });
+                var xTickCount = Math.min(6, uniqueDates.length);
+                var xTicks = uniqueDates.filter(function (_date, index) {
+                  return xTickCount <= 1 || index % Math.max(1, Math.ceil(uniqueDates.length / xTickCount)) === 0 || index === uniqueDates.length - 1;
+                });
+                xTicks.forEach(function (tick) {
+                  var x = xScale(tick);
+                  append(createSvgElement("line", { class: "axis", x1: x, x2: x, y1: padding.top + availableHeight, y2: padding.top + availableHeight + 5 }));
+                  var xLabel = createSvgElement("text", { class: "tick-label", "text-anchor": "middle", x: x, y: padding.top + availableHeight + 24 });
+                  xLabel.textContent = formatDate(tick);
+                  append(xLabel);
+                });
+
+                series.forEach(function (item) {
+                  var path = item.points.map(function (point, index) {
+                    return (index === 0 ? "M" : "L") + xScale(point.x) + "," + yScale(point.y);
+                  }).join(" ");
+                  append(createSvgElement("path", { class: "series-line", d: path, stroke: item.color }));
+                  item.points.forEach(function (point) {
+                    append(createSvgElement("circle", {
+                      class: "series-dot",
+                      cx: xScale(point.x),
+                      cy: yScale(point.y),
+                      fill: item.color,
+                      r: 3
+                    }));
+                  });
+                  var legendItem = document.createElement("span");
+                  legendItem.className = "legend-item";
+                  legendItem.innerHTML = '<span class="legend-swatch" style="background:' + item.color + '"></span>' + escapeHtml(item.key);
+                  legend.appendChild(legendItem);
+                });
+
+                svg.onmousemove = function (event) {
+                  var rect = svg.getBoundingClientRect();
+                  var scaledX = padding.left + ((event.clientX - rect.left) / rect.width) * width - padding.left;
+                  var clampedX = Math.max(0, Math.min(scaledX, availableWidth));
+                  var hoveredTimestamp = xMin + (clampedX / availableWidth) * (xMax - xMin);
+                  var nearestDate = uniqueDates.reduce(function (nearest, date) {
+                    return Math.abs(date - hoveredTimestamp) < Math.abs(nearest - hoveredTimestamp) ? date : nearest;
+                  }, uniqueDates[0]);
+                  var rows = series.map(function (item) {
+                    var point = item.points.find(function (candidate) {
+                      return candidate.x === nearestDate;
+                    });
+                    if (!point) {
+                      return "";
+                    }
+                    return '<span class="tooltip-row"><span><span class="tooltip-swatch" style="background:' + item.color + '"></span>' +
+                      escapeHtml(item.key) + '</span><span>' + formatValue(point.y) + "</span></span>";
                   }).join("");
-                }).join("");
+                  tooltip.innerHTML = "<strong>" + escapeHtml(formatDate(nearestDate)) + "</strong>" + rows;
+                  tooltip.style.display = "block";
+                  tooltip.style.left = Math.min(event.clientX - rect.left + 12, frame.clientWidth - tooltip.offsetWidth - 8) + "px";
+                  tooltip.style.top = Math.max(event.clientY - rect.top - tooltip.offsetHeight - 12, 8) + "px";
+                };
+                svg.onmouseleave = function () {
+                  tooltip.style.display = "none";
+                };
                 notifySizeChanged();
               }
 
@@ -341,8 +583,15 @@ public class IssueHistoryApp {
                 hydrateFromMessage(message);
               });
 
-              window.requestAnimationFrame(notifySizeChanged);
-              window.addEventListener("load", notifySizeChanged);
+              window.requestAnimationFrame(function () {
+                renderIssueHistory(currentIssueHistory);
+              });
+              window.addEventListener("load", function () {
+                renderIssueHistory(currentIssueHistory);
+              });
+              window.addEventListener("resize", function () {
+                renderIssueHistory(currentIssueHistory);
+              });
               initialize(0);
             })();
           </script>
@@ -351,51 +600,58 @@ public class IssueHistoryApp {
       """;
   }
 
-  private static String renderRows(GetIssueCountHistoryToolResponse response) {
+  private static String renderIssueHistoryJson(GetIssueCountHistoryToolResponse response) {
     var history = response.issueCountHistory();
     if (history == null || history.isEmpty()) {
-      return """
-                <tr>
-                  <td colspan="3" class="empty">No issue history returned.</td>
-                </tr>
-        """;
+      return "[]";
     }
 
-    var rows = new StringBuilder();
-    for (var item : history) {
+    var items = new StringBuilder("[");
+    for (var i = 0; i < history.size(); i++) {
+      var item = history.get(i);
+      if (i > 0) {
+        items.append(',');
+      }
+      items.append("{\"date\":\"")
+        .append(escapeJson(item.date()))
+        .append("\",\"distribution\":[");
+
       var distribution = item.distribution();
-      if (distribution == null || distribution.isEmpty()) {
-        rows.append("""
-                  <tr>
-                    <td>%s</td>
-                    <td class="empty">No bucket</td>
-                    <td>0</td>
-                  </tr>
-          """.formatted(escape(item.date())));
-      } else {
-        for (var bucket : distribution) {
-          rows.append("""
-                    <tr>
-                      <td>%s</td>
-                      <td>%s</td>
-                      <td>%s</td>
-                    </tr>
-            """.formatted(escape(item.date()), escape(bucket.key()), bucket.value() == null ? "" : bucket.value()));
+      if (distribution != null) {
+        for (var j = 0; j < distribution.size(); j++) {
+          var bucket = distribution.get(j);
+          if (j > 0) {
+            items.append(',');
+          }
+          items.append("{\"key\":\"")
+            .append(escapeJson(bucket.key()))
+            .append("\",\"value\":");
+          if (bucket.value() == null) {
+            items.append("null");
+          } else {
+            items.append(bucket.value());
+          }
+          items.append('}');
         }
       }
+      items.append("]}");
     }
-    return rows.toString();
+    return items.append(']').toString();
   }
 
-  private static String escape(String value) {
+  private static String escapeJson(String value) {
     if (value == null) {
       return "";
     }
     return value
-      .replace("&", "&amp;")
-      .replace("<", "&lt;")
-      .replace(">", "&gt;")
-      .replace("\"", "&quot;");
+      .replace("\\", "\\\\")
+      .replace("\"", "\\\"")
+      .replace("\b", "\\b")
+      .replace("\f", "\\f")
+      .replace("\n", "\\n")
+      .replace("\r", "\\r")
+      .replace("\t", "\\t")
+      .replace("</", "<\\/");
   }
 
 }
