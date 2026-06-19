@@ -66,10 +66,19 @@ license {
 			"form" to "XML_STYLE"
 		)
 	)
-    excludes(
-        listOf("**/*.jar", "**/*.png", "**/README", "**/logback.xml", "**/proxied-mcp-servers.json")
-    )
-    strictCheck = true
+	excludes(
+		listOf(
+			"**/*.jar",
+			"**/*.png",
+			"**/README",
+			"**/logback.xml",
+			"**/proxied-mcp-servers.json",
+			"**/mcp-apps/*.html",
+			"**/mcp-apps/*.css",
+			"**/mcp-apps/*.js"
+		)
+	)
+	strictCheck = true
 }
 
 val mockitoAgent = configurations.create("mockitoAgent")
@@ -133,6 +142,19 @@ dependencies {
 }
 
 tasks {
+	register<Exec>("buildMcpApps") {
+		description = "Bundle MCP app frontend assets into src/main/resources/mcp-apps"
+		group = "build"
+
+		inputs.file(layout.projectDirectory.file("src/main/frontend/issue-history-app.tsx"))
+		inputs.file(layout.projectDirectory.file("src/main/resources/mcp-apps/issue-history.html"))
+		inputs.file(layout.projectDirectory.file("scripts/build-mcp-apps.sh"))
+		outputs.file(layout.projectDirectory.file("src/main/resources/mcp-apps/issue-history-app.js"))
+		outputs.file(layout.projectDirectory.file("src/main/resources/mcp-apps/issue-history-app.css"))
+
+		commandLine("bash", "scripts/build-mcp-apps.sh")
+	}
+
 	test {
 		useJUnitPlatform()
 		systemProperty("TELEMETRY_DISABLED", "true")

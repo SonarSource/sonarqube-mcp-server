@@ -285,7 +285,7 @@ class PerRequestToolFilteringHandlerTest {
       new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
     var handler = new PerRequestToolFilteringHandler(delegate, List.of());
     var context = contextWithToken();
-    var resourcesReadRequest = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_RESOURCES_READ, REQUEST_ID, Map.of("uri", "ui://sonarqube/hello-world.html"));
+    var resourcesReadRequest = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_RESOURCES_READ, REQUEST_ID, Map.of("uri", "ui://sonarqube/issue-history.html"));
 
     handler.handleRequest(context, resourcesReadRequest).block();
 

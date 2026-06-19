@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SonarQube Issue History</title>
+    <style>
+      :root {
+        --echoes-color-text-subtle: #64748b;
+        --echoes-color-surface-default: #ffffff;
+        color-scheme: light dark;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #f8fafc;
+        color: #172033;
+      }
+      main {
+        padding: 24px;
+      }
+      h1 {
+        margin: 0 0 16px;
+        font-size: 24px;
+        line-height: 1.2;
+      }
+      .chart-widget {
+        border: 1px solid #d8dee9;
+        background: #ffffff;
+        padding: 16px;
+      }
+      .chart-frame {
+        min-height: 300px;
+        min-width: 0;
+        position: relative;
+        width: 100%;
+      }
+      .issue-history-chart {
+        display: block;
+        height: 100%;
+        min-height: 300px;
+        min-width: 0;
+        width: 100%;
+      }
+      .axis {
+        stroke: #e0e0e0;
+        stroke-width: 1;
+      }
+      .grid-line {
+        opacity: 0.075;
+        stroke: currentColor;
+        stroke-dasharray: 4,1;
+        stroke-width: 1;
+      }
+      .line-chart-area {
+        stroke: none;
+      }
+      .tick-label {
+        fill: #64748b;
+        font-size: 12px;
+      }
+      .series-area {
+        fill-opacity: 0.12;
+        stroke: none;
+      }
+      .series-line {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+      .series-dot {
+        stroke: #ffffff;
+        stroke-width: 2;
+      }
+      .cursor-line {
+        fill: none;
+        opacity: 0.35;
+        shape-rendering: crispEdges;
+        stroke: currentColor;
+        stroke-width: 1;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        margin-top: 12px;
+      }
+      .legend-item {
+        align-items: center;
+        color: #334155;
+        display: inline-flex;
+        font-size: 12px;
+        gap: 6px;
+        min-width: 0;
+      }
+      .legend-swatch {
+        border-radius: 999px;
+        display: inline-block;
+        height: 10px;
+        width: 10px;
+      }
+      .tooltip {
+        background: #172033;
+        border-radius: 6px;
+        color: #ffffff;
+        font-size: 12px;
+        max-width: 260px;
+        padding: 8px 10px;
+        pointer-events: none;
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        z-index: 1;
+      }
+      .tooltip strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .tooltip-row {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+      }
+      .tooltip-swatch {
+        border-radius: 999px;
+        display: inline-block;
+        height: 8px;
+        margin-right: 6px;
+        width: 8px;
+      }
+      .empty {
+        color: #64748b;
+        margin: 16px 0 0;
+      }
+      .sw-flex {
+        display: flex;
+      }
+      .sw-flex-col {
+        flex-direction: column;
+      }
+      .sw-items-center {
+        align-items: center;
+      }
+      .sw-justify-end {
+        justify-content: flex-end;
+      }
+      .sw-text-xs {
+        font-size: 12px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --echoes-color-text-subtle: #cbd5e1;
+          --echoes-color-surface-default: #1f2937;
+        }
+        body {
+          background: #111827;
+          color: #f8fafc;
+        }
+        .chart-widget {
+          border-color: #334155;
+          background: #1f2937;
+        }
+        .legend-item,
+        .tick-label {
+          color: #cbd5e1;
+          fill: #cbd5e1;
+        }
+        .empty {
+          color: #94a3b8;
+        }
+      }
+    </style>
+    <style>
+__ISSUE_HISTORY_APP_CSS__
+    </style>
+  </head>
+  <body>
+    <div id="issue-history-root"></div>
+    <script>
+      window.__ISSUE_HISTORY_INITIAL_DATA__ = __ISSUE_HISTORY_JSON__;
+    </script>
+    <script>
+__ISSUE_HISTORY_APP_JS__
+    </script>
+  </body>
+</html>

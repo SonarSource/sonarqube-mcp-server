@@ -34,7 +34,7 @@ import org.sonarsource.sonarqube.mcp.tools.issues.GetIssueCountHistoryToolRespon
 
 public class OpenIssueHistoryAppTool extends Tool {
 
-  public static final String TOOL_NAME = "issue_history_app";
+  public static final String TOOL_NAME = "visualize_issue_history";
   private static final String[] VALID_SEVERITIES = {"BLOCKER", "HIGH", "INFO", "LOW", "MEDIUM"};
   private static final String[] VALID_ISSUE_TYPES = {"BUG", "CODE_SMELL", "SECURITY_HOTSPOT", "VULNERABILITY"};
   private static final String[] VALID_STATUSES = {"ACCEPTED", "CONFIRMED", "FALSE_POSITIVE", "FIXED", "OPEN", "REVIEWED", "SAFE", "TO_REVIEW"};
@@ -46,8 +46,11 @@ public class OpenIssueHistoryAppTool extends Tool {
   public OpenIssueHistoryAppTool(ServerApiProvider serverApiProvider) {
     super(SchemaToolBuilder.forOutput(OpenIssueHistoryAppToolResponse.class)
       .setName(TOOL_NAME)
-      .setTitle("Open Issue History MCP App")
-      .setDescription("Open a basic MCP app table for SonarQube Cloud issue count history.")
+      .setTitle("Visualize Issue History MCP App")
+      .setDescription("Open a visualization tool for SonarQube Cloud issue count history. " +
+              "This is a display counterpart to `get_issue_count_history` - use it when the goal is to show the data to the user." +
+              "This renders directly to the user; you do not need to read or echo the result." +
+              "Further filtering needs to be done by making another request to the tool.")
       .setMeta(IssueHistoryApp.toolDescriptorMeta())
       .addRequiredEnumValueProperty(HistoryTargetResolver.TARGET_TYPE_PROPERTY, HistoryTargetResolver.VALID_TARGET_TYPES,
         "Target entity type: PROJECT_BRANCH or PORTFOLIO")
