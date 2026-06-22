@@ -54,7 +54,7 @@ public class SearchFilesByCoverageTool extends Tool {
         .setTitle("Search SonarQube Files by Coverage")
         .setDescription("Search for files in a project sorted by coverage (ascending - worst coverage first). " +
           "This tool helps identify files that need test coverage improvements.")
-        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The project key to search in", configuredProjectKey)
+        .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
         .addBranchAndPullRequestProperties()
         .addNumberProperty(MAX_COVERAGE_PROPERTY, "Only return files with coverage below this threshold (0-100)")
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Page index (1-based, default: 1)")

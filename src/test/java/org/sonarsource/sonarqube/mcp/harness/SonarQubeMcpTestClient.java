@@ -42,12 +42,32 @@ public class SonarQubeMcpTestClient {
     assertThat(JsonParser.parseString(gson.toJson(actual))).isEqualTo(JsonParser.parseString(expected));
   }
 
+  public static void assertMissingRequiredArgument(McpSchema.CallToolResult result, String argumentName) {
+    assertThat(result.isError()).isTrue();
+    var text = ((McpSchema.TextContent) result.content().getFirst()).text();
+    assertThat(text).contains(argumentName);
+    assertThat(text).satisfiesAnyOf(
+      message -> assertThat(message).contains("Missing required argument"),
+      message -> assertThat(message).contains("input validation failed"),
+      message -> assertThat(message).contains("required property '" + argumentName + "' not found")
+    );
+  }
+
+  public static void assertToolExecutionError(McpSchema.CallToolResult result, String expectedFragment) {
+    assertThat(result.isError()).isTrue();
+    var text = ((McpSchema.TextContent) result.content().getFirst()).text();
+    assertThat(text).satisfiesAnyOf(
+      message -> assertThat(message).contains(expectedFragment),
+      message -> assertThat(message).contains("input validation failed")
+    );
+  }
+
   public McpSchema.CallToolResult callTool(String toolName) {
     return callTool(toolName, Map.of());
   }
 
   public McpSchema.CallToolResult callTool(String toolName, Map<String, Object> arguments) {
-    return mcpSyncClient.callTool(new McpSchema.CallToolRequest(toolName, arguments));
+    return mcpSyncClient.callTool(McpSchema.CallToolRequest.builder(toolName).arguments(arguments).build());
   }
 
   public List<McpSchema.Tool> listTools() {

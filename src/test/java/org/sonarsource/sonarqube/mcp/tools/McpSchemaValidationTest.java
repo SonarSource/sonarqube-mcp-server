@@ -26,6 +26,7 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@SuppressWarnings("unchecked")
 class McpSchemaValidationTest {
 
   @SonarQubeMcpServerTest
@@ -120,16 +121,18 @@ class McpSchemaValidationTest {
         .as("Input schema should not be null for tool '%s'", schema.name())
         .isNotNull();
       
-      assertThat(inputSchema.type())
+      assertThat((String) inputSchema.get("type"))
         .as("Input schema type should be 'object' for MCP tool '%s'", schema.name())
         .isEqualTo("object");
       
-      if (inputSchema.properties() != null) {
-        validateJsonSchemaProperties(inputSchema.properties(), schema.name());
+      var properties = (Map<String, Object>) inputSchema.get("properties");
+      if (properties != null) {
+        validateJsonSchemaProperties(properties, schema.name());
       }
       
-      if (inputSchema.required() != null) {
-        validateRequiredProperties(inputSchema.required(), inputSchema.properties(), schema.name());
+      var required = (List<String>) inputSchema.get("required");
+      if (required != null) {
+        validateRequiredProperties(required, properties, schema.name());
       }
     }
   }
@@ -142,10 +145,12 @@ class McpSchemaValidationTest {
     for (var schema : tools) {
       var inputSchema = schema.inputSchema();
       
-      if (inputSchema.required() != null && inputSchema.properties() != null) {
-        var propertyNames = inputSchema.properties().keySet();
+      var required = (List<String>) inputSchema.get("required");
+      var properties = (Map<String, Object>) inputSchema.get("properties");
+      if (required != null && properties != null) {
+        var propertyNames = properties.keySet();
         
-        for (var requiredProperty : inputSchema.required()) {
+        for (var requiredProperty : required) {
           assertThat(propertyNames)
             .as("Required property '%s' should exist in properties for tool '%s'", requiredProperty, schema.name())
             .contains(requiredProperty);
@@ -161,8 +166,9 @@ class McpSchemaValidationTest {
     
     for (var schema : tools) {
       var inputSchema = schema.inputSchema();
-      if (inputSchema.required() != null) {
-        var requiredProperties = inputSchema.required();
+      var required = (List<String>) inputSchema.get("required");
+      if (required != null) {
+        var requiredProperties = required;
         var uniqueRequiredProperties = Set.copyOf(requiredProperties);
 
         assertThat(uniqueRequiredProperties)
@@ -180,8 +186,9 @@ class McpSchemaValidationTest {
     for (var schema : tools) {
       var inputSchema = schema.inputSchema();
       
-      if (inputSchema.properties() != null) {
-        for (var property : inputSchema.properties().entrySet()) {
+      var properties = (Map<String, Object>) inputSchema.get("properties");
+      if (properties != null) {
+        for (var property : properties.entrySet()) {
           if (property.getValue() instanceof Map<?, ?> propertyDef) {
             var description = propertyDef.get("description");
             
@@ -211,8 +218,9 @@ class McpSchemaValidationTest {
     for (var schema : tools) {
       var inputSchema = schema.inputSchema();
       
-      if (inputSchema.properties() != null) {
-        for (var property : inputSchema.properties().entrySet()) {
+      var properties = (Map<String, Object>) inputSchema.get("properties");
+      if (properties != null) {
+        for (var property : properties.entrySet()) {
           if (property.getValue() instanceof Map<?, ?> propertyDef) {
             var type = propertyDef.get("type");
             var items = propertyDef.get("items");
@@ -254,8 +262,9 @@ class McpSchemaValidationTest {
     for (var schema : tools) {
       var inputSchema = schema.inputSchema();
       
-      if (inputSchema.properties() != null) {
-        for (var property : inputSchema.properties().entrySet()) {
+      var properties = (Map<String, Object>) inputSchema.get("properties");
+      if (properties != null) {
+        for (var property : properties.entrySet()) {
           if (property.getValue() instanceof Map<?, ?> propertyDef) {
             var type = propertyDef.get("type");
             

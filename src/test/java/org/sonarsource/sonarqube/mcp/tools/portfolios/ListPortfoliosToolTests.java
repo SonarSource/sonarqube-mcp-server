@@ -101,7 +101,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
-        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
+        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, true));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 404 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true").build());
     }
@@ -115,7 +115,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
-        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
+        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, true));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: SonarQube answered with Error 500 on " + harness.getMockSonarQubeServer().baseUrl() + "/enterprises/portfolios?favorite=true").build());
     }
@@ -131,7 +131,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
-        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
+        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, true));
 
       assertResultEquals(result, """
         {
@@ -157,7 +157,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
-        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
+        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, true));
 
       assertResultEquals(result, """
         {
@@ -204,7 +204,7 @@ class ListPortfoliosToolTests {
         Map.of(
           ListPortfoliosTool.ENTERPRISE_ID_PROPERTY, "enterprise123",
           ListPortfoliosTool.QUERY_PROPERTY, "important",
-          ListPortfoliosTool.FAVORITE_PROPERTY, "true",
+          ListPortfoliosTool.FAVORITE_PROPERTY, true,
           ListPortfoliosTool.PAGE_INDEX_PROPERTY, 2,
           ListPortfoliosTool.PAGE_SIZE_PROPERTY, 10));
 
@@ -260,8 +260,8 @@ class ListPortfoliosToolTests {
         ListPortfoliosTool.TOOL_NAME,
         Map.of(
           ListPortfoliosTool.ENTERPRISE_ID_PROPERTY, "enterprise123",
-          ListPortfoliosTool.FAVORITE_PROPERTY, "true",
-          ListPortfoliosTool.DRAFT_PROPERTY, "true"));
+          ListPortfoliosTool.FAVORITE_PROPERTY, true,
+          ListPortfoliosTool.DRAFT_PROPERTY, true));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("Parameters 'favorite' and 'draft' cannot both be true at the same time").build());
     }
@@ -278,7 +278,7 @@ class ListPortfoliosToolTests {
 
       var result = mcpClient.callTool(
         ListPortfoliosTool.TOOL_NAME,
-        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
+        Map.of(ListPortfoliosTool.FAVORITE_PROPERTY, true));
 
       assertResultEquals(result, """
         {
@@ -372,7 +372,7 @@ class ListPortfoliosToolTests {
         ListPortfoliosTool.TOOL_NAME,
         Map.of(
           ListPortfoliosTool.QUERY_PROPERTY, "apache",
-          ListPortfoliosTool.FAVORITE_PROPERTY, "true"));
+          ListPortfoliosTool.FAVORITE_PROPERTY, true));
 
       assertResultEquals(result, """
         {

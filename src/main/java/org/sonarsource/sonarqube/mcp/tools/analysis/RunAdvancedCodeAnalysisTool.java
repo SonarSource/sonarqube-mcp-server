@@ -63,7 +63,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .setDescription("Run advanced code analysis on a single file using SonarQube Cloud's server-side engine. " +
         "Identifies code quality and security issues, leveraging the project's full analysis context for deeper cross-file detection. " +
         "Always specify the file scope (MAIN or TEST) for more accurate results.")
-      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The key of the project.", configuredProjectKey)
+      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
       .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "The branch name used to retrieve the latest analysis context from SonarQube Cloud.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
 

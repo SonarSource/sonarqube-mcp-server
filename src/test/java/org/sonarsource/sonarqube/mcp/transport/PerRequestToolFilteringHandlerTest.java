@@ -359,7 +359,14 @@ class PerRequestToolFilteringHandlerTest {
 
   private static Tool mockTool(String name, ToolCategory category, boolean readOnly) {
     var annotations = new McpSchema.ToolAnnotations(null, readOnly, null, null, null, null);
-    var toolDef = new McpSchema.Tool(name, null, name + " description", null, null, annotations, null);
+    var toolDef = McpSchema.Tool.builder(name, Map.of(
+        "type", "object",
+        "properties", Map.of(),
+        "required", List.of(),
+        "additionalProperties", false))
+      .description(name + " description")
+      .annotations(annotations)
+      .build();
     var tool = mock(Tool.class);
     when(tool.definition()).thenReturn(toolDef);
     when(tool.getCategory()).thenReturn(category);

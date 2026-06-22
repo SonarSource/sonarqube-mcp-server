@@ -31,6 +31,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class GetScmInfoToolTests {
@@ -99,7 +100,7 @@ class GetScmInfoToolTests {
 
       var result = mcpClient.callTool(GetScmInfoTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: key").build());
+      assertMissingRequiredArgument(result, "key");
     }
 
   }
@@ -180,7 +181,7 @@ class GetScmInfoToolTests {
 
       var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true"));
+        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", true));
 
       assertResultEquals(result, """
         {
@@ -254,7 +255,7 @@ class GetScmInfoToolTests {
 
       var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5));
+        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", false, "from", 1, "to", 5));
 
       assertResultEquals(result, """
         {
@@ -372,7 +373,7 @@ class GetScmInfoToolTests {
 
       var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "true"));
+        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", true));
 
       assertResultEquals(result, """
         {
@@ -444,7 +445,7 @@ class GetScmInfoToolTests {
 
       var result = mcpClient.callTool(
         GetScmInfoTool.TOOL_NAME,
-        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", "false", "from", 1, "to", 5));
+        Map.of("key", "my_project:src/foo/Bar.php", "commits_by_line", false, "from", 1, "to", 5));
 
       assertResultEquals(result, """
         {

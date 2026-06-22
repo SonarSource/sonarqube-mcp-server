@@ -30,6 +30,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertToolExecutionError;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SystemLogsToolTests {
@@ -101,9 +102,9 @@ class SystemLogsToolTests {
 
       var result = mcpClient.callTool(
         SystemLogsTool.TOOL_NAME,
-        Map.of(SystemLogsTool.NAME_PROPERTY, new String[] {"foo"}));
+        Map.of(SystemLogsTool.NAME_PROPERTY, "foo"));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Invalid name: foo. Possible values: access, app, ce, deprecation, es, web").build());
+      assertToolExecutionError(result, "foo");
     }
 
     @SonarQubeMcpServerTest

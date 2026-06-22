@@ -195,14 +195,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       httpServerManager.startServer().join();
       var enabledTools = filterForEnabledTools(supportedTools);
       statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools))
-        .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
+        .serverInfo(McpSchema.Implementation.builder(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()).build())
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
         .tools(enabledTools.stream().map(this::toStatelessSpec).toArray(McpStatelessServerFeatures.SyncToolSpecification[]::new))
         .build();
     } else {
       stdioSyncServer = McpServer.sync(transportProvider)
-        .serverInfo(new McpSchema.Implementation(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()))
+        .serverInfo(McpSchema.Implementation.builder(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()).build())
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
         .tools(filterForEnabledTools(supportedTools).stream().map(this::toStdioSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
@@ -696,7 +696,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void shutdownMcpServer() {
     try {
       if (statelessSyncServer != null) {
-        statelessSyncServer.closeGracefully().block();
+        statelessSyncServer.closeGracefully();
       }
       if (stdioSyncServer != null) {
         stdioSyncServer.closeGracefully();

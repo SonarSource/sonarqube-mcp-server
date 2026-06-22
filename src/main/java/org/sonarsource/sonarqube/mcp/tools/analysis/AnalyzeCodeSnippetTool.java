@@ -93,7 +93,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
       .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
         "Optionally provide a code snippet to filter issues — only issues within the snippet will be reported (snippet location is auto-detected). " +
         "Always specify the language and the file scope (MAIN or TEST) for more accurate results.")
-      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, "The SonarQube project key", configuredProjectKey);
+      .addOptionalProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey);
     if (workspaceConfigured) {
       builder = builder.addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
     } else {
@@ -121,9 +121,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
       Thread.currentThread().interrupt();
       return handleInitializationError(e, startTime);
     }
-    var projectKey = configuredProjectKey != null
-      ? arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey)
-      : arguments.getOptionalString(PROJECT_KEY_PROPERTY);
+    var projectKey = arguments.getOptionalProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
     String fileContent;
     try {
       fileContent = Tool.resolveFileContent(configuredWorkspacePath, arguments, FILE_PATH_PROPERTY, FILE_CONTENT_PROPERTY);

@@ -55,7 +55,7 @@ class ChangeSecurityHotspotStatusToolTests {
         ChangeSecurityHotspotStatusTool.TOOL_NAME,
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
-          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"REVIEWED"}));
+          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, "REVIEWED"));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true)
         .addTextContent("Resolution is required when status is REVIEWED. Valid resolutions: FIXED, SAFE, ACKNOWLEDGED").build());
@@ -69,8 +69,8 @@ class ChangeSecurityHotspotStatusToolTests {
         ChangeSecurityHotspotStatusTool.TOOL_NAME,
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
-          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"TO_REVIEW"},
-          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, new String[] {"SAFE"}));
+          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, "TO_REVIEW",
+          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, "SAFE"));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true)
         .addTextContent("Resolution should not be provided when status is TO_REVIEW").build());
@@ -89,7 +89,7 @@ class ChangeSecurityHotspotStatusToolTests {
         ChangeSecurityHotspotStatusTool.TOOL_NAME,
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
-          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"TO_REVIEW"}));
+          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, "TO_REVIEW"));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true)
         .addTextContent("An error occurred during the tool execution: SonarQube answered with Forbidden. Please verify your token has the required permissions for this operation.")
@@ -105,8 +105,8 @@ class ChangeSecurityHotspotStatusToolTests {
         ChangeSecurityHotspotStatusTool.TOOL_NAME,
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
-          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"REVIEWED"},
-          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, new String[] {"FIXED"},
+          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, "REVIEWED",
+          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, "FIXED",
           ChangeSecurityHotspotStatusTool.COMMENT_PROPERTY, "Implemented fix using environment variables"));
 
       assertResultEquals(result, """
@@ -130,8 +130,8 @@ class ChangeSecurityHotspotStatusToolTests {
         ChangeSecurityHotspotStatusTool.TOOL_NAME,
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
-          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"REVIEWED"},
-          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, new String[] {"SAFE"}));
+          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, "REVIEWED",
+          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, "SAFE"));
 
       assertResultEquals(result, """
         {
@@ -154,7 +154,7 @@ class ChangeSecurityHotspotStatusToolTests {
         ChangeSecurityHotspotStatusTool.TOOL_NAME,
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
-          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"TO_REVIEW"}));
+          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, "TO_REVIEW"));
 
       assertResultEquals(result, """
         {
@@ -180,8 +180,8 @@ class ChangeSecurityHotspotStatusToolTests {
         ChangeSecurityHotspotStatusTool.TOOL_NAME,
         Map.of(
           ChangeSecurityHotspotStatusTool.HOTSPOT_KEY_PROPERTY, "AXJMFm6ERa2AinNL_0fP",
-          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, new String[] {"REVIEWED"},
-          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, new String[] {"ACKNOWLEDGED"},
+          ChangeSecurityHotspotStatusTool.STATUS_PROPERTY, "REVIEWED",
+          ChangeSecurityHotspotStatusTool.RESOLUTION_PROPERTY, "ACKNOWLEDGED",
           ChangeSecurityHotspotStatusTool.COMMENT_PROPERTY, "Accepted as acceptable risk"));
 
       assertResultEquals(result, """

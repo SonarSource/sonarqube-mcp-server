@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.duplications;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
@@ -28,6 +27,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchDuplicatedFilesToolTests {
@@ -144,7 +144,7 @@ class SearchDuplicatedFilesToolTests {
 
       var result = mcpClient.callTool(SearchDuplicatedFilesTool.TOOL_NAME);
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: projectKey").build());
+      assertMissingRequiredArgument(result, "projectKey");
     }
 
     @SonarQubeMcpServerTest

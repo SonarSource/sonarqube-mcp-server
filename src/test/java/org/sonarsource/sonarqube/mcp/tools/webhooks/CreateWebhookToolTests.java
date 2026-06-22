@@ -31,6 +31,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class CreateWebhookToolTests {
@@ -91,7 +92,7 @@ class CreateWebhookToolTests {
         CreateWebhookTool.TOOL_NAME,
         Map.of(CreateWebhookTool.URL_PROPERTY, URL));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: name").build());
+      assertMissingRequiredArgument(result, "name");
     }
 
     @SonarQubeMcpServerTest
@@ -102,7 +103,7 @@ class CreateWebhookToolTests {
         CreateWebhookTool.TOOL_NAME,
         Map.of(CreateWebhookTool.NAME_PROPERTY, "Test Webhook"));
 
-      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("An error occurred during the tool execution: Missing required argument: url").build());
+      assertMissingRequiredArgument(result, "url");
     }
   }
 

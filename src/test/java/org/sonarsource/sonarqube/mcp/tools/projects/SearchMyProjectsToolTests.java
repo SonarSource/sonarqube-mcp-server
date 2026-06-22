@@ -181,7 +181,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("page", "2"));
+        Map.of("page", 2));
 
       assertResultEquals(result, """
         {
@@ -240,7 +240,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("pageSize", "50"));
+        Map.of("pageSize", 50));
 
       assertResultEquals(result, """
         {
@@ -264,7 +264,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("pageSize", "600"));
+        Map.of("pageSize", 600));
 
       assertThat(result.isError()).isTrue();
       assertThat(result.content().getFirst().toString()).contains("Page size must be greater than 0 and less than or equal to 500");
@@ -282,7 +282,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("page", "2", "pageSize", "100", "q", "test"));
+        Map.of("page", 2, "pageSize", 100, "q", "test"));
 
       assertResultEquals(result, """
         {
@@ -351,7 +351,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("page", "2"));
+        Map.of("page", 2));
 
       assertResultEquals(result, """
         {
@@ -408,7 +408,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("pageSize", "50"));
+        Map.of("pageSize", 50));
 
       assertResultEquals(result, """
         {
@@ -436,7 +436,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("page", "2", "pageSize", "100", "q", "test"));
+        Map.of("page", 2, "pageSize", 100, "q", "test"));
 
       assertResultEquals(result, """
         {

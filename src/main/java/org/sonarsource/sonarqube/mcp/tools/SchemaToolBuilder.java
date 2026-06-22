@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +34,14 @@ public class SchemaToolBuilder {
   private static final String NUMBER_TYPE = "number";
   private static final String OBJECT_TYPE = "object";
   private static final String STRING_TYPE = "string";
+  private static final String PROJECT_KEY_PROPERTY_DESCRIPTION =
+    "The SonarQube project key (e.g. my_project). Use search_my_sonarqube_projects when the key is unknown.";
+  private static final String OPTIONAL_PROJECT_KEY_WITH_DEFAULT_DESCRIPTION =
+    "Optional SonarQube project key (e.g. my_project). Defaults to the configured project when omitted. "
+      + "Use search_my_sonarqube_projects when the key is unknown.";
+  private static final String OPTIONAL_PROJECT_KEY_WITHOUT_DEFAULT_DESCRIPTION =
+    "Optional SonarQube project key (e.g. my_project). Uses organization default quality profiles when omitted. "
+      + "Use search_my_sonarqube_projects when the key is unknown.";
 
   private final Map<String, Object> properties;
   private final List<String> requiredProperties;
@@ -109,7 +116,19 @@ public class SchemaToolBuilder {
   }
 
   public SchemaToolBuilder addEnumProperty(String propertyName, String[] items, String description) {
-    var content = Map.of(TYPE_PROPERTY_NAME, ARRAY_TYPE, DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, "enum", items));
+    var content = new HashMap<String, Object>();
+    content.put(TYPE_PROPERTY_NAME, STRING_TYPE);
+    content.put(DESCRIPTION_KEY_NAME, description);
+    content.put("enum", List.of(items));
+    properties.put(propertyName, content);
+    return this;
+  }
+
+  public SchemaToolBuilder addEnumArrayProperty(String propertyName, String[] items, String description) {
+    var content = new HashMap<String, Object>();
+    content.put(TYPE_PROPERTY_NAME, ARRAY_TYPE);
+    content.put(DESCRIPTION_KEY_NAME, description);
+    content.put(ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, "enum", List.of(items)));
     properties.put(propertyName, content);
     return this;
   }
@@ -126,11 +145,23 @@ public class SchemaToolBuilder {
    * entirely — the configured default is used automatically at runtime.
    * When {@code null}, the property is added as a required parameter.
    */
-  public SchemaToolBuilder addProjectKeyProperty(String propertyName, String description, @Nullable String configuredProjectKey) {
+  public SchemaToolBuilder addProjectKeyProperty(String propertyName, @Nullable String configuredProjectKey) {
     if (configuredProjectKey != null) {
       return this;
     }
-    return addRequiredStringProperty(propertyName, description);
+    return addRequiredStringProperty(propertyName, PROJECT_KEY_PROPERTY_DESCRIPTION);
+  }
+
+  /**
+   * Adds an optional project key property, always exposed in the schema.
+   * When omitted at call time, a configured default may be applied at runtime; otherwise analysis
+   * may proceed without a project-specific quality profile.
+   */
+  public SchemaToolBuilder addOptionalProjectKeyProperty(String propertyName, @Nullable String configuredProjectKey) {
+    var projectKeyDescription = configuredProjectKey != null
+      ? OPTIONAL_PROJECT_KEY_WITH_DEFAULT_DESCRIPTION
+      : OPTIONAL_PROJECT_KEY_WITHOUT_DEFAULT_DESCRIPTION;
+    return addStringProperty(propertyName, projectKeyDescription);
   }
 
   /**
@@ -150,8 +181,11 @@ public class SchemaToolBuilder {
       throw new IllegalStateException("Cannot set a required property that does not exist.");
     }
 
-    var jsonSchema = new McpSchema.JsonSchema(OBJECT_TYPE, properties, requiredProperties, false, Collections.emptyMap(),
-      Collections.emptyMap());
+    var inputSchema = new HashMap<String, Object>();
+    inputSchema.put(TYPE_PROPERTY_NAME, OBJECT_TYPE);
+    inputSchema.put("properties", properties);
+    inputSchema.put("required", List.copyOf(requiredProperties));
+    inputSchema.put("additionalProperties", false);
 
     var toolAnnotations = new McpSchema.ToolAnnotations(
       null,
@@ -161,6 +195,11 @@ public class SchemaToolBuilder {
       true,
       null);
 
-    return new McpSchema.Tool(name, title, description, jsonSchema, outputSchemaFromClass, toolAnnotations, null);
+    return McpSchema.Tool.builder(name, inputSchema)
+      .title(title)
+      .description(description)
+      .outputSchema(outputSchemaFromClass)
+      .annotations(toolAnnotations)
+      .build();
   }
 }

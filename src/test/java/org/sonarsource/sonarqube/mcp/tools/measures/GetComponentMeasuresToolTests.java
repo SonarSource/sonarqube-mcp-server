@@ -29,6 +29,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
@@ -187,9 +188,7 @@ class GetComponentMeasuresToolTests {
 
       var result = mcpClient.callTool(GetComponentMeasuresTool.TOOL_NAME);
 
-      assertThat(result.isError()).isTrue();
-      var content = result.content().getFirst().toString();
-      assertThat(content).contains("Missing required argument: " + GetComponentMeasuresTool.PROJECT_KEY_PROPERTY);
+      assertMissingRequiredArgument(result, GetComponentMeasuresTool.PROJECT_KEY_PROPERTY);
     }
 
     @SonarQubeMcpServerTest

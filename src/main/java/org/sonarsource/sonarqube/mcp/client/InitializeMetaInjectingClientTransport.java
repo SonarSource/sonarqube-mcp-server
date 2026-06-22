@@ -82,19 +82,17 @@ public class InitializeMetaInjectingClientTransport implements McpClientTranspor
   }
 
   McpSchema.JSONRPCMessage maybeInjectInitializeMeta(McpSchema.JSONRPCMessage message) {
-    if (message instanceof McpSchema.JSONRPCRequest(String jsonrpc, String method, Object id, Object params)
-      && McpSchema.METHOD_INITIALIZE.equals(method)
-      && params instanceof McpSchema.InitializeRequest(
-      String protocolVersion, McpSchema.ClientCapabilities capabilities,
-      McpSchema.Implementation clientInfo, Map<String, Object> existingMeta
-    )) {
+    if (message instanceof McpSchema.JSONRPCRequest(String jsonrpc, String method, Object id, McpSchema.InitializeRequest init)
+      && McpSchema.METHOD_INITIALIZE.equals(method)) {
       var merged = new HashMap<String, Object>();
-      if (existingMeta != null) {
-        merged.putAll(existingMeta);
+      if (init.meta() != null) {
+        merged.putAll(init.meta());
       }
       merged.putAll(initializeMeta);
       return new McpSchema.JSONRPCRequest(jsonrpc, method, id,
-        new McpSchema.InitializeRequest(protocolVersion, capabilities, clientInfo, merged));
+        McpSchema.InitializeRequest.builder(init.protocolVersion(), init.capabilities(), init.clientInfo())
+          .meta(merged)
+          .build());
     }
     return message;
   }

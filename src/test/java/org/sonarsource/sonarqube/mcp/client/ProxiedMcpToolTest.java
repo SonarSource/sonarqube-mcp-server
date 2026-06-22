@@ -43,15 +43,14 @@ class ProxiedMcpToolTest {
     clientManager = mock(McpClientManager.class);
     
     // Create a simple tool definition
-    originalTool = new McpSchema.Tool(
-      "get_weather",
-      "Get Weather",
-      "Get the current weather for a location",
-      new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()),
-      null,
-      null,
-      null
-    );
+    originalTool = McpSchema.Tool.builder("get_weather", Map.of(
+        "type", "object",
+        "properties", Map.of(),
+        "required", List.of(),
+        "additionalProperties", false))
+      .title("Get Weather")
+      .description("Get the current weather for a location")
+      .build();
   }
 
   @Test

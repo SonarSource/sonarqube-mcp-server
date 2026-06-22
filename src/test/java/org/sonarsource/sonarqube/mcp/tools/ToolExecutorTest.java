@@ -55,6 +55,12 @@ import static org.mockito.Mockito.when;
 
 class ToolExecutorTest {
 
+  private static final Map<String, Object> EMPTY_INPUT_SCHEMA = Map.of(
+    "type", "object",
+    "properties", Map.of(),
+    "required", List.of(),
+    "additionalProperties", false);
+
   private BackendService mockBackendService;
   private ToolExecutor toolExecutor;
 
@@ -68,36 +74,36 @@ class ToolExecutorTest {
   void it_should_register_telemetry_after_the_tool_call_succeeds() {
     record TestResponse(@JsonPropertyDescription("Success message") String message) {}
     
-    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
+    toolExecutor.execute(new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(), ToolCategory.ANALYSIS) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.success(new TestResponse("Success!"));
       }
-    }, new McpSchema.CallToolRequest("", Map.of()));
+    }, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
 
     verify(mockBackendService).notifyToolCalled("mcp_tool_name", true);
   }
 
   @Test
   void it_should_register_telemetry_after_the_tool_call_fails() {
-    toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
+    toolExecutor.execute(new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(), ToolCategory.ANALYSIS) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.failure("Failure!");
       }
-    }, new McpSchema.CallToolRequest("", Map.of()));
+    }, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
 
     verify(mockBackendService).notifyToolCalled("mcp_tool_name", false);
   }
 
   @Test
   void it_should_handle_unauthorized_exception() {
-    var callToolResult = toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
+    var callToolResult = toolExecutor.execute(new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(), ToolCategory.ANALYSIS) {
       @Override
       public Result execute(Arguments arguments) {
         throw new UnauthorizedException("Not authorized");
       }
-    }, new McpSchema.CallToolRequest("", Map.of()));
+    }, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
 
     assertThat(callToolResult.isError()).isTrue();
     assertThat(callToolResult.content().toString()).contains("An error occurred during the tool execution: " +
@@ -107,12 +113,12 @@ class ToolExecutorTest {
 
   @Test
   void it_should_handle_forbidden_exception() {
-    var callToolResult = toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
+    var callToolResult = toolExecutor.execute(new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(), ToolCategory.ANALYSIS) {
       @Override
       public Result execute(Arguments arguments) {
         throw new ForbiddenException("Forbidden");
       }
-    }, new McpSchema.CallToolRequest("", Map.of()));
+    }, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
 
     assertThat(callToolResult.isError()).isTrue();
     assertThat(callToolResult.content().toString()).contains("An error occurred during the tool execution: " +
@@ -122,12 +128,12 @@ class ToolExecutorTest {
 
   @Test
   void it_should_handle_not_found_exception() {
-    var callToolResult = toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
+    var callToolResult = toolExecutor.execute(new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(), ToolCategory.ANALYSIS) {
       @Override
       public Result execute(Arguments arguments) {
         throw new NotFoundException("Resource not found");
       }
-    }, new McpSchema.CallToolRequest("", Map.of()));
+    }, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
 
     assertThat(callToolResult.isError()).isTrue();
     assertThat(callToolResult.content().toString()).contains("An error occurred during the tool execution: " +
@@ -137,12 +143,12 @@ class ToolExecutorTest {
 
   @Test
   void it_should_handle_generic_exception() {
-    var callToolResult = toolExecutor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
+    var callToolResult = toolExecutor.execute(new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(), ToolCategory.ANALYSIS) {
       @Override
       public Result execute(Arguments arguments) {
         throw new RuntimeException("Unexpected error");
       }
-    }, new McpSchema.CallToolRequest("", Map.of()));
+    }, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
 
     assertThat(callToolResult.isError()).isTrue();
     assertThat(callToolResult.content().toString()).contains("An error occurred during the tool execution: Unexpected error");
@@ -172,12 +178,12 @@ class ToolExecutorTest {
     var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null);
     var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
 
-    executor.execute(new Tool(new McpSchema.Tool("tool_name", "test description", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()), ToolCategory.ANALYSIS) {
+    executor.execute(new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(), ToolCategory.ANALYSIS) {
       @Override
       public Result execute(Arguments arguments) {
         throw exception;
       }
-    }, new McpSchema.CallToolRequest("", Map.of()));
+    }, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
 
     verify(analyticsService, timeout(2000)).notifyToolInvoked(resultCaptor.capture());
     assertThat(resultCaptor.getValue().errorType()).isEqualTo(expectedErrorType);
@@ -254,12 +260,15 @@ class ToolExecutorTest {
     var analyticsService = syncAnalyticsService();
     var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null);
     var tool = mock(Tool.class);
-    var toolDefinition = new McpSchema.Tool("test_tool", "desc", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of());
+    var toolDefinition = McpSchema.Tool.builder("test_tool", EMPTY_INPUT_SCHEMA).title("desc").description("").build();
     record DummyResponse(String message) {}
     when(tool.definition()).thenReturn(toolDefinition);
     when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
 
-    var toolRequest = new McpSchema.CallToolRequest("test_tool", Map.of("arg", "value"), Map.of("client_meta", "client_value"));
+    var toolRequest = McpSchema.CallToolRequest.builder("test_tool")
+      .arguments(Map.of("arg", "value"))
+      .meta(Map.of("client_meta", "client_value"))
+      .build();
     executor.execute(tool, toolRequest);
 
     var argumentsCaptor = ArgumentCaptor.forClass(Tool.Arguments.class);
@@ -285,12 +294,15 @@ class ToolExecutorTest {
     var mcpServerId = "test-server-id-12345";
     var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, mcpServerId);
     var tool = mock(Tool.class);
-    var toolDefinition = new McpSchema.Tool("test_tool", "desc", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of());
+    var toolDefinition = McpSchema.Tool.builder("test_tool", EMPTY_INPUT_SCHEMA).title("desc").description("").build();
     record DummyResponse(String message) {}
     when(tool.definition()).thenReturn(toolDefinition);
     when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
 
-    var toolRequest = new McpSchema.CallToolRequest("test_tool", Map.of("arg", "value"), Map.of("client_meta", "client_value"));
+    var toolRequest = McpSchema.CallToolRequest.builder("test_tool")
+      .arguments(Map.of("arg", "value"))
+      .meta(Map.of("client_meta", "client_value"))
+      .build();
     executor.execute(tool, toolRequest);
 
     var argumentsCaptor = ArgumentCaptor.forClass(Tool.Arguments.class);
@@ -314,14 +326,14 @@ class ToolExecutorTest {
   private McpSchema.CallToolResult executeDummyTool(ToolExecutor executor) {
     record DummyResponse(String message) {}
     return executor.execute(
-      new Tool(new McpSchema.Tool("tool_name", "desc", "", new McpSchema.JsonSchema("object", Map.of(), List.of(), false, Map.of(), Map.of()), Map.of(), null, Map.of()),
+      new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("desc").description("").build(),
         ToolCategory.ANALYSIS) {
         @Override
         public Result execute(Arguments arguments) {
           return Result.success(new DummyResponse("ok"));
         }
       },
-      new McpSchema.CallToolRequest("", Map.of()));
+      McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
   }
 
 }
