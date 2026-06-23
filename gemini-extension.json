@@ -17,7 +17,7 @@
         "SONARQUBE_ORG",
         "-e",
         "SONARQUBE_URL",
-        "mcp/sonarqube"
+        "sonarsource/sonarqube-mcp"
       ]
     }
   },
