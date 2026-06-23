@@ -61,14 +61,14 @@ public final class SonarCloudStagingFixture {
   /**
    * Creates, provisions, and analyzes the shared sample project (see sonarlint-core {@code SonarCloudTests}).
    */
-  private static final String HOTSPOT_QUALITY_PROFILE = "SonarLint IT Java Hotspot";
-  private static final String HOTSPOT_QUALITY_PROFILE_BACKUP = "java-sonarlint-with-hotspot.xml";
+  private static final String QUALITY_PROFILE = "SonarLint IT Java";
+  private static final String QUALITY_PROFILE_BACKUP = "java-sonarlint-with-hotspot.xml";
 
   public static SonarCloudStagingFixture createSharedAnalyzed() {
     var fixture = create(SonarCloudAnalyzedProject.SAMPLE_PROJECT_RESOURCE);
-    fixture.restoreQualityProfile(HOTSPOT_QUALITY_PROFILE_BACKUP);
+    fixture.restoreQualityProfile(QUALITY_PROFILE_BACKUP);
     fixture.provisionProject();
-    fixture.associateProjectToQualityProfile("java", HOTSPOT_QUALITY_PROFILE);
+    fixture.associateProjectToQualityProfile("java", QUALITY_PROFILE);
     fixture.analyzeMavenProject(sampleProjectDir());
     fixture.awaitOpenIssue("java:S1118");
     return fixture;
@@ -80,7 +80,7 @@ public final class SonarCloudStagingFixture {
 
   public String projectName() {
     if (SonarCloudAnalyzedProject.SAMPLE_PROJECT_RESOURCE.equals(logicalName)) {
-      return "MCP SonarCloud IT sample (Java hotspot)";
+      return "MCP SonarCloud IT sample (Java)";
     }
     return "MCP SonarCloud IT " + logicalName;
   }

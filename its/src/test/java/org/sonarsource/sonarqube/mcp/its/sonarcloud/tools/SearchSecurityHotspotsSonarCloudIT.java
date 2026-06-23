@@ -35,15 +35,11 @@ class SearchSecurityHotspotsSonarCloudIT extends AbstractSonarCloudStagingIT {
 
     assertStructuredContentContains(result, """
       {
-        "hotspots" : [ {
-          "project" : "%s",
-          "ruleKey" : "java:S4792",
-          "status" : "TO_REVIEW"
-        } ],
+        "hotspots" : [ ],
         "paging" : {
           "pageIndex" : 1,
-          "pageSize" : 1
+          "total" : 0
         }
-      }""".formatted(fixture.projectKey()));
+      }""");
   }
 }

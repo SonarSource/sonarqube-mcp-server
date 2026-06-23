@@ -37,7 +37,7 @@ export SONARCLOUD_IT_TOKEN="<your-token>"
 its/
 ├── build.gradle.kts
 ├── projects/
-│   └── sample-java-hotspot/          # Maven sample (hotspot + code smell)
+│   └── sample-java-hotspot/          # Maven sample (java:S1118 code smell)
 ├── src/test/
 │   ├── java/org/sonarsource/sonarqube/mcp/its/
 │   │   ├── HttpTransportITest.java           # @Tag not SonarCloud (JUnit tag id)
@@ -58,7 +58,7 @@ Each tool exposed on staging has a `*SonarCloudIT` class. `SonarCloudToolCoverag
 
 Shared project (key prefix `sonarqube-mcp-its-sample-java-hotspot-…`), provisioned once per JVM:
 
-1. Restore profile **SonarLint IT Java Hotspot** (`java:S4792` + `java:S1118`)
+1. Restore profile **SonarLint IT Java** (`java:S1118` only)
 2. `POST api/projects/create` (org `sonarlint-it`)
 3. `mvn clean package sonar:sonar`
 4. `bulk_delete` with exact `projects` key on JVM shutdown

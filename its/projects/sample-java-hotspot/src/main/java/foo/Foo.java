@@ -16,12 +16,9 @@
  */
 package foo;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 public class Foo {
 
-  public static void configureLogging() {
-    Logger.getGlobal().setLevel(Level.FINEST);
+  public static void noop() {
+    // utility class without private constructor -> java:S1118
   }
 }

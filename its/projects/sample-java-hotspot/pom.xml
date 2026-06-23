@@ -5,8 +5,8 @@
   <groupId>org.sonarsource.sonarqube.mcp</groupId>
   <artifactId>sample-java-hotspot</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <name>MCP SonarCloud IT sample (Java hotspot)</name>
-  <description>Minimal Java project pushed to SonarQube Cloud staging for integration tests (from sonarlint-core sample-java-hotspot)</description>
+  <name>MCP SonarCloud IT sample (Java)</name>
+  <description>Minimal Java project pushed to SonarQube Cloud staging for integration tests</description>
 
   <properties>
     <maven.compiler.source>17</maven.compiler.source>

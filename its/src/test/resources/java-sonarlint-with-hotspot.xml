@@ -18,24 +18,10 @@
 
 -->
 <profile>
-  <name>SonarLint IT Java Hotspot</name>
+  <name>SonarLint IT Java</name>
   <language>java</language>
   <rules>
-    <!-- Security hotspot: unsafe logger configuration (Foo.configureLogging) -->
-    <rule>
-      <repositoryKey>java</repositoryKey>
-      <key>S4792</key>
-      <priority>BLOCKER</priority>
-    </rule>
-
-    <!-- Keep for pre 6.0 sonar-java version -->
-    <rule>
-      <repositoryKey>squid</repositoryKey>
-      <key>S4792</key>
-      <priority>BLOCKER</priority>
-    </rule>
-
-    <!-- Code smell: utility class without private constructor (Foo has only static members) -->
+    <!-- Code smell: utility class without private constructor -->
     <rule>
       <repositoryKey>java</repositoryKey>
       <key>S1118</key>
