@@ -33,7 +33,7 @@ SonarQube supports 30+ programming languages and provides actionable insights to
 
 **Connection:** Docker container (stdio transport)
 
-**Container Image:** `mcp/sonarqube` from Docker Hub
+**Container Image:** `sonarsource/sonarqube-mcp` from Docker Hub (omit the tag for the latest release, or pin to a version such as `:1.19.0.2785`)
 
 **Authorization:** User token authentication with environment variables
 
@@ -179,7 +179,7 @@ docker run --init --pull=always -i --rm \
   -e SONARQUBE_TOOLSETS="analysis,issues,quality-gates" \
   -e SONARQUBE_TOKEN="<token>" \
   -e SONARQUBE_ORG="<org>" \
-  mcp/sonarqube
+  sonarsource/sonarqube-mcp
 ```
 
 Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`, `dependency-risks`. Note: `projects` is always enabled.
@@ -191,7 +191,7 @@ docker run --init --pull=always -i --rm \
   -e SONARQUBE_READ_ONLY="true" \
   -e SONARQUBE_TOKEN="<token>" \
   -e SONARQUBE_ORG="<org>" \
-  mcp/sonarqube
+  sonarsource/sonarqube-mcp
 ```
 
 ## Common Workflows
@@ -353,7 +353,7 @@ For SonarQube Cloud:
         "SONARQUBE_TOKEN",
         "-e",
         "SONARQUBE_ORG",
-        "mcp/sonarqube"
+        "sonarsource/sonarqube-mcp"
       ],
       "env": {
         "SONARQUBE_TOKEN": "<your-token>",
@@ -381,7 +381,7 @@ For SonarQube Server:
         "SONARQUBE_TOKEN",
         "-e",
         "SONARQUBE_URL",
-        "mcp/sonarqube"
+        "sonarsource/sonarqube-mcp"
       ],
       "env": {
         "SONARQUBE_TOKEN": "<your-token>",
