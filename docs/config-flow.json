@@ -1,5 +1,5 @@
 {
-  "dockerImage": "mcp/sonarqube",
+  "dockerImage": "sonarsource/sonarqube-mcp",
   "communityUrl": "https://community.sonarsource.com/c/mcp/54",
   "referenceUrl": "llms.txt",
 
@@ -170,12 +170,12 @@
       "id": "cursor",
       "label": "Cursor IDE",
       "instructions": {
-        "stdio": "<strong>Cursor IDE config</strong>: Add this to your <code>.cursor/mcp.json</code> file in your workspace.",
-        "http": "<strong>Cursor IDE config</strong>: Add this to your <code>.cursor/mcp.json</code> file in your workspace."
+        "stdio": "<strong>Cursor IDE config</strong>: Add this to <code>.cursor/mcp.json</code> in your workspace, or <code>~/.cursor/mcp.json</code> for global use.",
+        "http": "<strong>Cursor IDE config</strong>: Add this to <code>.cursor/mcp.json</code> in your workspace, or <code>~/.cursor/mcp.json</code> for global use."
       },
       "output": {
-        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker" },
-        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "typeField": "http", "headersKey": "headers" }
+        "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker", "stdioTypeField": "stdio" },
+        "http":  { "format": "json", "rootKey": "mcpServers", "urlKey": "url", "headersKey": "headers" }
       }
     },
     {
@@ -254,8 +254,8 @@
       "id": "vscode",
       "label": "VS Code",
       "instructions": {
-        "stdio": "<strong>VS Code config</strong>: Add this to your MCP configuration file (e.g., <code>cline_mcp_settings.json</code> if using Roo Cline, or <code>.vscode/mcp.json</code> for native VS Code MCP).",
-        "http": "<strong>VS Code config</strong>: Add this to your MCP configuration file (e.g., <code>cline_mcp_settings.json</code> if using Roo Cline, or <code>.vscode/mcp.json</code> for native VS Code MCP)."
+        "stdio": "<strong>VS Code config</strong>: Add this to <code>.vscode/mcp.json</code> in your workspace (native MCP). Other extensions may use a different file, such as <code>cline_mcp_settings.json</code> for Roo Cline.",
+        "http": "<strong>VS Code config</strong>: Add this to <code>.vscode/mcp.json</code> in your workspace (native MCP). Other extensions may use a different file, such as <code>cline_mcp_settings.json</code> for Roo Cline."
       },
       "output": {
         "stdio": { "format": "json", "rootKey": "servers", "schema": "standard-docker" },
