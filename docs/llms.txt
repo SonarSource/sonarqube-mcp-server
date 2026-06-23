@@ -7,7 +7,7 @@
 - Documentation: https://docs.sonarsource.com/sonarqube-mcp-server
 - Configuration generator: https://mcp.sonarqube.com/config-generator.html
 - Source: https://github.com/SonarSource/sonar-mcp-server
-- Docker image: mcp/sonarqube
+- Docker image: sonarsource/sonarqube-mcp
 
 ## Related products
 
@@ -29,7 +29,10 @@ Model Context Protocol (MCP) server that AI agents (Claude, Cursor, VS Code,
 Copilot, Gemini, Codex, Kiro, Zed, etc.) can use to query issues, quality
 gates, measures, rules, and more.
 
-It is distributed as a Docker image: `mcp/sonarqube`.
+It is distributed as a Docker image: `sonarsource/sonarqube-mcp`.
+Use `sonarsource/sonarqube-mcp` for automatic updates (with `--pull=always`), or
+pin to a version tag (e.g. `sonarsource/sonarqube-mcp:1.19.0.2785`) for
+reproducible deployments.
 
 Three things must be configured:
 
@@ -71,7 +74,7 @@ Either SONARQUBE_URL or SONARQUBE_ORG must always be set (in stdio mode).
                    process and communicates over standard input / output.
       Best for   : Single users, local development.
       Values via : environment variables passed to `docker run -e KEY=VALUE`.
-      Docker     : `docker run --init --pull=always -i --rm -e ... mcp/sonarqube`
+      Docker     : `docker run --init --pull=always -i --rm -e ... sonarsource/sonarqube-mcp`
 
   3.2 SonarQube Cloud-hosted server
       What       : The agent talks to the official Sonar-hosted MCP server
@@ -96,7 +99,7 @@ Either SONARQUBE_URL or SONARQUBE_ORG must always be set (in stdio mode).
                    SONARQUBE_HTTP_PORT=<port>       (default: 8080)
                    SONARQUBE_HTTP_HOST=<bind-addr>  (default: 127.0.0.1)
                    (for HTTPS, see section 6 "TLS / keystore")
-      Docker     : `docker run --init --pull=always -d -p PORT:PORT -e ... mcp/sonarqube`
+      Docker     : `docker run --init --pull=always -d -p PORT:PORT -e ... sonarsource/sonarqube-mcp`
 
 Key concept:
   - When values are delivered as env vars, they set server-wide defaults at
@@ -199,12 +202,12 @@ Common building blocks (used for stdio configs):
      "-v", "<certPath>:/usr/local/share/ca-certificates/:ro",     (optional)
      "-v", "<workspaceHost>:/app/mcp-workspace:rw",                (optional)
      "-e", "KEY_1", "-e", "KEY_2", ...,
-     "mcp/sonarqube"]
+     "sonarsource/sonarqube-mcp"]
 
   Docker args (HTTP/HTTPS launch, daemon):
     ["run", "--init", "--pull=always", "-d", "-p", "<port>:<port>",
      ... same optional flags ...,
-     "mcp/sonarqube"]
+     "sonarsource/sonarqube-mcp"]
 
   HTTP headers (client mode):
     Authorization: Bearer <YourSonarQubeUserToken>
@@ -214,13 +217,17 @@ Common building blocks (used for stdio configs):
 
   7.1 Cursor IDE, Kiro, Antigravity, Generic, Gemini, Windsurf
       File       : varies (see each agent's docs)
-      Stdio shape:
+      Stdio shape (Cursor):
+        { "mcpServers": { "sonarqube": {
+            "type": "stdio", "command": "docker", "args": [...], "env": { ... }
+        }}}
+      Stdio shape (others):
         { "mcpServers": { "sonarqube": {
             "command": "docker", "args": [...], "env": { ... }
         }}}
-      HTTP shape (Cursor, Kiro, Antigravity, Generic):
+      HTTP shape (Cursor, Kiro, Generic):
         { "mcpServers": { "sonarqube": {
-            "url": "<url>", "type": "http", "headers": { ... }
+            "url": "<url>", "headers": { ... }
         }}}
       HTTP shape (Antigravity): uses "serverUrl" instead of "url"; no "type".
       HTTP shape (Windsurf):    uses "serverUrl" instead of "url"; no "type".
@@ -240,7 +247,7 @@ Common building blocks (used for stdio configs):
                  -- docker run --init --pull=always -i --rm \
                     -e SONARQUBE_TOKEN=<YourSonarQubeUserToken> \
                     -e SONARQUBE_ORG=<YourSonarQubeOrganizationKey> \
-                    mcp/sonarqube
+                    sonarsource/sonarqube-mcp
       HTTP : run `claude mcp add --transport http sonarqube <url>` with
              one or more `--header "KEY: VALUE"` flags.
 
