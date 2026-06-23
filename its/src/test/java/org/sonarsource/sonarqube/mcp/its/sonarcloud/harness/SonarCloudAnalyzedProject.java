@@ -22,7 +22,7 @@ package org.sonarsource.sonarqube.mcp.its.sonarcloud.harness;
  */
 public final class SonarCloudAnalyzedProject {
 
-  public static final String SAMPLE_PROJECT_RESOURCE = "sample-java-hotspot";
+  public static final String SAMPLE_PROJECT_RESOURCE = "sample-java";
   public static final String MAIN_FILE_PATH = "src/main/java/foo/Foo.java";
 
   private static final Object LOCK = new Object();

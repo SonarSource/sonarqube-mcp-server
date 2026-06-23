@@ -28,7 +28,7 @@ export SONARCLOUD_IT_TOKEN="<your-token>"
 ## SonarQube Cloud ITS prerequisites
 
 - Java 21
-- Maven on `PATH` (one `mvn sonar:sonar` per JVM against `its/projects/sample-java-hotspot`)
+- Maven on `PATH` (one `mvn sonar:sonar` per JVM against `its/projects/sample-java`)
 - `SONARCLOUD_IT_TOKEN` for org `sonarlint-it`
 
 ## Layout
@@ -37,7 +37,7 @@ export SONARCLOUD_IT_TOKEN="<your-token>"
 its/
 ├── build.gradle.kts
 ├── projects/
-│   └── sample-java-hotspot/          # Maven sample (java:S1118 code smell)
+│   └── sample-java/          # Maven sample (java:S1118 code smell)
 ├── src/test/
 │   ├── java/org/sonarsource/sonarqube/mcp/its/
 │   │   ├── HttpTransportITest.java           # @Tag not SonarCloud (JUnit tag id)
@@ -56,7 +56,7 @@ its/
 
 Each tool exposed on staging has a `*SonarCloudIT` class. `SonarCloudToolCoverageIT` fails if a new tool is registered without a matching test.
 
-Shared project (key prefix `sonarqube-mcp-its-sample-java-hotspot-…`), provisioned once per JVM:
+Shared project (key prefix `sonarqube-mcp-its-sample-java-…`), provisioned once per JVM:
 
 1. Restore profile **SonarLint IT Java** (`java:S1118` only)
 2. `POST api/projects/create` (org `sonarlint-it`)
