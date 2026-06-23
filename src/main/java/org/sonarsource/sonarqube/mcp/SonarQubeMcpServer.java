@@ -89,6 +89,10 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.branches.ListBranchesTool;
 import org.sonarsource.sonarqube.mcp.tools.pullrequests.ListPullRequestsTool;
+import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.GetAgenticReadinessAssessmentTool;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.ListAgenticReadinessAssessmentsTool;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
@@ -121,6 +125,46 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.";
   private static final String BASE_INSTRUCTIONS_WITHOUT_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
     "Monitor project health, investigate issues, and understand quality gates.";
+  private static final String AGENTIC_READINESS_INSTRUCTIONS = """
+
+    ## Agentic Readiness Assessment (SARA)
+
+    This server provides tools for running Agentic Readiness Assessments (SARA) on SonarCloud projects.
+
+    SARA evaluates a project's codebase across readiness pillars and scores each from L1 to L5:
+    - L1: Pre-agentic - Instructions are implicit or non-standardized. Agents must rely on guesswork.
+    - L2: Basic - The baseline. Explicit, machine-readable contracts for commands, architecture, and workflows.
+    - L3: Standardized - Reliable, consistent patterns throughout. Agent can work autonomously with minimal guidance.
+    - L4: Agent-optimized - Minimal friction, fast feedback loops, and deep contextual documentation explaining the "why".
+    - L5: Agent-native - Built for machine actors. The environment is self-describing and self-correcting.
+
+    Pillars assessed include: Documentation & Context, Workflow & Contribution, Dev Environment, Build System, Testing, Code Quality & Style, Security, Observability
+
+    ## Typical workflow
+
+    Assessments are branch-specific. The intended workflow is a two-phase comparison:
+
+    Phase 1 — Baseline: get or run an assessment on the default branch to understand the current state \
+    of the project. Use list_agentic_readiness_assessments (filtered to the default branch) to check \
+    whether a recent completed assessment already exists before starting a new one.
+
+    Phase 2 — Improvement: after analysing the baseline results and making fixes on a feature branch, \
+    run a new assessment on that branch. Compare its overallLevel and blocker evidence against the \
+    baseline to measure whether the changes improved agentic readiness.
+
+    Always filter list_agentic_readiness_assessments by the branch you care about — without a branch \
+    filter the list mixes results across all branches, making comparison unreliable.
+
+    ## Running an assessment
+
+    1. Call list_agentic_readiness_assessments for the target branch. Reuse a recent completed result \
+    if one exists — assessments take around 10 minutes and redundant runs waste time.
+    2. If none exists, call start_agentic_readiness_assessment. It returns immediately with status \
+    PENDING and an assessmentId. Do not poll immediately — the assessment will not be ready for several minutes.
+    3. After a few minutes, poll get_agentic_readiness_assessment until status is COMPLETED, FAILED, \
+    or INTERRUPTED.
+    4. When COMPLETED, present the overallLevel and per-pillar breakdown. Prioritise evidence items \
+    with type=blocker — these are the highest-impact improvements to communicate to the user.""";
 
   private BackendService backendService;
   private ToolExecutor toolExecutor;
@@ -272,6 +316,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("CAG is not enabled for organization, skipping proxied server initialization");
     }
 
+    // Agentic readiness (SARA) tools
+    loadSaraTools();
+
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
     if (!mcpConfiguration.isHttpEnabled() && isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
@@ -399,6 +446,28 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
       }
     }
+
+  }
+
+  private static boolean isSaraEnabled(@Nullable ServerApi api, @Nullable String orgKey) {
+    if (api == null || orgKey == null || orgKey.isBlank()) {
+      LOG.debug("SARA feature flag check skipped: no org key configured");
+      return false;
+    }
+    try {
+      var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+      if (orgUuidV4 == null) {
+        LOG.debug("SARA feature flag check: could not resolve UUID for org '" + orgKey + "' - skipping SARA");
+        return false;
+      }
+      var flags = api.wasFeatureFlagsApi().getFeatureFlags(orgUuidV4, List.of(WasFeatureFlagsApi.SARA_FEATURE_FLAG_KEY));
+      var enabled = Boolean.TRUE.equals(flags.get(WasFeatureFlagsApi.SARA_FEATURE_FLAG_KEY));
+      LOG.debug("SARA feature flag for org '" + orgKey + "': " + enabled);
+      return enabled;
+    } catch (Exception e) {
+      LOG.warn("Failed to evaluate SARA feature flag for org '" + orgKey + "' — tools not registered: " + e.getMessage());
+      return false;
+    }
   }
 
   private static boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
@@ -467,6 +536,38 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.debug("Forwarded instructions from " + proxiedInstructions.size() + " proxied server(s)");
     proxiedInstructions.forEach(s -> LOG.debug("Proxied instructions: {}", s));
   }
+
+  private void loadSaraTools() {
+    if (isEnabledAgenticReadiness()) {
+      supportedTools.add(new StartAgenticReadinessAssessmentTool(this));
+      supportedTools.add(new GetAgenticReadinessAssessmentTool(this));
+      supportedTools.add(new ListAgenticReadinessAssessmentsTool(this));
+
+      composedInstructions += AGENTIC_READINESS_INSTRUCTIONS;
+    }
+  }
+
+  private boolean isEnabledAgenticReadiness() {
+    if (mcpConfiguration.isHttpEnabled()) {
+      LOG.debug("HTTP mode detected - skipping SARA tools initialization (not supported in HTTP transport)");
+      return false;
+    }
+    if (!mcpConfiguration.isSonarQubeCloud()) {
+      LOG.debug("SARA is only available on SonarQube Cloud, skipping tools initialization");
+      return false;
+    }
+    if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)) {
+      LOG.debug("Agentic readiness toolset is not enabled, skipping SARA tools initialization");
+      return false;
+    }
+    if (!isSaraEnabled(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+      LOG.debug("SARA is not enabled for organization, skipping tools initialization");
+      return false;
+    }
+    LOG.debug("SARA is enabled for organization");
+    return true;
+  }
+
 
   private void setBaseInstructions() {
     composedInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)

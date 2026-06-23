@@ -125,7 +125,8 @@ class ToolCategoryTest {
       ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.DEPENDENCY_RISKS,
       ToolCategory.COVERAGE,
-      ToolCategory.CAG
+      ToolCategory.CAG,
+      ToolCategory.AGENTIC_READINESS
     );
   }
 
@@ -149,13 +150,14 @@ class ToolCategoryTest {
       ToolCategory.WEBHOOKS,
       ToolCategory.DEPENDENCY_RISKS,
       ToolCategory.SECURITY_HOTSPOTS,
-      ToolCategory.CAG
+      ToolCategory.CAG,
+      ToolCategory.AGENTIC_READINESS
     );
   }
 
   @Test
   void should_have_exactly_16_categories() {
-    assertThat(ToolCategory.values()).hasSize(16);
+    assertThat(ToolCategory.values()).hasSize(17);
   }
 }
 

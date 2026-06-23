@@ -66,7 +66,15 @@ public class MockWebServer {
   public boolean isStubConfigured(String path) {
     return mockServer.listAllStubMappings().getMappings()
       .stream()
-      .anyMatch(stub -> stub.getRequest().getUrl().contains(path));
+      .anyMatch(stub -> {
+        var req = stub.getRequest();
+        var url = req.getUrl();
+        if (url != null) {
+          return url.contains(path);
+        }
+        var urlPath = req.getUrlPath();
+        return urlPath != null && urlPath.contains(path);
+      });
   }
 
   public String baseUrl() {

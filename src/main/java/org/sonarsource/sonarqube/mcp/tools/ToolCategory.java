@@ -43,7 +43,8 @@ public enum ToolCategory {
   WEBHOOKS("webhooks"),
   DEPENDENCY_RISKS("dependency-risks"),
   SECURITY_HOTSPOTS("security-hotspots"),
-  CAG("cag");
+  CAG("cag"),
+  AGENTIC_READINESS("agentic-readiness");
 
   private final String key;
 
@@ -99,7 +100,8 @@ public enum ToolCategory {
       SECURITY_HOTSPOTS,
       DEPENDENCY_RISKS,
       COVERAGE,
-      CAG
+      CAG,
+      AGENTIC_READINESS
     );
   }
 

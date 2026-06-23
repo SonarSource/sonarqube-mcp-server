@@ -17,6 +17,8 @@
 package org.sonarsource.sonarqube.mcp.serverapi;
 
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
+import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
+import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
@@ -125,6 +127,14 @@ public class ServerApi {
 
   public A3sAnalysisApi a3sAnalysisApi() {
     return new A3sAnalysisApi(helper);
+  }
+
+  public AgenticReadinessApi agenticReadinessApi() {
+    return new AgenticReadinessApi(helper);
+  }
+
+  public WasFeatureFlagsApi wasFeatureFlagsApi() {
+    return new WasFeatureFlagsApi(helper);
   }
 
   public CagApi cagApi() {

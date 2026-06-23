@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
@@ -313,6 +314,143 @@ class SonarQubeMcpServerGenericTest {
     assertThat(server.getComposedInstructions())
       .as("Context Augmentation nudge should not be present when the CAG entitlement API fails")
       .doesNotContain("## Context Augmentation");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_register_sara_tools_and_instructions_when_flag_enabled_for_org(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    harness.prepareMockWebServer(environment);
+    harness.stubSaraEnabled();
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getSupportedTools())
+      .as("SARA tools should be loaded when the feature flag is enabled for the org")
+      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+    assertThat(server.getComposedInstructions())
+      .as("SARA instructions should be appended when the feature flag is enabled for the org")
+      .contains("## Agentic Readiness Assessment (SARA)");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_register_sara_tools_when_flag_disabled_for_org(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    harness.prepareMockWebServer(environment); // SARA flag disabled by default
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getSupportedTools())
+      .as("SARA tools should not be loaded when the feature flag is disabled for the org")
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+    assertThat(server.getComposedInstructions())
+      .as("SARA instructions should not be present when the feature flag is disabled for the org")
+      .doesNotContain("## Agentic Readiness Assessment (SARA)");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_register_sara_tools_when_toolset_is_not_enabled(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "projects,issues"); // agentic-readiness toolset disabled
+    harness.prepareMockWebServer(environment);
+    harness.stubSaraEnabled(); // Even if entitled, toolset filter takes precedence
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getSupportedTools())
+      .as("SARA tools should not be loaded when the agentic-readiness toolset is disabled")
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+    assertThat(server.getComposedInstructions())
+      .as("SARA instructions should not be present when the agentic-readiness toolset is disabled")
+      .doesNotContain("## Agentic Readiness Assessment (SARA)");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_register_sara_tools_in_http_mode_even_when_flag_enabled(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    harness.prepareMockWebServer(environment);
+    harness.stubSaraEnabled(); // SARA enabled but HTTP mode is not supported
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    assertThat(server.getSupportedTools())
+      .as("SARA tools should not be loaded in HTTP mode (only stdio supported)")
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+    assertThat(server.getComposedInstructions())
+      .as("SARA instructions should not be present in HTTP mode (SARA is stdio-only)")
+      .doesNotContain("## Agentic Readiness Assessment (SARA)");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_register_sara_tools_on_sonarqube_server(SonarQubeMcpServerTestHarness harness) {
+    // No SONARQUBE_ORG + non-cloud URL => SonarQube Server, not Cloud
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getMcpConfiguration().isSonarQubeCloud())
+      .as("Test precondition: server should be running in SonarQube Server mode")
+      .isFalse();
+    assertThat(server.getSupportedTools())
+      .as("SARA tools should not be loaded on SonarQube Server (Cloud-only feature)")
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+    assertThat(server.getComposedInstructions())
+      .as("SARA instructions should not be present on SonarQube Server (Cloud-only feature)")
+      .doesNotContain("## Agentic Readiness Assessment (SARA)");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_register_sara_tools_when_feature_flag_api_fails(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    harness.prepareMockWebServer(environment);
+    harness.stubSaraError(); // Feature flag API returns 500 - fail-safe should skip SARA
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getSupportedTools())
+      .as("SARA tools should not be loaded when the feature flag API fails (fail-safe)")
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+    assertThat(server.getComposedInstructions())
+      .as("SARA instructions should not be present when the feature flag API fails (fail-safe)")
+      .doesNotContain("## Agentic Readiness Assessment (SARA)");
 
     server.shutdown();
   }

@@ -42,4 +42,13 @@ public class ProjectBranchesApi {
     }
   }
 
+  public String getProjectUuid(String projectKey) {
+    var branches = listBranches(projectKey);
+    return branches.branches().stream()
+      .filter(BranchesListResponse.Branch::isMain)
+      .findFirst()
+      .map(BranchesListResponse.Branch::branchId)
+      .orElseThrow(() -> new IllegalStateException("No main branch found for project: " + projectKey));
+  }
+
 }
