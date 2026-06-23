@@ -24,6 +24,8 @@ test.describe('config-generator.html', () => {
     const out = await page.locator('#codeOutput').textContent();
     expect(out).toContain('mcpServers');
     expect(out).toContain('docker');
+    expect(out).toContain('sonarsource/sonarqube-mcp');
+    expect(out).not.toContain('mcp/sonarqube');
   });
 
   test('stdio + Cloud: JSON env includes token and org placeholders', async ({ page }) => {
@@ -260,6 +262,29 @@ test.describe('config-generator.html', () => {
       const body = await res.text();
       expect(body, `${p} contains "SonarQube MCP server" (wrong casing)`).not.toMatch(/SonarQube MCP server/);
     }
+  });
+
+  test('Cursor stdio includes type stdio', async ({ page }) => {
+    await page.goto('/config-generator.html');
+    await page.locator('#agent').selectOption('cursor');
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#card-stdio').click();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.type).toBe('stdio');
+  });
+
+  test('Cursor HTTP uses url (not serverUrl) and no type field', async ({ page }) => {
+    await page.goto('/config-generator.html');
+    await page.locator('#agent').selectOption('cursor');
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#token').fill('test-token');
+    await page.locator('#card-sqc').click();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.url).toBeDefined();
+    expect(parsed.mcpServers.sonarqube.serverUrl).toBeUndefined();
+    expect(parsed.mcpServers.sonarqube.type).toBeUndefined();
   });
 
   test('Antigravity HTTP uses serverUrl (not url) and no type field', async ({ page }) => {

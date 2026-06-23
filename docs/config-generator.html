@@ -715,6 +715,7 @@
         ? Object.fromEntries(Object.keys(vals.envVars).map(k => [k, `${agentOutput.envValuePrefix}${k}`]))
         : { ...vals.envVars };
       serverObj = { command: 'docker', args: buildDockerArgs(vals), env };
+      if (agentOutput.stdioTypeField) serverObj.type = agentOutput.stdioTypeField;
       if (agentOutput.extraFields) Object.assign(serverObj, agentOutput.extraFields);
     }
 

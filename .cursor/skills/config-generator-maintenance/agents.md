@@ -21,8 +21,8 @@ Client URL for the Sonar-hosted MCP endpoint (not the Cloud REST API base used i
 
 ## claude — Claude Desktop / Claude Code
 
-- **Claude Code doc**: https://docs.anthropic.com/en/docs/claude-code/mcp
-- **Stdio format**: CLI — `claude mcp add --transport stdio sonarqube -- docker run ... -e KEY=VALUE ... mcp/sonarqube`
+- **Claude Code doc**: https://code.claude.com/docs/en/mcp
+- **Stdio format**: CLI — `claude mcp add --transport stdio sonarqube -- docker run ... -e KEY=VALUE ... sonarsource/sonarqube-mcp`
 - **HTTP format**: CLI — `claude mcp add --transport http sonarqube <url> --header "K: V" ...`
 - **Quirks**: CLI-based. **Do NOT use `--env`** for stdio — Claude's `--env` parser greedily consumes everything up to `--` as env values (including the server name), regardless of formatting. Pass env vars as `-e KEY=VALUE` directly in the Docker command instead. HTTP: `<name> <url>` come first, then `--header` flags after. Desktop config is generic JSON.
 
@@ -31,22 +31,22 @@ Client URL for the Sonar-hosted MCP endpoint (not the Cloud REST API base used i
 ## cursor — Cursor IDE
 
 - **Doc**: https://cursor.com/docs/mcp#installing-mcp-servers
-- **Config file**: `.cursor/mcp.json`
+- **Config file**: `.cursor/mcp.json` (workspace) or `~/.cursor/mcp.json` (global)
 - **Config key**: `mcpServers`
-- **Stdio format**: `{ command, args, env }`
-- **HTTP format**: `{ type: "http", url, headers? }`
-- **Quirks**: none known
+- **Stdio format**: `{ type: "stdio", command, args, env }`
+- **HTTP format**: `{ url, headers? }` — **no `type` field** (Streamable HTTP is inferred from `url`)
+- **Quirks**: stdio configs should include `"type": "stdio"` per current Cursor docs; remote HTTP omits `type`
 
 ---
 
 ## vscode — VS Code
 
 - **Native MCP doc**: https://code.visualstudio.com/docs/copilot/chat/mcp-servers
-- **Config file**: `.vscode/mcp.json` (native) or `cline_mcp_settings.json` (Roo Cline)
+- **Config file**: `.vscode/mcp.json` (workspace) or user profile via MCP: Open User Configuration
 - **Config key**: `servers` ← **different from most others**
 - **Stdio format**: `{ command, args, env }`
 - **HTTP format**: `{ type: "http", url, headers? }`
-- **Quirks**: top-level key is `servers`, not `mcpServers`
+- **Quirks**: top-level key is `servers`, not `mcpServers`; HTTP remote servers require `"type": "http"`
 
 ---
 
@@ -56,8 +56,8 @@ Client URL for the Sonar-hosted MCP endpoint (not the Cloud REST API base used i
 - **Config file**: `~/.codeium/windsurf/mcp_config.json`
 - **Config key**: `mcpServers`
 - **Stdio format**: `{ command, args, env }`
-- **HTTP format**: `{ serverUrl, headers? }` ← uses `serverUrl`, not `url`
-- **Quirks**: HTTP key is `serverUrl` instead of `url`; no `type` field
+- **HTTP format**: `{ serverUrl, headers? }` or `{ url, headers? }` — **prefer `serverUrl`; no `type` field**
+- **Quirks**: HTTP key is `serverUrl` (or `url`) instead of standard `url`; no `type` field; config interpolation supports `${env:VAR}` and `${file:path}`
 
 ---
 
