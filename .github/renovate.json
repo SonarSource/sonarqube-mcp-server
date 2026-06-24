@@ -2,5 +2,24 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "github>SonarSource/renovate-config:ide-xp-team"
+  ],
+  "packageRules": [
+    {
+      "description": "Regenerate Gradle lockfiles after dependency updates",
+      "matchManagers": [
+        "gradle",
+        "gradle-wrapper"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "./gradlew --write-locks dependencies :its:dependencies"
+        ],
+        "fileFilters": [
+          "**/gradle.lockfile",
+          "**/settings-gradle.lockfile"
+        ],
+        "executionMode": "branch"
+      }
+    }
   ]
 }
