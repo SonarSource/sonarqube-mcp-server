@@ -16,8 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -26,33 +26,36 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
 
   public static final String TOOL_NAME = "start_agentic_readiness_assessment";
 
-  private final ServerApiProvider serverApiProvider;
+  public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String BRANCH_PROPERTY = "branch";
 
-  public StartAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(AgenticReadinessApi.AssessmentResponse.class)
+  private final ServerApiProvider serverApiProvider;
+  private final String configuredProjectKey;
+
+  public StartAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
+    super(SchemaToolBuilder.forOutput(AssessmentSummary.class)
       .setName(TOOL_NAME)
       .setTitle("Start Agentic Readiness Assessment")
       .setDescription(
-        "Start an agentic readiness assessment for a project. The assessment evaluates the project across multiple readiness pillars " +
-          "(Documentation & Context, Workflow & Contribution, Dev Environment, etc.) and scores each from L1 (pre-agentic) to L5 (agent-native). " +
-          "To measure the impact of code changes, push them to a branch first, then pass that branch via the branch parameter. " +
-          "Without branch, the assessment runs against the project's default branch and will not reflect uncommitted work. " +
-          "Returns immediately with status PENDING and an assessmentId. Use get_agentic_readiness_assessment with that ID to poll for results.")
-      .addRequiredStringProperty("projectKey", "The project key")
-      .addStringProperty("branch", "Branch to assess. Omit to use the project's default branch.")
+        "Start an agentic readiness assessment for a project. Pass a branch to assess code changes you have "
+          + "pushed; omit it to assess the project's default branch. Returns immediately with status PENDING and "
+          + "an assessmentId — use get_agentic_readiness_assessment with that ID to poll for results.")
+      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
+      .addStringProperty(BRANCH_PROPERTY, "Branch to assess. Omit to use the project's default branch.")
       .build(),
       ToolCategory.AGENTIC_READINESS);
     this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
   public Result execute(Arguments arguments) {
-    var projectKey = arguments.getStringOrThrow("projectKey");
-    var branch = arguments.getOptionalString("branch");
+    var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
+    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
 
     var api = serverApiProvider.get();
-    var projectId = api.projectBranchesApi().getProjectUuid(projectKey);
+    var projectId = api.projectBranchesApi().getProjectId(projectKey);
     var assessment = api.agenticReadinessApi().createAssessment(projectId, branch);
-    return Result.success(assessment);
+    return Result.success(AssessmentSummary.from(assessment));
   }
 }

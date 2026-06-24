@@ -52,9 +52,7 @@ class GetAgenticReadinessAssessmentToolTests {
 
     assertResultEquals(result, """
       {
-        "id" : "assessment-uuid-1",
-        "projectId" : "project-uuid-123",
-        "createdAt" : "2026-06-23T10:00:00Z",
+        "assessmentId" : "assessment-uuid-1",
         "status" : "PENDING"
       }""");
   }
@@ -100,33 +98,25 @@ class GetAgenticReadinessAssessmentToolTests {
 
     assertResultEquals(result, """
       {
-        "id" : "assessment-uuid-1",
-        "projectId" : "project-uuid-123",
-        "createdAt" : "2026-06-23T10:00:00Z",
+        "assessmentId" : "assessment-uuid-1",
         "status" : "COMPLETED",
-        "result" : {
-          "overallLevel" : "L2",
-          "message" : "Project is moderately ready for agents."
-        },
-        "pillarExecutions" : [ {
-          "id" : "pe-1",
-          "pillarId" : "documentation",
-          "pillarName" : "Documentation & Context",
-          "pillarNumber" : 1,
-          "status" : "COMPLETED",
+        "overallLevel" : "L2",
+        "message" : "Project is moderately ready for agents.",
+        "pillars" : [ {
+          "name" : "Documentation & Context",
+          "number" : 1,
           "level" : "L2",
-          "subSignals" : {
-            "readme" : {
-              "level" : "L2",
-              "evidence" : [ {
-                "text" : "README.md found",
-                "type" : "info"
-              }, {
-                "text" : "Missing architecture diagram",
-                "type" : "blocker"
-              } ]
-            }
-          }
+          "subSignals" : [ {
+            "name" : "readme",
+            "level" : "L2",
+            "evidence" : [ {
+              "text" : "README.md found",
+              "type" : "info"
+            }, {
+              "text" : "Missing architecture diagram",
+              "type" : "blocker"
+            } ]
+          } ]
         } ]
       }""");
   }
@@ -164,25 +154,14 @@ class GetAgenticReadinessAssessmentToolTests {
 
     assertResultEquals(result, """
       {
-        "id" : "assessment-uuid-1",
-        "projectId" : "project-uuid-123",
-        "createdAt" : "2026-06-23T10:00:00Z",
+        "assessmentId" : "assessment-uuid-1",
         "status" : "COMPLETED",
-        "result" : {
-          "overallLevel" : "L1"
-        },
-        "pillarExecutions" : [ {
-          "id" : "pe-1",
-          "pillarId" : "documentation",
-          "pillarName" : "Documentation & Context",
-          "pillarNumber" : 1,
-          "status" : "COMPLETED",
+        "overallLevel" : "L1",
+        "pillars" : [ {
+          "name" : "Documentation & Context",
+          "number" : 1,
           "level" : "L1",
-          "actions" : [ {
-            "text" : "Add a README.md describing the project purpose"
-          }, {
-            "text" : "Document the architecture in an ADR"
-          } ]
+          "actions" : [ "Add a README.md describing the project purpose", "Document the architecture in an ADR" ]
         } ]
       }""");
   }

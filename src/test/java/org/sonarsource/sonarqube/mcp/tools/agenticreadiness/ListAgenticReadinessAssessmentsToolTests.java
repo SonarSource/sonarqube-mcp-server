@@ -75,21 +75,15 @@ class ListAgenticReadinessAssessmentsToolTests {
     assertResultEquals(result, """
       {
         "assessments" : [ {
-          "id" : "assessment-uuid-1",
-          "projectId" : "project-uuid-123",
-          "createdAt" : "2026-06-23T10:00:00Z",
+          "assessmentId" : "assessment-uuid-1",
           "status" : "COMPLETED",
-          "result" : {
-            "overallLevel" : "L2"
-          }
+          "overallLevel" : "L2",
+          "createdAt" : "2026-06-23T10:00:00Z"
         }, {
-          "id" : "assessment-uuid-2",
-          "projectId" : "project-uuid-123",
-          "createdAt" : "2026-06-22T09:00:00Z",
+          "assessmentId" : "assessment-uuid-2",
           "status" : "COMPLETED",
-          "result" : {
-            "overallLevel" : "L1"
-          }
+          "overallLevel" : "L1",
+          "createdAt" : "2026-06-22T09:00:00Z"
         } ]
       }""");
   }
@@ -121,11 +115,10 @@ class ListAgenticReadinessAssessmentsToolTests {
     assertResultEquals(result, """
       {
         "assessments" : [ {
-          "id" : "assessment-uuid-3",
-          "projectId" : "project-uuid-123",
-          "createdAt" : "2026-06-23T11:00:00Z",
+          "assessmentId" : "assessment-uuid-3",
           "status" : "PENDING",
-          "branch" : "feature/my-branch"
+          "branch" : "feature/my-branch",
+          "createdAt" : "2026-06-23T11:00:00Z"
         } ]
       }""");
   }

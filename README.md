@@ -593,6 +593,7 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 | **Dependency Risks**     | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                       |
 | **Coverage**             | `coverage`          | Test coverage analysis and improvement tools                             |
 | **Context Augmentation** | `cag`               | Context Augmentation tools (stdio mode only, requires org entitlement)   |
+| **Agentic Readiness**    | `agentic-readiness` | Agentic Readiness Assessment tools (SonarQube Cloud, requires org entitlement)         |
 
 #### Examples
 
@@ -1279,6 +1280,25 @@ Then, mount the project workspace to give the Context Augmentation server direct
 **Important**: In a project-scoped config, do not put `SONARQUBE_TOKEN` in the env block. Export it as an environment variable (`export SONARQUBE_TOKEN=...`). Docker will forward it into the container via `-e SONARQUBE_TOKEN`.
 
 </details>
+
+### Agentic Readiness
+
+**Note: Agentic Readiness tools are only available on SonarQube Cloud and require the feature to be enabled for your organization.**
+
+- **start_agentic_readiness_assessment** - Start an agentic readiness assessment for a project. Returns immediately with status `PENDING` and an `assessmentId`. Use `get_agentic_readiness_assessment` to poll for results.
+  - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
+  - `branch` - Branch to assess. Omit to use the project's default branch - _String_
+
+
+- **get_agentic_readiness_assessment** - Retrieve the result of an assessment. Re-call with the same `assessmentId` until status is `COMPLETED`, `FAILED`, or `INTERRUPTED`. When completed, returns the overall level and a per-pillar breakdown with recommended actions and evidence.
+  - `assessmentId` - The assessment ID returned by `start_agentic_readiness_assessment` - _Required String_
+
+
+- **list_agentic_readiness_assessments** - List all assessments for a project, newest first. Use `get_agentic_readiness_assessment` for full pillar-level results.
+  - `projectKey` - The project key to list assessments for - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
+  - `branch` - Filter assessments by branch name. Omit to list assessments for all branches - _String_
+  - `pageIndex` - 1-based page index (default: 1) - _Number_
+  - `pageSize` - Number of items per page, max 100 (default: 50) - _Number_
 
 ## Example Prompts
 

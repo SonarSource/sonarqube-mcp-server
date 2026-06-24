@@ -42,7 +42,7 @@ public class ProjectBranchesApi {
     }
   }
 
-  public String getProjectUuid(String projectKey) {
+  public String getProjectId(String projectKey) {
     var branches = listBranches(projectKey);
     return branches.branches().stream()
       .filter(BranchesListResponse.Branch::isMain)

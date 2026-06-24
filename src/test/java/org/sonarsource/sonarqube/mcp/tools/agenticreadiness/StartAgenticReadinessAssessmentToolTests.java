@@ -71,7 +71,8 @@ class StartAgenticReadinessAssessmentToolTests {
     assertThat(tool.inputSchema()).isEqualTo(Map.of(
       "type", "object",
       "properties", Map.of(
-        "projectKey", Map.of("type", "string", "description", "The project key"),
+        "projectKey", Map.of("type", "string", "description",
+          "The SonarQube project key (e.g. my_project). Use search_my_sonarqube_projects when the key is unknown."),
         "branch", Map.of("type", "string", "description", "Branch to assess. Omit to use the project's default branch.")),
       "required", java.util.List.of("projectKey"),
       "additionalProperties", false));
@@ -106,10 +107,9 @@ class StartAgenticReadinessAssessmentToolTests {
 
     assertResultEquals(result, """
       {
-        "id" : "assessment-uuid-1",
-        "projectId" : "project-uuid-123",
-        "createdAt" : "2026-06-23T10:00:00Z",
-        "status" : "PENDING"
+        "assessmentId" : "assessment-uuid-1",
+        "status" : "PENDING",
+        "createdAt" : "2026-06-23T10:00:00Z"
       }""");
   }
 
@@ -135,11 +135,10 @@ class StartAgenticReadinessAssessmentToolTests {
 
     assertResultEquals(result, """
       {
-        "id" : "assessment-uuid-2",
-        "projectId" : "project-uuid-123",
-        "createdAt" : "2026-06-23T10:00:00Z",
+        "assessmentId" : "assessment-uuid-2",
         "status" : "PENDING",
-        "branch" : "feature/my-branch"
+        "branch" : "feature/my-branch",
+        "createdAt" : "2026-06-23T10:00:00Z"
       }""");
   }
 

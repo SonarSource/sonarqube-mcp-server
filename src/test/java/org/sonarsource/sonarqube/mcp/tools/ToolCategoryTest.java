@@ -156,7 +156,7 @@ class ToolCategoryTest {
   }
 
   @Test
-  void should_have_exactly_16_categories() {
+  void should_have_exactly_17_categories() {
     assertThat(ToolCategory.values()).hasSize(17);
   }
 }

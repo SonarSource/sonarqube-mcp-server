@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -29,16 +28,13 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(AgenticReadinessApi.AssessmentResponse.class)
+    super(SchemaToolBuilder.forOutput(AssessmentDetails.class)
       .setName(TOOL_NAME)
       .setTitle("Get Agentic Readiness Assessment")
       .setDescription(
-        "Retrieve the result of an agentic readiness assessment started with start_agentic_readiness_assessment. " +
-          "Re-call with the same assessmentId until status is COMPLETED (or FAILED/INTERRUPTED on error). " +
-          "Assessments typically take around 10 minutes to complete and may be delayed by a queue. " +
-          "When COMPLETED, the response contains: overallLevel (L1-L5) — the project's current readiness score; " +
-          "pillars — per-pillar breakdown with levels, suggestion actions, sub-signals, and evidence items. " +
-          "Each sub-signal contains evidence items with a type (e.g. blocker, info) and descriptive text.")
+        "Retrieve the result of an agentic readiness assessment. Re-call with the same assessmentId "
+          + "until status is COMPLETED (or FAILED/INTERRUPTED). When COMPLETED, returns the overall "
+          + "readiness level and a per-pillar breakdown, each with recommended actions and supporting evidence.")
       .addRequiredStringProperty("assessmentId", "The assessment ID returned by start_agentic_readiness_assessment.")
       .setReadOnlyHint()
       .build(),
@@ -50,6 +46,6 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
   public Result execute(Arguments arguments) {
     var assessmentId = arguments.getStringOrThrow("assessmentId");
     var assessment = serverApiProvider.get().agenticReadinessApi().getAssessment(assessmentId);
-    return Result.success(assessment);
+    return Result.success(AssessmentDetails.from(assessment));
   }
 }

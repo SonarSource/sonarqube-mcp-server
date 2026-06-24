@@ -17,8 +17,8 @@
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
 import java.util.List;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -27,9 +27,17 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
 
   public static final String TOOL_NAME = "list_agentic_readiness_assessments";
 
-  private final ServerApiProvider serverApiProvider;
+  public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String BRANCH_PROPERTY = "branch";
+  public static final String PAGE_INDEX_PROPERTY = "pageIndex";
+  public static final String PAGE_SIZE_PROPERTY = "pageSize";
 
-  public ListAgenticReadinessAssessmentsTool(ServerApiProvider serverApiProvider) {
+  static final int MAX_PAGE_SIZE = 100;
+
+  private final ServerApiProvider serverApiProvider;
+  private final String configuredProjectKey;
+
+  public ListAgenticReadinessAssessmentsTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
     super(SchemaToolBuilder.forOutput(AssessmentsListResult.class)
       .setName(TOOL_NAME)
       .setTitle("List Agentic Readiness Assessments")
@@ -38,29 +46,38 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
           "Returns summaries ordered newest first; use get_agentic_readiness_assessment with an assessmentId " +
           "from this list to retrieve full pillar-level results. " +
           "pageIndex defaults to 1, pageSize defaults to 50 (max 100) when omitted.")
-      .addRequiredStringProperty("projectKey", "The project key to list assessments for.")
-      .addStringProperty("branch", "Filter assessments by branch name. Omit to list assessments for all branches.")
-      .addNumberProperty("pageIndex", "1-based page index (default: 1).")
-      .addNumberProperty("pageSize", "Number of items per page, max 100 (default: 50).")
+      .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
+      .addStringProperty(BRANCH_PROPERTY, "Filter assessments by branch name. Omit to list assessments for all branches.")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "1-based page index (default: 1).")
+      .addNumberProperty(PAGE_SIZE_PROPERTY, "Number of items per page, max 100 (default: 50).")
       .setReadOnlyHint()
       .build(),
       ToolCategory.AGENTIC_READINESS);
     this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
   public Result execute(Arguments arguments) {
-    var projectKey = arguments.getStringOrThrow("projectKey");
-    var branch = arguments.getOptionalString("branch");
-    var pageIndex = arguments.getOptionalInteger("pageIndex");
-    var pageSize = arguments.getOptionalInteger("pageSize");
+    var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
+    var branch = arguments.getOptionalString(BRANCH_PROPERTY);
+    var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
+    var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
+
+    if (pageSize != null && (pageSize < 1 || pageSize > MAX_PAGE_SIZE)) {
+      return Result.failure("pageSize must be between 1 and " + MAX_PAGE_SIZE);
+    }
+    if (pageIndex != null && pageIndex < 1) {
+      return Result.failure("pageIndex must be greater than or equal to 1");
+    }
 
     var api = serverApiProvider.get();
-    var projectId = api.projectBranchesApi().getProjectUuid(projectKey);
+    var projectId = api.projectBranchesApi().getProjectId(projectKey);
     var assessments = api.agenticReadinessApi().listAssessments(projectId, branch, pageIndex, pageSize);
-    return Result.success(new AssessmentsListResult(assessments));
+    var summaries = assessments.stream().map(AssessmentSummary::from).toList();
+    return Result.success(new AssessmentsListResult(summaries));
   }
 
-  public record AssessmentsListResult(List<AgenticReadinessApi.AssessmentResponse> assessments) {
+  public record AssessmentsListResult(List<AssessmentSummary> assessments) {
   }
 }
