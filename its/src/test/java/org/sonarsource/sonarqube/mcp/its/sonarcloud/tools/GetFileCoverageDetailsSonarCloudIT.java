@@ -35,7 +35,7 @@ class GetFileCoverageDetailsSonarCloudIT extends AbstractSonarCloudStagingIT {
       {
         "fileKey" : "%s",
         "summary" : {
-          "coverableLines" : 2,
+          "coverableLines" : 1,
           "coveredLines" : 0
         }
       }""".formatted(mainFileKey()));
