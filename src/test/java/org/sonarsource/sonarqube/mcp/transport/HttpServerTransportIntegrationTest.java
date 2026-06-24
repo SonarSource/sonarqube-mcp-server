@@ -155,6 +155,27 @@ class HttpServerTransportIntegrationTest {
   }
 
   @Test
+  void should_reject_tokenless_mcp_with_disallowed_origin_via_auth_layer() throws Exception {
+    httpServer.startServer().join();
+    await().atMost(5, TimeUnit.SECONDS).until(() -> isServerRunning(httpServer.getServerUrl()));
+
+    try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
+      var request = HttpRequest.newBuilder()
+        .uri(URI.create(httpServer.getServerUrl()))
+        .POST(HttpRequest.BodyPublishers.ofString("{}"))
+        .header("Content-Type", "application/json")
+        .header("Origin", "https://evil.com")
+        .build();
+
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      assertThat(response.statusCode()).isEqualTo(401);
+      assertThat(response.statusCode()).isNotEqualTo(403);
+      assertThat(response.body()).contains("SonarQube token required");
+    }
+  }
+
+  @Test
   void should_reject_get_requests_with_token() throws Exception {
     httpServer.startServer().join();
 

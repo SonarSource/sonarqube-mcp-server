@@ -28,11 +28,16 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Set;
+import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
  * Security filter for MCP HTTP transport to prevent DNS rebinding attacks
  * and enforce security best practices per MCP specification.
+ * <p>
+ * Origin enforcement is a browser-layer backstop for local deployments. Native MCP clients
+ * authenticate with Bearer tokens and may send non-localhost {@code Origin} headers; OAuth
+ * bootstrap requests intentionally arrive without a token and are allowed through to receive 401.
  */
 public class McpSecurityFilter implements Filter {
 
@@ -40,6 +45,8 @@ public class McpSecurityFilter implements Filter {
 
   static final String HEALTH_ENDPOINT = "/health";
   static final String INFO_ENDPOINT = "/info";
+  static final String MCP_ENDPOINT = "/mcp";
+  private static final String WELL_KNOWN_PREFIX = "/.well-known/";
 
   // Allowed hosts for localhost deployments (exact match only)
   private static final Set<String> ALLOWED_LOCALHOST_HOSTS = Set.of(
@@ -91,7 +98,7 @@ public class McpSecurityFilter implements Filter {
     var origin = httpRequest.getHeader("Origin");
     boolean isOptionsRequest = "OPTIONS".equals(httpRequest.getMethod());
 
-    if (origin != null && !isOriginAllowed(origin)) {
+    if (origin != null && !origin.isBlank() && shouldEnforceOrigin(httpRequest) && !isOriginAllowed(origin)) {
       LOG.warn("Rejected request from disallowed origin: " + origin);
       httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
       httpResponse.setContentType("application/json");
@@ -136,6 +143,38 @@ public class McpSecurityFilter implements Filter {
   }
 
   /**
+   * Whether to reject a disallowed {@code Origin} header.
+   * Skipped for authenticated requests, OAuth bootstrap paths, and remote deployments.
+   */
+  private boolean shouldEnforceOrigin(HttpServletRequest request) {
+    if (!isLocalBinding()) {
+      return false;
+    }
+    if (hasAuthToken(request)) {
+      return false;
+    }
+    return !isOAuthBootstrapRequest(request);
+  }
+
+  private boolean isLocalBinding() {
+    return "127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding) || "0.0.0.0".equals(hostBinding);
+  }
+
+  private static boolean hasAuthToken(HttpServletRequest request) {
+    var token = AuthenticationFilter.extractToken(request);
+    return token != null && !token.isBlank();
+  }
+
+  private static boolean isOAuthBootstrapRequest(HttpServletRequest request) {
+    // Safe while AuthenticationFilter rejects tokenless /mcp requests (see HttpServerTransportIntegrationTest).
+    var path = request.getRequestURI();
+    if (path == null) {
+      return false;
+    }
+    return MCP_ENDPOINT.equals(path) || path.startsWith(WELL_KNOWN_PREFIX);
+  }
+
+  /**
    * Check if the given origin is allowed based on the server's host binding and the configured extra allowed origins.
    */
   private boolean isOriginAllowed(String origin) {
@@ -143,8 +182,8 @@ public class McpSecurityFilter implements Filter {
       return true;
     }
 
-    // 0.0.0.0 is required for container port mapping; CORS policy stays restrictive.
-    if ("127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding) || "0.0.0.0".equals(hostBinding)) {
+    // 0.0.0.0 is required for container port mapping; CORS policy stays restrictive on local bindings.
+    if (isLocalBinding()) {
       return isLocalhostOrigin(origin);
     }
 
