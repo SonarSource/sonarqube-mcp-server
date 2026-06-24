@@ -270,7 +270,7 @@ Per-request filtering is applied at the **`tools/list` response**: `PerRequestTo
 **Allowed Origins**:
 - When bound to `127.0.0.1` or `localhost` (default): Only localhost browser origins (`http://localhost`, `http://127.0.0.1`, `http://[::1]`, with any port).
 - When bound to `0.0.0.0` (required for container port mapping): Same CORS policy as localhost bindings — localhost origins only, not all origins.
-- Additional origins can be whitelisted via `SONARQUBE_HTTP_ALLOWED_ORIGINS` (comma-separated full origin URLs, e.g. `https://sonarcloud.io, https://my-app.example.com`).
+- Additional origins can be added an an allowlist via `SONARQUBE_HTTP_ALLOWED_ORIGINS` (comma-separated full origin URLs, e.g. `https://sonarcloud.io, https://my-app.example.com`).
 
 > ⚠️ **Important**: The server defaults to binding to `127.0.0.1` (localhost) for security. This is the recommended configuration for local development. `SONARQUBE_HTTP_HOST=0.0.0.0` is for container listen address only and does not loosen CORS. Use `SONARQUBE_HTTP_ALLOWED_ORIGINS` to extend the origin allowlist when deploying behind a web application.
 
