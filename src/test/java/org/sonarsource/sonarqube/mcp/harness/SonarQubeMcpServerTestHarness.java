@@ -43,6 +43,7 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
+import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
@@ -286,8 +287,8 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
       }
 
       // Stub CAG entitlement API — denied by default; tests that need CAG should call stubCagEntitlement(true)
-      if (!mockSonarQubeServer.isStubConfigured(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + orgUuidV4)) {
-        mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
+      if (!mockSonarQubeServer.isStubConfigured(CagApi.CAG_ENTITLEMENT_PATH + orgUuidV4)) {
+        mockSonarQubeServer.stubFor(get(CagApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
           .willReturn(okJson("""
             {"allowed":false}
             """)));
@@ -317,7 +318,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
    */
   public void stubCagEntitlement(boolean allowed) {
     var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
-    mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
+    mockSonarQubeServer.stubFor(get(CagApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
       .willReturn(okJson("""
         {"allowed":%b}
         """.formatted(allowed))));
@@ -329,7 +330,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
    */
   public void stubCagEntitlementError() {
     var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
-    mockSonarQubeServer.stubFor(get(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
+    mockSonarQubeServer.stubFor(get(CagApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
       .willReturn(aResponse().withStatus(500)));
   }
 

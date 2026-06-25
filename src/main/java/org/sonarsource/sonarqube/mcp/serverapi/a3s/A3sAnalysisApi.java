@@ -27,7 +27,6 @@ public class A3sAnalysisApi {
 
   public static final String ANALYSES_PATH = "/a3s-analysis/analyses";
   public static final String A3S_ORG_CONFIG_PATH = "/a3s-analysis/org-config/";
-  public static final String CAG_ENTITLEMENT_PATH = "/cag/cag-entitlement/";
 
   private static final String JSON_CONTENT_TYPE = "application/json";
   private static final Gson GSON = new Gson();
@@ -56,19 +55,6 @@ public class A3sAnalysisApi {
     }
   }
 
-  @Nullable
-  public CagEntitlementResponse getCagEntitlement(String organizationUuidV4) {
-    try (var response = helper.getApiSubdomain(CAG_ENTITLEMENT_PATH + organizationUuidV4)) {
-      return GSON.fromJson(response.bodyAsString(), CagEntitlementResponse.class);
-    } catch (Exception e) {
-      LOG.warn("Could not retrieve CAG entitlement for organization '" + organizationUuidV4 + "': " + e.getMessage());
-      return null;
-    }
-  }
-
   public record OrgConfigResponse(String id, boolean enabled, boolean eligible) {
-  }
-
-  public record CagEntitlementResponse(boolean allowed) {
   }
 }
