@@ -23,7 +23,7 @@ java {
 
 val artifactoryUrl = System.getenv("ARTIFACTORY_URL").orEmpty()
     .ifEmpty { project.findProperty("artifactoryUrl")?.toString().orEmpty() }
-val artifactoryUsername = System.getenv("ARTIFACTORY_USER").orEmpty()
+val artifactoryUsername = System.getenv("ARTIFACTORY_ACCESS_USERNAME").orEmpty()
     .ifEmpty { project.findProperty("artifactoryUsername")?.toString().orEmpty() }
 val artifactoryPassword = System.getenv("ARTIFACTORY_ACCESS_TOKEN").orEmpty()
     .ifEmpty { project.findProperty("artifactoryPassword")?.toString().orEmpty() }

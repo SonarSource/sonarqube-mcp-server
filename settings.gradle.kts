@@ -1,3 +1,20 @@
+pluginManagement {
+    // This block is compiled earlier than the rest of the script, so keep it self-contained.
+    val artifactoryUrl = System.getenv("ARTIFACTORY_URL") ?: providers.gradleProperty("artifactoryUrl").orNull
+    val artifactoryUsername = System.getenv("ARTIFACTORY_ACCESS_USERNAME") ?: providers.gradleProperty("artifactoryUsername").orNull
+    val artifactoryPassword = System.getenv("ARTIFACTORY_ACCESS_TOKEN") ?: providers.gradleProperty("artifactoryPassword").orNull
+    repositories {
+        maven {
+            if (artifactoryUrl != null && artifactoryUsername != null && artifactoryPassword != null) {
+                url = java.net.URI("$artifactoryUrl/plugins.gradle.org/")
+                credentials { username = artifactoryUsername; password = artifactoryPassword }
+            } else {
+                url = java.net.URI("https://plugins.gradle.org/m2/")
+            }
+        }
+    }
+}
+
 rootProject.name = "sonarqube-mcp-server"
 
 include("its")
