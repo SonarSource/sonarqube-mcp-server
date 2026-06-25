@@ -27,7 +27,7 @@ public class A3sAnalysisApi {
 
   public static final String ANALYSES_PATH = "/a3s-analysis/analyses";
   public static final String A3S_ORG_CONFIG_PATH = "/a3s-analysis/org-config/";
-  public static final String CAG_ENTITLEMENT_PATH = "/a3s-analysis/cag-entitlement/";
+  public static final String CAG_ENTITLEMENT_PATH = "/cag/cag-entitlement/";
 
   private static final String JSON_CONTENT_TYPE = "application/json";
   private static final Gson GSON = new Gson();

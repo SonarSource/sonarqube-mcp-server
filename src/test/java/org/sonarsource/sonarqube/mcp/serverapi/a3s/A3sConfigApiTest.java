@@ -36,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class A3sConfigApiTest {
 
   private static final String ORG_UUID = "57f08a8b-4a6e-4c64-bf72-83a892472f22";
+  private static final String CAG_ENTITLEMENT_PUBLIC_PATH = "/cag/cag-entitlement/" + ORG_UUID;
 
   @RegisterExtension
   static WireMockExtension sonarqubeMock = WireMockExtension.newInstance()
@@ -100,7 +101,7 @@ class A3sConfigApiTest {
 
   @Test
   void it_should_return_cag_entitlement_when_org_is_allowed() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
       .willReturn(jsonResponse("""
         {"allowed":true}
         """, 200)));
@@ -113,7 +114,7 @@ class A3sConfigApiTest {
 
   @Test
   void it_should_return_cag_entitlement_when_org_is_denied() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
       .willReturn(jsonResponse("""
         {"allowed":false}
         """, 200)));
@@ -126,7 +127,7 @@ class A3sConfigApiTest {
 
   @Test
   void it_should_ignore_cag_entitlement_consumption() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
       .willReturn(jsonResponse("""
         {"allowed":true,"consumption":{"consumed":500,"limit":1000}}
         """, 200)));
@@ -139,7 +140,7 @@ class A3sConfigApiTest {
 
   @Test
   void it_should_return_null_on_cag_entitlement_server_error() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
       .willReturn(aResponse().withStatus(500)));
 
     var entitlement = a3sAnalysisApi.getCagEntitlement(ORG_UUID);
@@ -149,7 +150,7 @@ class A3sConfigApiTest {
 
   @Test
   void it_should_return_null_on_cag_entitlement_not_found() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
       .willReturn(aResponse().withStatus(404)));
 
     var entitlement = a3sAnalysisApi.getCagEntitlement(ORG_UUID);
