@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -98,7 +99,7 @@ public class McpSecurityFilter implements Filter {
     var origin = httpRequest.getHeader("Origin");
     boolean isOptionsRequest = "OPTIONS".equals(httpRequest.getMethod());
 
-    if (origin != null && !origin.isBlank() && shouldEnforceOrigin(httpRequest) && !isOriginAllowed(origin)) {
+    if (!isOriginAllowed(httpRequest, origin)) {
       LOG.warn("Rejected request from disallowed origin: " + origin);
       httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
       httpResponse.setContentType("application/json");
@@ -106,7 +107,7 @@ public class McpSecurityFilter implements Filter {
       return;
     }
 
-    if (origin != null && isOriginAllowed(origin)) {
+    if (origin != null && isOriginInAllowlist(origin)) {
       httpResponse.setHeader("Access-Control-Allow-Origin", origin);
     } else if (isOptionsRequest) {
       httpResponse.setHeader("Access-Control-Allow-Origin", "*");
@@ -143,17 +144,40 @@ public class McpSecurityFilter implements Filter {
   }
 
   /**
-   * Whether to reject a disallowed {@code Origin} header.
-   * Skipped for authenticated requests, OAuth bootstrap paths, and remote deployments.
+   * Whether the request may proceed given its {@code Origin} header.
+   * Absent, blank, authenticated, OAuth-bootstrap, remote-binding, and allowlisted origins are permitted.
    */
-  private boolean shouldEnforceOrigin(HttpServletRequest request) {
+  private boolean isOriginAllowed(HttpServletRequest request, @Nullable String origin) {
+    if (origin == null || origin.isBlank()) {
+      return true;
+    }
     if (!isLocalBinding()) {
-      return false;
+      return true;
     }
     if (hasAuthToken(request)) {
-      return false;
+      return true;
     }
-    return !isOAuthBootstrapRequest(request);
+    if (isOAuthBootstrapRequest(request)) {
+      return true;
+    }
+    return isOriginInAllowlist(origin);
+  }
+
+  /**
+   * Whether the origin may be reflected in CORS response headers.
+   */
+  private boolean isOriginInAllowlist(String origin) {
+    if (extraAllowedOrigins.contains(origin)) {
+      return true;
+    }
+
+    // 0.0.0.0 is required for container port mapping; CORS policy stays restrictive on local bindings.
+    if (isLocalBinding()) {
+      return isLocalhostOrigin(origin);
+    }
+
+    // For other specific host bindings, be restrictive
+    return false;
   }
 
   private boolean isLocalBinding() {
@@ -174,23 +198,6 @@ public class McpSecurityFilter implements Filter {
     return MCP_ENDPOINT.equals(path) || path.startsWith(WELL_KNOWN_PREFIX);
   }
 
-  /**
-   * Check if the given origin is allowed based on the server's host binding and the configured extra allowed origins.
-   */
-  private boolean isOriginAllowed(String origin) {
-    if (extraAllowedOrigins.contains(origin)) {
-      return true;
-    }
-
-    // 0.0.0.0 is required for container port mapping; CORS policy stays restrictive on local bindings.
-    if (isLocalBinding()) {
-      return isLocalhostOrigin(origin);
-    }
-
-    // For other specific host bindings, be restrictive
-    return false;
-  }
-  
   /**
    * Check if the origin is a valid localhost origin.
    * Parses the URL to extract the host and checks for exact match.

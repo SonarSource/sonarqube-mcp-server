@@ -164,7 +164,7 @@ class HttpServerTransportIntegrationTest {
         .uri(URI.create(httpServer.getServerUrl()))
         .POST(HttpRequest.BodyPublishers.ofString("{}"))
         .header("Content-Type", "application/json")
-        .header("Origin", "https://evil.com")
+        .header("Origin", "https://cursor.com")
         .build();
 
       var response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -172,6 +172,64 @@ class HttpServerTransportIntegrationTest {
       assertThat(response.statusCode()).isEqualTo(401);
       assertThat(response.statusCode()).isNotEqualTo(403);
       assertThat(response.body()).contains("SonarQube token required");
+    }
+  }
+
+  @Test
+  void should_allow_authenticated_mcp_with_external_origin_on_container_binding() throws Exception {
+    var containerPort = findAvailablePort();
+    var containerServer = new HttpServerTransportProvider(containerPort, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+
+    try {
+      containerServer.startServer().join();
+      var serverUrl = "http://127.0.0.1:" + containerPort + "/mcp";
+      await().atMost(5, TimeUnit.SECONDS).until(() -> isServerRunning(serverUrl));
+
+      try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
+        var request = HttpRequest.newBuilder()
+          .uri(URI.create(serverUrl))
+          .POST(HttpRequest.BodyPublishers.ofString("{}"))
+          .header("Content-Type", "application/json")
+          .header("Origin", "https://cursor.com")
+          .header("Authorization", "Bearer my-token")
+          .build();
+
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isNotEqualTo(403);
+      }
+    } finally {
+      containerServer.stopServer();
+    }
+  }
+
+  @Test
+  void should_reject_unauthenticated_external_origin_on_non_mcp_path() throws Exception {
+    var containerPort = findAvailablePort();
+    var containerServer = new HttpServerTransportProvider(containerPort, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+
+    try {
+      containerServer.startServer().join();
+      var otherPathUrl = "http://127.0.0.1:" + containerPort + "/other";
+      await().atMost(5, TimeUnit.SECONDS).until(() -> isServerRunning("http://127.0.0.1:" + containerPort + "/mcp"));
+
+      try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
+        var request = HttpRequest.newBuilder()
+          .uri(URI.create(otherPathUrl))
+          .POST(HttpRequest.BodyPublishers.ofString("{}"))
+          .header("Content-Type", "application/json")
+          .header("Origin", "https://cursor.com")
+          .build();
+
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(403);
+        assertThat(response.body()).contains("Origin not allowed");
+      }
+    } finally {
+      containerServer.stopServer();
     }
   }
 
