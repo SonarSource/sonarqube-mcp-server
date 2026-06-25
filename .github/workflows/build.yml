@@ -34,7 +34,7 @@ jobs:
           version: 2026.6.1
 
       - id: build-step
-        uses: SonarSource/ci-github-actions/build-gradle@7f74370627fe3903b9fca9324786313d7b17d799 # 1.7.0
+        uses: SonarSource/ci-github-actions/build-gradle@de29c54be07c772c6afc381db8ae4bfcbfe4df12 # 1.8.0
         with:
           deploy-pull-request: true
           artifactory-reader-role: private-reader
@@ -71,7 +71,7 @@ jobs:
           secrets: |
             development/team/sonarlint/kv/data/sonarcloud-it token | SONARCLOUD_IT_TOKEN;
 
-      - uses: SonarSource/ci-github-actions/config-gradle@71df716ff4caba2dbb7cd08a5f6fb932503602fc # 1.7.2
+      - uses: SonarSource/ci-github-actions/config-gradle@de29c54be07c772c6afc381db8ae4bfcbfe4df12 # 1.8.0
         with:
           artifactory-reader-role: private-reader
 
@@ -102,6 +102,6 @@ jobs:
     runs-on: github-ubuntu-latest-s  # Public repository runner
     name: Promote
     steps:
-      - uses: SonarSource/ci-github-actions/promote@7f74370627fe3903b9fca9324786313d7b17d799 # 1.7.0
+      - uses: SonarSource/ci-github-actions/promote@de29c54be07c772c6afc381db8ae4bfcbfe4df12 # 1.8.0
         with:
           promote-pull-request: true
