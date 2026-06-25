@@ -25,9 +25,12 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -36,7 +39,7 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
  * and enforce security best practices per MCP specification.
  * <p>
  * Origin enforcement is a browser-layer backstop for local deployments. Native MCP clients
- * authenticate with Bearer tokens and may send non-localhost {@code Origin} headers; OAuth
+ * authenticate with Bearer tokens and may send non-loopback {@code Origin} headers; OAuth
  * bootstrap requests intentionally arrive without a token and are allowed through to receive 401.
  */
 public class McpSecurityFilter implements Filter {
@@ -47,13 +50,6 @@ public class McpSecurityFilter implements Filter {
   static final String INFO_ENDPOINT = "/info";
   static final String MCP_ENDPOINT = "/mcp";
   private static final String WELL_KNOWN_PREFIX = "/.well-known/";
-
-  // Allowed hosts for localhost deployments (exact match only)
-  private static final Set<String> ALLOWED_LOCALHOST_HOSTS = Set.of(
-    "localhost",
-    "127.0.0.1",
-    "[::1]"
-  );
 
   private final String hostBinding;
   private final Set<String> extraAllowedOrigins;
@@ -98,7 +94,7 @@ public class McpSecurityFilter implements Filter {
     var origin = httpRequest.getHeader("Origin");
     boolean isOptionsRequest = "OPTIONS".equals(httpRequest.getMethod());
 
-    if (origin != null && !origin.isBlank() && shouldEnforceOrigin(httpRequest) && !isOriginAllowed(origin)) {
+    if (!isOriginAllowed(httpRequest, origin)) {
       LOG.warn("Rejected request from disallowed origin: " + origin);
       httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
       httpResponse.setContentType("application/json");
@@ -106,7 +102,7 @@ public class McpSecurityFilter implements Filter {
       return;
     }
 
-    if (origin != null && isOriginAllowed(origin)) {
+    if (origin != null && isOriginInAllowlist(origin)) {
       httpResponse.setHeader("Access-Control-Allow-Origin", origin);
     } else if (isOptionsRequest) {
       httpResponse.setHeader("Access-Control-Allow-Origin", "*");
@@ -143,21 +139,49 @@ public class McpSecurityFilter implements Filter {
   }
 
   /**
-   * Whether to reject a disallowed {@code Origin} header.
-   * Skipped for authenticated requests, OAuth bootstrap paths, and remote deployments.
+   * Whether the request may proceed given its {@code Origin} header.
+   * Absent, blank, authenticated, OAuth-bootstrap, remote-binding, and allowlisted origins are permitted.
    */
-  private boolean shouldEnforceOrigin(HttpServletRequest request) {
+  private boolean isOriginAllowed(HttpServletRequest request, @Nullable String origin) {
+    if (origin == null || origin.isBlank()) {
+      return true;
+    }
     if (!isLocalBinding()) {
-      return false;
+      return true;
     }
     if (hasAuthToken(request)) {
-      return false;
+      return true;
     }
-    return !isOAuthBootstrapRequest(request);
+    if (isOAuthBootstrapRequest(request)) {
+      return true;
+    }
+    return isOriginInAllowlist(origin);
+  }
+
+  /**
+   * Whether the origin may be reflected in CORS response headers.
+   */
+  private boolean isOriginInAllowlist(String origin) {
+    if (extraAllowedOrigins.contains(origin)) {
+      return true;
+    }
+    if (isLocalBinding()) {
+      return isLoopbackOrigin(origin);
+    }
+    return false;
   }
 
   private boolean isLocalBinding() {
-    return "127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding) || "0.0.0.0".equals(hostBinding);
+    if ("0.0.0.0".equals(hostBinding)) {
+      // Required for container port mapping; origin policy stays restrictive on local bindings.
+      return true;
+    }
+    try {
+      return InetAddress.getByName(hostBinding).isLoopbackAddress();
+    } catch (UnknownHostException e) {
+      LOG.warn("Could not resolve host binding '" + hostBinding + "' for origin policy: " + e.getMessage());
+      return false;
+    }
   }
 
   private static boolean hasAuthToken(HttpServletRequest request) {
@@ -174,45 +198,22 @@ public class McpSecurityFilter implements Filter {
     return MCP_ENDPOINT.equals(path) || path.startsWith(WELL_KNOWN_PREFIX);
   }
 
-  /**
-   * Check if the given origin is allowed based on the server's host binding and the configured extra allowed origins.
-   */
-  private boolean isOriginAllowed(String origin) {
-    if (extraAllowedOrigins.contains(origin)) {
-      return true;
-    }
-
-    // 0.0.0.0 is required for container port mapping; CORS policy stays restrictive on local bindings.
-    if (isLocalBinding()) {
-      return isLocalhostOrigin(origin);
-    }
-
-    // For other specific host bindings, be restrictive
-    return false;
-  }
-  
-  /**
-   * Check if the origin is a valid localhost origin.
-   * Parses the URL to extract the host and checks for exact match.
-   */
-  private static boolean isLocalhostOrigin(String origin) {
+  private static boolean isLoopbackOrigin(String origin) {
     try {
       var uri = URI.create(origin);
-      var host = uri.getHost();
       var scheme = uri.getScheme();
-      
-      // Must be http or https
       if (!"http".equals(scheme) && !"https".equals(scheme)) {
         return false;
       }
-      
-      // Host must exactly match allowed localhost hosts
-      return host != null && ALLOWED_LOCALHOST_HOSTS.contains(host);
-    } catch (IllegalArgumentException e) {
-      LOG.warn("Rejected malformed origin: " + origin);
+      var host = uri.getHost();
+      if (host == null) {
+        return false;
+      }
+      return InetAddress.getByName(host).isLoopbackAddress();
+    } catch (UnknownHostException | IllegalArgumentException e) {
+      LOG.warn("Rejected malformed or unknown origin: " + origin);
       return false;
     }
   }
 
 }
-
