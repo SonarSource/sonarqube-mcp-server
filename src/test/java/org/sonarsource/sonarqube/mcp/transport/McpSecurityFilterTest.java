@@ -96,6 +96,7 @@ class McpSecurityFilterTest {
   @Test
   void should_reject_external_origin_when_bound_to_localhost() throws Exception {
     var filter = new McpSecurityFilter("127.0.0.1", "1.0.0");
+    when(request.getRequestURI()).thenReturn("/other");
     when(request.getHeader("Origin")).thenReturn("https://malicious-site.com");
     when(request.getMethod()).thenReturn("POST");
 
@@ -115,6 +116,7 @@ class McpSecurityFilterTest {
   @Test
   void should_reject_dns_rebinding_attack() throws Exception {
     var filter = new McpSecurityFilter("127.0.0.1", "1.0.0");
+    when(request.getRequestURI()).thenReturn("/other");
     when(request.getHeader("Origin")).thenReturn("http://attacker-controlled-domain.com");
     when(request.getMethod()).thenReturn("POST");
 
@@ -128,6 +130,7 @@ class McpSecurityFilterTest {
   void should_reject_subdomain_bypass_attack_localhost() throws Exception {
     // SECURITY: localhost.evil.com should NOT be allowed just because it starts with "localhost"
     var filter = new McpSecurityFilter("127.0.0.1", "1.0.0");
+    when(request.getRequestURI()).thenReturn("/other");
     when(request.getHeader("Origin")).thenReturn("http://localhost.evil.com");
     when(request.getMethod()).thenReturn("POST");
 
@@ -143,6 +146,7 @@ class McpSecurityFilterTest {
   void should_reject_subdomain_bypass_attack_127() throws Exception {
     // SECURITY: 127.0.0.1.evil.com should NOT be allowed
     var filter = new McpSecurityFilter("127.0.0.1", "1.0.0");
+    when(request.getRequestURI()).thenReturn("/other");
     when(request.getHeader("Origin")).thenReturn("http://127.0.0.1.evil.com");
     when(request.getMethod()).thenReturn("POST");
 
@@ -156,6 +160,7 @@ class McpSecurityFilterTest {
   @MethodSource("allowedOriginScenarios")
   void should_accept_allowed_origins(String hostBinding, String origin, String method) throws Exception {
     var filter = new McpSecurityFilter(hostBinding, "1.0.0");
+    when(request.getRequestURI()).thenReturn(McpSecurityFilter.MCP_ENDPOINT);
     when(request.getHeader("Origin")).thenReturn(origin);
     when(request.getMethod()).thenReturn(method);
 
@@ -194,6 +199,7 @@ class McpSecurityFilterTest {
   @Test
   void should_reject_external_origin_when_bound_to_all_interfaces() throws Exception {
     var filter = new McpSecurityFilter("0.0.0.0", "1.0.0");
+    when(request.getRequestURI()).thenReturn("/other");
     when(request.getHeader("Origin")).thenReturn("https://external-site.com");
     when(request.getMethod()).thenReturn("POST");
 
@@ -201,6 +207,59 @@ class McpSecurityFilterTest {
 
     verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
     verify(filterChain, never()).doFilter(any(), any());
+  }
+
+  @Test
+  void should_allow_external_origin_when_bearer_token_present() throws Exception {
+    var filter = new McpSecurityFilter("127.0.0.1", "1.0.0");
+    when(request.getRequestURI()).thenReturn(McpSecurityFilter.MCP_ENDPOINT);
+    when(request.getHeader("Origin")).thenReturn("https://cursor.com");
+    when(request.getHeader("Authorization")).thenReturn("Bearer my-token");
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain).doFilter(request, response);
+  }
+
+  @Test
+  void should_allow_external_origin_on_remote_binding_without_token() throws Exception {
+    var filter = new McpSecurityFilter("api.sonarcloud.io", "1.0.0");
+    when(request.getRequestURI()).thenReturn(McpSecurityFilter.MCP_ENDPOINT);
+    when(request.getHeader("Origin")).thenReturn("https://cursor.com");
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain).doFilter(request, response);
+  }
+
+  @Test
+  void should_allow_oauth_bootstrap_on_mcp_without_token() throws Exception {
+    var filter = new McpSecurityFilter("127.0.0.1", "1.0.0");
+    when(request.getRequestURI()).thenReturn(McpSecurityFilter.MCP_ENDPOINT);
+    when(request.getHeader("Origin")).thenReturn("https://cursor.com");
+    when(request.getMethod()).thenReturn("POST");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain).doFilter(request, response);
+  }
+
+  @Test
+  void should_allow_well_known_request_without_token() throws Exception {
+    var filter = new McpSecurityFilter("127.0.0.1", "1.0.0");
+    when(request.getRequestURI()).thenReturn("/.well-known/oauth-protected-resource");
+    when(request.getHeader("Origin")).thenReturn("https://cursor.com");
+    when(request.getMethod()).thenReturn("GET");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain).doFilter(request, response);
   }
 
   @Test
@@ -261,6 +320,7 @@ class McpSecurityFilterTest {
   @MethodSource("edgeCaseScenarios")
   void should_handle_edge_cases(String hostBinding, String origin, String method, boolean shouldAccept, String description) throws Exception {
     var filter = new McpSecurityFilter(hostBinding, "1.0.0");
+    when(request.getRequestURI()).thenReturn("/other");
     when(request.getHeader("Origin")).thenReturn(origin);
     when(request.getMethod()).thenReturn(method);
 
@@ -277,9 +337,9 @@ class McpSecurityFilterTest {
 
   static Stream<Arguments> edgeCaseScenarios() {
     return Stream.of(
-      Arguments.of("127.0.0.1", "", "POST", false, "empty origin header should be rejected"),
+      Arguments.of("127.0.0.1", "", "POST", true, "empty origin header should not be rejected"),
       Arguments.of("localhost", "http://localhost:3000", "POST", true, "localhost binding accepts localhost origins"),
-      Arguments.of("192.168.1.100", "http://localhost:3000", "POST", false, "custom host binding rejects all origins"),
+      Arguments.of("192.168.1.100", "http://localhost:3000", "POST", true, "remote host binding does not enforce origin"),
       Arguments.of("127.0.0.1", "https://malicious.com", "GET", false, "GET with disallowed origin should be rejected"),
       Arguments.of("127.0.0.1", "http://localhost:3000", "POST", true, "POST with allowed origin should be accepted"),
       Arguments.of("0.0.0.0", "https://external-site.com", "POST", false, "0.0.0.0 binding rejects external origins"),
@@ -314,6 +374,7 @@ class McpSecurityFilterTest {
   @Test
   void should_still_reject_unlisted_origin_when_extra_origins_configured() throws Exception {
     var filter = new McpSecurityFilter("127.0.0.1", List.of("https://sonarcloud.io"), "1.0.0");
+    when(request.getRequestURI()).thenReturn("/other");
     when(request.getHeader("Origin")).thenReturn("https://evil.com");
     when(request.getMethod()).thenReturn("POST");
 

@@ -28,11 +28,17 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
  * Security filter for MCP HTTP transport to prevent DNS rebinding attacks
  * and enforce security best practices per MCP specification.
+ * <p>
+ * Origin enforcement is a browser-layer backstop for local deployments. Native MCP clients
+ * authenticate with Bearer tokens and may send non-localhost {@code Origin} headers; OAuth
+ * bootstrap requests intentionally arrive without a token and are allowed through to receive 401.
  */
 public class McpSecurityFilter implements Filter {
 
@@ -40,6 +46,8 @@ public class McpSecurityFilter implements Filter {
 
   static final String HEALTH_ENDPOINT = "/health";
   static final String INFO_ENDPOINT = "/info";
+  static final String MCP_ENDPOINT = "/mcp";
+  private static final String WELL_KNOWN_PREFIX = "/.well-known/";
 
   // Allowed hosts for localhost deployments (exact match only)
   private static final Set<String> ALLOWED_LOCALHOST_HOSTS = Set.of(
@@ -91,7 +99,7 @@ public class McpSecurityFilter implements Filter {
     var origin = httpRequest.getHeader("Origin");
     boolean isOptionsRequest = "OPTIONS".equals(httpRequest.getMethod());
 
-    if (origin != null && !isOriginAllowed(origin)) {
+    if (!isOriginAllowed(httpRequest, origin)) {
       LOG.warn("Rejected request from disallowed origin: " + origin);
       httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
       httpResponse.setContentType("application/json");
@@ -99,7 +107,7 @@ public class McpSecurityFilter implements Filter {
       return;
     }
 
-    if (origin != null && isOriginAllowed(origin)) {
+    if (origin != null && isOriginInAllowlist(origin)) {
       httpResponse.setHeader("Access-Control-Allow-Origin", origin);
     } else if (isOptionsRequest) {
       httpResponse.setHeader("Access-Control-Allow-Origin", "*");
@@ -136,22 +144,60 @@ public class McpSecurityFilter implements Filter {
   }
 
   /**
-   * Check if the given origin is allowed based on the server's host binding and the configured extra allowed origins.
+   * Whether the request may proceed given its {@code Origin} header.
+   * Absent, blank, authenticated, OAuth-bootstrap, remote-binding, and allowlisted origins are permitted.
    */
-  private boolean isOriginAllowed(String origin) {
+  private boolean isOriginAllowed(HttpServletRequest request, @Nullable String origin) {
+    if (origin == null || origin.isBlank()) {
+      return true;
+    }
+    if (!isLocalBinding()) {
+      return true;
+    }
+    if (hasAuthToken(request)) {
+      return true;
+    }
+    if (isOAuthBootstrapRequest(request)) {
+      return true;
+    }
+    return isOriginInAllowlist(origin);
+  }
+
+  /**
+   * Whether the origin may be reflected in CORS response headers.
+   */
+  private boolean isOriginInAllowlist(String origin) {
     if (extraAllowedOrigins.contains(origin)) {
       return true;
     }
 
-    // 0.0.0.0 is required for container port mapping; CORS policy stays restrictive.
-    if ("127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding) || "0.0.0.0".equals(hostBinding)) {
+    // 0.0.0.0 is required for container port mapping; CORS policy stays restrictive on local bindings.
+    if (isLocalBinding()) {
       return isLocalhostOrigin(origin);
     }
 
     // For other specific host bindings, be restrictive
     return false;
   }
-  
+
+  private boolean isLocalBinding() {
+    return "127.0.0.1".equals(hostBinding) || "localhost".equals(hostBinding) || "0.0.0.0".equals(hostBinding);
+  }
+
+  private static boolean hasAuthToken(HttpServletRequest request) {
+    var token = AuthenticationFilter.extractToken(request);
+    return token != null && !token.isBlank();
+  }
+
+  private static boolean isOAuthBootstrapRequest(HttpServletRequest request) {
+    // Safe while AuthenticationFilter rejects tokenless /mcp requests (see HttpServerTransportIntegrationTest).
+    var path = request.getRequestURI();
+    if (path == null) {
+      return false;
+    }
+    return MCP_ENDPOINT.equals(path) || path.startsWith(WELL_KNOWN_PREFIX);
+  }
+
   /**
    * Check if the origin is a valid localhost origin.
    * Parses the URL to extract the host and checks for exact match.
