@@ -267,16 +267,16 @@ Per-request filtering is applied at the **`tools/list` response**: `PerRequestTo
 
 **Mitigation**: `McpSecurityFilter` validates the `Origin` header as a browser-layer backstop on local bindings. Bearer authentication remains the primary control.
 
-**Local binding detection**: loopback addresses via `InetAddress.isLoopbackAddress()` (`127.0.0.1`, `localhost`, `::1`, `127.0.0.2`, …), plus `0.0.0.0` for container deployments.
-
 **Origin enforcement** (returns 403 when triggered):
-- Applies on local bindings for unauthenticated requests to paths other than `/mcp` and `/.well-known/*`.
-- Skipped when the request carries `Authorization: Bearer …` or the legacy `SONARQUBE_TOKEN` header.
-- Skipped on OAuth bootstrap paths without a token (`/mcp`, `/.well-known/*`) — those receive 401 from the auth layer instead.
-- Not applied on non-loopback host bindings.
+- Applies only on local bindings (`127.0.0.1`, `localhost`, `0.0.0.0`).
+- Skipped when the request carries `Authorization: Bearer …` or the legacy `SONARQUBE_TOKEN` header (native MCP clients).
+- Skipped on OAuth bootstrap paths without a token: `POST /mcp` (401 discovery) and `GET /.well-known/*` (Protected Resource Metadata).
+- Not applied on remote host bindings (e.g. SonarQube Cloud hosted); use `SONARQUBE_HTTP_ALLOWED_ORIGINS` for browser CORS only.
 
-**CORS allowlist** (sets `Access-Control-Allow-Origin`):
-- Loopback browser origins plus entries in `SONARQUBE_HTTP_ALLOWED_ORIGINS` (comma-separated full origin URLs, e.g. `https://my-app.example.com`).
+**Allowed Origins** (for CORS response headers and local enforcement):
+- When bound to `127.0.0.1` or `localhost` (default): localhost browser origins (`http://localhost`, `http://127.0.0.1`, `http://[::1]`, with any port).
+- When bound to `0.0.0.0` (required for container port mapping): same CORS policy as localhost bindings.
+- Additional origins can be whitelisted via `SONARQUBE_HTTP_ALLOWED_ORIGINS` (comma-separated full origin URLs, e.g. `https://sonarcloud.io, https://my-app.example.com`).
 
 > ⚠️ **Important**: The server defaults to binding to `127.0.0.1` (localhost) for security. This is the recommended configuration for local development. `SONARQUBE_HTTP_HOST=0.0.0.0` is for container listen address only. Use `SONARQUBE_HTTP_ALLOWED_ORIGINS` to extend the origin allowlist when deploying behind a web application.
 

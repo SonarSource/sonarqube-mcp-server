@@ -263,32 +263,6 @@ class McpSecurityFilterTest {
   }
 
   @Test
-  void should_accept_loopback_origin_on_any_loopback_address() throws Exception {
-    var filter = new McpSecurityFilter("127.0.0.1", "1.0.0");
-    when(request.getRequestURI()).thenReturn("/other");
-    when(request.getHeader("Origin")).thenReturn("http://127.0.0.2:8080");
-    when(request.getMethod()).thenReturn("POST");
-
-    filter.doFilter(request, response, filterChain);
-
-    verify(response, never()).setStatus(HttpServletResponse.SC_FORBIDDEN);
-    verify(filterChain).doFilter(request, response);
-  }
-
-  @Test
-  void should_treat_ipv6_loopback_host_binding_as_local() throws Exception {
-    var filter = new McpSecurityFilter("::1", "1.0.0");
-    when(request.getRequestURI()).thenReturn("/other");
-    when(request.getHeader("Origin")).thenReturn("https://external-site.com");
-    when(request.getMethod()).thenReturn("POST");
-
-    filter.doFilter(request, response, filterChain);
-
-    verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
-    verify(filterChain, never()).doFilter(any(), any());
-  }
-
-  @Test
   void should_not_set_origin_header_when_no_origin_and_all_interfaces_binding() throws Exception {
     var filter = new McpSecurityFilter("0.0.0.0", "1.0.0");
     when(request.getHeader("Origin")).thenReturn(null);
