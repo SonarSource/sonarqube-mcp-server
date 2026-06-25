@@ -417,7 +417,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("CAG entitlement check: could not resolve UUID for org '" + orgKey + "' - skipping CAG");
       return false;
     }
-    var entitlement = api.a3sAnalysisApi().getCagEntitlement(orgUuidV4);
+    var entitlement = api.cagApi().getCagEntitlement(orgUuidV4);
     if (entitlement == null) {
       LOG.debug("CAG entitlement check: could not retrieve entitlement for org '" + orgKey + "' - skipping CAG");
       return false;
