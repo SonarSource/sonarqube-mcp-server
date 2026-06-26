@@ -48,8 +48,8 @@ public record GetAgenticReadinessAssessmentToolResponse(
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record SubSignal(
     @JsonPropertyDescription("Sub-signal name, e.g. readme") String name,
-    @JsonPropertyDescription("Readiness level for this sub-signal (L1-L5)") @Nullable String level,
-    @JsonPropertyDescription("Evidence items supporting this sub-signal's level") @Nullable List<Evidence> evidence) {
+    @JsonPropertyDescription("Readiness level for this sub-signal (L1-L5)") String level,
+    @JsonPropertyDescription("Evidence items supporting this sub-signal's level") List<Evidence> evidence) {
   }
 
   @JsonInclude(JsonInclude.Include.NON_NULL)

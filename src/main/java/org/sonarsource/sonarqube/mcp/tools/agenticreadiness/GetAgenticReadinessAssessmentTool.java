@@ -100,10 +100,12 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
     return subSignals.entrySet().stream()
       .map(entry -> {
         var signal = entry.getValue();
-        var evidence = signal.evidence() == null ? null
-          : signal.evidence().stream()
-            .map(e -> new GetAgenticReadinessAssessmentToolResponse.Evidence(e.text(), e.type()))
-            .toList();
+        // evidence is required per the API contract, but guard against a contract violation since a
+        // null here would fail the whole get call rather than degrade gracefully.
+        var evidenceItems = signal.evidence() == null ? List.<AgenticReadinessApi.AssessmentResponse.EvidenceItem>of() : signal.evidence();
+        var evidence = evidenceItems.stream()
+          .map(e -> new GetAgenticReadinessAssessmentToolResponse.Evidence(e.text(), e.type()))
+          .toList();
         return new GetAgenticReadinessAssessmentToolResponse.SubSignal(entry.getKey(), signal.level(), evidence);
       })
       .toList();

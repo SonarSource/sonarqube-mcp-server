@@ -132,6 +132,20 @@ class ListAgenticReadinessAssessmentsToolTests {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_return_error_when_project_cannot_be_resolved(SonarQubeMcpServerTestHarness harness) {
+    harness.stubSaraEnabled();
+    harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my-project")
+      .willReturn(okJson("""
+        {"branches": []}
+        """)));
+
+    var mcpClient = harness.newClient(ORG_ENV);
+    var result = mcpClient.callTool(ListAgenticReadinessAssessmentsTool.TOOL_NAME, Map.of("projectKey", "my-project"));
+
+    assertToolExecutionError(result, "Could not resolve project");
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_return_error_on_api_failure(SonarQubeMcpServerTestHarness harness) {
     harness.stubSaraEnabled();
     harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my-project")

@@ -56,7 +56,10 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
 
     var api = serverApiProvider.get();
     var projectId = api.projectBranchesApi().getProjectId(projectKey);
-    var assessment = api.agenticReadinessApi().createAssessment(projectId, branch);
+    if (projectId.isEmpty()) {
+      return Result.failure("Could not resolve project '" + projectKey + "'. Verify the project key is correct.");
+    }
+    var assessment = api.agenticReadinessApi().createAssessment(projectId.get(), branch);
     return Result.success(buildStructuredContent(assessment));
   }
 
