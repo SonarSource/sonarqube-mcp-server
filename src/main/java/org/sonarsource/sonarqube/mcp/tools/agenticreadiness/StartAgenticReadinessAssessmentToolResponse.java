@@ -17,29 +17,18 @@
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Nullable;
-import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 
 /**
- * Lightweight assessment view used by the list and start tools. Carries only the fields needed to
- * identify an assessment, track its lifecycle, and read its headline score — pillar-level detail is
- * available through {@code get_agentic_readiness_assessment}.
+ * Structured response for {@link StartAgenticReadinessAssessmentTool}. A freshly started assessment
+ * is returned with status PENDING; poll {@code get_agentic_readiness_assessment} for the full result.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record AssessmentSummary(
-  String assessmentId,
-  String status,
-  @Nullable String branch,
-  @Nullable String overallLevel,
-  @Nullable String createdAt) {
-
-  public static AssessmentSummary from(AgenticReadinessApi.AssessmentResponse response) {
-    var result = response.result();
-    return new AssessmentSummary(
-      response.id(),
-      response.status(),
-      response.branch(),
-      result != null ? result.overallLevel() : null,
-      response.createdAt());
-  }
+public record StartAgenticReadinessAssessmentToolResponse(
+  @JsonPropertyDescription("Unique identifier of the assessment, used to poll for its result") String assessmentId,
+  @JsonPropertyDescription("Lifecycle status: PENDING, IN_PROGRESS, COMPLETED, FAILED or INTERRUPTED") String status,
+  @JsonPropertyDescription("Branch the assessment runs against, if any") @Nullable String branch,
+  @JsonPropertyDescription("Overall readiness level once available (L1-L5)") @Nullable String overallLevel,
+  @JsonPropertyDescription("Creation timestamp of the assessment") @Nullable String createdAt) {
 }

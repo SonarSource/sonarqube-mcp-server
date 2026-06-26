@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 import java.util.List;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
+import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -38,7 +39,7 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
   private final String configuredProjectKey;
 
   public ListAgenticReadinessAssessmentsTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(AssessmentsListResult.class)
+    super(SchemaToolBuilder.forOutput(ListAgenticReadinessAssessmentsToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("List Agentic Readiness Assessments")
       .setDescription(
@@ -74,10 +75,21 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
     var api = serverApiProvider.get();
     var projectId = api.projectBranchesApi().getProjectId(projectKey);
     var assessments = api.agenticReadinessApi().listAssessments(projectId, branch, pageIndex, pageSize);
-    var summaries = assessments.stream().map(AssessmentSummary::from).toList();
-    return Result.success(new AssessmentsListResult(summaries));
+    return Result.success(buildStructuredContent(assessments));
   }
 
-  public record AssessmentsListResult(List<AssessmentSummary> assessments) {
+  private static ListAgenticReadinessAssessmentsToolResponse buildStructuredContent(List<AgenticReadinessApi.AssessmentResponse> assessments) {
+    var summaries = assessments.stream()
+      .map(assessment -> {
+        var result = assessment.result();
+        return new ListAgenticReadinessAssessmentsToolResponse.Assessment(
+          assessment.id(),
+          assessment.status(),
+          assessment.branch(),
+          result != null ? result.overallLevel() : null,
+          assessment.createdAt());
+      })
+      .toList();
+    return new ListAgenticReadinessAssessmentsToolResponse(summaries);
   }
 }

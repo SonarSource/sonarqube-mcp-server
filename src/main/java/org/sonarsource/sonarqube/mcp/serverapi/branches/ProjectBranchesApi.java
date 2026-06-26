@@ -42,6 +42,11 @@ public class ProjectBranchesApi {
     }
   }
 
+  /**
+   * Resolves the project's internal id from its key. On SonarQube Cloud the {@code branchId} of a
+   * project's main branch is the project id, so we read it from the main branch entry returned by
+   * {@code api/project_branches/list}.
+   */
   public String getProjectId(String projectKey) {
     var branches = listBranches(projectKey);
     return branches.branches().stream()

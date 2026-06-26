@@ -17,9 +17,9 @@
 package org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.annotations.SerializedName;
 import java.util.List;
-import java.util.Map;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 
@@ -36,13 +36,24 @@ public class WasFeatureFlagsApi {
     this.helper = helper;
   }
 
-  public Map<String, Object> getFeatureFlags(String organizationId, List<String> keys) {
+  /**
+   * Returns whether the agentic readiness assessment feature is enabled for the given organization.
+   */
+  public boolean isAgenticReadinessAssessmentEnabled(String organizationId) {
     var path = new UrlBuilder(FEATURE_FLAGS_PATH)
       .addParam("organizationId", organizationId)
-      .addParam("keys", keys)
+      .addParam("keys", List.of(SARA_FEATURE_FLAG_KEY))
       .build();
     try (var response = helper.getApiSubdomain(path)) {
-      return GSON.fromJson(response.bodyAsString(), new TypeToken<Map<String, Object>>() {}.getType());
+      var flags = GSON.fromJson(response.bodyAsString(), FeatureFlagsResponse.class);
+      return flags != null && flags.isAgenticReadinessAssessmentEnabled();
+    }
+  }
+
+  private record FeatureFlagsResponse(@SerializedName(SARA_FEATURE_FLAG_KEY) @Nullable Boolean agenticReadinessAssessmentEnabled) {
+
+    boolean isAgenticReadinessAssessmentEnabled() {
+      return Boolean.TRUE.equals(agenticReadinessAssessmentEnabled);
     }
   }
 }

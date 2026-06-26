@@ -89,7 +89,6 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.branches.ListBranchesTool;
 import org.sonarsource.sonarqube.mcp.tools.pullrequests.ListPullRequestsTool;
-import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.GetAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.ListAgenticReadinessAssessmentsTool;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
@@ -437,8 +436,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         LOG.debug("Agentic readiness feature flag check: could not resolve UUID for org '" + orgKey + "' - skipping");
         return false;
       }
-      var flags = api.wasFeatureFlagsApi().getFeatureFlags(orgUuidV4, List.of(WasFeatureFlagsApi.SARA_FEATURE_FLAG_KEY));
-      var enabled = Boolean.TRUE.equals(flags.get(WasFeatureFlagsApi.SARA_FEATURE_FLAG_KEY));
+      var enabled = api.wasFeatureFlagsApi().isAgenticReadinessAssessmentEnabled(orgUuidV4);
       LOG.debug("Agentic readiness feature flag for org '" + orgKey + "': " + enabled);
       return enabled;
     } catch (Exception e) {

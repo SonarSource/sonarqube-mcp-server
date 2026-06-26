@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
+import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -33,7 +34,7 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
   private final String configuredProjectKey;
 
   public StartAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(AssessmentSummary.class)
+    super(SchemaToolBuilder.forOutput(StartAgenticReadinessAssessmentToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Start Agentic Readiness Assessment")
       .setDescription(
@@ -56,6 +57,16 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
     var api = serverApiProvider.get();
     var projectId = api.projectBranchesApi().getProjectId(projectKey);
     var assessment = api.agenticReadinessApi().createAssessment(projectId, branch);
-    return Result.success(AssessmentSummary.from(assessment));
+    return Result.success(buildStructuredContent(assessment));
+  }
+
+  private static StartAgenticReadinessAssessmentToolResponse buildStructuredContent(AgenticReadinessApi.AssessmentResponse response) {
+    var result = response.result();
+    return new StartAgenticReadinessAssessmentToolResponse(
+      response.id(),
+      response.status(),
+      response.branch(),
+      result != null ? result.overallLevel() : null,
+      response.createdAt());
   }
 }
