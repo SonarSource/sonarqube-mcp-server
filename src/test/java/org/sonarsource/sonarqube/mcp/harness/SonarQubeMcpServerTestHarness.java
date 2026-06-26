@@ -43,6 +43,7 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
+import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
@@ -52,6 +53,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+
+import com.github.tomakehurst.wiremock.client.WireMock;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -294,6 +297,14 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
             """)));
       }
 
+      // Stub SARA feature flag — disabled by default; tests that need SARA should call stubSaraEnabled()
+      if (!mockSonarQubeServer.isStubConfigured(WasFeatureFlagsApi.FEATURE_FLAGS_PATH)) {
+        mockSonarQubeServer.stubFor(get(WireMock.urlPathEqualTo(WasFeatureFlagsApi.FEATURE_FLAGS_PATH))
+          .willReturn(okJson("""
+            {"%s":false}
+            """.formatted(WasFeatureFlagsApi.SARA_FEATURE_FLAG_KEY))));
+      }
+
       if (!mockSonarQubeServer.isStubConfigured(ScaApi.FEATURE_ENABLED_PATH)) {
         var orgParameter = "?organization=" + orgKey;
         mockSonarQubeServer.stubFor(get(ScaApi.FEATURE_ENABLED_PATH + orgParameter).willReturn(okJson("""
@@ -325,12 +336,32 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   }
 
   /**
+   * Stub SARA feature flag as enabled for the organization.
+   * Must be called before newClient() to override the default (disabled) stub.
+   */
+  public void stubSaraEnabled() {
+    mockSonarQubeServer.stubFor(get(WireMock.urlPathEqualTo(WasFeatureFlagsApi.FEATURE_FLAGS_PATH))
+      .willReturn(okJson("""
+        {"%s":true}
+        """.formatted(WasFeatureFlagsApi.SARA_FEATURE_FLAG_KEY))));
+  }
+
+  /**
    * Stub CAG entitlement API to return an error (500).
    * Tests fail-safe behavior when CAG API is unavailable.
    */
   public void stubCagEntitlementError() {
     var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
     mockSonarQubeServer.stubFor(get(CagApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
+      .willReturn(aResponse().withStatus(500)));
+  }
+
+  /**
+   * Stub SARA feature flag API to return an error (500).
+   * Tests fail-safe behavior when the feature flag API is unavailable.
+   */
+  public void stubSaraError() {
+    mockSonarQubeServer.stubFor(get(WireMock.urlPathEqualTo(WasFeatureFlagsApi.FEATURE_FLAGS_PATH))
       .willReturn(aResponse().withStatus(500)));
   }
 

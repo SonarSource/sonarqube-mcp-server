@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.branches;
 
 import com.google.gson.Gson;
+import java.util.Optional;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.response.BranchesListResponse;
@@ -40,6 +41,22 @@ public class ProjectBranchesApi {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, BranchesListResponse.class);
     }
+  }
+
+  /**
+   * Resolves the project's internal id from its key. On SonarQube Cloud the {@code branchId} of a
+   * project's main branch is the project id, so we read it from the main branch entry returned by
+   * {@code api/project_branches/list}. Returns empty when no main branch can be found.
+   */
+  public Optional<String> getProjectId(String projectKey) {
+    var branches = listBranches(projectKey);
+    if (branches == null || branches.branches() == null) {
+      return Optional.empty();
+    }
+    return branches.branches().stream()
+      .filter(BranchesListResponse.Branch::isMain)
+      .findFirst()
+      .map(BranchesListResponse.Branch::branchId);
   }
 
 }

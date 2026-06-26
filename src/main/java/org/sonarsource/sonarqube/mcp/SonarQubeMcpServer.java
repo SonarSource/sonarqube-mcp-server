@@ -89,6 +89,9 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.branches.ListBranchesTool;
 import org.sonarsource.sonarqube.mcp.tools.pullrequests.ListPullRequestsTool;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.GetAgenticReadinessAssessmentTool;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.ListAgenticReadinessAssessmentsTool;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
@@ -121,6 +124,23 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.";
   private static final String BASE_INSTRUCTIONS_WITHOUT_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
     "Monitor project health, investigate issues, and understand quality gates.";
+  private static final String AGENTIC_READINESS_INSTRUCTIONS = """
+
+    ## Agentic Readiness Assessment
+
+    Tools to assess how well a SonarQube Cloud project's codebase supports AI agents, scored per pillar \
+    (Documentation, Workflow, Dev Environment, Build, Testing, Code Quality, Security, Observability) from \
+    L1 (pre-agentic, implicit conventions) to L5 (agent-native, self-describing).
+
+    Workflow:
+    1. Call list_agentic_readiness_assessments (filtered by branch) and reuse a recent COMPLETED result if \
+    one exists — assessments take ~10 minutes.
+    2. Otherwise call start_agentic_readiness_assessment; it returns PENDING with an assessmentId. Do not poll immediately.
+    3. After a few minutes, poll get_agentic_readiness_assessment until status is COMPLETED, FAILED, or INTERRUPTED.
+    4. Present overallLevel and the per-pillar breakdown, including each pillar's recommended actions and the evidence behind them.
+
+    To measure the impact of changes, compare a baseline assessment of the default branch against a new \
+    assessment of your feature branch. Always filter the list by branch — unfiltered results mix branches.""";
 
   private BackendService backendService;
   private ToolExecutor toolExecutor;
@@ -272,6 +292,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("CAG is not enabled for organization, skipping proxied server initialization");
     }
 
+    // Agentic readiness tools
+    loadSaraTools();
+
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
     if (!mcpConfiguration.isHttpEnabled() && isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
@@ -399,6 +422,27 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
       }
     }
+
+  }
+
+  private static boolean isSaraEnabled(@Nullable ServerApi api, @Nullable String orgKey) {
+    if (api == null || orgKey == null || orgKey.isBlank()) {
+      LOG.debug("Agentic readiness feature flag check skipped: no org key configured");
+      return false;
+    }
+    try {
+      var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+      if (orgUuidV4 == null) {
+        LOG.debug("Agentic readiness feature flag check: could not resolve UUID for org '" + orgKey + "' - skipping");
+        return false;
+      }
+      var enabled = api.wasFeatureFlagsApi().isAgenticReadinessAssessmentEnabled(orgUuidV4);
+      LOG.debug("Agentic readiness feature flag for org '" + orgKey + "': " + enabled);
+      return enabled;
+    } catch (Exception e) {
+      LOG.warn("Failed to evaluate agentic readiness feature flag for org '" + orgKey + "' — tools not registered: " + e.getMessage());
+      return false;
+    }
   }
 
   private static boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
@@ -466,6 +510,41 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, proxiedInstructions);
     LOG.debug("Forwarded instructions from " + proxiedInstructions.size() + " proxied server(s)");
     proxiedInstructions.forEach(s -> LOG.debug("Proxied instructions: {}", s));
+  }
+
+  private void loadSaraTools() {
+    if (isEnabledAgenticReadiness()) {
+      var configuredProjectKey = mcpConfiguration.getProjectKey();
+      supportedTools.add(new StartAgenticReadinessAssessmentTool(this, configuredProjectKey));
+      supportedTools.add(new GetAgenticReadinessAssessmentTool(this));
+      supportedTools.add(new ListAgenticReadinessAssessmentsTool(this, configuredProjectKey));
+
+      composedInstructions += AGENTIC_READINESS_INSTRUCTIONS;
+    }
+  }
+
+  private boolean isEnabledAgenticReadiness() {
+    if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)) {
+      LOG.debug("Agentic readiness toolset is not enabled, skipping tools initialization");
+      return false;
+    }
+    if (!mcpConfiguration.isSonarQubeCloud()) {
+      LOG.debug("Agentic readiness is only available on SonarQube Cloud, skipping tools initialization");
+      return false;
+    }
+    // In HTTP mode the server is shared and the organization is resolved per request, so the agentic
+    // readiness feature flag cannot be probed at startup. Register the tools and let the backend enforce
+    // organization entitlement on each call (same approach as the dependency-risks tool).
+    if (mcpConfiguration.isHttpEnabled()) {
+      return true;
+    }
+    // stdio mode: a single organization is fixed at startup, so probe the feature flag once here.
+    if (!isSaraEnabled(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+      LOG.debug("Agentic readiness is not enabled for organization, skipping tools initialization");
+      return false;
+    }
+    LOG.debug("Agentic readiness is enabled for organization");
+    return true;
   }
 
   private void setBaseInstructions() {
