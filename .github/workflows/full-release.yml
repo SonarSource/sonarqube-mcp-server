@@ -67,7 +67,7 @@ jobs:
     name: Release
     needs:
       - check-draft-exists
-    uses: SonarSource/release-github-actions/.github/workflows/ide-automated-release.yml@4a2f3e708afd2db63661f89d92cbdfe145533498 # 1.9.0
+    uses: SonarSource/release-github-actions/.github/workflows/ide-automated-release.yml@089cd343ba7f4f0c9283cda93627cd98d9dfe84b # 1.9.1
     permissions:
       statuses: read
       id-token: write
@@ -121,7 +121,7 @@ jobs:
           NEW_VERSION: ${{ needs.release.outputs.new-version }}
         run: sed -i -E "s|^version=.*|version=${NEW_VERSION}-SNAPSHOT|" gradle.properties
 
-      - uses: SonarSource/release-github-actions/create-pull-request@4a2f3e708afd2db63661f89d92cbdfe145533498 # 1.9.0
+      - uses: SonarSource/release-github-actions/create-pull-request@089cd343ba7f4f0c9283cda93627cd98d9dfe84b # 1.9.1
         with:
           commit-message: Prepare next development iteration ${{ needs.release.outputs.new-version }}
           title: Prepare next development iteration ${{ needs.release.outputs.new-version }}
