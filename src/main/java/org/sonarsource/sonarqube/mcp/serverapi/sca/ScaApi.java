@@ -35,8 +35,12 @@ public class ScaApi {
   }
 
   public boolean isScaEnabled() {
+    var organization = helper.getOrganization();
+    if (organization == null || organization.isBlank()) {
+      return false;
+    }
     var path = new UrlBuilder(FEATURE_ENABLED_PATH)
-      .addParam("organization", helper.getOrganization())
+      .addParam("organization", organization)
       .build();
     try (var response = helper.getApiSubdomain(path)) {
       var responseStr = response.bodyAsString();
