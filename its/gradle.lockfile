@@ -2,8 +2,8 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :its:dependencies --write-locks
-ch.qos.logback:logback-classic:1.5.34=testRuntimeClasspath
-ch.qos.logback:logback-core:1.5.34=testRuntimeClasspath
+ch.qos.logback:logback-classic:1.5.37=testRuntimeClasspath
+ch.qos.logback:logback-core:1.5.37=testRuntimeClasspath
 com.ethlo.time:itu:1.14.0=testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.20=testCompileClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.21=testRuntimeClasspath

@@ -56,6 +56,12 @@ repositories {
 	}
 }
 
+// CycloneDX registers SBOM artifacts only when cyclonedxDirectBom is realized.
+// When CI requests both build and cyclonedxBom, build can consume that variant first.
+allprojects {
+	tasks.named("cyclonedxDirectBom").get()
+}
+
 license {
 	header = rootProject.file("HEADER")
 	mapping(
