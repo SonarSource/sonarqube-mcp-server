@@ -4,9 +4,8 @@
 # To regenerate this file, run: ./gradlew :its:dependencies --write-locks
 ch.qos.logback:logback-classic:1.5.37=testRuntimeClasspath
 ch.qos.logback:logback-core:1.5.37=testRuntimeClasspath
-com.ethlo.time:itu:1.14.0=testRuntimeClasspath
-com.fasterxml.jackson.core:jackson-annotations:2.20=testCompileClasspath
-com.fasterxml.jackson.core:jackson-annotations:2.21=testRuntimeClasspath
+com.ethlo.time:itu:1.14.0=testCompileClasspath,testRuntimeClasspath
+com.fasterxml.jackson.core:jackson-annotations:2.21=testCompileClasspath,testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-core:2.21.1=testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-databind:2.21.1=testRuntimeClasspath
 com.fasterxml.jackson:jackson-bom:2.21.1=testRuntimeClasspath
