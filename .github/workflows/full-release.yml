@@ -109,9 +109,6 @@ jobs:
           sed -i -E "s|^(ARG MCP_SERVER_VERSION=)[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$|\1${RELEASED_VERSION}|" Dockerfile
           grep -qE "^ARG MCP_SERVER_VERSION=${RELEASED_VERSION}$" Dockerfile \
             || { echo "ERROR: Dockerfile version was not updated" >&2; exit 1; }
-          sed -i -E "s|(\"version\":[[:space:]]*\")[0-9]+\.[0-9]+\.[0-9]+(\")|\1${SHORT}\2|" gemini-extension.json
-          grep -qE "\"version\":[[:space:]]*\"${SHORT}\"" gemini-extension.json \
-            || { echo "ERROR: gemini-extension.json version was not updated" >&2; exit 1; }
           sed -i -E "s|(\"version\":[[:space:]]*\")[0-9]+\.[0-9]+\.[0-9]+(\")|\1${SHORT}\2|" server.json
           grep -qE "\"version\":[[:space:]]*\"${SHORT}\"" server.json \
             || { echo "ERROR: server.json version was not updated" >&2; exit 1; }
