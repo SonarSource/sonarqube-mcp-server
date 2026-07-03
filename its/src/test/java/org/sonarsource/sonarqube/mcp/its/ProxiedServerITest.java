@@ -65,7 +65,7 @@ class ProxiedServerITest {
       .contains("Proxied instructions: ")
       .contains("## Context Augmentation")
       .contains("Advanced analysis mode enabled")
-      .contains("All tools loaded: 36 tools after category filtering");
+      .contains("All tools loaded: 40 tools after category filtering");
   }
 
   @Test
