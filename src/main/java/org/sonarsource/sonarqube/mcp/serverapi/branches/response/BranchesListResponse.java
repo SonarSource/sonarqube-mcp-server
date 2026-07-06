@@ -27,7 +27,8 @@ public record BranchesListResponse(List<Branch> branches) {
     String type,
     @Nullable Status status,
     @Nullable String analysisDate,
-    String branchId
+    String branchId,
+    @Nullable String mergeBranch
   ) {
   }
 

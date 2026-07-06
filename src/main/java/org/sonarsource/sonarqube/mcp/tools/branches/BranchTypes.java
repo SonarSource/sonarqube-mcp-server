@@ -32,8 +32,23 @@ public final class BranchTypes {
     // utility class
   }
 
+  static final String[] BRANCH_TYPES_FILTER_VALUES = {"ALL", "LONG", "SHORT"};
+
   public static boolean isLongLivedBranchType(@Nullable String type) {
     return "LONG".equals(type) || "BRANCH".equals(type);
+  }
+
+  public static boolean matchesBranchTypesFilter(@Nullable String type, @Nullable String filter) {
+    if (filter == null || "ALL".equals(filter)) {
+      return true;
+    }
+    if ("LONG".equals(filter)) {
+      return isLongLivedBranchType(type);
+    }
+    if ("SHORT".equals(filter)) {
+      return "SHORT".equals(type);
+    }
+    return true;
   }
 
   @Nullable

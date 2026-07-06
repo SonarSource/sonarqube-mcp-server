@@ -163,7 +163,7 @@ class ProjectStatusToolTests {
           ProjectStatusTool.PULL_REQUEST_PROPERTY, "5461"));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent(
-        "Cannot use 'branch' and 'pullRequest' together. Use 'branch' for long-lived branches (see list_branches) or 'pullRequest' for pull requests (see list_pull_requests).").build());
+        "Cannot use 'branch' and 'pullRequest' together. Use 'branch' for branch-based analysis (see list_branches) or 'pullRequest' for pull request analysis (see list_pull_requests).").build());
     }
 
     @SonarQubeMcpServerTest

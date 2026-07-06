@@ -113,8 +113,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     """;
   private static final String BRANCH_PULL_REQUEST_INSTRUCTIONS = """
     ## Branch vs Pull Request Context
-    - Long-lived branches (main, develop, release/*): use `branch`. Discover names with `list_branches`.
-    - Pull requests / feature branches: use `pullRequest`. Discover keys with `list_pull_requests`.
+    SonarQube Cloud has three analysis contexts: long-lived branches, short-lived branches, and pull requests. \
+    SonarQube Server has branch and pull request only (no long/short distinction).
+    - Branch-based analysis (long-lived or short-lived without PR): use `branch`. Discover names with `list_branches` \
+    (type LONG for main/develop, type SHORT for feature branches on Cloud). You can also pass the current git branch name directly.
+    - Pull request analysis: use `pullRequest`. Discover keys with `list_pull_requests`.
+    - If the user is working on a pull request, prefer `pullRequest`. Otherwise use `branch`.
     - Never pass a git branch name to a pullRequest parameter — it expects the SonarQube PR key.
     - Never provide both branch and pullRequest on the same call.
     - Omit both to query the default (main) branch analysis.

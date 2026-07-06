@@ -72,7 +72,7 @@ class ListBranchesToolTests {
                      "type":{
                         "type":"string",
                         "enum":["LONG","SHORT","BRANCH"],
-                        "description":"Branch type in SonarQube (LONG on SonarQube Cloud, BRANCH on SonarQube Server)"
+                        "description":"Branch type in SonarQube (LONG or SHORT on SonarQube Cloud, BRANCH on SonarQube Server)"
                      },
                      "qualityGateStatus":{
                         "type":"string",
@@ -86,6 +86,10 @@ class ListBranchesToolTests {
                      "branchId":{
                         "type":"string",
                         "description":"Internal branch identifier"
+                     },
+                     "mergeBranch":{
+                        "type":"string",
+                        "description":"Target branch for short-lived branches on SonarQube Cloud (e.g. main, master)"
                      }
                   },
                   "required":[
@@ -171,7 +175,7 @@ class ListBranchesToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_filter_short_branches_on_sonarcloud(SonarQubeMcpServerTestHarness harness) {
+  void it_should_include_short_lived_branches_on_sonarcloud(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project")
       .willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes(generateSonarCloudBranchesResponse().getBytes(StandardCharsets.UTF_8))
@@ -179,6 +183,41 @@ class ListBranchesToolTests {
     var mcpClient = harness.newClient();
 
     var result = mcpClient.callTool(ListBranchesTool.TOOL_NAME, Map.of(ListBranchesTool.PROJECT_KEY_PROPERTY, "my_project"));
+
+    assertResultEquals(result, """
+      {
+        "projectKey" : "my_project",
+        "totalBranches" : 2,
+        "branches" : [ {
+          "name" : "feature/foo",
+          "isMain" : false,
+          "type" : "SHORT",
+          "qualityGateStatus" : "OK",
+          "analysisDate" : "2017-08-03T13:37:00+0100",
+          "branchId" : "93cb33a1-b3dd-4226-b0a0-1d74e4dec194",
+          "mergeBranch" : "master"
+        }, {
+          "name" : "master",
+          "isMain" : true,
+          "type" : "LONG",
+          "qualityGateStatus" : "ERROR",
+          "analysisDate" : "2017-04-01T01:15:42+0100",
+          "branchId" : "88471269-96e8-47f8-8c7d-e40e729f1373"
+        } ]
+      }""");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_filter_long_lived_branches_on_sonarcloud(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project")
+      .willReturn(aResponse().withResponseBody(
+        Body.fromJsonBytes(generateSonarCloudBranchesResponse().getBytes(StandardCharsets.UTF_8))
+      )));
+    var mcpClient = harness.newClient();
+
+    var result = mcpClient.callTool(ListBranchesTool.TOOL_NAME, Map.of(
+      ListBranchesTool.PROJECT_KEY_PROPERTY, "my_project",
+      ListBranchesTool.BRANCH_TYPES_PROPERTY, "LONG"));
 
     assertResultEquals(result, """
       {
@@ -191,6 +230,34 @@ class ListBranchesToolTests {
           "qualityGateStatus" : "ERROR",
           "analysisDate" : "2017-04-01T01:15:42+0100",
           "branchId" : "88471269-96e8-47f8-8c7d-e40e729f1373"
+        } ]
+      }""");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_filter_short_lived_branches_on_sonarcloud(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project")
+      .willReturn(aResponse().withResponseBody(
+        Body.fromJsonBytes(generateSonarCloudBranchesResponse().getBytes(StandardCharsets.UTF_8))
+      )));
+    var mcpClient = harness.newClient();
+
+    var result = mcpClient.callTool(ListBranchesTool.TOOL_NAME, Map.of(
+      ListBranchesTool.PROJECT_KEY_PROPERTY, "my_project",
+      ListBranchesTool.BRANCH_TYPES_PROPERTY, "SHORT"));
+
+    assertResultEquals(result, """
+      {
+        "projectKey" : "my_project",
+        "totalBranches" : 1,
+        "branches" : [ {
+          "name" : "feature/foo",
+          "isMain" : false,
+          "type" : "SHORT",
+          "qualityGateStatus" : "OK",
+          "analysisDate" : "2017-08-03T13:37:00+0100",
+          "branchId" : "93cb33a1-b3dd-4226-b0a0-1d74e4dec194",
+          "mergeBranch" : "master"
         } ]
       }""");
   }
