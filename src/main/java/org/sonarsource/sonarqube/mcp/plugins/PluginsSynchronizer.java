@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
@@ -59,8 +60,12 @@ public class PluginsSynchronizer {
       throw new IllegalStateException("Unable to create plugins directory", e);
     }
     for (var serverPlugin : serverPlugins) {
-      if (shouldDownload(serverPlugin)) {
-        downloadPlugin(serverPlugin.key(), resolvePluginPath(serverPlugin.filename()), serverPlugin.hash());
+      try {
+        if (shouldDownload(serverPlugin)) {
+          downloadPlugin(serverPlugin.key(), resolvePluginPath(serverPlugin.filename()), serverPlugin.hash());
+        }
+      } catch (RuntimeException e) {
+        LOG.error("Failed to download plugin '" + serverPlugin.key() + "'", e);
       }
     }
   }
@@ -145,7 +150,8 @@ public class PluginsSynchronizer {
   private void cleanupUnknownPlugins(List<InstalledPluginsResponse.Plugin> serverPlugins) {
     var supportedServerPlugins = serverPlugins.stream()
       .filter(plugin -> SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.containsKey(plugin.key()))
-      .map(plugin -> resolvePluginPath(plugin.filename()).getFileName().toString())
+      .map(this::safePluginFilename)
+      .filter(Objects::nonNull)
       .collect(Collectors.toSet());
     try (var directoryStream = Files.newDirectoryStream(pluginsPath, "*.jar")) {
       for (var localFile : directoryStream) {
@@ -172,22 +178,30 @@ public class PluginsSynchronizer {
     var pluginsPaths = new HashSet<Path>();
     var enabledLanguages = EnumSet.noneOf(Language.class);
     for (var serverPlugin : serverPlugins) {
-      if (!serverPlugin.sonarLintSupported() || !SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.containsKey(serverPlugin.key())) {
-        continue;
-      }
-      var pluginPath = resolvePluginPath(serverPlugin.filename());
-      if (Files.exists(pluginPath)) {
-        SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.forEach((supportedPluginKey, supportedLanguages) -> {
-          if (serverPlugin.key().equals(supportedPluginKey)) {
+      if (serverPlugin.sonarLintSupported() && SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.containsKey(serverPlugin.key())) {
+        try {
+          var pluginPath = resolvePluginPath(serverPlugin.filename());
+          if (Files.exists(pluginPath)) {
             pluginsPaths.add(pluginPath);
-            enabledLanguages.addAll(supportedLanguages);
+            enabledLanguages.addAll(SUPPORTED_LANGUAGES_BY_PLUGIN_KEY.get(serverPlugin.key()));
           }
-        });
+        } catch (RuntimeException e) {
+          LOG.error("Skipping plugin '" + serverPlugin.key() + "' due to invalid filename", e);
+        }
       }
     }
 
     LOG.info("Found " + pluginsPaths.size() + " plugins, enabled languages: " + enabledLanguages);
     return new BackendService.AnalyzersAndLanguagesEnabled(pluginsPaths, enabledLanguages);
+  }
+
+  private String safePluginFilename(InstalledPluginsResponse.Plugin plugin) {
+    try {
+      return resolvePluginPath(plugin.filename()).getFileName().toString();
+    } catch (RuntimeException e) {
+      LOG.error("Skipping plugin '" + plugin.key() + "' during cleanup due to invalid filename", e);
+      return null;
+    }
   }
 
 }
