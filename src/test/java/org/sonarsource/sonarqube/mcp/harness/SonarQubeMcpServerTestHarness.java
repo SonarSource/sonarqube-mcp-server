@@ -34,6 +34,7 @@ import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -236,20 +237,25 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
     
     // Only set up plugin stubs if plugins are enabled for this test
     if (pluginsEnabled) {
-      mockSonarQubeServer.stubFor(get(PluginsApi.INSTALLED_PLUGINS_PATH).willReturn(okJson("""
-        {
-            "plugins": [
-              {
-                "key": "php",
-                "filename": "sonar-php-plugin-3.58.0.16263.jar",
-                "sonarLintSupported": true
-              }
-            ]
-          }
-        """)));
+      var pluginFilename = "sonar-php-plugin-3.58.0.16263.jar";
+      var pluginJarPath = Paths.get("build/sonarqube-mcp-server/plugins/" + pluginFilename);
       try {
+        var pluginBytes = Files.readAllBytes(pluginJarPath);
+        var pluginHash = DigestUtils.md5Hex(pluginBytes);
+        mockSonarQubeServer.stubFor(get(PluginsApi.INSTALLED_PLUGINS_PATH).willReturn(okJson("""
+          {
+              "plugins": [
+                {
+                  "key": "php",
+                  "filename": "%s",
+                  "hash": "%s",
+                  "sonarLintSupported": true
+                }
+              ]
+            }
+          """.formatted(pluginFilename, pluginHash))));
         mockSonarQubeServer.stubFor(get(PluginsApi.DOWNLOAD_PLUGINS_PATH + "?plugin=php")
-          .willReturn(aResponse().withBody(Files.readAllBytes(Paths.get("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.58.0.16263.jar")))));
+          .willReturn(aResponse().withBody(pluginBytes)));
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

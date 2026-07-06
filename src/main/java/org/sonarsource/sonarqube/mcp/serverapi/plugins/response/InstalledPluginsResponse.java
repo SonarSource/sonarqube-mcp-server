@@ -20,7 +20,7 @@ import java.util.List;
 
 public record InstalledPluginsResponse(List<Plugin> plugins) {
 
-  public record Plugin(String key, boolean sonarLintSupported, String filename) {
+  public record Plugin(String key, boolean sonarLintSupported, String filename, String hash) {
   }
 
 }
