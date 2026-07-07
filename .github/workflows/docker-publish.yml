@@ -77,6 +77,8 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          sbom: true
+          provenance: mode=max
           build-args: |
             MCP_SERVER_VERSION=${{ needs.prepare.outputs.version }}
           tags: ${{ needs.prepare.outputs.temp_image }}
@@ -178,6 +180,8 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          sbom: true
+          provenance: mode=max
           build-args: |
             MCP_SERVER_VERSION=${{ needs.prepare.outputs.version }}
           tags: ${{ needs.prepare.outputs.tags }}
