@@ -132,18 +132,6 @@ Conventions:
 
 Integration tests in `its/` use Testcontainers and are not run by `./gradlew test` or `./gradlew build`.
 
-## Java Quality
-
-Enforced by SonarQube analysis on this project:
-
-- Log with `private static final McpLogger LOG = McpLogger.getInstance()` — never `System.out` / `System.err`.
-- Prefer try-with-resources; close all I/O and HTTP resources.
-- Do not hardcode URIs; use `UrlBuilder`, path constants, or configuration.
-- Avoid nested try-catch, deep inheritance trees, high cognitive complexity, and commented-out code.
-- Remove unused parameters; avoid `public static` mutable fields.
-- Prefer method references over trivial lambdas; use the most specific functional interface.
-- Resolve circular dependencies across packages.
-
 ## Key Docs
 
 | Document                                   | Topic                                             |
