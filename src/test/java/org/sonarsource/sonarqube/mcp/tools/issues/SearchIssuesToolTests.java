@@ -206,7 +206,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {"project1", "project2"}));
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, List.of("project1", "project2")));
 
       assertResultEquals(result, """
         {
@@ -262,8 +262,8 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {"project1", "project2"},
-          SearchIssuesTool.SEVERITIES_PROPERTY, new String[] {"HIGH", "BLOCKER"}));
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, List.of("project1", "project2"),
+          SearchIssuesTool.SEVERITIES_PROPERTY, List.of("HIGH", "BLOCKER")));
 
       assertResultEquals(result, """
         {
@@ -319,7 +319,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.FILES_PROPERTY, new String[] {"file1", "file2"}));
+        Map.of(SearchIssuesTool.FILES_PROPERTY, List.of("file1", "file2")));
 
       assertResultEquals(result, """
         {
@@ -662,7 +662,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {"project1", "project2"}));
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, List.of("project1", "project2")));
 
       assertResultEquals(result, """
         {
@@ -717,8 +717,8 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {"project1", "project2"},
-          SearchIssuesTool.SEVERITIES_PROPERTY, new String[] {"HIGH", "BLOCKER"}));
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, List.of("project1", "project2"),
+          SearchIssuesTool.SEVERITIES_PROPERTY, List.of("HIGH", "BLOCKER")));
 
       assertResultEquals(result, """
         {
@@ -773,7 +773,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.FILES_PROPERTY, new String[] {"file1", "file2"}));
+        Map.of(SearchIssuesTool.FILES_PROPERTY, List.of("file1", "file2")));
 
       assertResultEquals(result, """
         {
@@ -1176,7 +1176,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.IMPACT_SOFTWARE_QUALITIES_PROPERTY, new String[] {"MAINTAINABILITY", "SECURITY"}));
+        Map.of(SearchIssuesTool.IMPACT_SOFTWARE_QUALITIES_PROPERTY, List.of("MAINTAINABILITY", "SECURITY")));
 
       assertResultEquals(result, """
         {
@@ -1232,7 +1232,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.ISSUE_STATUSES_PROPERTY, new String[] {"OPEN", "CONFIRMED", "FALSE_POSITIVE"}));
+        Map.of(SearchIssuesTool.ISSUE_STATUSES_PROPERTY, List.of("OPEN", "CONFIRMED", "FALSE_POSITIVE")));
 
       assertResultEquals(result, """
         {

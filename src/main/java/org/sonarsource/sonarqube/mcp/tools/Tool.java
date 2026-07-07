@@ -210,18 +210,10 @@ public abstract class Tool {
     @Nullable
     public List<String> getOptionalStringList(String argumentName) {
       var arg = argumentsMap.get(argumentName);
-      if (arg == null) {
+      if (!(arg instanceof List<?> list)) {
         return null;
       }
-      List<?> valuesSource = switch (arg) {
-        case List<?> list -> list;
-        case Object[] array -> List.of(array);
-        default -> null;
-      };
-      if (valuesSource == null) {
-        return null;
-      }
-      var values = valuesSource.stream()
+      var values = list.stream()
         .filter(Objects::nonNull)
         .map(String::valueOf)
         .filter(value -> !value.isBlank())
