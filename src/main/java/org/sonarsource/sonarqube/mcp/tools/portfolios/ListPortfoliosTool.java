@@ -24,6 +24,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.views.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListPortfoliosTool extends Tool {
 
@@ -32,8 +33,8 @@ public class ListPortfoliosTool extends Tool {
   public static final String QUERY_PROPERTY = "q";
   public static final String FAVORITE_PROPERTY = "favorite";
   public static final String DRAFT_PROPERTY = "draft";
-  public static final String PAGE_INDEX_PROPERTY = "pageIndex";
-  public static final String PAGE_SIZE_PROPERTY = "pageSize";
+  public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
+  public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
 
   private final ServerApiProvider serverApiProvider;
   private final boolean isSonarQubeCloud;

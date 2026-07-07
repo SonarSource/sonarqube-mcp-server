@@ -171,6 +171,26 @@ public abstract class Tool {
       return null;
     }
 
+    @Nullable
+    public Integer getOptionalPageIndex() {
+      return getOptionalInteger(ToolParameters.PAGE_INDEX);
+    }
+
+    @Nullable
+    public Integer getOptionalPageSize() {
+      return getOptionalInteger(ToolParameters.PAGE_SIZE);
+    }
+
+    public int getPageIndexOrDefault(int defaultValue) {
+      var pageIndex = getOptionalPageIndex();
+      return pageIndex != null ? pageIndex : defaultValue;
+    }
+
+    public int getPageSizeOrDefault(int defaultValue) {
+      var pageSize = getOptionalPageSize();
+      return pageSize != null ? pageSize : defaultValue;
+    }
+
     public int getIntOrDefault(String argumentName, int defaultValue) {
       var intArgument = getOptionalInteger(argumentName);
       if (intArgument == null) {
@@ -190,10 +210,18 @@ public abstract class Tool {
     @Nullable
     public List<String> getOptionalStringList(String argumentName) {
       var arg = argumentsMap.get(argumentName);
-      if (!(arg instanceof List<?> list)) {
+      if (arg == null) {
         return null;
       }
-      var values = list.stream()
+      List<?> valuesSource = switch (arg) {
+        case List<?> list -> list;
+        case Object[] array -> List.of(array);
+        default -> null;
+      };
+      if (valuesSource == null) {
+        return null;
+      }
+      var values = valuesSource.stream()
         .filter(Objects::nonNull)
         .map(String::valueOf)
         .filter(value -> !value.isBlank())

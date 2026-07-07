@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.isLongLivedBranchType;
 import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.parseBranchType;
@@ -29,7 +30,7 @@ import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.parseQual
 public class ListBranchesTool extends Tool {
 
   public static final String TOOL_NAME = "list_branches";
-  public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable

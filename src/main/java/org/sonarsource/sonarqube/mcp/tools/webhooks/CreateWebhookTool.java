@@ -21,13 +21,14 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class CreateWebhookTool extends Tool {
 
   public static final String TOOL_NAME = "create_webhook";
   public static final String NAME_PROPERTY = "name";
   public static final String URL_PROPERTY = "url";
-  public static final String PROJECT_PROPERTY = "projectKey";
+  public static final String PROJECT_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String SECRET_PROPERTY = "secret";
 
   private final ServerApiProvider serverApiProvider;

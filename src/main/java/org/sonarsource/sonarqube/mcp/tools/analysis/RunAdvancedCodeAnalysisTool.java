@@ -26,9 +26,11 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class RunAdvancedCodeAnalysisTool extends Tool {
 
@@ -36,8 +38,8 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
 
   public static final String TOOL_NAME = "run_advanced_code_analysis";
 
-  public static final String PROJECT_KEY_PROPERTY = "projectKey";
-  public static final String BRANCH_NAME_PROPERTY = "branchName";
+  public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String FILE_PATH_PROPERTY = "filePath";
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
   public static final String FILE_SCOPE_PROPERTY = "fileScope";
@@ -64,7 +66,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
         "Identifies code quality and security issues, leveraging the project's full analysis context for deeper cross-file detection. " +
         "Always specify the file scope (MAIN or TEST) for more accurate results.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
-      .addRequiredStringProperty(BRANCH_NAME_PROPERTY, "The branch name used to retrieve the latest analysis context from SonarQube Cloud.")
+      .addRequiredStringProperty(BRANCH_PROPERTY, "The branch name used to retrieve the latest analysis context from SonarQube Cloud.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
 
     return builder
@@ -118,7 +120,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     return new AnalysisCreationRequest(
       organizationKey,
       arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey),
-      arguments.getStringOrThrow(BRANCH_NAME_PROPERTY),
+      arguments.getStringOrThrow(BRANCH_PROPERTY),
       arguments.getStringOrThrow(FILE_PATH_PROPERTY),
       fileContent,
       scope

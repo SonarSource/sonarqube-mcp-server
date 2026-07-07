@@ -338,7 +338,7 @@ class SearchSecurityHotspotsToolTests {
         SearchSecurityHotspotsTool.TOOL_NAME,
         Map.of(
           SearchSecurityHotspotsTool.PROJECT_KEY_PROPERTY, "my-project",
-          SearchSecurityHotspotsTool.PAGE_PROPERTY, 2,
+          SearchSecurityHotspotsTool.PAGE_INDEX_PROPERTY, 2,
           SearchSecurityHotspotsTool.PAGE_SIZE_PROPERTY, 50));
 
       assertResultEquals(result, """

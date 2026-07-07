@@ -23,11 +23,12 @@ import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListWebhooksTool extends Tool {
 
   public static final String TOOL_NAME = "list_webhooks";
-  public static final String PROJECT_PROPERTY = "projectKey";
+  public static final String PROJECT_PROPERTY = ToolParameters.PROJECT_KEY;
 
   private final ServerApiProvider serverApiProvider;
 

@@ -19,16 +19,18 @@ package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class StartAgenticReadinessAssessmentTool extends Tool {
 
   public static final String TOOL_NAME = "start_agentic_readiness_assessment";
 
-  public static final String PROJECT_KEY_PROPERTY = "projectKey";
-  public static final String BRANCH_PROPERTY = "branch";
+  public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
 
   private final ServerApiProvider serverApiProvider;
   private final String configuredProjectKey;

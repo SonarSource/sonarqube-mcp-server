@@ -206,7 +206,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"}));
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {"project1", "project2"}));
 
       assertResultEquals(result, """
         {
@@ -262,7 +262,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"},
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {"project1", "project2"},
           SearchIssuesTool.SEVERITIES_PROPERTY, new String[] {"HIGH", "BLOCKER"}));
 
       assertResultEquals(result, """
@@ -375,7 +375,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PAGE_PROPERTY, 2));
+        Map.of(SearchIssuesTool.PAGE_INDEX_PROPERTY, 2));
 
       assertResultEquals(result, """
         {
@@ -542,7 +542,7 @@ class SearchIssuesToolTests {
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
         Map.of(
-          SearchIssuesTool.PAGE_PROPERTY, 2,
+          SearchIssuesTool.PAGE_INDEX_PROPERTY, 2,
           SearchIssuesTool.PAGE_SIZE_PROPERTY, 50));
 
       assertResultEquals(result, """
@@ -662,7 +662,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"}));
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {"project1", "project2"}));
 
       assertResultEquals(result, """
         {
@@ -717,7 +717,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PROJECTS_PROPERTY, new String[] {"project1", "project2"},
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {"project1", "project2"},
           SearchIssuesTool.SEVERITIES_PROPERTY, new String[] {"HIGH", "BLOCKER"}));
 
       assertResultEquals(result, """
@@ -955,7 +955,7 @@ class SearchIssuesToolTests {
 
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
-        Map.of(SearchIssuesTool.PAGE_PROPERTY, 2));
+        Map.of(SearchIssuesTool.PAGE_INDEX_PROPERTY, 2));
 
       assertResultEquals(result, """
         {
@@ -1120,7 +1120,7 @@ class SearchIssuesToolTests {
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
         Map.of(
-          SearchIssuesTool.PAGE_PROPERTY, 2,
+          SearchIssuesTool.PAGE_INDEX_PROPERTY, 2,
           SearchIssuesTool.PAGE_SIZE_PROPERTY, 50));
 
       assertResultEquals(result, """
