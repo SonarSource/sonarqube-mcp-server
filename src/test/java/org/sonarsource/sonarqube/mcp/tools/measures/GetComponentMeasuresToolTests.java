@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.measures;
 
 import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
@@ -381,7 +382,7 @@ class GetComponentMeasuresToolTests {
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java",
-          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, List.of("ncloc", "complexity")
         ));
 
       assertResultEquals(result, """
@@ -619,7 +620,7 @@ class GetComponentMeasuresToolTests {
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "org.sonarsource.sonarlint.core:sonarlint-core-parent",
-          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"coverage", "ncloc"}
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, List.of("coverage", "ncloc")
         ));
 
       assertResultEquals(result, """
@@ -843,7 +844,7 @@ class GetComponentMeasuresToolTests {
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT:ElementImpl.java",
-          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"ncloc", "complexity"}
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, List.of("ncloc", "complexity")
         ));
 
       assertResultEquals(result, """
@@ -1075,7 +1076,7 @@ class GetComponentMeasuresToolTests {
         GetComponentMeasuresTool.TOOL_NAME,
         Map.of(
           GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "org.sonarsource.sonarlint.core:sonarlint-core-parent",
-          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, new String[]{"coverage", "ncloc"}
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, List.of("coverage", "ncloc")
         ));
 
       assertResultEquals(result, """

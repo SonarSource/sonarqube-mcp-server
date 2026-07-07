@@ -225,7 +225,7 @@ class SearchMetricsToolTests {
       var result = mcpClient.callTool(
         SearchMetricsTool.TOOL_NAME,
         Map.of(
-          SearchMetricsTool.PAGE_PROPERTY, 2,
+          SearchMetricsTool.PAGE_INDEX_PROPERTY, 2,
           SearchMetricsTool.PAGE_SIZE_PROPERTY, 20
         ));
 
@@ -359,7 +359,7 @@ class SearchMetricsToolTests {
       var result = mcpClient.callTool(
         SearchMetricsTool.TOOL_NAME,
         Map.of(
-          SearchMetricsTool.PAGE_PROPERTY, 2,
+          SearchMetricsTool.PAGE_INDEX_PROPERTY, 2,
           SearchMetricsTool.PAGE_SIZE_PROPERTY, 20
         ));
 

@@ -88,7 +88,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "src/Main.java"
       ));
 
@@ -129,7 +129,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "src/Main.java"
       ));
 
@@ -169,7 +169,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "src/Main.java"
       ));
 
@@ -197,7 +197,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "src/Main.java"
       ));
 
@@ -222,7 +222,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "src/Main.java"
       ));
 
@@ -243,7 +243,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "src/Main.java"
       ));
 
@@ -275,7 +275,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "src/Main.java"
       ));
 
@@ -301,7 +301,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "../../etc/passwd"
       ));
 
@@ -318,7 +318,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "src/NonExistent.java"
       ));
 
@@ -359,7 +359,7 @@ class RunAdvancedCodeAnalysisToolTests {
       RunAdvancedCodeAnalysisTool.TOOL_NAME,
       Map.of(
         "projectKey", "my-project",
-        "branchName", "main",
+        "branch", "main",
         "filePath", "src/Main.java"
       ));
 

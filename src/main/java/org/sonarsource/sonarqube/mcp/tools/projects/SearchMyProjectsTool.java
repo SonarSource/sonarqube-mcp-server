@@ -22,12 +22,13 @@ import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchRespons
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchMyProjectsTool extends Tool {
 
   public static final String TOOL_NAME = "search_my_sonarqube_projects";
-  public static final String PAGE_PROPERTY = "page";
-  public static final String PAGE_SIZE_PROPERTY = "pageSize";
+  public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
+  public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
   public static final String SEARCH_QUERY_PROPERTY = "q";
   public static final int MAX_PAGE_SIZE = 500;
 
@@ -48,7 +49,7 @@ public class SearchMyProjectsTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
       .setDescription(description)
-      .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional 1-based page index. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 500.")
       .addStringProperty(SEARCH_QUERY_PROPERTY, "An optional search query to filter projects by name (partial match) or key (exact match).")
       .setReadOnlyHint()
@@ -57,8 +58,8 @@ public class SearchMyProjectsTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var page = arguments.getIntOrDefault(PAGE_PROPERTY, 1);
-    var pageSize = arguments.getIntOrDefault(PAGE_SIZE_PROPERTY, MAX_PAGE_SIZE);
+    var page = arguments.getPageIndexOrDefault(1);
+    var pageSize = arguments.getPageSizeOrDefault(MAX_PAGE_SIZE);
     var searchQuery = arguments.getOptionalString(SEARCH_QUERY_PROPERTY);
     
     if (pageSize <= 0 || pageSize > MAX_PAGE_SIZE) {

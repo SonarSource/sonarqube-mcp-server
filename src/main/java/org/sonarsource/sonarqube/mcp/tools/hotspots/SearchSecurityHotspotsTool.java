@@ -24,12 +24,13 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchSecurityHotspotsTool extends Tool {
 
   public static final String TOOL_NAME = "search_security_hotspots";
 
-  public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String HOTSPOT_KEYS_PROPERTY = "hotspotKeys";
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
@@ -38,8 +39,8 @@ public class SearchSecurityHotspotsTool extends Tool {
   public static final String RESOLUTION_PROPERTY = "resolution";
   public static final String SINCE_LEAK_PERIOD_PROPERTY = "sinceLeakPeriod";
   public static final String ONLY_MINE_PROPERTY = "onlyMine";
-  public static final String PAGE_PROPERTY = "p";
-  public static final String PAGE_SIZE_PROPERTY = "ps";
+  public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
+  public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
   
   private static final String[] VALID_STATUSES = {"TO_REVIEW", "REVIEWED"};
   private static final String[] VALID_RESOLUTIONS = {"FIXED", "SAFE", "ACKNOWLEDGED"};
@@ -59,7 +60,7 @@ public class SearchSecurityHotspotsTool extends Tool {
       .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "Filter by resolution (when status is REVIEWED)")
       .addBooleanProperty(SINCE_LEAK_PERIOD_PROPERTY, "If true, only Security Hotspots created since the leak period (new code period) are returned")
       .addBooleanProperty(ONLY_MINE_PROPERTY, "If true, only Security Hotspots assigned to the current user are returned")
-      .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional 1-based page index. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
       .build(),
@@ -112,8 +113,8 @@ public class SearchSecurityHotspotsTool extends Tool {
       arguments.getOptionalEnumValue(RESOLUTION_PROPERTY, VALID_RESOLUTIONS),
       arguments.getOptionalBoolean(SINCE_LEAK_PERIOD_PROPERTY),
       arguments.getOptionalBoolean(ONLY_MINE_PROPERTY),
-      arguments.getOptionalInteger(PAGE_PROPERTY),
-      arguments.getOptionalInteger(PAGE_SIZE_PROPERTY)
+      arguments.getOptionalPageIndex(),
+      arguments.getOptionalPageSize()
     );
   }
 

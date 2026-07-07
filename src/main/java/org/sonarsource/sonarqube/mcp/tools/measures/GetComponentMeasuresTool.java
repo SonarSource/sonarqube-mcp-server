@@ -24,11 +24,12 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class GetComponentMeasuresTool extends Tool {
 
   public static final String TOOL_NAME = "get_component_measures";
-  public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String METRIC_KEYS_PROPERTY = "metricKeys";
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;

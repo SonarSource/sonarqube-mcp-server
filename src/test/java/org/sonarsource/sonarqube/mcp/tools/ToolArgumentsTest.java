@@ -419,4 +419,18 @@ class ToolArgumentsTest {
       .hasMessage("Missing required argument: projectKey");
   }
 
+  @Test
+  void getOptionalPageIndex_should_read_pageIndex() {
+    var arguments = new Tool.Arguments(Map.of(ToolParameters.PAGE_INDEX, 3), null);
+
+    assertThat(arguments.getOptionalPageIndex()).isEqualTo(3);
+  }
+
+  @Test
+  void getOptionalPageSize_should_read_pageSize() {
+    var arguments = new Tool.Arguments(Map.of(ToolParameters.PAGE_SIZE, 50), null);
+
+    assertThat(arguments.getOptionalPageSize()).isEqualTo(50);
+  }
+
 }

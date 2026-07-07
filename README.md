@@ -930,7 +930,7 @@ SOCKS5 proxies are supported.
 
 - **run_advanced_code_analysis** - Run advanced code analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.
     - `projectKey` - The key of the project - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-    - `branchName` - Branch name used to retrieve the latest analysis context - _Required String_
+    - `branch` - Branch name used to retrieve the latest analysis context - _Required String_
     - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). - _Required String_
     - `fileScope` - Defines in which scope the file originates from: 'MAIN' or 'TEST' (default: MAIN) - _String_
 
@@ -978,15 +978,15 @@ SOCKS5 proxies are supported.
 
 
 - **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects.
-  - `projects` - Optional list of Sonar projects - _String[]_
+  - `projectKeys` - Optional list of SonarQube project keys - _String[]_
   - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
   - `severities` - Optional list of severities to filter by. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER - _String[]_
   - `impactSoftwareQualities` - Optional list of software qualities to filter by. Possible values: MAINTAINABILITY, RELIABILITY, SECURITY - _String[]_
   - `issueStatuses` - Optional list of issue statuses to filter by. Possible values: OPEN, CONFIRMED, FALSE_POSITIVE, ACCEPTED, FIXED, IN_SANDBOX - _String[]_
   - `issueKey` - Optional issue key to fetch a specific issue - _String_
-  - `p` - Optional page number (default: 1) - _Integer_
-  - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
+  - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
+  - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
 ### Security Hotspots
 
@@ -1000,8 +1000,8 @@ SOCKS5 proxies are supported.
   - `resolution` - Optional resolution filter: FIXED, SAFE, ACKNOWLEDGED - _String_
   - `sinceLeakPeriod` - Filter hotspots created since the leak period (new code) - _Boolean_
   - `onlyMine` - Show only hotspots assigned to me - _Boolean_
-  - `p` - Optional page number (default: 1) - _Integer_
-  - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
+  - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
+  - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
 
 - **show_security_hotspot** - Get detailed information about a specific Security Hotspot, including rule details, code context, flows, and comments.
@@ -1030,8 +1030,8 @@ SOCKS5 proxies are supported.
 ### Metrics
 
 - **search_metrics** - Search for SonarQube metrics.
-  - `p` - Optional page number (default: 1) - _Integer_
-  - `ps` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
+  - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
+  - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
 ### Portfolios
 
@@ -1054,7 +1054,9 @@ SOCKS5 proxies are supported.
 ### Projects
 
 - **search_my_sonarqube_projects** - Find SonarQube projects. The response is paginated.
-  - `page` - Optional page number - _String_
+  - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
+  - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 500) - _Integer_
+  - `q` - Optional search query to filter projects by name (partial match) or key (exact match) - _String_
 
 
 - **list_branches** - List long-lived branches for a project (e.g. main, develop, master). Returns only `LONG` branches on SonarQube Cloud and `BRANCH` entries on SonarQube Server — names safe for the `branch` parameter on other tools. For pull requests, use `list_pull_requests` instead.
