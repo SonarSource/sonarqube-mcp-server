@@ -27,7 +27,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.BRANCH_TYPES_FILTER_VALUES;
 import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.matchesBranchTypesFilter;
-import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.parseBranchType;
+import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.parseCloudBranchType;
 import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.parseQualityGateStatus;
 
 public class ListBranchesTool extends Tool {
@@ -96,7 +96,7 @@ public class ListBranchesTool extends Tool {
       .map(branch -> new ListBranchesToolCloudResponse.Branch(
         branch.name(),
         branch.isMain(),
-        parseBranchType(branch.type()),
+        parseCloudBranchType(branch.type()),
         branch.status() != null ? parseQualityGateStatus(branch.status().qualityGateStatus()) : null,
         branch.analysisDate(),
         branch.branchId(),

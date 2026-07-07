@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.branches;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.github.tomakehurst.wiremock.http.Body;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -117,6 +118,9 @@ class ListBranchesToolTests {
     @SuppressWarnings("unchecked")
     var inputProperties = (Map<String, Object>) tool.inputSchema().get("properties");
     assertThat(inputProperties).containsKey(ListBranchesTool.BRANCH_TYPES_PROPERTY);
+    @SuppressWarnings("unchecked")
+    var branchTypesProperty = (Map<String, Object>) inputProperties.get(ListBranchesTool.BRANCH_TYPES_PROPERTY);
+    assertThat(branchTypesProperty).containsEntry("enum", List.of(BranchTypes.BRANCH_TYPES_FILTER_VALUES));
 
     assertSchemaEquals(tool.outputSchema(), """
       {
@@ -146,7 +150,7 @@ class ListBranchesToolTests {
                      },
                      "type":{
                         "type":"string",
-                        "enum":["LONG","SHORT","BRANCH"],
+                        "enum":["LONG","SHORT"],
                         "description":"Branch type: LONG for main/develop, SHORT for feature branches analyzed without pull requests"
                      },
                      "qualityGateStatus":{
@@ -333,6 +337,19 @@ class ListBranchesToolTests {
           "mergeBranch" : "master"
         } ]
       }""");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_return_error_for_invalid_branch_types_on_sonarcloud(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient(SONARQUBE_CLOUD_ENV);
+
+    var result = mcpClient.callTool(ListBranchesTool.TOOL_NAME, Map.of(
+      ListBranchesTool.PROJECT_KEY_PROPERTY, "my_project",
+      ListBranchesTool.BRANCH_TYPES_PROPERTY, "INVALID"));
+
+    assertThat(result.isError()).isTrue();
+    assertThat(result.content().toString()).contains("input validation failed")
+      .contains("/branchTypes: does not have a value in the enumeration [\"ALL\", \"LONG\", \"SHORT\"]");
   }
 
   @SonarQubeMcpServerTest
