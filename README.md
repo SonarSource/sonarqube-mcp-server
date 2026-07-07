@@ -1059,9 +1059,12 @@ SOCKS5 proxies are supported.
   - `q` - Optional search query to filter projects by name (partial match) or key (exact match) - _String_
 
 
-- **list_branches** - List analyzed branches for a project (long-lived and short-lived). On SonarQube Cloud, returns `LONG` (main, develop) and `SHORT` (feature branches without PR) branches. On SonarQube Server, returns `BRANCH` entries. Use returned names as the `branch` parameter on other tools. For pull request analysis, use `list_pull_requests` instead.
+- **list_branches** - List analyzed branches for a project.
+  - **SonarQube Cloud**: returns long-lived (`LONG`) and short-lived (`SHORT`) branches with `type` and `mergeBranch` fields. Optional `branchTypes` filter: `ALL` (default), `LONG`, or `SHORT`.
+  - **SonarQube Server**: returns all analyzed branches (name, quality gate, analysis date). No `type`, `mergeBranch`, or `branchTypes` filter.
+  - Use returned branch names as the `branch` parameter on other tools. For pull request analysis, use `list_pull_requests` instead.
   - `projectKey` - Project key (e.g. my_project) - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `branchTypes` - Optional filter: `ALL` (default), `LONG`, or `SHORT` (SonarQube Cloud only) - _Enum {"ALL", "LONG", "SHORT"}_
+  - `branchTypes` - _(SonarQube Cloud only)_ Optional filter: `ALL` (default), `LONG`, or `SHORT` - _Enum {"ALL", "LONG", "SHORT"}_
 
 
 - **list_pull_requests** - List all pull requests for a project. Use this tool to discover pull requests for PR-decorated analysis (coverage, issues, quality gate). Returns the pull request key/ID which can be used with other tools. For branch-based analysis without pull requests, use `list_branches` instead.

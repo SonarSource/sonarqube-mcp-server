@@ -414,7 +414,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new SearchDuplicatedFilesTool(this, configuredProjectKey),
       new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
       new ListPullRequestsTool(this, configuredProjectKey),
-      new ListBranchesTool(this, configuredProjectKey)));
+      new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
 
     if (mcpConfiguration.isHttpEnabled()) {
       // In HTTP mode there is no startup token to probe SCA availability

@@ -22,7 +22,7 @@ import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.BranchType;
 import org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.QualityGateStatus;
 
-public record ListBranchesToolResponse(
+public record ListBranchesToolCloudResponse(
   @JsonPropertyDescription("Project key") String projectKey,
   @JsonPropertyDescription("Total number of branches") int totalBranches,
   @JsonPropertyDescription("List of branches for this project") List<Branch> branches
@@ -31,11 +31,11 @@ public record ListBranchesToolResponse(
   public record Branch(
     @JsonPropertyDescription("Branch name that can be used with other tools as the branch parameter") String name,
     @JsonPropertyDescription("Whether this is the main branch") boolean isMain,
-    @JsonPropertyDescription("Branch type in SonarQube (LONG or SHORT on SonarQube Cloud, BRANCH on SonarQube Server)") @Nullable BranchType type,
+    @JsonPropertyDescription("Branch type: LONG for main/develop, SHORT for feature branches analyzed without pull requests") @Nullable BranchType type,
     @JsonPropertyDescription("Quality gate status for this branch") @Nullable QualityGateStatus qualityGateStatus,
     @JsonPropertyDescription("Date of the last analysis") @Nullable String analysisDate,
     @JsonPropertyDescription("Internal branch identifier") String branchId,
-    @JsonPropertyDescription("Target branch for short-lived branches on SonarQube Cloud (e.g. main, master)") @Nullable String mergeBranch
+    @JsonPropertyDescription("Target branch for short-lived branches (e.g. main, master)") @Nullable String mergeBranch
   ) {
   }
 
