@@ -38,6 +38,6 @@ class SearchFilesByCoverageSonarCloudIT extends AbstractSonarCloudStagingIT {
         "files" : [ {
           "key" : "%s"
         } ]
-      }""".formatted(fixture.projectKey(), mainFileKey()));
+      }""".formatted(fixture.projectKey(), fixture.mainFileKey()));
   }
 }

@@ -30,7 +30,7 @@ class GetScmInfoSonarCloudIT extends AbstractSonarCloudStagingIT {
   @Test
   void should_call_get_scm_info_against_staging() {
     var result = mcpClient.callTool(GetScmInfoTool.TOOL_NAME, Map.of(
-      GetScmInfoTool.KEY_PROPERTY, missingFileKey()));
+      GetScmInfoTool.KEY_PROPERTY, fixture.missingFileKey()));
 
     assertToolError(result);
   }

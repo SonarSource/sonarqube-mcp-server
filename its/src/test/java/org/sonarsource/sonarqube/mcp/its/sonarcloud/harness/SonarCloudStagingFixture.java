@@ -89,6 +89,10 @@ public final class SonarCloudStagingFixture {
     return projectKey + ":" + SonarCloudAnalyzedProject.MAIN_FILE_PATH;
   }
 
+  public String missingFileKey() {
+    return projectKey + ":src/does-not-exist/sonarcloud-it.txt";
+  }
+
   public static Path sampleProjectDir() {
     var fromModuleDir = Path.of("projects", SonarCloudAnalyzedProject.SAMPLE_PROJECT_RESOURCE);
     if (fromModuleDir.resolve("pom.xml").toFile().isFile()) {

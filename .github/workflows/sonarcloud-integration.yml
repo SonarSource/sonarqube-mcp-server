@@ -10,18 +10,15 @@ jobs:
     runs-on: github-ubuntu-latest-m
     name: SonarQube Cloud staging (ITS)
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
         with:
-          version: 2026.4.20
-
-      - name: Install Maven
-        run: sudo apt-get update && sudo apt-get install -y maven
+          version: 2026.6.1
 
       - name: Vault (SonarQube Cloud IT token)
         id: secrets-sc
-        uses: SonarSource/vault-action-wrapper@0a3114fe1230b784c35b53b099f9ab1f1e538cc7 # 3.5.0
+        uses: SonarSource/vault-action-wrapper@881045d830534a70ec3c7c275fa3714412c8ff6e # 3.6.1
         with:
           secrets: |
             development/team/sonarlint/kv/data/sonarcloud-it token | SONARCLOUD_IT_TOKEN;
@@ -29,15 +26,14 @@ jobs:
             development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader username | ARTIFACTORY_USER;
             development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
 
-      - name: Run SonarQube Cloud integration tests
+      - uses: SonarSource/ci-github-actions/config-gradle@9d3488f52305895f599feb1ec8560c1a5339aa99 # 1.8.1
+        with:
+          artifactory-reader-role: private-reader
+
+      - name: Run SonarQube Cloud staging integration tests
         env:
-          SONARCLOUD_IT_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).SONARCLOUD_IT_TOKEN || '' }}
-          ARTIFACTORY_URL: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL || '' }}
-          ARTIFACTORY_USER: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER || '' }}
-          ARTIFACTORY_ACCESS_TOKEN: ${{ steps.secrets-sc.outputs.vault && fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN || '' }}
-        run: |
-          if [ -z "${SONARCLOUD_IT_TOKEN}" ]; then
-            echo "::error::SONARCLOUD_IT_TOKEN is required for SonarQube Cloud staging ITS"
-            exit 1
-          fi
-          ./gradlew :its:sonarCloudIntegrationTest --info
+          SONARCLOUD_IT_TOKEN: ${{ fromJSON(steps.secrets-sc.outputs.vault).SONARCLOUD_IT_TOKEN }}
+          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL }}
+          ARTIFACTORY_USER: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_ACCESS_TOKEN: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+        run: .github/scripts/run-sonarcloud-integration-tests.sh

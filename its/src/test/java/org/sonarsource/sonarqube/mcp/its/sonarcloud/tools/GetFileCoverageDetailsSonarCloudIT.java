@@ -29,7 +29,7 @@ class GetFileCoverageDetailsSonarCloudIT extends AbstractSonarCloudStagingIT {
   @Test
   void should_call_get_file_coverage_details_against_staging() {
     var result = mcpClient.callTool(GetFileCoverageDetailsTool.TOOL_NAME, Map.of(
-      GetFileCoverageDetailsTool.KEY_PROPERTY, mainFileKey()));
+      GetFileCoverageDetailsTool.KEY_PROPERTY, fixture.mainFileKey()));
 
     assertStructuredContentContains(result, """
       {
@@ -38,6 +38,6 @@ class GetFileCoverageDetailsSonarCloudIT extends AbstractSonarCloudStagingIT {
           "coverableLines" : 1,
           "coveredLines" : 0
         }
-      }""".formatted(mainFileKey()));
+      }""".formatted(fixture.mainFileKey()));
   }
 }

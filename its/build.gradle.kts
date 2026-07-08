@@ -203,6 +203,24 @@ tasks.register<Test>("sonarCloudIntegrationTest") {
     systemProperty("mcp.client.timeout.seconds", "120")
     systemProperty("mcp.client.init.timeout.seconds", "120")
 
+    doFirst {
+        val token = System.getenv("SONARCLOUD_IT_TOKEN")
+        if (token.isNullOrBlank()) {
+            val skipWithoutToken = System.getenv("SONARCLOUD_IT_ON_MISSING_TOKEN") == "skip"
+                || project.findProperty("sonarCloudIntegrationTest.skipWithoutToken") == "true"
+            if (skipWithoutToken) {
+                logger.warn(
+                    "SONARCLOUD_IT_TOKEN not available (e.g. fork PR); skipping SonarQube Cloud staging integration tests"
+                )
+                throw org.gradle.api.tasks.StopExecutionException()
+            }
+            throw GradleException(
+                "SONARCLOUD_IT_TOKEN must be set to run sonarCloudIntegrationTest against SonarQube Cloud staging " +
+                    "(org: sonarlint-it). Export the token locally, then re-run this task."
+            )
+        }
+    }
+
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true

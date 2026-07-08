@@ -26,6 +26,8 @@ import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
 
 import static org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarQubeMcpTestClient.assertStructuredContentContains;
 
+import static org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarQubeMcpTestClient.structuredContent;
+
 @Tag("SonarCloud")
 class ChangeIssueStatusSonarCloudIT extends AbstractSonarCloudStagingIT {
 

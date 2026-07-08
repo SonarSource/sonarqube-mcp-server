@@ -30,7 +30,7 @@ class GetDuplicationsSonarCloudIT extends AbstractSonarCloudStagingIT {
   @Test
   void should_call_get_duplications_against_staging() {
     var result = mcpClient.callTool(GetDuplicationsTool.TOOL_NAME, Map.of(
-      GetDuplicationsTool.KEY_PROPERTY, mainFileKey()));
+      GetDuplicationsTool.KEY_PROPERTY, fixture.mainFileKey()));
 
     assertStructuredContentContains(result, """
       {

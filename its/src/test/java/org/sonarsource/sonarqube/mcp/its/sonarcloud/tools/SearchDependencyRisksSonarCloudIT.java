@@ -29,7 +29,7 @@ class SearchDependencyRisksSonarCloudIT extends AbstractSonarCloudStagingIT {
 
   @Test
   void should_call_search_dependency_risks_against_staging() {
-    assumeToolRegistered(SearchDependencyRisksTool.TOOL_NAME);
+    mcpClient.assertToolRegistered(SearchDependencyRisksTool.TOOL_NAME);
 
     var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of(
       SearchDependencyRisksTool.PROJECT_KEY_PROPERTY, fixture.projectKey(),

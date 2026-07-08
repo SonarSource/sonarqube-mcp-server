@@ -24,6 +24,8 @@ import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 
 import static org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarQubeMcpTestClient.assertStructuredContentContains;
 
+import static org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarQubeMcpTestClient.structuredContent;
+
 @Tag("SonarCloud")
 class CreateWebhookSonarCloudIT extends AbstractSonarCloudStagingIT {
 

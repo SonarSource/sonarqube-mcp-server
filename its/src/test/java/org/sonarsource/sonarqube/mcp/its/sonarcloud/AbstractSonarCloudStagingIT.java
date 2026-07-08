@@ -16,10 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.its.sonarcloud;
 
-import io.modelcontextprotocol.spec.McpSchema;
-import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestInstance;
@@ -28,8 +25,14 @@ import org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarCloudStagingFix
 import org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarCloudStagingHarness;
 import org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarQubeMcpTestClient;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
+/**
+ * Shared {@link TestInstance.Lifecycle#PER_CLASS} lifecycle for SonarQube Cloud staging tool tests.
+ *
+ * <p>Only wires the analyzed project fixture and in-process MCP client; helpers live on
+ * {@link SonarCloudStagingFixture} and {@link SonarQubeMcpTestClient}. An alternative (as in
+ * sonarlint-core) is a JUnit {@code ParameterResolver} that injects the harness into each test
+ * method — slightly more explicit, but more verbose across many one-test classes.
+ */
 @Tag("SonarCloud")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractSonarCloudStagingIT {
@@ -52,27 +55,6 @@ public abstract class AbstractSonarCloudStagingIT {
       harness = null;
     }
     fixture = null;
-  }
-
-  @SuppressWarnings("unchecked")
-  protected static Map<String, Object> structuredContent(McpSchema.CallToolResult result) {
-    assertThat(result.isError()).isFalse();
-    assertThat(result.structuredContent()).isNotNull().isInstanceOf(Map.class);
-    return (Map<String, Object>) result.structuredContent();
-  }
-
-  protected void assumeToolRegistered(String toolName) {
-    Assumptions.assumeTrue(
-      mcpClient.listTools().stream().anyMatch(tool -> tool.name().equals(toolName)),
-      () -> "Tool not registered on this staging instance: " + toolName);
-  }
-
-  protected String missingFileKey() {
-    return fixture.projectKey() + ":src/does-not-exist/sonarcloud-it.txt";
-  }
-
-  protected String mainFileKey() {
-    return fixture.mainFileKey();
   }
 
 }

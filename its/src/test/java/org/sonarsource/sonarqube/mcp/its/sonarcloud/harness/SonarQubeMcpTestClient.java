@@ -116,4 +116,17 @@ public class SonarQubeMcpTestClient {
     return mcpSyncClient.listTools().tools();
   }
 
+  public void assertToolRegistered(String toolName) {
+    assertThat(listTools().stream().anyMatch(tool -> tool.name().equals(toolName)))
+      .as("Tool must be registered on staging: %s", toolName)
+      .isTrue();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static Map<String, Object> structuredContent(McpSchema.CallToolResult result) {
+    assertThat(result.isError()).isFalse();
+    assertThat(result.structuredContent()).isNotNull().isInstanceOf(Map.class);
+    return (Map<String, Object>) result.structuredContent();
+  }
+
 }

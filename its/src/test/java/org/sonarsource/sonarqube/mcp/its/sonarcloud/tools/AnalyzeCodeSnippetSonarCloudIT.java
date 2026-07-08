@@ -29,7 +29,7 @@ class AnalyzeCodeSnippetSonarCloudIT extends AbstractSonarCloudStagingIT {
 
   @Test
   void should_call_analyze_code_snippet_against_staging() {
-    assumeToolRegistered(AnalyzeCodeSnippetTool.TOOL_NAME);
+    mcpClient.assertToolRegistered(AnalyzeCodeSnippetTool.TOOL_NAME);
 
     var result = mcpClient.callTool(AnalyzeCodeSnippetTool.TOOL_NAME, Map.of(
       AnalyzeCodeSnippetTool.FILE_CONTENT_PROPERTY, "",

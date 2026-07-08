@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 @Tag("SonarCloud")
 class ListEnterprisesSonarCloudIT extends AbstractSonarCloudStagingIT {
@@ -29,9 +29,11 @@ class ListEnterprisesSonarCloudIT extends AbstractSonarCloudStagingIT {
   @Test
   void should_call_list_enterprises_against_staging() {
     var result = mcpClient.callTool(ListEnterprisesTool.TOOL_NAME);
-    var content = structuredContent(result);
 
-    assertThat(content).containsKey("enterprises");
-    assertThat(content.get("enterprises")).isInstanceOf(java.util.List.class);
+    // sonarlint-it IT token is org-scoped; it has no enterprise visibility on staging.
+    assertResultEquals(result, """
+      {
+        "enterprises" : [ ]
+      }""");
   }
 }

@@ -30,11 +30,11 @@ class GetRawSourceSonarCloudIT extends AbstractSonarCloudStagingIT {
   @Test
   void should_call_get_raw_source_against_staging() {
     var result = mcpClient.callTool(GetRawSourceTool.TOOL_NAME, Map.of(
-      GetRawSourceTool.KEY_PROPERTY, mainFileKey()));
+      GetRawSourceTool.KEY_PROPERTY, fixture.mainFileKey()));
 
     assertStructuredContentContains(result, """
       {
         "fileKey" : "%s"
-      }""".formatted(mainFileKey()));
+      }""".formatted(fixture.mainFileKey()));
   }
 }

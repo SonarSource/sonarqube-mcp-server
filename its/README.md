@@ -18,6 +18,8 @@ export SONARCLOUD_IT_TOKEN="<your-token>"
 ./gradlew :its:sonarCloudIntegrationTest
 ```
 
+`sonarCloudIntegrationTest` fails immediately with a clear message if `SONARCLOUD_IT_TOKEN` is unset. CI fork PRs set `SONARCLOUD_IT_ON_MISSING_TOKEN=skip` to skip the task instead.
+
 **Note:** Neither task runs from `./gradlew test` or `./gradlew build`.
 
 ## Docker ITS prerequisites
@@ -68,8 +70,8 @@ Shared project (key prefix `sonarqube-mcp-its-sample-java-…`), provisioned onc
 | Workflow                     | Task                             | When                                                       |
 |------------------------------|----------------------------------|------------------------------------------------------------|
 | `build.yml`                  | `:its:integrationTest`           | Every PR (matrix: STDIO / HTTP / ProxiedServer)            |
-| `build.yml`                  | `:its:sonarCloudIntegrationTest` | Every PR in parallel (matrix: SonarQubeCloud; needs token) |
-| `sonarcloud-integration.yml` | `:its:sonarCloudIntegrationTest` | Weekly + manual (same tests as PR matrix job)              |
+| `build.yml`                  | `:its:sonarCloudIntegrationTest` | Every PR (`sonarcloud-integration` job; skips on fork PRs) |
+| `sonarcloud-integration.yml` | `:its:sonarCloudIntegrationTest` | Weekly + manual (same script as PR job)                    |
 
 ## Docker ITS architecture
 

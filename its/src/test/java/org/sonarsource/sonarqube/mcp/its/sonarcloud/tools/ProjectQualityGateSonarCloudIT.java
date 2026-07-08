@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.its.sonarcloud.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 @Tag("SonarCloud")
 class ProjectQualityGateSonarCloudIT extends AbstractSonarCloudStagingIT {
@@ -31,8 +31,11 @@ class ProjectQualityGateSonarCloudIT extends AbstractSonarCloudStagingIT {
   void should_call_get_project_quality_gate_status_against_staging() {
     var result = mcpClient.callTool(ProjectStatusTool.TOOL_NAME, Map.of("projectKey", fixture.projectKey()));
 
-    var content = structuredContent(result);
-    assertThat(content.get("status")).isIn("OK", "WARN", "ERROR", "NONE");
-    assertThat(content).containsKey("conditions");
+    // Fresh sonarlint-it IT projects on staging report no evaluated quality gate yet (see SearchIssuesSonarCloudIT for java:S1118).
+    assertResultEquals(result, """
+      {
+        "status" : "NONE",
+        "conditions" : [ ]
+      }""");
   }
 }
