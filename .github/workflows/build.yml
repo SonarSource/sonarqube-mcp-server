@@ -138,7 +138,7 @@ jobs:
           ARTIFACTORY_USER: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER }}
           ARTIFACTORY_ACCESS_TOKEN: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
           SONARCLOUD_IT_ON_MISSING_TOKEN: skip
-        run: .github/scripts/run-sonarcloud-integration-tests.sh
+        run: bash .github/scripts/run-sonarcloud-integration-tests.sh
 
   promote:
     needs: [build, integration, sonarcloud-integration]

@@ -36,4 +36,4 @@ jobs:
           ARTIFACTORY_URL: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL }}
           ARTIFACTORY_USER: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER }}
           ARTIFACTORY_ACCESS_TOKEN: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
-        run: .github/scripts/run-sonarcloud-integration-tests.sh
+        run: bash .github/scripts/run-sonarcloud-integration-tests.sh
