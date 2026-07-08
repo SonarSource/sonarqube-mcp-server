@@ -75,10 +75,6 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .build();
   }
 
-  public static boolean isA3sEnabled(ServerApi api, String orgKey) {
-    return isA3sEnabled(api, orgKey, null);
-  }
-
   public static boolean isA3sEnabled(ServerApi api, String orgKey, @Nullable String orgUuidV4) {
     var uuid = orgUuidV4 != null ? orgUuidV4 : api.organizationsApi().getOrganizationUuidV4(orgKey);
     if (uuid == null) {
