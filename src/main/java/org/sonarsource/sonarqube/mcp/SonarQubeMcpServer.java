@@ -182,6 +182,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   @Nullable
   private String resolvedOrganization;
+  @Nullable
+  private String resolvedOrganizationUuidV4;
   private SonarQubeVersionChecker sonarQubeVersionChecker;
   @Nullable
   private McpStatelessSyncServer statelessSyncServer;
@@ -448,13 +450,13 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   }
 
-  private static boolean isSaraEnabled(@Nullable ServerApi api, @Nullable String orgKey) {
+  private boolean isSaraEnabled(@Nullable ServerApi api, @Nullable String orgKey) {
     if (api == null || orgKey == null || orgKey.isBlank()) {
       LOG.debug("Agentic readiness feature flag check skipped: no org key configured");
       return false;
     }
     try {
-      var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+      var orgUuidV4 = organizationUuidV4(api, orgKey);
       if (orgUuidV4 == null) {
         LOG.debug("Agentic readiness feature flag check: could not resolve UUID for org '" + orgKey + "' - skipping");
         return false;
@@ -468,18 +470,18 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  private static boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
+  private boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
     if (api == null || orgKey == null) {
       return false;
     }
-    return RunAdvancedCodeAnalysisTool.isA3sEnabled(api, orgKey);
+    return RunAdvancedCodeAnalysisTool.isA3sEnabled(api, orgKey, organizationUuidV4(api, orgKey));
   }
 
-  private static boolean isCagEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
+  private boolean isCagEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
     if (api == null || orgKey == null) {
       return false;
     }
-    var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+    var orgUuidV4 = organizationUuidV4(api, orgKey);
     if (orgUuidV4 == null) {
       LOG.debug("CAG entitlement check: could not resolve UUID for org '" + orgKey + "' - skipping CAG");
       return false;
@@ -493,6 +495,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("CAG entitlement check: org '" + orgKey + "' is not entitled to use CAG");
     }
     return entitlement.allowed();
+  }
+
+  @Nullable
+  private String organizationUuidV4(ServerApi api, String orgKey) {
+    if (orgKey.equals(resolvedOrganization) && resolvedOrganizationUuidV4 != null) {
+      return resolvedOrganizationUuidV4;
+    }
+    return api.organizationsApi().getOrganizationUuidV4(orgKey);
   }
 
   /**
@@ -729,7 +739,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         "Verify the token is valid, or set SONARQUBE_ORG explicitly.", e);
     }
     if (organizations.size() == 1) {
-      this.resolvedOrganization = organizations.getFirst().key();
+      var organization = organizations.getFirst();
+      this.resolvedOrganization = organization.key();
+      this.resolvedOrganizationUuidV4 = organization.uuidV4();
       this.serverApi = createServerApiWithToken(token);
       LOG.info("Auto-selected SonarQube Cloud organization: " + resolvedOrganization);
     } else if (organizations.isEmpty()) {

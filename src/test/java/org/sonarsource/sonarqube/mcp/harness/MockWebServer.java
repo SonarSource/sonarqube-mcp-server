@@ -63,6 +63,13 @@ public class MockWebServer {
       .anyMatch(event -> event.getRequest().getUrl().contains(urlSubstring));
   }
 
+  public long countRequestsContaining(String urlSubstring) {
+    return mockServer.getServeEvents().getRequests()
+      .stream()
+      .filter(event -> event.getRequest().getUrl().contains(urlSubstring))
+      .count();
+  }
+
   public StubMapping stubFor(MappingBuilder mappingBuilder) {
     return mockServer.stubFor(mappingBuilder);
   }

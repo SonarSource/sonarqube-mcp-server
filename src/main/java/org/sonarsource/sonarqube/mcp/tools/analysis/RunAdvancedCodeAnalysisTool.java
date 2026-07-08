@@ -76,12 +76,16 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   }
 
   public static boolean isA3sEnabled(ServerApi api, String orgKey) {
-    var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
-    if (orgUuidV4 == null) {
+    return isA3sEnabled(api, orgKey, null);
+  }
+
+  public static boolean isA3sEnabled(ServerApi api, String orgKey, @Nullable String orgUuidV4) {
+    var uuid = orgUuidV4 != null ? orgUuidV4 : api.organizationsApi().getOrganizationUuidV4(orgKey);
+    if (uuid == null) {
       LOG.debug("A3S entitlement check: could not resolve UUID for org '" + orgKey + "' - falling back to standard analysis");
       return false;
     }
-    var config = api.a3sAnalysisApi().getA3sOrgConfig(orgUuidV4);
+    var config = api.a3sAnalysisApi().getA3sOrgConfig(uuid);
     if (config == null) {
       LOG.debug("A3S entitlement check: could not retrieve org config for org '" + orgKey + "' - falling back to standard analysis");
       return false;

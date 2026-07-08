@@ -23,6 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
@@ -49,6 +50,17 @@ class AutoDetectOrganizationTest {
     assertThat(mcpClient.listTools()).isNotEmpty();
     // The org-scoped SCA probe proves the auto-detected org was applied to the ServerApi
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(ScaApi.FEATURE_ENABLED_PATH + "?organization=" + AUTO_ORG_KEY)).isTrue();
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("organizationKey=")).isZero();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_fail_startup_when_listing_organizations_fails(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .willReturn(aResponse().withStatus(401)));
+
+    assertThatThrownBy(() -> harness.newClient(CLOUD_WITHOUT_ORG))
+      .hasMessageContaining("Failed to list SonarQube Cloud organizations for the provided token")
+      .hasMessageContaining("Verify the token is valid, or set SONARQUBE_ORG explicitly");
   }
 
   @SonarQubeMcpServerTest
