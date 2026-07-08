@@ -14,13 +14,20 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.serverapi.plugins.response;
+package org.sonarsource.sonarqube.mcp.tools;
 
-import java.util.List;
+/**
+ * Canonical MCP tool parameter names shared across all tools.
+ */
+public final class ToolParameters {
 
-public record InstalledPluginsResponse(List<Plugin> plugins) {
+  public static final String PROJECT_KEY = "projectKey";
+  public static final String PROJECT_KEYS = "projectKeys";
+  public static final String PAGE_INDEX = "pageIndex";
+  public static final String PAGE_SIZE = "pageSize";
 
-  public record Plugin(String key, boolean sonarLintSupported, String filename, String hash) {
+  private ToolParameters() {
+    // utility class
   }
 
 }

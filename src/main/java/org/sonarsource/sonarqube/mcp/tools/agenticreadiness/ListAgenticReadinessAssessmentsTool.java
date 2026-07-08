@@ -20,18 +20,20 @@ import java.util.List;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListAgenticReadinessAssessmentsTool extends Tool {
 
   public static final String TOOL_NAME = "list_agentic_readiness_assessments";
 
-  public static final String PROJECT_KEY_PROPERTY = "projectKey";
-  public static final String BRANCH_PROPERTY = "branch";
-  public static final String PAGE_INDEX_PROPERTY = "pageIndex";
-  public static final String PAGE_SIZE_PROPERTY = "pageSize";
+  public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
+  public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
+  public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
+  public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
 
   static final int MAX_PAGE_SIZE = 100;
 

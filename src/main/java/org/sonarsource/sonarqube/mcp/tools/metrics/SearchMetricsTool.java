@@ -21,12 +21,13 @@ import org.sonarsource.sonarqube.mcp.serverapi.metrics.response.SearchMetricsRes
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchMetricsTool extends Tool {
 
   public static final String TOOL_NAME = "search_metrics";
-  public static final String PAGE_PROPERTY = "p";
-  public static final String PAGE_SIZE_PROPERTY = "ps";
+  public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
+  public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
 
   private final ServerApiProvider serverApiProvider;
 
@@ -35,7 +36,7 @@ public class SearchMetricsTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Metrics")
       .setDescription("Search for available metrics")
-      .addNumberProperty(PAGE_PROPERTY, "1-based page number (default: 1)")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "1-based page index (default: 1)")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size. Must be greater than 0 and less than or equal to 500 (default: 100)")
       .setReadOnlyHint()
       .build(),
@@ -45,8 +46,8 @@ public class SearchMetricsTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var page = arguments.getOptionalInteger(PAGE_PROPERTY);
-    var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
+    var page = arguments.getOptionalPageIndex();
+    var pageSize = arguments.getOptionalPageSize();
     
     var response = serverApiProvider.get().metricsApi().searchMetrics(page, pageSize);
     var toolResponse = buildStructuredContent(response);

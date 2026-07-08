@@ -38,6 +38,7 @@ import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 import static java.util.stream.Collectors.toMap;
 import static org.sonarsource.sonarqube.mcp.analysis.LanguageUtils.getSonarLanguageFromInput;
@@ -56,7 +57,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
   }
 
   public static final String TOOL_NAME = "analyze_code_snippet";
-  public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String FILE_PATH_PROPERTY = "filePath";
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
   public static final String SNIPPET_PROPERTY = "codeSnippet";

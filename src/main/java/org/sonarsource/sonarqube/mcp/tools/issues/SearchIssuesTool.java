@@ -24,12 +24,13 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchIssuesTool extends Tool {
 
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
 
-  public static final String PROJECTS_PROPERTY = "projects";
+  public static final String PROJECT_KEYS_PROPERTY = ToolParameters.PROJECT_KEYS;
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String FILES_PROPERTY = "files";
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
@@ -37,8 +38,8 @@ public class SearchIssuesTool extends Tool {
   public static final String IMPACT_SOFTWARE_QUALITIES_PROPERTY = "impactSoftwareQualities";
   public static final String ISSUE_STATUSES_PROPERTY = "issueStatuses";
   public static final String ISSUE_KEY_PROPERTY = "issueKey";
-  public static final String PAGE_PROPERTY = "p";
-  public static final String PAGE_SIZE_PROPERTY = "ps";
+  public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
+  public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
   
   private static final String[] VALID_SEVERITIES = {"INFO", "LOW", "MEDIUM", "HIGH", "BLOCKER"};
   private static final String[] VALID_IMPACT_SOFTWARE_QUALITIES = {"MAINTAINABILITY", "RELIABILITY", "SECURITY"};
@@ -61,14 +62,14 @@ public class SearchIssuesTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues")
       .setDescription(description)
-      .addArrayProperty(PROJECTS_PROPERTY, "string", "An optional list of Sonar projects to look in")
+      .addArrayProperty(PROJECT_KEYS_PROPERTY, "string", "An optional list of SonarQube project keys to look in")
       .addArrayProperty(FILES_PROPERTY, "string", "An optional list of component keys (files, directories, modules) to filter issues")
       .addBranchAndPullRequestProperties()
       .addEnumArrayProperty(SEVERITIES_PROPERTY, VALID_SEVERITIES, "An optional list of severities to filter by")
       .addEnumArrayProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES, "An optional list of software qualities to filter by")
       .addEnumArrayProperty(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES, "An optional list of issue statuses to filter by. Note: IN_SANDBOX is valid only for SonarQube Server")
       .addArrayProperty(ISSUE_KEY_PROPERTY, "string", "An optional list of issue keys to fetch specific issues")
-      .addNumberProperty(PAGE_PROPERTY, "An optional page number. Defaults to 1.")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional 1-based page index. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
       .build();
@@ -90,7 +91,7 @@ public class SearchIssuesTool extends Tool {
 
   private static IssuesApi.SearchParams extractSearchParams(Tool.Arguments arguments, BranchPullRequestContext.Params branchPullRequest) {
     return new IssuesApi.SearchParams(
-      arguments.getOptionalStringList(PROJECTS_PROPERTY),
+      arguments.getOptionalStringList(PROJECT_KEYS_PROPERTY),
       branchPullRequest.branch(),
       arguments.getOptionalStringList(FILES_PROPERTY),
       branchPullRequest.pullRequest(),
@@ -98,8 +99,8 @@ public class SearchIssuesTool extends Tool {
       arguments.getOptionalEnumList(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES),
       arguments.getOptionalEnumList(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES),
       arguments.getOptionalStringList(ISSUE_KEY_PROPERTY),
-      arguments.getOptionalInteger(PAGE_PROPERTY),
-      arguments.getOptionalInteger(PAGE_SIZE_PROPERTY)
+      arguments.getOptionalPageIndex(),
+      arguments.getOptionalPageSize()
     );
   }
 

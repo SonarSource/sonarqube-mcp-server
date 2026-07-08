@@ -334,6 +334,24 @@ class McpSchemaValidationTest {
       .isNotEmpty();
   }
 
+  @SonarQubeMcpServerTest
+  void tool_input_schema_should_use_canonical_parameter_names(SonarQubeMcpServerTestHarness harness) {
+    var legacyPropertyNames = Set.of("p", "ps", "page", "projects", "branchName");
+    var client = harness.newClient();
+    for (var tool : client.listTools()) {
+      var properties = (Map<String, Object>) tool.inputSchema().get("properties");
+      if (properties == null) {
+        continue;
+      }
+      for (var propertyName : properties.keySet()) {
+        assertThat(legacyPropertyNames)
+          .isNotEmpty()
+          .as("Tool '%s' must not expose legacy parameter '%s' in its schema", tool.name(), propertyName)
+          .doesNotContain(propertyName);
+      }
+    }
+  }
+
   private void validateMcpToolSchema(McpSchema.Tool schema) {
     assertThat(schema.name())
       .as("Tool name should not be null or empty (MCP spec requirement)")

@@ -30,20 +30,26 @@ import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.response.InstalledPluginsResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class PluginsSynchronizerTest {
+
+  private static final String HELLO_CONTENT = "hello";
+  private static final String HELLO_MD5 = "5d41402abc4b2a76b9719d911017c592";
+
   @Test
   void it_should_download_sonarlint_supported_plugins(@TempDir Path tempDir) {
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
-    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(new InstalledPluginsResponse.Plugin("java", true, "filename"))));
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "filename", HELLO_MD5))));
     var response = mock(HttpClient.Response.class);
     when(response.isSuccessful()).thenReturn(true);
-    when(response.bodyAsStream()).thenReturn(new ByteArrayInputStream("hello".getBytes()));
+    when(response.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
     when(pluginsApi.downloadPlugin("java")).thenReturn(response);
     var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
 
@@ -54,7 +60,7 @@ class PluginsSynchronizerTest {
     assertThat(analyzers.enabledLanguages()).containsExactly(Language.JAVA);
     assertThat(pluginPath)
       .exists()
-      .hasContent("hello");
+      .hasContent(HELLO_CONTENT);
   }
 
   @Test
@@ -62,7 +68,8 @@ class PluginsSynchronizerTest {
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
-    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(new InstalledPluginsResponse.Plugin("key", false, "filename"))));
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("key", false, "filename", HELLO_MD5))));
     var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
@@ -75,7 +82,8 @@ class PluginsSynchronizerTest {
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
-    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(new InstalledPluginsResponse.Plugin("cobol", true, "sonar-cobol-plugin.jar"))));
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("cobol", true, "sonar-cobol-plugin.jar", HELLO_MD5))));
     var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
@@ -90,11 +98,12 @@ class PluginsSynchronizerTest {
     var pluginsFolderPath = tempDir.resolve("plugins");
     Files.createDirectories(pluginsFolderPath);
     var pluginPath = pluginsFolderPath.resolve("filename");
-    Files.writeString(pluginPath, "hello");
+    Files.writeString(pluginPath, HELLO_CONTENT);
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
-    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(new InstalledPluginsResponse.Plugin("java", true, "filename"))));
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "filename", HELLO_MD5))));
     var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
@@ -102,25 +111,27 @@ class PluginsSynchronizerTest {
     assertThat(analyzers.analyzerPaths()).containsExactly(pluginPath);
     assertThat(pluginPath)
       .exists()
-      .hasContent("hello");
+      .hasContent(HELLO_CONTENT);
+    verify(pluginsApi, never()).downloadPlugin("java");
   }
 
   @Test
-  void it_should_throw_if_plugin_download_request_is_not_successful(@TempDir Path tempDir) {
+  void it_should_continue_when_plugin_download_request_is_not_successful(@TempDir Path tempDir) {
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
-    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(new InstalledPluginsResponse.Plugin("java", true, "filename"))));
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "filename", HELLO_MD5))));
     var response = mock(HttpClient.Response.class);
     when(response.isSuccessful()).thenReturn(false);
     when(response.code()).thenReturn(500);
     when(pluginsApi.downloadPlugin("java")).thenReturn(response);
     var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
 
-    var throwable = catchThrowable(pluginsSynchronizer::synchronizeAnalyzers);
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
-    assertThat(throwable).isInstanceOf(IllegalStateException.class)
-        .hasMessage("Failed to download plugin 'java': HTTP status 500");
+    assertThat(analyzers.analyzerPaths()).isEmpty();
+    assertThat(analyzers.enabledLanguages()).isEmpty();
   }
 
   @Test
@@ -128,7 +139,7 @@ class PluginsSynchronizerTest {
     var pluginsFolderPath = tempDir.resolve("plugins");
     Files.createDirectories(pluginsFolderPath);
     var pluginPath = pluginsFolderPath.resolve("plugin.jar");
-    Files.writeString(pluginPath, "hello");
+    Files.writeString(pluginPath, HELLO_CONTENT);
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
@@ -156,7 +167,7 @@ class PluginsSynchronizerTest {
     var pluginsApi = mock(PluginsApi.class);
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
-      new InstalledPluginsResponse.Plugin("cobol", true, "sonar-cobol-plugin.jar")
+      new InstalledPluginsResponse.Plugin("cobol", true, "sonar-cobol-plugin.jar", HELLO_MD5)
     )));
     var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
 
@@ -165,6 +176,84 @@ class PluginsSynchronizerTest {
     assertThat(analyzers.analyzerPaths()).isEmpty();
     assertThat(analyzers.enabledLanguages()).isEmpty();
     assertThat(unsupportedPluginPath).doesNotExist();
+  }
+
+  @Test
+  void it_should_skip_plugin_with_absolute_filename(@TempDir Path tempDir) {
+    var escapePath = tempDir.resolve("pwned.jar");
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, escapePath.toString(), HELLO_MD5))));
+    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+
+    assertThat(analyzers.analyzerPaths()).isEmpty();
+    assertThat(escapePath).doesNotExist();
+    verify(pluginsApi, never()).downloadPlugin("java");
+  }
+
+  @Test
+  void it_should_skip_plugin_with_traversal_filename(@TempDir Path tempDir) {
+    var escapePath = tempDir.resolve("pwned.jar");
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "../../pwned.jar", HELLO_MD5))));
+    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+
+    assertThat(analyzers.analyzerPaths()).isEmpty();
+    assertThat(escapePath).doesNotExist();
+    verify(pluginsApi, never()).downloadPlugin("java");
+  }
+
+  @Test
+  void it_should_skip_plugin_when_downloaded_hash_does_not_match(@TempDir Path tempDir) {
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "filename", "00000000000000000000000000000000"))));
+    var response = mock(HttpClient.Response.class);
+    when(response.isSuccessful()).thenReturn(true);
+    when(response.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
+    when(pluginsApi.downloadPlugin("java")).thenReturn(response);
+    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+
+    assertThat(analyzers.analyzerPaths()).isEmpty();
+    assertThat(tempDir.resolve("plugins").resolve("filename")).doesNotExist();
+  }
+
+  @Test
+  void it_should_continue_with_other_plugins_when_one_download_fails(@TempDir Path tempDir) {
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "java-plugin.jar", HELLO_MD5),
+      new InstalledPluginsResponse.Plugin("python", true, "python-plugin.jar", HELLO_MD5))));
+    var failedResponse = mock(HttpClient.Response.class);
+    when(failedResponse.isSuccessful()).thenReturn(false);
+    when(failedResponse.code()).thenReturn(500);
+    var successResponse = mock(HttpClient.Response.class);
+    when(successResponse.isSuccessful()).thenReturn(true);
+    when(successResponse.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
+    when(pluginsApi.downloadPlugin("java")).thenReturn(failedResponse);
+    when(pluginsApi.downloadPlugin("python")).thenReturn(successResponse);
+    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+
+    assertThat(analyzers.analyzerPaths()).containsExactly(tempDir.resolve("plugins").resolve("python-plugin.jar"));
+    assertThat(analyzers.enabledLanguages()).containsExactlyInAnyOrder(Language.PYTHON, Language.IPYTHON);
+    assertThat(tempDir.resolve("plugins").resolve("java-plugin.jar")).doesNotExist();
   }
 
 }

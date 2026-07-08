@@ -28,16 +28,17 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchFilesByCoverageTool extends Tool {
 
   public static final String TOOL_NAME = "search_files_by_coverage";
-  public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
   public static final String MAX_COVERAGE_PROPERTY = "maxCoverage";
-  public static final String PAGE_INDEX_PROPERTY = "pageIndex";
-  public static final String PAGE_SIZE_PROPERTY = "pageSize";
+  public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
+  public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
 
   // Metric keys
   private static final String METRIC_COVERAGE = "coverage";

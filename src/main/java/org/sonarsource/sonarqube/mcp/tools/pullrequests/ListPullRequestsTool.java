@@ -21,11 +21,12 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListPullRequestsTool extends Tool {
 
   public static final String TOOL_NAME = "list_pull_requests";
-  public static final String PROJECT_KEY_PROPERTY = "projectKey";
+  public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable

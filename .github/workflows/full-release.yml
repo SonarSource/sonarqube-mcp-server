@@ -67,7 +67,7 @@ jobs:
     name: Release
     needs:
       - check-draft-exists
-    uses: SonarSource/release-github-actions/.github/workflows/ide-automated-release.yml@ee9b885a1660aa7bfb409bd67c8e800cb747ce77 # 1.9.6
+    uses: SonarSource/release-github-actions/.github/workflows/ide-automated-release.yml@94cbf68ca6650afed4c8c1b77560c224ee4fcb97 # 1.9.7
     permissions:
       statuses: read
       id-token: write
@@ -109,9 +109,6 @@ jobs:
           sed -i -E "s|^(ARG MCP_SERVER_VERSION=)[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$|\1${RELEASED_VERSION}|" Dockerfile
           grep -qE "^ARG MCP_SERVER_VERSION=${RELEASED_VERSION}$" Dockerfile \
             || { echo "ERROR: Dockerfile version was not updated" >&2; exit 1; }
-          sed -i -E "s|(\"version\":[[:space:]]*\")[0-9]+\.[0-9]+\.[0-9]+(\")|\1${SHORT}\2|" gemini-extension.json
-          grep -qE "\"version\":[[:space:]]*\"${SHORT}\"" gemini-extension.json \
-            || { echo "ERROR: gemini-extension.json version was not updated" >&2; exit 1; }
           sed -i -E "s|(\"version\":[[:space:]]*\")[0-9]+\.[0-9]+\.[0-9]+(\")|\1${SHORT}\2|" server.json
           grep -qE "\"version\":[[:space:]]*\"${SHORT}\"" server.json \
             || { echo "ERROR: server.json version was not updated" >&2; exit 1; }
@@ -121,7 +118,7 @@ jobs:
           NEW_VERSION: ${{ needs.release.outputs.new-version }}
         run: sed -i -E "s|^version=.*|version=${NEW_VERSION}-SNAPSHOT|" gradle.properties
 
-      - uses: SonarSource/release-github-actions/create-pull-request@ee9b885a1660aa7bfb409bd67c8e800cb747ce77 # 1.9.6
+      - uses: SonarSource/release-github-actions/create-pull-request@94cbf68ca6650afed4c8c1b77560c224ee4fcb97 # 1.9.7
         with:
           commit-message: Prepare next development iteration ${{ needs.release.outputs.new-version }}
           title: Prepare next development iteration ${{ needs.release.outputs.new-version }}

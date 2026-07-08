@@ -171,6 +171,26 @@ public abstract class Tool {
       return null;
     }
 
+    @Nullable
+    public Integer getOptionalPageIndex() {
+      return getOptionalInteger(ToolParameters.PAGE_INDEX);
+    }
+
+    @Nullable
+    public Integer getOptionalPageSize() {
+      return getOptionalInteger(ToolParameters.PAGE_SIZE);
+    }
+
+    public int getPageIndexOrDefault(int defaultValue) {
+      var pageIndex = getOptionalPageIndex();
+      return pageIndex != null ? pageIndex : defaultValue;
+    }
+
+    public int getPageSizeOrDefault(int defaultValue) {
+      var pageSize = getOptionalPageSize();
+      return pageSize != null ? pageSize : defaultValue;
+    }
+
     public int getIntOrDefault(String argumentName, int defaultValue) {
       var intArgument = getOptionalInteger(argumentName);
       if (intArgument == null) {

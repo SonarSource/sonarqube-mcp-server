@@ -181,7 +181,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("page", 2));
+        Map.of("pageIndex", 2));
 
       assertResultEquals(result, """
         {
@@ -282,7 +282,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("page", 2, "pageSize", 100, "q", "test"));
+        Map.of("pageIndex", 2, "pageSize", 100, "q", "test"));
 
       assertResultEquals(result, """
         {
@@ -351,7 +351,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("page", 2));
+        Map.of("pageIndex", 2));
 
       assertResultEquals(result, """
         {
@@ -436,7 +436,7 @@ class SearchMyProjectsToolTests {
 
       var result = mcpClient.callTool(
         SearchMyProjectsTool.TOOL_NAME,
-        Map.of("page", 2, "pageSize", 100, "q", "test"));
+        Map.of("pageIndex", 2, "pageSize", 100, "q", "test"));
 
       assertResultEquals(result, """
         {
