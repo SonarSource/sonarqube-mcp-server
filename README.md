@@ -938,7 +938,7 @@ SOCKS5 proxies are supported.
 
 - **search_files_by_coverage** - Search for files in a project sorted by coverage (ascending - worst coverage first). This tool helps identify files that need test coverage improvements.
   - `projectKey` - The project key to search in - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
   - `maxCoverage` - Maximum coverage threshold (0-100). Only return files with coverage <= this value - _Number_
   - `pageIndex` - Page index (1-based, default: 1) - _Number_
@@ -947,7 +947,7 @@ SOCKS5 proxies are supported.
 
 - **get_file_coverage_details** - Get line-by-line coverage information for a specific file, including which exact lines are uncovered and which have partially covered branches. This tool helps identify precisely where to add test coverage. Use after identifying files with low coverage via search_files_by_coverage.
   - `key` - File key (e.g. my_project:src/foo/Bar.java) - _Required String_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
   - `from` - First line to analyze (1-based, default: 1) - _Number_
   - `to` - Last line to analyze (inclusive). If not specified, all lines are returned - _Number_
@@ -958,7 +958,7 @@ SOCKS5 proxies are supported.
 
 - **search_dependency_risks** - Search for software composition analysis issues (dependency risks) of a SonarQube project, paired with releases that appear in the analyzed project, application, or portfolio.
   - `projectKey` - Project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
   - `pageIndex` - Optional page index (1-based, default: 1) - _Integer_
   - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
@@ -979,7 +979,7 @@ SOCKS5 proxies are supported.
 
 - **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects.
   - `projectKeys` - Optional list of SonarQube project keys - _String[]_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
   - `severities` - Optional list of severities to filter by. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER - _String[]_
   - `impactSoftwareQualities` - Optional list of software qualities to filter by. Possible values: MAINTAINABILITY, RELIABILITY, SECURITY - _String[]_
@@ -993,7 +993,7 @@ SOCKS5 proxies are supported.
 - **search_security_hotspots** - Search for Security Hotspots in a SonarQube project.
   - `projectKey` - Project or application key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `hotspotKeys` - Comma-separated list of specific Security Hotspot keys to retrieve - _String[]_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
   - `files` - Optional list of file paths to filter - _String[]_
   - `status` - Optional status filter: TO_REVIEW, REVIEWED - _String_
@@ -1023,7 +1023,7 @@ SOCKS5 proxies are supported.
 
 - **get_component_measures** - Get SonarQube measures for a component (project, directory, file).
   - `projectKey` - The project key - _Required String when `SONARQUBE_PROJECT_KEY` is not configured_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `metricKeys` - Optional metric keys to retrieve (e.g. ncloc, complexity, violations, coverage) - _String[]_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
 
@@ -1059,18 +1059,22 @@ SOCKS5 proxies are supported.
   - `q` - Optional search query to filter projects by name (partial match) or key (exact match) - _String_
 
 
-- **list_branches** - List long-lived branches for a project (e.g. main, develop, master). Returns only `LONG` branches on SonarQube Cloud and `BRANCH` entries on SonarQube Server — names safe for the `branch` parameter on other tools. For pull requests, use `list_pull_requests` instead.
+- **list_branches** - List analyzed branches for a project.
+  - **SonarQube Cloud**: returns long-lived (`LONG`) and short-lived (`SHORT`) branches with `type` and `mergeBranch` fields. Optional `branchTypes` filter: `ALL` (default), `LONG`, or `SHORT`.
+  - **SonarQube Server**: returns all analyzed branches (name, quality gate, analysis date). No `type`, `mergeBranch`, or `branchTypes` filter.
+  - Use returned branch names as the `branch` parameter on other tools. For pull request analysis, use `list_pull_requests` instead.
   - `projectKey` - Project key (e.g. my_project) - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
+  - `branchTypes` - _(SonarQube Cloud only)_ Optional filter: `ALL` (default), `LONG`, or `SHORT` - _Enum {"ALL", "LONG", "SHORT"}_
 
 
-- **list_pull_requests** - List all pull requests for a project. Use this tool to discover available pull requests before analyzing their coverage, issues, or quality. Returns the pull request key/ID which can be used with other tools (e.g., search_files_by_coverage, get_file_coverage_details). For long-lived branches, use `list_branches` instead.
+- **list_pull_requests** - List all pull requests for a project. Use this tool to discover pull requests for PR-decorated analysis (coverage, issues, quality gate). Returns the pull request key/ID which can be used with other tools. For branch-based analysis without pull requests, use `list_branches` instead.
   - `projectKey` - Project key (e.g. my_project) - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
 
 ### Quality Gates
 
 - **get_project_quality_gate_status** - Get the Quality Gate Status for the SonarQube project.
   - `analysisId` - Optional analysis ID - _String_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `projectId` - Optional project ID - _String_
   - `projectKey` - Optional project key - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
@@ -1087,7 +1091,7 @@ SOCKS5 proxies are supported.
 
 - **search_duplicated_files** - Search for files with code duplications in a SonarQube project. By default, automatically fetches all duplicated files across all pages (up to 10,000 files max). Returns only files with duplications.
   - `projectKey` - Project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
   - `pageSize` - Optional number of results per page for manual pagination (max: 500). If not specified, auto-fetches all duplicated files - _Integer_
   - `pageIndex` - Optional page number for manual pagination (starts at 1). If not specified, auto-fetches all duplicated files - _Integer_
@@ -1095,14 +1099,14 @@ SOCKS5 proxies are supported.
 
 - **get_duplications** - Get duplications for a file. Require Browse permission on file's project.
   - `key` - File key - _Required String_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
 
 ### Sources
 
 - **get_raw_source** - Get source code as raw text from SonarQube. Require 'See Source Code' permission on file.
   - `key` - File key - _Required String_
-  - `branch` - Optional long-lived branch name (e.g. main, develop). Use `list_branches` to discover valid names - _String_
+  - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
 
 

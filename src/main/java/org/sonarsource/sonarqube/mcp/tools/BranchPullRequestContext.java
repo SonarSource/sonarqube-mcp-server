@@ -25,12 +25,12 @@ public final class BranchPullRequestContext {
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
 
   public static final String BRANCH_PROPERTY_DESCRIPTION = """
-    Long-lived branch name in SonarQube (e.g. 'main', 'develop'). Use list_branches to discover valid names. \
-    Not for feature branches or pull request analysis — use pullRequest instead.""";
+    Branch name for branch-based analysis. Discover names with list_branches. \
+    For pull request analysis, use pullRequest instead.""";
 
   public static final String PULL_REQUEST_PROPERTY_DESCRIPTION = """
-    Pull request key/ID in SonarQube. Use list_pull_requests to discover valid keys. \
-    Not for long-lived branches — use branch instead. Must be the SonarQube PR key, not a git branch name.""";
+    Pull request key/ID in SonarQube for PR-decorated analysis. Use list_pull_requests to discover valid keys. \
+    For branch-based analysis (long-lived or short-lived without PR), use branch instead. Must be the SonarQube PR key, not a git branch name.""";
 
   private BranchPullRequestContext() {
     // utility class
@@ -51,8 +51,8 @@ public final class BranchPullRequestContext {
   public static Optional<Tool.Result> validateMutualExclusion(@Nullable String branch, @Nullable String pullRequest) {
     if (branch != null && pullRequest != null) {
       return Optional.of(Tool.Result.failure(
-        "Cannot use 'branch' and 'pullRequest' together. Use 'branch' for long-lived branches (see list_branches) "
-          + "or 'pullRequest' for pull requests (see list_pull_requests)."));
+        "Cannot use 'branch' and 'pullRequest' together. Use 'branch' for branch-based analysis (see list_branches) "
+          + "or 'pullRequest' for pull request analysis (see list_pull_requests)."));
     }
     return Optional.empty();
   }

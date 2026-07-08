@@ -116,13 +116,20 @@ search_sonar_issues_in_projects({
 
 ### Branch vs Pull Request Context
 
-- **Long-lived branches** (main, develop): use `branch`. Discover names with `list_branches`.
-- **Pull requests / feature branches**: use `pullRequest`. Discover keys with `list_pull_requests`.
+SonarQube Cloud has three analysis contexts: long-lived branches, short-lived branches, and pull requests. SonarQube Server has branch and pull request only.
+
+- **Branch-based analysis** (long-lived or short-lived without PR): use `branch`. Discover names with `list_branches` (type `LONG` for main/develop, type `SHORT` for feature branches on Cloud). You can also pass the current git branch name directly.
+- **Pull request analysis**: use `pullRequest`. Discover keys with `list_pull_requests`.
+- If the user is working on a pull request, prefer `pullRequest`. Otherwise use `branch`.
 - Never pass a git branch name to a `pullRequest` parameter.
 
 ```javascript
+// Analyze a short-lived branch without PR
+list_branches({ projectKey: "my-project", branchTypes: "SHORT" });
+search_sonar_issues_in_projects({ projects: ["my-project"], branch: "feature/my-fix" });
+
 // Compare quality gate on develop vs main
-list_branches({ projectKey: "my-project" });
+list_branches({ projectKey: "my-project", branchTypes: "LONG" });
 get_project_quality_gate_status({ projectKey: "my-project", branch: "develop" });
 
 // Analyze an open pull request

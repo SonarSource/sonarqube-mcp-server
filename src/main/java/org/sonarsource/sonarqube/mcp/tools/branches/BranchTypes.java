@@ -20,8 +20,8 @@ import jakarta.annotation.Nullable;
 
 public final class BranchTypes {
 
-  public enum BranchType {
-    LONG, SHORT, BRANCH
+  public enum CloudBranchType {
+    LONG, SHORT
   }
 
   public enum QualityGateStatus {
@@ -32,17 +32,32 @@ public final class BranchTypes {
     // utility class
   }
 
+  static final String[] BRANCH_TYPES_FILTER_VALUES = {"ALL", "LONG", "SHORT"};
+
   public static boolean isLongLivedBranchType(@Nullable String type) {
     return "LONG".equals(type) || "BRANCH".equals(type);
   }
 
+  public static boolean matchesBranchTypesFilter(@Nullable String type, @Nullable String filter) {
+    if (filter == null || "ALL".equals(filter)) {
+      return true;
+    }
+    if ("LONG".equals(filter)) {
+      return isLongLivedBranchType(type);
+    }
+    if ("SHORT".equals(filter)) {
+      return "SHORT".equals(type);
+    }
+    return false;
+  }
+
   @Nullable
-  public static BranchType parseBranchType(@Nullable String type) {
+  public static CloudBranchType parseCloudBranchType(@Nullable String type) {
     if (type == null) {
       return null;
     }
     try {
-      return BranchType.valueOf(type);
+      return CloudBranchType.valueOf(type);
     } catch (IllegalArgumentException e) {
       return null;
     }

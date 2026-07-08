@@ -111,14 +111,26 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     5. If no key is found, use `search_my_sonarqube_projects` to list projects.
     An incorrect project key will silently return results from the wrong project.
     """;
-  private static final String BRANCH_PULL_REQUEST_INSTRUCTIONS = """
-    ## Branch vs Pull Request Context
-    - Long-lived branches (main, develop, release/*): use `branch`. Discover names with `list_branches`.
-    - Pull requests / feature branches: use `pullRequest`. Discover keys with `list_pull_requests`.
+  private static final String BRANCH_PULL_REQUEST_INSTRUCTIONS_COMMON = """
     - Never pass a git branch name to a pullRequest parameter — it expects the SonarQube PR key.
     - Never provide both branch and pullRequest on the same call.
     - Omit both to query the default (main) branch analysis.
     """;
+  private static final String BRANCH_PULL_REQUEST_INSTRUCTIONS_CLOUD = """
+    ## Branch vs Pull Request Context
+    SonarQube Cloud has three analysis contexts: long-lived branches, short-lived branches, and pull requests.
+    - Long-lived branches (main, develop): use `branch`. Discover with `list_branches` (type LONG) or `branchTypes=LONG`.
+    - Short-lived branches (no PR): use `branch`. Discover via `list_branches` (SHORT) or `branchTypes=SHORT`; git branch name also works.
+    - Pull request analysis: use `pullRequest`. Discover keys with `list_pull_requests`.
+    - If the user is working on a pull request, prefer `pullRequest`. Otherwise use `branch`.
+    """ + BRANCH_PULL_REQUEST_INSTRUCTIONS_COMMON;
+  private static final String BRANCH_PULL_REQUEST_INSTRUCTIONS_SERVER = """
+    ## Branch vs Pull Request Context
+    SonarQube Server has two analysis contexts: branches and pull requests.
+    - Branch analysis: use `branch`. Discover names with `list_branches`, or pass the current git branch name directly.
+    - Pull request analysis: use `pullRequest`. Discover keys with `list_pull_requests`.
+    - If the user is working on a pull request, prefer `pullRequest`. Otherwise use `branch`.
+    """ + BRANCH_PULL_REQUEST_INSTRUCTIONS_COMMON;
   private static final String BASE_INSTRUCTIONS_WITH_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
     "Analyze code, monitor project health, investigate issues, and understand quality gates. " +
     "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.";
@@ -410,7 +422,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new SearchDuplicatedFilesTool(this, configuredProjectKey),
       new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
       new ListPullRequestsTool(this, configuredProjectKey),
-      new ListBranchesTool(this, configuredProjectKey)));
+      new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
 
     if (mcpConfiguration.isHttpEnabled()) {
       // In HTTP mode there is no startup token to probe SCA availability
@@ -551,7 +563,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     composedInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
       ? BASE_INSTRUCTIONS_WITH_ANALYSIS
       : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
-    composedInstructions += "\n" + BRANCH_PULL_REQUEST_INSTRUCTIONS;
+    composedInstructions += "\n" + (mcpConfiguration.isSonarQubeCloud()
+      ? BRANCH_PULL_REQUEST_INSTRUCTIONS_CLOUD
+      : BRANCH_PULL_REQUEST_INSTRUCTIONS_SERVER);
     if (mcpConfiguration.getProjectKey() == null) {
       composedInstructions += "\n" + PROJECT_KEY_INSTRUCTIONS;
     }

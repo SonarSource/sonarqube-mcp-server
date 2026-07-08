@@ -37,9 +37,9 @@ public class ListPullRequestsTool extends Tool {
         .setName(TOOL_NAME)
         .setTitle("List SonarQube Pull Requests")
         .setDescription("List all pull requests for a project. " +
-          "Use this tool to discover available pull requests and their corresponding branch names before analyzing their coverage, issues, or quality. " +
+          "Use this tool to discover pull requests for PR-decorated analysis (coverage, issues, quality gate on new code). " +
           "Returns the pull request key/ID and source branch for each PR, which can be used with other tools that accept a pullRequest parameter. " +
-          "For long-lived branches (main, develop), use list_branches instead.")
+          "For branch-based analysis without pull requests, use list_branches instead.")
         .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
         .setReadOnlyHint()
         .build(),

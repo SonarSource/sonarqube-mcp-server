@@ -470,6 +470,48 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
+  void should_include_cloud_branch_instructions_on_sonarqube_cloud(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getMcpConfiguration().isSonarQubeCloud()).isTrue();
+    assertThat(server.getComposedInstructions())
+      .contains("SonarQube Cloud has three analysis contexts")
+      .contains("(SHORT)")
+      .contains("branchTypes=SHORT")
+      .doesNotContain("SonarQube Server has two analysis contexts");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_include_server_branch_instructions_on_sonarqube_server(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(
+      new StdioServerTransportProvider(null),
+      null,
+      environment);
+    server.start();
+
+    assertThat(server.getMcpConfiguration().isSonarQubeCloud()).isFalse();
+    assertThat(server.getComposedInstructions())
+      .contains("SonarQube Server has two analysis contexts")
+      .doesNotContain("(SHORT)")
+      .doesNotContain("branchTypes");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
   void should_not_register_sara_tools_when_feature_flag_api_fails(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
