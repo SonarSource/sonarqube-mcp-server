@@ -34,7 +34,7 @@ class ChangeIssueStatusSonarCloudIT extends AbstractSonarCloudStagingIT {
   @Test
   void should_call_change_sonar_issue_status_against_staging() {
     var searchResult = mcpClient.callTool(SearchIssuesTool.TOOL_NAME, Map.of(
-      SearchIssuesTool.PROJECTS_PROPERTY, new String[] {fixture.projectKey()},
+      SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {fixture.projectKey()},
       SearchIssuesTool.PAGE_SIZE_PROPERTY, 10));
     @SuppressWarnings("unchecked")
     var issues = (List<Map<String, Object>>) structuredContent(searchResult).get("issues");

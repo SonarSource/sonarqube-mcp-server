@@ -30,8 +30,8 @@ class SearchIssuesSonarCloudIT extends AbstractSonarCloudStagingIT {
   @Test
   void should_call_search_sonar_issues_in_projects_against_staging() {
     var result = mcpClient.callTool(SearchIssuesTool.TOOL_NAME, Map.of(
-      SearchIssuesTool.PROJECTS_PROPERTY, new String[] {fixture.projectKey()},
-      "ps", 10));
+      SearchIssuesTool.PROJECT_KEYS_PROPERTY, new String[] {fixture.projectKey()},
+      SearchIssuesTool.PAGE_SIZE_PROPERTY, 10));
 
     assertStructuredContentContains(result, """
       {
