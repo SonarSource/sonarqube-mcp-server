@@ -19,6 +19,8 @@ package org.sonarsource.sonarqube.mcp.serverapi.organizations;
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 import jakarta.annotation.Nullable;
+import java.util.Arrays;
+import java.util.List;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
@@ -44,7 +46,7 @@ public class OrganizationsApi {
       .addParam("excludeEligibility", "true")
       .build();
     try (var response = helper.getApiSubdomain(path)) {
-      var dtos = new Gson().fromJson(response.bodyAsString(), OrganizationResponse[].class);
+      var dtos = new Gson().fromJson(response.bodyAsString(), Organization[].class);
       if (dtos == null || dtos.length == 0) {
         return null;
       }
@@ -55,7 +57,25 @@ public class OrganizationsApi {
     }
   }
 
-  record OrganizationResponse(String id, @SerializedName("uuidV4") String uuidV4) {
+  /**
+   * Lists the organizations the authenticated user is a member of. Only available on SonarQube Cloud.
+   * Unlike {@link #getOrganizationUuidV4(String)}, this does not swallow errors: HTTP failures
+   * (e.g. invalid token) propagate so callers can distinguish an authentication problem from an empty result.
+   */
+  public List<Organization> listOrganizations() {
+    var path = new UrlBuilder(ORGANIZATIONS_PATH)
+      .addParam("excludeEligibility", "true")
+      .build();
+    try (var response = helper.getApiSubdomain(path)) {
+      var dtos = new Gson().fromJson(response.bodyAsString(), Organization[].class);
+      if (dtos == null) {
+        return List.of();
+      }
+      return Arrays.stream(dtos).toList();
+    }
+  }
+
+  public record Organization(String id, String key, String name, @SerializedName("uuidV4") String uuidV4) {
   }
 
 }

@@ -31,6 +31,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrganizationsApiTest {
@@ -82,6 +83,62 @@ class OrganizationsApiTest {
       .willReturn(aResponse().withStatus(403)));
 
     assertThat(organizationsApi.getOrganizationUuidV4("my-org")).isNull();
+  }
+
+  @Test
+  void it_should_list_all_organizations_the_token_belongs_to() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .willReturn(jsonResponse("""
+        [
+          {"id":"id-1","key":"org-one","name":"Org One","uuidV4":"550e8400-e29b-41d4-a716-446655440000"},
+          {"id":"id-2","key":"org-two","name":"Org Two","uuidV4":"550e8400-e29b-41d4-a716-446655440001"}
+        ]
+        """, 200)));
+
+    var organizations = organizationsApi.listOrganizations();
+
+    assertThat(organizations)
+      .extracting(OrganizationsApi.Organization::key, OrganizationsApi.Organization::name)
+      .containsExactly(
+        org.assertj.core.api.Assertions.tuple("org-one", "Org One"),
+        org.assertj.core.api.Assertions.tuple("org-two", "Org Two"));
+  }
+
+  @Test
+  void it_should_return_single_organization() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .willReturn(jsonResponse("""
+        [{"id":"id-1","key":"org-one","name":"Org One","uuidV4":"550e8400-e29b-41d4-a716-446655440000"}]
+        """, 200)));
+
+    assertThat(organizationsApi.listOrganizations())
+      .singleElement()
+      .extracting(OrganizationsApi.Organization::key)
+      .isEqualTo("org-one");
+  }
+
+  @Test
+  void it_should_return_empty_list_when_token_has_no_organizations() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .willReturn(jsonResponse("[]", 200)));
+
+    assertThat(organizationsApi.listOrganizations()).isEmpty();
+  }
+
+  @Test
+  void it_should_propagate_error_when_listing_organizations_fails() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .willReturn(aResponse().withStatus(500)));
+
+    assertThatThrownBy(() -> organizationsApi.listOrganizations()).isInstanceOf(RuntimeException.class);
+  }
+
+  @Test
+  void it_should_propagate_error_when_listing_organizations_is_unauthorized() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .willReturn(aResponse().withStatus(401)));
+
+    assertThatThrownBy(() -> organizationsApi.listOrganizations()).isInstanceOf(RuntimeException.class);
   }
 
 }

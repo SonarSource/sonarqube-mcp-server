@@ -167,7 +167,6 @@ public class McpServerLaunchConfiguration {
     }
 
     var forceSonarQubeCloud = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_IS_CLOUD, "false"));
-    validateStdioConfiguration(isHttpEnabled, sonarqubeUrlFromEnv, this.sonarqubeOrg);
     this.isSonarQubeCloud = resolveSonarQubeCloud(forceSonarQubeCloud, this.sonarqubeOrg, sonarqubeUrlFromEnv);
     this.sonarqubeUrl = resolveUrl(this.isSonarQubeCloud, sonarqubeUrlFromEnv);
 
@@ -398,21 +397,6 @@ public class McpServerLaunchConfiguration {
       return port;
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid SONARQUBE_HTTP_PORT value: " + portStr, e);
-    }
-  }
-
-  /**
-   * In stdio mode, either SONARQUBE_URL or SONARQUBE_ORG must be set.
-   * There is no per-request org resolution, so connecting to SonarQube without a URL or org key makes no sense.
-   * In HTTP mode, no validation is needed: the server defaults to sonarcloud.io and resolves from the Authorization header at request time.
-   */
-  private static void validateStdioConfiguration(boolean isHttpEnabled, @Nullable String url, @Nullable String org) {
-    if (!isHttpEnabled && url == null && org == null) {
-      throw new IllegalArgumentException(
-        "SONARQUBE_URL or SONARQUBE_ORG must be set. " +
-          "Set SONARQUBE_URL to your SonarQube Server URL or SonarQube Cloud URL, " +
-          "or set SONARQUBE_ORG to connect to SonarQube Cloud."
-      );
     }
   }
 

@@ -83,26 +83,29 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_in_stdio_mode_when_neither_url_nor_org_is_set(@TempDir Path tempDir) {
+  void should_default_to_sonarcloud_when_token_only_in_stdio_mode(@TempDir Path tempDir) {
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.isSonarQubeCloud()).isTrue();
+    assertThat(config.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(config.getSonarqubeOrg()).isNull();
   }
 
   @Test
-  void should_throw_error_in_stdio_mode_when_only_is_cloud_flag_is_set(@TempDir Path tempDir) {
-    // SONARQUBE_IS_CLOUD alone is not enough in stdio — org resolution is per-request in HTTP only
+  void should_default_to_sonarcloud_when_only_is_cloud_flag_is_set_in_stdio_mode(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
       "SONARQUBE_IS_CLOUD", "true"
     );
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.isSonarQubeCloud()).isTrue();
+    assertThat(config.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(config.getSonarqubeOrg()).isNull();
   }
 
   @Test
@@ -529,7 +532,7 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_when_stdio_org_and_url_are_both_unresolved_placeholders(@TempDir Path tempDir) {
+  void should_default_to_sonarcloud_when_stdio_org_and_url_are_both_unresolved_placeholders(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
@@ -537,9 +540,11 @@ class McpServerLaunchConfigurationTest {
       "SONARQUBE_URL", "${SONARQUBE_URL}"
     );
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.getSonarqubeOrg()).isNull();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
   }
 
   @Test
