@@ -850,6 +850,8 @@ When using custom certificates, you can modify your MCP configuration to mount t
 }
 ```
 
+> **Note:** Running the server [from a JAR](#build) instead of the container? The volume mount above installs certificates into the container's OS trust store, which the server also reads. If you cannot use the OS trust store — notably on Windows, where it is not consulted — point the JVM at a Java truststore holding the CA certificate: `-Djavax.net.ssl.trustStore=/path/to/truststore.p12 -Djavax.net.ssl.trustStoreType=PKCS12 -Djavax.net.ssl.trustStorePassword=<passphrase>`. It is added on top of the default trusted certificates.
+
 </details>
 
 ### Proxy
@@ -892,6 +894,96 @@ SOCKS5 proxies are supported.
 | `socksProxyPort`          | SOCKS5 proxy port                  | `1080`  | `1080`       |
 | `java.net.socks.username` | SOCKS5 username (if auth required) | —       | `myuser`     |
 | `java.net.socks.password` | SOCKS5 password (if auth required) | —       | `mypassword` |
+
+</details>
+
+### Client Certificate (Mutual TLS)
+
+If your SonarQube Server requires clients to present a certificate during the TLS handshake (mutual TLS), you can provide a PKCS12 keystore by mounting it into the container and passing its location via `JAVA_OPTS`.
+
+<details>
+<summary>Configuration</summary>
+
+#### Using a PKCS12 keystore
+
+Mount your `.p12` or `.pfx` file into the container and set the `JAVA_OPTS` environment variable with the keystore properties:
+
+```bash
+docker run --init --pull=always -i --rm \
+  -v /path/to/client.p12:/etc/ssl/mcp/client.p12:ro \
+  -e JAVA_OPTS="-Djavax.net.ssl.keyStore=/etc/ssl/mcp/client.p12 -Djavax.net.ssl.keyStoreType=PKCS12 -Djavax.net.ssl.keyStorePassword=<passphrase>" \
+  -e SONARQUBE_TOKEN="<token>" \
+  -e SONARQUBE_URL="<url>" \
+  sonarsource/sonarqube-mcp
+```
+
+> **Note:** The certificate file must be readable by the container process. Check and fix permissions if needed:
+> ```bash
+> ls -la /path/to/client.p12       # look for -rw-r--r-- (644) or wider
+> chmod 644 /path/to/client.p12    # grant read access to the container user
+> ```
+
+Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase. Note that the passphrase used here would be visible through `docker inspect` or process list.
+
+#### MCP Configuration with a Client Certificate
+
+```json
+{
+  "sonarqube": {
+    "command": "docker",
+    "args": [
+      "run", "--init", "--pull=always", "-i", "--rm",
+      "-v", "/path/to/client.p12:/etc/ssl/mcp/client.p12:ro",
+      "-e", "JAVA_OPTS",
+      "-e", "SONARQUBE_TOKEN",
+      "-e", "SONARQUBE_URL",
+      "sonarsource/sonarqube-mcp"
+    ],
+    "env": {
+      "JAVA_OPTS": "-Djavax.net.ssl.keyStore=/etc/ssl/mcp/client.p12 -Djavax.net.ssl.keyStoreType=PKCS12 -Djavax.net.ssl.keyStorePassword=<passphrase>",
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_URL": "<url>"
+    }
+  }
+}
+```
+
+#### Using a PKCS12 keystore with a standalone JAR
+
+When running the server [from a JAR](#build), pass the keystore properties as JVM arguments before `-jar`:
+
+```bash
+java \
+  -Djavax.net.ssl.keyStore=/path/to/client.p12 \
+  -Djavax.net.ssl.keyStoreType=PKCS12 \
+  -Djavax.net.ssl.keyStorePassword=<passphrase> \
+  -jar <path_to_sonarqube_mcp_server_jar>
+```
+
+Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
+
+#### MCP Configuration with a Client Certificate (JAR)
+
+```json
+{
+  "sonarqube": {
+    "command": "java",
+    "args": [
+      "-Djavax.net.ssl.keyStore=/path/to/client.p12",
+      "-Djavax.net.ssl.keyStoreType=PKCS12",
+      "-Djavax.net.ssl.keyStorePassword=<passphrase>",
+      "-jar",
+      "<path_to_sonarqube_mcp_server_jar>"
+    ],
+    "env": {
+      "SONARQUBE_TOKEN": "<token>",
+      "SONARQUBE_URL": "<url>"
+    }
+  }
+}
+```
+
+> **Note:** PEM certificate and key files (separate `.crt`/`.key` files) must be converted to PKCS12 format first. Use `openssl pkcs12 -export -in client.crt -inkey client.key -out client.p12` to convert them.
 
 </details>
 
