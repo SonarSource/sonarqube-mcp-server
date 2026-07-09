@@ -83,20 +83,20 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_in_stdio_mode_when_token_only_without_explicit_cloud_signal(@TempDir Path tempDir) {
+  void should_throw_in_stdio_mode_when_token_only_without_url_or_org(@TempDir Path tempDir) {
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
 
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL, SONARQUBE_ORG, or SONARQUBE_IS_CLOUD=true must be set");
+      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
   }
 
   @Test
-  void should_default_to_sonarcloud_when_only_is_cloud_flag_is_set_in_stdio_mode(@TempDir Path tempDir) {
+  void should_allow_sonarcloud_url_without_org_in_stdio_mode(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
-      "SONARQUBE_IS_CLOUD", "true"
+      "SONARQUBE_URL", "https://sonarcloud.io"
     );
 
     var config = new McpServerLaunchConfiguration(arg);
@@ -104,6 +104,19 @@ class McpServerLaunchConfigurationTest {
     assertThat(config.isSonarQubeCloud()).isTrue();
     assertThat(config.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
     assertThat(config.getSonarqubeOrg()).isNull();
+  }
+
+  @Test
+  void should_throw_in_stdio_mode_when_only_is_cloud_flag_is_set(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_IS_CLOUD", "true"
+    );
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
   }
 
   @Test
@@ -540,7 +553,7 @@ class McpServerLaunchConfigurationTest {
 
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL, SONARQUBE_ORG, or SONARQUBE_IS_CLOUD=true must be set");
+      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
   }
 
   @Test

@@ -167,7 +167,7 @@ public class McpServerLaunchConfiguration {
     }
 
     var forceSonarQubeCloud = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_IS_CLOUD, "false"));
-    validateStdioConfiguration(isHttpEnabled, sonarqubeUrlFromEnv, this.sonarqubeOrg, forceSonarQubeCloud);
+    validateStdioConfiguration(isHttpEnabled, sonarqubeUrlFromEnv, this.sonarqubeOrg);
     this.isSonarQubeCloud = resolveSonarQubeCloud(forceSonarQubeCloud, this.sonarqubeOrg, sonarqubeUrlFromEnv, isHttpEnabled);
     this.sonarqubeUrl = resolveUrl(this.isSonarQubeCloud, sonarqubeUrlFromEnv);
 
@@ -402,16 +402,16 @@ public class McpServerLaunchConfiguration {
   }
 
   /**
-   * In stdio mode, require an explicit connection target so a forgotten SONARQUBE_URL does not silently
-   * send the token to SonarQube Cloud. HTTP mode may omit the URL and defaults to sonarcloud.io.
+   * In stdio mode, either SONARQUBE_URL or SONARQUBE_ORG must be set.
+   * There is no per-request org resolution, so connecting without a URL or org key makes no sense.
+   * In HTTP mode, no validation is needed: the server defaults to sonarcloud.io and resolves from the Authorization header at request time.
    */
-  private static void validateStdioConfiguration(boolean isHttpEnabled, @Nullable String url, @Nullable String org, boolean forceSonarQubeCloud) {
-    if (!isHttpEnabled && url == null && org == null && !forceSonarQubeCloud) {
+  private static void validateStdioConfiguration(boolean isHttpEnabled, @Nullable String url, @Nullable String org) {
+    if (!isHttpEnabled && url == null && org == null) {
       throw new IllegalArgumentException(
-        "SONARQUBE_URL, SONARQUBE_ORG, or SONARQUBE_IS_CLOUD=true must be set. " +
+        "SONARQUBE_URL or SONARQUBE_ORG must be set. " +
           "Set SONARQUBE_URL to your SonarQube Server URL or SonarQube Cloud URL, " +
-          "set SONARQUBE_ORG to connect to a specific SonarQube Cloud organization, " +
-          "or set SONARQUBE_IS_CLOUD=true to connect to SonarQube Cloud with automatic organization detection."
+          "or set SONARQUBE_ORG to connect to SonarQube Cloud."
       );
     }
   }
