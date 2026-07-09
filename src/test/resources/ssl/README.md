@@ -34,5 +34,7 @@ keytool -genkeypair \
 
 The keystore is used in `HttpsServerTransportIntegrationTest` to test HTTPS server startup and SSL configuration without requiring manual certificate generation for each test run.
 
+It is also used in `HttpClientProviderClientCertificateTests`, both as the client identity material and — since a PKCS12 key entry's leaf certificate doubles as a trust anchor — as the truststore for the mutual-TLS WireMock server (client and server share the same `CN=localhost` certificate).
+
 **Note**: These certificates are for testing only and should never be used in production.
 

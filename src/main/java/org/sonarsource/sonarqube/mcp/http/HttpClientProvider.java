@@ -45,12 +45,17 @@ public class HttpClientProvider {
     this.userAgent = userAgent;
     var sslFactoryBuilder = SSLFactory.builder()
       .withDefaultTrustMaterial();
+    if (isClientCertificateConfigured()) {
+      applySslMaterial("Could not load the configured client certificate, proceeding without it",
+        sslFactoryBuilder::withSystemPropertyDerivedIdentityMaterial);
+    }
     if (!SystemUtils.IS_OS_WINDOWS) {
-      try {
-        sslFactoryBuilder.withSystemTrustMaterial();
-      } catch (Exception e) {
-        LOG.warn("Could not load system trust material, falling back to JDK defaults: " + e.getMessage());
-      }
+      applySslMaterial("Could not load system trust material, falling back to JDK defaults",
+        sslFactoryBuilder::withSystemTrustMaterial);
+    }
+    if (isCustomTrustStoreConfigured()) {
+      applySslMaterial("Could not load the configured trust store, falling back to defaults",
+        sslFactoryBuilder::withSystemPropertyDerivedTrustMaterial);
     }
     var sslFactory = sslFactoryBuilder.build();
     var sslContext = sslFactory.getSslContext();
@@ -83,6 +88,24 @@ public class HttpClientProvider {
     this.httpClient = httpClientBuilder.build();
 
     httpClient.start();
+  }
+
+  private static boolean isClientCertificateConfigured() {
+    var keyStore = System.getProperty("javax.net.ssl.keyStore");
+    return keyStore != null && !keyStore.isBlank();
+  }
+
+  private static boolean isCustomTrustStoreConfigured() {
+    var trustStore = System.getProperty("javax.net.ssl.trustStore");
+    return trustStore != null && !trustStore.isBlank();
+  }
+
+  private static void applySslMaterial(String failureMessage, Runnable materialLoader) {
+    try {
+      materialLoader.run();
+    } catch (Exception e) {
+      LOG.warn(failureMessage + ": " + e.getMessage());
+    }
   }
 
   private static IOReactorConfig buildSocksProxyConfig() {
