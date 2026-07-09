@@ -1004,10 +1004,6 @@ SOCKS5 proxies are supported.
   - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
 
-- **show_security_hotspot** - Get detailed information about a specific Security Hotspot, including rule details, code context, flows, and comments.
-  - `hotspotKey` - Security Hotspot key - _Required String_
-
-
 - **change_security_hotspot_status** - Review a Security Hotspot by changing its status. When marking as REVIEWED, you must specify a resolution (FIXED, SAFE, or ACKNOWLEDGED).
   - `hotspotKey` - Security Hotspot key - _Required String_
   - `status` - New status - _Required Enum {"TO_REVIEW", "REVIEWED"}_
