@@ -281,6 +281,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       ? new ToolExecutor(backendService, analyticsService, null, this, mcpConfiguration.getMcpServerId())
       : new ToolExecutor(backendService, analyticsService, connectionContext, null, mcpConfiguration.getMcpServerId());
 
+    var configuredOrgKey = mcpConfiguration.getSonarqubeOrg();
+    if (configuredOrgKey != null) {
+      this.resolvedOrganization = ResolvedOrganization.fromKey(configuredOrgKey);
+    }
     this.serverApi = initializeServerApi(mcpConfiguration);
     resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
@@ -717,16 +721,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   /**
-   * Resolves the effective SonarQube Cloud organization for stdio startup.
-   * Uses {@code SONARQUBE_ORG} when set; otherwise auto-detects from the token when it belongs to exactly one organization.
+   * Auto-detects the SonarQube Cloud organization in stdio mode when {@code SONARQUBE_ORG} is unset.
+   * When the token belongs to exactly one organization it is adopted and the startup {@link ServerApi} is rebuilt.
    */
   private void resolveOrganizationAtStartup() {
-    var configuredOrgKey = mcpConfiguration.getSonarqubeOrg();
-    if (configuredOrgKey != null) {
-      this.resolvedOrganization = ResolvedOrganization.fromKey(configuredOrgKey);
-      return;
-    }
-    if (mcpConfiguration.isHttpEnabled() || !mcpConfiguration.isSonarQubeCloud()) {
+    if (resolvedOrganization != null || mcpConfiguration.isHttpEnabled() || !mcpConfiguration.isSonarQubeCloud()) {
       return;
     }
     var token = mcpConfiguration.getSonarQubeToken();

@@ -39,6 +39,17 @@ class AutoDetectOrganizationTest {
     "SONARQUBE_TOOLSETS", "issues");
 
   @SonarQubeMcpServerTest
+  void it_should_apply_sonarqube_org_to_startup_server_api(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient(Map.of(
+      "SONARQUBE_ORG", AUTO_ORG_KEY,
+      "SONARQUBE_TOOLSETS", "issues"));
+
+    assertThat(mcpClient.listTools()).isNotEmpty();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(ScaApi.FEATURE_ENABLED_PATH + "?organization=" + AUTO_ORG_KEY)).isTrue();
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(OrganizationsApi.ORGANIZATIONS_PATH + "?excludeEligibility=true")).isZero();
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_auto_select_the_single_organization_of_the_token(SonarQubeMcpServerTestHarness harness) {
     stubOrganizationsList(harness, """
       [{"id":"id-1","key":"%s","name":"Auto Org","uuidV4":"%s"}]
