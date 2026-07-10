@@ -422,7 +422,7 @@ public class McpServerLaunchConfiguration {
    *   1. SONARQUBE_IS_CLOUD=true → explicit override
    *   2. SONARQUBE_ORG set → org implies SQC
    *   3. SONARQUBE_URL is a known SQC hostname (sonarcloud.io, sonarqube.us, …)
-   *   4. No SONARQUBE_URL → default to SQC (HTTP mode only)
+   *   4. No SONARQUBE_URL → Cloud when HTTP transport is enabled (defaults to sonarcloud.io); stdio requires URL or ORG (see validateStdioConfiguration)
    *   5. SONARQUBE_URL is unknown host → SQS
    */
   private static boolean resolveSonarQubeCloud(boolean forceSonarCloud, @Nullable String org, @Nullable String url, boolean isHttpEnabled) {

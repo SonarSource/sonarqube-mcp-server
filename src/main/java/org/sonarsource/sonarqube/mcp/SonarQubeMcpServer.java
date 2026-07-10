@@ -54,6 +54,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -176,14 +177,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @Nullable
   private ServerApi serverApi;
   /**
-   * Effective SonarQube Cloud organization used by the stdio startup path.
-   * Initialized from {@code SONARQUBE_ORG}; when unset in stdio Cloud mode it may be auto-detected from the token
-   * (see {@link #autoDetectOrganizationIfNeeded()}). The HTTP path resolves the organization per request instead.
+   * Effective SonarQube Cloud organization for the stdio session (key and optional cached UUID v4).
+   * Set by {@link #resolveOrganizationAtStartup()}. HTTP mode resolves organization per request instead.
    */
   @Nullable
-  private String resolvedOrganization;
-  @Nullable
-  private String resolvedOrganizationUuidV4;
+  private ResolvedOrganization resolvedOrganization;
   private SonarQubeVersionChecker sonarQubeVersionChecker;
   @Nullable
   private McpStatelessSyncServer statelessSyncServer;
@@ -283,13 +281,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       ? new ToolExecutor(backendService, analyticsService, null, this, mcpConfiguration.getMcpServerId())
       : new ToolExecutor(backendService, analyticsService, connectionContext, null, mcpConfiguration.getMcpServerId());
 
-    this.resolvedOrganization = mcpConfiguration.getSonarqubeOrg();
-
-    // Create ServerApi for startup probing (version check, SCA availability, plugin sync).
-    // In HTTP mode this is optional — only created when a startup token is configured.
-    // Per-request tool calls in HTTP mode always use a fresh ServerApi from the request headers.
     this.serverApi = initializeServerApi(mcpConfiguration);
-    autoDetectOrganizationIfNeeded();
+    resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     loadBackendIndependentTools(serverApi);
 
@@ -450,13 +443,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   }
 
-  private boolean isSaraEnabled(@Nullable ServerApi api, @Nullable String orgKey) {
-    if (api == null || orgKey == null || orgKey.isBlank()) {
+  private boolean isSaraEnabled(@Nullable ServerApi api, @Nullable ResolvedOrganization org) {
+    if (api == null || org == null) {
       LOG.debug("Agentic readiness feature flag check skipped: no org key configured");
       return false;
     }
+    var orgKey = org.key();
     try {
-      var orgUuidV4 = organizationUuidV4(api, orgKey);
+      var orgUuidV4 = uuidV4(api, org);
       if (orgUuidV4 == null) {
         LOG.debug("Agentic readiness feature flag check: could not resolve UUID for org '" + orgKey + "' - skipping");
         return false;
@@ -470,18 +464,19 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  private boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
-    if (api == null || orgKey == null) {
+  private boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable ResolvedOrganization org) {
+    if (api == null || org == null) {
       return false;
     }
-    return RunAdvancedCodeAnalysisTool.isA3sEnabled(api, orgKey, organizationUuidV4(api, orgKey));
+    return RunAdvancedCodeAnalysisTool.isA3sEnabled(api, uuidV4(api, org), org.key());
   }
 
-  private boolean isCagEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
-    if (api == null || orgKey == null) {
+  private boolean isCagEnabledForOrg(@Nullable ServerApi api, @Nullable ResolvedOrganization org) {
+    if (api == null || org == null) {
       return false;
     }
-    var orgUuidV4 = organizationUuidV4(api, orgKey);
+    var orgKey = org.key();
+    var orgUuidV4 = uuidV4(api, org);
     if (orgUuidV4 == null) {
       LOG.debug("CAG entitlement check: could not resolve UUID for org '" + orgKey + "' - skipping CAG");
       return false;
@@ -498,11 +493,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   @Nullable
-  private String organizationUuidV4(ServerApi api, String orgKey) {
-    if (orgKey.equals(resolvedOrganization) && resolvedOrganizationUuidV4 != null) {
-      return resolvedOrganizationUuidV4;
+  private String uuidV4(ServerApi api, ResolvedOrganization org) {
+    if (org.uuidV4() != null) {
+      return org.uuidV4();
     }
-    return api.organizationsApi().getOrganizationUuidV4(orgKey);
+    var fetched = api.organizationsApi().getOrganizationUuidV4(org.key());
+    if (fetched != null && org == resolvedOrganization) {
+      this.resolvedOrganization = new ResolvedOrganization(org.key(), fetched);
+    }
+    return fetched;
   }
 
   /**
@@ -644,7 +643,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.info("Instance: " + sonarQubeType);
     LOG.info("URL: " + mcpConfiguration.getSonarQubeUrl());
     if (mcpConfiguration.isSonarQubeCloud() && resolvedOrganization != null) {
-      LOG.info("Organization: " + resolvedOrganization);
+      LOG.info("Organization: " + resolvedOrganization.key());
     }
     if (mcpConfiguration.isReadOnlyMode()) {
       LOG.info("Mode: READ-ONLY (write operations disabled)");
@@ -718,13 +717,16 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   /**
-   * In stdio mode connecting to SonarQube Cloud without an explicit {@code SONARQUBE_ORG}, resolves the
-   * organization from the authenticated token. When the token belongs to exactly one organization it is
-   * adopted automatically and the startup {@link ServerApi} is rebuilt with it. Zero or multiple organizations
-   * fail startup with an actionable message (multi-org selection tooling is tracked separately in MCP-551).
+   * Resolves the effective SonarQube Cloud organization for stdio startup.
+   * Uses {@code SONARQUBE_ORG} when set; otherwise auto-detects from the token when it belongs to exactly one organization.
    */
-  private void autoDetectOrganizationIfNeeded() {
-    if (mcpConfiguration.isHttpEnabled() || !mcpConfiguration.isSonarQubeCloud() || resolvedOrganization != null) {
+  private void resolveOrganizationAtStartup() {
+    var configuredOrgKey = mcpConfiguration.getSonarqubeOrg();
+    if (configuredOrgKey != null) {
+      this.resolvedOrganization = ResolvedOrganization.fromKey(configuredOrgKey);
+      return;
+    }
+    if (mcpConfiguration.isHttpEnabled() || !mcpConfiguration.isSonarQubeCloud()) {
       return;
     }
     var token = mcpConfiguration.getSonarQubeToken();
@@ -740,10 +742,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (organizations.size() == 1) {
       var organization = organizations.getFirst();
-      this.resolvedOrganization = organization.key();
-      this.resolvedOrganizationUuidV4 = organization.uuidV4();
+      this.resolvedOrganization = ResolvedOrganization.from(organization);
       this.serverApi = createServerApiWithToken(token);
-      LOG.info("Auto-selected SonarQube Cloud organization: " + resolvedOrganization);
+      LOG.info("Auto-selected SonarQube Cloud organization: " + resolvedOrganization.key());
     } else if (organizations.isEmpty()) {
       throw new IllegalStateException("No SonarQube Cloud organization is associated with the provided token. " +
         "Set SONARQUBE_ORG to the organization you want to use.");
@@ -755,7 +756,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   private ServerApi createServerApiWithToken(@Nullable String token) {
-    return createServerApiWithTokenAndOrg(token, resolvedOrganization);
+    var orgKey = resolvedOrganization != null ? resolvedOrganization.key() : null;
+    return createServerApiWithTokenAndOrg(token, orgKey);
   }
 
   private ServerApi createServerApiWithTokenAndOrg(@Nullable String token, @Nullable String organization) {
