@@ -83,7 +83,7 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_in_stdio_mode_when_neither_url_nor_org_is_set(@TempDir Path tempDir) {
+  void should_throw_in_stdio_mode_when_token_only_without_url_or_org(@TempDir Path tempDir) {
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
 
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
@@ -92,8 +92,22 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_error_in_stdio_mode_when_only_is_cloud_flag_is_set(@TempDir Path tempDir) {
-    // SONARQUBE_IS_CLOUD alone is not enough in stdio — org resolution is per-request in HTTP only
+  void should_allow_sonarcloud_url_without_org_in_stdio_mode(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_URL", "https://sonarcloud.io"
+    );
+
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.isSonarQubeCloud()).isTrue();
+    assertThat(config.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(config.getSonarqubeOrg()).isNull();
+  }
+
+  @Test
+  void should_throw_in_stdio_mode_when_only_is_cloud_flag_is_set(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
@@ -529,7 +543,7 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_when_stdio_org_and_url_are_both_unresolved_placeholders(@TempDir Path tempDir) {
+  void should_throw_in_stdio_mode_when_org_and_url_are_both_unresolved_placeholders(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",

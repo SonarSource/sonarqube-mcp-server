@@ -54,9 +54,20 @@ public class MockWebServer {
   }
 
   public boolean hasReceivedInstalledPluginsRequest() {
+    return hasReceivedRequestContaining("/api/plugins/installed");
+  }
+
+  public boolean hasReceivedRequestContaining(String urlSubstring) {
     return mockServer.getServeEvents().getRequests()
       .stream()
-      .anyMatch(event -> event.getRequest().getUrl().contains("/api/plugins/installed"));
+      .anyMatch(event -> event.getRequest().getUrl().contains(urlSubstring));
+  }
+
+  public long countRequestsContaining(String urlSubstring) {
+    return mockServer.getServeEvents().getRequests()
+      .stream()
+      .filter(event -> event.getRequest().getUrl().contains(urlSubstring))
+      .count();
   }
 
   public StubMapping stubFor(MappingBuilder mappingBuilder) {

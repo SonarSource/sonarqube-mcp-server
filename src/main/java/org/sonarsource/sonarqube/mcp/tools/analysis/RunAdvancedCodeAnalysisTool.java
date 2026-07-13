@@ -75,8 +75,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .build();
   }
 
-  public static boolean isA3sEnabled(ServerApi api, String orgKey) {
-    var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+  public static boolean isA3sEnabled(ServerApi api, @Nullable String orgUuidV4, String orgKey) {
     if (orgUuidV4 == null) {
       LOG.debug("A3S entitlement check: could not resolve UUID for org '" + orgKey + "' - falling back to standard analysis");
       return false;

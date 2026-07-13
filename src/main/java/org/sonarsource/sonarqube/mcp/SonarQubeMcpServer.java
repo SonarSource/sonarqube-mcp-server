@@ -53,6 +53,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -174,6 +176,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   @Nullable
   private ServerApi serverApi;
+  /**
+   * Effective SonarQube Cloud organization for the stdio session (key and optional cached UUID v4).
+   * Set by {@link #resolveOrganizationAtStartup()}. HTTP mode resolves organization per request instead.
+   */
+  @Nullable
+  private ResolvedOrganization resolvedOrganization;
   private SonarQubeVersionChecker sonarQubeVersionChecker;
   @Nullable
   private McpStatelessSyncServer statelessSyncServer;
@@ -273,10 +281,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       ? new ToolExecutor(backendService, analyticsService, null, this, mcpConfiguration.getMcpServerId())
       : new ToolExecutor(backendService, analyticsService, connectionContext, null, mcpConfiguration.getMcpServerId());
 
-    // Create ServerApi for startup probing (version check, SCA availability, plugin sync).
-    // In HTTP mode this is optional — only created when a startup token is configured.
-    // Per-request tool calls in HTTP mode always use a fresh ServerApi from the request headers.
+    var configuredOrgKey = mcpConfiguration.getSonarqubeOrg();
+    if (configuredOrgKey != null) {
+      this.resolvedOrganization = ResolvedOrganization.fromKey(configuredOrgKey);
+    }
     this.serverApi = initializeServerApi(mcpConfiguration);
+    resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     loadBackendIndependentTools(serverApi);
 
@@ -297,7 +307,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("HTTP mode detected - skipping CAG proxied server initialization (not supported in HTTP transport)");
     } else if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)) {
       LOG.debug("CAG toolset is not enabled, skipping proxied server initialization");
-    } else if (isCagEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+    } else if (isCagEnabledForOrg(serverApi, resolvedOrganization)) {
       LOG.info("CAG is enabled for organization");
       loadProxiedServerTools();
     } else {
@@ -309,7 +319,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
-    if (!mcpConfiguration.isHttpEnabled() && isAdvancedAnalysisEnabledForOrg(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+    if (!mcpConfiguration.isHttpEnabled() && isAdvancedAnalysisEnabledForOrg(serverApi, resolvedOrganization)) {
       if (workspaceMount != null) {
         LOG.info("Advanced analysis mode enabled");
         supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount));
@@ -437,13 +447,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   }
 
-  private static boolean isSaraEnabled(@Nullable ServerApi api, @Nullable String orgKey) {
-    if (api == null || orgKey == null || orgKey.isBlank()) {
+  private boolean isSaraEnabled(@Nullable ServerApi api, @Nullable ResolvedOrganization org) {
+    if (api == null || org == null) {
       LOG.debug("Agentic readiness feature flag check skipped: no org key configured");
       return false;
     }
+    var orgKey = org.key();
     try {
-      var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+      var orgUuidV4 = uuidV4(api, org);
       if (orgUuidV4 == null) {
         LOG.debug("Agentic readiness feature flag check: could not resolve UUID for org '" + orgKey + "' - skipping");
         return false;
@@ -457,18 +468,19 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  private static boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
-    if (api == null || orgKey == null) {
+  private boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable ResolvedOrganization org) {
+    if (api == null || org == null) {
       return false;
     }
-    return RunAdvancedCodeAnalysisTool.isA3sEnabled(api, orgKey);
+    return RunAdvancedCodeAnalysisTool.isA3sEnabled(api, uuidV4(api, org), org.key());
   }
 
-  private static boolean isCagEnabledForOrg(@Nullable ServerApi api, @Nullable String orgKey) {
-    if (api == null || orgKey == null) {
+  private boolean isCagEnabledForOrg(@Nullable ServerApi api, @Nullable ResolvedOrganization org) {
+    if (api == null || org == null) {
       return false;
     }
-    var orgUuidV4 = api.organizationsApi().getOrganizationUuidV4(orgKey);
+    var orgKey = org.key();
+    var orgUuidV4 = uuidV4(api, org);
     if (orgUuidV4 == null) {
       LOG.debug("CAG entitlement check: could not resolve UUID for org '" + orgKey + "' - skipping CAG");
       return false;
@@ -482,6 +494,18 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("CAG entitlement check: org '" + orgKey + "' is not entitled to use CAG");
     }
     return entitlement.allowed();
+  }
+
+  @Nullable
+  private String uuidV4(ServerApi api, ResolvedOrganization org) {
+    if (org.uuidV4() != null) {
+      return org.uuidV4();
+    }
+    var fetched = api.organizationsApi().getOrganizationUuidV4(org.key());
+    if (fetched != null && org == resolvedOrganization) {
+      this.resolvedOrganization = new ResolvedOrganization(org.key(), fetched);
+    }
+    return fetched;
   }
 
   /**
@@ -551,7 +575,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       return true;
     }
     // stdio mode: a single organization is fixed at startup, so probe the feature flag once here.
-    if (!isSaraEnabled(serverApi, mcpConfiguration.getSonarqubeOrg())) {
+    if (!isSaraEnabled(serverApi, resolvedOrganization)) {
       LOG.debug("Agentic readiness is not enabled for organization, skipping tools initialization");
       return false;
     }
@@ -622,8 +646,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       (mcpConfiguration.isHttpEnabled() ? (" (" + mcpConfiguration.getHttpHost() + ":" + mcpConfiguration.getHttpPort() + ")") : ""));
     LOG.info("Instance: " + sonarQubeType);
     LOG.info("URL: " + mcpConfiguration.getSonarQubeUrl());
-    if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.getSonarqubeOrg() != null) {
-      LOG.info("Organization: " + mcpConfiguration.getSonarqubeOrg());
+    if (mcpConfiguration.isSonarQubeCloud() && resolvedOrganization != null) {
+      LOG.info("Organization: " + resolvedOrganization.key());
     }
     if (mcpConfiguration.isReadOnlyMode()) {
       LOG.info("Mode: READ-ONLY (write operations disabled)");
@@ -695,9 +719,44 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var token = mcpConfiguration.getSonarQubeToken();
     return createServerApiWithToken(token);
   }
-  
+
+  /**
+   * Auto-detects the SonarQube Cloud organization in stdio mode when {@code SONARQUBE_ORG} is unset.
+   * When the token belongs to exactly one organization it is adopted and the startup {@link ServerApi} is rebuilt.
+   */
+  private void resolveOrganizationAtStartup() {
+    if (resolvedOrganization != null || mcpConfiguration.isHttpEnabled() || !mcpConfiguration.isSonarQubeCloud()) {
+      return;
+    }
+    var token = mcpConfiguration.getSonarQubeToken();
+    if (token == null || serverApi == null) {
+      return;
+    }
+    List<OrganizationsApi.Organization> organizations;
+    try {
+      organizations = serverApi.organizationsApi().listOrganizations();
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to list SonarQube Cloud organizations for the provided token. " +
+        "Verify the token is valid, or set SONARQUBE_ORG explicitly.", e);
+    }
+    if (organizations.size() == 1) {
+      var organization = organizations.getFirst();
+      this.resolvedOrganization = ResolvedOrganization.from(organization);
+      this.serverApi = createServerApiWithToken(token);
+      LOG.info("Auto-selected SonarQube Cloud organization: " + resolvedOrganization.key());
+    } else if (organizations.isEmpty()) {
+      throw new IllegalStateException("No SonarQube Cloud organization is associated with the provided token. " +
+        "Set SONARQUBE_ORG to the organization you want to use.");
+    } else {
+      var keys = organizations.stream().map(OrganizationsApi.Organization::key).sorted().toList();
+      throw new IllegalStateException("The provided token is associated with multiple SonarQube Cloud organizations " +
+        keys + ". Set SONARQUBE_ORG to the organization you want to use.");
+    }
+  }
+
   private ServerApi createServerApiWithToken(@Nullable String token) {
-    return createServerApiWithTokenAndOrg(token, mcpConfiguration.getSonarqubeOrg());
+    var orgKey = resolvedOrganization != null ? resolvedOrganization.key() : null;
+    return createServerApiWithTokenAndOrg(token, orgKey);
   }
 
   private ServerApi createServerApiWithTokenAndOrg(@Nullable String token, @Nullable String organization) {
