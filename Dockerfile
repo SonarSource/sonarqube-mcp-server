@@ -43,7 +43,7 @@ RUN apk upgrade --no-cache && \
 
 ARG TARGETARCH
 # Keep in sync with sonarContextAugmentationVersion in gradle.properties
-ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.17.0.2614
+ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.18.0.2833
 
 RUN case "$TARGETARCH" in \
         amd64) ARCH="x64" ;; \
