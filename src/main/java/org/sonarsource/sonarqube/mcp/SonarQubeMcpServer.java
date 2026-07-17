@@ -490,10 +490,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("CAG entitlement check: could not retrieve entitlement for org '" + orgKey + "' - skipping CAG");
       return false;
     }
-    if (!entitlement.allowed()) {
+    if (!entitlement.hasEntitlement()) {
       LOG.debug("CAG entitlement check: org '" + orgKey + "' is not entitled to use CAG");
+      return false;
     }
-    return entitlement.allowed();
+    return true;
   }
 
   @Nullable

@@ -53,7 +53,46 @@ class CagApiTest {
   }
 
   @Test
-  void it_should_return_cag_entitlement_when_org_is_allowed() {
+  void it_should_return_cag_entitlement_when_org_is_entitled() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
+      .willReturn(jsonResponse("""
+        {"hasEntitlement":true}
+        """, 200)));
+
+    var entitlement = cagApi.getCagEntitlement(ORG_UUID);
+
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.hasEntitlement()).isTrue();
+  }
+
+  @Test
+  void it_should_return_cag_entitlement_when_org_is_not_entitled() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
+      .willReturn(jsonResponse("""
+        {"hasEntitlement":false}
+        """, 200)));
+
+    var entitlement = cagApi.getCagEntitlement(ORG_UUID);
+
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.hasEntitlement()).isFalse();
+  }
+
+  @Test
+  void it_should_return_has_entitlement_true_when_consumption_limit_reached() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
+      .willReturn(jsonResponse("""
+        {"allowed":false,"hasEntitlement":true,"consumption":{"consumed":1000,"limit":1000}}
+        """, 200)));
+
+    var entitlement = cagApi.getCagEntitlement(ORG_UUID);
+
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.hasEntitlement()).isTrue();
+  }
+
+  @Test
+  void it_should_default_has_entitlement_to_false_when_field_is_absent() {
     sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
       .willReturn(jsonResponse("""
         {"allowed":true}
@@ -62,33 +101,7 @@ class CagApiTest {
     var entitlement = cagApi.getCagEntitlement(ORG_UUID);
 
     assertThat(entitlement).isNotNull();
-    assertThat(entitlement.allowed()).isTrue();
-  }
-
-  @Test
-  void it_should_return_cag_entitlement_when_org_is_denied() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
-      .willReturn(jsonResponse("""
-        {"allowed":false}
-        """, 200)));
-
-    var entitlement = cagApi.getCagEntitlement(ORG_UUID);
-
-    assertThat(entitlement).isNotNull();
-    assertThat(entitlement.allowed()).isFalse();
-  }
-
-  @Test
-  void it_should_ignore_cag_entitlement_consumption() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_PUBLIC_PATH))
-      .willReturn(jsonResponse("""
-        {"allowed":true,"consumption":{"consumed":500,"limit":1000}}
-        """, 200)));
-
-    var entitlement = cagApi.getCagEntitlement(ORG_UUID);
-
-    assertThat(entitlement).isNotNull();
-    assertThat(entitlement.allowed()).isTrue();
+    assertThat(entitlement.hasEntitlement()).isFalse();
   }
 
   @Test

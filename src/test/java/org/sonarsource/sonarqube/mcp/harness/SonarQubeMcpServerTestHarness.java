@@ -295,11 +295,11 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
             """.formatted(orgUuidV4))));
       }
 
-      // Stub CAG entitlement API — denied by default; tests that need CAG should call stubCagEntitlement(true)
+      // Stub CAG entitlement API — not entitled by default; tests that need CAG should call stubCagEntitlement(true)
       if (!mockSonarQubeServer.isStubConfigured(CagApi.CAG_ENTITLEMENT_PATH + orgUuidV4)) {
         mockSonarQubeServer.stubFor(get(CagApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
           .willReturn(okJson("""
-            {"allowed":false}
+            {"hasEntitlement":false}
             """)));
       }
 
@@ -330,15 +330,15 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   }
 
   /**
-   * Stub CAG entitlement API to allow/deny CAG for the organization.
-   * Must be called before prepareMockWebServer() to override the default (disabled) stub.
+   * Stub CAG entitlement API for the organization.
+   * Must be called before prepareMockWebServer() to override the default (not-entitled) stub.
    */
-  public void stubCagEntitlement(boolean allowed) {
+  public void stubCagEntitlement(boolean hasEntitlement) {
     var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
     mockSonarQubeServer.stubFor(get(CagApi.CAG_ENTITLEMENT_PATH + orgUuidV4)
       .willReturn(okJson("""
-        {"allowed":%b}
-        """.formatted(allowed))));
+        {"hasEntitlement":%b}
+        """.formatted(hasEntitlement))));
   }
 
   /**
