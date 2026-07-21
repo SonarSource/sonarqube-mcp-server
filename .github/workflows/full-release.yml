@@ -79,7 +79,7 @@ jobs:
       project-name: "SonarQube MCP Server"
       short-description: ${{ inputs.short-description }}
       branch: ${{ inputs.branch }}
-      slack-channel: "C02E6L5C01H"
+      slack-channel: "C06JQ30RV88" #squad-ide-slcore-bots
       is-test-run: ${{ inputs.dry-run }}
       new-version: ${{ inputs.new-version }}
 
