@@ -44,6 +44,6 @@ public class CagApi {
     }
   }
 
-  public record CagEntitlementResponse(boolean allowed) {
+  public record CagEntitlementResponse(boolean hasEntitlement) {
   }
 }
