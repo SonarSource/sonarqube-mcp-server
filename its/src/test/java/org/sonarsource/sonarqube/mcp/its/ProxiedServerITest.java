@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - Has correct permissions
  * - Can execute in the target environment (Alpine Linux)
  * - Is gracefully skipped when missing (no hang, clear error log)
- * - Discovers tools from the staging SonarCloud org (A3S is expected to be pre-enabled on
+ * - Discovers tools from the staging SonarQube Cloud org (A3S is expected to be pre-enabled on
  *   the {@code sonarlint-it} org in the staging environment)
  * <p>
  * The sonar-context-augmentation binary is downloaded automatically by the
@@ -58,13 +58,14 @@ class ProxiedServerITest {
       .contains("Successfully loaded 1 proxied MCP server(s)")
       .contains("Initializing 1 proxied MCP server(s)")
       .contains("Connecting to 'caas'")
-      .containsPattern("Connected to 'caas' - discovered 10 tool\\(s\\)")
+      .containsPattern("Connected to 'caas' - discovered 11 tool\\(s\\)")
       .contains("MCP client manager initialization completed. 1/1 server(s) connected")
-      .containsPattern("Loaded 10 proxied tool\\(s\\) from 1/1 server\\(s\\)")
+      .containsPattern("Loaded 11 proxied tool\\(s\\) from 1/1 server\\(s\\)")
       .contains("Forwarded instructions from 1 proxied server(s)")
       .contains("Proxied instructions: ")
       .contains("## Context Augmentation")
-      .contains("All tools loaded: 34 tools after category filtering");
+      .contains("Advanced analysis mode enabled")
+      .contains("All tools loaded: 40 tools after category filtering");
   }
 
   @Test

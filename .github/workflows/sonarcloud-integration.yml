@@ -1,0 +1,39 @@
+name: SonarQube Cloud integration tests
+on:
+  schedule:
+    # Weekly on Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  sonarcloud-integration:
+    runs-on: github-ubuntu-latest-m
+    name: SonarQube Cloud staging (ITS)
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        with:
+          version: 2026.6.1
+
+      - name: Vault (SonarQube Cloud IT token)
+        id: secrets-sc
+        uses: SonarSource/vault-action-wrapper@881045d830534a70ec3c7c275fa3714412c8ff6e # 3.6.1
+        with:
+          secrets: |
+            development/team/sonarlint/kv/data/sonarcloud-it token | SONARCLOUD_IT_TOKEN;
+            development/kv/data/repox url | ARTIFACTORY_URL;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader username | ARTIFACTORY_USER;
+            development/artifactory/token/{REPO_OWNER_NAME_DASH}-private-reader access_token | ARTIFACTORY_ACCESS_TOKEN;
+
+      - uses: SonarSource/ci-github-actions/config-gradle@9d3488f52305895f599feb1ec8560c1a5339aa99 # 1.8.1
+        with:
+          artifactory-reader-role: private-reader
+
+      - name: Run SonarQube Cloud staging integration tests
+        env:
+          SONARCLOUD_IT_TOKEN: ${{ fromJSON(steps.secrets-sc.outputs.vault).SONARCLOUD_IT_TOKEN }}
+          ARTIFACTORY_URL: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_URL }}
+          ARTIFACTORY_USER: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_USER }}
+          ARTIFACTORY_ACCESS_TOKEN: ${{ fromJSON(steps.secrets-sc.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
+        run: bash .github/scripts/run-sonarcloud-integration-tests.sh

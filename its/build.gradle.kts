@@ -70,12 +70,29 @@ configurations.all {
     }
 }
 
+val rootProjectTestOutput = project(":").sourceSets["test"].output
+
+sourceSets {
+    test {
+        compileClasspath += rootProjectTestOutput
+        runtimeClasspath += rootProjectTestOutput
+    }
+}
+
+tasks.named<JavaCompile>("compileTestJava") {
+    dependsOn(project(":").tasks.named("compileTestJava"))
+}
+
 dependencies {
     testImplementation(project(":"))
+    testImplementation(libs.mcp.server)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.jupiter)
     testImplementation(libs.assertj)
+    testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.awaitility)
+    testImplementation(libs.commons.langs3)
     testRuntimeOnly(libs.junit.launcher)
 }
 
@@ -123,10 +140,16 @@ val downloadCagBinary = tasks.register("downloadCagBinary") {
     }
 }
 
-tasks.named<ProcessResources>("processTestResources") {
-    from(downloadCagBinary) {
-        into("binaries")
+val cagTestResources = layout.buildDirectory.dir("integration-test-resources")
+
+val packageCagBinaryForIntegrationTest = tasks.register<Copy>("packageCagBinaryForIntegrationTest") {
+    description = "Packages the CAG binary on the Docker integration test classpath"
+    group = "verification"
+    dependsOn(downloadCagBinary)
+    from(layout.buildDirectory.dir("cag-binary")) {
+        include("sonar-context-augmentation")
     }
+    into(cagTestResources.map { it.dir("binaries") })
 }
 
 tasks.test {
@@ -134,10 +157,17 @@ tasks.test {
 }
 
 tasks.register<Test>("integrationTest") {
-    description = "Runs integration tests for proxied MCP servers using Testcontainers"
+    description = "Runs Docker-based integration tests (Testcontainers)"
     group = "verification"
 
-    useJUnitPlatform()
+    dependsOn(packageCagBinaryForIntegrationTest)
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath + files(cagTestResources)
+
+    useJUnitPlatform {
+        excludeTags("SonarCloud")
+    }
 
     val downloadedJarPath = System.getenv("DOWNLOADED_JAR_PATH")
     if (downloadedJarPath.isNullOrEmpty()) {
@@ -150,6 +180,45 @@ tasks.register<Test>("integrationTest") {
         }
         logger.lifecycle("Using JAR: $jarPath")
         systemProperty("sonarqube.mcp.jar.path", jarPath)
+    }
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+}
+
+tasks.register<Test>("sonarCloudIntegrationTest") {
+    description = "Runs SonarQube Cloud staging integration tests (requires SONARCLOUD_IT_TOKEN and Maven)"
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags("SonarCloud")
+    }
+
+    systemProperty("TELEMETRY_DISABLED", "true")
+    systemProperty("mcp.client.timeout.seconds", "120")
+    systemProperty("mcp.client.init.timeout.seconds", "120")
+
+    doFirst {
+        val token = System.getenv("SONARCLOUD_IT_TOKEN")
+        if (token.isNullOrBlank()) {
+            val skipWithoutToken = System.getenv("SONARCLOUD_IT_ON_MISSING_TOKEN") == "skip"
+                || project.findProperty("sonarCloudIntegrationTest.skipWithoutToken") == "true"
+            if (skipWithoutToken) {
+                logger.warn(
+                    "SONARCLOUD_IT_TOKEN not available (e.g. fork PR); skipping SonarQube Cloud staging integration tests"
+                )
+                throw org.gradle.api.tasks.StopExecutionException()
+            }
+            throw GradleException(
+                "SONARCLOUD_IT_TOKEN must be set to run sonarCloudIntegrationTest against SonarQube Cloud staging " +
+                    "(org: sonarlint-it). Export the token locally, then re-run this task."
+            )
+        }
     }
 
     testLogging {
