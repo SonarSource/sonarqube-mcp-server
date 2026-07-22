@@ -194,7 +194,7 @@ public class AuthenticationFilter implements Filter {
   private static void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     response.setContentType("application/json");
-    response.setHeader("WWW-Authenticate", "Bearer realm=\"MCP Server\"");
+    response.setHeader("WWW-Authenticate", "https://api.sc-dev10.io/authentication/.well-known/oauth-protected-resource");
     response.getWriter().write(jsonRpcError(message));
   }
 
