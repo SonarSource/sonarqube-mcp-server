@@ -102,6 +102,7 @@ jobs:
             --platform ${{ matrix.platform }} \
             -e SONARQUBE_IS_CLOUD=true \
             -e SONARQUBE_URL=https://sonarcloud.io \
+            -e SONARQUBE_ORG=smoke-test \
             -e SONARQUBE_TOKEN=smoke-test \
             -e TELEMETRY_DISABLED=true \
             ${{ needs.prepare.outputs.temp_image }})
