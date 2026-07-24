@@ -78,7 +78,7 @@ public class AnalyzeFileListTool extends Tool {
             f.textRange().getEndLine()
           );
         }
-        return new AnalyzeFileListToolResponse.Finding(f.severity(), f.message(), f.filePath(), textRange);
+        return new AnalyzeFileListToolResponse.Finding(f.ruleKey(), f.severity(), f.message(), f.filePath(), textRange);
       })
       .toList();
 
