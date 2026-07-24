@@ -14,10 +14,10 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
           version: 2026.6.1
-      - uses: SonarSource/ci-github-actions/build-gradle@9d3488f52305895f599feb1ec8560c1a5339aa99 # 1.8.1
+      - uses: SonarSource/ci-github-actions/build-gradle@3c6565f5a65282d333ab60c8a0fa733c09e613d3 # 1.8.7
         with:
           run-shadow-scans: true
           artifactory-reader-role: private-reader
