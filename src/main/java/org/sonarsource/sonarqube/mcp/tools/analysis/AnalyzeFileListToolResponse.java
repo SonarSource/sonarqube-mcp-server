@@ -28,6 +28,7 @@ public record AnalyzeFileListToolResponse(
 ) {
   
   public record Finding(
+    @JsonPropertyDescription("Rule key that triggered the finding") String ruleKey,
     @JsonPropertyDescription("Severity level of the finding") @Nullable String severity,
     @JsonPropertyDescription("Description of the finding") String message,
     @JsonPropertyDescription("File path where the finding was detected") @Nullable String filePath,

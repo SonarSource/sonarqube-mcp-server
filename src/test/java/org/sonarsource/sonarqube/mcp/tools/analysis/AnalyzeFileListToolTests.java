@@ -73,6 +73,10 @@ class AnalyzeFileListToolTests {
                          "type":"string",
                          "description":"Description of the finding"
                       },
+                      "ruleKey":{
+                         "type":"string",
+                         "description":"Rule key that triggered the finding"
+                      },
                       "severity":{
                          "type":"string",
                          "description":"Severity level of the finding"
@@ -97,7 +101,8 @@ class AnalyzeFileListToolTests {
                       }
                    },
                    "required":[
-                      "message"
+                      "message",
+                      "ruleKey"
                    ]
                 }
              },
@@ -183,6 +188,7 @@ class AnalyzeFileListToolTests {
       assertResultEquals(result, """
         {
           "findings" : [ {
+            "ruleKey" : "java:S1234",
             "severity" : "MAJOR",
             "message" : "Test issue message",
             "filePath" : "src/main/java/Test.java",
@@ -191,6 +197,7 @@ class AnalyzeFileListToolTests {
               "endLine" : 10
             }
           }, {
+            "ruleKey" : "java:S5678",
             "severity" : "MINOR",
             "message" : "Another issue",
             "filePath" : "src/main/java/Another.java"
