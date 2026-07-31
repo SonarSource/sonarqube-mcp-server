@@ -647,6 +647,12 @@ To enable full functionality, the following environment variables must be set be
 
 > 💡 **Configuration Tip (stdio mode)**: The presence of `SONARQUBE_ORG` determines whether you're connecting to SonarQube Cloud or Server. If `SONARQUBE_ORG` is set, SonarQube Cloud is used; otherwise, SonarQube Server is used.
 
+#### Startup and shutdown
+
+| Environment variable             | Description                                                                                                                                                    | Default |
+|----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| `SONARQUBE_INIT_TIMEOUT_SECONDS` | How long shutdown waits for background initialization (analyzer downloads) to finish. Raise it on slow or high-latency connections where analyzers time out. | `30`    |
+
 ### Transport Modes
 
 The [MCP specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) defines two transport mechanisms: **Stdio** and **Streamable HTTP**. The SonarQube MCP Server supports both:

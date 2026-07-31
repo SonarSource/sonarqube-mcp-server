@@ -811,11 +811,13 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (initializationFuture.isDone()) {
       return;
     }
+    var timeoutSeconds = mcpConfiguration.getInitTimeoutSeconds();
     LOG.info("Waiting for background initialization to complete before shutdown...");
     try {
-      initializationFuture.get(30, TimeUnit.SECONDS);
+      initializationFuture.get(timeoutSeconds, TimeUnit.SECONDS);
     } catch (TimeoutException | ExecutionException e) {
-      LOG.warn("Background initialization did not complete within 30 seconds, proceeding with shutdown");
+      LOG.warn("Background initialization did not complete within " + timeoutSeconds
+        + " seconds, proceeding with shutdown. Set SONARQUBE_INIT_TIMEOUT_SECONDS to allow more time.");
       initializationFuture.cancel(true);
     } catch (Exception e) {
       LOG.error("Background initialization failed or was interrupted", e);

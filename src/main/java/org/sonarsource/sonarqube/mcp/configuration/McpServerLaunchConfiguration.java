@@ -95,6 +95,10 @@ public class McpServerLaunchConfiguration {
 
   private static final String SONARQUBE_MCP_IN_CONTAINER = "SONARQUBE_MCP_IN_CONTAINER";
 
+  // Shutdown configuration
+  private static final String SONARQUBE_INIT_TIMEOUT_SECONDS = "SONARQUBE_INIT_TIMEOUT_SECONDS";
+  private static final int DEFAULT_INIT_TIMEOUT_SECONDS = 30;
+
   private final Path storagePath;
   private final String hostMachineAddress;
   private final String sonarqubeUrl;
@@ -109,7 +113,8 @@ public class McpServerLaunchConfiguration {
   private final String userAgent;
   private final boolean isTelemetryEnabled;
   private final boolean isSonarQubeCloud;
-  
+  private final int initTimeoutSeconds;
+
   // HTTP transport configuration
   private final boolean isHttpEnabled;
   private final int httpPort;
@@ -185,6 +190,9 @@ public class McpServerLaunchConfiguration {
     this.userAgent = APP_NAME + " " + appVersion;
     this.isTelemetryEnabled = !Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, TELEMETRY_DISABLED, "false"));
     
+    this.initTimeoutSeconds = parseInitTimeoutSecondsValue(
+      getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_INIT_TIMEOUT_SECONDS, String.valueOf(DEFAULT_INIT_TIMEOUT_SECONDS)));
+
     this.httpPort = parseHttpPortValue(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_PORT, "8080"));
     this.httpHost = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_HOST, "127.0.0.1");
 
@@ -292,6 +300,14 @@ public class McpServerLaunchConfiguration {
     return httpPort;
   }
 
+  /**
+   * How long shutdown waits for background initialization (analyzer downloads) to finish.
+   * Configurable because slow or high-latency environments need more than the default.
+   */
+  public int getInitTimeoutSeconds() {
+    return initTimeoutSeconds;
+  }
+
   public String getHttpHost() {
     return httpHost;
   }
@@ -383,6 +399,21 @@ public class McpServerLaunchConfiguration {
       return port;
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid SONARQUBE_IDE_PORT value: " + portStr, e);
+    }
+  }
+
+  private static int parseInitTimeoutSecondsValue(@Nullable String timeoutStr) {
+    if (isNullOrBlank(timeoutStr)) {
+      return DEFAULT_INIT_TIMEOUT_SECONDS;
+    }
+    try {
+      var timeout = Integer.parseInt(timeoutStr);
+      if (timeout < 1) {
+        throw new IllegalArgumentException("SONARQUBE_INIT_TIMEOUT_SECONDS value must be a positive number of seconds, got: " + timeout);
+      }
+      return timeout;
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid SONARQUBE_INIT_TIMEOUT_SECONDS value: " + timeoutStr, e);
     }
   }
 

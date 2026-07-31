@@ -569,4 +569,59 @@ class McpServerLaunchConfigurationTest {
       .hasMessageContaining("SONARQUBE_TOKEN environment variable or property must be set");
   }
 
+  @Test
+  void should_default_init_timeout_to_30_seconds(@TempDir Path tempDir) {
+    var config = new McpServerLaunchConfiguration(minimalEnvironment(tempDir));
+
+    assertThat(config.getInitTimeoutSeconds()).isEqualTo(30);
+  }
+
+  @Test
+  void should_use_configured_init_timeout(@TempDir Path tempDir) {
+    var arg = new java.util.HashMap<>(minimalEnvironment(tempDir));
+    arg.put("SONARQUBE_INIT_TIMEOUT_SECONDS", "180");
+
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.getInitTimeoutSeconds()).isEqualTo(180);
+  }
+
+  @Test
+  void should_fall_back_to_default_when_init_timeout_is_blank(@TempDir Path tempDir) {
+    var arg = new java.util.HashMap<>(minimalEnvironment(tempDir));
+    arg.put("SONARQUBE_INIT_TIMEOUT_SECONDS", "   ");
+
+    var config = new McpServerLaunchConfiguration(arg);
+
+    assertThat(config.getInitTimeoutSeconds()).isEqualTo(30);
+  }
+
+  @Test
+  void should_reject_non_numeric_init_timeout(@TempDir Path tempDir) {
+    var arg = new java.util.HashMap<>(minimalEnvironment(tempDir));
+    arg.put("SONARQUBE_INIT_TIMEOUT_SECONDS", "not-a-number");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Invalid SONARQUBE_INIT_TIMEOUT_SECONDS value: not-a-number");
+  }
+
+  @Test
+  void should_reject_non_positive_init_timeout(@TempDir Path tempDir) {
+    var arg = new java.util.HashMap<>(minimalEnvironment(tempDir));
+    arg.put("SONARQUBE_INIT_TIMEOUT_SECONDS", "0");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("must be a positive number of seconds");
+  }
+
+  private static Map<String, String> minimalEnvironment(Path tempDir) {
+    return Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "test-token",
+      "SONARQUBE_URL", "https://test-sonarqube-server.com"
+    );
+  }
+
 }
