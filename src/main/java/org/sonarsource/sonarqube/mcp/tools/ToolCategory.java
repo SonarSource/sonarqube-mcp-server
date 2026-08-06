@@ -29,6 +29,7 @@ import jakarta.annotation.Nullable;
  */
 public enum ToolCategory {
   ANALYSIS("analysis"),
+  IDE("ide"),
   COVERAGE("coverage"),
   ISSUES("issues"),
   PROJECTS("projects"),
@@ -91,6 +92,7 @@ public enum ToolCategory {
   public static Set<ToolCategory> defaultEnabled() {
     return Set.of(
       ANALYSIS,
+      IDE,
       ISSUES,
       PROJECTS,
       QUALITY_GATES,

@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -44,6 +45,8 @@ class ToggleAutomaticAnalysisToolTests {
 
   @Test
   void it_should_validate_output_schema_and_annotations() {
+    assertThat(underTest.getCategories()).containsExactlyInAnyOrder(ToolCategory.ANALYSIS, ToolCategory.IDE);
+
     assertThat(underTest.definition().annotations()).isNotNull();
     assertThat(underTest.definition().annotations().readOnlyHint()).isFalse();
     assertThat(underTest.definition().annotations().openWorldHint()).isTrue();

@@ -39,7 +39,7 @@ public class AnalyzeFileListTool extends Tool {
       .addArrayProperty(FILE_ABSOLUTE_PATHS_PROPERTY, "string", "List of absolute file paths to analyze")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.ANALYSIS);
+      ToolCategory.ANALYSIS, ToolCategory.IDE);
     this.bridgeClient = bridgeClient;
   }
 

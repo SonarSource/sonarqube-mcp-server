@@ -569,31 +569,32 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 
 | Environment variable   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 |------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Context Augmentation tools are only available in stdio mode and require organization entitlement. In Streamable HTTP mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [Streamable HTTP transport](#2-http-streamable-http) below). |
+| `SONARQUBE_TOOLSETS`   | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `ide`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Context Augmentation tools are only available in stdio mode and require organization entitlement. In Streamable HTTP mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [Streamable HTTP transport](#2-http-streamable-http) below). |
 | `SONARQUBE_READ_ONLY`  | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`. In Streamable HTTP mode, clients can send a `SONARQUBE_READ_ONLY` HTTP header to further restrict individual requests to read-only, but cannot lift a server-level read-only restriction (see [Streamable HTTP transport](#2-http-streamable-http) below).                                                                                                                                                                                                                                                                                                         |
 
 <details>
 <summary>Available Toolsets</summary>
 
-| Toolset                  | Key                 | Description                                                              |
-|--------------------------|---------------------|--------------------------------------------------------------------------|
-| **Analysis**             | `analysis`          | Code analysis tools (local analysis and advanced remote analysis)        |
-| **Issues**               | `issues`            | Search and manage SonarQube issues                                       |
-| **Security Hotspots**    | `security-hotspots` | Search and review Security Hotspots                                      |
-| **Projects**             | `projects`          | Browse and search SonarQube projects                                     |
-| **Quality Gates**        | `quality-gates`     | Access quality gates and their status                                    |
-| **Rules**                | `rules`             | Browse and search SonarQube rules                                        |
-| **Sources**              | `sources`           | Access source code and SCM information                                   |
-| **Duplications**         | `duplications`      | Find code duplications across projects                                   |
-| **Measures**             | `measures`          | Retrieve metrics and measures (includes both measures and metrics tools) |
-| **Languages**            | `languages`         | List supported programming languages                                     |
-| **Portfolios**           | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                     |
-| **System**               | `system`            | System administration tools (Server only)                                |
-| **Webhooks**             | `webhooks`          | Manage webhooks                                                          |
-| **Dependency Risks**     | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                       |
-| **Coverage**             | `coverage`          | Test coverage analysis and improvement tools                             |
-| **Context Augmentation** | `cag`               | Context Augmentation tools (stdio mode only, requires org entitlement)   |
-| **Agentic Readiness**    | `agentic-readiness` | Agentic Readiness Assessment tools (SonarQube Cloud, requires org entitlement)         |
+| Toolset                  | Key                 | Description                                                                                                       |
+|--------------------------|---------------------|-------------------------------------------------------------------------------------------------------------------|
+| **Analysis**             | `analysis`          | Code analysis tools (local analysis and advanced remote analysis)                                                 |
+| **IDE**                  | `ide`               | SonarQube for IDE bridge tools (file analysis, automatic analysis toggle) — currently also included in `analysis` |
+| **Issues**               | `issues`            | Search and manage SonarQube issues                                                                                |
+| **Security Hotspots**    | `security-hotspots` | Search and review Security Hotspots                                                                               |
+| **Projects**             | `projects`          | Browse and search SonarQube projects                                                                              |
+| **Quality Gates**        | `quality-gates`     | Access quality gates and their status                                                                             |
+| **Rules**                | `rules`             | Browse and search SonarQube rules                                                                                 |
+| **Sources**              | `sources`           | Access source code and SCM information                                                                            |
+| **Duplications**         | `duplications`      | Find code duplications across projects                                                                            |
+| **Measures**             | `measures`          | Retrieve metrics and measures (includes both measures and metrics tools)                                          |
+| **Languages**            | `languages`         | List supported programming languages                                                                              |
+| **Portfolios**           | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                                                              |
+| **System**               | `system`            | System administration tools (Server only)                                                                         |
+| **Webhooks**             | `webhooks`          | Manage webhooks                                                                                                   |
+| **Dependency Risks**     | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                                                                |
+| **Coverage**             | `coverage`          | Test coverage analysis and improvement tools                                                                      |
+| **Context Augmentation** | `cag`               | Context Augmentation tools (stdio mode only, requires org entitlement)                                            |
+| **Agentic Readiness**    | `agentic-readiness` | Agentic Readiness Assessment tools (SonarQube Cloud, requires org entitlement)                                    |
 
 #### Examples
 
@@ -1008,7 +1009,7 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
   
   **Supported Languages:** Java, Kotlin, Python, Ruby, Go, JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), JSP, PHP, XML, HTML, CSS, CloudFormation, Kubernetes, Terraform, Azure Resource Manager, Ansible, Docker, Secrets detection
 
-**When integration with SonarQube for IDE is enabled:**
+**When integration with SonarQube for IDE is enabled:** _(these two tools are tagged under both the `analysis` and `ide` toolsets)_
 - **analyze_file_list** - Analyze files in the current working directory using SonarQube for IDE. This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.
     - `file_absolute_paths` - List of absolute file paths to analyze - _Required String[]_
 
