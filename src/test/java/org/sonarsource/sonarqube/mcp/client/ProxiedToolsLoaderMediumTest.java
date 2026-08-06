@@ -131,7 +131,7 @@ class ProxiedToolsLoaderMediumTest {
 
     assertThat(tools)
       .isNotEmpty()
-      .allMatch(t -> t.getCategory() == ToolCategory.CAG)
+      .allMatch(t -> t.getCategories().equals(Set.of(ToolCategory.CAG)))
       .allMatch(ProxiedMcpTool.class::isInstance);
   }
 

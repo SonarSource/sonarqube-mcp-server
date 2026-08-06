@@ -136,13 +136,13 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
   }
 
   private static boolean isCategoryAllowed(Tool tool, @Nullable Set<ToolCategory> allowedCategories) {
-    if (tool.getCategory() == ToolCategory.PROJECTS) {
+    if (tool.getCategories().contains(ToolCategory.PROJECTS)) {
       return true;
     }
     if (allowedCategories == null) {
       return true;
     }
-    return allowedCategories.contains(tool.getCategory());
+    return tool.getCategories().stream().anyMatch(allowedCategories::contains);
   }
 
 }

@@ -25,7 +25,7 @@ import jakarta.annotation.Nullable;
 
 /**
  * Categories of tools that can be selectively enabled or disabled.
- * Each tool belongs to exactly one category.
+ * A tool may belong to one or more categories.
  */
 public enum ToolCategory {
   ANALYSIS("analysis"),

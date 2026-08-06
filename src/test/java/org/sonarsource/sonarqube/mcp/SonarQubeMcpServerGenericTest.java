@@ -553,7 +553,7 @@ class SonarQubeMcpServerGenericTest {
 
     var config = server.getMcpConfiguration();
     var enabledToolNames = server.getSupportedTools().stream()
-      .filter(tool -> config.isToolCategoryEnabled(tool.getCategory()))
+      .filter(tool -> tool.getCategories().stream().anyMatch(config::isToolCategoryEnabled))
       .map(tool -> tool.definition().name())
       .toList();
     assertThat(enabledToolNames)
@@ -584,7 +584,7 @@ class SonarQubeMcpServerGenericTest {
 
     var config = server.getMcpConfiguration();
     var enabledToolNames = server.getSupportedTools().stream()
-      .filter(tool -> config.isToolCategoryEnabled(tool.getCategory()))
+      .filter(tool -> tool.getCategories().stream().anyMatch(config::isToolCategoryEnabled))
       .map(tool -> tool.definition().name())
       .toList();
     assertThat(enabledToolNames)
