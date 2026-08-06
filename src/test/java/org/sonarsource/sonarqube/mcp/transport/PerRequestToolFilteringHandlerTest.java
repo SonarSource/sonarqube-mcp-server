@@ -369,7 +369,7 @@ class PerRequestToolFilteringHandlerTest {
       .build();
     var tool = mock(Tool.class);
     when(tool.definition()).thenReturn(toolDef);
-    when(tool.getCategory()).thenReturn(category);
+    when(tool.getCategories()).thenReturn(Set.of(category));
     when(tool.isEnabledFor(any())).thenReturn(true);
     return tool;
   }

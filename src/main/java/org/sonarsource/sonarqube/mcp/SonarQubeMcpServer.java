@@ -598,7 +598,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private List<Tool> filterForEnabledTools(List<Tool> toolsToFilter) {
     return toolsToFilter.stream()
-      .filter(tool -> mcpConfiguration.isToolCategoryEnabled(tool.getCategory()))
+      .filter(tool -> tool.getCategories().stream().anyMatch(mcpConfiguration::isToolCategoryEnabled))
       .filter(tool -> !mcpConfiguration.isReadOnlyMode() || tool.definition().annotations().readOnlyHint())
       .toList();
   }

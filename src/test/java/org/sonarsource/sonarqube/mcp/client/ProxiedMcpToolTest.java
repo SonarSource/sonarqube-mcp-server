@@ -72,7 +72,7 @@ class ProxiedMcpToolTest {
   void getCategory_should_return_cag() {
     var tool = new ProxiedMcpTool("weather", "get_weather", originalTool, clientManager);
 
-    assertThat(tool.getCategory()).isEqualTo(ToolCategory.CAG);
+    assertThat(tool.getCategories()).containsExactly(ToolCategory.CAG);
   }
 
   @Test

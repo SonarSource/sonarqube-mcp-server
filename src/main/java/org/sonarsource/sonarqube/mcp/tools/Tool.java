@@ -25,24 +25,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
 public abstract class Tool {
   private final McpSchema.Tool definition;
-  private final ToolCategory category;
+  private final Set<ToolCategory> categories;
 
-  protected Tool(McpSchema.Tool definition, ToolCategory category) {
+  protected Tool(McpSchema.Tool definition, ToolCategory... categories) {
     this.definition = definition;
-    this.category = category;
+    this.categories = Set.of(categories);
   }
 
   public McpSchema.Tool definition() {
     return definition;
   }
 
-  public ToolCategory getCategory() {
-    return category;
+  public Set<ToolCategory> getCategories() {
+    return categories;
   }
 
   /**
