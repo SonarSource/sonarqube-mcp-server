@@ -25,11 +25,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import reactor.core.publisher.Mono;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -104,7 +104,7 @@ class StdioServerTransportProviderTest {
   void closeGracefully_should_handle_exception_during_forced_close() throws Exception {
     var mockSession = mock(McpServerSession.class);
     when(mockSession.closeGracefully()).thenReturn(Mono.never());
-    Mockito.doThrow(new RuntimeException("Force close failed"))
+    doThrow(new RuntimeException("Force close failed"))
       .when(mockSession).close();
     var provider = createProviderWithMockSession(mockSession);
 
