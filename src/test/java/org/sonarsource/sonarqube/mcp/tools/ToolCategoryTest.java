@@ -25,6 +25,7 @@ class ToolCategoryTest {
   @Test
   void should_have_correct_keys() {
     assertThat(ToolCategory.ANALYSIS.getKey()).isEqualTo("analysis");
+    assertThat(ToolCategory.IDE.getKey()).isEqualTo("ide");
     assertThat(ToolCategory.COVERAGE.getKey()).isEqualTo("coverage");
     assertThat(ToolCategory.ISSUES.getKey()).isEqualTo("issues");
     assertThat(ToolCategory.PROJECTS.getKey()).isEqualTo("projects");
@@ -116,6 +117,7 @@ class ToolCategoryTest {
 
     assertThat(defaultCategories).containsExactlyInAnyOrder(
       ToolCategory.ANALYSIS,
+      ToolCategory.IDE,
       ToolCategory.ISSUES,
       ToolCategory.PROJECTS,
       ToolCategory.QUALITY_GATES,
@@ -136,6 +138,7 @@ class ToolCategoryTest {
     
     assertThat(allCategories).containsExactlyInAnyOrder(
       ToolCategory.ANALYSIS,
+      ToolCategory.IDE,
       ToolCategory.COVERAGE,
       ToolCategory.ISSUES,
       ToolCategory.PROJECTS,
@@ -156,8 +159,8 @@ class ToolCategoryTest {
   }
 
   @Test
-  void should_have_exactly_17_categories() {
-    assertThat(ToolCategory.values()).hasSize(17);
+  void should_have_exactly_18_categories() {
+    assertThat(ToolCategory.values()).hasSize(18);
   }
 }
 

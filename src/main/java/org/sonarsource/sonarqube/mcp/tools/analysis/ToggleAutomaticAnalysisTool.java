@@ -37,7 +37,7 @@ public class ToggleAutomaticAnalysisTool extends Tool {
         "When disabled, automatic analysis is turned off.")
       .addBooleanProperty(ENABLED_PROPERTY, "Enable or disable the automatic analysis")
       .build(),
-      ToolCategory.ANALYSIS);
+      ToolCategory.ANALYSIS, ToolCategory.IDE);
     this.bridgeClient = bridgeClient;
   }
 

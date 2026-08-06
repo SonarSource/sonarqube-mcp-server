@@ -81,7 +81,7 @@ All tools are registered at startup:
 
 **Analysis Tools** - Available immediately, fully functional after Phase 2
 - `analyze_code_snippet` - Analyzes code using SonarLint backend
-- `analyze_file_list` - Uses IDE bridge (if available)
+- `analyze_file_list` - Uses IDE bridge (if available); also tagged under the `ide` toolset alongside `analysis`
 - Analysis works once analyzers are downloaded
 
 ## Backend Restart

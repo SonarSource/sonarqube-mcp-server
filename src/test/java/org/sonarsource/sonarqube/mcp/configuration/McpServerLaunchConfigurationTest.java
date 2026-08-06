@@ -206,6 +206,7 @@ class McpServerLaunchConfigurationTest {
     var configuration = new McpServerLaunchConfiguration(arg);
 
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.IDE)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.QUALITY_GATES)).isTrue();
