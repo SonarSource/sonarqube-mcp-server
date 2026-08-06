@@ -79,6 +79,17 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_be_reachable_via_vortex_toolset_alone(SonarQubeMcpServerTestHarness harness) {
+    stubAdvancedAnalysisEnabled(harness);
+    stubAnalysisResponse(harness, SIMPLE_RESPONSE);
+    var mcpClient = harness.newClient(Map.of("SONARQUBE_ORG", "my-org", "SONARQUBE_TOOLSETS", "vortex"));
+
+    var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
+
+    assertThat(toolNames).contains(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_return_issues_with_flows(SonarQubeMcpServerTestHarness harness) {
     stubAdvancedAnalysisEnabled(harness);
     stubAnalysisResponse(harness, RESPONSE_WITH_FLOWS);
