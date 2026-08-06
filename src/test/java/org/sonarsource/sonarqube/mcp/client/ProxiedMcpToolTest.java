@@ -69,10 +69,10 @@ class ProxiedMcpToolTest {
   }
 
   @Test
-  void getCategory_should_return_cag() {
+  void getCategories_should_return_cag_and_vortex() {
     var tool = new ProxiedMcpTool("weather", "get_weather", originalTool, clientManager);
 
-    assertThat(tool.getCategories()).containsExactly(ToolCategory.CAG);
+    assertThat(tool.getCategories()).containsExactlyInAnyOrder(ToolCategory.CAG, ToolCategory.VORTEX);
   }
 
   @Test

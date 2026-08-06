@@ -52,7 +52,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private final Path configuredWorkspacePath;
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath) {
-    super(buildSchema(configuredProjectKey), ToolCategory.ANALYSIS);
+    super(buildSchema(configuredProjectKey), ToolCategory.ANALYSIS, ToolCategory.VORTEX);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;

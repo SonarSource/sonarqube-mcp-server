@@ -45,7 +45,8 @@ public enum ToolCategory {
   DEPENDENCY_RISKS("dependency-risks"),
   SECURITY_HOTSPOTS("security-hotspots"),
   CAG("cag"),
-  AGENTIC_READINESS("agentic-readiness");
+  AGENTIC_READINESS("agentic-readiness"),
+  VORTEX("vortex");
 
   private final String key;
 
