@@ -283,7 +283,7 @@ sonar {
 		property("sonar.links.ci", "https://github.com/SonarSource/sonarqube-mcp-server/actions")
 		property("sonar.links.scm", "https://github.com/SonarSource/sonarqube-mcp-server")
 		property("sonar.links.issue", "https://jira.sonarsource.com/browse/MCP")
-		property("sonar.exclusions", "**/build/**/*")
+		property("sonar.exclusions", "**/build/**/*,its/projects/**")
 		property("sonar.coverage.exclusions", "**/ManagedStdioClientTransport.java,**/StdioServerTransportProvider.java")
 	}
 }

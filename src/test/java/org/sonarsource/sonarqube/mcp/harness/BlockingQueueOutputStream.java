@@ -30,7 +30,7 @@ public class BlockingQueueOutputStream extends OutputStream {
   @Override
   public void write(final int b) throws InterruptedIOException {
     try {
-      blockingQueue.put(b);
+      blockingQueue.put(b & 0xFF);
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
       final InterruptedIOException interruptedIoException = new InterruptedIOException();
