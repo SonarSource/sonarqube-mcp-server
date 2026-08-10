@@ -342,6 +342,18 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
   }
 
   /**
+   * Stub A3S org-config API for the organization.
+   * Must be called before prepareMockWebServer() to override the default (disabled) stub.
+   */
+  public void stubA3sEnabled(boolean enabled) {
+    var orgUuidV4 = "00000000-0000-0000-0000-000000000001";
+    mockSonarQubeServer.stubFor(get(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + orgUuidV4)
+      .willReturn(okJson("""
+        {"id":"%s","enabled":%b,"eligible":true}
+        """.formatted(orgUuidV4, enabled))));
+  }
+
+  /**
    * Stub SARA feature flag as enabled for the organization.
    * Must be called before newClient() to override the default (disabled) stub.
    */

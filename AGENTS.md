@@ -67,14 +67,16 @@ On startup, REST-based tools are registered immediately; SLCORE analyzer plugins
 
 The server connects to **SonarQube Cloud** when `SONARQUBE_ORG` is set, otherwise to **SonarQube Server** via `SONARQUBE_URL`. Many tools work on both; some are environment-specific:
 
-| Area                            | Cloud                       | Server                       |
-|---------------------------------|-----------------------------|------------------------------|
-| System tools (`system` toolset) | Not available               | Available                    |
-| Enterprises                     | Available                   | Not available                |
-| Dependency risks (SCA)          | Org entitlement             | Feature flag + version check |
-| Advanced analysis (A3S)         | Org entitlement             | Not available                |
-| Context Augmentation (CAG)      | Org entitlement, stdio only | Proxied binary               |
-| Agentic readiness               | Org feature flag            | Not available                |
+| Area                                                         | Cloud                                                      | Server                       |
+|--------------------------------------------------------------|------------------------------------------------------------|------------------------------|
+| System tools (`system` toolset)                              | Not available                                              | Available                    |
+| Enterprises                                                  | Available                                                  | Not available                |
+| Dependency risks (SCA)                                       | Org entitlement                                            | Feature flag + version check |
+| Vortex analysis (deprecated name: Advanced analysis / A3S)   | Org entitlement, combined with Vortex context              | Not available                |
+| Vortex context (deprecated name: Context Augmentation / CAG) | Org entitlement, combined with Vortex analysis, stdio only | Proxied binary               |
+| Agentic readiness                                            | Org feature flag                                           | Not available                |
+
+Vortex context and Vortex analysis share a single combined org entitlement (`OrgFeatureEntitlements`) — an org must be entitled to both for either to register. `CAG`/`A3S` naming is deprecated in favor of `Vortex`; the existing toolset keys (`cag`, `analysis`) and tool names (e.g. `run_advanced_code_analysis`) are unchanged for backward compatibility.
 
 When adding or changing tools, check whether behavior or registration must differ between Cloud and Server. Look at existing tools in the same domain for the established pattern (constructor flags, conditional registration in `SonarQubeMcpServer`, separate tool definitions).
 

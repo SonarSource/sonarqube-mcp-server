@@ -49,6 +49,7 @@ import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.plugins.PluginsSynchronizer;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
+import org.sonarsource.sonarqube.mcp.serverapi.OrgFeatureEntitlements;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -155,6 +156,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     To measure the impact of changes, compare a baseline assessment of the default branch against a new \
     assessment of your feature branch. Always filter the list by branch — unfiltered results mix branches.""";
+  private static final String VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS =
+    "\nNote: the `cag`/`analysis` toolset names for Vortex tools are deprecated; use `vortex` instead.";
 
   private BackendService backendService;
   private ToolExecutor toolExecutor;
@@ -183,6 +186,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @Nullable
   private ResolvedOrganization resolvedOrganization;
   private SonarQubeVersionChecker sonarQubeVersionChecker;
+  private OrgFeatureEntitlements orgFeatureEntitlements;
   @Nullable
   private McpStatelessSyncServer statelessSyncServer;
   @Nullable
@@ -288,6 +292,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.serverApi = initializeServerApi(mcpConfiguration);
     resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
+    this.orgFeatureEntitlements = new OrgFeatureEntitlements(serverApi);
     loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
@@ -298,20 +303,31 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     setBaseInstructions();
 
+    // Vortex (CAG + A3S) tools are stdio-only and require combined entitlement. Computed once,
+    // relevant if any of the legacy categories or the vortex bundle itself is enabled, since
+    // either can surface the resulting tools.
+    var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
+      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
+      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX);
+    var vortexEnabledForOrg = !mcpConfiguration.isHttpEnabled()
+      && vortexRelevantToolsetEnabled
+      && orgFeatureEntitlements.isVortexEnabledForOrg(resolvedOrganization);
+
+    if (vortexEnabledForOrg && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
+      LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
+      composedInstructions += VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS;
+    }
+
     // Initialize proxied MCP servers and load their tools synchronously
-    // Only when:
-    // 1. Running in stdio mode (CAG not supported in HTTP mode)
-    // 2. CAG toolset is enabled
-    // 3. Organization has CAG entitlement
     if (mcpConfiguration.isHttpEnabled()) {
-      LOG.debug("HTTP mode detected - skipping CAG proxied server initialization (not supported in HTTP transport)");
-    } else if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)) {
-      LOG.debug("CAG toolset is not enabled, skipping proxied server initialization");
-    } else if (isCagEnabledForOrg(serverApi, resolvedOrganization)) {
-      LOG.info("CAG is enabled for organization");
+      LOG.debug("HTTP mode detected - skipping Vortex proxied server initialization (not supported in HTTP transport)");
+    } else if (!vortexRelevantToolsetEnabled) {
+      LOG.debug("Vortex toolset is not enabled, skipping proxied server initialization");
+    } else if (vortexEnabledForOrg) {
+      LOG.info("Vortex context is enabled for organization");
       loadProxiedServerTools();
     } else {
-      LOG.debug("CAG is not enabled for organization, skipping proxied server initialization");
+      LOG.debug("Vortex is not enabled for organization, skipping proxied server initialization");
     }
 
     // Agentic readiness tools
@@ -319,12 +335,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
-    if (!mcpConfiguration.isHttpEnabled() && isAdvancedAnalysisEnabledForOrg(serverApi, resolvedOrganization)) {
+    if (vortexEnabledForOrg) {
       if (workspaceMount != null) {
-        LOG.info("Advanced analysis mode enabled");
+        LOG.info("Vortex analysis mode enabled");
         supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount));
       } else {
-        LOG.info("Advanced analysis mode enabled, but no workspace path configured, skipping tool registration");
+        LOG.info("Vortex analysis mode enabled, but no workspace path configured, skipping tool registration");
       }
     } else {
       // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
@@ -447,68 +463,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   }
 
-  private boolean isSaraEnabled(@Nullable ServerApi api, @Nullable ResolvedOrganization org) {
-    if (api == null || org == null) {
-      LOG.debug("Agentic readiness feature flag check skipped: no org key configured");
-      return false;
-    }
-    var orgKey = org.key();
-    try {
-      var orgUuidV4 = uuidV4(api, org);
-      if (orgUuidV4 == null) {
-        LOG.debug("Agentic readiness feature flag check: could not resolve UUID for org '" + orgKey + "' - skipping");
-        return false;
-      }
-      var enabled = api.wasFeatureFlagsApi().isAgenticReadinessAssessmentEnabled(orgUuidV4);
-      LOG.debug("Agentic readiness feature flag for org '" + orgKey + "': " + enabled);
-      return enabled;
-    } catch (Exception e) {
-      LOG.warn("Failed to evaluate agentic readiness feature flag for org '" + orgKey + "' — tools not registered: " + e.getMessage());
-      return false;
-    }
-  }
-
-  private boolean isAdvancedAnalysisEnabledForOrg(@Nullable ServerApi api, @Nullable ResolvedOrganization org) {
-    if (api == null || org == null) {
-      return false;
-    }
-    return RunAdvancedCodeAnalysisTool.isA3sEnabled(api, uuidV4(api, org), org.key());
-  }
-
-  private boolean isCagEnabledForOrg(@Nullable ServerApi api, @Nullable ResolvedOrganization org) {
-    if (api == null || org == null) {
-      return false;
-    }
-    var orgKey = org.key();
-    var orgUuidV4 = uuidV4(api, org);
-    if (orgUuidV4 == null) {
-      LOG.debug("CAG entitlement check: could not resolve UUID for org '" + orgKey + "' - skipping CAG");
-      return false;
-    }
-    var entitlement = api.cagApi().getCagEntitlement(orgUuidV4);
-    if (entitlement == null) {
-      LOG.debug("CAG entitlement check: could not retrieve entitlement for org '" + orgKey + "' - skipping CAG");
-      return false;
-    }
-    if (!entitlement.hasEntitlement()) {
-      LOG.debug("CAG entitlement check: org '" + orgKey + "' is not entitled to use CAG");
-      return false;
-    }
-    return true;
-  }
-
-  @Nullable
-  private String uuidV4(ServerApi api, ResolvedOrganization org) {
-    if (org.uuidV4() != null) {
-      return org.uuidV4();
-    }
-    var fetched = api.organizationsApi().getOrganizationUuidV4(org.key());
-    if (fetched != null && org == resolvedOrganization) {
-      this.resolvedOrganization = new ResolvedOrganization(org.key(), fetched);
-    }
-    return fetched;
-  }
-
   /**
    * Loads tools that depend on the backend service or IDE bridge.
    * This is called during startup after the backend is initialized (with empty analyzers).
@@ -576,7 +530,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       return true;
     }
     // stdio mode: a single organization is fixed at startup, so probe the feature flag once here.
-    if (!isSaraEnabled(serverApi, resolvedOrganization)) {
+    if (!orgFeatureEntitlements.isSaraEnabledForOrg(resolvedOrganization)) {
       LOG.debug("Agentic readiness is not enabled for organization, skipping tools initialization");
       return false;
     }

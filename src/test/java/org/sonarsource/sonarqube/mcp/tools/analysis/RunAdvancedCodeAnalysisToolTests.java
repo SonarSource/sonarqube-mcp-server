@@ -29,15 +29,12 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class RunAdvancedCodeAnalysisToolTests {
 
-  private static final String ORG_UUID_V4 = "00000000-0000-0000-0000-000000000001";
   private static final Map<String, String> ADVANCED_ANALYSIS_ENV = Map.of("SONARQUBE_ORG", "my-org");
   private static Path workspaceDir;
   private static Path fileToAnalyze;
@@ -87,6 +84,28 @@ class RunAdvancedCodeAnalysisToolTests {
     var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
 
     assertThat(toolNames).contains(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_be_reachable_when_cag_and_a3s_are_both_entitled(SonarQubeMcpServerTestHarness harness) {
+    harness.stubCagEntitlement(true);
+    harness.stubA3sEnabled(true);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+
+    var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
+
+    assertThat(toolNames).contains(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_not_be_reachable_when_cag_is_entitled_but_a3s_is_not(SonarQubeMcpServerTestHarness harness) {
+    harness.stubCagEntitlement(true);
+    harness.stubA3sEnabled(false);
+    var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
+
+    var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
+
+    assertThat(toolNames).isNotEmpty().doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
   }
 
   @SonarQubeMcpServerTest
@@ -337,11 +356,13 @@ class RunAdvancedCodeAnalysisToolTests {
     assertThat(result.toString()).contains("Could not read file");
   }
 
+  /**
+   * Vortex requires combined CAG + A3S entitlement, so enabling advanced analysis for tests
+   * means stubbing both.
+   */
   private static void stubAdvancedAnalysisEnabled(SonarQubeMcpServerTestHarness harness) {
-    harness.getMockSonarQubeServer().stubFor(get(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + ORG_UUID_V4)
-      .willReturn(okJson("""
-        {"id":"%s","enabled":true,"eligible":true}
-        """.formatted(ORG_UUID_V4))));
+    harness.stubA3sEnabled(true);
+    harness.stubCagEntitlement(true);
   }
 
   private static void stubAnalysisResponse(SonarQubeMcpServerTestHarness harness, String responseBody) {
