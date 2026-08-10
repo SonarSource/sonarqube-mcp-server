@@ -21,8 +21,6 @@ import java.nio.file.Path;
 import java.util.List;
 import jakarta.annotation.Nullable;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.sonarsource.sonarqube.mcp.log.McpLogger;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -33,8 +31,6 @@ import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class RunAdvancedCodeAnalysisTool extends Tool {
-
-  private static final McpLogger LOG = McpLogger.getInstance();
 
   public static final String TOOL_NAME = "run_advanced_code_analysis";
 
@@ -61,8 +57,8 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey) {
     var builder = SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
-      .setTitle("SonarQube Advanced Code Analysis")
-      .setDescription("Run advanced code analysis on a single file using SonarQube Cloud's server-side engine. " +
+      .setTitle("SonarQube Vortex Code Analysis")
+      .setDescription("Run Vortex analysis on a single file using SonarQube Cloud's server-side engine. " +
         "Identifies code quality and security issues, leveraging the project's full analysis context for deeper cross-file detection. " +
         "Always specify the file scope (MAIN or TEST) for more accurate results.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
@@ -73,22 +69,6 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
       .addEnumProperty(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "Scope of the file: MAIN or TEST (default: MAIN).")
       .setReadOnlyHint()
       .build();
-  }
-
-  public static boolean isA3sEnabled(ServerApi api, @Nullable String orgUuidV4, String orgKey) {
-    if (orgUuidV4 == null) {
-      LOG.debug("A3S entitlement check: could not resolve UUID for org '" + orgKey + "' - falling back to standard analysis");
-      return false;
-    }
-    var config = api.a3sAnalysisApi().getA3sOrgConfig(orgUuidV4);
-    if (config == null) {
-      LOG.debug("A3S entitlement check: could not retrieve org config for org '" + orgKey + "' - falling back to standard analysis");
-      return false;
-    }
-    if (!config.enabled()) {
-      LOG.debug("A3S entitlement check: advanced analysis is not enabled for org '" + orgKey + "'");
-    }
-    return config.enabled();
   }
 
   @Override

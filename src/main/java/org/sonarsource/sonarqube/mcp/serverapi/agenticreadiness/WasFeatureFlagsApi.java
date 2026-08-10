@@ -20,6 +20,7 @@ import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
 import jakarta.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 
@@ -29,6 +30,7 @@ public class WasFeatureFlagsApi {
   public static final String SARA_FEATURE_FLAG_KEY = "workflow-standards-enable-agentic-readiness-assessment";
 
   private static final Gson GSON = new Gson();
+  private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ServerApiHelper helper;
 
@@ -47,6 +49,9 @@ public class WasFeatureFlagsApi {
     try (var response = helper.getApiSubdomain(path)) {
       var flags = GSON.fromJson(response.bodyAsString(), FeatureFlagsResponse.class);
       return flags != null && flags.isAgenticReadinessAssessmentEnabled();
+    } catch (Exception e) {
+      LOG.warn("Could not retrieve agentic readiness feature flag for organization '" + organizationId + "': " + e.getMessage());
+      return false;
     }
   }
 

@@ -319,6 +319,74 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
+  void should_warn_and_note_deprecated_toolset_when_vortex_reached_via_legacy_toolset_name(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "cag");
+    harness.stubCagEntitlement(true);
+    harness.stubA3sEnabled(true);
+    harness.prepareMockWebServer(environment);
+
+    var originalErr = System.err;
+    var errBuffer = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+
+    SonarQubeMcpServer server;
+    try {
+      server = new SonarQubeMcpServer(
+        new StdioServerTransportProvider(null),
+        null,
+        environment);
+      server.start();
+    } finally {
+      System.setErr(originalErr);
+    }
+
+    assertThat(errBuffer.toString(StandardCharsets.UTF_8))
+      .as("A deprecation warning should be logged when Vortex tools are reached via the 'cag'/'analysis' toolset name")
+      .contains("deprecated 'cag'/'analysis' toolset name");
+    assertThat(server.getComposedInstructions())
+      .as("The deprecation note should be appended to the instructions sent to the client")
+      .contains("toolset names for Vortex tools are deprecated");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_not_warn_or_note_deprecated_toolset_when_vortex_toolset_requested(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "vortex");
+    harness.stubCagEntitlement(true);
+    harness.stubA3sEnabled(true);
+    harness.prepareMockWebServer(environment);
+
+    var originalErr = System.err;
+    var errBuffer = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+
+    SonarQubeMcpServer server;
+    try {
+      server = new SonarQubeMcpServer(
+        new StdioServerTransportProvider(null),
+        null,
+        environment);
+      server.start();
+    } finally {
+      System.setErr(originalErr);
+    }
+
+    assertThat(errBuffer.toString(StandardCharsets.UTF_8))
+      .as("No deprecation warning should be logged when the 'vortex' toolset is explicitly requested")
+      .doesNotContain("deprecated 'cag'/'analysis' toolset name");
+    assertThat(server.getComposedInstructions())
+      .as("The deprecation note should not be appended when the 'vortex' toolset is explicitly requested")
+      .doesNotContain("toolset names for Vortex tools are deprecated");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
   void should_register_sara_tools_and_instructions_when_flag_enabled_for_org(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
