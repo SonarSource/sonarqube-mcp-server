@@ -80,7 +80,7 @@ All tools are registered at startup:
 - No analyzer dependency
 
 **Analysis Tools** - Available immediately, fully functional after Phase 2
-- `analyze_code_snippet` - Analyzes code using SonarLint backend
+- `analyze_code_snippet` - Analyzes code using SonarLint backend. **Deprecated** in favor of `analyze_file_list` and Vortex toolset, will be removed in a future release
 - `analyze_file_list` - Uses IDE bridge (if available); also tagged under the `ide` toolset alongside `analysis`
 - Analysis works once analyzers are downloaded
 

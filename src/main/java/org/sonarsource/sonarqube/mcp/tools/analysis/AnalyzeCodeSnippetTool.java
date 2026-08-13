@@ -57,6 +57,8 @@ public class AnalyzeCodeSnippetTool extends Tool {
   }
 
   public static final String TOOL_NAME = "analyze_code_snippet";
+  public static final String DEPRECATION_NOTICE = "analyze_code_snippet is deprecated and will be removed in a future release. " +
+    "Connect SonarQube for IDE for analyze_file_list, or enable Vortex analysis for run_advanced_code_analysis, for more accurate, cross-file results.";
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String FILE_PATH_PROPERTY = "filePath";
   public static final String FILE_CONTENT_PROPERTY = "fileContent";
@@ -93,7 +95,9 @@ public class AnalyzeCodeSnippetTool extends Tool {
       .setTitle("SonarQube Code Analysis")
       .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
         "Optionally provide a code snippet to filter issues — only issues within the snippet will be reported (snippet location is auto-detected). " +
-        "Always specify the language and the file scope (MAIN or TEST) for more accurate results.")
+        "Always specify the language and the file scope (MAIN or TEST) for more accurate results. " +
+        "This tool is deprecated and will be removed in a future release. For richer, cross-file analysis, " +
+        "connect SonarQube for IDE (enables analyze_file_list) or enable Vortex analysis (run_advanced_code_analysis).")
       .addOptionalProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey);
     if (workspaceConfigured) {
       builder = builder.addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
@@ -297,7 +301,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
       filteredIssues = allIssues;
     }
 
-    return new AnalyzeCodeSnippetToolResponse(filteredIssues, filteredIssues.size());
+    return new AnalyzeCodeSnippetToolResponse(filteredIssues, filteredIssues.size(), DEPRECATION_NOTICE);
   }
 
   private static Tool.Result handleInitializationError(Exception e, long startTime) {
