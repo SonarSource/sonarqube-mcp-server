@@ -282,8 +282,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     // In stdio mode: pass the shared pre-resolved ConnectionContext
     // In HTTP mode: pass a supplier that captures the request-scoped ServerApi synchronously to the async analytics task
     this.toolExecutor = mcpConfiguration.isHttpEnabled()
-      ? new ToolExecutor(backendService, analyticsService, null, this, mcpConfiguration.getMcpServerId())
-      : new ToolExecutor(backendService, analyticsService, connectionContext, null, mcpConfiguration.getMcpServerId());
+      ? new ToolExecutor(backendService, analyticsService, null, this, mcpConfiguration.getMcpServerId(), this::resolveEnabledToolsets)
+      : new ToolExecutor(backendService, analyticsService, connectionContext, null, mcpConfiguration.getMcpServerId(), this::resolveEnabledToolsets);
 
     var configuredOrgKey = mcpConfiguration.getSonarqubeOrg();
     if (configuredOrgKey != null) {
@@ -579,6 +579,23 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         return toolExecutor.execute(tool, toolRequest);
       })
       .build();
+  }
+
+  private Set<ToolCategory> resolveEnabledToolsets() {
+    var enabledToolsets = EnumSet.noneOf(ToolCategory.class);
+    ToolCategory.all().stream()
+      .filter(mcpConfiguration::isToolCategoryEnabled)
+      .forEach(enabledToolsets::add);
+
+    var transportContext = currentTransportContext.get();
+    if (transportContext != null) {
+      var requestToolsets = transportContext.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
+      if (requestToolsets instanceof Set<?> toolsets) {
+        enabledToolsets.removeIf(toolset -> !toolsets.contains(toolset));
+        enabledToolsets.add(ToolCategory.PROJECTS);
+      }
+    }
+    return enabledToolsets;
   }
 
   private void captureCallingAgent(McpSyncServerExchange exchange) {

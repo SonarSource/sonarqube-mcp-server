@@ -19,6 +19,8 @@ package org.sonarsource.sonarqube.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import jakarta.annotation.Nullable;
@@ -38,7 +40,8 @@ import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentExce
 
 public class ToolExecutor {
   private static final McpLogger LOG = McpLogger.getInstance();
-  private record InvocationMetrics(String invocationId, long durationMs, boolean successful, @Nullable String errorType, long responseSizeBytes, long invocationTimestamp) {}
+  private record InvocationMetrics(String invocationId, long durationMs, boolean successful, @Nullable String errorType, long responseSizeBytes,
+    long invocationTimestamp, List<String> matchingToolsets) {}
   private final BackendService backendService;
   @Nullable
   private final AnalyticsService analyticsService;
@@ -61,17 +64,24 @@ public class ToolExecutor {
   @Nullable
   private final String mcpServerId;
 
+  /**
+   * Supplies the toolsets enabled for the current request.
+   */
+  private final Supplier<Set<ToolCategory>> enabledToolsetsSupplier;
+
   public ToolExecutor(BackendService backendService) {
-    this(backendService, null, null, null, null);
+    this(backendService, null, null, null, null, ToolCategory::all);
   }
 
   public ToolExecutor(BackendService backendService, @Nullable AnalyticsService analyticsService,
-    @Nullable ConnectionContext stdioContext, @Nullable Supplier<ServerApi> httpServerApiSupplier, @Nullable String mcpServerId) {
+    @Nullable ConnectionContext stdioContext, @Nullable Supplier<ServerApi> httpServerApiSupplier, @Nullable String mcpServerId,
+    Supplier<Set<ToolCategory>> enabledToolsetsSupplier) {
     this.backendService = backendService;
     this.analyticsService = analyticsService;
     this.stdioContext = stdioContext;
     this.httpServerApiSupplier = httpServerApiSupplier;
     this.mcpServerId = mcpServerId;
+    this.enabledToolsetsSupplier = enabledToolsetsSupplier;
   }
 
   public McpSchema.CallToolResult execute(Tool tool, McpSchema.CallToolRequest toolRequest) {
@@ -103,8 +113,14 @@ public class ToolExecutor {
     var successful = !result.isError();
     var callToolResult = result.toCallToolResult();
     var responseSizeBytes = computeResponseSizeBytes(callToolResult);
+    var enabledToolsets = enabledToolsetsSupplier.get();
+    var matchingToolsets = tool.getCategories().stream()
+      .filter(enabledToolsets::contains)
+      .map(ToolCategory::getKey)
+      .sorted()
+      .toList();
     backendService.notifyToolCalled("mcp_" + tool.definition().name(), successful);
-    notifyAnalytics(toolName, new InvocationMetrics(invocationId, durationMs, successful, errorType, responseSizeBytes, invocationTimestamp));
+    notifyAnalytics(toolName, new InvocationMetrics(invocationId, durationMs, successful, errorType, responseSizeBytes, invocationTimestamp, matchingToolsets));
     return callToolResult;
   }
 
@@ -147,7 +163,7 @@ public class ToolExecutor {
         ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
         ctx.getCallingAgentName(), ctx.getCallingAgentVersion(),
         metrics.durationMs(), metrics.successful(), metrics.errorType(),
-        metrics.responseSizeBytes(), metrics.invocationTimestamp()
+        metrics.responseSizeBytes(), metrics.invocationTimestamp(), metrics.matchingToolsets()
       ));
     } catch (Exception e) {
       LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());

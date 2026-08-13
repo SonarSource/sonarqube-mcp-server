@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.analytics;
 
+import java.util.List;
 import jakarta.annotation.Nullable;
 
 public record ToolInvocationResult(
@@ -30,6 +31,7 @@ public record ToolInvocationResult(
   boolean isSuccessful,
   @Nullable String errorType,
   long responseSizeBytes,
-  long invocationTimestamp
+  long invocationTimestamp,
+  List<String> matchingToolsets
 ) {
 }

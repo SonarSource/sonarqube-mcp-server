@@ -93,7 +93,8 @@ public class AnalyticsService {
       result.errorType(),
       result.responseSizeBytes(),
       containerArch,
-      result.invocationTimestamp()
+      result.invocationTimestamp(),
+      result.matchingToolsets()
     );
 
     client.postEvent(event);
