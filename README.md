@@ -577,7 +577,7 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 
 | Toolset               | Key                 | Description                                                                                                                                                 |
 |-----------------------|---------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Analysis**          | `analysis`          | Code analysis tools (local analysis; Vortex analysis, deprecated in favor of `vortex`)                                                                      |
+| **Analysis**          | `analysis`          | Code analysis tools (local analysis via `analyze_code_snippet`, **deprecated** in favor of `analyze_file_list`/Vortex analysis)                                                                      |
 | **IDE**               | `ide`               | SonarQube for IDE bridge tools (file analysis, automatic analysis toggle) — currently also included in `analysis`                                           |
 | **Issues**            | `issues`            | Search and manage SonarQube issues                                                                                                                          |
 | **Security Hotspots** | `security-hotspots` | Search and review Security Hotspots                                                                                                                         |
@@ -994,6 +994,8 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
 ### Analysis
 
 - **analyze_code_snippet** - Analyze file content with SonarQube analyzers to identify code quality and security issues. Always analyzes the complete file content for accuracy. Optionally filter results to a specific code snippet.
+
+  > **Deprecated:** `analyze_code_snippet` will be removed in a future release. Connect SonarQube for IDE to use `analyze_file_list`, or enable Vortex analysis for your organization to use `run_advanced_code_analysis` (see below).
   
   Usage:
   - **With workspace mounted** (recommended): pass `filePath` (project-relative) — the server reads the file directly, keeping file content out of the agent context window

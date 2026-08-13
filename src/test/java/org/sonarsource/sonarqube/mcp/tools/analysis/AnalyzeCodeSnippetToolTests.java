@@ -61,6 +61,10 @@ class AnalyzeCodeSnippetToolTests {
       {
         "type": "object",
         "properties": {
+          "deprecationNotice": {
+            "type": "string",
+            "description": "Deprecation notice for this tool"
+          },
           "issueCount": {
             "type": "integer",
             "description": "Total number of issues"
@@ -122,7 +126,7 @@ class AnalyzeCodeSnippetToolTests {
             }
           }
         },
-        "required": ["issueCount", "issues"]
+        "required": ["deprecationNotice", "issueCount", "issues"]
       }
       """);
   }
@@ -196,8 +200,9 @@ class AnalyzeCodeSnippetToolTests {
               "endLine" : 1
             }
           } ],
-          "issueCount" : 1
-        }""");
+          "issueCount" : 1,
+          "deprecationNotice" : "%s"
+        }""".formatted(AnalyzeCodeSnippetTool.DEPRECATION_NOTICE));
     }
 
     @SonarQubeMcpServerTest
@@ -230,8 +235,9 @@ class AnalyzeCodeSnippetToolTests {
                  }
               }
            ],
-           "issueCount":1
-        }""");
+           "issueCount":1,
+           "deprecationNotice":"%s"
+        }""".formatted(AnalyzeCodeSnippetTool.DEPRECATION_NOTICE));
     }
 
     @SonarQubeMcpServerTest
@@ -247,7 +253,7 @@ class AnalyzeCodeSnippetToolTests {
             """,
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php"));
 
-      assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
+      assertResultEquals(result, "{\"issues\":[],\"issueCount\":0,\"deprecationNotice\":\"%s\"}".formatted(AnalyzeCodeSnippetTool.DEPRECATION_NOTICE));
     }
 
     @SonarQubeMcpServerTest
@@ -278,8 +284,9 @@ class AnalyzeCodeSnippetToolTests {
               "endLine" : 1
             }
           } ],
-          "issueCount" : 1
-        }""");
+          "issueCount" : 1,
+          "deprecationNotice" : "%s"
+        }""".formatted(AnalyzeCodeSnippetTool.DEPRECATION_NOTICE));
     }
 
     @SonarQubeMcpServerTest
@@ -296,7 +303,7 @@ class AnalyzeCodeSnippetToolTests {
           AnalyzeCodeSnippetTool.LANGUAGE_PROPERTY, "php",
           AnalyzeCodeSnippetTool.SCOPE_PROPERTY, "TEST"));
 
-      assertResultEquals(result, "{\"issues\":[],\"issueCount\":0}");
+      assertResultEquals(result, "{\"issues\":[],\"issueCount\":0,\"deprecationNotice\":\"%s\"}".formatted(AnalyzeCodeSnippetTool.DEPRECATION_NOTICE));
     }
 
     @SonarQubeMcpServerTest
@@ -324,8 +331,9 @@ class AnalyzeCodeSnippetToolTests {
               "endLine" : 1
             }
           } ],
-          "issueCount" : 1
-        }""");
+          "issueCount" : 1,
+          "deprecationNotice" : "%s"
+        }""".formatted(AnalyzeCodeSnippetTool.DEPRECATION_NOTICE));
     }
 
     @SonarQubeMcpServerTest
