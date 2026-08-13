@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsClient;
@@ -583,16 +584,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   @VisibleForTesting
   Set<ToolCategory> resolveEnabledToolsets() {
-    var enabledToolsets = EnumSet.noneOf(ToolCategory.class);
-    ToolCategory.all().stream()
+    var enabledToolsets = ToolCategory.all().stream()
       .filter(mcpConfiguration::isToolCategoryEnabled)
-      .forEach(enabledToolsets::add);
+      .collect(Collectors.toCollection(() -> EnumSet.noneOf(ToolCategory.class)));
 
     var transportContext = currentTransportContext.get();
     if (transportContext != null) {
       var requestToolsets = transportContext.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
       if (requestToolsets instanceof Set<?> toolsets) {
-        enabledToolsets.removeIf(toolset -> !toolsets.contains(toolset));
+        enabledToolsets.retainAll(toolsets);
         enabledToolsets.add(ToolCategory.PROJECTS);
       }
     }
