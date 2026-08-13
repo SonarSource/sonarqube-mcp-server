@@ -581,7 +581,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       .build();
   }
 
-  private Set<ToolCategory> resolveEnabledToolsets() {
+  @VisibleForTesting
+  Set<ToolCategory> resolveEnabledToolsets() {
     var enabledToolsets = EnumSet.noneOf(ToolCategory.class);
     ToolCategory.all().stream()
       .filter(mcpConfiguration::isToolCategoryEnabled)
