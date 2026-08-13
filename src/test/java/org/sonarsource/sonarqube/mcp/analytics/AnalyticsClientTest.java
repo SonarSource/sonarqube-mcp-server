@@ -26,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -88,7 +89,8 @@ class AnalyticsClientTest {
       null,
       1024L,
       null,
-      System.currentTimeMillis()
+      System.currentTimeMillis(),
+      List.of("issues")
     );
 
     analyticsClient.postEvent(event);
@@ -117,7 +119,8 @@ class AnalyticsClientTest {
       "not_found",
       2048L,
       "amd64",
-      1000L
+      1000L,
+      List.of("issues")
     );
 
     analyticsClient.postEvent(event);
@@ -141,7 +144,7 @@ class AnalyticsClientTest {
           "source": {"domain": "MCP"},
           "event_type": "Analytics.Mcp.McpToolInvoked",
           "event_timestamp": "<event_timestamp>",
-          "event_version": "1"
+          "event_version": "2"
         },
         "event_payload": {
           "invocation_id": "inv-1",
@@ -158,7 +161,8 @@ class AnalyticsClientTest {
           "error_type": "not_found",
           "response_size_bytes": 2048,
           "container_arch": "amd64",
-          "invocation_timestamp": 1000
+          "invocation_timestamp": 1000,
+          "matching_toolsets": ["issues"]
         }
       }
       """;
@@ -169,7 +173,7 @@ class AnalyticsClientTest {
 
   @Test
   void it_should_send_x_api_key_header() {
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());
 
     analyticsClient.postEvent(event);
 
@@ -183,7 +187,7 @@ class AnalyticsClientTest {
   void it_should_retry_up_to_twice_on_server_error() {
     wireMock.stubFor(post(urlPathEqualTo("/")).willReturn(aResponse().withStatus(500)));
 
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());
     analyticsClient.postEvent(event);
 
     // 1 initial attempt + 2 retries = 3 total
@@ -196,7 +200,7 @@ class AnalyticsClientTest {
   void it_should_not_retry_on_client_error() {
     wireMock.stubFor(post(urlPathEqualTo("/")).willReturn(aResponse().withStatus(400)));
 
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());
     analyticsClient.postEvent(event);
 
     await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
@@ -216,7 +220,7 @@ class AnalyticsClientTest {
       .whenScenarioStateIs("second-attempt")
       .willReturn(aResponse().withStatus(200)));
 
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());
     analyticsClient.postEvent(event);
 
     await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
@@ -230,7 +234,7 @@ class AnalyticsClientTest {
     System.setProperty(AnalyticsClient.PROPERTY_ANALYTICS_ENDPOINT, "http://192.0.2.1:9999/mcp");
     var unreachableClient = new AnalyticsClient(httpClient);
 
-    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L);
+    var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());
 
     assertThatCode(() -> unreachableClient.postEvent(event)).doesNotThrowAnyException();
   }

@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.analytics;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 import jakarta.annotation.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -39,12 +40,13 @@ public record McpToolInvokedEvent(
   @JsonProperty("error_type") @Nullable String errorType,
   @JsonProperty("response_size_bytes") long responseSizeBytes,
   @JsonProperty("container_arch") @Nullable String containerArch,
-  @JsonProperty("invocation_timestamp") long invocationTimestamp
+  @JsonProperty("invocation_timestamp") long invocationTimestamp,
+  @JsonProperty("matching_toolsets") List<String> matchingToolsets
 ) implements AnalyticsEvent {
 
   private static final String EVENT_TYPE = "Analytics.Mcp.McpToolInvoked";
   // To update when the schema changes
-  private static final String EVENT_VERSION = "1";
+  private static final String EVENT_VERSION = "2";
 
   @Override
   @JsonIgnore

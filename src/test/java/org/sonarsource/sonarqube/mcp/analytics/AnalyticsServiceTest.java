@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.analytics;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +40,8 @@ class AnalyticsServiceTest {
   void it_should_build_sqc_event_with_org_uuid() {
     var service = new AnalyticsService(mockClient, "server-id", "1.11.0.14345", false, false, true);
 
-    service.notifyToolInvoked(new ToolInvocationResult("inv-123", "search_issues", "org-uuid-123", null, "user-uuid-456", "cursor", "1.0.0", 123L, true, null, 512L, 1000L));
+    service.notifyToolInvoked(new ToolInvocationResult("inv-123", "search_issues", "org-uuid-123", null, "user-uuid-456", "cursor", "1.0.0", 123L, true, null, 512L, 1000L,
+      List.of("issues")));
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
@@ -61,13 +63,15 @@ class AnalyticsServiceTest {
     assertThat(event.errorType()).isNull();
     assertThat(event.responseSizeBytes()).isEqualTo(512L);
     assertThat(event.invocationTimestamp()).isEqualTo(1000L);
+    assertThat(event.matchingToolsets()).containsExactly("issues");
   }
 
   @Test
   void it_should_build_sqs_event_with_installation_id() {
     var service = new AnalyticsService(mockClient, "server-id", "1.11.0.14345", true, false, false);
 
-    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "show_rule", null, "install-abc", null, null, null, 42L, false, "not_found", 0L, 2000L));
+    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "show_rule", null, "install-abc", null, null, null, 42L, false, "not_found", 0L, 2000L,
+      List.of("rules")));
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
@@ -91,7 +95,8 @@ class AnalyticsServiceTest {
   void it_should_ignore_sqs_installation_id_for_sqc_connection() {
     var service = new AnalyticsService(mockClient, "server-id", "1.0.0", false, false, true);
 
-    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "search_issues", "org-uuid", "should-be-ignored", "user-uuid", null, null, 0L, true, null, 0L, 0L));
+    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "search_issues", "org-uuid", "should-be-ignored", "user-uuid", null, null, 0L, true, null, 0L, 0L,
+      List.of("issues")));
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
@@ -106,7 +111,8 @@ class AnalyticsServiceTest {
   void it_should_ignore_org_uuid_for_sqs_connection() {
     var service = new AnalyticsService(mockClient, "server-id", "1.0.0", false, false, false);
 
-    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "search_issues", "should-be-ignored", "install-id", null, null, null, 0L, true, null, 0L, 0L));
+    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "search_issues", "should-be-ignored", "install-id", null, null, null, 0L, true, null, 0L, 0L,
+      List.of("issues")));
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
@@ -121,7 +127,7 @@ class AnalyticsServiceTest {
   void it_should_resolve_transport_mode_as_stdio_when_http_disabled() {
     var service = new AnalyticsService(mockClient, "server-id", "1.0.0", false, false, false);
 
-    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "tool", null, null, null, null, null, 0L, true, null, 0L, 0L));
+    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "tool", null, null, null, null, null, 0L, true, null, 0L, 0L, List.of()));
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
@@ -132,7 +138,7 @@ class AnalyticsServiceTest {
   void it_should_resolve_transport_mode_as_http_when_http_enabled_without_tls() {
     var service = new AnalyticsService(mockClient, "server-id", "1.0.0", true, false, false);
 
-    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "tool", null, null, null, null, null, 0L, true, null, 0L, 0L));
+    service.notifyToolInvoked(new ToolInvocationResult("inv-id", "tool", null, null, null, null, null, 0L, true, null, 0L, 0L, List.of()));
 
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());

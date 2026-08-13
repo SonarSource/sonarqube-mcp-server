@@ -24,8 +24,10 @@ import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
@@ -672,6 +674,29 @@ class SonarQubeMcpServerGenericTest {
     var context = McpTransportContext.create(Map.of(HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "squ_valid_token"));
     server.withTransportContext(context, () ->
       assertThat(server.get()).isNotNull());
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void resolve_enabled_toolsets_should_apply_http_request_narrowing(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TOOLSETS", "issues,rules");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    var contextWithoutOverride = McpTransportContext.create(Map.of());
+    server.withTransportContext(contextWithoutOverride, () ->
+      assertThat(server.resolveEnabledToolsets()).containsExactlyInAnyOrder(
+        ToolCategory.ISSUES, ToolCategory.RULES, ToolCategory.PROJECTS));
+
+    var narrowedContext = McpTransportContext.create(Map.of(
+      HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.ISSUES)));
+    server.withTransportContext(narrowedContext, () ->
+      assertThat(server.resolveEnabledToolsets()).containsExactlyInAnyOrder(
+        ToolCategory.ISSUES, ToolCategory.PROJECTS));
 
     server.shutdown();
   }

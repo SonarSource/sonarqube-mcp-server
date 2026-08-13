@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
@@ -175,7 +176,7 @@ class ToolExecutorTest {
     var analyticsService = mock(AnalyticsService.class);
     doAnswer(invocation -> { ((Runnable) invocation.getArgument(0)).run(); return null; })
       .when(analyticsService).submit(any(Runnable.class));
-    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null, ToolCategory::all);
     var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
 
     executor.execute(new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(), ToolCategory.ANALYSIS) {
@@ -191,7 +192,7 @@ class ToolExecutorTest {
 
   @Test
   void it_should_skip_analytics_when_service_is_null() {
-    var executor = new ToolExecutor(mockBackendService, null, ConnectionContext.empty(), null, null);
+    var executor = new ToolExecutor(mockBackendService, null, ConnectionContext.empty(), null, null, ToolCategory::all);
 
     var result = executeDummyTool(executor);
 
@@ -203,7 +204,7 @@ class ToolExecutorTest {
     var analyticsService = syncAnalyticsService();
     var ctx = ConnectionContext.empty();
     ctx.captureCallingAgent("cursor", "1.0.0");
-    var executor = new ToolExecutor(mockBackendService, analyticsService, ctx, null, null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ctx, null, null, ToolCategory::all);
 
     executeDummyTool(executor);
 
@@ -211,9 +212,30 @@ class ToolExecutorTest {
   }
 
   @Test
+  void it_should_report_the_intersection_of_enabled_toolsets_and_tool_categories() {
+    var analyticsService = syncAnalyticsService();
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null,
+      () -> Set.of(ToolCategory.VORTEX, ToolCategory.ISSUES, ToolCategory.ANALYSIS));
+    record TestResponse(@JsonPropertyDescription("Result") String value) {}
+    var tool = new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(),
+      ToolCategory.ANALYSIS, ToolCategory.VORTEX) {
+      @Override
+      public Result execute(Arguments arguments) {
+        return Result.success(new TestResponse("ok"));
+      }
+    };
+
+    executor.execute(tool, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
+
+    var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
+    verify(analyticsService).notifyToolInvoked(resultCaptor.capture());
+    assertThat(resultCaptor.getValue().matchingToolsets()).containsExactly("analysis", "vortex");
+  }
+
+  @Test
   void it_should_skip_analytics_when_both_context_and_supplier_are_null() {
     var analyticsService = syncAnalyticsService();
-    var executor = new ToolExecutor(mockBackendService, analyticsService, null, null, null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null, null, null, ToolCategory::all);
 
     executeDummyTool(executor);
 
@@ -224,7 +246,7 @@ class ToolExecutorTest {
   void it_should_dispatch_event_in_http_mode_and_resolve_context_from_server_api() {
     var analyticsService = syncAnalyticsService();
     var mockServerApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
-    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi, null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi, null, ToolCategory::all);
 
     executeDummyTool(executor);
 
@@ -236,7 +258,7 @@ class ToolExecutorTest {
   void it_should_skip_analytics_in_http_mode_when_supplier_throws() {
     var analyticsService = syncAnalyticsService();
     var executor = new ToolExecutor(mockBackendService, analyticsService, null,
-      () -> { throw new RuntimeException("no transport context"); }, null);
+      () -> { throw new RuntimeException("no transport context"); }, null, ToolCategory::all);
 
     executeDummyTool(executor);
 
@@ -248,7 +270,7 @@ class ToolExecutorTest {
     var analyticsService = syncAnalyticsService();
     var mockServerApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
     doThrow(new RuntimeException("API unavailable")).when(mockServerApi).isSonarQubeCloud();
-    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi, null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, null, () -> mockServerApi, null, ToolCategory::all);
 
     executeDummyTool(executor);
 
@@ -258,11 +280,12 @@ class ToolExecutorTest {
   @Test
   void it_should_inject_invocation_id_into_tool_arguments_and_analytics() {
     var analyticsService = syncAnalyticsService();
-    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null, ToolCategory::all);
     var tool = mock(Tool.class);
     var toolDefinition = McpSchema.Tool.builder("test_tool", EMPTY_INPUT_SCHEMA).title("desc").description("").build();
     record DummyResponse(String message) {}
     when(tool.definition()).thenReturn(toolDefinition);
+    when(tool.getCategories()).thenReturn(Set.of(ToolCategory.ANALYSIS));
     when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
 
     var toolRequest = McpSchema.CallToolRequest.builder("test_tool")
@@ -292,11 +315,12 @@ class ToolExecutorTest {
   void it_should_inject_mcp_server_id_into_tool_arguments() {
     var analyticsService = syncAnalyticsService();
     var mcpServerId = "test-server-id-12345";
-    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, mcpServerId);
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, mcpServerId, ToolCategory::all);
     var tool = mock(Tool.class);
     var toolDefinition = McpSchema.Tool.builder("test_tool", EMPTY_INPUT_SCHEMA).title("desc").description("").build();
     record DummyResponse(String message) {}
     when(tool.definition()).thenReturn(toolDefinition);
+    when(tool.getCategories()).thenReturn(Set.of(ToolCategory.ANALYSIS));
     when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
 
     var toolRequest = McpSchema.CallToolRequest.builder("test_tool")
