@@ -22,12 +22,14 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.harness.SslTestUtils;
 
 class HttpsServerTransportIntegrationTest {
 
@@ -109,6 +111,19 @@ class HttpsServerTransportIntegrationTest {
     var startFuture2 = httpsServer.startServer();
     startFuture2.get(5, TimeUnit.SECONDS);
     assertThat(startFuture2).isCompleted();
+  }
+
+  @Test
+  void should_return_health_ok_when_request_host_is_not_in_certificate() throws Exception {
+    httpsServer.startServer().get(5, TimeUnit.SECONDS);
+
+    // kubelet HTTPS probes connect to the pod IP; the Host header is therefore an address that
+    // is not present in the certificate (test cert CN=localhost).
+    var healthUrl = "https://127.0.0.1:" + testPort + McpSecurityFilter.HEALTH_ENDPOINT;
+    var statusCode = SslTestUtils.getResponseCodeTrustingAllCertificates(
+      healthUrl, Duration.ofSeconds(5), Duration.ofSeconds(5));
+
+    assertThat(statusCode).isEqualTo(200);
   }
 
   @Test

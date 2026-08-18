@@ -35,6 +35,9 @@ import org.apache.commons.lang3.SystemUtils;
 import org.eclipse.jetty.ee10.servlet.FilterHolder;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -227,12 +230,11 @@ public class HttpServerTransportProvider {
     ServerConnector connector;
 
     if (httpsEnabled) {
-      // Configure HTTPS with SSL/TLS
       var sslContextFactory = new SslContextFactory.Server();
       var sslContext = configureSsl(httpsKeystorePath, httpsKeystorePassword, httpsKeystoreType,
         httpsTruststorePath, httpsTruststorePassword, httpsTruststoreType);
       sslContextFactory.setSslContext(sslContext);
-      connector = new ServerConnector(httpServer, sslContextFactory);
+      connector = createHttpsConnector(httpServer, sslContextFactory);
     } else {
       // Plain HTTP connector
       connector = new ServerConnector(httpServer);
@@ -289,6 +291,19 @@ public class HttpServerTransportProvider {
   public String getServerUrl() {
     var protocol = httpsEnabled ? "https" : "http";
     return protocol + "://" + host + ":" + port + MCP_ENDPOINT;
+  }
+
+  /**
+   * Jetty 12 rejects requests whose Host/SNI is not in the certificate (HTTP 400 Invalid SNI).
+   * Kubernetes HTTPS probes connect via the pod IP, which will not match typical service DNS SANs.
+   */
+  private static ServerConnector createHttpsConnector(Server server, SslContextFactory.Server sslContextFactory) {
+    var httpsConfig = new HttpConfiguration();
+    var secureCustomizer = new SecureRequestCustomizer();
+    secureCustomizer.setSniRequired(false);
+    secureCustomizer.setSniHostCheck(false);
+    httpsConfig.addCustomizer(secureCustomizer);
+    return new ServerConnector(server, sslContextFactory, new HttpConnectionFactory(httpsConfig));
   }
 
   /**
