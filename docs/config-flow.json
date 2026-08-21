@@ -48,7 +48,7 @@
       "description": "The AI agent runs the server in Docker locally. Best for single users.",
       "valueDelivery": "env",
       "dockerMode": "interactive",
-      "features": ["workspace-mount", "cag", "debug", "certs", "project-key", "toolsets", "read-only"],
+      "features": ["workspace-mount", "cag", "vortex", "debug", "certs", "project-key", "toolsets", "read-only"],
       "availableFor": ["cloud", "cloud-us", "server"]
     },
     {
@@ -123,7 +123,8 @@
   ],
 
   "toolsets": [
-    { "key": "analysis", "label": "Analysis", "defaultEnabled": true, "onlyForTransports": ["stdio", "http", "https"], "hint": "run_advanced_code_analysis requires workspace mount at /app/mcp-workspace (stdio)." },
+    { "key": "analysis", "label": "Analysis", "defaultEnabled": true, "onlyForTransports": ["stdio", "http", "https"], "hint": "analyze_code_snippet is deprecated. run_advanced_code_analysis requires a workspace mount at /app/mcp-workspace (stdio)." },
+    { "key": "ide", "label": "IDE", "defaultEnabled": true, "onlyForTransports": ["stdio"], "hint": "SonarQube for IDE bridge tools (file analysis, automatic analysis toggle). Local execution (stdio) only." },
     { "key": "projects", "label": "Projects", "defaultEnabled": true, "alwaysOn": true, "hint": "The Projects toolset is required and automatically enabled." },
     { "key": "issues", "label": "Issues", "defaultEnabled": true },
     { "key": "security-hotspots", "label": "Security hotspots", "defaultEnabled": true },
@@ -133,7 +134,9 @@
     { "key": "measures", "label": "Measures", "defaultEnabled": true },
     { "key": "dependency-risks", "label": "Dependency risks", "defaultEnabled": true },
     { "key": "coverage", "label": "Coverage", "defaultEnabled": true },
-    { "key": "cag", "label": "Context augmentation", "defaultEnabled": true, "onlyForTransports": ["stdio"], "hint": "Context augmentation works only with local execution (stdio). Requires workspace mount at /app/mcp-workspace when enabled." },
+    { "key": "cag", "label": "Vortex context", "defaultEnabled": true, "onlyForTransports": ["stdio"], "hint": "Deprecated in favor of vortex. Vortex context tools work only with local execution (stdio). Requires workspace mount at /app/mcp-workspace." },
+    { "key": "vortex", "label": "Vortex", "defaultEnabled": false, "onlyForTransports": ["stdio"], "hint": "Recommended. Surfaces Vortex context and Vortex analysis tools. Stdio only. Requires combined organization entitlement and workspace mount at /app/mcp-workspace." },
+    { "key": "agentic-readiness", "label": "Agentic readiness", "defaultEnabled": true, "hint": "Agentic Readiness Assessment tools. SonarQube Cloud only, requires organization entitlement." },
     { "key": "sources", "label": "Sources", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },
     { "key": "languages", "label": "Languages", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },
     { "key": "portfolios", "label": "Portfolios", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },

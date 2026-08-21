@@ -28,6 +28,26 @@ test.describe('config-generator.html', () => {
     expect(out).not.toContain('mcp/sonarqube');
   });
 
+  test('stdio: vortex is opt-in; deprecated cag and new defaults stay checked', async ({ page }) => {
+    await selectCursor(page);
+    await page.locator('#card-stdio').click();
+    await expect(page.locator('#tool-cag-label')).toBeVisible();
+    await expect(page.locator('#tool-vortex-label')).toBeVisible();
+    await expect(page.locator('#tool-ide-label')).toBeVisible();
+    await expect(page.locator('#tool-agentic-readiness-label')).toBeVisible();
+    await expect(page.locator('#tool-cag')).toBeChecked();
+    await expect(page.locator('#tool-ide')).toBeChecked();
+    await expect(page.locator('#tool-agentic-readiness')).toBeChecked();
+    await expect(page.locator('#tool-vortex')).not.toBeChecked();
+    const out = await page.locator('#codeOutput').textContent();
+    expect(out).not.toContain('SONARQUBE_TOOLSETS');
+
+    await page.locator('#tool-vortex').check();
+    const withVortex = await page.locator('#codeOutput').textContent();
+    expect(withVortex).toContain('SONARQUBE_TOOLSETS');
+    expect(withVortex).toContain('vortex');
+  });
+
   test('stdio + Cloud: JSON env includes token and org placeholders', async ({ page }) => {
     await selectCursor(page);
     await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
@@ -65,12 +85,14 @@ test.describe('config-generator.html', () => {
     expect(parsed.mcpServers.sonarqube.url).toMatch(/\/mcp$/);
   });
 
-  test('HTTP client: workspace mount hidden and CAG toolset hidden', async ({ page }) => {
+  test('HTTP client: workspace mount hidden and stdio-only toolsets hidden', async ({ page }) => {
     await selectCursor(page);
     await page.locator('#card-http').click();
     await page.locator('#btn-http-client').click();
     await expect(page.locator('#workspaceMountWrap')).toBeHidden();
     await expect(page.locator('#tool-cag-label')).toBeHidden();
+    await expect(page.locator('#tool-vortex-label')).toBeHidden();
+    await expect(page.locator('#tool-ide-label')).toBeHidden();
   });
 
   test('SQC + defaults: generated headers omit SONARQUBE_TOOLSETS', async ({ page }) => {
@@ -105,7 +127,9 @@ test.describe('config-generator.html', () => {
     await page.locator('#card-sqc').click();
     // Excluded for SQC:
     await expect(page.locator('#tool-analysis-label')).toBeHidden();
+    await expect(page.locator('#tool-ide-label')).toBeHidden();
     await expect(page.locator('#tool-cag-label')).toBeHidden();
+    await expect(page.locator('#tool-vortex-label')).toBeHidden();
     await expect(page.locator('#tool-sources-label')).toBeHidden();
     await expect(page.locator('#tool-languages-label')).toBeHidden();
     await expect(page.locator('#tool-portfolios-label')).toBeHidden();
@@ -121,6 +145,7 @@ test.describe('config-generator.html', () => {
     await expect(page.locator('#tool-measures-label')).toBeVisible();
     await expect(page.locator('#tool-dependency-risks-label')).toBeVisible();
     await expect(page.locator('#tool-coverage-label')).toBeVisible();
+    await expect(page.locator('#tool-agentic-readiness-label')).toBeVisible();
   });
 
   test('step 3 is called "Transport mode" (sentence case)', async ({ page }) => {

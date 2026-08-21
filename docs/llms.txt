@@ -111,15 +111,17 @@ Key concept:
 4. TOOLSETS
 -----------
 
-The MCP server groups tools into 16 toolsets. Users select which ones to
+The MCP server groups tools into 19 toolsets. Users select which ones to
 expose via the SONARQUBE_TOOLSETS env var (or HTTP header) as a
 comma-separated list of keys. If unset, the DEFAULT SET is enabled.
 
   Key                     Default  Notes
   ---                     -------  -----
-  analysis                yes      Requires workspace mount (stdio). Not
-                                   available in SonarQube Cloud-hosted
-                                   server.
+  analysis                yes      Local analysis (analyze_code_snippet is
+                                   deprecated). Also a deprecated path to
+                                   Vortex analysis tools. Not available in
+                                   SonarQube Cloud-hosted server.
+  ide                     yes      SonarQube for IDE bridge tools. Stdio only.
   projects                yes      Always on (required to find project keys).
                                    Cannot be disabled.
   issues                  yes
@@ -130,8 +132,14 @@ comma-separated list of keys. If unset, the DEFAULT SET is enabled.
   measures                yes
   dependency-risks        yes
   coverage                yes
-  cag                     yes      Context augmentation. Only in stdio mode.
-                                   Requires workspace mount.
+  cag                     yes      Vortex context tools. Deprecated in favor
+                                   of vortex. Stdio only. Requires workspace
+                                   mount.
+  vortex                  no       Recommended. Vortex context + Vortex
+                                   analysis. Stdio only. Requires combined
+                                   org entitlement and workspace mount.
+  agentic-readiness       yes      Agentic Readiness Assessment. SonarQube
+                                   Cloud only, requires org entitlement.
   sources                 no       Not available in SonarQube Cloud-hosted server.
   languages               no       Not available in SonarQube Cloud-hosted server.
   portfolios              no       Not available in SonarQube Cloud-hosted server.
@@ -139,9 +147,10 @@ comma-separated list of keys. If unset, the DEFAULT SET is enabled.
   webhooks                no       Not available in SonarQube Cloud-hosted server.
 
 SonarQube Cloud-hosted server limitation:
-  Only the DEFAULT SET minus `analysis` and `cag` is exposed. That is:
+  Only the DEFAULT SET minus stdio-only toolsets (`analysis`, `ide`, `cag`)
+  is exposed. That is:
   projects, issues, security-hotspots, quality-gates, rules, duplications,
-  measures, dependency-risks, coverage.
+  measures, dependency-risks, coverage, agentic-readiness.
   You cannot enable toolsets beyond this subset in cloud-hosted mode.
 
 
@@ -166,7 +175,7 @@ SonarQube Cloud-hosted server limitation:
         -v /path/to/certs:/usr/local/share/ca-certificates/:ro
 
   Workspace mount (stdio only)
-      Required for `run_advanced_code_analysis` and for context augmentation.
+      Required for `run_advanced_code_analysis` and for Vortex context tools.
       Mounts your project at /app/mcp-workspace so tools can read the tree
       via `filePath` instead of full file content:
         -v /absolute/path/to/project:/app/mcp-workspace:rw
