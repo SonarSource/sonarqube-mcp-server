@@ -185,11 +185,13 @@ Each toolset can restrict itself:
 
 ```json
 { "key": "cag",      "onlyForTransports": ["stdio"] }
+{ "key": "vortex",   "onlyForTransports": ["stdio"] }
+{ "key": "ide",      "onlyForTransports": ["stdio"] }
 { "key": "analysis", "onlyForTransports": ["stdio", "http", "https"] }   // not SQC
 { "key": "sources",  "onlyForTransports": ["stdio", "http", "https"] }   // not SQC
 ```
 
-Semantics: when the active transport is not in the list, `syncToolsetStates()` **hides** the checkbox (`display:none`) AND marks it `disabled`. Disabling is required so the "did the user deviate from defaults?" check in `getToolsetsValue()` ignores it -- otherwise SQC would spuriously emit `SONARQUBE_TOOLSETS=...` because default-enabled toolsets (analysis, cag) appear "unchecked".
+Semantics: when the active transport is not in the list, `syncToolsetStates()` **hides** the checkbox (`display:none`) AND marks it `disabled`. Disabling is required so the "did the user deviate from defaults?" check in `getToolsetsValue()` ignores it -- otherwise SQC would spuriously emit `SONARQUBE_TOOLSETS=...` because default-enabled toolsets (analysis, cag, ide) appear "unchecked".
 
 ## Snippet defaults (Pascal-case placeholders)
 
@@ -259,7 +261,7 @@ When **Local execution (stdio)** is selected, Step 4 can add:
 -v <hostAbsolutePath>:/app/mcp-workspace:rw
 ```
 
-Required for `run_advanced_code_analysis` and for the `cag` (Context augmentation) toolset. The mount is built in `buildDockerArgs(vals)` and mirrored in `formatClaudeStdio(vals)`. Hidden whenever `state.transport !== 'stdio'`.
+Required for `run_advanced_code_analysis` and for Vortex context tools (`vortex`, deprecated `cag`). The mount is built in `buildDockerArgs(vals)` and mirrored in `formatClaudeStdio(vals)`. Hidden whenever `state.transport !== 'stdio'`.
 
 ## Tests
 
@@ -278,7 +280,7 @@ npx playwright install chromium   # once per machine
 npm test
 ```
 
-Playwright's `webServer` serves the parent `docs/` directory and loads `/config-generator.html`. Current suite: 21 tests covering smoke flow, per-transport behaviour, toolset filtering, Pascal-case placeholders, theme toggle, footer, llms.txt ASCII constraint, favicon, external stylesheet, alphabetical agent order, product-name capitalization, project key behaviour.
+Playwright's `webServer` serves the parent `docs/` directory and loads `/config-generator.html`. Current suite: 31 tests covering smoke flow, per-transport behaviour, toolset filtering, Pascal-case placeholders, theme toggle, footer, llms.txt ASCII constraint, favicon, external stylesheet, alphabetical agent order, product-name capitalization, project key behaviour.
 
 ## Post-change checklist
 
