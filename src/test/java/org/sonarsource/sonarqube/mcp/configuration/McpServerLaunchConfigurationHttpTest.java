@@ -61,6 +61,14 @@ class McpServerLaunchConfigurationHttpTest {
   }
 
   @Test
+  void should_detect_http_transport_without_full_configuration() {
+    assertThat(McpServerLaunchConfiguration.isHttpTransport(Map.of("SONARQUBE_TRANSPORT", "http"))).isTrue();
+    assertThat(McpServerLaunchConfiguration.isHttpTransport(Map.of("SONARQUBE_TRANSPORT", "HTTPS"))).isTrue();
+    assertThat(McpServerLaunchConfiguration.isHttpTransport(Map.of())).isFalse();
+    assertThat(McpServerLaunchConfiguration.isHttpTransport(Map.of("SONARQUBE_TRANSPORT", "stdio"))).isFalse();
+  }
+
+  @Test
   void should_parse_http_enabled_false() {
     var environment = createMinimalTestEnvironment();
     environment.put("SONARQUBE_TRANSPORT", "false");

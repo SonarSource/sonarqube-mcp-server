@@ -26,6 +26,8 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpServerTransportProvider;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -99,6 +101,7 @@ import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadines
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
+import org.sonarsource.sonarqube.mcp.transport.StdioInitializeErrorReporter;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 public class SonarQubeMcpServer implements ServerApiProvider {
@@ -201,7 +204,20 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private ProxiedToolsLoader proxiedToolsLoader;
 
   public static void main(String[] args) {
-    new SonarQubeMcpServer(System.getenv()).start();
+    try {
+      new SonarQubeMcpServer(System.getenv()).start();
+    } catch (RuntimeException e) {
+      handleStartupFailure(e, System.getenv(), System.in, System.out);
+      System.exit(1);
+    }
+  }
+
+  @VisibleForTesting
+  static void handleStartupFailure(RuntimeException error, Map<String, String> environment, InputStream in, OutputStream out) {
+    LOG.error("Failed to start SonarQube MCP Server", error);
+    if (!McpServerLaunchConfiguration.isHttpTransport(environment)) {
+      StdioInitializeErrorReporter.report(error, in, out);
+    }
   }
 
   public SonarQubeMcpServer(Map<String, String> environment) {

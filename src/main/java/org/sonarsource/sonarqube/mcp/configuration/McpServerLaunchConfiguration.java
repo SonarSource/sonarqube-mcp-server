@@ -150,9 +150,8 @@ public class McpServerLaunchConfiguration {
     this.storagePath = Paths.get(storagePathString);
     this.hostMachineAddress = resolveHostMachineAddress();
 
-    var transportMode = requireNonNull(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TRANSPORT, "")).toLowerCase(Locale.getDefault());
-    this.isHttpEnabled = transportMode.equals("http") || transportMode.equals("https");
-    this.isHttpsEnabled = transportMode.equals("https");
+    this.isHttpEnabled = isHttpTransport(environment);
+    this.isHttpsEnabled = "https".equals(transportMode(environment));
 
     // Read configuration values.
     // SONARQUBE_TOKEN, SONARQUBE_ORG, and SONARQUBE_URL may be forwarded as literal "${VAR}" strings by MCP clients
@@ -286,6 +285,19 @@ public class McpServerLaunchConfiguration {
 
   public boolean isHttpEnabled() {
     return isHttpEnabled;
+  }
+
+  /**
+   * True when {@code SONARQUBE_TRANSPORT} is {@code http} or {@code https}.
+   * Safe to call even when constructing {@link McpServerLaunchConfiguration} would fail.
+   */
+  public static boolean isHttpTransport(Map<String, String> environment) {
+    var mode = transportMode(environment);
+    return "http".equals(mode) || "https".equals(mode);
+  }
+
+  private static String transportMode(Map<String, String> environment) {
+    return requireNonNull(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TRANSPORT, "")).toLowerCase(Locale.getDefault());
   }
 
   public int getHttpPort() {
