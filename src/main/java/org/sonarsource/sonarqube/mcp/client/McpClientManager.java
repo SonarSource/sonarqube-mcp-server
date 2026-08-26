@@ -38,7 +38,7 @@ import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
  * This allows the SonarQube MCP server to act as a client to other MCP servers
  * and expose their tools through the SonarQube MCP server.
  */
-public class McpClientManager {
+public final class McpClientManager {
   
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(
