@@ -93,11 +93,6 @@ configurations {
 				useVersion("2.2.0")
 				because("CVE-2020-29582")
 			}
-			// Pulled in transitively by mcp-json-jackson2 and sonarlint-rpc-impl
-            if (requested.group == "com.fasterxml.jackson.core" && requested.name != "jackson-annotations") {
-                useVersion("2.21.5")
-				because("GHSA-72hv-8253-57qq + CVE-2026-68494 + CVE-2026-77310")
-			}
 			// Pulled in by mcp-json-jackson3
 			if (requested.group == "tools.jackson.core") {
 				useVersion("3.1.5")
