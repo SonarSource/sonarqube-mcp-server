@@ -34,7 +34,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static java.util.Objects.requireNonNull;
 
-public class McpServerLaunchConfiguration {
+public final class McpServerLaunchConfiguration {
 
   private static final String APP_NAME = "SonarQube MCP Server";
 
@@ -271,7 +271,7 @@ public class McpServerLaunchConfiguration {
     return userAgent;
   }
 
-  public String getAppName() {
+  public static String getAppName() {
     return APP_NAME;
   }
 

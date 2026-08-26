@@ -88,7 +88,7 @@ public class BackendService {
     this.logFilePath = mcpConfiguration.getLogFilePath();
     this.appVersion = mcpConfiguration.getAppVersion();
     this.userAgent = mcpConfiguration.getUserAgent();
-    this.appName = mcpConfiguration.getAppName();
+    this.appName = McpServerLaunchConfiguration.getAppName();
     this.isTelemetryEnabled = mcpConfiguration.isTelemetryEnabled();
     this.isFileLoggingDisabled = mcpConfiguration.isFileLoggingDisabled();
     if (!mcpConfiguration.isHttpEnabled()) {

@@ -38,7 +38,7 @@ import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
  * This allows the SonarQube MCP server to act as a client to other MCP servers
  * and expose their tools through the SonarQube MCP server.
  */
-public class McpClientManager {
+public final class McpClientManager {
   
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(
@@ -233,7 +233,7 @@ public class McpClientManager {
    * Builds the environment variables map for a proxied server by combining explicit values from config and inherited values from parent environment.
    */
   @VisibleForTesting
-  Map<String, String> buildEnvironmentVariables(ProxiedMcpServerConfig config, Map<String, String> parentEnv) {
+  static Map<String, String> buildEnvironmentVariables(ProxiedMcpServerConfig config, Map<String, String> parentEnv) {
     var filteredEnv = new HashMap<String, String>();
     
     // Add explicit values from config
