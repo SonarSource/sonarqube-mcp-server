@@ -271,7 +271,7 @@ public final class McpServerLaunchConfiguration {
     return userAgent;
   }
 
-  public String getAppName() {
+  public static String getAppName() {
     return APP_NAME;
   }
 

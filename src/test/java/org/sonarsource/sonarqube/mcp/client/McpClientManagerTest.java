@@ -116,13 +116,12 @@ class McpClientManagerTest {
 
   @Test
   void buildEnvironmentVariables_should_include_explicit_values_from_config() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
     var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
       Map.of("EXPLICIT_VAR1", "value1", "EXPLICIT_VAR2", "value2"),
       List.of(), Set.of(TransportMode.STDIO));
     var parentEnv = Map.of("PARENT_VAR", "parent_value");
 
-    var result = manager.buildEnvironmentVariables(config, parentEnv);
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv);
 
     assertThat(result)
       .hasSize(2)
@@ -133,7 +132,6 @@ class McpClientManagerTest {
 
   @Test
   void buildEnvironmentVariables_should_inherit_variables_from_parent() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
     var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
       Map.of(),
       List.of("INHERITED_VAR1", "INHERITED_VAR2"),
@@ -144,7 +142,7 @@ class McpClientManagerTest {
       "NOT_INHERITED", "should_not_appear"
     );
 
-    var result = manager.buildEnvironmentVariables(config, parentEnv);
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv);
 
     assertThat(result)
       .hasSize(2)
@@ -155,14 +153,13 @@ class McpClientManagerTest {
 
   @Test
   void buildEnvironmentVariables_should_prioritize_explicit_values_over_inherited() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
     var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
       Map.of("OVERRIDE_VAR", "explicit_value"),
       List.of("OVERRIDE_VAR"),
       Set.of(TransportMode.STDIO));
     var parentEnv = Map.of("OVERRIDE_VAR", "parent_value");
 
-    var result = manager.buildEnvironmentVariables(config, parentEnv);
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv);
 
     assertThat(result)
       .hasSize(1)
@@ -198,14 +195,13 @@ class McpClientManagerTest {
 
   @Test
   void buildEnvironmentVariables_should_skip_inherited_var_not_in_parent() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
     var config = new ProxiedMcpServerConfig("server", "cmd", List.of(),
       Map.of(),
       List.of("MISSING_VAR", "EXISTING_VAR"),
       Set.of(TransportMode.STDIO));
     var parentEnv = Map.of("EXISTING_VAR", "existing_value");
 
-    var result = manager.buildEnvironmentVariables(config, parentEnv);
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv);
 
     assertThat(result)
       .hasSize(1)

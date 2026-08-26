@@ -233,7 +233,7 @@ public final class McpClientManager {
    * Builds the environment variables map for a proxied server by combining explicit values from config and inherited values from parent environment.
    */
   @VisibleForTesting
-  Map<String, String> buildEnvironmentVariables(ProxiedMcpServerConfig config, Map<String, String> parentEnv) {
+  static Map<String, String> buildEnvironmentVariables(ProxiedMcpServerConfig config, Map<String, String> parentEnv) {
     var filteredEnv = new HashMap<String, String>();
     
     // Add explicit values from config
