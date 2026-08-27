@@ -1071,6 +1071,7 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
 - **change_sonar_issue_status** - Change the status of a SonarQube issue to "accept", "falsepositive" or to "reopen" an issue.
   - `key` - Issue key - _Required String_
   - `status` - New issue's status - _Required Enum {"accept", "falsepositive", "reopen"}_
+  - `comment` - Optional comment explaining the status change - _String_
 
 
 - **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects.

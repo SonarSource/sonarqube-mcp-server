@@ -50,7 +50,10 @@ class ChangeIssuesStatusToolTests {
         "status", Map.of(
           "type", "string",
           "description", "The new status of the issue",
-          "enum", List.of("accept", "falsepositive", "reopen"))),
+          "enum", List.of("accept", "falsepositive", "reopen")),
+        "comment", Map.of(
+          "description", "An optional comment explaining the status change",
+          "type", "string")),
       "required", List.of("key", "status"),
       "additionalProperties", false));
   }
@@ -221,6 +224,79 @@ class ChangeIssuesStatusToolTests {
         }""");
       assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
         .contains(new ReceivedRequest("Bearer token", "issue=k&transition=reopen"));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_change_the_status_and_add_a_comment(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/add_comment").willReturn(ok()));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        ChangeIssueStatusTool.TOOL_NAME,
+        Map.of("key", "k",
+          "status", "accept",
+          "comment", "Not reachable from any entrypoint"));
+
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "message" : "The issue status was successfully changed.",
+          "issueKey" : "k",
+          "newStatus" : "accept"
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(
+          new ReceivedRequest("Bearer token", "issue=k&transition=accept"),
+          new ReceivedRequest("Bearer token", "issue=k&text=Not+reachable+from+any+entrypoint"));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_not_call_add_comment_when_no_comment_is_provided(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      mcpClient.callTool(
+        ChangeIssueStatusTool.TOOL_NAME,
+        Map.of("key", "k",
+          "status", "accept"));
+
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/issues/add_comment")).isZero();
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_not_call_add_comment_when_comment_is_blank(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      mcpClient.callTool(
+        ChangeIssueStatusTool.TOOL_NAME,
+        Map.of("key", "k",
+          "status", "accept",
+          "comment", "   "));
+
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/issues/add_comment")).isZero();
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_report_a_partial_failure_when_the_comment_cannot_be_added(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/do_transition").willReturn(ok()));
+      harness.getMockSonarQubeServer().stubFor(post("/api/issues/add_comment").willReturn(aResponse().withStatus(403)));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        ChangeIssueStatusTool.TOOL_NAME,
+        Map.of("key", "k",
+          "status", "accept",
+          "comment", "Not reachable from any entrypoint"));
+
+      assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true)
+        .addTextContent("The issue status was changed to 'accept', but the comment could not be added: SonarQube answered with Forbidden")
+        .build());
     }
 
   }

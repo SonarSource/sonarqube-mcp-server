@@ -30,6 +30,8 @@ import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 public class IssuesApi {
 
   public static final String SEARCH_PATH = "/api/issues/search";
+  public static final String DO_TRANSITION_PATH = "/api/issues/do_transition";
+  public static final String ADD_COMMENT_PATH = "/api/issues/add_comment";
 
   private final ServerApiHelper helper;
 
@@ -59,7 +61,14 @@ public class IssuesApi {
 
   public void doTransition(String issueKey, Transition transition) {
     var body = "issue=" + urlEncode(issueKey) + "&transition=" + urlEncode(transition.getStatus());
-    try (var ignored = helper.post("/api/issues/do_transition", FORM_URL_ENCODED_CONTENT_TYPE, body)) {
+    try (var ignored = helper.post(DO_TRANSITION_PATH, FORM_URL_ENCODED_CONTENT_TYPE, body)) {
+      // Response is closed automatically
+    }
+  }
+
+  public void addComment(String issueKey, String text) {
+    var body = "issue=" + urlEncode(issueKey) + "&text=" + urlEncode(text);
+    try (var ignored = helper.post(ADD_COMMENT_PATH, FORM_URL_ENCODED_CONTENT_TYPE, body)) {
       // Response is closed automatically
     }
   }
