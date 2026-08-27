@@ -1081,6 +1081,7 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
   - `severities` - Optional list of severities to filter by. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER - _String[]_
   - `impactSoftwareQualities` - Optional list of software qualities to filter by. Possible values: MAINTAINABILITY, RELIABILITY, SECURITY - _String[]_
   - `issueStatuses` - Optional list of issue statuses to filter by. Possible values: OPEN, CONFIRMED, FALSE_POSITIVE, ACCEPTED, FIXED, IN_SANDBOX - _String[]_
+  - `inNewCodePeriod` - Only return issues in the new code period. Requires exactly one entry across `projectKeys` and `files` - _Boolean_
   - `issueKey` - Optional issue key to fetch a specific issue - _String_
   - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
   - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
