@@ -37,6 +37,8 @@ class CagApiTest {
 
   private static final String ORG_UUID = "57f08a8b-4a6e-4c64-bf72-83a892472f22";
   private static final String CAG_ENTITLEMENT_PUBLIC_PATH = "/cag/cag-entitlement/" + ORG_UUID;
+  private static final String CAG_ENTITLEMENT_SERVER_PATH =
+    "/api/v2" + CagApi.CAG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
 
   @RegisterExtension
   static WireMockExtension sonarqubeMock = WireMockExtension.newInstance()
@@ -44,12 +46,15 @@ class CagApiTest {
     .build();
 
   private CagApi cagApi;
+  private CagApi serverCagApi;
 
   @BeforeAll
   void init() {
     var httpClient = new HttpClientProvider("test").getHttpClient("token");
     var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "my-org", null, true), httpClient);
     cagApi = new CagApi(helper);
+    var serverHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), httpClient);
+    serverCagApi = new CagApi(serverHelper);
   }
 
   @Test
@@ -120,6 +125,39 @@ class CagApiTest {
       .willReturn(aResponse().withStatus(404)));
 
     var entitlement = cagApi.getCagEntitlement(ORG_UUID);
+
+    assertThat(entitlement).isNull();
+  }
+
+  @Test
+  void it_should_use_api_v2_path_on_sonarqube_server() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_SERVER_PATH))
+      .willReturn(jsonResponse("""
+        {"hasEntitlement":true}
+        """, 200)));
+
+    var entitlement = serverCagApi.getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.hasEntitlement()).isTrue();
+  }
+
+  @Test
+  void it_should_return_null_on_sonarqube_server_when_hub_is_absent() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_SERVER_PATH))
+      .willReturn(aResponse().withStatus(404)));
+
+    var entitlement = serverCagApi.getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+    assertThat(entitlement).isNull();
+  }
+
+  @Test
+  void it_should_return_null_on_sonarqube_server_when_hub_is_unavailable() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_SERVER_PATH))
+      .willReturn(aResponse().withStatus(503)));
+
+    var entitlement = serverCagApi.getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
 
     assertThat(entitlement).isNull();
   }

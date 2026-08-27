@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.serverapi;
 import java.util.function.BiPredicate;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 
 /**
@@ -37,10 +38,18 @@ public class OrgFeatureEntitlements {
   }
 
   /**
-   * Vortex unifies CAG and A3S under one bundle; anticipating the two checks being served by a
-   * single backend endpoint in the future, both must be entitled for Vortex to be available.
+   * Vortex is one product: both hubs must be entitled. Cloud uses the org UUID against CAG
+   * entitlement and A3S org-config. Server has no organizations, so both GETs use the nil
+   * UUID placeholder; a 404 from either hub means Vortex is not on this instance.
    */
   public boolean isVortexEnabledForOrg(@Nullable ResolvedOrganization org) {
+    if (api != null && !api.isSonarQubeCloud()) {
+      var orgKey = org != null ? org.key() : "server";
+      var placeholder = CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
+      var cagEnabled = isCagEnabled(placeholder, orgKey);
+      var a3sEnabled = isServerA3sEnabled(placeholder, orgKey);
+      return cagEnabled && a3sEnabled;
+    }
     return checkForOrg(org, (orgUuidV4, orgKey) -> isCagEnabled(orgUuidV4, orgKey) && isA3sEnabled(orgUuidV4, orgKey));
   }
 
@@ -68,7 +77,11 @@ public class OrgFeatureEntitlements {
       return false;
     }
     if (!entitlement.hasEntitlement()) {
-      LOG.debug("Vortex entitlement check: org '" + orgKey + "' is not entitled to use CAG");
+      if (!api.isSonarQubeCloud()) {
+        LOG.info("Vortex is not licensed on this SonarQube Server. Ask your administrator.");
+      } else {
+        LOG.debug("Vortex entitlement check: org '" + orgKey + "' is not entitled to use CAG");
+      }
       return false;
     }
     return true;
@@ -82,6 +95,19 @@ public class OrgFeatureEntitlements {
     }
     if (!config.enabled()) {
       LOG.debug("Vortex entitlement check: advanced analysis is not enabled for org '" + orgKey + "'");
+      return false;
+    }
+    return true;
+  }
+
+  private boolean isServerA3sEnabled(String orgUuidV4, String orgKey) {
+    var entitlement = api.a3sAnalysisApi().getA3sOrgEntitlement(orgUuidV4);
+    if (entitlement == null) {
+      LOG.debug("Vortex entitlement check: could not retrieve A3S entitlement for org '" + orgKey + "'");
+      return false;
+    }
+    if (!entitlement.hasEntitlement()) {
+      LOG.info("Vortex is not licensed on this SonarQube Server. Ask your administrator.");
       return false;
     }
     return true;
