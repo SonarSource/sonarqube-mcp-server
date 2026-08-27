@@ -72,7 +72,7 @@ The server connects to **SonarQube Cloud** when `SONARQUBE_ORG` is set, otherwis
 | System tools (`system` toolset)                              | Not available                                              | Available                    |
 | Enterprises                                                  | Available                                                  | Not available                |
 | Dependency risks (SCA)                                       | Org entitlement                                            | Feature flag + version check |
-| Vortex analysis (deprecated name: Advanced analysis / A3S)   | Org entitlement, combined with Vortex context              | Not available                |
+| Vortex analysis (deprecated name: Advanced analysis / A3S)   | Org entitlement, combined with Vortex context              | Both hubs entitled; MCP tool `run_advanced_code_analysis` stays Cloud-only |
 | Vortex context (deprecated name: Context Augmentation / CAG) | Org entitlement, combined with Vortex analysis, stdio only | Both hubs entitled, stdio only, proxied binary |
 | Agentic readiness                                            | Org feature flag                                           | Not available                |
 
