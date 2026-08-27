@@ -28,6 +28,7 @@ public class A3sAnalysisApi {
 
   public static final String ANALYSES_PATH = "/a3s-analysis/analyses";
   public static final String A3S_ORG_CONFIG_PATH = "/a3s-analysis/org-config/";
+  @SuppressWarnings("java:S1075") // REST path constant, same pattern as A3S_ORG_CONFIG_PATH
   public static final String A3S_ORG_ENTITLEMENT_PATH = "/a3s/org-entitlement/";
 
   private static final String JSON_CONTENT_TYPE = "application/json";

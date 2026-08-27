@@ -46,9 +46,7 @@ public class OrgFeatureEntitlements {
     if (api != null && !api.isSonarQubeCloud()) {
       var orgKey = org != null ? org.key() : "server";
       var placeholder = CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
-      var cagEnabled = isCagEnabled(placeholder, orgKey);
-      var a3sEnabled = isServerA3sEnabled(placeholder, orgKey);
-      return cagEnabled && a3sEnabled;
+      return isCagEnabled(placeholder, orgKey) && isServerA3sEnabled(placeholder, orgKey);
     }
     return checkForOrg(org, (orgUuidV4, orgKey) -> isCagEnabled(orgUuidV4, orgKey) && isA3sEnabled(orgUuidV4, orgKey));
   }

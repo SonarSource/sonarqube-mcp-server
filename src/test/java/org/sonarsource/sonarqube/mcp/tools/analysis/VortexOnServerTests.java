@@ -19,6 +19,8 @@ package org.sonarsource.sonarqube.mcp.tools.analysis;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
+import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -35,6 +37,8 @@ class VortexOnServerTests {
     assertThat(toolNames)
       .contains(AnalyzeCodeSnippetTool.TOOL_NAME)
       .doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
   }
 
   @SonarQubeMcpServerTest
@@ -46,6 +50,8 @@ class VortexOnServerTests {
     assertThat(toolNames)
       .contains(AnalyzeCodeSnippetTool.TOOL_NAME)
       .doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isFalse();
   }
 
   @SonarQubeMcpServerTest
@@ -59,5 +65,15 @@ class VortexOnServerTests {
     assertThat(toolNames)
       .contains(AnalyzeCodeSnippetTool.TOOL_NAME)
       .doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isFalse();
+  }
+
+  private static String serverCagPath() {
+    return "/api/v2" + CagApi.CAG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
+  }
+
+  private static String serverA3sPath() {
+    return "/api/v2" + A3sAnalysisApi.A3S_ORG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
   }
 }
