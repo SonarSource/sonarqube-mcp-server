@@ -37,6 +37,7 @@ public class SearchIssuesTool extends Tool {
   public static final String SEVERITIES_PROPERTY = "severities";
   public static final String IMPACT_SOFTWARE_QUALITIES_PROPERTY = "impactSoftwareQualities";
   public static final String ISSUE_STATUSES_PROPERTY = "issueStatuses";
+  public static final String IN_NEW_CODE_PERIOD_PROPERTY = "inNewCodePeriod";
   public static final String ISSUE_KEY_PROPERTY = "issueKey";
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
   public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
@@ -68,6 +69,7 @@ public class SearchIssuesTool extends Tool {
       .addEnumArrayProperty(SEVERITIES_PROPERTY, VALID_SEVERITIES, "An optional list of severities to filter by")
       .addEnumArrayProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES, "An optional list of software qualities to filter by")
       .addEnumArrayProperty(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES, "An optional list of issue statuses to filter by. Note: IN_SANDBOX is valid only for SonarQube Server")
+      .addBooleanProperty(IN_NEW_CODE_PERIOD_PROPERTY, "Only return issues in the new code period. Requires exactly one entry across projectKeys and files")
       .addArrayProperty(ISSUE_KEY_PROPERTY, "string", "An optional list of issue keys to fetch specific issues")
       .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional 1-based page index. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
@@ -83,10 +85,21 @@ public class SearchIssuesTool extends Tool {
       return validationError.get();
     }
 
+    var inNewCodePeriod = arguments.getOptionalBoolean(IN_NEW_CODE_PERIOD_PROPERTY);
+    if (Boolean.TRUE.equals(inNewCodePeriod) && componentCount(arguments) != 1) {
+      return Tool.Result.failure("'inNewCodePeriod' requires exactly one project key or file");
+    }
+
     var searchParams = extractSearchParams(arguments, branchPullRequest);
     var response = serverApiProvider.get().issuesApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
+  }
+
+  private static int componentCount(Tool.Arguments arguments) {
+    var projectKeys = arguments.getOptionalStringList(PROJECT_KEYS_PROPERTY);
+    var files = arguments.getOptionalStringList(FILES_PROPERTY);
+    return (projectKeys != null ? projectKeys.size() : 0) + (files != null ? files.size() : 0);
   }
 
   private static IssuesApi.SearchParams extractSearchParams(Tool.Arguments arguments, BranchPullRequestContext.Params branchPullRequest) {
@@ -98,6 +111,7 @@ public class SearchIssuesTool extends Tool {
       arguments.getOptionalEnumList(SEVERITIES_PROPERTY, VALID_SEVERITIES),
       arguments.getOptionalEnumList(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES),
       arguments.getOptionalEnumList(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES),
+      arguments.getOptionalBoolean(IN_NEW_CODE_PERIOD_PROPERTY),
       arguments.getOptionalStringList(ISSUE_KEY_PROPERTY),
       arguments.getOptionalPageIndex(),
       arguments.getOptionalPageSize()

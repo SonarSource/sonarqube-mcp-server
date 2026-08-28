@@ -167,6 +167,18 @@ class SearchIssuesToolTests {
       """);
   }
 
+  @SonarQubeMcpServerTest
+  void it_should_fail_when_in_new_code_period_is_used_with_multiple_components(SonarQubeMcpServerTestHarness harness) {
+    var mcpClient = harness.newClient();
+
+    var result = mcpClient.callTool(
+      SearchIssuesTool.TOOL_NAME,
+      Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, List.of("project1", "project2"),
+        SearchIssuesTool.IN_NEW_CODE_PERIOD_PROPERTY, true));
+
+    assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true).addTextContent("'inNewCodePeriod' requires exactly one project key or file").build());
+  }
+
   @Nested
   class WithSonarQubeCloud {
 
@@ -320,6 +332,120 @@ class SearchIssuesToolTests {
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
         Map.of(SearchIssuesTool.FILES_PROPERTY, List.of("file1", "file2")));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_filter_by_new_code_period(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?componentKeys=project1&sinceLeakPeriod=true&organization=org")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, List.of("project1"),
+          SearchIssuesTool.IN_NEW_CODE_PERIOD_PROPERTY, true));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_not_filter_by_new_code_period_when_false(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?componentKeys=project1&sinceLeakPeriod=false&organization=org")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"));
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, List.of("project1"),
+          SearchIssuesTool.IN_NEW_CODE_PERIOD_PROPERTY, false));
 
       assertResultEquals(result, """
         {
@@ -774,6 +900,118 @@ class SearchIssuesToolTests {
       var result = mcpClient.callTool(
         SearchIssuesTool.TOOL_NAME,
         Map.of(SearchIssuesTool.FILES_PROPERTY, List.of("file1", "file2")));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_filter_by_new_code_period(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?components=project1&inNewCodePeriod=true")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, List.of("project1"),
+          SearchIssuesTool.IN_NEW_CODE_PERIOD_PROPERTY, true));
+
+      assertResultEquals(result, """
+        {
+          "issues" : [ {
+            "key" : "issueKey1",
+            "rule" : "ruleName1",
+            "project" : "projectName1",
+            "component" : "com.github.kevinsawicki:http-request:com.github.kevinsawicki.http.HttpRequest",
+            "severity" : "MINOR, HIGH",
+            "status" : "RESOLVED",
+            "message" : "'3' is a magic number.",
+            "cleanCodeAttribute" : "CLEAR",
+            "cleanCodeAttributeCategory" : "INTENTIONAL",
+            "author" : "Developer 1",
+            "creationDate" : "2013-05-13T17:55:39+0200",
+            "textRange" : {
+              "startLine" : 2,
+              "endLine" : 2
+            }
+          } ],
+          "paging" : {
+            "pageIndex" : 1,
+            "pageSize" : 100,
+            "total" : 1
+          }
+        }""");
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .contains(new ReceivedRequest("Bearer token", ""));
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_not_filter_by_new_code_period_when_false(SonarQubeMcpServerTestHarness harness) {
+      var issueKey = "issueKey1";
+      var ruleName = "ruleName1";
+      var projectName = "projectName1";
+      harness.getMockSonarQubeServer().stubFor(get(IssuesApi.SEARCH_PATH + "?components=project1&inNewCodePeriod=false")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+            {
+                "paging": {
+                  "pageIndex": 1,
+                  "pageSize": 100,
+                  "total": 1
+                },
+                "issues": [%s],
+                "components": [],
+                "rules": [],
+                "users": []
+              }
+            """.formatted(generateIssue(issueKey, ruleName, projectName)).getBytes(StandardCharsets.UTF_8)))));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        SearchIssuesTool.TOOL_NAME,
+        Map.of(SearchIssuesTool.PROJECT_KEYS_PROPERTY, List.of("project1"),
+          SearchIssuesTool.IN_NEW_CODE_PERIOD_PROPERTY, false));
 
       assertResultEquals(result, """
         {
