@@ -258,11 +258,18 @@ class ChangeIssuesStatusToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      mcpClient.callTool(
+      var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
           "status", "accept"));
 
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "message" : "The issue status was successfully changed.",
+          "issueKey" : "k",
+          "newStatus" : "accept"
+        }""");
       assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/issues/add_comment")).isZero();
     }
 
@@ -272,12 +279,19 @@ class ChangeIssuesStatusToolTests {
       var mcpClient = harness.newClient(Map.of(
         "SONARQUBE_ORG", "org"));
 
-      mcpClient.callTool(
+      var result = mcpClient.callTool(
         ChangeIssueStatusTool.TOOL_NAME,
         Map.of("key", "k",
           "status", "accept",
           "comment", "   "));
 
+      assertResultEquals(result, """
+        {
+          "success" : true,
+          "message" : "The issue status was successfully changed.",
+          "issueKey" : "k",
+          "newStatus" : "accept"
+        }""");
       assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/issues/add_comment")).isZero();
     }
 
