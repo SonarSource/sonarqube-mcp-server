@@ -358,12 +358,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         LOG.info("Vortex analysis mode enabled, but no workspace path configured, skipping tool registration");
       }
     }
-    if (!vortexEnabledForOrg) {
+    if (!vortexEnabledForOrg && (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null)) {
       // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
       // token is configured (so plugins can be downloaded at startup).
-      if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
-        loadBackendDependentTools();
-      }
+      loadBackendDependentTools();
     }
 
     logToolsLoaded();

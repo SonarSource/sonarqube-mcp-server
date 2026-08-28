@@ -94,6 +94,7 @@ class VortexOnServerTests {
     var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
 
     assertThat(toolNames)
+      .isNotEmpty()
       .doesNotContain(AnalyzeCodeSnippetTool.TOOL_NAME, RunAdvancedCodeAnalysisTool.TOOL_NAME);
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
