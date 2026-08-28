@@ -47,6 +47,7 @@ public class IssuesApi {
     @Nullable List<String> severities,
     @Nullable List<String> impactSoftwareQualities,
     @Nullable List<String> issueStatuses,
+    @Nullable Boolean inNewCodePeriod,
     @Nullable List<String> issueKeys,
     @Nullable Integer page,
     @Nullable Integer pageSize
@@ -90,6 +91,7 @@ public class IssuesApi {
 
   private String buildIssueSearchPath(SearchParams params) {
     var componentsParamName = helper.isSonarQubeCloud() ? "componentKeys" : "components";
+    var newCodePeriodParamName = helper.isSonarQubeCloud() ? "sinceLeakPeriod" : "inNewCodePeriod";
     var builder = new UrlBuilder(SEARCH_PATH)
       .addParam(componentsParamName, mergedComponents(params.projects(), params.files()))
       .addParam("branch", params.branch())
@@ -97,6 +99,7 @@ public class IssuesApi {
       .addParam("impactSeverities", params.severities())
       .addParam("impactSoftwareQualities", params.impactSoftwareQualities())
       .addParam("issueStatuses", params.issueStatuses())
+      .addParam(newCodePeriodParamName, params.inNewCodePeriod())
       .addParam("issues", params.issueKeys())
       .addParam("p", params.page())
       .addParam("ps", params.pageSize())
