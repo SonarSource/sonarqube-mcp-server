@@ -24,11 +24,15 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -150,6 +154,22 @@ class A3sConfigApiTest {
     var entitlement = serverA3sAnalysisApi.getA3sOrgEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
 
     assertThat(entitlement).isNull();
+  }
+
+  @Test
+  void it_should_post_analyses_to_api_v2_on_sonarqube_server() {
+    var path = "/api/v2" + A3sAnalysisApi.A3S_ANALYSES_PATH;
+    sonarqubeMock.stubFor(post(urlPathEqualTo(path))
+      .willReturn(jsonResponse("""
+        {"id":"analysis-1","issues":[]}
+        """, 200)));
+
+    var response = serverA3sAnalysisApi.analyze(new AnalysisCreationRequest(
+      CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER, "proj", "main", "src/A.java", "class A {}", "MAIN"));
+
+    assertThat(response.id()).isEqualTo("analysis-1");
+    sonarqubeMock.verify(postRequestedFor(urlPathEqualTo(path))
+      .withRequestBody(containing(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER)));
   }
 
 }

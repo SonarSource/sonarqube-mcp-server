@@ -29,6 +29,8 @@ public class A3sAnalysisApi {
   public static final String ANALYSES_PATH = "/a3s-analysis/analyses";
   public static final String A3S_ORG_CONFIG_PATH = "/a3s-analysis/org-config/";
   @SuppressWarnings("java:S1075")
+  public static final String A3S_ANALYSES_PATH = "/a3s/analyses";
+  @SuppressWarnings("java:S1075")
   public static final String A3S_ORG_ENTITLEMENT_PATH = "/a3s/org-entitlement/";
 
   private static final String JSON_CONTENT_TYPE = "application/json";
@@ -43,7 +45,12 @@ public class A3sAnalysisApi {
 
   public AnalysisResponse analyze(AnalysisCreationRequest request) {
     var requestBody = GSON.toJson(request);
-    try (var response = helper.postApiSubdomain(ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
+    if (helper.isSonarQubeCloud()) {
+      try (var response = helper.postApiSubdomain(ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
+        return GSON.fromJson(response.bodyAsString(), AnalysisResponse.class);
+      }
+    }
+    try (var response = helper.post("/api/v2" + A3S_ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
       return GSON.fromJson(response.bodyAsString(), AnalysisResponse.class);
     }
   }

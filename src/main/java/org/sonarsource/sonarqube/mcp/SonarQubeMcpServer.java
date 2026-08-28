@@ -321,26 +321,26 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     setBaseInstructions();
 
     // Vortex tools are stdio-only. Cloud: CAG + A3S org-config. Server: both hubs, nil UUID.
-    // On Server, only cag/vortex toolsets gate Vortex; analysis is local SLCORE only.
-    var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
+    // Proxied CAG on Server is gated by cag/vortex only; analysis still probes so A3S can register.
+    var vortexContextToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
       || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)
       || (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS));
+    var vortexRelevantToolsetEnabled = vortexContextToolsetEnabled
+      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS);
     var vortexEnabledForOrg = !mcpConfiguration.isHttpEnabled()
       && vortexRelevantToolsetEnabled
       && orgFeatureEntitlements.isVortexEnabledForOrg(resolvedOrganization);
 
     if (vortexEnabledForOrg && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
-      var deprecatedKeys = mcpConfiguration.isSonarQubeCloud() ? "'cag'/'analysis'" : "'cag'";
-      LOG.warn("Vortex tools registered via the deprecated " + deprecatedKeys
-        + " toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
+      LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
       composedInstructions += VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS;
     }
 
     // Initialize proxied MCP servers and load their tools synchronously
     if (mcpConfiguration.isHttpEnabled()) {
       LOG.debug("HTTP mode detected - skipping Vortex proxied server initialization (not supported in HTTP transport)");
-    } else if (!vortexRelevantToolsetEnabled) {
-      LOG.debug("Vortex toolset is not enabled, skipping proxied server initialization");
+    } else if (!vortexContextToolsetEnabled) {
+      LOG.debug("Vortex context toolset is not enabled, skipping proxied server initialization");
     } else if (vortexEnabledForOrg) {
       LOG.info("Vortex context is enabled");
       loadProxiedServerTools();
@@ -353,16 +353,16 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
-    // run_advanced_code_analysis is Cloud-only. Server Vortex entitlement starts the proxied
-    // CAG engine; local analysis tools stay registered the same way they do when Vortex is off.
-    if (vortexEnabledForOrg && mcpConfiguration.isSonarQubeCloud()) {
+    // Server keeps local SLCORE analysis when Vortex is on; Cloud replaces it with A3S.
+    if (vortexEnabledForOrg) {
       if (workspaceMount != null) {
         LOG.info("Vortex analysis mode enabled");
         supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount));
       } else {
         LOG.info("Vortex analysis mode enabled, but no workspace path configured, skipping tool registration");
       }
-    } else {
+    }
+    if (!(vortexEnabledForOrg && mcpConfiguration.isSonarQubeCloud())) {
       // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
       // token is configured (so plugins can be downloaded at startup).
       if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {

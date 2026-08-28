@@ -21,11 +21,14 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.LoggerFactory;
+import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -60,7 +63,29 @@ class VortexOnServerTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_not_register_vortex_analysis_on_server_when_both_hubs_are_entitled(SonarQubeMcpServerTestHarness harness) {
+  void it_should_register_vortex_analysis_on_server_when_both_hubs_are_entitled(SonarQubeMcpServerTestHarness harness) throws IOException {
+    var workspace = Files.createTempDirectory("vortex-server-workspace");
+    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspace.toString());
+    try {
+      harness.stubServerCagEntitlement(true);
+      harness.stubServerA3sEntitlement(true);
+      var mcpClient = harness.newClient();
+
+      var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
+
+      assertThat(toolNames)
+        .contains(AnalyzeCodeSnippetTool.TOOL_NAME, RunAdvancedCodeAnalysisTool.TOOL_NAME);
+      assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
+      assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
+      assertThat(logMessages()).contains(VORTEX_ENABLED_LOG).doesNotContain(LICENCE_LOG);
+    } finally {
+      System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
+      Files.deleteIfExists(workspace);
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_not_register_vortex_analysis_on_server_without_workspace(SonarQubeMcpServerTestHarness harness) {
     harness.stubServerCagEntitlement(true);
     harness.stubServerA3sEntitlement(true);
     var mcpClient = harness.newClient();
@@ -90,7 +115,7 @@ class VortexOnServerTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_not_probe_vortex_hubs_on_server_when_only_analysis_toolset_is_enabled(SonarQubeMcpServerTestHarness harness) {
+  void it_should_probe_hubs_but_not_start_proxied_cag_on_server_when_only_analysis_toolset_is_enabled(SonarQubeMcpServerTestHarness harness) {
     harness.stubServerCagEntitlement(true);
     harness.stubServerA3sEntitlement(true);
     var mcpClient = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "analysis"));
@@ -100,8 +125,8 @@ class VortexOnServerTests {
     assertThat(toolNames)
       .contains(AnalyzeCodeSnippetTool.TOOL_NAME)
       .doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
-    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isFalse();
-    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isFalse();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
     assertThat(logMessages()).doesNotContain(VORTEX_ENABLED_LOG, LICENCE_LOG);
   }
 
