@@ -330,7 +330,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       && orgFeatureEntitlements.isVortexEnabledForOrg(resolvedOrganization);
 
     if (vortexEnabledForOrg && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
-      LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
+      var deprecatedKeys = mcpConfiguration.isSonarQubeCloud() ? "'cag'/'analysis'" : "'cag'";
+      LOG.warn("Vortex tools registered via the deprecated " + deprecatedKeys
+        + " toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
       composedInstructions += VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS;
     }
 
