@@ -72,11 +72,11 @@ The server connects to **SonarQube Cloud** when `SONARQUBE_ORG` is set, otherwis
 | System tools (`system` toolset)                              | Not available                                              | Available                    |
 | Enterprises                                                  | Available                                                  | Not available                |
 | Dependency risks (SCA)                                       | Org entitlement                                            | Feature flag + version check |
-| Vortex analysis (deprecated name: Advanced analysis / A3S)   | Org entitlement, combined with Vortex context              | Not available                |
-| Vortex context (deprecated name: Context Augmentation / CAG) | Org entitlement, combined with Vortex analysis, stdio only | Proxied binary               |
+| Vortex analysis (deprecated name: Advanced analysis / A3S)   | Org entitlement, combined with Vortex context              | Both hubs entitled; MCP tool `run_advanced_code_analysis` with nil UUID org |
+| Vortex context (deprecated name: Context Augmentation / CAG) | Org entitlement, combined with Vortex analysis, stdio only | Both hubs entitled, stdio only, proxied binary |
 | Agentic readiness                                            | Org feature flag                                           | Not available                |
 
-Vortex context and Vortex analysis share a single combined org entitlement (`OrgFeatureEntitlements`) — an org must be entitled to both for either to register. `CAG`/`A3S` naming is deprecated in favor of `Vortex`; the existing toolset keys (`cag`, `analysis`) and tool names (e.g. `run_advanced_code_analysis`) are unchanged for backward compatibility.
+On Cloud, Vortex context and Vortex analysis share a combined entitlement (`OrgFeatureEntitlements`) — an org must be entitled to both for either to register. On Server both hubs (`GET /api/v2/cag/cag-entitlement/{nil-uuid}` and `GET /api/v2/a3s/org-entitlement/{nil-uuid}`) are AND-merged: a 404 from either hub is quiet (pre-LTA / hub absent); `hasEntitlement: false` logs a licence line; 503 is a failed check. Over-consumption (`hasEntitlement: true`, `allowed: false`) still starts the proxied CAG engine and registers `run_advanced_code_analysis` (POST `/api/v2/a3s/analyses` with the nil UUID as organization). `CAG`/`A3S` naming is deprecated in favor of `Vortex`; the existing toolset keys (`cag`, `analysis`) and tool names (e.g. `run_advanced_code_analysis`) are unchanged for backward compatibility.
 
 When adding or changing tools, check whether behavior or registration must differ between Cloud and Server. Look at existing tools in the same domain for the established pattern (constructor flags, conditional registration in `SonarQubeMcpServer`, separate tool definitions).
 

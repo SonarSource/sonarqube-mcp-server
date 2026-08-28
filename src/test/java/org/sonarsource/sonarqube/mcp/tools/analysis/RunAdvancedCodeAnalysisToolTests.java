@@ -27,6 +27,7 @@ import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
+import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -95,6 +96,30 @@ class RunAdvancedCodeAnalysisToolTests {
     var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
 
     assertThat(toolNames).contains(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_run_on_server_using_nil_organization_placeholder(SonarQubeMcpServerTestHarness harness) {
+    harness.stubServerCagEntitlement(true);
+    harness.stubServerA3sEntitlement(true);
+    stubServerAnalysisResponse(harness, SIMPLE_RESPONSE);
+    var mcpClient = harness.newClient();
+
+    var result = mcpClient.callTool(
+      RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of(
+        "projectKey", "my-project",
+        "branch", "main",
+        "filePath", "src/Main.java"
+      ));
+
+    assertResultEquals(result, """
+      {
+        "issues" : [ ]
+      }""");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/v2" + A3sAnalysisApi.A3S_ANALYSES_PATH)).isTrue();
+    assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+      .anyMatch(request -> request.body().contains(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER));
   }
 
   @SonarQubeMcpServerTest
@@ -367,6 +392,14 @@ class RunAdvancedCodeAnalysisToolTests {
 
   private static void stubAnalysisResponse(SonarQubeMcpServerTestHarness harness, String responseBody) {
     harness.getMockSonarQubeServer().stubFor(post(A3sAnalysisApi.ANALYSES_PATH)
+      .willReturn(aResponse()
+        .withStatus(200)
+        .withHeader("Content-Type", "application/json")
+        .withBody(responseBody)));
+  }
+
+  private static void stubServerAnalysisResponse(SonarQubeMcpServerTestHarness harness, String responseBody) {
+    harness.getMockSonarQubeServer().stubFor(post("/api/v2" + A3sAnalysisApi.A3S_ANALYSES_PATH)
       .willReturn(aResponse()
         .withStatus(200)
         .withHeader("Content-Type", "application/json")

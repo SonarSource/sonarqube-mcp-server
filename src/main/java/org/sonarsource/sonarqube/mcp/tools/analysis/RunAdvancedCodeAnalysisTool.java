@@ -24,6 +24,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -58,11 +59,11 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     var builder = SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("SonarQube Vortex Code Analysis")
-      .setDescription("Run Vortex analysis on a single file using SonarQube Cloud's server-side engine. " +
+      .setDescription("Run Vortex analysis on a single file using the server-side engine. " +
         "Identifies code quality and security issues, leveraging the project's full analysis context for deeper cross-file detection. " +
         "Always specify the file scope (MAIN or TEST) for more accurate results.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
-      .addRequiredStringProperty(BRANCH_PROPERTY, "The branch name used to retrieve the latest analysis context from SonarQube Cloud.")
+      .addRequiredStringProperty(BRANCH_PROPERTY, "The branch name used to retrieve the latest analysis context.")
       .addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");
 
     return builder
@@ -74,7 +75,9 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   @Override
   public Result execute(Arguments arguments) {
     var serverApi = serverApiProvider.get();
-    var organizationKey = serverApi.getOrganization();
+    var organizationKey = serverApi.isSonarQubeCloud()
+      ? serverApi.getOrganization()
+      : CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
     if (organizationKey == null) {
       throw new IllegalStateException("run_advanced_code_analysis requires an organization to be configured in MCP (SONARQUBE_ORG).");
     }
