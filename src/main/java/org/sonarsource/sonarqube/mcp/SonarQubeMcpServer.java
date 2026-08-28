@@ -320,12 +320,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     setBaseInstructions();
 
-    // Vortex (CAG + A3S) tools are stdio-only and require combined entitlement. Computed once,
-    // relevant if any of the legacy categories or the vortex bundle itself is enabled, since
-    // either can surface the resulting tools.
+    // Vortex is one product (CAG + SQAA). Stdio only. Both hubs entitled → load all Vortex tools.
     var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
-      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
-      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX);
+      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)
+      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS);
     var vortexEnabledForOrg = !mcpConfiguration.isHttpEnabled()
       && vortexRelevantToolsetEnabled
       && orgFeatureEntitlements.isVortexEnabledForOrg(resolvedOrganization);
@@ -341,10 +339,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     } else if (!vortexRelevantToolsetEnabled) {
       LOG.debug("Vortex toolset is not enabled, skipping proxied server initialization");
     } else if (vortexEnabledForOrg) {
-      LOG.info("Vortex context is enabled for organization");
+      LOG.info("Vortex is enabled");
       loadProxiedServerTools();
     } else {
-      LOG.debug("Vortex is not enabled for organization, skipping proxied server initialization");
+      LOG.debug("Vortex is not enabled, skipping proxied server initialization");
     }
 
     // Agentic readiness tools
@@ -359,12 +357,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       } else {
         LOG.info("Vortex analysis mode enabled, but no workspace path configured, skipping tool registration");
       }
-    } else {
+    }
+    if (!vortexEnabledForOrg && (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null)) {
       // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
       // token is configured (so plugins can be downloaded at startup).
-      if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
-        loadBackendDependentTools();
-      }
+      loadBackendDependentTools();
     }
 
     logToolsLoaded();
