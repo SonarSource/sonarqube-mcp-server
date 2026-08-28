@@ -30,10 +30,9 @@ public class OrgFeatureEntitlements {
 
   private static final McpLogger LOG = McpLogger.getInstance();
 
-  @Nullable
   private final ServerApi api;
 
-  public OrgFeatureEntitlements(@Nullable ServerApi api) {
+  public OrgFeatureEntitlements(ServerApi api) {
     this.api = api;
   }
 
@@ -43,12 +42,10 @@ public class OrgFeatureEntitlements {
    * UUID placeholder; a 404 from either hub means Vortex is not on this instance.
    */
   public boolean isVortexEnabledForOrg(@Nullable ResolvedOrganization org) {
-    if (api != null && !api.isSonarQubeCloud()) {
-      var orgKey = org != null ? org.key() : "server";
-      var placeholder = CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
-      return isCagEnabled(placeholder, orgKey) && isServerA3sEnabled(placeholder, orgKey);
+    if (!api.isSonarQubeCloud()) {
+      return isServerCagEnabled() && isServerA3sEnabled();
     }
-    return checkForOrg(org, (orgUuidV4, orgKey) -> isCagEnabled(orgUuidV4, orgKey) && isA3sEnabled(orgUuidV4, orgKey));
+    return checkForOrg(org, (orgUuidV4, orgKey) -> isCloudCagEnabled(orgUuidV4, orgKey) && isCloudA3sEnabled(orgUuidV4, orgKey));
   }
 
   public boolean isSaraEnabledForOrg(@Nullable ResolvedOrganization org) {
@@ -56,7 +53,7 @@ public class OrgFeatureEntitlements {
   }
 
   private boolean checkForOrg(@Nullable ResolvedOrganization org, BiPredicate<String, String> check) {
-    if (api == null || org == null) {
+    if (org == null) {
       return false;
     }
     var orgKey = org.key();
@@ -68,24 +65,20 @@ public class OrgFeatureEntitlements {
     return check.test(orgUuidV4, orgKey);
   }
 
-  private boolean isCagEnabled(String orgUuidV4, String orgKey) {
+  private boolean isCloudCagEnabled(String orgUuidV4, String orgKey) {
     var entitlement = api.cagApi().getCagEntitlement(orgUuidV4);
     if (entitlement == null) {
       LOG.debug("Vortex entitlement check: could not retrieve CAG entitlement for org '" + orgKey + "'");
       return false;
     }
     if (!entitlement.hasEntitlement()) {
-      if (!api.isSonarQubeCloud()) {
-        LOG.info("Vortex is not licensed on this SonarQube Server. Ask your administrator.");
-      } else {
-        LOG.debug("Vortex entitlement check: org '" + orgKey + "' is not entitled to use CAG");
-      }
+      LOG.debug("Vortex entitlement check: org '" + orgKey + "' is not entitled to use CAG");
       return false;
     }
     return true;
   }
 
-  private boolean isA3sEnabled(String orgUuidV4, String orgKey) {
+  private boolean isCloudA3sEnabled(String orgUuidV4, String orgKey) {
     var config = api.a3sAnalysisApi().getA3sOrgConfig(orgUuidV4);
     if (config == null) {
       LOG.debug("Vortex entitlement check: could not retrieve A3S org config for org '" + orgKey + "'");
@@ -98,10 +91,23 @@ public class OrgFeatureEntitlements {
     return true;
   }
 
-  private boolean isServerA3sEnabled(String orgUuidV4, String orgKey) {
-    var entitlement = api.a3sAnalysisApi().getA3sOrgEntitlement(orgUuidV4);
+  private boolean isServerCagEnabled() {
+    var entitlement = api.cagApi().getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
     if (entitlement == null) {
-      LOG.debug("Vortex entitlement check: could not retrieve A3S entitlement for org '" + orgKey + "'");
+      LOG.debug("Vortex entitlement check: could not retrieve CAG entitlement on this SonarQube Server");
+      return false;
+    }
+    if (!entitlement.hasEntitlement()) {
+      LOG.info("Vortex is not licensed on this SonarQube Server. Ask your administrator.");
+      return false;
+    }
+    return true;
+  }
+
+  private boolean isServerA3sEnabled() {
+    var entitlement = api.a3sAnalysisApi().getA3sOrgEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+    if (entitlement == null) {
+      LOG.debug("Vortex entitlement check: could not retrieve A3S entitlement on this SonarQube Server");
       return false;
     }
     if (!entitlement.hasEntitlement()) {

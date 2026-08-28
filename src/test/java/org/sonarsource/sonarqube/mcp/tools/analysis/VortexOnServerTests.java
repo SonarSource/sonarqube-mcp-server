@@ -22,6 +22,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.LoggerFactory;
@@ -84,6 +85,22 @@ class VortexOnServerTests {
       .contains(AnalyzeCodeSnippetTool.TOOL_NAME)
       .doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isFalse();
+    assertThat(logMessages()).doesNotContain(VORTEX_ENABLED_LOG, LICENCE_LOG);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_not_probe_vortex_hubs_on_server_when_only_analysis_toolset_is_enabled(SonarQubeMcpServerTestHarness harness) {
+    harness.stubServerCagEntitlement(true);
+    harness.stubServerA3sEntitlement(true);
+    var mcpClient = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "analysis"));
+
+    var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
+
+    assertThat(toolNames)
+      .contains(AnalyzeCodeSnippetTool.TOOL_NAME)
+      .doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isFalse();
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isFalse();
     assertThat(logMessages()).doesNotContain(VORTEX_ENABLED_LOG, LICENCE_LOG);
   }

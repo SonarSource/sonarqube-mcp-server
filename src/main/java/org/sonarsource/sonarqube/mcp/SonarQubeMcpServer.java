@@ -321,11 +321,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     setBaseInstructions();
 
     // Vortex tools are stdio-only. Cloud: CAG + A3S org-config. Server: both hubs, nil UUID.
-    // Computed once; relevant if any of the legacy categories or the vortex bundle itself is
-    // enabled, since either can surface the resulting tools.
+    // On Server, only cag/vortex toolsets gate Vortex; analysis is local SLCORE only.
     var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
-      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
-      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX);
+      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)
+      || (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS));
     var vortexEnabledForOrg = !mcpConfiguration.isHttpEnabled()
       && vortexRelevantToolsetEnabled
       && orgFeatureEntitlements.isVortexEnabledForOrg(resolvedOrganization);
