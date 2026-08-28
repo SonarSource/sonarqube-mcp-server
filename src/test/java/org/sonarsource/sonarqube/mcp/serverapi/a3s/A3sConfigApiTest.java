@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
+import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -36,6 +37,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class A3sConfigApiTest {
 
   private static final String ORG_UUID = "57f08a8b-4a6e-4c64-bf72-83a892472f22";
+  private static final String SERVER_ENTITLEMENT_PATH =
+    "/api/v2" + A3sAnalysisApi.A3S_ORG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
 
   @RegisterExtension
   static WireMockExtension sonarqubeMock = WireMockExtension.newInstance()
@@ -43,12 +46,15 @@ class A3sConfigApiTest {
     .build();
 
   private A3sAnalysisApi a3sAnalysisApi;
+  private A3sAnalysisApi serverA3sAnalysisApi;
 
   @BeforeAll
   void init() {
     var httpClient = new HttpClientProvider("test").getHttpClient("token");
     var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), "my-org", null, true), httpClient);
     a3sAnalysisApi = new A3sAnalysisApi(helper);
+    var serverHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), httpClient);
+    serverA3sAnalysisApi = new A3sAnalysisApi(serverHelper);
   }
 
   @Test
@@ -96,6 +102,54 @@ class A3sConfigApiTest {
     var config = a3sAnalysisApi.getA3sOrgConfig(ORG_UUID);
 
     assertThat(config).isNull();
+  }
+
+  @Test
+  void it_should_use_api_v2_path_on_sonarqube_server() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(SERVER_ENTITLEMENT_PATH))
+      .willReturn(jsonResponse("""
+        {"allowed":true,"hasEntitlement":true}
+        """, 200)));
+
+    var entitlement = serverA3sAnalysisApi.getA3sOrgEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.hasEntitlement()).isTrue();
+    assertThat(entitlement.allowed()).isTrue();
+  }
+
+  @Test
+  void it_should_return_has_entitlement_true_when_consumption_limit_reached() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(SERVER_ENTITLEMENT_PATH))
+      .willReturn(jsonResponse("""
+        {"allowed":false,"hasEntitlement":true}
+        """, 200)));
+
+    var entitlement = serverA3sAnalysisApi.getA3sOrgEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.hasEntitlement()).isTrue();
+    assertThat(entitlement.allowed()).isFalse();
+  }
+
+  @Test
+  void it_should_return_null_on_sonarqube_server_when_hub_is_absent() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(SERVER_ENTITLEMENT_PATH))
+      .willReturn(aResponse().withStatus(404)));
+
+    var entitlement = serverA3sAnalysisApi.getA3sOrgEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+    assertThat(entitlement).isNull();
+  }
+
+  @Test
+  void it_should_return_null_on_sonarqube_server_when_hub_is_unavailable() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(SERVER_ENTITLEMENT_PATH))
+      .willReturn(aResponse().withStatus(503)));
+
+    var entitlement = serverA3sAnalysisApi.getA3sOrgEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+    assertThat(entitlement).isNull();
   }
 
 }

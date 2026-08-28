@@ -320,12 +320,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     setBaseInstructions();
 
-    // Vortex (CAG + A3S) tools are stdio-only and require combined entitlement. Computed once,
-    // relevant if any of the legacy categories or the vortex bundle itself is enabled, since
-    // either can surface the resulting tools.
+    // Vortex tools are stdio-only. Cloud: CAG + A3S org-config. Server: both hubs, nil UUID.
+    // On Server, only cag/vortex toolsets gate Vortex; analysis is local SLCORE only.
     var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
-      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
-      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX);
+      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)
+      || (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS));
     var vortexEnabledForOrg = !mcpConfiguration.isHttpEnabled()
       && vortexRelevantToolsetEnabled
       && orgFeatureEntitlements.isVortexEnabledForOrg(resolvedOrganization);
@@ -341,10 +340,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     } else if (!vortexRelevantToolsetEnabled) {
       LOG.debug("Vortex toolset is not enabled, skipping proxied server initialization");
     } else if (vortexEnabledForOrg) {
-      LOG.info("Vortex context is enabled for organization");
+      LOG.info("Vortex context is enabled");
       loadProxiedServerTools();
     } else {
-      LOG.debug("Vortex is not enabled for organization, skipping proxied server initialization");
+      LOG.debug("Vortex is not enabled, skipping proxied server initialization");
     }
 
     // Agentic readiness tools
@@ -352,7 +351,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
-    if (vortexEnabledForOrg) {
+    // run_advanced_code_analysis is Cloud-only. Server Vortex entitlement starts the proxied
+    // CAG engine; local analysis tools stay registered the same way they do when Vortex is off.
+    if (vortexEnabledForOrg && mcpConfiguration.isSonarQubeCloud()) {
       if (workspaceMount != null) {
         LOG.info("Vortex analysis mode enabled");
         supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount));
