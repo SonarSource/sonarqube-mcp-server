@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class VortexOnServerTests {
 
   private static final String LICENCE_LOG = "Vortex is not licensed on this SonarQube Server. Ask your administrator.";
-  private static final String VORTEX_ENABLED_LOG = "Vortex context is enabled";
+  private static final String VORTEX_ENABLED_LOG = "Vortex is enabled";
 
   private Logger mcpLogger;
   private ListAppender<ILoggingEvent> logAppender;
@@ -74,7 +74,8 @@ class VortexOnServerTests {
       var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
 
       assertThat(toolNames)
-        .contains(AnalyzeCodeSnippetTool.TOOL_NAME, RunAdvancedCodeAnalysisTool.TOOL_NAME);
+        .contains(RunAdvancedCodeAnalysisTool.TOOL_NAME)
+        .doesNotContain(AnalyzeCodeSnippetTool.TOOL_NAME);
       assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
       assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
       assertThat(logMessages()).contains(VORTEX_ENABLED_LOG).doesNotContain(LICENCE_LOG);
@@ -93,8 +94,7 @@ class VortexOnServerTests {
     var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
 
     assertThat(toolNames)
-      .contains(AnalyzeCodeSnippetTool.TOOL_NAME)
-      .doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+      .doesNotContain(AnalyzeCodeSnippetTool.TOOL_NAME, RunAdvancedCodeAnalysisTool.TOOL_NAME);
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
     assertThat(logMessages()).contains(VORTEX_ENABLED_LOG).doesNotContain(LICENCE_LOG);
@@ -115,19 +115,15 @@ class VortexOnServerTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_probe_hubs_but_not_start_proxied_cag_on_server_when_only_analysis_toolset_is_enabled(SonarQubeMcpServerTestHarness harness) {
-    harness.stubServerCagEntitlement(true);
-    harness.stubServerA3sEntitlement(true);
-    var mcpClient = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "analysis"));
+  void it_should_enable_all_vortex_tools_on_server_when_only_analysis_toolset_is_enabled(SonarQubeMcpServerTestHarness harness)
+    throws IOException {
+    assertVortexToolsEnabledForToolset(harness, "analysis");
+  }
 
-    var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
-
-    assertThat(toolNames)
-      .contains(AnalyzeCodeSnippetTool.TOOL_NAME)
-      .doesNotContain(RunAdvancedCodeAnalysisTool.TOOL_NAME);
-    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
-    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
-    assertThat(logMessages()).doesNotContain(VORTEX_ENABLED_LOG, LICENCE_LOG);
+  @SonarQubeMcpServerTest
+  void it_should_enable_all_vortex_tools_on_server_when_only_cag_toolset_is_enabled(SonarQubeMcpServerTestHarness harness)
+    throws IOException {
+    assertVortexToolsEnabledForToolset(harness, "cag");
   }
 
   @SonarQubeMcpServerTest
@@ -147,6 +143,28 @@ class VortexOnServerTests {
 
   private List<String> logMessages() {
     return logAppender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+  }
+
+  private void assertVortexToolsEnabledForToolset(SonarQubeMcpServerTestHarness harness, String toolset) throws IOException {
+    var workspace = Files.createTempDirectory("vortex-server-workspace");
+    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspace.toString());
+    try {
+      harness.stubServerCagEntitlement(true);
+      harness.stubServerA3sEntitlement(true);
+      var mcpClient = harness.newClient(Map.of("SONARQUBE_TOOLSETS", toolset));
+
+      var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
+
+      assertThat(toolNames)
+        .contains(RunAdvancedCodeAnalysisTool.TOOL_NAME)
+        .doesNotContain(AnalyzeCodeSnippetTool.TOOL_NAME);
+      assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
+      assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
+      assertThat(logMessages()).contains(VORTEX_ENABLED_LOG).doesNotContain(LICENCE_LOG);
+    } finally {
+      System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
+      Files.deleteIfExists(workspace);
+    }
   }
 
   private static String serverCagPath() {

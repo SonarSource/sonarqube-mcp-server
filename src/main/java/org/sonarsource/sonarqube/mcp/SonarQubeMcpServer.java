@@ -320,12 +320,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     setBaseInstructions();
 
-    // Vortex tools are stdio-only. Cloud: CAG + A3S org-config. Server: both hubs, nil UUID.
-    // Proxied CAG on Server is gated by cag/vortex only; analysis still probes so A3S can register.
-    var vortexContextToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
+    // Vortex is one product (CAG + SQAA). Stdio only. Both hubs entitled → load all Vortex tools.
+    var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
       || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)
-      || (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS));
-    var vortexRelevantToolsetEnabled = vortexContextToolsetEnabled
       || mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS);
     var vortexEnabledForOrg = !mcpConfiguration.isHttpEnabled()
       && vortexRelevantToolsetEnabled
@@ -339,10 +336,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     // Initialize proxied MCP servers and load their tools synchronously
     if (mcpConfiguration.isHttpEnabled()) {
       LOG.debug("HTTP mode detected - skipping Vortex proxied server initialization (not supported in HTTP transport)");
-    } else if (!vortexContextToolsetEnabled) {
-      LOG.debug("Vortex context toolset is not enabled, skipping proxied server initialization");
+    } else if (!vortexRelevantToolsetEnabled) {
+      LOG.debug("Vortex toolset is not enabled, skipping proxied server initialization");
     } else if (vortexEnabledForOrg) {
-      LOG.info("Vortex context is enabled");
+      LOG.info("Vortex is enabled");
       loadProxiedServerTools();
     } else {
       LOG.debug("Vortex is not enabled, skipping proxied server initialization");
@@ -353,7 +350,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
-    // Server keeps local SLCORE analysis when Vortex is on; Cloud replaces it with A3S.
     if (vortexEnabledForOrg) {
       if (workspaceMount != null) {
         LOG.info("Vortex analysis mode enabled");
@@ -362,7 +358,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         LOG.info("Vortex analysis mode enabled, but no workspace path configured, skipping tool registration");
       }
     }
-    if (!(vortexEnabledForOrg && mcpConfiguration.isSonarQubeCloud())) {
+    if (!vortexEnabledForOrg) {
       // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
       // token is configured (so plugins can be downloaded at startup).
       if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
