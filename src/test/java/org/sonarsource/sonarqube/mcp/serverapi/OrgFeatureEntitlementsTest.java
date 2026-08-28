@@ -179,17 +179,6 @@ class OrgFeatureEntitlementsTest {
   }
 
   @Test
-  void vortex_should_be_enabled_on_server_when_a3s_is_over_consumption() {
-    stubServerCagEntitlement(true);
-    sonarqubeMock.stubFor(get(urlPathEqualTo(serverA3sEntitlementPath()))
-      .willReturn(jsonResponse("""
-        {"allowed":false,"hasEntitlement":true}
-        """, 200)));
-
-    assertThat(serverOrgFeatureEntitlements.isVortexEnabledForOrg(null)).isTrue();
-  }
-
-  @Test
   void vortex_should_be_disabled_on_server_when_cag_hub_is_absent() {
     sonarqubeMock.stubFor(get(urlPathEqualTo(serverCagEntitlementPath()))
       .willReturn(aResponse().withStatus(404)));

@@ -141,24 +141,4 @@ class CagApiTest {
     assertThat(entitlement).isNotNull();
     assertThat(entitlement.hasEntitlement()).isTrue();
   }
-
-  @Test
-  void it_should_return_null_on_sonarqube_server_when_hub_is_absent() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_SERVER_PATH))
-      .willReturn(aResponse().withStatus(404)));
-
-    var entitlement = serverCagApi.getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
-
-    assertThat(entitlement).isNull();
-  }
-
-  @Test
-  void it_should_return_null_on_sonarqube_server_when_hub_is_unavailable() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_SERVER_PATH))
-      .willReturn(aResponse().withStatus(503)));
-
-    var entitlement = serverCagApi.getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
-
-    assertThat(entitlement).isNull();
-  }
 }

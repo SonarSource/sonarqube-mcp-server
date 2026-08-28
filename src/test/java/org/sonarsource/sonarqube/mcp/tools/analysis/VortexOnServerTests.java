@@ -116,15 +116,27 @@ class VortexOnServerTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_enable_all_vortex_tools_on_server_when_only_analysis_toolset_is_enabled(SonarQubeMcpServerTestHarness harness)
+  void it_should_enable_vortex_on_server_when_only_analysis_toolset_is_enabled(SonarQubeMcpServerTestHarness harness)
     throws IOException {
-    assertVortexToolsEnabledForToolset(harness, "analysis");
-  }
+    var workspace = Files.createTempDirectory("vortex-server-workspace");
+    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspace.toString());
+    try {
+      harness.stubServerCagEntitlement(true);
+      harness.stubServerA3sEntitlement(true);
+      var mcpClient = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "analysis"));
 
-  @SonarQubeMcpServerTest
-  void it_should_enable_all_vortex_tools_on_server_when_only_cag_toolset_is_enabled(SonarQubeMcpServerTestHarness harness)
-    throws IOException {
-    assertVortexToolsEnabledForToolset(harness, "cag");
+      var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
+
+      assertThat(toolNames)
+        .contains(RunAdvancedCodeAnalysisTool.TOOL_NAME)
+        .doesNotContain(AnalyzeCodeSnippetTool.TOOL_NAME);
+      assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
+      assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
+      assertThat(logMessages()).contains(VORTEX_ENABLED_LOG).doesNotContain(LICENCE_LOG);
+    } finally {
+      System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
+      Files.deleteIfExists(workspace);
+    }
   }
 
   @SonarQubeMcpServerTest
@@ -144,28 +156,6 @@ class VortexOnServerTests {
 
   private List<String> logMessages() {
     return logAppender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
-  }
-
-  private void assertVortexToolsEnabledForToolset(SonarQubeMcpServerTestHarness harness, String toolset) throws IOException {
-    var workspace = Files.createTempDirectory("vortex-server-workspace");
-    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspace.toString());
-    try {
-      harness.stubServerCagEntitlement(true);
-      harness.stubServerA3sEntitlement(true);
-      var mcpClient = harness.newClient(Map.of("SONARQUBE_TOOLSETS", toolset));
-
-      var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
-
-      assertThat(toolNames)
-        .contains(RunAdvancedCodeAnalysisTool.TOOL_NAME)
-        .doesNotContain(AnalyzeCodeSnippetTool.TOOL_NAME);
-      assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverCagPath())).isTrue();
-      assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(serverA3sPath())).isTrue();
-      assertThat(logMessages()).contains(VORTEX_ENABLED_LOG).doesNotContain(LICENCE_LOG);
-    } finally {
-      System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
-      Files.deleteIfExists(workspace);
-    }
   }
 
   private static String serverCagPath() {

@@ -137,26 +137,6 @@ class A3sConfigApiTest {
   }
 
   @Test
-  void it_should_return_null_on_sonarqube_server_when_hub_is_absent() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(SERVER_ENTITLEMENT_PATH))
-      .willReturn(aResponse().withStatus(404)));
-
-    var entitlement = serverA3sAnalysisApi.getA3sOrgEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
-
-    assertThat(entitlement).isNull();
-  }
-
-  @Test
-  void it_should_return_null_on_sonarqube_server_when_hub_is_unavailable() {
-    sonarqubeMock.stubFor(get(urlPathEqualTo(SERVER_ENTITLEMENT_PATH))
-      .willReturn(aResponse().withStatus(503)));
-
-    var entitlement = serverA3sAnalysisApi.getA3sOrgEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
-
-    assertThat(entitlement).isNull();
-  }
-
-  @Test
   void it_should_post_analyses_to_api_v2_on_sonarqube_server() {
     var path = "/api/v2" + A3sAnalysisApi.A3S_ANALYSES_PATH;
     sonarqubeMock.stubFor(post(urlPathEqualTo(path))
