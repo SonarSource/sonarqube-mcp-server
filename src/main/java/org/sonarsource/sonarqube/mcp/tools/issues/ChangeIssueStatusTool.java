@@ -27,7 +27,8 @@ public class ChangeIssueStatusTool extends Tool {
   public static final String TOOL_NAME = "change_sonar_issue_status";
   public static final String KEY_PROPERTY = "key";
   public static final String STATUS_PROPERTY = "status";
-  
+  public static final String COMMENT_PROPERTY = "comment";
+
   private static final String[] VALID_STATUSES = {"accept", "falsepositive", "reopen"};
 
   private final ServerApiProvider serverApiProvider;
@@ -38,9 +39,11 @@ public class ChangeIssueStatusTool extends Tool {
       .setTitle("Change SonarQube Issue Status")
       .setDescription("""
         Change the status of an issue. This tool can be used to change the status of an issue to "accept", "falsepositive" or to "reopen" an issue.
-        An example request could be: I would like to accept the issue having the key "AX-HMISMFixnZED\"""")
+        An example request could be: I would like to accept the issue having the key "AX-HMISMFixnZED"
+        You can optionally add a comment to explain your triage decision.""")
       .addRequiredStringProperty(KEY_PROPERTY, "The key of the issue which status should be changed")
       .addRequiredEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "The new status of the issue")
+      .addStringProperty(COMMENT_PROPERTY, "An optional comment explaining the status change")
       .build(),
       ToolCategory.ISSUES);
     this.serverApiProvider = serverApiProvider;
@@ -50,12 +53,24 @@ public class ChangeIssueStatusTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var key = arguments.getStringOrThrow(KEY_PROPERTY);
     var statusString = arguments.getEnumOrThrow(STATUS_PROPERTY, VALID_STATUSES);
+    var comment = arguments.getOptionalString(COMMENT_PROPERTY);
     var status = Transition.fromStatus(statusString);
     if (status.isEmpty()) {
       return Tool.Result.failure("Status is unknown: " + statusString);
     }
 
-    serverApiProvider.get().issuesApi().doTransition(key, status.get());
+    var issuesApi = serverApiProvider.get().issuesApi();
+    issuesApi.doTransition(key, status.get());
+
+    if (comment != null && !comment.isBlank()) {
+      try {
+        issuesApi.addComment(key, comment);
+      } catch (Exception e) {
+        return Tool.Result.failure("The issue status was changed to '" + statusString
+          + "', but the comment could not be added: " + e.getMessage());
+      }
+    }
+
     var message = "The issue status was successfully changed.";
     var response = new ChangeIssueStatusToolResponse(true, message, key, statusString);
     return Tool.Result.success(response);
