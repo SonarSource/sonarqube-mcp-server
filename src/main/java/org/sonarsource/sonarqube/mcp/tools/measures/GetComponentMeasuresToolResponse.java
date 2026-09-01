@@ -39,7 +39,9 @@ public record GetComponentMeasuresToolResponse(
   
   public record Measure(
     @JsonPropertyDescription("Metric key") String metric,
-    @JsonPropertyDescription("Measure value") @Nullable String value
+    @JsonPropertyDescription("Measure value") @Nullable String value,
+    @JsonPropertyDescription("New Code period index when the value comes from a period") @Nullable Integer period,
+    @JsonPropertyDescription("Whether this is the metric's best possible value") @Nullable Boolean bestValue
   ) {}
   
   public record Metric(
