@@ -24,7 +24,8 @@ public record ComponentMeasuresResponse(Component component, List<Metric> metric
   public record Component(String key, String name, String description, String qualifier, String language, String path, List<Measure> measures) {
   }
 
-  public record Measure(String metric, @Nullable String value, @Nullable List<MeasurePeriod> periods, @Nullable MeasurePeriod period) {
+  public record Measure(String metric, @Nullable String value, @Nullable Boolean bestValue,
+    @Nullable List<MeasurePeriod> periods, @Nullable MeasurePeriod period) {
 
     @Nullable
     public MeasurePeriod newCodePeriod() {
@@ -34,10 +35,13 @@ public record ComponentMeasuresResponse(Component component, List<Metric> metric
       if (periods == null || periods.isEmpty()) {
         return null;
       }
-      return periods.stream()
-        .filter(p -> p.index() != null && p.index() == 1)
-        .findFirst()
-        .orElse(periods.getFirst());
+      var indexedPeriod = periods.stream()
+        .filter(p -> Integer.valueOf(1).equals(p.index()))
+        .findFirst();
+      if (indexedPeriod.isPresent()) {
+        return indexedPeriod.get();
+      }
+      return periods.size() == 1 ? periods.getFirst() : null;
     }
   }
 

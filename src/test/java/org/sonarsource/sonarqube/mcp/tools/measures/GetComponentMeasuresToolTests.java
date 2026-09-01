@@ -103,7 +103,7 @@ class GetComponentMeasuresToolTests {
                      },
                      "period":{
                         "type":"integer",
-                        "description":"New Code period index when the value comes from a period"
+                        "description":"New Code period index, present when value is a New Code metric"
                      },
                      "value":{
                         "type":"string",
@@ -273,7 +273,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
             "metric" : "new_violations",
             "value" : "25",
@@ -281,7 +282,8 @@ class GetComponentMeasuresToolTests {
             "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -342,7 +344,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
             "metric" : "new_violations",
             "value" : "25",
@@ -350,7 +353,8 @@ class GetComponentMeasuresToolTests {
             "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -497,6 +501,60 @@ class GetComponentMeasuresToolTests {
     }
 
     @SonarQubeMcpServerTest
+    void it_should_ignore_periods_that_are_not_the_new_code_period(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH
+          + "?component=" + urlEncode("MY_PROJECT")
+          + "&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+          {
+            "component": {
+              "key": "MY_PROJECT",
+              "name": "My Project",
+              "qualifier": "TRK",
+              "measures": [
+                {
+                  "metric": "new_violations",
+                  "periods": [
+                    {
+                      "index": 2,
+                      "value": "9",
+                      "bestValue": false
+                    },
+                    {
+                      "index": 3,
+                      "value": "4",
+                      "bestValue": false
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          """.getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT"));
+
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT",
+            "name" : "My Project",
+            "qualifier" : "TRK"
+          },
+          "measures" : [ {
+            "metric" : "new_violations"
+          } ]
+        }""");
+    }
+
+    @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_metric_keys(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&metricKeys=ncloc,complexity&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
@@ -525,7 +583,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
             "metric" : "new_violations",
             "value" : "25",
@@ -533,7 +592,8 @@ class GetComponentMeasuresToolTests {
             "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -594,7 +654,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
             "metric" : "new_violations",
             "value" : "25",
@@ -602,7 +663,8 @@ class GetComponentMeasuresToolTests {
             "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -767,7 +829,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "coverage",
-            "value" : "91.9"
+            "value" : "91.9",
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
             "value" : "53717"
@@ -863,7 +926,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
             "metric" : "new_violations",
             "value" : "25",
@@ -871,7 +935,8 @@ class GetComponentMeasuresToolTests {
             "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -932,7 +997,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
             "metric" : "new_violations",
             "value" : "25",
@@ -940,7 +1006,8 @@ class GetComponentMeasuresToolTests {
             "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -1023,7 +1090,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
             "metric" : "new_violations",
             "value" : "25",
@@ -1031,7 +1099,8 @@ class GetComponentMeasuresToolTests {
             "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -1090,7 +1159,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
             "metric" : "new_violations",
             "value" : "25",
@@ -1098,7 +1168,8 @@ class GetComponentMeasuresToolTests {
             "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -1259,7 +1330,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "coverage",
-            "value" : "91.9"
+            "value" : "91.9",
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
             "value" : "53717"

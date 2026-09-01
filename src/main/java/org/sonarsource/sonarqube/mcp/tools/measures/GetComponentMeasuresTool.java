@@ -108,7 +108,7 @@ public class GetComponentMeasuresTool extends Tool {
 
   private static GetComponentMeasuresToolResponse.Measure toToolMeasure(ComponentMeasuresResponse.Measure measure) {
     if (measure.value() != null) {
-      return new GetComponentMeasuresToolResponse.Measure(measure.metric(), measure.value(), null, null);
+      return new GetComponentMeasuresToolResponse.Measure(measure.metric(), measure.value(), null, measure.bestValue());
     }
     var period = measure.newCodePeriod();
     if (period == null) {
