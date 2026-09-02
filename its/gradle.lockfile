@@ -2,8 +2,8 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :its:dependencies --write-locks
-ch.qos.logback:logback-classic:1.6.1=testRuntimeClasspath
-ch.qos.logback:logback-core:1.6.1=testRuntimeClasspath
+ch.qos.logback:logback-classic:1.6.3=testRuntimeClasspath
+ch.qos.logback:logback-core:1.6.3=testRuntimeClasspath
 com.ethlo.time:itu:1.14.0=testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.20=testCompileClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.22=testRuntimeClasspath
@@ -25,21 +25,21 @@ com.google.j2objc:j2objc-annotations:3.1=testRuntimeClasspath
 com.google.protobuf:protobuf-java:4.34.1=testRuntimeClasspath
 com.googlecode.javaewah:JavaEWAH:1.2.3=testRuntimeClasspath
 com.h2database:h2:2.4.240=testRuntimeClasspath
-com.networknt:json-schema-validator:3.0.0=testRuntimeClasspath
+com.networknt:json-schema-validator:3.0.6=testRuntimeClasspath
 commons-codec:commons-codec:1.19.0=testCompileClasspath
 commons-codec:commons-codec:1.22.0=testRuntimeClasspath
 commons-io:commons-io:2.20.0=testCompileClasspath
 commons-io:commons-io:2.22.0=testRuntimeClasspath
-io.github.hakky54:ayza:10.0.6=testRuntimeClasspath
-io.github.hakky54:desidero:1.0.0=testRuntimeClasspath
+io.github.hakky54:ayza:10.0.7=testRuntimeClasspath
+io.github.hakky54:desidero:1.0.1=testRuntimeClasspath
 io.github.hakky54:laleler:1.0.0=testRuntimeClasspath
 io.github.hakky54:sude:2.0.2=testRuntimeClasspath
 io.github.microutils:kotlin-logging:1.7.9=testRuntimeClasspath
 io.micrometer:micrometer-commons:1.15.12=testRuntimeClasspath
 io.micrometer:micrometer-observation:1.15.12=testRuntimeClasspath
-io.modelcontextprotocol.sdk:mcp-core:2.0.0=testRuntimeClasspath
-io.modelcontextprotocol.sdk:mcp-json-jackson3:2.0.0=testRuntimeClasspath
-io.modelcontextprotocol.sdk:mcp:2.0.0=testRuntimeClasspath
+io.modelcontextprotocol.sdk:mcp-core:2.0.1=testRuntimeClasspath
+io.modelcontextprotocol.sdk:mcp-json-jackson3:2.0.1=testRuntimeClasspath
+io.modelcontextprotocol.sdk:mcp:2.0.1=testRuntimeClasspath
 io.projectreactor:reactor-core:3.7.0=testRuntimeClasspath
 io.r2dbc:r2dbc-spi:1.0.0.RELEASE=testRuntimeClasspath
 io.sentry:sentry:8.38.0=testRuntimeClasspath
