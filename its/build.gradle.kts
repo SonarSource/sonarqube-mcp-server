@@ -60,8 +60,8 @@ configurations.all {
             because("CVE-2024-25710 + CVE-2024-26308")
         }
         if (requested.group == "tools.jackson.core") {
-            useVersion("3.1.5")
-            because("CVE-2026-29062 + GHSA-72hv-8253-57qq + CVE-2026-68494 + CVE-2026-77310")
+            useVersion("3.1.6")
+            because("CVE-2026-29062 + GHSA-72hv-8253-57qq + CVE-2026-68494 + CVE-2026-77310 + CVE-2026-83557")
         }
     }
 }
