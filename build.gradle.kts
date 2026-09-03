@@ -103,6 +103,11 @@ configurations {
 				useVersion("1.28.0")
 				because("CVE-2024-25710 + CVE-2024-26308")
 			}
+			// Pulled in transitively by sonarlint-core
+			if (requested.group == "com.fasterxml.jackson.core" && requested.name in listOf("jackson-core", "jackson-databind")) {
+				useVersion("2.22.2")
+				because("CVE-2026-83557")
+			}
 		}
 	}
 }
