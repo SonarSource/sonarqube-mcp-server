@@ -95,13 +95,18 @@ configurations {
 			}
 			// Pulled in by mcp-json-jackson3
 			if (requested.group == "tools.jackson.core") {
-				useVersion("3.1.5")
-				because("CVE-2026-29062 + GHSA-72hv-8253-57qq + CVE-2026-68494 + CVE-2026-77310")
+				useVersion("3.1.6")
+				because("CVE-2026-29062 + GHSA-72hv-8253-57qq + CVE-2026-68494 + CVE-2026-77310 + CVE-2026-83557")
 			}
 			// Pulled in transitively by sonarlint-core
 			if (requested.group == "org.apache.commons" && requested.name == "commons-compress") {
 				useVersion("1.28.0")
 				because("CVE-2024-25710 + CVE-2024-26308")
+			}
+			// Pulled in transitively by sonarlint-core
+			if (requested.group == "com.fasterxml.jackson.core" && requested.name in listOf("jackson-core", "jackson-databind")) {
+				useVersion("2.22.2")
+				because("CVE-2026-83557")
 			}
 		}
 	}
