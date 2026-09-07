@@ -37,6 +37,7 @@ public class SearchIssuesTool extends Tool {
   public static final String SEVERITIES_PROPERTY = "severities";
   public static final String IMPACT_SOFTWARE_QUALITIES_PROPERTY = "impactSoftwareQualities";
   public static final String ISSUE_STATUSES_PROPERTY = "issueStatuses";
+  public static final String TAGS_PROPERTY = "tags";
   public static final String IN_NEW_CODE_PERIOD_PROPERTY = "inNewCodePeriod";
   public static final String ISSUE_KEY_PROPERTY = "issueKey";
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
@@ -69,6 +70,7 @@ public class SearchIssuesTool extends Tool {
       .addEnumArrayProperty(SEVERITIES_PROPERTY, VALID_SEVERITIES, "An optional list of severities to filter by")
       .addEnumArrayProperty(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES, "An optional list of software qualities to filter by")
       .addEnumArrayProperty(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES, "An optional list of issue statuses to filter by. Note: IN_SANDBOX is valid only for SonarQube Server")
+      .addArrayProperty(TAGS_PROPERTY, "string", "An optional list of issue tags to filter by")
       .addBooleanProperty(IN_NEW_CODE_PERIOD_PROPERTY, "Only return issues in the new code period. Requires exactly one entry across projectKeys and files")
       .addArrayProperty(ISSUE_KEY_PROPERTY, "string", "An optional list of issue keys to fetch specific issues")
       .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional 1-based page index. Defaults to 1.")
@@ -111,6 +113,7 @@ public class SearchIssuesTool extends Tool {
       arguments.getOptionalEnumList(SEVERITIES_PROPERTY, VALID_SEVERITIES),
       arguments.getOptionalEnumList(IMPACT_SOFTWARE_QUALITIES_PROPERTY, VALID_IMPACT_SOFTWARE_QUALITIES),
       arguments.getOptionalEnumList(ISSUE_STATUSES_PROPERTY, VALID_ISSUE_STATUSES),
+      arguments.getOptionalStringList(TAGS_PROPERTY),
       arguments.getOptionalBoolean(IN_NEW_CODE_PERIOD_PROPERTY),
       arguments.getOptionalStringList(ISSUE_KEY_PROPERTY),
       arguments.getOptionalPageIndex(),
