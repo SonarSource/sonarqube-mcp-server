@@ -117,7 +117,6 @@ class ToolCategoryTest {
     var defaultCategories = ToolCategory.defaultEnabled();
 
     assertThat(defaultCategories).containsExactlyInAnyOrder(
-      ToolCategory.ANALYSIS,
       ToolCategory.IDE,
       ToolCategory.ISSUES,
       ToolCategory.PROJECTS,
@@ -128,7 +127,7 @@ class ToolCategoryTest {
       ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.DEPENDENCY_RISKS,
       ToolCategory.COVERAGE,
-      ToolCategory.CAG,
+      ToolCategory.VORTEX,
       ToolCategory.AGENTIC_READINESS
     );
   }
