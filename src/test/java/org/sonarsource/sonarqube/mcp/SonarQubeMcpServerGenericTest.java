@@ -389,6 +389,41 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
+  void should_not_warn_or_note_deprecated_toolset_when_vortex_is_enabled_by_default(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    harness.stubServerCagEntitlement(true);
+    harness.stubServerA3sEntitlement(true);
+    harness.prepareMockWebServer(environment);
+
+    var originalErr = System.err;
+    var errBuffer = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(errBuffer, true, StandardCharsets.UTF_8));
+
+    SonarQubeMcpServer server;
+    try {
+      server = new SonarQubeMcpServer(
+        new StdioServerTransportProvider(null),
+        null,
+        environment);
+      server.start();
+    } finally {
+      System.setErr(originalErr);
+    }
+
+    assertThat(server.getMcpConfiguration().isToolCategoryEnabled(ToolCategory.VORTEX)).isTrue();
+    assertThat(server.getMcpConfiguration().isToolCategoryEnabled(ToolCategory.ANALYSIS)).isFalse();
+    assertThat(server.getMcpConfiguration().isToolCategoryEnabled(ToolCategory.CAG)).isFalse();
+    assertThat(errBuffer.toString(StandardCharsets.UTF_8))
+      .as("No deprecation warning should be logged when Vortex is reached via the default toolsets")
+      .doesNotContain("deprecated 'cag'/'analysis' toolset name");
+    assertThat(server.getComposedInstructions())
+      .as("The deprecation note should not be appended when the 'vortex' toolset is enabled by default")
+      .doesNotContain("toolset names for Vortex tools are deprecated");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
   void should_register_sara_tools_and_instructions_when_flag_enabled_for_org(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
