@@ -21,7 +21,7 @@ jobs:
             development/github/token/{REPO_OWNER_NAME_DASH}-jira token | GITHUB_TOKEN;
             development/kv/data/jira user | JIRA_USER;
             development/kv/data/jira token | JIRA_TOKEN;
-      - uses: sonarsource/gh-action-lt-backlog/PullRequestCreated@v2
+      - uses: sonarsource/gh-action-lt-backlog/PullRequestCreated@63ab0d7f819ffa1387c931e8afca5c200c481317 # v2
         with:
           github-token: ${{ fromJSON(steps.secrets.outputs.vault).GITHUB_TOKEN }}
           jira-user:    ${{ fromJSON(steps.secrets.outputs.vault).JIRA_USER }}
