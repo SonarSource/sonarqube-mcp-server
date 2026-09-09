@@ -47,6 +47,7 @@ public class IssuesApi {
     @Nullable List<String> severities,
     @Nullable List<String> impactSoftwareQualities,
     @Nullable List<String> issueStatuses,
+    @Nullable List<String> tags,
     @Nullable Boolean inNewCodePeriod,
     @Nullable List<String> issueKeys,
     @Nullable Integer page,
@@ -99,6 +100,7 @@ public class IssuesApi {
       .addParam("impactSeverities", params.severities())
       .addParam("impactSoftwareQualities", params.impactSoftwareQualities())
       .addParam("issueStatuses", params.issueStatuses())
+      .addParam("tags", params.tags())
       .addParam(newCodePeriodParamName, params.inNewCodePeriod())
       .addParam("issues", params.issueKeys())
       .addParam("p", params.page())
