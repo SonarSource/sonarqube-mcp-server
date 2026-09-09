@@ -23,8 +23,10 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.InitializeParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,6 +56,24 @@ class BackendServiceTest {
     when(mockServer.shutdown()).thenReturn(CompletableFuture.completedFuture(null));
     
     backendService = new BackendService(mockLauncher, tempDir, "1.0", "TestApp");
+  }
+
+  @Test
+  void getWorkDir_should_be_derived_from_storage_path() {
+    assertThat(backendService.getWorkDir()).isEqualTo(tempDir.resolve(".sonarlint").resolve("work"));
+  }
+
+  @Test
+  void initialize_should_pass_storage_path_derived_sonarlint_user_home_and_work_dir() {
+    var analyzers = new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class));
+
+    backendService.initialize(analyzers);
+
+    var captor = ArgumentCaptor.forClass(InitializeParams.class);
+    verify(mockServer).initialize(captor.capture());
+    var params = captor.getValue();
+    assertThat(params.getSonarlintUserHome()).isEqualTo(tempDir.resolve(".sonarlint").toString());
+    assertThat(params.getWorkDir()).isEqualTo(tempDir.resolve(".sonarlint").resolve("work"));
   }
 
   @Test
