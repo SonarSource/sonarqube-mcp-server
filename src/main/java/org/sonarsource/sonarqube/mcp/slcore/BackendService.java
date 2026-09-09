@@ -25,7 +25,6 @@ import java.io.PipedOutputStream;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -144,7 +143,11 @@ public class BackendService {
   }
 
   public Path getWorkDir() {
-    return Paths.get(System.getProperty("user.home")).resolve(".sonarlint");
+    return getSonarLintUserHome().resolve("work");
+  }
+
+  private Path getSonarLintUserHome() {
+    return storagePath.resolve(".sonarlint");
   }
 
   public void initialize(AnalyzersAndLanguagesEnabled analyzers) {
@@ -267,7 +270,7 @@ public class BackendService {
         emptySet(),
         null,
         null,
-        null,
+        getSonarLintUserHome().toString(),
         null,
         false,
         new LanguageSpecificRequirements(null, false),
