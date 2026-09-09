@@ -36,7 +36,7 @@ RUN apk upgrade --no-cache && \
         nodejs=~24 \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
-        mkdir -p /home/appuser/.sonarlint /app/storage && \
+        mkdir -p /app/storage && \
         chown -R appuser:appgroup /home/appuser /app/storage && \
         echo "appuser ALL=(ALL) NOPASSWD: /usr/sbin/update-ca-certificates" > /etc/sudoers.d/appuser && \
         chmod 0440 /etc/sudoers.d/appuser
