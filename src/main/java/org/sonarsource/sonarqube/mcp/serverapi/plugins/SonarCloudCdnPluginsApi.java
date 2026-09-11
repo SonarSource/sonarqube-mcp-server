@@ -18,12 +18,14 @@ package org.sonarsource.sonarqube.mcp.serverapi.plugins;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.regex.Pattern;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
 public class SonarCloudCdnPluginsApi {
 
   public static final String PLUGIN_DOWNLOAD_PATH = "/plugins/%s/versions/%s.jar";
+  private static final Pattern MD5_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
 
   private final ServerApiHelper helper;
 
@@ -41,8 +43,8 @@ public class SonarCloudCdnPluginsApi {
   }
 
   static String buildDownloadUrl(String baseUrl, String pluginKey, String md5) {
-    if (md5 == null || md5.isBlank()) {
-      throw new IllegalArgumentException("Plugin MD5 must not be blank");
+    if (!MD5_PATTERN.matcher(md5).matches()) {
+      throw new IllegalArgumentException("Plugin MD5 must be a 32-character hexadecimal value");
     }
     var baseUri = URI.create(baseUrl);
     var host = baseUri.getHost();

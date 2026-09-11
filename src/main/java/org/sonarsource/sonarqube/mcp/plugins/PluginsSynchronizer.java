@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import jakarta.annotation.Nullable;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
@@ -90,13 +91,15 @@ public class PluginsSynchronizer {
     }
   }
 
-  private void downloadPlugin(String pluginKey, Path localPath, String expectedHash) {
+  private void downloadPlugin(String pluginKey, Path localPath, @Nullable String expectedHash) {
     try (var response = getPluginDownloadResponse(pluginKey, expectedHash)) {
       if (response.isSuccessful()) {
         try (var inputStream = response.bodyAsStream()) {
           FileUtils.copyInputStreamToFile(inputStream, localPath.toFile());
         }
-        verifyDownloadedPluginHash(pluginKey, localPath, expectedHash);
+        if (expectedHash != null && !expectedHash.isBlank()) {
+          verifyDownloadedPluginHash(pluginKey, localPath, expectedHash);
+        }
         LOG.info("Successfully downloaded plugin '" + pluginKey + "' to " + localPath);
       } else {
         throw new IllegalStateException("Failed to download plugin '" + pluginKey + "': HTTP status " + response.code());
@@ -106,14 +109,21 @@ public class PluginsSynchronizer {
     }
   }
 
-  private HttpClient.Response getPluginDownloadResponse(String pluginKey, String expectedHash) {
+  private HttpClient.Response getPluginDownloadResponse(String pluginKey, @Nullable String expectedHash) {
     if (serverApi.isSonarQubeCloud()) {
       var cdnPluginsApi = serverApi.sonarCloudCdnPluginsApi();
-      if (cdnPluginsApi.isAvailable()) {
-        if (expectedHash == null || expectedHash.isBlank()) {
-          throw new IllegalStateException("Cannot download plugin '" + pluginKey + "' from the SonarQube Cloud CDN without an MD5 hash");
+      if (cdnPluginsApi.isAvailable() && expectedHash != null && !expectedHash.isBlank()) {
+        try {
+          var response = cdnPluginsApi.downloadPlugin(pluginKey, expectedHash);
+          if (response.isSuccessful()) {
+            return response;
+          }
+          var statusCode = response.code();
+          response.close();
+          LOG.info("Plugin '" + pluginKey + "' CDN download returned HTTP " + statusCode + "; falling back to the Web API");
+        } catch (RuntimeException e) {
+          LOG.info("Plugin '" + pluginKey + "' CDN download failed (" + e.getClass().getSimpleName() + "); falling back to the Web API");
         }
-        return cdnPluginsApi.downloadPlugin(pluginKey, expectedHash);
       }
     }
     return serverApi.pluginsApi().downloadPlugin(pluginKey);

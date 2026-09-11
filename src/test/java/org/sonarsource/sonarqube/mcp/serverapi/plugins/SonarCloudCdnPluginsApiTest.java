@@ -28,19 +28,27 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SonarCloudCdnPluginsApiTest {
 
+  private static final String LOWERCASE_MD5 = "0123456789abcdef0123456789abcdef";
+  private static final String UPPERCASE_MD5 = "ABCDEF0123456789ABCDEF0123456789";
+
   static Stream<Arguments> downloadUrlCases() {
     return Stream.of(
-      arguments("https://sonarcloud.io", "java", "abc123", "https://scanner.sonarcloud.io/plugins/java/versions/abc123.jar"),
-      arguments("https://sonarqube.us", "python", "def456", "https://scanner.sonarqube.us/plugins/python/versions/def456.jar"),
-      arguments("https://cloud.example.com/context?query=value#fragment", "js", "789", "https://scanner.cloud.example.com/plugins/js/versions/789.jar"),
-      arguments("http://user:password@cloud.example.com:9000/context", "go", "123", "http://scanner.cloud.example.com:9000/plugins/go/versions/123.jar"),
-      arguments("https://sonarcloud.io", "java analyzer", "hash value", "https://scanner.sonarcloud.io/plugins/java%20analyzer/versions/hash%20value.jar")
+      arguments("https://sonarcloud.io", "java", LOWERCASE_MD5, "https://scanner.sonarcloud.io/plugins/java/versions/" + LOWERCASE_MD5 + ".jar"),
+      arguments("https://sonarqube.us", "python", UPPERCASE_MD5, "https://scanner.sonarqube.us/plugins/python/versions/" + UPPERCASE_MD5 + ".jar"),
+      arguments("https://cloud.example.com/context?query=value#fragment", "js", LOWERCASE_MD5,
+        "https://scanner.cloud.example.com/plugins/js/versions/" + LOWERCASE_MD5 + ".jar"),
+      arguments("http://user:password@cloud.example.com:9000/context", "go", LOWERCASE_MD5,
+        "http://scanner.cloud.example.com:9000/plugins/go/versions/" + LOWERCASE_MD5 + ".jar"),
+      arguments("https://sonarcloud.io", "java analyzer", LOWERCASE_MD5,
+        "https://scanner.sonarcloud.io/plugins/java%20analyzer/versions/" + LOWERCASE_MD5 + ".jar")
     );
   }
 
@@ -75,20 +83,33 @@ class SonarCloudCdnPluginsApiTest {
 
   @Test
   void it_should_reject_base_url_without_host() {
-    assertThatThrownBy(() -> SonarCloudCdnPluginsApi.buildDownloadUrl("relative/path", "java", "abc123"))
+    assertThatThrownBy(() -> SonarCloudCdnPluginsApi.buildDownloadUrl("relative/path", "java", LOWERCASE_MD5))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("SonarQube Cloud base URL must contain a host");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", " ", "abc123", "gggggggggggggggggggggggggggggggg", "../../0123456789abcdef0123456789abcdef"})
+  void it_should_reject_invalid_md5_before_http_request(String md5) {
+    var helper = mock(ServerApiHelper.class);
+    when(helper.getBaseUrl()).thenReturn("https://sonarcloud.io");
+    var api = new SonarCloudCdnPluginsApi(helper);
+
+    assertThatThrownBy(() -> api.downloadPlugin("java", md5))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Plugin MD5 must be a 32-character hexadecimal value");
+    verify(helper, never()).rawGetAnonymousUrl(anyString());
   }
 
   @Test
   void it_should_download_from_absolute_url_anonymously() {
     var helper = mock(ServerApiHelper.class);
     var response = mock(HttpClient.Response.class);
-    var expectedUrl = "https://scanner.sonarcloud.io/plugins/java/versions/abc123.jar";
+    var expectedUrl = "https://scanner.sonarcloud.io/plugins/java/versions/" + LOWERCASE_MD5 + ".jar";
     when(helper.getBaseUrl()).thenReturn("https://sonarcloud.io");
     when(helper.rawGetAnonymousUrl(expectedUrl)).thenReturn(response);
 
-    var result = new SonarCloudCdnPluginsApi(helper).downloadPlugin("java", "abc123");
+    var result = new SonarCloudCdnPluginsApi(helper).downloadPlugin("java", LOWERCASE_MD5);
 
     assertThat(result).isSameAs(response);
     verify(helper).rawGetAnonymousUrl(expectedUrl);
