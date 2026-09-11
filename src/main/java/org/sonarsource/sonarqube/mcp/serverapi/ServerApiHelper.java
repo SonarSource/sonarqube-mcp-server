@@ -54,6 +54,10 @@ public class ServerApiHelper {
     return endpointParams.isSonarQubeCloud();
   }
 
+  public String getBaseUrl() {
+    return endpointParams.baseUrl();
+  }
+
   public HttpClient.Response get(String path) {
     var response = rawGet(path);
     if (!response.isSuccessful()) {
@@ -86,7 +90,11 @@ public class ServerApiHelper {
   }
 
   public HttpClient.Response rawGetAnonymous(String relativePath) {
-    return client.getAsyncAnonymous(buildEndpointUrl(relativePath)).join();
+    return rawGetAnonymousUrl(buildEndpointUrl(relativePath));
+  }
+
+  public HttpClient.Response rawGetAnonymousUrl(String url) {
+    return client.getAsyncAnonymous(url).join();
   }
 
   private HttpClient.Response rawPost(String url, String contentType, String body) {

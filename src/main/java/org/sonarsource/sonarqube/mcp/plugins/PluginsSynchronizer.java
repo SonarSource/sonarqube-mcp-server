@@ -90,7 +90,9 @@ public class PluginsSynchronizer {
   }
 
   private void downloadPlugin(String pluginKey, Path localPath, String expectedHash) {
-    try (var response = serverApi.pluginsApi().downloadPlugin(pluginKey)) {
+    try (var response = serverApi.isSonarQubeCloud()
+      ? serverApi.sonarCloudCdnPlugins().downloadPlugin(pluginKey, expectedHash)
+      : serverApi.pluginsApi().downloadPlugin(pluginKey)) {
       if (response.isSuccessful()) {
         try (var inputStream = response.bodyAsStream()) {
           FileUtils.copyInputStreamToFile(inputStream, localPath.toFile());
