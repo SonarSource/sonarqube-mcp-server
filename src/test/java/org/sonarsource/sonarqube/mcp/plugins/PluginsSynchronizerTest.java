@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import jakarta.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -125,7 +126,7 @@ class PluginsSynchronizerTest {
   @ParameterizedTest
   @NullSource
   @ValueSource(strings = {"", " "})
-  void it_should_skip_cloud_cdn_plugin_when_hash_is_missing(String hash, @TempDir Path tempDir) {
+  void it_should_download_cloud_plugin_from_web_endpoint_when_hash_is_missing(@Nullable String hash, @TempDir Path tempDir) {
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
     var cdnPluginsApi = mock(SonarCloudCdnPluginsApi.class);
@@ -135,13 +136,19 @@ class PluginsSynchronizerTest {
     when(cdnPluginsApi.isAvailable()).thenReturn(true);
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
       new InstalledPluginsResponse.Plugin("java", true, "filename", hash))));
+    var response = mock(HttpClient.Response.class);
+    when(response.isSuccessful()).thenReturn(true);
+    when(response.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
+    when(pluginsApi.downloadPlugin("java")).thenReturn(response);
     var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
-    assertThat(analyzers.analyzerPaths()).isEmpty();
+    var pluginPath = tempDir.resolve("plugins").resolve("filename");
+    assertThat(analyzers.analyzerPaths()).containsExactly(pluginPath);
+    assertThat(pluginPath).hasContent(HELLO_CONTENT);
     verify(cdnPluginsApi, never()).downloadPlugin("java", hash);
-    verify(pluginsApi, never()).downloadPlugin("java");
+    verify(pluginsApi).downloadPlugin("java");
   }
 
   @Test
@@ -196,8 +203,9 @@ class PluginsSynchronizerTest {
     verify(pluginsApi, never()).downloadPlugin("java");
   }
 
-  @Test
-  void it_should_continue_when_plugin_download_request_is_not_successful(@TempDir Path tempDir) {
+  @ParameterizedTest
+  @ValueSource(ints = {400, 500})
+  void it_should_fallback_to_web_when_cdn_request_is_not_successful(int statusCode, @TempDir Path tempDir) {
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
     var cdnPluginsApi = mock(SonarCloudCdnPluginsApi.class);
@@ -207,18 +215,47 @@ class PluginsSynchronizerTest {
     when(cdnPluginsApi.isAvailable()).thenReturn(true);
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
       new InstalledPluginsResponse.Plugin("java", true, "filename", HELLO_MD5))));
-    var response = mock(HttpClient.Response.class);
-    when(response.isSuccessful()).thenReturn(false);
-    when(response.code()).thenReturn(500);
-    when(cdnPluginsApi.downloadPlugin("java", HELLO_MD5)).thenReturn(response);
+    var cdnResponse = mock(HttpClient.Response.class);
+    when(cdnResponse.isSuccessful()).thenReturn(false);
+    when(cdnResponse.code()).thenReturn(statusCode);
+    when(cdnPluginsApi.downloadPlugin("java", HELLO_MD5)).thenReturn(cdnResponse);
+    var webResponse = mock(HttpClient.Response.class);
+    when(webResponse.isSuccessful()).thenReturn(true);
+    when(webResponse.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
+    when(pluginsApi.downloadPlugin("java")).thenReturn(webResponse);
     var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
-    assertThat(analyzers.analyzerPaths()).isEmpty();
-    assertThat(analyzers.enabledLanguages()).isEmpty();
+    assertThat(analyzers.analyzerPaths()).containsExactly(tempDir.resolve("plugins").resolve("filename"));
     verify(cdnPluginsApi).downloadPlugin("java", HELLO_MD5);
-    verify(pluginsApi, never()).downloadPlugin("java");
+    verify(cdnResponse).close();
+    verify(pluginsApi).downloadPlugin("java");
+  }
+
+  @Test
+  void it_should_fallback_to_web_when_cdn_download_throws(@TempDir Path tempDir) {
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    var cdnPluginsApi = mock(SonarCloudCdnPluginsApi.class);
+    when(serverApi.isSonarQubeCloud()).thenReturn(true);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(serverApi.sonarCloudCdnPluginsApi()).thenReturn(cdnPluginsApi);
+    when(cdnPluginsApi.isAvailable()).thenReturn(true);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "filename", HELLO_MD5))));
+    when(cdnPluginsApi.downloadPlugin("java", HELLO_MD5)).thenThrow(new IllegalArgumentException("Invalid MD5"));
+    var webResponse = mock(HttpClient.Response.class);
+    when(webResponse.isSuccessful()).thenReturn(true);
+    when(webResponse.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
+    when(pluginsApi.downloadPlugin("java")).thenReturn(webResponse);
+    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+
+    assertThat(analyzers.analyzerPaths()).containsExactly(tempDir.resolve("plugins").resolve("filename"));
+    verify(cdnPluginsApi).downloadPlugin("java", HELLO_MD5);
+    verify(pluginsApi).downloadPlugin("java");
   }
 
   @Test

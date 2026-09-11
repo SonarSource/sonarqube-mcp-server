@@ -17,10 +17,11 @@
 package org.sonarsource.sonarqube.mcp.serverapi.plugins.response;
 
 import java.util.List;
+import jakarta.annotation.Nullable;
 
 public record InstalledPluginsResponse(List<Plugin> plugins) {
 
-  public record Plugin(String key, boolean sonarLintSupported, String filename, String hash) {
+  public record Plugin(String key, boolean sonarLintSupported, String filename, @Nullable String hash) {
   }
 
 }
