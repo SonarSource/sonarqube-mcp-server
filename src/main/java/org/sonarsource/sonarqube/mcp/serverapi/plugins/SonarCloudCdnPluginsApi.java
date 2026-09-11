@@ -21,12 +21,19 @@ import java.net.URISyntaxException;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
-public class SonarCloudCdnPlugins {
+public class SonarCloudCdnPluginsApi {
+
+  public static final String PLUGIN_DOWNLOAD_PATH = "/plugins/%s/versions/%s.jar";
 
   private final ServerApiHelper helper;
 
-  public SonarCloudCdnPlugins(ServerApiHelper helper) {
+  public SonarCloudCdnPluginsApi(ServerApiHelper helper) {
     this.helper = helper;
+  }
+
+  public boolean isAvailable() {
+    var host = URI.create(helper.getBaseUrl()).getHost();
+    return "sonarcloud.io".equals(host) || "sonarqube.us".equals(host);
   }
 
   public HttpClient.Response downloadPlugin(String pluginKey, String md5) {
@@ -34,6 +41,9 @@ public class SonarCloudCdnPlugins {
   }
 
   static String buildDownloadUrl(String baseUrl, String pluginKey, String md5) {
+    if (md5 == null || md5.isBlank()) {
+      throw new IllegalArgumentException("Plugin MD5 must not be blank");
+    }
     var baseUri = URI.create(baseUrl);
     var host = baseUri.getHost();
     if (host == null) {
@@ -41,7 +51,7 @@ public class SonarCloudCdnPlugins {
     }
     try {
       return new URI(baseUri.getScheme(), null, "scanner." + host, baseUri.getPort(),
-        "/plugins/" + pluginKey + "/versions/" + md5 + ".jar", null, null).toASCIIString();
+        PLUGIN_DOWNLOAD_PATH.formatted(pluginKey, md5), null, null).toASCIIString();
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException("Unable to build SonarQube Cloud CDN plugin URL", e);
     }

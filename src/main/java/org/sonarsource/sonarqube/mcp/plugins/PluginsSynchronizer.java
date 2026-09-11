@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.response.InstalledPluginsResponse;
@@ -90,9 +91,7 @@ public class PluginsSynchronizer {
   }
 
   private void downloadPlugin(String pluginKey, Path localPath, String expectedHash) {
-    try (var response = serverApi.isSonarQubeCloud()
-      ? serverApi.sonarCloudCdnPlugins().downloadPlugin(pluginKey, expectedHash)
-      : serverApi.pluginsApi().downloadPlugin(pluginKey)) {
+    try (var response = getPluginDownloadResponse(pluginKey, expectedHash)) {
       if (response.isSuccessful()) {
         try (var inputStream = response.bodyAsStream()) {
           FileUtils.copyInputStreamToFile(inputStream, localPath.toFile());
@@ -105,6 +104,19 @@ public class PluginsSynchronizer {
     } catch (IOException e) {
       throw new IllegalStateException("Error downloading plugin '" + pluginKey + "'", e);
     }
+  }
+
+  private HttpClient.Response getPluginDownloadResponse(String pluginKey, String expectedHash) {
+    if (serverApi.isSonarQubeCloud()) {
+      var cdnPluginsApi = serverApi.sonarCloudCdnPluginsApi();
+      if (cdnPluginsApi.isAvailable()) {
+        if (expectedHash == null || expectedHash.isBlank()) {
+          throw new IllegalStateException("Cannot download plugin '" + pluginKey + "' from the SonarQube Cloud CDN without an MD5 hash");
+        }
+        return cdnPluginsApi.downloadPlugin(pluginKey, expectedHash);
+      }
+    }
+    return serverApi.pluginsApi().downloadPlugin(pluginKey);
   }
 
   private static void verifyDownloadedPluginHash(String pluginKey, Path localPath, String expectedHash) {

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
@@ -31,7 +32,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class SonarCloudCdnPluginsTest {
+class SonarCloudCdnPluginsApiTest {
 
   static Stream<Arguments> downloadUrlCases() {
     return Stream.of(
@@ -46,12 +47,35 @@ class SonarCloudCdnPluginsTest {
   @ParameterizedTest
   @MethodSource("downloadUrlCases")
   void it_should_build_download_url(String baseUrl, String pluginKey, String md5, String expectedUrl) {
-    assertThat(SonarCloudCdnPlugins.buildDownloadUrl(baseUrl, pluginKey, md5)).isEqualTo(expectedUrl);
+    assertThat(SonarCloudCdnPluginsApi.buildDownloadUrl(baseUrl, pluginKey, md5)).isEqualTo(expectedUrl);
+  }
+
+  @Test
+  void it_should_expose_plugin_download_path() {
+    assertThat(SonarCloudCdnPluginsApi.PLUGIN_DOWNLOAD_PATH).isEqualTo("/plugins/%s/versions/%s.jar");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"https://sonarcloud.io", "https://sonarqube.us/context"})
+  void it_should_be_available_for_supported_production_hosts(String baseUrl) {
+    var helper = mock(ServerApiHelper.class);
+    when(helper.getBaseUrl()).thenReturn(baseUrl);
+
+    assertThat(new SonarCloudCdnPluginsApi(helper).isAvailable()).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"https://next.sonarcloud.io", "https://test.sc-test.io"})
+  void it_should_not_be_available_for_non_production_hosts(String baseUrl) {
+    var helper = mock(ServerApiHelper.class);
+    when(helper.getBaseUrl()).thenReturn(baseUrl);
+
+    assertThat(new SonarCloudCdnPluginsApi(helper).isAvailable()).isFalse();
   }
 
   @Test
   void it_should_reject_base_url_without_host() {
-    assertThatThrownBy(() -> SonarCloudCdnPlugins.buildDownloadUrl("relative/path", "java", "abc123"))
+    assertThatThrownBy(() -> SonarCloudCdnPluginsApi.buildDownloadUrl("relative/path", "java", "abc123"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("SonarQube Cloud base URL must contain a host");
   }
@@ -64,7 +88,7 @@ class SonarCloudCdnPluginsTest {
     when(helper.getBaseUrl()).thenReturn("https://sonarcloud.io");
     when(helper.rawGetAnonymousUrl(expectedUrl)).thenReturn(response);
 
-    var result = new SonarCloudCdnPlugins(helper).downloadPlugin("java", "abc123");
+    var result = new SonarCloudCdnPluginsApi(helper).downloadPlugin("java", "abc123");
 
     assertThat(result).isSameAs(response);
     verify(helper).rawGetAnonymousUrl(expectedUrl);

@@ -32,7 +32,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
-import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPlugins;
+import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.pullrequests.PullRequestsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
@@ -106,8 +106,8 @@ public class ServerApi {
     return new PluginsApi(helper, isSonarQubeCloud);
   }
 
-  public SonarCloudCdnPlugins sonarCloudCdnPlugins() {
-    return new SonarCloudCdnPlugins(helper);
+  public SonarCloudCdnPluginsApi sonarCloudCdnPluginsApi() {
+    return new SonarCloudCdnPluginsApi(helper);
   }
 
   public ScaApi scaApi() {
