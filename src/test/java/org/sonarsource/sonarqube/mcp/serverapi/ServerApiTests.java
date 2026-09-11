@@ -36,6 +36,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
@@ -145,6 +146,30 @@ class ServerApiTests {
       assertThat(response.isSuccessful()).isTrue();
       assertThat(response.bodyAsString()).isEqualTo("{\"result\": \"ok\"}");
     }
+  }
+
+  @Test
+  void rawGetAnonymousUrl_should_use_absolute_url_without_authorization() {
+    var path = "/cdn/plugin.jar";
+    var absoluteUrl = sonarqubeMock.baseUrl() + path;
+    sonarqubeMock.stubFor(get(path)
+      .withHeader("Authorization", absent())
+      .willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+    var httpClient = new HttpClientProvider(USER_AGENT).getHttpClient("token");
+    var helper = new ServerApiHelper(new EndpointParams("https://web.example.com/base", "org", "https://api.example.com", true), httpClient);
+
+    try (var response = helper.rawGetAnonymousUrl(absoluteUrl)) {
+      assertThat(response.isSuccessful()).isTrue();
+      assertThat(response.url()).isEqualTo(absoluteUrl);
+    }
+  }
+
+  @Test
+  void getBaseUrl_should_return_web_base_url_when_api_base_url_is_configured() {
+    var httpClient = new HttpClientProvider(USER_AGENT).getHttpClient("token");
+    var helper = new ServerApiHelper(new EndpointParams("https://web.example.com/base", "org", "https://api.example.com", true), httpClient);
+
+    assertThat(helper.getBaseUrl()).isEqualTo("https://web.example.com/base");
   }
 
   static Stream<Arguments> buildApiSubdomainUrlCases() {
