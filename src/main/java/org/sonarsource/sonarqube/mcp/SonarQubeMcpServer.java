@@ -59,6 +59,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
+import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPluginsApi;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -402,7 +403,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         return;
       }
 
-      var pluginsSynchronizer = new PluginsSynchronizer(Objects.requireNonNull(serverApi), mcpConfiguration.getStoragePath());
+      var sonarCloudCdnPluginsApi = new SonarCloudCdnPluginsApi(mcpConfiguration.getSonarQubeUrl(), httpClientProvider.getAnonymousHttpClient());
+      var pluginsSynchronizer = new PluginsSynchronizer(Objects.requireNonNull(serverApi), sonarCloudCdnPluginsApi, mcpConfiguration.getStoragePath());
 
       LOG.info("Downloading analyzers in background...");
       var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
