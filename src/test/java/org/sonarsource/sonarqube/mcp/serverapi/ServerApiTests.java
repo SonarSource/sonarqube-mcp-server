@@ -147,14 +147,6 @@ class ServerApiTests {
     }
   }
 
-  @Test
-  void getBaseUrl_should_return_web_base_url_when_api_base_url_is_configured() {
-    var httpClient = new HttpClientProvider(USER_AGENT).getHttpClient("token");
-    var helper = new ServerApiHelper(new EndpointParams("https://web.example.com/base", "org", "https://api.example.com", true), httpClient);
-
-    assertThat(helper.getBaseUrl()).isEqualTo("https://web.example.com/base");
-  }
-
   static Stream<Arguments> buildApiSubdomainUrlCases() {
     return Stream.of(
       // SQC - known hosts: api.* subdomain is derived automatically

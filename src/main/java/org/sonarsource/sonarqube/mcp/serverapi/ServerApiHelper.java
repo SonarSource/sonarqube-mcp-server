@@ -54,10 +54,6 @@ public class ServerApiHelper {
     return endpointParams.isSonarQubeCloud();
   }
 
-  public String getBaseUrl() {
-    return endpointParams.baseUrl();
-  }
-
   public HttpClient.Response get(String path) {
     var response = rawGet(path);
     if (!response.isSuccessful()) {
