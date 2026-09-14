@@ -18,34 +18,25 @@ package org.sonarsource.sonarqube.mcp.serverapi.plugins;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.regex.Pattern;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
-import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
 public class SonarCloudCdnPluginsApi {
 
   public static final String PLUGIN_DOWNLOAD_PATH = "/plugins/%s/versions/%s.jar";
-  private static final Pattern MD5_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
 
-  private final ServerApiHelper helper;
+  private final String baseUrl;
+  private final HttpClient httpClient;
 
-  public SonarCloudCdnPluginsApi(ServerApiHelper helper) {
-    this.helper = helper;
-  }
-
-  public boolean isAvailable() {
-    var host = URI.create(helper.getBaseUrl()).getHost();
-    return "sonarcloud.io".equals(host) || "sonarqube.us".equals(host);
+  public SonarCloudCdnPluginsApi(String baseUrl, HttpClient httpClient) {
+    this.baseUrl = baseUrl;
+    this.httpClient = httpClient;
   }
 
   public HttpClient.Response downloadPlugin(String pluginKey, String md5) {
-    return helper.rawGetAnonymousUrl(buildDownloadUrl(helper.getBaseUrl(), pluginKey, md5));
+    return httpClient.getAsyncAnonymous(buildDownloadUrl(baseUrl, pluginKey, md5)).join();
   }
 
   static String buildDownloadUrl(String baseUrl, String pluginKey, String md5) {
-    if (!MD5_PATTERN.matcher(md5).matches()) {
-      throw new IllegalArgumentException("Plugin MD5 must be a 32-character hexadecimal value");
-    }
     var baseUri = URI.create(baseUrl);
     var host = baseUri.getHost();
     if (host == null) {
