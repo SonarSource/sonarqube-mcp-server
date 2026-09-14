@@ -27,8 +27,10 @@ import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.response.InstalledPluginsResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 
@@ -39,10 +41,12 @@ public class PluginsSynchronizer {
   private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ServerApi serverApi;
+  private final SonarCloudCdnPluginsApi sonarCloudCdnPluginsApi;
   private final Path pluginsPath;
 
-  public PluginsSynchronizer(ServerApi serverApi, Path storagePath) {
+  public PluginsSynchronizer(ServerApi serverApi, SonarCloudCdnPluginsApi sonarCloudCdnPluginsApi, Path storagePath) {
     this.serverApi = serverApi;
+    this.sonarCloudCdnPluginsApi = sonarCloudCdnPluginsApi;
     this.pluginsPath = storagePath.resolve("plugins");
   }
 
@@ -78,19 +82,15 @@ public class PluginsSynchronizer {
     if (!Files.exists(localPath)) {
       return true;
     }
-    var expectedHash = plugin.hash();
-    if (expectedHash == null || expectedHash.isBlank()) {
-      return true;
-    }
     try {
-      return !expectedHash.equalsIgnoreCase(computeMd5Hex(localPath));
+      return !plugin.hash().equalsIgnoreCase(computeMd5Hex(localPath));
     } catch (IOException e) {
       return true;
     }
   }
 
   private void downloadPlugin(String pluginKey, Path localPath, String expectedHash) {
-    try (var response = serverApi.pluginsApi().downloadPlugin(pluginKey)) {
+    try (var response = getPluginDownloadResponse(pluginKey, expectedHash)) {
       if (response.isSuccessful()) {
         try (var inputStream = response.bodyAsStream()) {
           FileUtils.copyInputStreamToFile(inputStream, localPath.toFile());
@@ -103,6 +103,13 @@ public class PluginsSynchronizer {
     } catch (IOException e) {
       throw new IllegalStateException("Error downloading plugin '" + pluginKey + "'", e);
     }
+  }
+
+  private HttpClient.Response getPluginDownloadResponse(String pluginKey, String expectedHash) {
+    if (serverApi.isSonarQubeCloud()) {
+      return sonarCloudCdnPluginsApi.downloadPlugin(pluginKey, expectedHash);
+    }
+    return serverApi.pluginsApi().downloadPlugin(pluginKey);
   }
 
   private static void verifyDownloadedPluginHash(String pluginKey, Path localPath, String expectedHash) {
