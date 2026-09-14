@@ -90,11 +90,7 @@ public class ServerApiHelper {
   }
 
   public HttpClient.Response rawGetAnonymous(String relativePath) {
-    return rawGetAnonymousUrl(buildEndpointUrl(relativePath));
-  }
-
-  public HttpClient.Response rawGetAnonymousUrl(String url) {
-    return client.getAsyncAnonymous(url).join();
+    return client.getAsyncAnonymous(buildEndpointUrl(relativePath)).join();
   }
 
   private HttpClient.Response rawPost(String url, String contentType, String body) {
