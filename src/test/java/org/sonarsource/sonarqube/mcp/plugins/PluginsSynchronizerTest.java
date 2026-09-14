@@ -27,6 +27,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.response.InstalledPluginsResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,7 +42,7 @@ class PluginsSynchronizerTest {
   private static final String HELLO_MD5 = "5d41402abc4b2a76b9719d911017c592";
 
   @Test
-  void it_should_download_sonarlint_supported_plugins(@TempDir Path tempDir) {
+  void it_should_download_sonarlint_supported_plugins_from_server_web_endpoint(@TempDir Path tempDir) {
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
@@ -51,7 +52,7 @@ class PluginsSynchronizerTest {
     when(response.isSuccessful()).thenReturn(true);
     when(response.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
     when(pluginsApi.downloadPlugin("java")).thenReturn(response);
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
@@ -61,6 +62,34 @@ class PluginsSynchronizerTest {
     assertThat(pluginPath)
       .exists()
       .hasContent(HELLO_CONTENT);
+    verify(pluginsApi).downloadPlugin("java");
+  }
+
+  @Test
+  void it_should_download_sonarlint_supported_plugins_from_cloud_cdn(@TempDir Path tempDir) {
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    var cdnPluginsApi = mock(SonarCloudCdnPluginsApi.class);
+    when(serverApi.isSonarQubeCloud()).thenReturn(true);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "filename", HELLO_MD5))));
+    var response = mock(HttpClient.Response.class);
+    when(response.isSuccessful()).thenReturn(true);
+    when(response.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
+    when(cdnPluginsApi.downloadPlugin("java", HELLO_MD5)).thenReturn(response);
+    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, cdnPluginsApi, tempDir);
+
+    var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
+
+    var pluginPath = tempDir.resolve("plugins").resolve("filename");
+    assertThat(analyzers.analyzerPaths()).containsExactly(pluginPath);
+    assertThat(analyzers.enabledLanguages()).containsExactly(Language.JAVA);
+    assertThat(pluginPath)
+      .exists()
+      .hasContent(HELLO_CONTENT);
+    verify(cdnPluginsApi).downloadPlugin("java", HELLO_MD5);
+    verify(pluginsApi, never()).downloadPlugin("java");
   }
 
   @Test
@@ -70,7 +99,7 @@ class PluginsSynchronizerTest {
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
       new InstalledPluginsResponse.Plugin("key", false, "filename", HELLO_MD5))));
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
@@ -84,7 +113,7 @@ class PluginsSynchronizerTest {
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
       new InstalledPluginsResponse.Plugin("cobol", true, "sonar-cobol-plugin.jar", HELLO_MD5))));
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
@@ -104,7 +133,7 @@ class PluginsSynchronizerTest {
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
       new InstalledPluginsResponse.Plugin("java", true, "filename", HELLO_MD5))));
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
@@ -116,22 +145,26 @@ class PluginsSynchronizerTest {
   }
 
   @Test
-  void it_should_continue_when_plugin_download_request_is_not_successful(@TempDir Path tempDir) {
+  void it_should_not_fallback_to_web_when_cloud_cdn_request_is_not_successful(@TempDir Path tempDir) {
     var serverApi = mock(ServerApi.class);
     var pluginsApi = mock(PluginsApi.class);
+    var cdnPluginsApi = mock(SonarCloudCdnPluginsApi.class);
+    when(serverApi.isSonarQubeCloud()).thenReturn(true);
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
       new InstalledPluginsResponse.Plugin("java", true, "filename", HELLO_MD5))));
-    var response = mock(HttpClient.Response.class);
-    when(response.isSuccessful()).thenReturn(false);
-    when(response.code()).thenReturn(500);
-    when(pluginsApi.downloadPlugin("java")).thenReturn(response);
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var cdnResponse = mock(HttpClient.Response.class);
+    when(cdnResponse.isSuccessful()).thenReturn(false);
+    when(cdnResponse.code()).thenReturn(500);
+    when(cdnPluginsApi.downloadPlugin("java", HELLO_MD5)).thenReturn(cdnResponse);
+    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, cdnPluginsApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
     assertThat(analyzers.analyzerPaths()).isEmpty();
-    assertThat(analyzers.enabledLanguages()).isEmpty();
+    verify(cdnPluginsApi).downloadPlugin("java", HELLO_MD5);
+    verify(cdnResponse).close();
+    verify(pluginsApi, never()).downloadPlugin("java");
   }
 
   @Test
@@ -148,7 +181,7 @@ class PluginsSynchronizerTest {
     when(response.isSuccessful()).thenReturn(false);
     when(response.code()).thenReturn(500);
     when(pluginsApi.downloadPlugin("java")).thenReturn(response);
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
@@ -169,7 +202,7 @@ class PluginsSynchronizerTest {
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
       new InstalledPluginsResponse.Plugin("cobol", true, "sonar-cobol-plugin.jar", HELLO_MD5)
     )));
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
@@ -186,7 +219,7 @@ class PluginsSynchronizerTest {
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
       new InstalledPluginsResponse.Plugin("java", true, escapePath.toString(), HELLO_MD5))));
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
@@ -203,7 +236,7 @@ class PluginsSynchronizerTest {
     when(serverApi.pluginsApi()).thenReturn(pluginsApi);
     when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
       new InstalledPluginsResponse.Plugin("java", true, "../../pwned.jar", HELLO_MD5))));
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
@@ -223,7 +256,7 @@ class PluginsSynchronizerTest {
     when(response.isSuccessful()).thenReturn(true);
     when(response.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
     when(pluginsApi.downloadPlugin("java")).thenReturn(response);
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
@@ -247,13 +280,17 @@ class PluginsSynchronizerTest {
     when(successResponse.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()));
     when(pluginsApi.downloadPlugin("java")).thenReturn(failedResponse);
     when(pluginsApi.downloadPlugin("python")).thenReturn(successResponse);
-    var pluginsSynchronizer = new PluginsSynchronizer(serverApi, tempDir);
+    var pluginsSynchronizer = newPluginsSynchronizer(serverApi, tempDir);
 
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
     assertThat(analyzers.analyzerPaths()).containsExactly(tempDir.resolve("plugins").resolve("python-plugin.jar"));
     assertThat(analyzers.enabledLanguages()).containsExactlyInAnyOrder(Language.PYTHON, Language.IPYTHON);
     assertThat(tempDir.resolve("plugins").resolve("java-plugin.jar")).doesNotExist();
+  }
+
+  private static PluginsSynchronizer newPluginsSynchronizer(ServerApi serverApi, Path storagePath) {
+    return new PluginsSynchronizer(serverApi, mock(SonarCloudCdnPluginsApi.class), storagePath);
   }
 
 }
