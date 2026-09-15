@@ -350,11 +350,86 @@ class PerRequestToolFilteringHandlerTest {
       new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
 
     var handler = new PerRequestToolFilteringHandler(delegate, List.of());
+    var context = contextWithToken();
     var request = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_TOOLS_CALL, REQUEST_ID, "not-a-map");
 
-    handler.handleRequest(contextWithToken(), request).block();
+    handler.handleRequest(context, request).block();
 
-    verify(delegate).handleRequest(contextWithToken(), request);
+    verify(delegate).handleRequest(context, request);
+  }
+
+  @Test
+  void tools_call_with_non_map_params_returns_method_not_found_when_read_only_policy_active() {
+    var delegate = mock(McpStatelessServerHandler.class);
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
+    var context = contextWith(Map.of(
+      HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
+      HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY, true
+    ));
+    var request = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_TOOLS_CALL, REQUEST_ID, "not-a-map");
+
+    var response = handler.handleRequest(context, request).block();
+
+    assertThat(response).isNotNull();
+    assertThat(response.error()).isNotNull();
+    assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
+    verify(delegate, never()).handleRequest(any(), any());
+  }
+
+  @Test
+  void tools_call_with_nameless_map_returns_method_not_found_when_toolsets_policy_active() {
+    var delegate = mock(McpStatelessServerHandler.class);
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
+    var context = contextWith(Map.of(
+      HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
+      HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.MEASURES)
+    ));
+    var request = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_TOOLS_CALL, REQUEST_ID, Map.of());
+
+    var response = handler.handleRequest(context, request).block();
+
+    assertThat(response).isNotNull();
+    assertThat(response.error()).isNotNull();
+    assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
+    verify(delegate, never()).handleRequest(any(), any());
+  }
+
+  @Test
+  void tools_call_with_call_tool_request_params_extracts_name_and_rejects_disallowed_tool() {
+    var writeTool = mockTool("change_status", ToolCategory.ISSUES, false);
+    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(writeTool));
+    var context = contextWith(Map.of(
+      HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
+      HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY, true
+    ));
+    var request = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_TOOLS_CALL, REQUEST_ID,
+      McpSchema.CallToolRequest.builder("change_status").arguments(Map.of()).build());
+
+    var response = handler.handleRequest(context, request).block();
+
+    assertThat(response).isNotNull();
+    assertThat(response.error()).isNotNull();
+    assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
+    assertThat(response.error().message()).contains("change_status");
+  }
+
+  @Test
+  void tools_call_with_call_tool_request_params_delegates_when_tool_allowed() {
+    var delegate = mock(McpStatelessServerHandler.class);
+    when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
+      new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
+    var issuesTool = mockTool("search_issues", ToolCategory.ISSUES, true);
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of(issuesTool));
+    var context = contextWith(Map.of(
+      HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "token",
+      HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.ISSUES)
+    ));
+    var request = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_TOOLS_CALL, REQUEST_ID,
+      McpSchema.CallToolRequest.builder("search_issues").arguments(Map.of()).build());
+
+    handler.handleRequest(context, request).block();
+
+    verify(delegate).handleRequest(context, request);
   }
 
   private static Tool mockTool(String name, ToolCategory category, boolean readOnly) {
