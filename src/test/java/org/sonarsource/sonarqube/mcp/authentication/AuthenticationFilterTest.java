@@ -281,11 +281,65 @@ class AuthenticationFilterTest {
   }
 
   @Test
+  void should_allow_request_with_hyphen_read_only_header() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
+    when(request.getHeader("SONARQUBE-READ-ONLY")).thenReturn("true");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+  }
+
+  @Test
+  void should_allow_request_with_x_read_only_header() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
+    when(request.getHeader("X-SONARQUBE-READ-ONLY")).thenReturn("False");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+  }
+
+  @Test
   void should_reject_request_with_invalid_read_only_header() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_READ_ONLY")).thenReturn("yes");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    verify(filterChain, never()).doFilter(request, response);
+    assertThat(responseWriter.toString()).contains("Invalid SONARQUBE_READ_ONLY header value");
+  }
+
+  @Test
+  void should_reject_request_with_invalid_hyphen_read_only_header() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
+    when(request.getHeader("SONARQUBE-READ-ONLY")).thenReturn("yes");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(response).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    verify(filterChain, never()).doFilter(request, response);
+    assertThat(responseWriter.toString()).contains("Invalid SONARQUBE_READ_ONLY header value");
+  }
+
+  @Test
+  void should_reject_request_with_invalid_x_read_only_header() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.TOKEN, false, null);
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
+    when(request.getHeader("X-SONARQUBE-READ-ONLY")).thenReturn("1");
 
     filter.doFilter(request, response, filterChain);
 
