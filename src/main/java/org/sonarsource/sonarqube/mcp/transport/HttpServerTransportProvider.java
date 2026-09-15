@@ -44,6 +44,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
+import org.sonarsource.sonarqube.mcp.configuration.HttpPolicyHeaders;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -125,8 +126,8 @@ public class HttpServerTransportProvider {
       .contextExtractor(request -> {
         try {
           var token = AuthenticationFilter.extractToken(request);
-          var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
-          var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);
+          var toolsets = HttpPolicyHeaders.toolsetsValue(request::getHeader);
+          var readOnly = HttpPolicyHeaders.readOnlyValue(request::getHeader);
           var contextBuilder = new HashMap<String, Object>();
           contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
           if (isSonarQubeCloud) {
@@ -140,7 +141,10 @@ public class HttpServerTransportProvider {
             contextBuilder.put(CONTEXT_TOOLSETS_KEY, ToolCategory.parseCategories(toolsets.trim()));
           }
           if (readOnly != null && !readOnly.isBlank()) {
-            contextBuilder.put(CONTEXT_READ_ONLY_KEY, Boolean.parseBoolean(readOnly.trim()));
+            var parsedReadOnly = HttpPolicyHeaders.parseStrictBoolean(readOnly);
+            if (parsedReadOnly != null) {
+              contextBuilder.put(CONTEXT_READ_ONLY_KEY, parsedReadOnly);
+            }
           }
           return McpTransportContext.create(contextBuilder);
         } catch (Exception e) {

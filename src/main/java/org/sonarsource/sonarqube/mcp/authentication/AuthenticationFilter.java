@@ -26,6 +26,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import jakarta.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.configuration.HttpPolicyHeaders;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -59,7 +60,6 @@ public class AuthenticationFilter implements Filter {
   static final String BEARER_PREFIX = "Bearer ";
   private static final String SONARQUBE_TOKEN_HEADER = McpServerLaunchConfiguration.SONARQUBE_TOKEN;
   private static final String SONARQUBE_ORG_HEADER = McpServerLaunchConfiguration.SONARQUBE_ORG;
-  private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
 
   private final AuthMode authMode;
   private final boolean isSonarQubeCloud;
@@ -147,14 +147,11 @@ public class AuthenticationFilter implements Filter {
   }
 
   private static boolean validateReadOnly(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    var value = request.getHeader(SONARQUBE_READ_ONLY_HEADER);
-    if (value != null && !value.isBlank()) {
-      var trimmed = value.trim();
-      if (!"true".equalsIgnoreCase(trimmed) && !"false".equalsIgnoreCase(trimmed)) {
-        LOG.warn("Rejected request with invalid SONARQUBE_READ_ONLY header value");
-        sendBadRequestResponse(response, "Invalid SONARQUBE_READ_ONLY header value. Expected 'true' or 'false'.");
-        return false;
-      }
+    var value = HttpPolicyHeaders.readOnlyValue(request::getHeader);
+    if (!HttpPolicyHeaders.isValidReadOnlyValue(value)) {
+      LOG.warn("Rejected request with invalid SONARQUBE_READ_ONLY header value");
+      sendBadRequestResponse(response, "Invalid SONARQUBE_READ_ONLY header value. Expected 'true' or 'false'.");
+      return false;
     }
     return true;
   }
