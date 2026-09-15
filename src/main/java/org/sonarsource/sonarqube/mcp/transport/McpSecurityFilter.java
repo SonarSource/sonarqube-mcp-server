@@ -47,6 +47,8 @@ public class McpSecurityFilter implements Filter {
   static final String HEALTH_ENDPOINT = "/health";
   static final String INFO_ENDPOINT = "/info";
   static final String MCP_ENDPOINT = "/mcp";
+  static final String ACCESS_CONTROL_ALLOW_HEADERS =
+    "Content-Type, Accept, Authorization, SONARQUBE_TOKEN, SONARQUBE_ORG, SONARQUBE_TOOLSETS, SONARQUBE_READ_ONLY, MCP-Protocol-Version";
   private static final String WELL_KNOWN_PREFIX = "/.well-known/";
 
   // Allowed hosts for localhost deployments (exact match only)
@@ -114,8 +116,7 @@ public class McpSecurityFilter implements Filter {
     }
 
     httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    httpResponse.setHeader("Access-Control-Allow-Headers",
-      "Content-Type, Accept, Authorization, SONARQUBE_TOKEN, SONARQUBE_ORG, MCP-Protocol-Version");
+    httpResponse.setHeader("Access-Control-Allow-Headers", ACCESS_CONTROL_ALLOW_HEADERS);
     httpResponse.setHeader("Access-Control-Max-Age", "3600");
 
     if (isOptionsRequest) {
