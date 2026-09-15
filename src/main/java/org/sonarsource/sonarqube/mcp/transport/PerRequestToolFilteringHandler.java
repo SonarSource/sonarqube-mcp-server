@@ -51,7 +51,9 @@ import reactor.core.publisher.Mono;
  *
  * <p>For {@code tools/call}, if a per-request filter is active and the requested tool is not in
  * the allowed set, a {@code METHOD_NOT_FOUND} error is returned immediately without delegating
- * to the SDK handler.
+ * to the SDK handler. The same error is returned when a per-request policy is active and the
+ * tool name cannot be parsed from the request params (fail-closed). When no per-request policy
+ * keys are set, a call whose params are not a {@code Map} still delegates to the SDK handler.
  *
  * <p>Each tool can further gate its own visibility per-request by overriding
  * {@link Tool#isEnabledFor(McpTransportContext)}.
@@ -90,6 +92,10 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
     }
     if (McpSchema.METHOD_TOOLS_CALL.equals(request.method())) {
       var toolName = extractToolName(request);
+      if (isPerRequestPolicyActive(transportContext) && toolName == null) {
+        var error = new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.METHOD_NOT_FOUND, "Tool not found", null);
+        return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
+      }
       if (toolName != null && !isToolAllowed(toolName, transportContext)) {
         var error = new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.METHOD_NOT_FOUND, "Tool not found: " + toolName, null);
         return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
@@ -126,11 +132,19 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
     return filterTools(ctx).stream().anyMatch(tool -> toolName.equals(tool.name()));
   }
 
+  private static boolean isPerRequestPolicyActive(McpTransportContext ctx) {
+    return Boolean.TRUE.equals(ctx.get(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY))
+      || ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY) != null;
+  }
+
   @Nullable
   private static String extractToolName(McpSchema.JSONRPCRequest request) {
     if (request.params() instanceof Map<?, ?> params) {
       var name = params.get("name");
       return name instanceof String s ? s : null;
+    }
+    if (request.params() instanceof McpSchema.CallToolRequest callToolRequest) {
+      return callToolRequest.name();
     }
     return null;
   }
