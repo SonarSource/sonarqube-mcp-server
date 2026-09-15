@@ -295,9 +295,12 @@ class McpSecurityFilterTest {
     filter.doFilter(request, response, filterChain);
 
     verify(response).setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    verify(response).setHeader("Access-Control-Allow-Headers",
-      "Content-Type, Accept, Authorization, SONARQUBE_TOKEN, SONARQUBE_ORG, MCP-Protocol-Version");
+    verify(response).setHeader("Access-Control-Allow-Headers", McpSecurityFilter.ACCESS_CONTROL_ALLOW_HEADERS);
     verify(response).setHeader("Access-Control-Max-Age", "3600");
+    assertThat(McpSecurityFilter.ACCESS_CONTROL_ALLOW_HEADERS)
+      .contains("SONARQUBE_READ_ONLY")
+      .contains("SONARQUBE_TOOLSETS")
+      .contains("MCP-Protocol-Version");
   }
 
 
