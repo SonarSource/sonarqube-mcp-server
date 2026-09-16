@@ -205,7 +205,7 @@ class McpServerLaunchConfigurationTest {
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org");
     var configuration = new McpServerLaunchConfiguration(arg);
 
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isFalse();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.IDE)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
@@ -220,8 +220,8 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.WEBHOOKS)).isFalse();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.SECURITY_HOTSPOTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)).isTrue();
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.CAG)).isTrue();
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.VORTEX)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.CAG)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.VORTEX)).isTrue();
   }
 
   @Test

@@ -92,7 +92,6 @@ public enum ToolCategory {
    */
   public static Set<ToolCategory> defaultEnabled() {
     return Set.of(
-      ANALYSIS,
       IDE,
       ISSUES,
       PROJECTS,
@@ -103,7 +102,7 @@ public enum ToolCategory {
       SECURITY_HOTSPOTS,
       DEPENDENCY_RISKS,
       COVERAGE,
-      CAG,
+      VORTEX,
       AGENTIC_READINESS
     );
   }
