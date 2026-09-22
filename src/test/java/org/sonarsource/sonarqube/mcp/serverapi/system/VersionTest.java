@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.system;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,5 +49,17 @@ class VersionTest {
     var satisfiesMinRequirement = version.satisfiesMinRequirement(Version.create("1.2.3-SNAPSHOT"));
 
     assertThat(satisfiesMinRequirement).isFalse();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"2025.1", "2025.4", "25.1", "25.2"})
+  void it_should_consider_supported_sonarqube_server_versions(String versionName) {
+    assertThat(Version.create(versionName).isSupportedSonarQubeServerVersion()).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"9.9.1", "10.4", "24.12", "25.0", "2024.12"})
+  void it_should_consider_unsupported_sonarqube_server_versions(String versionName) {
+    assertThat(Version.create(versionName).isSupportedSonarQubeServerVersion()).isFalse();
   }
 }
