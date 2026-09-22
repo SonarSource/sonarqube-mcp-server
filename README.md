@@ -645,6 +645,8 @@ To enable full functionality, the following environment variables must be set be
 | `SONARQUBE_TOKEN`     | Your SonarQube Server **USER** [token](https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token) | Yes      |
 | `SONARQUBE_URL`       | Your SonarQube Server URL                                                                                                                   | Yes      |
 
+> **Version requirement:** SonarQube Server **2025.1** (SQS) or **25.1** (SonarQube Community Build) or later is required. At startup, the MCP server reads the connected instance version and exits with an error if it is too old (for example, legacy 9.x releases such as 9.9.1 are not supported). SonarQube Cloud is not subject to this check.
+
 > ⚠️ Connection to SonarQube Server requires a token of type **USER** and will not function properly if project tokens or global tokens are used.
 
 > 💡 **Configuration Tip (stdio mode)**: The presence of `SONARQUBE_ORG` determines whether you're connecting to SonarQube Cloud or Server. If `SONARQUBE_ORG` is set, SonarQube Cloud is used; otherwise, SonarQube Server is used.
@@ -1595,6 +1597,16 @@ Use the **Run from JAR** configuration above, pointing `<path_to_sonarqube_mcp_s
 Application logs are written to the `STORAGE_PATH/logs/mcp.log` file by default. To disable file logging entirely, set `SONARQUBE_LOG_TO_FILE_DISABLED=true`.
 
 ### Common Issues
+
+#### "SonarQube server version is not supported"
+
+The MCP server checks the connected SonarQube Server version during startup. If the instance is older than **2025.1** (SQS) or **25.1** (SQCB), startup fails with:
+
+```text
+SonarQube server version is not supported, minimal version is SQS 2025.1 or SQCB 25.1
+```
+
+**Solution:** Upgrade SonarQube Server to a supported release. This check applies only when connecting to SonarQube Server (`SONARQUBE_URL` without `SONARQUBE_ORG`), not to SonarQube Cloud.
 
 #### "Feature is not working" or "Missing tools/functionality"
 
