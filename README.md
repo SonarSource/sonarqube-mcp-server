@@ -645,7 +645,7 @@ To enable full functionality, the following environment variables must be set be
 | `SONARQUBE_TOKEN`     | Your SonarQube Server **USER** [token](https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token) | Yes      |
 | `SONARQUBE_URL`       | Your SonarQube Server URL                                                                                                                   | Yes      |
 
-> **Version requirement:** SonarQube Server **2025.1** (SQS) or **25.1** (SonarQube Community Build) or later is required. At startup, the MCP server reads the connected instance version and exits with an error if it is too old (for example, legacy 9.x releases such as 9.9.1 are not supported). SonarQube Cloud is not subject to this check.
+> **Version requirement:** SonarQube Server **2025.1** (SQS) or **25.1** (SonarQube Community Build) or later is required. At startup, the MCP server reads the connected instance version and exits with an error if it is too old (for example, legacy 9.x/10.x Server releases and Community Build 24.x are not supported). SonarQube Cloud is not subject to this check.
 
 > ⚠️ Connection to SonarQube Server requires a token of type **USER** and will not function properly if project tokens or global tokens are used.
 

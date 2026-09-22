@@ -52,6 +52,21 @@ public class Version {
     return true;
   }
 
+  /**
+   * SonarQube Server uses calendar versioning (2025.x) while SonarQube Community Build uses 25.x.
+   * Legacy Server releases (9.x, 10.x) are not supported.
+   */
+  public boolean isSupportedSonarQubeServerVersion() {
+    var major = numbers[0];
+    if (major >= 2000) {
+      return satisfiesMinRequirement(Version.create("2025.1"));
+    }
+    if (major >= 20) {
+      return satisfiesMinRequirement(Version.create("25.1"));
+    }
+    return false;
+  }
+
   @Override
   public String toString() {
     return name;

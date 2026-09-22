@@ -21,8 +21,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.system.Version;
 
 public class SonarQubeVersionChecker {
 
-  // this version does not exist, but it enables us to check for both SQS and SQCB
-  private static final Version MINIMAL_SUPPORTED_SONARQUBE_SERVER_VERSION = Version.create("10.9");
+  static final String UNSUPPORTED_SERVER_VERSION_MESSAGE =
+    "SonarQube server version is not supported, minimum version is SQS 2025.1 or SQCB 25.1";
 
   private final ServerApi serverApi;
 
@@ -33,8 +33,8 @@ public class SonarQubeVersionChecker {
   public void failIfSonarQubeServerVersionIsNotSupported() {
     if (!serverApi.isSonarQubeCloud()) {
       var version = Version.create(serverApi.systemApi().getStatus().version());
-      if (!version.satisfiesMinRequirement(MINIMAL_SUPPORTED_SONARQUBE_SERVER_VERSION)) {
-        throw new IllegalStateException("SonarQube server version is not supported, minimal version is SQS 2025.1 or SQCB 25.1");
+      if (!version.isSupportedSonarQubeServerVersion()) {
+        throw new IllegalStateException(UNSUPPORTED_SERVER_VERSION_MESSAGE);
       }
     }
   }
