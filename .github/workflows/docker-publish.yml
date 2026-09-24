@@ -10,6 +10,10 @@ on:
         description: 'Build only, do not push to registry'
         type: boolean
         default: true
+      sqs_tag:
+        description: 'Optional SonarQube Server-aligned tag (e.g. 2026.5.0). Leave empty to skip.'
+        required: false
+        default: ''
 
 jobs:
   prepare:
@@ -28,17 +32,34 @@ jobs:
         env:
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_SQS_TAG: ${{ inputs.sqs_tag }}
         run: |
           VERSION="${INPUT_TAG}"
           echo "ref=refs/tags/${INPUT_TAG}" >> "$GITHUB_OUTPUT"
 
+          if [ -n "${INPUT_SQS_TAG}" ]; then
+            if ! [[ "${INPUT_SQS_TAG}" =~ ^[0-9]{4}\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Invalid sqs_tag '${INPUT_SQS_TAG}', expected <SQS major>.<SQS minor>.<patch> (e.g. 2026.5.0)"
+              exit 1
+            fi
+            # SQS-aligned tags are immutable: never overwrite an existing one
+            if docker buildx imagetools inspect "sonarsource/sonarqube-mcp:${INPUT_SQS_TAG}" > /dev/null 2>&1; then
+              echo "::error::Tag sonarsource/sonarqube-mcp:${INPUT_SQS_TAG} already exists"
+              exit 1
+            fi
+          fi
+
           if [ "${INPUT_DRY_RUN}" = "false" ]; then
             echo "push=true" >> "$GITHUB_OUTPUT"
             TAGS="sonarsource/sonarqube-mcp:${VERSION}"$'\n'"sonarsource/sonarqube-mcp:latest"
+            if [ -n "${INPUT_SQS_TAG}" ]; then
+              TAGS="${TAGS}"$'\n'"sonarsource/sonarqube-mcp:${INPUT_SQS_TAG}"
+            fi
           else
             echo "push=false" >> "$GITHUB_OUTPUT"
             TAGS="sonarsource/sonarqube-mcp:${VERSION}"
           fi
+          echo "Tags to publish:"$'\n'"${TAGS}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "temp_image=ttl.sh/sonarqube-mcp-server-${{ github.run_id }}:1h" >> "$GITHUB_OUTPUT"
           {
