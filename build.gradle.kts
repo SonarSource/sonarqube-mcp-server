@@ -100,7 +100,7 @@ configurations {
 			}
 			// Pulled in transitively by sonarlint-core
 			if (requested.group == "com.fasterxml.jackson.core" && requested.name in listOf("jackson-core", "jackson-databind")) {
-				useVersion("2.22.2")
+				useVersion("2.22.3")
 				because("CVE-2026-83557")
 			}
 		}
