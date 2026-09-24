@@ -47,8 +47,12 @@ jobs:
             echo "::error::Invalid sqs_tag '${SQS_TAG}', expected <SQS major>.<SQS minor>.<patch> (e.g. 2026.5.0)"
             exit 1
           fi
-          if docker buildx imagetools inspect "${IMAGE}:${SQS_TAG}" > /dev/null 2>&1; then
+          # Only an explicit "not found" means the tag is free; any other error (rate limit, network) fails
+          if OUT=$(docker buildx imagetools inspect "${IMAGE}:${SQS_TAG}" 2>&1); then
             echo "::error::Tag ${IMAGE}:${SQS_TAG} already exists"
+            exit 1
+          elif ! grep -qi 'not found' <<< "${OUT}"; then
+            echo "::error::Could not check whether ${IMAGE}:${SQS_TAG} exists: ${OUT}"
             exit 1
           fi
           SOURCE_DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${SOURCE_TAG}" --format '{{json .Manifest}}' | jq -r '.digest')
@@ -100,6 +104,15 @@ jobs:
         env:
           SOURCE_DIGEST: ${{ steps.validate.outputs.source_digest }}
         run: |
+          # Re-check right before pushing, now authenticated, in case the tag appeared since validation
+          if OUT=$(docker buildx imagetools inspect "${IMAGE}:${SQS_TAG}" 2>&1); then
+            echo "::error::Tag ${IMAGE}:${SQS_TAG} already exists"
+            exit 1
+          elif ! grep -qi 'not found' <<< "${OUT}"; then
+            echo "::error::Could not check whether ${IMAGE}:${SQS_TAG} exists: ${OUT}"
+            exit 1
+          fi
+
           docker buildx imagetools create \
             --tag "${IMAGE}:${SQS_TAG}" \
             "${IMAGE}:${SOURCE_TAG}"
