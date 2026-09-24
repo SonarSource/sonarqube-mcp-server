@@ -29,7 +29,7 @@ The fastest way to get started is the **[SonarQube MCP Server Configuration Gene
 
 ### Manual setup
 
-If you prefer to configure things yourself, the simplest method is to use our container image at [sonarsource/sonarqube-mcp](https://hub.docker.com/r/sonarsource/sonarqube-mcp/tags). Use `sonarsource/sonarqube-mcp` for automatic updates (with `--pull=always`), or pin to a version tag (e.g., `sonarsource/sonarqube-mcp:1.19.0.2785`) for reproducible deployments. Read below if you want to build it locally.
+If you prefer to configure things yourself, the simplest method is to use our container image at [sonarsource/sonarqube-mcp](https://hub.docker.com/r/sonarsource/sonarqube-mcp/tags). Use `sonarsource/sonarqube-mcp` for automatic updates (with `--pull=always`), or pin to a version tag (e.g., `sonarsource/sonarqube-mcp:1.19.0.2785`) for reproducible deployments. Some releases are also tagged with the SonarQube Server version they are aligned with, in the form `<SQS major>.<SQS minor>.<patch>` (e.g., `sonarsource/sonarqube-mcp:2026.5.0`), where the patch number is incremented for each MCP release targeting that SonarQube Server version. Read below if you want to build it locally.
 
 > **Note:** While the examples below use `docker`, any OCI-compatible container runtime works (e.g., Podman, nerdctl). Simply replace `docker` with your preferred tool.
 

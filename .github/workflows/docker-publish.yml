@@ -10,6 +10,23 @@ on:
         description: 'Build only, do not push to registry'
         type: boolean
         default: true
+      sqs_tag:
+        description: 'Optional SonarQube Server-aligned tag (e.g. 2026.5.0). Leave empty to skip.'
+        required: false
+        default: ''
+      update_latest:
+        description: 'Move the latest tag: auto (only if this is the highest published version), always, or never'
+        type: choice
+        options:
+          - auto
+          - always
+          - never
+        default: auto
+
+# Serialize publishes targeting the same SQS tag so the pre-push check cannot race
+concurrency:
+  group: docker-publish-${{ inputs.sqs_tag || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   prepare:
@@ -23,22 +40,76 @@ jobs:
       ref: ${{ steps.params.outputs.ref }}
       temp_image: ${{ steps.params.outputs.temp_image }}
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
       - name: Compute build parameters
         id: params
         env:
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_UPDATE_LATEST: ${{ inputs.update_latest }}
+          INPUT_SQS_TAG: ${{ inputs.sqs_tag }}
         run: |
           VERSION="${INPUT_TAG}"
           echo "ref=refs/tags/${INPUT_TAG}" >> "$GITHUB_OUTPUT"
 
+          if [ -n "${INPUT_SQS_TAG}" ]; then
+            if ! [[ "${INPUT_SQS_TAG}" =~ ^[0-9]{4}\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Invalid sqs_tag '${INPUT_SQS_TAG}', expected <SQS major>.<SQS minor>.<patch> (e.g. 2026.5.0)"
+              exit 1
+            fi
+            # SQS-aligned tags are immutable: never overwrite an existing one.
+            # Only an explicit "not found" means the tag is free; any other error (rate limit, network) fails
+            if OUT=$(docker buildx imagetools inspect "sonarsource/sonarqube-mcp:${INPUT_SQS_TAG}" 2>&1); then
+              echo "::error::Tag sonarsource/sonarqube-mcp:${INPUT_SQS_TAG} already exists"
+              exit 1
+            elif ! grep -qi 'not found' <<< "${OUT}"; then
+              echo "::error::Could not check whether sonarsource/sonarqube-mcp:${INPUT_SQS_TAG} exists: ${OUT}"
+              exit 1
+            fi
+          fi
+
+          # Only move latest forward: a maintenance patch of an older line must not become latest
+          case "${INPUT_UPDATE_LATEST:-auto}" in
+            always) UPDATE_LATEST=true ;;
+            never) UPDATE_LATEST=false ;;
+            auto)
+              PUBLISHED=""
+              URL="https://hub.docker.com/v2/repositories/sonarsource/sonarqube-mcp/tags?page_size=100"
+              while [ -n "${URL}" ] && [ "${URL}" != "null" ]; do
+                if ! PAGE=$(curl -fsS --retry 3 "${URL}"); then
+                  echo "::error::Could not list published tags to decide whether to move latest; set update_latest explicitly"
+                  exit 1
+                fi
+                PUBLISHED="${PUBLISHED}$(jq -r '.results[].name' <<< "${PAGE}")"$'\n'
+                URL=$(jq -r '.next' <<< "${PAGE}")
+              done
+              HIGHEST=$(printf '%s\n%s\n' "${PUBLISHED}" "${VERSION}" | grep -E '^[0-9]+(\.[0-9]+){3}$' | sort -V | tail -n 1)
+              echo "Highest version (published or current): ${HIGHEST}"
+              if [ "${HIGHEST}" = "${VERSION}" ]; then UPDATE_LATEST=true; else UPDATE_LATEST=false; fi
+              ;;
+            *)
+              echo "::error::Invalid update_latest '${INPUT_UPDATE_LATEST}'"
+              exit 1
+              ;;
+          esac
+          echo "Move latest to ${VERSION}: ${UPDATE_LATEST}"
+
           if [ "${INPUT_DRY_RUN}" = "false" ]; then
             echo "push=true" >> "$GITHUB_OUTPUT"
-            TAGS="sonarsource/sonarqube-mcp:${VERSION}"$'\n'"sonarsource/sonarqube-mcp:latest"
+            TAGS="sonarsource/sonarqube-mcp:${VERSION}"
+            if [ "${UPDATE_LATEST}" = "true" ]; then
+              TAGS="${TAGS}"$'\n'"sonarsource/sonarqube-mcp:latest"
+            fi
+            if [ -n "${INPUT_SQS_TAG}" ]; then
+              TAGS="${TAGS}"$'\n'"sonarsource/sonarqube-mcp:${INPUT_SQS_TAG}"
+            fi
           else
             echo "push=false" >> "$GITHUB_OUTPUT"
             TAGS="sonarsource/sonarqube-mcp:${VERSION}"
           fi
+          echo "Tags to publish:"$'\n'"${TAGS}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "temp_image=ttl.sh/sonarqube-mcp-server-${{ github.run_id }}:1h" >> "$GITHUB_OUTPUT"
           {
@@ -172,6 +243,20 @@ jobs:
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
           platforms: all
+
+      - name: Check SQS tag is still free
+        if: inputs.sqs_tag != ''
+        env:
+          INPUT_SQS_TAG: ${{ inputs.sqs_tag }}
+        run: |
+          # Re-check right before pushing, in case the tag was published since the prepare job
+          if OUT=$(docker buildx imagetools inspect "sonarsource/sonarqube-mcp:${INPUT_SQS_TAG}" 2>&1); then
+            echo "::error::Tag sonarsource/sonarqube-mcp:${INPUT_SQS_TAG} already exists"
+            exit 1
+          elif ! grep -qi 'not found' <<< "${OUT}"; then
+            echo "::error::Could not check whether sonarsource/sonarqube-mcp:${INPUT_SQS_TAG} exists: ${OUT}"
+            exit 1
+          fi
 
       - name: Build and push to Docker Hub
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
