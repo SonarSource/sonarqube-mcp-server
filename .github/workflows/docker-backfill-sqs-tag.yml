@@ -18,10 +18,15 @@ on:
         description: 'Print the resulting manifest, do not push to registry'
         type: boolean
         default: true
+  # Only used to register the workflow from a branch so it can be dispatched; the job never runs on it
+  pull_request:
+    paths:
+      - .github/workflows/docker-backfill-sqs-tag.yml
 
 jobs:
   backfill:
     name: Retag ${{ inputs.source_tag }} as ${{ inputs.sqs_tag }}
+    if: github.event_name == 'workflow_dispatch'
     runs-on: warp-custom-ubuntu-24-04
     permissions:
       id-token: write
