@@ -1,0 +1,95 @@
+# One-off workflow (MCP-632): add a SonarQube Server-aligned tag to an already published image.
+# Retags the existing manifest on Docker Hub without rebuilding or re-pushing the source tag.
+# To be removed once the backfill is done.
+name: Backfill SQS Docker Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: 'Existing published tag to retag'
+        required: true
+        default: '1.27.0.4335'
+      sqs_tag:
+        description: 'SonarQube Server-aligned tag to add (<SQS major>.<SQS minor>.<patch>)'
+        required: true
+        default: '2026.5.0'
+      dry_run:
+        description: 'Print the resulting manifest, do not push to registry'
+        type: boolean
+        default: true
+
+jobs:
+  backfill:
+    name: Retag ${{ inputs.source_tag }} as ${{ inputs.sqs_tag }}
+    runs-on: warp-custom-ubuntu-24-04
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      IMAGE: sonarsource/sonarqube-mcp
+      SOURCE_TAG: ${{ inputs.source_tag }}
+      SQS_TAG: ${{ inputs.sqs_tag }}
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Validate inputs
+        id: validate
+        run: |
+          if ! [[ "${SQS_TAG}" =~ ^[0-9]{4}\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid sqs_tag '${SQS_TAG}', expected <SQS major>.<SQS minor>.<patch> (e.g. 2026.5.0)"
+            exit 1
+          fi
+          if docker buildx imagetools inspect "${IMAGE}:${SQS_TAG}" > /dev/null 2>&1; then
+            echo "::error::Tag ${IMAGE}:${SQS_TAG} already exists"
+            exit 1
+          fi
+          SOURCE_DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${SOURCE_TAG}" --format '{{json .Manifest}}' | jq -r '.digest')
+          if [ -z "${SOURCE_DIGEST}" ] || [ "${SOURCE_DIGEST}" = "null" ]; then
+            echo "::error::Source tag ${IMAGE}:${SOURCE_TAG} not found"
+            exit 1
+          fi
+          echo "Source ${IMAGE}:${SOURCE_TAG} digest: ${SOURCE_DIGEST}"
+          echo "source_digest=${SOURCE_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Retag (dry run)
+        if: inputs.dry_run
+        run: |
+          docker buildx imagetools create --dry-run \
+            --tag "${IMAGE}:${SQS_TAG}" \
+            "${IMAGE}:${SOURCE_TAG}"
+
+      - id: secrets
+        name: Retrieve secrets from Vault
+        if: ${{ !inputs.dry_run }}
+        uses: SonarSource/vault-action-wrapper@a7fa5fd4a4e4e0f2593f6137c0812cac196cf4ce # 3.7.0
+        with:
+          secrets: |
+            development/kv/data/docker/sonardockerrw username | docker_username;
+            development/kv/data/docker/sonardockerrw access_token_rwd | docker_password;
+
+      - name: Login to Docker Hub
+        if: ${{ !inputs.dry_run }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ fromJSON(steps.secrets.outputs.vault).docker_username }}
+          password: ${{ fromJSON(steps.secrets.outputs.vault).docker_password }}
+
+      - name: Retag
+        if: ${{ !inputs.dry_run }}
+        env:
+          SOURCE_DIGEST: ${{ steps.validate.outputs.source_digest }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${SQS_TAG}" \
+            "${IMAGE}:${SOURCE_TAG}"
+
+          SQS_DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${SQS_TAG}" --format '{{json .Manifest}}' | jq -r '.digest')
+          echo "New ${IMAGE}:${SQS_TAG} digest: ${SQS_DIGEST}"
+          if [ "${SQS_DIGEST}" != "${SOURCE_DIGEST}" ]; then
+            echo "::error::Digest mismatch: ${SQS_TAG}=${SQS_DIGEST}, ${SOURCE_TAG}=${SOURCE_DIGEST}"
+            exit 1
+          fi
+          echo "Backfill OK: ${IMAGE}:${SQS_TAG} -> ${SOURCE_DIGEST}"
