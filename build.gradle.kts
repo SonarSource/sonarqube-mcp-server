@@ -88,11 +88,6 @@ configurations {
 	}
 	all {
 		resolutionStrategy.eachDependency {
-			// Pulled in by xodus-entity-store:2.0.1
-			if (requested.group == "org.jetbrains.kotlin" && requested.name in listOf("kotlin-stdlib", "kotlin-stdlib-common")) {
-				useVersion("2.2.0")
-				because("CVE-2020-29582")
-			}
 			// Pulled in by mcp-json-jackson3
 			if (requested.group == "tools.jackson.core") {
 				useVersion("3.1.6")

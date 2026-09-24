@@ -17,11 +17,11 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.jetbrains.annotations.Nullable;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 
