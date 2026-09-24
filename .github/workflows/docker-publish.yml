@@ -14,6 +14,14 @@ on:
         description: 'Optional SonarQube Server-aligned tag (e.g. 2026.5.0). Leave empty to skip.'
         required: false
         default: ''
+      update_latest:
+        description: 'Move the latest tag: auto (only if this is the highest published version), always, or never'
+        type: choice
+        options:
+          - auto
+          - always
+          - never
+        default: auto
 
 # Serialize publishes targeting the same SQS tag so the pre-push check cannot race
 concurrency:
@@ -40,6 +48,7 @@ jobs:
         env:
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_UPDATE_LATEST: ${{ inputs.update_latest }}
           INPUT_SQS_TAG: ${{ inputs.sqs_tag }}
         run: |
           VERSION="${INPUT_TAG}"
@@ -61,9 +70,38 @@ jobs:
             fi
           fi
 
+          # Only move latest forward: a maintenance patch of an older line must not become latest
+          case "${INPUT_UPDATE_LATEST:-auto}" in
+            always) UPDATE_LATEST=true ;;
+            never) UPDATE_LATEST=false ;;
+            auto)
+              PUBLISHED=""
+              URL="https://hub.docker.com/v2/repositories/sonarsource/sonarqube-mcp/tags?page_size=100"
+              while [ -n "${URL}" ] && [ "${URL}" != "null" ]; do
+                if ! PAGE=$(curl -fsS --retry 3 "${URL}"); then
+                  echo "::error::Could not list published tags to decide whether to move latest; set update_latest explicitly"
+                  exit 1
+                fi
+                PUBLISHED="${PUBLISHED}$(jq -r '.results[].name' <<< "${PAGE}")"$'\n'
+                URL=$(jq -r '.next' <<< "${PAGE}")
+              done
+              HIGHEST=$(printf '%s\n%s\n' "${PUBLISHED}" "${VERSION}" | grep -E '^[0-9]+(\.[0-9]+){3}$' | sort -V | tail -n 1)
+              echo "Highest version (published or current): ${HIGHEST}"
+              if [ "${HIGHEST}" = "${VERSION}" ]; then UPDATE_LATEST=true; else UPDATE_LATEST=false; fi
+              ;;
+            *)
+              echo "::error::Invalid update_latest '${INPUT_UPDATE_LATEST}'"
+              exit 1
+              ;;
+          esac
+          echo "Move latest to ${VERSION}: ${UPDATE_LATEST}"
+
           if [ "${INPUT_DRY_RUN}" = "false" ]; then
             echo "push=true" >> "$GITHUB_OUTPUT"
-            TAGS="sonarsource/sonarqube-mcp:${VERSION}"$'\n'"sonarsource/sonarqube-mcp:latest"
+            TAGS="sonarsource/sonarqube-mcp:${VERSION}"
+            if [ "${UPDATE_LATEST}" = "true" ]; then
+              TAGS="${TAGS}"$'\n'"sonarsource/sonarqube-mcp:latest"
+            fi
             if [ -n "${INPUT_SQS_TAG}" ]; then
               TAGS="${TAGS}"$'\n'"sonarsource/sonarqube-mcp:${INPUT_SQS_TAG}"
             fi
