@@ -61,10 +61,23 @@ jobs:
 
       - name: Retag (dry run)
         if: inputs.dry_run
+        env:
+          SOURCE_DIGEST: ${{ steps.validate.outputs.source_digest }}
         run: |
           docker buildx imagetools create --dry-run \
             --tag "${IMAGE}:${SQS_TAG}" \
-            "${IMAGE}:${SOURCE_TAG}"
+            "${IMAGE}:${SOURCE_TAG}" > manifest.json
+          cat manifest.json
+
+          # --dry-run prints the manifest that would be pushed plus a trailing newline;
+          # its sha256 without that newline is the digest the new tag would get
+          EXPECTED_DIGEST="sha256:$(printf '%s' "$(cat manifest.json)" | sha256sum | cut -d' ' -f1)"
+          echo "${IMAGE}:${SQS_TAG} would resolve to ${EXPECTED_DIGEST}"
+          if [ "${EXPECTED_DIGEST}" != "${SOURCE_DIGEST}" ]; then
+            echo "::error::Digest mismatch: ${SQS_TAG} would be ${EXPECTED_DIGEST}, ${SOURCE_TAG} is ${SOURCE_DIGEST}"
+            exit 1
+          fi
+          echo "Dry run OK: ${IMAGE}:${SQS_TAG} would point to the same image as ${IMAGE}:${SOURCE_TAG}"
 
       - id: secrets
         name: Retrieve secrets from Vault
