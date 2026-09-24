@@ -23,9 +23,10 @@ on:
           - never
         default: auto
 
-# Serialize publishes targeting the same SQS tag so the pre-push check cannot race
+# Serialize real publishes so each run sees the tags pushed by the previous one
+# (SQS tag existence, highest version for latest); dry runs stay parallel
 concurrency:
-  group: docker-publish-${{ inputs.sqs_tag || github.run_id }}
+  group: docker-publish-${{ inputs.dry_run && github.run_id || 'release' }}
   cancel-in-progress: false
 
 jobs:
