@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import jakarta.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -216,17 +215,14 @@ public final class McpServerLaunchConfiguration {
     this.mcpServerId = UUID.randomUUID().toString();
   }
 
-  @NotNull
   public Path getStoragePath() {
     return storagePath;
   }
 
-  @NotNull
   public String getHostMachineAddress() {
     return hostMachineAddress;
   }
 
-  @NotNull
   public Path getLogFilePath() {
     return storagePath.resolve("logs").resolve("mcp.log");
   }
