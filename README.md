@@ -565,7 +565,7 @@ When the mount is active:
 
 ### Selective Tool Enablement
 
-By default, only important toolsets are enabled to reduce context overhead. You can enable additional toolsets as needed.
+By default, commonly used toolsets are enabled. MCP clients load every advertised tool (name, description, and input/output schemas) into the agent session context. Enabling only certain toolsets reduces that context usage, and thus token cost. You can enable additional toolsets as needed.
 
 | Environment variable  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -599,13 +599,13 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 
 #### Examples
 
-**Enable analysis, issues, and quality gates toolsets (using Docker with SonarQube Cloud):**
+**Enable only issues and quality gates to reduce session context usage (using Docker with SonarQube Cloud):**
 
 ```bash
 docker run --init --pull=always -i --rm \
   -e SONARQUBE_TOKEN="<token>" \
   -e SONARQUBE_ORG="<org>" \
-  -e SONARQUBE_TOOLSETS="analysis,issues,quality-gates" \
+  -e SONARQUBE_TOOLSETS="issues,quality-gates" \
   sonarsource/sonarqube-mcp
 ```
 
