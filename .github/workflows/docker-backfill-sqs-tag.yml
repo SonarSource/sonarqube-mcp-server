@@ -63,14 +63,15 @@ jobs:
           echo "Source ${IMAGE}:${SOURCE_TAG} digest: ${SOURCE_DIGEST}"
           echo "source_digest=${SOURCE_DIGEST}" >> "$GITHUB_OUTPUT"
 
-      - name: Retag (dry run)
-        if: inputs.dry_run
+      # Runs in both modes so a real retag is only pushed once the resulting digest is known to match
+      - name: Verify retag digest (dry run)
         env:
           SOURCE_DIGEST: ${{ steps.validate.outputs.source_digest }}
         run: |
+          # Pin the source by digest so the source tag cannot move between validation and push
           docker buildx imagetools create --dry-run \
             --tag "${IMAGE}:${SQS_TAG}" \
-            "${IMAGE}:${SOURCE_TAG}" > manifest.json
+            "${IMAGE}@${SOURCE_DIGEST}" > manifest.json
           cat manifest.json
 
           # --dry-run prints the manifest that would be pushed plus a trailing newline;
@@ -115,7 +116,7 @@ jobs:
 
           docker buildx imagetools create \
             --tag "${IMAGE}:${SQS_TAG}" \
-            "${IMAGE}:${SOURCE_TAG}"
+            "${IMAGE}@${SOURCE_DIGEST}"
 
           SQS_DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${SQS_TAG}" --format '{{json .Manifest}}' | jq -r '.digest')
           echo "New ${IMAGE}:${SQS_TAG} digest: ${SQS_DIGEST}"
