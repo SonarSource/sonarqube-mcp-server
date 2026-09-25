@@ -51,22 +51,24 @@ class SonarQubeVersionCheckerTest {
       .doesNotThrowAnyException();
   }
 
-  @Test
-  void it_should_not_throw_if_sonarqube_server_version_is_supported() {
-    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2025.1", "UP"));
+  @ParameterizedTest
+  @ValueSource(strings = {"2025.1", "2025.4", "25.1", "25.2"})
+  void it_should_not_throw_if_sonarqube_server_version_is_supported(String version) {
+    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", version, "UP"));
 
     assertThatCode(versionChecker::failIfSonarQubeServerVersionIsNotSupported)
       .doesNotThrowAnyException();
   }
 
-  @Test
-  void it_should_throw_if_sonarqube_server_version_is_not_supported() {
-    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "10.4", "UP"));
+  @ParameterizedTest
+  @ValueSource(strings = {"9.9.1", "10.4", "24.12", "25.0"})
+  void it_should_throw_if_sonarqube_server_version_is_not_supported(String version) {
+    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", version, "UP"));
 
     var throwable = catchThrowable(versionChecker::failIfSonarQubeServerVersionIsNotSupported);
     assertThat(throwable)
       .isInstanceOf(IllegalStateException.class)
-      .hasMessage("SonarQube server version is not supported, minimal version is SQS 2025.1 or SQCB 25.1");
+      .hasMessage(SonarQubeVersionChecker.UNSUPPORTED_SERVER_VERSION_MESSAGE);
   }
 
   @Test

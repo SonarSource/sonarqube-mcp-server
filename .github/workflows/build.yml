@@ -29,12 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           version: 2026.6.1
 
       - id: build-step
-        uses: SonarSource/ci-github-actions/build-gradle@d41706a4180f70b6c0d0479795309a6c99726022 # 2.0.0
+        uses: SonarSource/ci-github-actions/build-gradle@21206070b4306949454171904b8d2b4ec349b0c5 # 2.0.1
         with:
           deploy-pull-request: true
           artifactory-reader-role: private-reader
@@ -60,18 +60,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           version: 2026.6.1
 
       - name: Vault (SonarCloud IT token)
         id: vault_it_token
-        uses: SonarSource/vault-action-wrapper@881045d830534a70ec3c7c275fa3714412c8ff6e # 3.6.1
+        uses: SonarSource/vault-action-wrapper@a7fa5fd4a4e4e0f2593f6137c0812cac196cf4ce # 3.7.0
         with:
           secrets: |
             development/team/sonarlint/kv/data/sonarcloud-it token | SONARCLOUD_IT_TOKEN;
 
-      - uses: SonarSource/ci-github-actions/config-gradle@d41706a4180f70b6c0d0479795309a6c99726022 # 2.0.0
+      - uses: SonarSource/ci-github-actions/config-gradle@21206070b4306949454171904b8d2b4ec349b0c5 # 2.0.1
         with:
           artifactory-reader-role: private-reader
 
@@ -102,6 +102,6 @@ jobs:
     runs-on: github-ubuntu-latest-s  # Public repository runner
     name: Promote
     steps:
-      - uses: SonarSource/ci-github-actions/promote@d41706a4180f70b6c0d0479795309a6c99726022 # 2.0.0
+      - uses: SonarSource/ci-github-actions/promote@21206070b4306949454171904b8d2b4ec349b0c5 # 2.0.1
         with:
           promote-pull-request: true

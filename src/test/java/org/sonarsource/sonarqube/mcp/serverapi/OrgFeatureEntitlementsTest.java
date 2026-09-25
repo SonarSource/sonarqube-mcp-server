@@ -49,12 +49,15 @@ class OrgFeatureEntitlementsTest {
     .build();
 
   private OrgFeatureEntitlements orgFeatureEntitlements;
+  private OrgFeatureEntitlements serverOrgFeatureEntitlements;
 
   @BeforeAll
   void init() {
     var httpClient = new HttpClientProvider("test").getHttpClient("token");
     var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), ORG_KEY, null, true), httpClient);
     orgFeatureEntitlements = new OrgFeatureEntitlements(new ServerApi(helper, true));
+    var serverHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), httpClient);
+    serverOrgFeatureEntitlements = new OrgFeatureEntitlements(new ServerApi(serverHelper, false));
   }
 
   @Test
@@ -140,11 +143,109 @@ class OrgFeatureEntitlementsTest {
     assertThat(orgFeatureEntitlements.isSaraEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isFalse();
   }
 
+  @Test
+  void vortex_should_be_enabled_on_server_when_both_hubs_are_entitled() {
+    stubServerCagEntitlement(true);
+    stubServerA3sEntitlement(true);
+
+    assertThat(serverOrgFeatureEntitlements.isVortexEnabledForOrg(null)).isTrue();
+  }
+
+  @Test
+  void vortex_should_be_disabled_on_server_when_cag_is_not_entitled() {
+    stubServerCagEntitlement(false);
+    stubServerA3sEntitlement(true);
+
+    assertThat(serverOrgFeatureEntitlements.isVortexEnabledForOrg(null)).isFalse();
+  }
+
+  @Test
+  void vortex_should_be_disabled_on_server_when_a3s_is_not_entitled() {
+    stubServerCagEntitlement(true);
+    stubServerA3sEntitlement(false);
+
+    assertThat(serverOrgFeatureEntitlements.isVortexEnabledForOrg(null)).isFalse();
+  }
+
+  @Test
+  void vortex_should_be_enabled_on_server_when_cag_is_over_consumption() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(serverCagEntitlementPath()))
+      .willReturn(jsonResponse("""
+        {"allowed":false,"hasEntitlement":true}
+        """, 200)));
+    stubServerA3sEntitlement(true);
+
+    assertThat(serverOrgFeatureEntitlements.isVortexEnabledForOrg(null)).isTrue();
+  }
+
+  @Test
+  void vortex_should_be_disabled_on_server_when_cag_hub_is_absent() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(serverCagEntitlementPath()))
+      .willReturn(aResponse().withStatus(404)));
+    stubServerA3sEntitlement(true);
+
+    assertThat(serverOrgFeatureEntitlements.isVortexEnabledForOrg(null)).isFalse();
+  }
+
+  @Test
+  void vortex_should_be_disabled_on_server_when_a3s_hub_is_absent() {
+    stubServerCagEntitlement(true);
+    sonarqubeMock.stubFor(get(urlPathEqualTo(serverA3sEntitlementPath()))
+      .willReturn(aResponse().withStatus(404)));
+
+    assertThat(serverOrgFeatureEntitlements.isVortexEnabledForOrg(null)).isFalse();
+  }
+
+  @Test
+  void vortex_should_be_disabled_on_server_when_cag_hub_is_unavailable() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(serverCagEntitlementPath()))
+      .willReturn(aResponse().withStatus(503)));
+    stubServerA3sEntitlement(true);
+
+    assertThat(serverOrgFeatureEntitlements.isVortexEnabledForOrg(null)).isFalse();
+  }
+
+  @Test
+  void vortex_should_be_disabled_on_server_when_a3s_hub_is_unavailable() {
+    stubServerCagEntitlement(true);
+    sonarqubeMock.stubFor(get(urlPathEqualTo(serverA3sEntitlementPath()))
+      .willReturn(aResponse().withStatus(503)));
+
+    assertThat(serverOrgFeatureEntitlements.isVortexEnabledForOrg(null)).isFalse();
+  }
+
+  @Test
+  void sara_should_stay_disabled_on_server_without_an_organization() {
+    assertThat(serverOrgFeatureEntitlements.isSaraEnabledForOrg(null)).isFalse();
+  }
+
   private void stubCagEntitlement(boolean hasEntitlement) {
     sonarqubeMock.stubFor(get(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
       .willReturn(jsonResponse("""
         {"hasEntitlement":%s}
         """.formatted(hasEntitlement), 200)));
+  }
+
+  private void stubServerCagEntitlement(boolean hasEntitlement) {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(serverCagEntitlementPath()))
+      .willReturn(jsonResponse("""
+        {"hasEntitlement":%s}
+        """.formatted(hasEntitlement), 200)));
+  }
+
+  private void stubServerA3sEntitlement(boolean hasEntitlement) {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(serverA3sEntitlementPath()))
+      .willReturn(jsonResponse("""
+        {"hasEntitlement":%s}
+        """.formatted(hasEntitlement), 200)));
+  }
+
+  private static String serverCagEntitlementPath() {
+    return "/api/v2" + CagApi.CAG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
+  }
+
+  private static String serverA3sEntitlementPath() {
+    return "/api/v2" + A3sAnalysisApi.A3S_ORG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
   }
 
   private void stubA3sConfig(boolean enabled) {

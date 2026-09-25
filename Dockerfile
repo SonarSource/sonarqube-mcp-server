@@ -5,7 +5,7 @@ RUN apk update &&  \
 
 WORKDIR /app
 
-ARG MCP_SERVER_VERSION=1.25.0.3221
+ARG MCP_SERVER_VERSION=1.27.0.4335
 ADD https://binaries.sonarsource.com/Distribution/sonarqube-mcp-server/sonarqube-mcp-server-${MCP_SERVER_VERSION}.jar ./sonarqube-mcp-server.jar
 
 RUN jdeps --ignore-missing-deps -q  \
@@ -36,14 +36,14 @@ RUN apk upgrade --no-cache && \
         nodejs=~24 \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
-        mkdir -p /home/appuser/.sonarlint /app/storage && \
+        mkdir -p /app/storage && \
         chown -R appuser:appgroup /home/appuser /app/storage && \
         echo "appuser ALL=(ALL) NOPASSWD: /usr/sbin/update-ca-certificates" > /etc/sudoers.d/appuser && \
         chmod 0440 /etc/sudoers.d/appuser
 
 ARG TARGETARCH
 # Keep in sync with sonarContextAugmentationVersion in gradle.properties
-ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.19.0.3620
+ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.22.0.4777
 
 RUN case "$TARGETARCH" in \
         amd64) ARCH="x64" ;; \

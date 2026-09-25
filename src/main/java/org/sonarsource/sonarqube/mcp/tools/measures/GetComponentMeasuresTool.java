@@ -89,7 +89,7 @@ public class GetComponentMeasuresTool extends Tool {
     
     var measures = (comp.measures() != null) ?
       comp.measures().stream()
-        .map(m -> new GetComponentMeasuresToolResponse.Measure(m.metric(), m.value()))
+        .map(GetComponentMeasuresTool::toToolMeasure)
         .toList()
       : List.<GetComponentMeasuresToolResponse.Measure>of();
     
@@ -104,6 +104,17 @@ public class GetComponentMeasuresTool extends Tool {
     }
 
     return new GetComponentMeasuresToolResponse(componentResponse, measures, metrics);
+  }
+
+  private static GetComponentMeasuresToolResponse.Measure toToolMeasure(ComponentMeasuresResponse.Measure measure) {
+    if (measure.value() != null) {
+      return new GetComponentMeasuresToolResponse.Measure(measure.metric(), measure.value(), null, measure.bestValue());
+    }
+    var period = measure.newCodePeriod();
+    if (period == null) {
+      return new GetComponentMeasuresToolResponse.Measure(measure.metric(), null, null, null);
+    }
+    return new GetComponentMeasuresToolResponse.Measure(measure.metric(), period.value(), period.index(), period.bestValue());
   }
 
 }

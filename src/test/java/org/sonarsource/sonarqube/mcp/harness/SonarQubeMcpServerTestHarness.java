@@ -325,8 +325,42 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
           ["sca"]
           """)));
       }
+      var serverCagPath = "/api/v2" + CagApi.CAG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
+      if (!mockSonarQubeServer.isStubConfigured(serverCagPath)) {
+        mockSonarQubeServer.stubFor(get(serverCagPath)
+          .willReturn(aResponse().withStatus(404)));
+      }
+      var serverA3sPath = "/api/v2" + A3sAnalysisApi.A3S_ORG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
+      if (!mockSonarQubeServer.isStubConfigured(serverA3sPath)) {
+        mockSonarQubeServer.stubFor(get(serverA3sPath)
+          .willReturn(aResponse().withStatus(404)));
+      }
     }
 
+  }
+
+  /**
+   * Stub the Server CAG Hub entitlement path.
+   * Must be called before newClient() to override the default (404 / Hub absent) stub.
+   */
+  public void stubServerCagEntitlement(boolean hasEntitlement) {
+    var serverCagPath = "/api/v2" + CagApi.CAG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
+    mockSonarQubeServer.stubFor(get(serverCagPath)
+      .willReturn(okJson("""
+        {"hasEntitlement":%b}
+        """.formatted(hasEntitlement))));
+  }
+
+  /**
+   * Stub the Server A3S Hub entitlement path.
+   * Must be called before newClient() to override the default (404 / Hub absent) stub.
+   */
+  public void stubServerA3sEntitlement(boolean hasEntitlement) {
+    var serverA3sPath = "/api/v2" + A3sAnalysisApi.A3S_ORG_ENTITLEMENT_PATH + CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
+    mockSonarQubeServer.stubFor(get(serverA3sPath)
+      .willReturn(okJson("""
+        {"hasEntitlement":%b}
+        """.formatted(hasEntitlement))));
   }
 
   /**

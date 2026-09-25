@@ -595,7 +595,7 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 
 | Environment variable  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOOLSETS`  | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `ide`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Vortex context tools (deprecated name: Context Augmentation/CAG) and Vortex analysis tools (deprecated name: Advanced Analysis/A3S) are only available in stdio mode and share a single combined organization entitlement — an org must be entitled to both to use either. Reaching them via the `cag` or `analysis` toolset keys is deprecated in favor of the unified `vortex` toolset key; the old keys still work for backward compatibility, but a startup warning and a deprecation note in the server instructions are emitted whenever they're used without `vortex`. In Streamable HTTP mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [Streamable HTTP transport](#2-http-streamable-http) below). |
+| `SONARQUBE_TOOLSETS`  | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `ide`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Vortex context tools (deprecated name: Context Augmentation/CAG) and Vortex analysis tools (deprecated name: Advanced Analysis/A3S) are only available in stdio mode and share a single combined organization entitlement — an org must be entitled to both to use either. On SonarQube Server, stdio lists Vortex context and `run_advanced_code_analysis` when both the CAG and A3S hubs are entitled. Prefer the unified `vortex` toolset key. The deprecated `cag` and `analysis` keys still work; a startup warning and a deprecation note in the server instructions are emitted when they are used without `vortex`. In Streamable HTTP mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [Streamable HTTP transport](#2-http-streamable-http) below). |
 | `SONARQUBE_READ_ONLY` | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`. In Streamable HTTP mode, clients can send a `SONARQUBE_READ_ONLY` HTTP header to further restrict individual requests to read-only, but cannot lift a server-level read-only restriction (see [Streamable HTTP transport](#2-http-streamable-http) below).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 <details>
@@ -620,7 +620,7 @@ By default, only important toolsets are enabled to reduce context overhead. You 
 | **Dependency Risks**  | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                                                                                                          |
 | **Coverage**          | `coverage`          | Test coverage analysis and improvement tools                                                                                                                |
 | **Vortex Context**    | `cag`               | Vortex context tools — stdio only. **Deprecated** in favor of `vortex` (old name: Context Augmentation/CAG)                                                 |
-| **Vortex**            | `vortex`            | Unified, **recommended** toolset surfacing both Vortex context and Vortex analysis tools under one name (stdio only, requires the combined org entitlement) |
+| **Vortex**            | `vortex`            | Unified, **recommended** toolset surfacing both Vortex context and Vortex analysis tools under one name (stdio only; Cloud needs combined org entitlement; Server needs both hubs entitled) |
 | **Agentic Readiness** | `agentic-readiness` | Agentic Readiness Assessment tools (SonarQube Cloud, requires org entitlement)                                                                              |
 
 #### Examples
@@ -670,6 +670,8 @@ To enable full functionality, the following environment variables must be set be
 |-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------|----------|
 | `SONARQUBE_TOKEN`     | Your SonarQube Server **USER** [token](https://docs.sonarsource.com/sonarqube-server/latest/user-guide/managing-tokens/#generating-a-token) | Yes      |
 | `SONARQUBE_URL`       | Your SonarQube Server URL                                                                                                                   | Yes      |
+
+> **Version requirement:** SonarQube Server **2025.1** (SQS) or **25.1** (SonarQube Community Build) or later is required. At startup, the MCP server reads the connected instance version and exits with an error if it is too old (for example, legacy 9.x/10.x Server releases and Community Build 24.x are not supported). SonarQube Cloud is not subject to this check.
 
 > ⚠️ Connection to SonarQube Server requires a token of type **USER** and will not function properly if project tokens or global tokens are used.
 
@@ -1046,11 +1048,13 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
 - **toggle_automatic_analysis** - Enable or disable SonarQube for IDE automatic analysis. When enabled, SonarQube for IDE will automatically analyze files as they are modified in the working directory. When disabled, automatic analysis is turned off.
     - `enabled` - Enable or disable the automatic analysis - _Required Boolean_
 
-**When Vortex analysis is enabled for your SonarQube Cloud organization**:
+On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_analysis` when both the CAG and A3S hubs are entitled.
+
+**When Vortex analysis is enabled**:
 
 > Requires having the workspace mounted at `/app/mcp-workspace`
 
-- **run_advanced_code_analysis** - Run Vortex analysis on SonarQube Cloud for a single file. Organization is inferred from MCP configuration.
+- **run_advanced_code_analysis** - Run Vortex analysis on a single file. Organization is inferred from MCP configuration (SonarQube Server uses the nil UUID placeholder).
     - `projectKey` - The key of the project - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
     - `branch` - Branch name used to retrieve the latest analysis context - _Required String_
     - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). - _Required String_
@@ -1107,6 +1111,8 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
   - `severities` - Optional list of severities to filter by. Possible values: INFO, LOW, MEDIUM, HIGH, BLOCKER - _String[]_
   - `impactSoftwareQualities` - Optional list of software qualities to filter by. Possible values: MAINTAINABILITY, RELIABILITY, SECURITY - _String[]_
   - `issueStatuses` - Optional list of issue statuses to filter by. Possible values: OPEN, CONFIRMED, FALSE_POSITIVE, ACCEPTED, FIXED, IN_SANDBOX - _String[]_
+  - `tags` - Optional list of issue tags to filter by. Tags are lowercase - _String[]_
+  - `inNewCodePeriod` - Only return issues in the new code period. Requires exactly one entry across `projectKeys` and `files` - _Boolean_
   - `issueKey` - Optional issue key to fetch a specific issue - _String_
   - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
   - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
@@ -1617,6 +1623,16 @@ Use the **Run from JAR** configuration above, pointing `<path_to_sonarqube_mcp_s
 Application logs are written to the `STORAGE_PATH/logs/mcp.log` file by default. To disable file logging entirely, set `SONARQUBE_LOG_TO_FILE_DISABLED=true`.
 
 ### Common Issues
+
+#### "SonarQube server version is not supported"
+
+The MCP server checks the connected SonarQube Server version during startup. If the instance is older than **2025.1** (SQS) or **25.1** (SQCB), startup fails with:
+
+```text
+SonarQube server version is not supported, minimal version is SQS 2025.1 or SQCB 25.1
+```
+
+**Solution:** Upgrade SonarQube Server to a supported release. This check applies only when connecting to SonarQube Server (`SONARQUBE_URL` without `SONARQUBE_ORG`), not to SonarQube Cloud.
 
 #### "Feature is not working" or "Missing tools/functionality"
 

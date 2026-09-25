@@ -22,11 +22,16 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 
 public class A3sAnalysisApi {
 
   public static final String ANALYSES_PATH = "/a3s-analysis/analyses";
   public static final String A3S_ORG_CONFIG_PATH = "/a3s-analysis/org-config/";
+  @SuppressWarnings("java:S1075")
+  public static final String A3S_ANALYSES_PATH = "/a3s/analyses";
+  @SuppressWarnings("java:S1075")
+  public static final String A3S_ORG_ENTITLEMENT_PATH = "/a3s/org-entitlement/";
 
   private static final String JSON_CONTENT_TYPE = "application/json";
   private static final Gson GSON = new Gson();
@@ -40,7 +45,12 @@ public class A3sAnalysisApi {
 
   public AnalysisResponse analyze(AnalysisCreationRequest request) {
     var requestBody = GSON.toJson(request);
-    try (var response = helper.postApiSubdomain(ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
+    if (helper.isSonarQubeCloud()) {
+      try (var response = helper.postApiSubdomain(ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
+        return GSON.fromJson(response.bodyAsString(), AnalysisResponse.class);
+      }
+    }
+    try (var response = helper.post("/api/v2" + A3S_ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
       return GSON.fromJson(response.bodyAsString(), AnalysisResponse.class);
     }
   }
@@ -55,6 +65,27 @@ public class A3sAnalysisApi {
     }
   }
 
+  /**
+   * Server Hub entitlement. Cloud continues to use {@link #getA3sOrgConfig}; do not call this
+   * on Cloud. A3S ignores the path id; send the same nil UUID placeholder as CAG.
+   */
+  @Nullable
+  public OrgEntitlementResponse getA3sOrgEntitlement(String organizationUuidV4) {
+    var path = "/api/v2" + A3S_ORG_ENTITLEMENT_PATH + organizationUuidV4;
+    try (var response = helper.get(path)) {
+      return GSON.fromJson(response.bodyAsString(), OrgEntitlementResponse.class);
+    } catch (NotFoundException e) {
+      LOG.debug("A3S entitlement endpoint not found for organization '" + organizationUuidV4 + "': " + e.getMessage());
+      return null;
+    } catch (Exception e) {
+      LOG.warn("Could not retrieve A3S entitlement for organization '" + organizationUuidV4 + "': " + e.getMessage());
+      return null;
+    }
+  }
+
   public record OrgConfigResponse(String id, boolean enabled, boolean eligible) {
+  }
+
+  public record OrgEntitlementResponse(boolean allowed, boolean hasEntitlement) {
   }
 }

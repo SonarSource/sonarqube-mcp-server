@@ -93,9 +93,17 @@ class GetComponentMeasuresToolTests {
                "items":{
                   "type":"object",
                   "properties":{
+                     "bestValue":{
+                        "type":"boolean",
+                        "description":"Whether this is the metric's best possible value"
+                     },
                      "metric":{
                         "type":"string",
                         "description":"Metric key"
+                     },
+                     "period":{
+                        "type":"integer",
+                        "description":"New Code period index, present when value is a New Code metric"
                      },
                      "value":{
                         "type":"string",
@@ -265,12 +273,17 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
-            "metric" : "new_violations"
+            "metric" : "new_violations",
+            "value" : "25",
+            "period" : 1,
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -331,12 +344,17 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
-            "metric" : "new_violations"
+            "metric" : "new_violations",
+            "value" : "25",
+            "period" : 1,
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -369,6 +387,174 @@ class GetComponentMeasuresToolTests {
     }
 
     @SonarQubeMcpServerTest
+    void it_should_expose_new_code_period_values_on_branch(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH
+          + "?component=" + urlEncode("MY_PROJECT")
+          + "&branch=master"
+          + "&metricKeys=new_blocker_violations,new_critical_violations,new_major_violations,new_minor_violations"
+          + "&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateNewCodeViolationsOnBranchResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT",
+          GetComponentMeasuresTool.BRANCH_PROPERTY, "master",
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY,
+          List.of("new_blocker_violations", "new_critical_violations", "new_major_violations", "new_minor_violations")
+        ));
+
+      assertResultEquals(result, expectedNewCodeViolationsOnBranchResult());
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_expose_new_code_value_from_singular_period(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH
+          + "?component=" + urlEncode("MY_PROJECT")
+          + "&branch=master"
+          + "&metricKeys=new_major_violations"
+          + "&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateSingularPeriodResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT",
+          GetComponentMeasuresTool.BRANCH_PROPERTY, "master",
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY, List.of("new_major_violations")
+        ));
+
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT",
+            "name" : "My Project",
+            "qualifier" : "TRK"
+          },
+          "measures" : [ {
+            "metric" : "new_major_violations",
+            "value" : "2",
+            "period" : 1,
+            "bestValue" : false
+          } ]
+        }""");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_prefer_top_level_value_over_periods(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH
+          + "?component=" + urlEncode("MY_PROJECT")
+          + "&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+          {
+            "component": {
+              "key": "MY_PROJECT",
+              "name": "My Project",
+              "qualifier": "TRK",
+              "measures": [
+                {
+                  "metric": "ncloc",
+                  "value": "114",
+                  "periods": [
+                    {
+                      "index": 1,
+                      "value": "25"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          """.getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT"));
+
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT",
+            "name" : "My Project",
+            "qualifier" : "TRK"
+          },
+          "measures" : [ {
+            "metric" : "ncloc",
+            "value" : "114"
+          } ]
+        }""");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_ignore_periods_that_are_not_the_new_code_period(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH
+          + "?component=" + urlEncode("MY_PROJECT")
+          + "&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes("""
+          {
+            "component": {
+              "key": "MY_PROJECT",
+              "name": "My Project",
+              "qualifier": "TRK",
+              "measures": [
+                {
+                  "metric": "new_violations",
+                  "periods": [
+                    {
+                      "index": 2,
+                      "value": "9",
+                      "bestValue": false
+                    },
+                    {
+                      "index": 3,
+                      "value": "4",
+                      "bestValue": false
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          """.getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient(Map.of(
+        "SONARQUBE_ORG", "org"
+      ));
+
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT"));
+
+      assertResultEquals(result, """
+        {
+          "component" : {
+            "key" : "MY_PROJECT",
+            "name" : "My Project",
+            "qualifier" : "TRK"
+          },
+          "measures" : [ {
+            "metric" : "new_violations"
+          } ]
+        }""");
+    }
+
+    @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_metric_keys(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&metricKeys=ncloc,complexity&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
@@ -397,12 +583,17 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
-            "metric" : "new_violations"
+            "metric" : "new_violations",
+            "value" : "25",
+            "period" : 1,
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -463,12 +654,17 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
-            "metric" : "new_violations"
+            "metric" : "new_violations",
+            "value" : "25",
+            "period" : 1,
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -633,7 +829,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "coverage",
-            "value" : "91.9"
+            "value" : "91.9",
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
             "value" : "53717"
@@ -729,12 +926,17 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
-            "metric" : "new_violations"
+            "metric" : "new_violations",
+            "value" : "25",
+            "period" : 1,
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -795,12 +997,17 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
-            "metric" : "new_violations"
+            "metric" : "new_violations",
+            "value" : "25",
+            "period" : 1,
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -833,6 +1040,30 @@ class GetComponentMeasuresToolTests {
     }
 
     @SonarQubeMcpServerTest
+    void it_should_expose_new_code_period_values_on_branch(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH
+          + "?component=" + urlEncode("MY_PROJECT")
+          + "&branch=master"
+          + "&metricKeys=new_blocker_violations,new_critical_violations,new_major_violations,new_minor_violations"
+          + "&additionalFields=metrics")
+        .willReturn(aResponse().withResponseBody(
+          Body.fromJsonBytes(generateNewCodeViolationsOnBranchResponse().getBytes(StandardCharsets.UTF_8))
+        )));
+      var mcpClient = harness.newClient();
+
+      var result = mcpClient.callTool(
+        GetComponentMeasuresTool.TOOL_NAME,
+        Map.of(
+          GetComponentMeasuresTool.PROJECT_KEY_PROPERTY, "MY_PROJECT",
+          GetComponentMeasuresTool.BRANCH_PROPERTY, "master",
+          GetComponentMeasuresTool.METRIC_KEYS_PROPERTY,
+          List.of("new_blocker_violations", "new_critical_violations", "new_major_violations", "new_minor_violations")
+        ));
+
+      assertResultEquals(result, expectedNewCodeViolationsOnBranchResult());
+    }
+
+    @SonarQubeMcpServerTest
     void it_should_fetch_component_measures_with_metric_keys(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=" + urlEncode("MY_PROJECT:ElementImpl.java") + "&metricKeys=ncloc,complexity&additionalFields=metrics")
         .willReturn(aResponse().withResponseBody(
@@ -859,12 +1090,17 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
-            "metric" : "new_violations"
+            "metric" : "new_violations",
+            "value" : "25",
+            "period" : 1,
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -923,12 +1159,17 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "complexity",
-            "value" : "12"
+            "value" : "12",
+            "bestValue" : false
           }, {
-            "metric" : "new_violations"
+            "metric" : "new_violations",
+            "value" : "25",
+            "period" : 1,
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
-            "value" : "114"
+            "value" : "114",
+            "bestValue" : false
           } ],
           "metrics" : [ {
             "key" : "complexity",
@@ -1089,7 +1330,8 @@ class GetComponentMeasuresToolTests {
           },
           "measures" : [ {
             "metric" : "coverage",
-            "value" : "91.9"
+            "value" : "91.9",
+            "bestValue" : false
           }, {
             "metric" : "ncloc",
             "value" : "53717"
@@ -1192,6 +1434,114 @@ class GetComponentMeasuresToolTests {
             "parameter": "1.0-SNAPSHOT"
           }
         ]
+      }
+      """;
+  }
+
+  private static String generateNewCodeViolationsOnBranchResponse() {
+    return """
+      {
+        "component": {
+          "key": "MY_PROJECT",
+          "name": "My Project",
+          "qualifier": "TRK",
+          "measures": [
+            {
+              "metric": "new_major_violations",
+              "periods": [
+                {
+                  "index": 1,
+                  "value": "2",
+                  "bestValue": false
+                }
+              ]
+            },
+            {
+              "metric": "new_minor_violations",
+              "periods": [
+                {
+                  "index": 1,
+                  "value": "0",
+                  "bestValue": true
+                }
+              ]
+            },
+            {
+              "metric": "new_critical_violations",
+              "periods": [
+                {
+                  "index": 1,
+                  "value": "0",
+                  "bestValue": true
+                }
+              ]
+            },
+            {
+              "metric": "new_blocker_violations",
+              "periods": [
+                {
+                  "index": 1,
+                  "value": "0",
+                  "bestValue": true
+                }
+              ]
+            }
+          ]
+        }
+      }
+      """;
+  }
+
+  private static String expectedNewCodeViolationsOnBranchResult() {
+    return """
+      {
+        "component" : {
+          "key" : "MY_PROJECT",
+          "name" : "My Project",
+          "qualifier" : "TRK"
+        },
+        "measures" : [ {
+          "metric" : "new_major_violations",
+          "value" : "2",
+          "period" : 1,
+          "bestValue" : false
+        }, {
+          "metric" : "new_minor_violations",
+          "value" : "0",
+          "period" : 1,
+          "bestValue" : true
+        }, {
+          "metric" : "new_critical_violations",
+          "value" : "0",
+          "period" : 1,
+          "bestValue" : true
+        }, {
+          "metric" : "new_blocker_violations",
+          "value" : "0",
+          "period" : 1,
+          "bestValue" : true
+        } ]
+      }""";
+  }
+
+  private static String generateSingularPeriodResponse() {
+    return """
+      {
+        "component": {
+          "key": "MY_PROJECT",
+          "name": "My Project",
+          "qualifier": "TRK",
+          "measures": [
+            {
+              "metric": "new_major_violations",
+              "period": {
+                "index": 1,
+                "value": "2",
+                "bestValue": false
+              }
+            }
+          ]
+        }
       }
       """;
   }
