@@ -50,6 +50,7 @@ import sys
 import urllib.error
 import urllib.request
 from os import environ
+from pathlib import Path
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_API_VERSION = "2023-06-01"
@@ -63,6 +64,7 @@ SHORT_VERSION_SEGMENT_COUNT = 3
 
 # MAJOR.MINOR.PATCH.BUILD — our release tag format.
 RELEASE_TAG_GLOB = "[0-9]*.[0-9]*.[0-9]*.[0-9]*"
+RELEASE_TAG_REGEX = re.compile(r"\d+(?:\.\d+){2,3}\Z", re.ASCII)
 
 # Commit subjects that carry no user-facing value.
 COMMIT_NOISE_PATTERNS: list[re.Pattern[str]] = [
@@ -161,6 +163,19 @@ def try_run_cmd(cmd: list[str]) -> str:
 def short_version(tag: str) -> str:
     parts = tag.split(".")
     return ".".join(parts[:SHORT_VERSION_SEGMENT_COUNT]) if len(parts) >= SHORT_VERSION_SEGMENT_COUNT else tag
+
+
+def validate_release_tag(tag: str) -> None:
+    if not RELEASE_TAG_REGEX.fullmatch(tag):
+        raise ValueError("Release tag must have three or four numeric segments separated by dots")
+
+
+def resolve_output_path(filename: str) -> Path:
+    working_directory = Path.cwd().resolve()
+    output_path = (working_directory / filename).resolve()
+    if not output_path.is_relative_to(working_directory):
+        raise ValueError("Output file must be inside the current working directory")
+    return output_path
 
 
 def resolve_upper_bound(tag: str) -> str:
@@ -420,6 +435,9 @@ def main() -> None:
     if not released_version:
         print("Missing released version: pass --tag or set RELEASED_VERSION.", file=sys.stderr)
         sys.exit(2)
+    validate_release_tag(released_version)
+
+    output_path = resolve_output_path(args.out) if args.out and not args.dry_run else None
 
     upper = resolve_upper_bound(released_version)
 
@@ -454,10 +472,10 @@ def main() -> None:
     markdown = call_anthropic(api_key, model, prompt)
 
     sys.stdout.write(markdown + "\n")
-    if args.out:
-        with open(args.out, "w", encoding="utf-8") as f:
+    if output_path:
+        with output_path.open("w", encoding="utf-8") as f:
             f.write(markdown + "\n")
-        print(f"Wrote {args.out}.", file=sys.stderr)
+        print(f"Wrote {output_path}.", file=sys.stderr)
 
 
 if __name__ == "__main__":
