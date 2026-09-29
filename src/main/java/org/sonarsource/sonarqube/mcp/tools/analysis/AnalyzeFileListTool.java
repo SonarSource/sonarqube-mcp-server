@@ -34,8 +34,7 @@ public class AnalyzeFileListTool extends Tool {
     super(SchemaToolBuilder.forOutput(AnalyzeFileListToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("SonarQube for IDE File Analysis")
-      .setDescription("Analyze files in the current working directory using SonarQube for IDE. " +
-        "This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.")
+      .setDescription("Analyze files via a running SonarQube for IDE instance.")
       .addArrayProperty(FILE_ABSOLUTE_PATHS_PROPERTY, "string", "List of absolute file paths to analyze")
       .setReadOnlyHint()
       .build(),

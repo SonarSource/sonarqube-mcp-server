@@ -38,14 +38,7 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
     super(SchemaToolBuilder.forOutput(ChangeSecurityHotspotStatusToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Security Hotspot Status")
-      .setDescription("""
-        Change the status of a Security Hotspot to review it. When marking as REVIEWED, you must specify a resolution.
-        - TO_REVIEW: Mark the Security Hotspot as needing review
-        - REVIEWED: Mark the Security Hotspot as reviewed with one of these resolutions:
-          * FIXED: A fix has been implemented
-          * SAFE: Reviewed and determined to be safe
-          * ACKNOWLEDGED: Acknowledged as a risk but accepted
-        You can optionally add a comment to explain your review decision.""")
+      .setDescription("Set hotspot status. REVIEWED requires resolution (FIXED, SAFE, ACKNOWLEDGED). Optional comment.")
       .addRequiredStringProperty(HOTSPOT_KEY_PROPERTY, "The key of the Security Hotspot to update")
       .addRequiredEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "The new status of the Security Hotspot")
       .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "The resolution when status is REVIEWED. Required if status is REVIEWED")

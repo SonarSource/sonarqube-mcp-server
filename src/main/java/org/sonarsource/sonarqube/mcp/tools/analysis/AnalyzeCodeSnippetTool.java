@@ -93,11 +93,8 @@ public class AnalyzeCodeSnippetTool extends Tool {
     var builder = SchemaToolBuilder.forOutput(AnalyzeCodeSnippetToolResponse.class)
       .setName(TOOL_NAME)
       .setTitle("SonarQube Code Analysis")
-      .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
-        "Optionally provide a code snippet to filter issues — only issues within the snippet will be reported (snippet location is auto-detected). " +
-        "Always specify the language and the file scope (MAIN or TEST) for more accurate results. " +
-        "This tool is deprecated and will be removed in a future release. For richer, cross-file analysis, " +
-        "connect SonarQube for IDE (enables analyze_file_list) or enable Vortex analysis (run_advanced_code_analysis).")
+      .setDescription("Deprecated. Analyze a file or snippet. Prefer analyze_file_list or run_advanced_code_analysis. " +
+        "Optional codeSnippet filters to matching lines.")
       .addOptionalProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey);
     if (workspaceConfigured) {
       builder = builder.addRequiredStringProperty(FILE_PATH_PROPERTY, "Project-relative path of the file to analyze (e.g., 'src/main/java/MyClass.java').");

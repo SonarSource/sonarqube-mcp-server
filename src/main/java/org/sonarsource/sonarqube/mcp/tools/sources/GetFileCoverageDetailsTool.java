@@ -37,10 +37,7 @@ public class GetFileCoverageDetailsTool extends Tool {
     super(SchemaToolBuilder.forOutput(GetFileCoverageDetailsToolResponse.class)
         .setName(TOOL_NAME)
         .setTitle("Get SonarQube File Coverage Details")
-        .setDescription("Get complete line-by-line coverage information for a file, " +
-          "including which exact lines are uncovered and which have partially covered branches. " +
-          "This tool helps identify precisely where to add test coverage. " +
-          "Use after identifying files with low coverage via search_files_by_coverage.")
+        .setDescription("Line-level coverage for a file. Use after search_files_by_coverage.")
         .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.java)")
         .addBranchAndPullRequestProperties()
         .setReadOnlyHint()

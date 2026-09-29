@@ -24,13 +24,11 @@ public final class BranchPullRequestContext {
   public static final String BRANCH_PROPERTY = "branch";
   public static final String PULL_REQUEST_PROPERTY = "pullRequest";
 
-  public static final String BRANCH_PROPERTY_DESCRIPTION = """
-    Branch name for branch-based analysis. Discover names with list_branches. \
-    For pull request analysis, use pullRequest instead.""";
+  public static final String BRANCH_PROPERTY_DESCRIPTION =
+    "Analyzed branch name. Use list_branches. Mutually exclusive with pullRequest.";
 
-  public static final String PULL_REQUEST_PROPERTY_DESCRIPTION = """
-    Pull request key/ID in SonarQube for PR-decorated analysis. Use list_pull_requests to discover valid keys. \
-    For branch-based analysis (long-lived or short-lived without PR), use branch instead. Must be the SonarQube PR key, not a git branch name.""";
+  public static final String PULL_REQUEST_PROPERTY_DESCRIPTION =
+    "SonarQube PR key, not a git branch name. Use list_pull_requests. Mutually exclusive with branch.";
 
   private BranchPullRequestContext() {
     // utility class

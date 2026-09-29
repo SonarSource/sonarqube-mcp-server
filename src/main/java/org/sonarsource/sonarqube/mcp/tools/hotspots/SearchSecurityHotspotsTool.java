@@ -60,8 +60,8 @@ public class SearchSecurityHotspotsTool extends Tool {
       .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "Filter by resolution (when status is REVIEWED)")
       .addBooleanProperty(SINCE_LEAK_PERIOD_PROPERTY, "If true, only Security Hotspots created since the leak period (new code period) are returned")
       .addBooleanProperty(ONLY_MINE_PROPERTY, "If true, only Security Hotspots assigned to the current user are returned")
-      .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional 1-based page index. Defaults to 1.")
-      .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "1-based page index (default 1)")
+      .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size, max 500 (default 100)")
       .setReadOnlyHint()
       .build(),
       ToolCategory.SECURITY_HOTSPOTS);

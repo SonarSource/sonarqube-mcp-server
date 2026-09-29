@@ -26,7 +26,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SearchMyProjectsToolResponse(
   @JsonPropertyDescription("List of projects found") List<Project> projects,
-  @JsonPropertyDescription("Pagination information for the results") Paging paging
+  @JsonPropertyDescription("Pagination") Paging paging
 ) {
   
   public record Project(
@@ -35,9 +35,9 @@ public record SearchMyProjectsToolResponse(
   ) {}
   
   public record Paging(
-    @JsonPropertyDescription("Current page index (1-based)") int pageIndex,
-    @JsonPropertyDescription("Number of items per page") int pageSize,
-    @JsonPropertyDescription("Total number of items across all pages") int total,
+    @JsonPropertyDescription("Page index") int pageIndex,
+    @JsonPropertyDescription("Page size") int pageSize,
+    @JsonPropertyDescription("Total items") int total,
     @JsonPropertyDescription("Whether there are more pages available") boolean hasNextPage
   ) {}
 }

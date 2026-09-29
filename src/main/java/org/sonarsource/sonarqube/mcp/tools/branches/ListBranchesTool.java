@@ -36,14 +36,7 @@ public class ListBranchesTool extends Tool {
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String BRANCH_TYPES_PROPERTY = "branchTypes";
 
-  private static final String CLOUD_DESCRIPTION = "List analyzed branches for a SonarQube Cloud project (long-lived and short-lived). " +
-    "Use returned branch names as the branch parameter on other tools (e.g. get_project_quality_gate_status, get_component_measures). " +
-    "Check the type field: LONG for main/develop, SHORT for feature branches analyzed without pull requests. " +
-    "For pull request analysis, use list_pull_requests instead.";
-
-  private static final String SERVER_DESCRIPTION = "List analyzed branches for a SonarQube Server project. " +
-    "Use returned branch names as the branch parameter on other tools (e.g. get_project_quality_gate_status, get_component_measures). " +
-    "For pull request analysis, use list_pull_requests instead.";
+  private static final String DESCRIPTION = "List analyzed branches. Use returned names as branch. For PRs, use list_pull_requests.";
 
   private final ServerApiProvider serverApiProvider;
   private final boolean isSonarQubeCloud;
@@ -65,7 +58,7 @@ public class ListBranchesTool extends Tool {
 
     builder.setName(TOOL_NAME)
       .setTitle("List SonarQube Branches")
-      .setDescription(isSonarQubeCloud ? CLOUD_DESCRIPTION : SERVER_DESCRIPTION)
+      .setDescription(DESCRIPTION)
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey);
 
     if (isSonarQubeCloud) {

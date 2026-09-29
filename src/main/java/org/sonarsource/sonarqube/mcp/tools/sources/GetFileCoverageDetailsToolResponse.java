@@ -26,7 +26,7 @@ public record GetFileCoverageDetailsToolResponse(
   @JsonPropertyDescription("File component key") String fileKey,
   @JsonPropertyDescription("File path") @Nullable String filePath,
   @JsonPropertyDescription("Coverage summary for this file") CoverageSummary summary,
-  @JsonPropertyDescription("List of uncovered lines (lines that have never been executed by tests)") List<UncoveredLine> uncoveredLines,
+  @JsonPropertyDescription("Uncovered lines") List<UncoveredLine> uncoveredLines,
   @JsonPropertyDescription("List of lines with partially covered branches/conditions") List<PartiallyConditionalLine> partiallyConditionalLines
 ) {
 

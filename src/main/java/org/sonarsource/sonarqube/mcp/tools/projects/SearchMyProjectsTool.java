@@ -49,8 +49,8 @@ public class SearchMyProjectsTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
       .setDescription(description)
-      .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional 1-based page index. Defaults to 1.")
-      .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 500.")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "1-based page index (default 1)")
+      .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size, max 500 (default 500)")
       .addStringProperty(SEARCH_QUERY_PROPERTY, "An optional search query to filter projects by name (partial match) or key (exact match).")
       .setReadOnlyHint()
       .build();

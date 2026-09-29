@@ -53,8 +53,7 @@ public class SearchFilesByCoverageTool extends Tool {
     super(SchemaToolBuilder.forOutput(SearchFilesByCoverageToolResponse.class)
         .setName(TOOL_NAME)
         .setTitle("Search SonarQube Files by Coverage")
-        .setDescription("Search for files in a project sorted by coverage (ascending - worst coverage first). " +
-          "This tool helps identify files that need test coverage improvements.")
+        .setDescription("Files in a project, worst coverage first.")
         .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
         .addBranchAndPullRequestProperties()
         .addNumberProperty(MAX_COVERAGE_PROPERTY, "Only return files with coverage below this threshold (0-100)")

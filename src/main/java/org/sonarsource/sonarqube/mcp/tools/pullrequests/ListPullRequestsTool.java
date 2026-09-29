@@ -36,10 +36,7 @@ public class ListPullRequestsTool extends Tool {
     super(SchemaToolBuilder.forOutput(ListPullRequestsToolResponse.class)
         .setName(TOOL_NAME)
         .setTitle("List SonarQube Pull Requests")
-        .setDescription("List all pull requests for a project. " +
-          "Use this tool to discover pull requests for PR-decorated analysis (coverage, issues, quality gate on new code). " +
-          "Returns the pull request key/ID and source branch for each PR, which can be used with other tools that accept a pullRequest parameter. " +
-          "For branch-based analysis without pull requests, use list_branches instead.")
+        .setDescription("List pull requests. Use returned keys as pullRequest. For branches, use list_branches.")
         .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
         .setReadOnlyHint()
         .build(),

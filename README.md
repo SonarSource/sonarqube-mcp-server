@@ -995,7 +995,7 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
 
 ### Analysis
 
-- **analyze_code_snippet** - Analyze file content with SonarQube analyzers to identify code quality and security issues. Always analyzes the complete file content for accuracy. Optionally filter results to a specific code snippet.
+- **analyze_code_snippet** - Deprecated. Analyze a file or snippet. Prefer `analyze_file_list` or `run_advanced_code_analysis`. Optional `codeSnippet` filters to matching lines.
 
   > **Deprecated:** `analyze_code_snippet` will be removed in a future release. Connect SonarQube for IDE to use `analyze_file_list`, or enable Vortex analysis for your organization to use `run_advanced_code_analysis` (see below).
   
@@ -1015,7 +1015,7 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
   **Supported Languages:** Java, Kotlin, Python, Ruby, Go, JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), JSP, PHP, XML, HTML, CSS, CloudFormation, Kubernetes, Terraform, Azure Resource Manager, Ansible, Docker, Secrets detection
 
 **When integration with SonarQube for IDE is enabled:** _(these two tools are tagged under both the `analysis` and `ide` toolsets)_
-- **analyze_file_list** - Analyze files in the current working directory using SonarQube for IDE. This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.
+- **analyze_file_list** - Analyze files via a running SonarQube for IDE instance.
     - `file_absolute_paths` - List of absolute file paths to analyze - _Required String[]_
 
 
@@ -1036,7 +1036,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 ### Coverage
 
-- **search_files_by_coverage** - Search for files in a project sorted by coverage (ascending - worst coverage first). This tool helps identify files that need test coverage improvements.
+- **search_files_by_coverage** - Files in a project, worst coverage first.
   - `projectKey` - The project key to search in - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
@@ -1045,7 +1045,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
   - `pageSize` - Page size (default: 100, max: 500) - _Number_
 
 
-- **get_file_coverage_details** - Get line-by-line coverage information for a specific file, including which exact lines are uncovered and which have partially covered branches. This tool helps identify precisely where to add test coverage. Use after identifying files with low coverage via search_files_by_coverage.
+- **get_file_coverage_details** - Line-level coverage for a file. Use after `search_files_by_coverage`.
   - `key` - File key (e.g. my_project:src/foo/Bar.java) - _Required String_
   - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
@@ -1072,7 +1072,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 ### Issues
 
-- **change_sonar_issue_status** - Change the status of a SonarQube issue to "accept", "falsepositive" or to "reopen" an issue.
+- **change_sonar_issue_status** - Change an issue status (`accept`, `falsepositive`, `reopen`). Optional comment.
   - `key` - Issue key - _Required String_
   - `status` - New issue's status - _Required Enum {"accept", "falsepositive", "reopen"}_
   - `comment` - Optional comment explaining the status change - _String_
@@ -1107,11 +1107,11 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
   - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 100) - _Integer_
 
 
-- **show_security_hotspot** - Get detailed information about a specific Security Hotspot, including rule details, code context, flows, and comments.
+- **show_security_hotspot** - Details for one Security Hotspot, including rule, flows, and comments.
   - `hotspotKey` - Security Hotspot key - _Required String_
 
 
-- **change_security_hotspot_status** - Review a Security Hotspot by changing its status. When marking as REVIEWED, you must specify a resolution (FIXED, SAFE, or ACKNOWLEDGED).
+- **change_security_hotspot_status** - Set hotspot status. `REVIEWED` requires `resolution` (`FIXED`, `SAFE`, `ACKNOWLEDGED`). Optional comment.
   - `hotspotKey` - Security Hotspot key - _Required String_
   - `status` - New status - _Required Enum {"TO_REVIEW", "REVIEWED"}_
   - `resolution` - Resolution when status is REVIEWED - _Enum {"FIXED", "SAFE", "ACKNOWLEDGED"}_
@@ -1162,7 +1162,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
   - `q` - Optional search query to filter projects by name (partial match) or key (exact match) - _String_
 
 
-- **list_branches** - List analyzed branches for a project.
+- **list_branches** - List analyzed branches. Use returned names as `branch`. For PRs, use `list_pull_requests`.
   - **SonarQube Cloud**: returns long-lived (`LONG`) and short-lived (`SHORT`) branches with `type` and `mergeBranch` fields. Optional `branchTypes` filter: `ALL` (default), `LONG`, or `SHORT`.
   - **SonarQube Server**: returns all analyzed branches (name, quality gate, analysis date). No `type`, `mergeBranch`, or `branchTypes` filter.
   - Use returned branch names as the `branch` parameter on other tools. For pull request analysis, use `list_pull_requests` instead.
@@ -1170,7 +1170,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
   - `branchTypes` - _(SonarQube Cloud only)_ Optional filter: `ALL` (default), `LONG`, or `SHORT` - _Enum {"ALL", "LONG", "SHORT"}_
 
 
-- **list_pull_requests** - List all pull requests for a project. Use this tool to discover pull requests for PR-decorated analysis (coverage, issues, quality gate). Returns the pull request key/ID which can be used with other tools. For branch-based analysis without pull requests, use `list_branches` instead.
+- **list_pull_requests** - List pull requests. Use returned keys as `pullRequest`. For branches, use `list_branches`.
   - `projectKey` - Project key (e.g. my_project) - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
 
 ### Quality Gates
