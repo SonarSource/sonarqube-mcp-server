@@ -57,8 +57,8 @@ public class SearchIssuesTool extends Tool {
 
   private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
     var scope = isSonarQubeCloud ? "my organization's projects" : "my projects";
-    var description = "Search for issues (bugs, vulnerabilities, code smells) in " + scope + ". " +
-      "Filter by severities=['HIGH','BLOCKER'] for critical issues, impactSoftwareQualities=['SECURITY'] for security, issueStatuses=['OPEN'] to exclude resolved.";
+    var description = "Search for issues (bugs, vulnerabilities, code smells) in " + scope +
+      ". Filter with severities, impactSoftwareQualities, and issueStatuses.";
     
     return SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
       .setName(TOOL_NAME)
@@ -73,8 +73,8 @@ public class SearchIssuesTool extends Tool {
       .addArrayProperty(TAGS_PROPERTY, "string", "An optional list of issue tags to filter by. Tags are lowercase, e.g. ['security','convention']")
       .addBooleanProperty(IN_NEW_CODE_PERIOD_PROPERTY, "Only return issues in the new code period. Requires exactly one entry across projectKeys and files")
       .addArrayProperty(ISSUE_KEY_PROPERTY, "string", "An optional list of issue keys to fetch specific issues")
-      .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional 1-based page index. Defaults to 1.")
-      .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "1-based page index (default 1)")
+      .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size, max 500 (default 100)")
       .setReadOnlyHint()
       .build();
   }

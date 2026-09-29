@@ -58,9 +58,9 @@ public record ListPortfoliosToolResponse(
   public sealed interface Portfolio permits CloudPortfolio, ServerPortfolio {}
   
   public record Paging(
-    @JsonPropertyDescription("Current page index (1-based)") int pageIndex,
-    @JsonPropertyDescription("Number of items per page") int pageSize,
-    @JsonPropertyDescription("Total number of items across all pages") int total
+    @JsonPropertyDescription("Page index") int pageIndex,
+    @JsonPropertyDescription("Page size") int pageSize,
+    @JsonPropertyDescription("Total items") int total
   ) {}
 }
 

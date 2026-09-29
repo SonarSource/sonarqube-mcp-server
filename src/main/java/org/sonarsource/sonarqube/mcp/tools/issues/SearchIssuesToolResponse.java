@@ -26,23 +26,23 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SearchIssuesToolResponse(
-  @JsonPropertyDescription("List of issues found in the search") List<Issue> issues,
-  @JsonPropertyDescription("Pagination information for the results") Paging paging
+  @JsonPropertyDescription("Matching issues") List<Issue> issues,
+  @JsonPropertyDescription("Pagination") Paging paging
 ) {
   
   public record Issue(
-    @JsonPropertyDescription("Unique issue identifier") String key,
+    @JsonPropertyDescription("Issue key") String key,
     @JsonPropertyDescription("Rule that triggered the issue") String rule,
-    @JsonPropertyDescription("Project key where the issue was found") String project,
-    @JsonPropertyDescription("Component (file) where the issue is located") String component,
-    @JsonPropertyDescription("Issue severity level") String severity,
-    @JsonPropertyDescription("Current status of the issue") String status,
-    @JsonPropertyDescription("Issue description message") String message,
-    @JsonPropertyDescription("Clean code attribute associated with the issue") String cleanCodeAttribute,
+    @JsonPropertyDescription("Project key") String project,
+    @JsonPropertyDescription("File key") String component,
+    @JsonPropertyDescription("Severity") String severity,
+    @JsonPropertyDescription("Status") String status,
+    @JsonPropertyDescription("Message") String message,
+    @JsonPropertyDescription("Clean code attribute") String cleanCodeAttribute,
     @JsonPropertyDescription("Clean code attribute category") String cleanCodeAttributeCategory,
-    @JsonPropertyDescription("Author who introduced the issue") String author,
-    @JsonPropertyDescription("Date when the issue was created") String creationDate,
-    @JsonPropertyDescription("Location of the issue in the source file") @Nullable TextRange textRange
+    @JsonPropertyDescription("Author") String author,
+    @JsonPropertyDescription("Created at") String creationDate,
+    @JsonPropertyDescription("Source range") @Nullable TextRange textRange
   ) {}
   
   public record TextRange(
@@ -51,9 +51,8 @@ public record SearchIssuesToolResponse(
   ) {}
   
   public record Paging(
-    @JsonPropertyDescription("Current page index (1-based)") int pageIndex,
-    @JsonPropertyDescription("Number of items per page") int pageSize,
-    @JsonPropertyDescription("Total number of items across all pages") int total
+    @JsonPropertyDescription("Page index") int pageIndex,
+    @JsonPropertyDescription("Page size") int pageSize,
+    @JsonPropertyDescription("Total items") int total
   ) {}
 }
-

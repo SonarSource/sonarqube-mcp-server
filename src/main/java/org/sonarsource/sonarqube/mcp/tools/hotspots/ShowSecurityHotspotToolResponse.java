@@ -21,24 +21,24 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 
 public record ShowSecurityHotspotToolResponse(
-  @JsonPropertyDescription("Unique Security Hotspot identifier") String key,
-  @JsonPropertyDescription("Component (file) where the Security Hotspot is located") String component,
-  @JsonPropertyDescription("Project key where the Security Hotspot was found") String project,
-  @JsonPropertyDescription("Security category (e.g., sql-injection, xss, weak-cryptography)") String securityCategory,
-  @JsonPropertyDescription("Vulnerability probability (HIGH, MEDIUM, LOW)") String vulnerabilityProbability,
-  @JsonPropertyDescription("Review status (TO_REVIEW, REVIEWED)") String status,
-  @Nullable @JsonPropertyDescription("Resolution when status is REVIEWED (FIXED, SAFE, ACKNOWLEDGED)") String resolution,
-  @Nullable @JsonPropertyDescription("Line number where the Security Hotspot is located") Integer line,
-  @JsonPropertyDescription("Security Hotspot description message") String message,
-  @Nullable @JsonPropertyDescription("User assigned to review the Security Hotspot") String assignee,
-  @Nullable @JsonPropertyDescription("Author who introduced the Security Hotspot") String author,
-  @JsonPropertyDescription("Date when the Security Hotspot was created") String creationDate,
-  @JsonPropertyDescription("Date when the Security Hotspot was last updated") String updateDate,
-  @Nullable @JsonPropertyDescription("Location of the Security Hotspot in the source file") TextRange textRange,
+  @JsonPropertyDescription("Hotspot key") String key,
+  @JsonPropertyDescription("File key") String component,
+  @JsonPropertyDescription("Project key") String project,
+  @JsonPropertyDescription("Security category") String securityCategory,
+  @JsonPropertyDescription("HIGH, MEDIUM, or LOW") String vulnerabilityProbability,
+  @JsonPropertyDescription("TO_REVIEW or REVIEWED") String status,
+  @Nullable @JsonPropertyDescription("Present when REVIEWED") String resolution,
+  @Nullable @JsonPropertyDescription("Line") Integer line,
+  @JsonPropertyDescription("Message") String message,
+  @Nullable @JsonPropertyDescription("Assignee") String assignee,
+  @Nullable @JsonPropertyDescription("Author") String author,
+  @JsonPropertyDescription("Created at") String creationDate,
+  @JsonPropertyDescription("Updated at") String updateDate,
+  @Nullable @JsonPropertyDescription("Source range") TextRange textRange,
   @JsonPropertyDescription("Code flows showing the path of the security-sensitive code") List<Flow> flows,
-  @JsonPropertyDescription("Comments on the Security Hotspot") List<Comment> comments,
-  @JsonPropertyDescription("Rule that triggered the Security Hotspot") Rule rule,
-  @JsonPropertyDescription("Whether the current user can change the Security Hotspot status") boolean canChangeStatus
+  @JsonPropertyDescription("Comments") List<Comment> comments,
+  @JsonPropertyDescription("Rule that triggered the hotspot") Rule rule,
+  @JsonPropertyDescription("Current user can change status") boolean canChangeStatus
 ) {
 
   public record TextRange(

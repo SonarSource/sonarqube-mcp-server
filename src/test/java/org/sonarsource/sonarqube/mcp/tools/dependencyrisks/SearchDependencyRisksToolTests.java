@@ -150,15 +150,15 @@ class SearchDependencyRisksToolTests {
                "properties":{
                   "pageIndex":{
                      "type":"integer",
-                     "description":"Current page index (1-based)"
+                     "description":"Page index"
                   },
                   "pageSize":{
                      "type":"integer",
-                     "description":"Number of items per page"
+                     "description":"Page size"
                   },
                   "total":{
                      "type":"integer",
-                     "description":"Total number of items across all pages"
+                     "description":"Total items"
                   }
                },
                "required":[
@@ -166,7 +166,7 @@ class SearchDependencyRisksToolTests {
                   "pageSize",
                   "total"
                ],
-               "description":"Pagination information for the results"
+               "description":"Pagination"
             }
          },
          "required":[

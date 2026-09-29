@@ -52,18 +52,18 @@ class SearchIssuesToolTests {
          "type":"object",
          "properties":{
             "issues":{
-               "description":"List of issues found in the search",
+               "description":"Matching issues",
                "type":"array",
                "items":{
                   "type":"object",
                   "properties":{
                      "author":{
                         "type":"string",
-                        "description":"Author who introduced the issue"
+                        "description":"Author"
                      },
                      "cleanCodeAttribute":{
                         "type":"string",
-                        "description":"Clean code attribute associated with the issue"
+                        "description":"Clean code attribute"
                      },
                      "cleanCodeAttributeCategory":{
                         "type":"string",
@@ -71,23 +71,23 @@ class SearchIssuesToolTests {
                      },
                      "component":{
                         "type":"string",
-                        "description":"Component (file) where the issue is located"
+                        "description":"File key"
                      },
                      "creationDate":{
                         "type":"string",
-                        "description":"Date when the issue was created"
+                        "description":"Created at"
                      },
                      "key":{
                         "type":"string",
-                        "description":"Unique issue identifier"
+                        "description":"Issue key"
                      },
                      "message":{
                         "type":"string",
-                        "description":"Issue description message"
+                        "description":"Message"
                      },
                      "project":{
                         "type":"string",
-                        "description":"Project key where the issue was found"
+                        "description":"Project key"
                      },
                      "rule":{
                         "type":"string",
@@ -95,11 +95,11 @@ class SearchIssuesToolTests {
                      },
                      "severity":{
                         "type":"string",
-                        "description":"Issue severity level"
+                        "description":"Severity"
                      },
                      "status":{
                         "type":"string",
-                        "description":"Current status of the issue"
+                        "description":"Status"
                      },
                      "textRange":{
                         "type":"object",
@@ -117,7 +117,7 @@ class SearchIssuesToolTests {
                            "endLine",
                            "startLine"
                         ],
-                        "description":"Location of the issue in the source file"
+                        "description":"Source range"
                      }
                   },
                   "required":[
@@ -140,15 +140,15 @@ class SearchIssuesToolTests {
                "properties":{
                   "pageIndex":{
                      "type":"integer",
-                     "description":"Current page index (1-based)"
+                     "description":"Page index"
                   },
                   "pageSize":{
                      "type":"integer",
-                     "description":"Number of items per page"
+                     "description":"Page size"
                   },
                   "total":{
                      "type":"integer",
-                     "description":"Total number of items across all pages"
+                     "description":"Total items"
                   }
                },
                "required":[
@@ -156,7 +156,7 @@ class SearchIssuesToolTests {
                   "pageSize",
                   "total"
                ],
-               "description":"Pagination information for the results"
+               "description":"Pagination"
             }
          },
          "required":[

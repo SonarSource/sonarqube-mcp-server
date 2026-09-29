@@ -51,58 +51,58 @@ class SearchSecurityHotspotsToolTests {
          "type":"object",
          "properties":{
             "hotspots":{
-               "description":"List of Security Hotspots found in the search",
+               "description":"Matching hotspots",
                "type":"array",
                "items":{
                   "type":"object",
                   "properties":{
                      "assignee":{
                         "type":"string",
-                        "description":"User assigned to review the Security Hotspot"
+                        "description":"Assignee"
                      },
                      "author":{
                         "type":"string",
-                        "description":"Author who introduced the Security Hotspot"
+                        "description":"Author"
                      },
                      "component":{
                         "type":"string",
-                        "description":"Component (file) where the Security Hotspot is located"
+                        "description":"File key"
                      },
                      "creationDate":{
                         "type":"string",
-                        "description":"Date when the Security Hotspot was created"
+                        "description":"Created at"
                      },
                      "key":{
                         "type":"string",
-                        "description":"Unique Security Hotspot identifier"
+                        "description":"Hotspot key"
                      },
                      "line":{
                         "type":"integer",
-                        "description":"Line number where the Security Hotspot is located"
+                        "description":"Line"
                      },
                      "message":{
                         "type":"string",
-                        "description":"Security Hotspot description message"
+                        "description":"Message"
                      },
                      "project":{
                         "type":"string",
-                        "description":"Project key where the Security Hotspot was found"
+                        "description":"Project key"
                      },
                      "resolution":{
                         "type":"string",
-                        "description":"Resolution when status is REVIEWED (FIXED, SAFE, ACKNOWLEDGED)"
+                        "description":"Present when REVIEWED"
                      },
                      "ruleKey":{
                         "type":"string",
-                        "description":"Rule key that triggered this Security Hotspot"
+                        "description":"Rule key"
                      },
                      "securityCategory":{
                         "type":"string",
-                        "description":"Security category (e.g., sql-injection, xss, weak-cryptography)"
+                        "description":"Security category"
                      },
                      "status":{
                         "type":"string",
-                        "description":"Review status (TO_REVIEW, REVIEWED)"
+                        "description":"TO_REVIEW or REVIEWED"
                      },
                      "textRange":{
                         "type":"object",
@@ -130,15 +130,15 @@ class SearchSecurityHotspotsToolTests {
                            "startLine",
                            "startOffset"
                         ],
-                        "description":"Location of the Security Hotspot in the source file"
+                        "description":"Source range"
                      },
                      "updateDate":{
                         "type":"string",
-                        "description":"Date when the Security Hotspot was last updated"
+                        "description":"Updated at"
                      },
                      "vulnerabilityProbability":{
                         "type":"string",
-                        "description":"Vulnerability probability (HIGH, MEDIUM, LOW)"
+                        "description":"HIGH, MEDIUM, or LOW"
                      }
                   },
                   "required":[
@@ -160,15 +160,15 @@ class SearchSecurityHotspotsToolTests {
                "properties":{
                   "pageIndex":{
                      "type":"integer",
-                     "description":"Current page index (1-based)"
+                     "description":"Page index"
                   },
                   "pageSize":{
                      "type":"integer",
-                     "description":"Number of items per page"
+                     "description":"Page size"
                   },
                   "total":{
                      "type":"integer",
-                     "description":"Total number of items across all pages"
+                     "description":"Total items"
                   }
                },
                "required":[
@@ -176,7 +176,7 @@ class SearchSecurityHotspotsToolTests {
                   "pageSize",
                   "total"
                ],
-               "description":"Pagination information for the results"
+               "description":"Pagination"
             }
          },
          "required":[

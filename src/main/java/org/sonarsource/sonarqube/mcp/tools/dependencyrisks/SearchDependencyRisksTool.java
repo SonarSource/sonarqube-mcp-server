@@ -50,8 +50,8 @@ public class SearchDependencyRisksTool extends Tool {
         "paired with releases that appear in the analyzed project, application, or portfolio.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
       .addBranchAndPullRequestProperties()
-      .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional page index (1-based). Defaults to 1.")
-      .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
+      .addNumberProperty(PAGE_INDEX_PROPERTY, "1-based page index (default 1)")
+      .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size, max 500 (default 100)")
       .setReadOnlyHint()
       .build(),
       ToolCategory.DEPENDENCY_RISKS);

@@ -154,7 +154,7 @@ class GetFileCoverageDetailsToolTests {
             "description": "Coverage summary for this file"
           },
           "uncoveredLines": {
-            "description": "List of uncovered lines (lines that have never been executed by tests)",
+            "description": "Uncovered lines",
             "type": "array",
             "items": {
               "type": "object",
