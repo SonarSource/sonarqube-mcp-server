@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +72,7 @@ class ToolExecutorTest {
 
   @Test
   void it_should_register_telemetry_after_the_tool_call_succeeds() {
-    record TestResponse(@JsonPropertyDescription("Success message") String message) {}
+    record TestResponse(String message) {}
     
     toolExecutor.execute(new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(), ToolCategory.ANALYSIS) {
       @Override
@@ -216,7 +215,7 @@ class ToolExecutorTest {
     var analyticsService = syncAnalyticsService();
     var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null,
       () -> Set.of(ToolCategory.VORTEX, ToolCategory.ISSUES, ToolCategory.ANALYSIS));
-    record TestResponse(@JsonPropertyDescription("Result") String value) {}
+    record TestResponse(String value) {}
     var tool = new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(),
       ToolCategory.ANALYSIS, ToolCategory.VORTEX) {
       @Override

@@ -20,7 +20,7 @@ import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -36,7 +36,7 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
   private final String configuredProjectKey;
 
   public StartAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(StartAgenticReadinessAssessmentToolResponse.class)
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Start Agentic Readiness Assessment")
       .setDescription(

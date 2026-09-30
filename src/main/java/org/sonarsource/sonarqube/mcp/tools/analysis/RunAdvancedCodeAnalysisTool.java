@@ -26,7 +26,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationReque
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -49,14 +49,14 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private final Path configuredWorkspacePath;
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath) {
-    super(buildSchema(configuredProjectKey), ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
+    super(buildTool(configuredProjectKey), ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;
   }
 
-  private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey) {
-    var builder = SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
+  private static McpSchema.Tool buildTool(@Nullable String configuredProjectKey) {
+    var builder = ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("SonarQube Vortex Code Analysis")
       .setDescription("Run Vortex analysis on a single file using the server-side engine. " +

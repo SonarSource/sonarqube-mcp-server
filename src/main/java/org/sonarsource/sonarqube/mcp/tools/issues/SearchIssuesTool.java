@@ -21,7 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -60,7 +60,7 @@ public class SearchIssuesTool extends Tool {
     var description = "Search for issues (bugs, vulnerabilities, code smells) in " + scope + ". " +
       "Filter by severities=['HIGH','BLOCKER'] for critical issues, impactSoftwareQualities=['SECURITY'] for security, issueStatuses=['OPEN'] to exclude resolved.";
     
-    return SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
+    return ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues")
       .setDescription(description)

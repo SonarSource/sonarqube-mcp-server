@@ -81,19 +81,19 @@ When adding or changing tools, check whether behavior or registration must diffe
 
 ## Adding an MCP Tool
 
-**Schema bloat is a first-class concern.** MCP clients load the full tool list (names, descriptions, input schemas, output schemas) into the agent's context. Every tool description, parameter description, output field description, and title adds tokens on every session. Write the minimum text that still disambiguates usage — prefer one short sentence over a paragraph, and omit parameters that callers rarely need.
+**Schema bloat is a first-class concern.** MCP clients load the full tool list (names, descriptions, input schemas) into the agent's context. Every tool description, parameter description, and title adds tokens on every session. Write the minimum text that still disambiguates usage — prefer one short sentence over a paragraph, and omit parameters that callers rarely need. Tools do not advertise an output schema; `Tool.Result.success` returns the response record once, as JSON text.
 
 1. Create `FooTool.java` extending `Tool` in `tools/<domain>/`.
 2. Add `package-info.java` if creating a new package.
 3. Define `public static final String TOOL_NAME = "foo_action"` — snake_case, max 64 chars, MCP SEP-986 charset (`ToolNameValidator`).
-4. Build the input schema with `SchemaToolBuilder.forOutput(FooToolResponse.class)`:
+4. Build the input schema with `ToolMetadataBuilder.builder()`:
    - `.setTitle()` and `.setDescription()` — one or two short sentences: what the tool does and when to use it. No tutorials, examples, or repeated parameter detail (put that in parameter descriptions only).
    - Parameter descriptions (`.addStringProperty()`, etc.) — same rule: shortest text that clarifies format, valid values, or which other tool to call first.
    - `.addProjectKeyProperty()` when a project key is needed (respects `SONARQUBE_PROJECT_KEY` config).
    - `.addBranchAndPullRequestProperties()` when branch/PR-aware; use `BranchPullRequestContext` in `execute()` for validation.
    - `.setReadOnlyHint()` for tools that do not mutate SonarQube state.
    - Do not add optional parameters "for completeness" if they are rarely used — fewer parameters means a smaller schema.
-5. Create `FooToolResponse` as a Java `record` with `@JsonPropertyDescription` on every field (drives the output JSON schema). See **Response field descriptions** below.
+5. Create `FooToolResponse` as a Java `record`. Field names are the JSON keys. Null fields are omitted. Do not add `@JsonPropertyDescription`; tools do not publish an output schema.
 6. Implement `execute()` — call SonarQube via `ServerApiProvider.get()`, return `Tool.Result.success(response)`.
 7. Assign a `ToolCategory` (controls `SONARQUBE_TOOLSETS` filtering; `projects` is always enabled). See **Tool categories** below.
 8. Register in `SonarQubeMcpServer` — `loadBackendIndependentTools()` for REST tools, or the backend-dependent section for analysis tools.
@@ -107,30 +107,6 @@ Reference implementation: `tools/branches/ListBranchesTool.java`.
 Each tool belongs to exactly one `ToolCategory` (defined in `tools/ToolCategory.java`). The enum constant is passed to the `Tool` constructor; its `key` string is what users set in `SONARQUBE_TOOLSETS`.
 
 Pick the category that matches the tool's domain. Only add a new enum value when no existing category fits — that also requires updating `ToolCategory`, default toolsets, and the README toolset table.
-
-### Response field descriptions
-
-`@JsonPropertyDescription` text becomes the `description` in the tool's output JSON schema — it is loaded into agent context alongside input schemas. **Keep every description as short as possible.**
-
-Conventions in this repo:
-
-- **Short phrase**, not a paragraph — typically 3–15 words; cut anything that does not help interpret or act on the value.
-- **State what the field is**, and **how to use it** only when non-obvious (e.g. valid values, which other tool consumes it).
-- **Mention environment differences** only when values differ between Cloud and Server.
-- **Do not repeat the field name** — `"Project key"` for `projectKey`, not `"The projectKey field"`.
-- **No examples or instructions in schema text** — if agents need a workflow, that belongs in the tool's `.setDescription()`, still kept brief.
-
-```java
-// Good — concise, actionable
-@JsonPropertyDescription("Branch name that can be used with other tools as the branch parameter") String name,
-@JsonPropertyDescription("Branch type in SonarQube (LONG on SonarQube Cloud, BRANCH on SonarQube Server)") BranchType type,
-
-// Avoid — vague or redundant
-@JsonPropertyDescription("The name") String name,
-@JsonPropertyDescription("This field contains the branch type value") BranchType type,
-```
-
-Nested record fields (array items, sub-objects) each need their own `@JsonPropertyDescription`. Unit tests validate the generated schema via `assertSchemaEquals` — keep descriptions aligned with what the test expects.
 
 ### Server API Client
 
@@ -162,7 +138,7 @@ Conventions:
 
 - Annotate test classes/methods with `@SonarQubeMcpServerTest`; inject `SonarQubeMcpServerTestHarness`.
 - Name tests `it_should_<behavior>`.
-- For each tool, test at minimum: output schema (`assertSchemaEquals`), annotations (`readOnlyHint`, `openWorldHint`), happy path, and relevant error paths (403, 500, empty results).
+- For each tool, test at minimum: annotations (`readOnlyHint`, `openWorldHint`), happy path via `assertResultEquals` (JSON text content), and relevant error paths (403, 500, empty results).
 - Test Cloud vs Server differences when the tool behaves differently.
 - `TELEMETRY_DISABLED=true` is set automatically by the harness.
 

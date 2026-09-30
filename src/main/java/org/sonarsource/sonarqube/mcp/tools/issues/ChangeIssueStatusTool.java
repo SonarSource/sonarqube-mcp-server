@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.Transition;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -34,7 +34,7 @@ public class ChangeIssueStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ChangeIssueStatusTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ChangeIssueStatusToolResponse.class)
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Issue Status")
       .setDescription("""
