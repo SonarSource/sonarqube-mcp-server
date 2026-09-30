@@ -28,7 +28,7 @@ public class SystemPingTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemPingTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SystemPingToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Ping SonarQube Server System")
       .setDescription("Ping the SonarQube Server system to check if it's alive. Returns 'pong' as plain text.")

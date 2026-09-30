@@ -50,7 +50,7 @@ public class SearchFilesByCoverageTool extends Tool {
   private final String configuredProjectKey;
 
   public SearchFilesByCoverageTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(SearchFilesByCoverageToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
         .setName(TOOL_NAME)
         .setTitle("Search SonarQube Files by Coverage")
         .setDescription("Search for files in a project sorted by coverage (ascending - worst coverage first). " +

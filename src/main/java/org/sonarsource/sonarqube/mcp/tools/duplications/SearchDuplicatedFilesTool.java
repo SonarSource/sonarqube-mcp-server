@@ -56,7 +56,7 @@ public class SearchDuplicatedFilesTool extends Tool {
   private final String configuredProjectKey;
 
   public SearchDuplicatedFilesTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(SearchDuplicatedFilesToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
         .setName(TOOL_NAME)
         .setTitle("Search SonarQube Files With Duplications")
         .setDescription("Search for files with code duplications in a project. " +

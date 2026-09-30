@@ -45,7 +45,7 @@ public class SearchMyProjectsTool extends Tool {
     var description = "Find SonarQube projects in your " + scope + ". Supports searching by project name or key. " +
       "Use this first when projectKey is unknown - most other tools require the project key from this response.";
 
-    return SchemaToolBuilder.forOutput(SearchMyProjectsToolResponse.class)
+    return SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
       .setDescription(description)

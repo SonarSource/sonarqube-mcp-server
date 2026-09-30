@@ -33,7 +33,7 @@ public class GetDuplicationsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetDuplicationsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(GetDuplicationsToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Code Duplications")
       .setDescription("Get duplications for a file. Requires Browse permission on file's project")

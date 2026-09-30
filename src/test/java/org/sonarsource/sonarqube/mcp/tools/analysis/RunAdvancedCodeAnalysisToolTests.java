@@ -58,7 +58,7 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     stubAdvancedAnalysisEnabled(harness);
     stubAnalysisResponse(harness, SIMPLE_RESPONSE);
     var mcpClient = harness.newClient(ADVANCED_ANALYSIS_ENV);
@@ -74,6 +74,7 @@ class RunAdvancedCodeAnalysisToolTests {
         assertThat(annotations.readOnlyHint()).isTrue();
         assertThat(annotations.openWorldHint()).isTrue();
       });
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @SonarQubeMcpServerTest

@@ -33,7 +33,7 @@ public class GetScmInfoTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetScmInfoTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(GetScmInfoToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube SCM Information")
       .setDescription("Get SCM information of source files. Requires See Source Code permission on file's project")

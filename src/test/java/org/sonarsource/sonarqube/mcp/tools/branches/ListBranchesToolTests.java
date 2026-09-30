@@ -30,14 +30,13 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListBranchesToolTests {
 
   private static final Map<String, String> SONARQUBE_CLOUD_ENV = Map.of("SONARQUBE_ORG", "org");
 
   @SonarQubeMcpServerTest
-  void it_should_validate_server_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_server_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListBranchesTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -49,65 +48,11 @@ class ListBranchesToolTests {
     var inputProperties = (Map<String, Object>) tool.inputSchema().get("properties");
     assertThat(inputProperties).doesNotContainKey(ListBranchesTool.BRANCH_TYPES_PROPERTY);
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "projectKey":{
-               "description":"Project key",
-               "type":"string"
-            },
-            "totalBranches":{
-               "description":"Total number of branches",
-               "type":"integer"
-            },
-            "branches":{
-               "description":"List of branches for this project",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "name":{
-                        "type":"string",
-                        "description":"Branch name that can be used with other tools as the branch parameter"
-                     },
-                     "isMain":{
-                        "type":"boolean",
-                        "description":"Whether this is the main branch"
-                     },
-                     "qualityGateStatus":{
-                        "type":"string",
-                        "enum":["OK","ERROR","WARN","NONE"],
-                        "description":"Quality gate status for this branch"
-                     },
-                     "analysisDate":{
-                        "type":"string",
-                        "description":"Date of the last analysis"
-                     },
-                     "branchId":{
-                        "type":"string",
-                        "description":"Internal branch identifier"
-                     }
-                  },
-                  "required":[
-                     "branchId",
-                     "isMain",
-                     "name"
-                  ]
-               }
-            }
-         },
-         "required":[
-            "branches",
-            "projectKey",
-            "totalBranches"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @SonarQubeMcpServerTest
-  void it_should_validate_cloud_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_cloud_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient(SONARQUBE_CLOUD_ENV);
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListBranchesTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -122,70 +67,7 @@ class ListBranchesToolTests {
     var branchTypesProperty = (Map<String, Object>) inputProperties.get(ListBranchesTool.BRANCH_TYPES_PROPERTY);
     assertThat(branchTypesProperty).containsEntry("enum", List.of(BranchTypes.BRANCH_TYPES_FILTER_VALUES));
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "projectKey":{
-               "description":"Project key",
-               "type":"string"
-            },
-            "totalBranches":{
-               "description":"Total number of branches",
-               "type":"integer"
-            },
-            "branches":{
-               "description":"List of branches for this project",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "name":{
-                        "type":"string",
-                        "description":"Branch name that can be used with other tools as the branch parameter"
-                     },
-                     "isMain":{
-                        "type":"boolean",
-                        "description":"Whether this is the main branch"
-                     },
-                     "type":{
-                        "type":"string",
-                        "enum":["LONG","SHORT"],
-                        "description":"Branch type: LONG for main/develop, SHORT for feature branches analyzed without pull requests"
-                     },
-                     "qualityGateStatus":{
-                        "type":"string",
-                        "enum":["OK","ERROR","WARN","NONE"],
-                        "description":"Quality gate status for this branch"
-                     },
-                     "analysisDate":{
-                        "type":"string",
-                        "description":"Date of the last analysis"
-                     },
-                     "branchId":{
-                        "type":"string",
-                        "description":"Internal branch identifier"
-                     },
-                     "mergeBranch":{
-                        "type":"string",
-                        "description":"Target branch for short-lived branches (e.g. main, master)"
-                     }
-                  },
-                  "required":[
-                     "branchId",
-                     "isMain",
-                     "name"
-                  ]
-               }
-            }
-         },
-         "required":[
-            "branches",
-            "projectKey",
-            "totalBranches"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @SonarQubeMcpServerTest

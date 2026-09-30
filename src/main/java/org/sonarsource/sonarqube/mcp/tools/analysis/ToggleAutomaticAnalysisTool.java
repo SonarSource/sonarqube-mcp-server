@@ -29,7 +29,7 @@ public class ToggleAutomaticAnalysisTool extends Tool {
   private final SonarQubeIdeBridgeClient bridgeClient;
 
   public ToggleAutomaticAnalysisTool(SonarQubeIdeBridgeClient bridgeClient) {
-    super(SchemaToolBuilder.forOutput(ToggleAutomaticAnalysisToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Toggle SonarQube for IDE Automatic Analysis")
       .setDescription("Enable or disable SonarQube for IDE automatic analysis. " +

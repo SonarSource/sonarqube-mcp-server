@@ -30,7 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ToggleAutomaticAnalysisToolTests {
 
@@ -44,7 +43,7 @@ class ToggleAutomaticAnalysisToolTests {
   }
 
   @Test
-  void it_should_validate_output_schema_and_annotations() {
+  void it_should_validate_annotations() {
     assertThat(underTest.getCategories()).containsExactlyInAnyOrder(ToolCategory.ANALYSIS, ToolCategory.IDE);
 
     assertThat(underTest.definition().annotations()).isNotNull();
@@ -53,30 +52,7 @@ class ToggleAutomaticAnalysisToolTests {
     assertThat(underTest.definition().annotations().idempotentHint()).isFalse();
     assertThat(underTest.definition().annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(underTest.definition().outputSchema(), """
-      {
-          "type":"object",
-          "properties":{
-             "enabled":{
-                "type":"boolean",
-                "description":"The new automatic analysis state"
-             },
-             "message":{
-                "type":"string",
-                "description":"Success or error message"
-             },
-             "success":{
-                "type":"boolean",
-                "description":"Whether the operation was successful"
-             }
-          },
-          "required":[
-             "enabled",
-             "message",
-             "success"
-          ]
-       }
-      """);
+    assertThat(underTest.definition().outputSchema()).isNull();
   }
 
   @Nested

@@ -19,25 +19,24 @@ import jakarta.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AnalyzeFileListToolResponse(
-  @JsonPropertyDescription("List of findings from the analysis") List<Finding> findings,
-  @JsonPropertyDescription("Total number of findings") int findingsCount
+  List<Finding> findings,
+  int findingsCount
 ) {
   
   public record Finding(
-    @JsonPropertyDescription("Rule key that triggered the finding") String ruleKey,
-    @JsonPropertyDescription("Severity level of the finding") @Nullable String severity,
-    @JsonPropertyDescription("Description of the finding") String message,
-    @JsonPropertyDescription("File path where the finding was detected") @Nullable String filePath,
-    @JsonPropertyDescription("Location in the source file") @Nullable TextRange textRange
+    String ruleKey,
+    @Nullable String severity,
+    String message,
+    @Nullable String filePath,
+    @Nullable TextRange textRange
   ) {}
   
   public record TextRange(
-    @JsonPropertyDescription("Starting line number") int startLine,
-    @JsonPropertyDescription("Ending line number") int endLine
+    int startLine,
+    int endLine
   ) {}
 }
 

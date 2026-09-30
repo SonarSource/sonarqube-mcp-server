@@ -46,7 +46,7 @@ public class ListPortfoliosTool extends Tool {
   }
 
   private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
-    var builder = SchemaToolBuilder.forOutput(ListPortfoliosToolResponse.class)
+    var builder = SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Portfolios");
       

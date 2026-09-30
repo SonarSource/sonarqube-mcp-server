@@ -59,9 +59,7 @@ public class ListBranchesTool extends Tool {
   }
 
   private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
-    var builder = isSonarQubeCloud
-      ? SchemaToolBuilder.forOutput(ListBranchesToolCloudResponse.class)
-      : SchemaToolBuilder.forOutput(ListBranchesToolServerResponse.class);
+    var builder = SchemaToolBuilder.forOutput();
 
     builder.setName(TOOL_NAME)
       .setTitle("List SonarQube Branches")

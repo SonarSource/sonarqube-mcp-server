@@ -31,7 +31,7 @@ public class AnalyzeFileListTool extends Tool {
   private final SonarQubeIdeBridgeClient bridgeClient;
 
   public AnalyzeFileListTool(SonarQubeIdeBridgeClient bridgeClient) {
-    super(SchemaToolBuilder.forOutput(AnalyzeFileListToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("SonarQube for IDE File Analysis")
       .setDescription("Analyze files in the current working directory using SonarQube for IDE. " +

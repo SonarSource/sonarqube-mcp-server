@@ -17,12 +17,11 @@
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ToggleAutomaticAnalysisToolResponse(
-  @JsonPropertyDescription("Whether the operation was successful") boolean success,
-  @JsonPropertyDescription("The new automatic analysis state") boolean enabled,
-  @JsonPropertyDescription("Success or error message") String message
+  boolean success,
+  boolean enabled,
+  String message
 ) {}
 

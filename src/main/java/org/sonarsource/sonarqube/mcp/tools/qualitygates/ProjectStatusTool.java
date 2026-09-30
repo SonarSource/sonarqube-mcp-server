@@ -36,7 +36,7 @@ public class ProjectStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ProjectStatusTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ProjectStatusToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Quality Gate Status")
       .setDescription("""

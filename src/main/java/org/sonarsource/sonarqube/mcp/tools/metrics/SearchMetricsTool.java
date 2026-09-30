@@ -32,7 +32,7 @@ public class SearchMetricsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchMetricsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SearchMetricsToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Metrics")
       .setDescription("Search for available metrics")

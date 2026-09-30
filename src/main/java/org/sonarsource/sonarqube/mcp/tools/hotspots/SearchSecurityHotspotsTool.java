@@ -48,7 +48,7 @@ public class SearchSecurityHotspotsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchSecurityHotspotsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SearchSecurityHotspotsToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Security Hotspots")
       .setDescription("Search for Security Hotspots in a project.")
