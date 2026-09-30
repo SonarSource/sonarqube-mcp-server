@@ -16,8 +16,9 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -30,15 +31,19 @@ public class SystemLogsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemLogsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SystemLogsToolResponse.class)
+    super(buildToolDefinition(),
+      ToolCategory.SYSTEM);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool buildToolDefinition() {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Logs")
       .setDescription("Get SonarQube Server system logs in plain-text format. Requires system administration permission.")
       .addEnumProperty(NAME_PROPERTY, VALID_LOG_NAMES, "Name of the logs to get. Default: app")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.SYSTEM);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override

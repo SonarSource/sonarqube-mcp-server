@@ -16,13 +16,14 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -43,7 +44,15 @@ public class SearchDependencyRisksTool extends Tool {
 
   public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker,
     @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(SearchDependencyRisksToolResponse.class)
+    super(buildToolDefinition(configuredProjectKey),
+      ToolCategory.DEPENDENCY_RISKS);
+    this.serverApiProvider = serverApiProvider;
+    this.sonarQubeVersionChecker = sonarQubeVersionChecker;
+    this.configuredProjectKey = configuredProjectKey;
+  }
+
+  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +
@@ -53,11 +62,7 @@ public class SearchDependencyRisksTool extends Tool {
       .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional page index (1-based). Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.DEPENDENCY_RISKS);
-    this.serverApiProvider = serverApiProvider;
-    this.sonarQubeVersionChecker = sonarQubeVersionChecker;
-    this.configuredProjectKey = configuredProjectKey;
+      .build();
   }
 
   @Override

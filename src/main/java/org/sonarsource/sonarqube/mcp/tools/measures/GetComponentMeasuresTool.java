@@ -16,12 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.measures;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -39,7 +40,14 @@ public class GetComponentMeasuresTool extends Tool {
   private final String configuredProjectKey;
 
   public GetComponentMeasuresTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(GetComponentMeasuresToolResponse.class)
+    super(buildToolDefinition(configuredProjectKey),
+      ToolCategory.MEASURES);
+    this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
+  }
+
+  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Measures")
       .setDescription("Get SonarQube measures for a project, such as ncloc, complexity, violations, coverage, etc.")
@@ -47,10 +55,7 @@ public class GetComponentMeasuresTool extends Tool {
       .addBranchAndPullRequestProperties()
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.MEASURES);
-    this.serverApiProvider = serverApiProvider;
-    this.configuredProjectKey = configuredProjectKey;
+      .build();
   }
 
   @Override

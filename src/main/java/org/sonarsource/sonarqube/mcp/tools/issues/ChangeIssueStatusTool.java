@@ -16,9 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.Transition;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -34,7 +35,13 @@ public class ChangeIssueStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ChangeIssueStatusTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ChangeIssueStatusToolResponse.class)
+    super(buildToolDefinition(),
+      ToolCategory.ISSUES);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool buildToolDefinition() {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Issue Status")
       .setDescription("""
@@ -44,9 +51,7 @@ public class ChangeIssueStatusTool extends Tool {
       .addRequiredStringProperty(KEY_PROPERTY, "The key of the issue which status should be changed")
       .addRequiredEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "The new status of the issue")
       .addStringProperty(COMMENT_PROPERTY, "An optional comment explaining the status change")
-      .build(),
-      ToolCategory.ISSUES);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override

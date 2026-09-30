@@ -16,10 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.HealthResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -30,14 +31,18 @@ public class SystemHealthTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemHealthTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SystemHealthToolResponse.class)
+    super(buildToolDefinition(),
+      ToolCategory.SYSTEM);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool buildToolDefinition() {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Health")
       .setDescription("Get the health status of SonarQube Server instance. Returns GREEN (fully operational), YELLOW (usable but needs attention), or RED (not operational).")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.SYSTEM);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override

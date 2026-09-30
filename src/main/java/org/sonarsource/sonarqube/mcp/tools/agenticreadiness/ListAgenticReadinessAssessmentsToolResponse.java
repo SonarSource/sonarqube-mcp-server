@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import java.util.List;
 import jakarta.annotation.Nullable;
 
@@ -27,14 +26,14 @@ import jakarta.annotation.Nullable;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ListAgenticReadinessAssessmentsToolResponse(
-  @JsonPropertyDescription("Assessment summaries, ordered newest first") List<Assessment> assessments) {
+  List<Assessment> assessments) {
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record Assessment(
-    @JsonPropertyDescription("Unique identifier of the assessment") String assessmentId,
-    @JsonPropertyDescription("Lifecycle status: PENDING, IN_PROGRESS, COMPLETED, FAILED or INTERRUPTED") String status,
-    @JsonPropertyDescription("Branch the assessment ran against, if any") @Nullable String branch,
-    @JsonPropertyDescription("Overall readiness level when available (L1-L5)") @Nullable String overallLevel,
-    @JsonPropertyDescription("Creation timestamp of the assessment") @Nullable String createdAt) {
+    String assessmentId,
+    String status,
+    @Nullable String branch,
+    @Nullable String overallLevel,
+    @Nullable String createdAt) {
   }
 }

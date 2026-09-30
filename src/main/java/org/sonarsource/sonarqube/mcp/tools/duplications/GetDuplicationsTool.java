@@ -16,10 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.duplications;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.duplications.response.DuplicationsResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -33,16 +34,20 @@ public class GetDuplicationsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetDuplicationsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(GetDuplicationsToolResponse.class)
+    super(buildToolDefinition(),
+      ToolCategory.DUPLICATIONS);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool buildToolDefinition() {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Code Duplications")
       .setDescription("Get duplications for a file. Requires Browse permission on file's project")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
       .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.DUPLICATIONS);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override

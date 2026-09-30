@@ -29,7 +29,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.compactJson;
 
 class GetFileCoverageDetailsToolTests {
 
@@ -59,7 +59,7 @@ class GetFileCoverageDetailsToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream()
@@ -72,105 +72,7 @@ class GetFileCoverageDetailsToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-        "type": "object",
-        "properties": {
-          "fileKey": {
-            "type": "string",
-            "description": "File component key"
-          },
-          "filePath": {
-            "type": "string",
-            "description": "File path"
-          },
-          "partiallyConditionalLines": {
-            "description": "List of lines with partially covered branches/conditions",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "coveredConditions": {
-                  "type": "integer",
-                  "description": "Number of conditions covered by tests"
-                },
-                "lineNumber": {
-                  "type": "integer",
-                  "description": "Line number (1-based)"
-                },
-                "totalConditions": {
-                  "type": "integer",
-                  "description": "Total number of conditions (branches) on this line"
-                },
-                "uncoveredConditions": {
-                  "type": "integer",
-                  "description": "Number of conditions not covered by tests"
-                }
-              },
-              "required": ["coveredConditions", "lineNumber", "totalConditions", "uncoveredConditions"]
-            }
-          },
-          "summary": {
-            "type": "object",
-            "properties": {
-              "branchCoveragePercent": {
-                "type": "number",
-                "description": "Branch coverage percentage"
-              },
-              "coverableLines": {
-                "type": "integer",
-                "description": "Number of coverable lines (executable code)"
-              },
-              "coveredConditions": {
-                "type": "integer",
-                "description": "Number of conditions covered by tests"
-              },
-              "coveredLines": {
-                "type": "integer",
-                "description": "Number of lines covered by tests"
-              },
-              "lineCoveragePercent": {
-                "type": "number",
-                "description": "Line coverage percentage"
-              },
-              "totalConditions": {
-                "type": "integer",
-                "description": "Total number of conditions (branches) to cover"
-              },
-              "totalLines": {
-                "type": "integer",
-                "description": "Total number of lines in the file"
-              },
-              "uncoveredConditions": {
-                "type": "integer",
-                "description": "Number of conditions not covered by tests"
-              },
-              "uncoveredLines": {
-                "type": "integer",
-                "description": "Number of lines not covered by tests"
-              }
-            },
-            "required": ["branchCoveragePercent", "coverableLines", "coveredConditions", "coveredLines", "lineCoveragePercent", "totalConditions", "totalLines", "uncoveredConditions", "uncoveredLines"],
-            "description": "Coverage summary for this file"
-          },
-          "uncoveredLines": {
-            "description": "List of uncovered lines (lines that have never been executed by tests)",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "lineNumber": {
-                  "type": "integer",
-                  "description": "Line number (1-based)"
-                }
-              },
-              "required": ["lineNumber"]
-            }
-          }
-        },
-        "required": ["fileKey", "partiallyConditionalLines", "summary", "uncoveredLines"]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested
@@ -216,7 +118,7 @@ class GetFileCoverageDetailsToolTests {
         Map.of("key", "my_project:src/Foo.java"));
 
       assertThat(result.isError()).isFalse();
-      var json = new com.google.gson.Gson().toJson(result.structuredContent());
+      var json = compactJson(result);
       assertThat(json).contains("\"fileKey\":\"my_project:src/Foo.java\"");
       assertThat(json).contains("\"filePath\":\"src/Foo.java\"");
       assertThat(json).contains("\"coverableLines\":8");
@@ -253,7 +155,7 @@ class GetFileCoverageDetailsToolTests {
         Map.of("key", "my_project:src/Bar.java"));
 
       assertThat(result.isError()).isFalse();
-      var json = new com.google.gson.Gson().toJson(result.structuredContent());
+      var json = compactJson(result);
       assertThat(json).contains("\"lineCoveragePercent\":100.0");
       assertThat(json).contains("\"branchCoveragePercent\":50.0");
       assertThat(json).contains("\"totalConditions\":2");
@@ -297,7 +199,7 @@ class GetFileCoverageDetailsToolTests {
         Map.of("key", "my_project:src/Empty.java"));
 
       assertThat(result.isError()).isFalse();
-      var json = new com.google.gson.Gson().toJson(result.structuredContent());
+      var json = compactJson(result);
       assertThat(json).contains("\"coverableLines\":0");
       assertThat(json).contains("\"lineCoveragePercent\":100.0");
     }
@@ -323,7 +225,7 @@ class GetFileCoverageDetailsToolTests {
         GetFileCoverageDetailsTool.TOOL_NAME,
         Map.of("key", "my_project:src/Test.java"));
 
-      var json = new com.google.gson.Gson().toJson(result.structuredContent());
+      var json = compactJson(result);
       // Only line 3 should be in partiallyConditionalLines (has actual branches with partial coverage)
       assertThat(json).contains("\"lineNumber\":3");
       // Line 2 should NOT be included (conditions=0, no actual branches)

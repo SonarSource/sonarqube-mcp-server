@@ -16,9 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.ScmResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -33,7 +34,13 @@ public class GetScmInfoTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetScmInfoTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(GetScmInfoToolResponse.class)
+    super(buildToolDefinition(),
+      ToolCategory.SOURCES);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool buildToolDefinition() {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube SCM Information")
       .setDescription("Get SCM information of source files. Requires See Source Code permission on file's project")
@@ -42,9 +49,7 @@ public class GetScmInfoTool extends Tool {
       .addNumberProperty(FROM_PROPERTY, "First line to return. Starts at 1")
       .addNumberProperty(TO_PROPERTY, "Last line to return (inclusive)")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.SOURCES);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override
