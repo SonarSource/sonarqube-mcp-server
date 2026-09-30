@@ -16,12 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -32,7 +33,13 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider) {
-    super(ToolMetadataBuilder.builder()
+    super(buildToolDefinition(),
+      ToolCategory.AGENTIC_READINESS);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool buildToolDefinition() {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get Agentic Readiness Assessment")
       .setDescription(
@@ -41,9 +48,7 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
           + "readiness level and a per-pillar breakdown, each with recommended actions and supporting evidence.")
       .addRequiredStringProperty("assessmentId", "The assessment ID returned by start_agentic_readiness_assessment.")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.AGENTIC_READINESS);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override

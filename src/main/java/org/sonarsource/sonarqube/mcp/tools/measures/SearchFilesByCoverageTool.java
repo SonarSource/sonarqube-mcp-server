@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.measures;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,7 +26,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.ComponentTreeParams;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentTreeResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -50,7 +51,14 @@ public class SearchFilesByCoverageTool extends Tool {
   private final String configuredProjectKey;
 
   public SearchFilesByCoverageTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(ToolMetadataBuilder.builder()
+    super(buildToolDefinition(configuredProjectKey),
+      ToolCategory.COVERAGE);
+    this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
+  }
+
+  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
+    return ToolDefinitionBuilder.builder()
         .setName(TOOL_NAME)
         .setTitle("Search SonarQube Files by Coverage")
         .setDescription("Search for files in a project sorted by coverage (ascending - worst coverage first). " +
@@ -61,10 +69,7 @@ public class SearchFilesByCoverageTool extends Tool {
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Page index (1-based, default: 1)")
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size (default: 100, max: 500)")
         .setReadOnlyHint()
-        .build(),
-      ToolCategory.COVERAGE);
-    this.serverApiProvider = serverApiProvider;
-    this.configuredProjectKey = configuredProjectKey;
+        .build();
   }
 
   @Override

@@ -16,9 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -31,16 +32,20 @@ public class AnalyzeFileListTool extends Tool {
   private final SonarQubeIdeBridgeClient bridgeClient;
 
   public AnalyzeFileListTool(SonarQubeIdeBridgeClient bridgeClient) {
-    super(ToolMetadataBuilder.builder()
+    super(buildToolDefinition(),
+      ToolCategory.ANALYSIS, ToolCategory.IDE);
+    this.bridgeClient = bridgeClient;
+  }
+
+  private static McpSchema.Tool buildToolDefinition() {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("SonarQube for IDE File Analysis")
       .setDescription("Analyze files in the current working directory using SonarQube for IDE. " +
         "This tool connects to a running SonarQube for IDE instance to perform code quality analysis on a list of files.")
       .addArrayProperty(FILE_ABSOLUTE_PATHS_PROPERTY, "string", "List of absolute file paths to analyze")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.ANALYSIS, ToolCategory.IDE);
-    this.bridgeClient = bridgeClient;
+      .build();
   }
 
   @Override

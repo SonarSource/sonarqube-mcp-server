@@ -20,7 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.response.BranchesListResponse;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -51,15 +51,15 @@ public class ListBranchesTool extends Tool {
   private final String configuredProjectKey;
 
   public ListBranchesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
-    super(createToolDefinition(isSonarQubeCloud, configuredProjectKey),
+    super(buildToolDefinition(isSonarQubeCloud, configuredProjectKey),
       ToolCategory.PROJECTS);
     this.serverApiProvider = serverApiProvider;
     this.isSonarQubeCloud = isSonarQubeCloud;
     this.configuredProjectKey = configuredProjectKey;
   }
 
-  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
-    var builder = ToolMetadataBuilder.builder();
+  private static McpSchema.Tool buildToolDefinition(boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
+    var builder = ToolDefinitionBuilder.builder();
 
     builder.setName(TOOL_NAME)
       .setTitle("List SonarQube Branches")

@@ -21,7 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -50,17 +50,17 @@ public class SearchIssuesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
-    super(createToolDefinition(isSonarQubeCloud),
+    super(buildToolDefinition(isSonarQubeCloud),
       ToolCategory.ISSUES);
     this.serverApiProvider = serverApiProvider;
   }
 
-  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
+  private static McpSchema.Tool buildToolDefinition(boolean isSonarQubeCloud) {
     var scope = isSonarQubeCloud ? "my organization's projects" : "my projects";
     var description = "Search for issues (bugs, vulnerabilities, code smells) in " + scope + ". " +
       "Filter by severities=['HIGH','BLOCKER'] for critical issues, impactSoftwareQualities=['SECURITY'] for security, issueStatuses=['OPEN'] to exclude resolved.";
     
-    return ToolMetadataBuilder.builder()
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues")
       .setDescription(description)

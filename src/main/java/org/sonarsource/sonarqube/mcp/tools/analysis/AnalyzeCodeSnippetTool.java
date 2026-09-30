@@ -35,7 +35,7 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -80,7 +80,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
     CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
-    super(buildTool(configuredProjectKey, configuredWorkspacePath), ToolCategory.ANALYSIS);
+    super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath), ToolCategory.ANALYSIS);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
     this.initializationFuture = initializationFuture;
@@ -88,9 +88,9 @@ public class AnalyzeCodeSnippetTool extends Tool {
     this.configuredWorkspacePath = configuredWorkspacePath;
   }
 
-  private static McpSchema.Tool buildTool(@Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
+  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
     var workspaceConfigured = configuredWorkspacePath != null;
-    var builder = ToolMetadataBuilder.builder()
+    var builder = ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("SonarQube Code Analysis")
       .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +

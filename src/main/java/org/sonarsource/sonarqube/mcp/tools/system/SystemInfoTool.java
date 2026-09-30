@@ -16,12 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.InfoResponse;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -32,15 +33,19 @@ public class SystemInfoTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemInfoTool(ServerApiProvider serverApiProvider) {
-    super(ToolMetadataBuilder.builder()
+    super(buildToolDefinition(),
+      ToolCategory.SYSTEM);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool buildToolDefinition() {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Information")
       .setDescription("Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. " +
         "Requires 'Administer' permissions.")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.SYSTEM);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override

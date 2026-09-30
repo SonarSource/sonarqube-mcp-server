@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 import jakarta.annotation.Nullable;
 
-public class ToolMetadataBuilder {
+public class ToolDefinitionBuilder {
 
   private static final String DESCRIPTION_KEY_NAME = "description";
   private static final String TYPE_PROPERTY_NAME = "type";
@@ -50,66 +50,66 @@ public class ToolMetadataBuilder {
   private String description;
   private boolean isReadOnly;
 
-  public ToolMetadataBuilder() {
+  public ToolDefinitionBuilder() {
     this.properties = new HashMap<>();
     this.requiredProperties = new ArrayList<>();
   }
 
-  public static ToolMetadataBuilder builder() {
-    return new ToolMetadataBuilder();
+  public static ToolDefinitionBuilder builder() {
+    return new ToolDefinitionBuilder();
   }
 
-  public ToolMetadataBuilder setName(String name) {
+  public ToolDefinitionBuilder setName(String name) {
     this.name = name;
     return this;
   }
 
-  public ToolMetadataBuilder setTitle(String title) {
+  public ToolDefinitionBuilder setTitle(String title) {
     this.title = title;
     return this;
   }
 
-  public ToolMetadataBuilder setDescription(String description) {
+  public ToolDefinitionBuilder setDescription(String description) {
     this.description = description;
     return this;
   }
 
-  public ToolMetadataBuilder addStringProperty(String propertyName, String description) {
+  public ToolDefinitionBuilder addStringProperty(String propertyName, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
     return this;
   }
 
-  public ToolMetadataBuilder addBranchAndPullRequestProperties() {
+  public ToolDefinitionBuilder addBranchAndPullRequestProperties() {
     return addStringProperty(BranchPullRequestContext.BRANCH_PROPERTY, BranchPullRequestContext.BRANCH_PROPERTY_DESCRIPTION)
       .addStringProperty(BranchPullRequestContext.PULL_REQUEST_PROPERTY, BranchPullRequestContext.PULL_REQUEST_PROPERTY_DESCRIPTION);
   }
 
-  public ToolMetadataBuilder addRequiredStringProperty(String propertyName, String description) {
+  public ToolDefinitionBuilder addRequiredStringProperty(String propertyName, String description) {
     addStringProperty(propertyName, description);
     requiredProperties.add(propertyName);
     return this;
   }
 
-  public ToolMetadataBuilder addBooleanProperty(String propertyName, String description) {
+  public ToolDefinitionBuilder addBooleanProperty(String propertyName, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, BOOLEAN_TYPE, DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
     return this;
   }
 
-  public ToolMetadataBuilder addNumberProperty(String propertyName, String description) {
+  public ToolDefinitionBuilder addNumberProperty(String propertyName, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, NUMBER_TYPE, DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
     return this;
   }
 
-  public ToolMetadataBuilder addArrayProperty(String propertyName, String itemsType, String description) {
+  public ToolDefinitionBuilder addArrayProperty(String propertyName, String itemsType, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, ARRAY_TYPE, DESCRIPTION_KEY_NAME, description, ITEMS_PROPERTY_NAME, Map.of(TYPE_PROPERTY_NAME, itemsType));
     properties.put(propertyName, content);
     return this;
   }
 
-  public ToolMetadataBuilder addEnumProperty(String propertyName, String[] items, String description) {
+  public ToolDefinitionBuilder addEnumProperty(String propertyName, String[] items, String description) {
     var content = new HashMap<String, Object>();
     content.put(TYPE_PROPERTY_NAME, STRING_TYPE);
     content.put(DESCRIPTION_KEY_NAME, description);
@@ -118,7 +118,7 @@ public class ToolMetadataBuilder {
     return this;
   }
 
-  public ToolMetadataBuilder addEnumArrayProperty(String propertyName, String[] items, String description) {
+  public ToolDefinitionBuilder addEnumArrayProperty(String propertyName, String[] items, String description) {
     var content = new HashMap<String, Object>();
     content.put(TYPE_PROPERTY_NAME, ARRAY_TYPE);
     content.put(DESCRIPTION_KEY_NAME, description);
@@ -127,7 +127,7 @@ public class ToolMetadataBuilder {
     return this;
   }
 
-  public ToolMetadataBuilder addRequiredEnumProperty(String propertyName, String[] items, String description) {
+  public ToolDefinitionBuilder addRequiredEnumProperty(String propertyName, String[] items, String description) {
     addEnumProperty(propertyName, items, description);
     requiredProperties.add(propertyName);
     return this;
@@ -139,7 +139,7 @@ public class ToolMetadataBuilder {
    * entirely — the configured default is used automatically at runtime.
    * When {@code null}, the property is added as a required parameter.
    */
-  public ToolMetadataBuilder addProjectKeyProperty(String propertyName, @Nullable String configuredProjectKey) {
+  public ToolDefinitionBuilder addProjectKeyProperty(String propertyName, @Nullable String configuredProjectKey) {
     if (configuredProjectKey != null) {
       return this;
     }
@@ -151,7 +151,7 @@ public class ToolMetadataBuilder {
    * When omitted at call time, a configured default may be applied at runtime; otherwise analysis
    * may proceed without a project-specific quality profile.
    */
-  public ToolMetadataBuilder addOptionalProjectKeyProperty(String propertyName, @Nullable String configuredProjectKey) {
+  public ToolDefinitionBuilder addOptionalProjectKeyProperty(String propertyName, @Nullable String configuredProjectKey) {
     var projectKeyDescription = configuredProjectKey != null
       ? OPTIONAL_PROJECT_KEY_WITH_DEFAULT_DESCRIPTION
       : OPTIONAL_PROJECT_KEY_WITHOUT_DEFAULT_DESCRIPTION;
@@ -161,7 +161,7 @@ public class ToolMetadataBuilder {
   /**
    * Marks this tool as read-only, indicating it only reads data and doesn't modify any state.
    */
-  public ToolMetadataBuilder setReadOnlyHint() {
+  public ToolDefinitionBuilder setReadOnlyHint() {
     this.isReadOnly = true;
     return this;
   }

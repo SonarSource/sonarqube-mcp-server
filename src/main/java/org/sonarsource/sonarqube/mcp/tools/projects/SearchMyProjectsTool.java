@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.projects;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -35,17 +35,17 @@ public class SearchMyProjectsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
-    super(createToolDefinition(isSonarQubeCloud),
+    super(buildToolDefinition(isSonarQubeCloud),
       ToolCategory.PROJECTS);
     this.serverApiProvider = serverApiProvider;
   }
 
-  private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
+  private static McpSchema.Tool buildToolDefinition(boolean isSonarQubeCloud) {
     var scope = isSonarQubeCloud ? "organization" : "instance";
     var description = "Find SonarQube projects in your " + scope + ". Supports searching by project name or key. " +
       "Use this first when projectKey is unknown - most other tools require the project key from this response.";
 
-    return ToolMetadataBuilder.builder()
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
       .setDescription(description)

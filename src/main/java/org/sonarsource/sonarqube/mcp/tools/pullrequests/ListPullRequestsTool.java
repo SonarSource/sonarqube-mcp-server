@@ -16,9 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.pullrequests;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -33,7 +34,14 @@ public class ListPullRequestsTool extends Tool {
   private final String configuredProjectKey;
 
   public ListPullRequestsTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(ToolMetadataBuilder.builder()
+    super(buildToolDefinition(configuredProjectKey),
+      ToolCategory.PROJECTS);
+    this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
+  }
+
+  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
+    return ToolDefinitionBuilder.builder()
         .setName(TOOL_NAME)
         .setTitle("List SonarQube Pull Requests")
         .setDescription("List all pull requests for a project. " +
@@ -42,10 +50,7 @@ public class ListPullRequestsTool extends Tool {
           "For branch-based analysis without pull requests, use list_branches instead.")
         .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
         .setReadOnlyHint()
-        .build(),
-      ToolCategory.PROJECTS);
-    this.serverApiProvider = serverApiProvider;
-    this.configuredProjectKey = configuredProjectKey;
+        .build();
   }
 
   @Override

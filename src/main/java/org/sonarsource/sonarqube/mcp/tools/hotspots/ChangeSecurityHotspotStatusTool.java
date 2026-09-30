@@ -16,8 +16,9 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -35,7 +36,13 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ChangeSecurityHotspotStatusTool(ServerApiProvider serverApiProvider) {
-    super(ToolMetadataBuilder.builder()
+    super(buildToolDefinition(),
+      ToolCategory.SECURITY_HOTSPOTS);
+    this.serverApiProvider = serverApiProvider;
+  }
+
+  private static McpSchema.Tool buildToolDefinition() {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Security Hotspot Status")
       .setDescription("""
@@ -50,9 +57,7 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
       .addRequiredEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "The new status of the Security Hotspot")
       .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "The resolution when status is REVIEWED. Required if status is REVIEWED")
       .addStringProperty(COMMENT_PROPERTY, "An optional comment explaining the review decision")
-      .build(),
-      ToolCategory.SECURITY_HOTSPOTS);
-    this.serverApiProvider = serverApiProvider;
+      .build();
   }
 
   @Override

@@ -16,12 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -41,7 +42,14 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
   private final String configuredProjectKey;
 
   public ListAgenticReadinessAssessmentsTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(ToolMetadataBuilder.builder()
+    super(buildToolDefinition(configuredProjectKey),
+      ToolCategory.AGENTIC_READINESS);
+    this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
+  }
+
+  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
+    return ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("List Agentic Readiness Assessments")
       .setDescription(
@@ -54,10 +62,7 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
       .addNumberProperty(PAGE_INDEX_PROPERTY, "1-based page index (default: 1).")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "Number of items per page, max 100 (default: 50).")
       .setReadOnlyHint()
-      .build(),
-      ToolCategory.AGENTIC_READINESS);
-    this.serverApiProvider = serverApiProvider;
-    this.configuredProjectKey = configuredProjectKey;
+      .build();
   }
 
   @Override

@@ -86,7 +86,7 @@ When adding or changing tools, check whether behavior or registration must diffe
 1. Create `FooTool.java` extending `Tool` in `tools/<domain>/`.
 2. Add `package-info.java` if creating a new package.
 3. Define `public static final String TOOL_NAME = "foo_action"` — snake_case, max 64 chars, MCP SEP-986 charset (`ToolNameValidator`).
-4. Build the input schema with `ToolMetadataBuilder.builder()`:
+4. Build the input schema with `ToolDefinitionBuilder.builder()`:
    - `.setTitle()` and `.setDescription()` — one or two short sentences: what the tool does and when to use it. No tutorials, examples, or repeated parameter detail (put that in parameter descriptions only).
    - Parameter descriptions (`.addStringProperty()`, etc.) — same rule: shortest text that clarifies format, valid values, or which other tool to call first.
    - `.addProjectKeyProperty()` when a project key is needed (respects `SONARQUBE_PROJECT_KEY` config).
