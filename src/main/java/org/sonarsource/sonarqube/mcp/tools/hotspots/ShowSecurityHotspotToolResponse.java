@@ -16,65 +16,64 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Nullable;
 import java.util.List;
 
 public record ShowSecurityHotspotToolResponse(
-  @JsonPropertyDescription("Unique Security Hotspot identifier") String key,
-  @JsonPropertyDescription("Component (file) where the Security Hotspot is located") String component,
-  @JsonPropertyDescription("Project key where the Security Hotspot was found") String project,
-  @JsonPropertyDescription("Security category (e.g., sql-injection, xss, weak-cryptography)") String securityCategory,
-  @JsonPropertyDescription("Vulnerability probability (HIGH, MEDIUM, LOW)") String vulnerabilityProbability,
-  @JsonPropertyDescription("Review status (TO_REVIEW, REVIEWED)") String status,
-  @Nullable @JsonPropertyDescription("Resolution when status is REVIEWED (FIXED, SAFE, ACKNOWLEDGED)") String resolution,
-  @Nullable @JsonPropertyDescription("Line number where the Security Hotspot is located") Integer line,
-  @JsonPropertyDescription("Security Hotspot description message") String message,
-  @Nullable @JsonPropertyDescription("User assigned to review the Security Hotspot") String assignee,
-  @Nullable @JsonPropertyDescription("Author who introduced the Security Hotspot") String author,
-  @JsonPropertyDescription("Date when the Security Hotspot was created") String creationDate,
-  @JsonPropertyDescription("Date when the Security Hotspot was last updated") String updateDate,
-  @Nullable @JsonPropertyDescription("Location of the Security Hotspot in the source file") TextRange textRange,
-  @JsonPropertyDescription("Code flows showing the path of the security-sensitive code") List<Flow> flows,
-  @JsonPropertyDescription("Comments on the Security Hotspot") List<Comment> comments,
-  @JsonPropertyDescription("Rule that triggered the Security Hotspot") Rule rule,
-  @JsonPropertyDescription("Whether the current user can change the Security Hotspot status") boolean canChangeStatus
+  String key,
+  String component,
+  String project,
+  String securityCategory,
+  String vulnerabilityProbability,
+  String status,
+  @Nullable String resolution,
+  @Nullable Integer line,
+  String message,
+  @Nullable String assignee,
+  @Nullable String author,
+  String creationDate,
+  String updateDate,
+  @Nullable TextRange textRange,
+  List<Flow> flows,
+  List<Comment> comments,
+  Rule rule,
+  boolean canChangeStatus
 ) {
 
   public record TextRange(
-    @JsonPropertyDescription("Starting line number") Integer startLine,
-    @JsonPropertyDescription("Ending line number") Integer endLine,
-    @JsonPropertyDescription("Starting offset in the line") Integer startOffset,
-    @JsonPropertyDescription("Ending offset in the line") Integer endOffset
+    Integer startLine,
+    Integer endLine,
+    Integer startOffset,
+    Integer endOffset
   ) {}
 
   public record Flow(
-    @JsonPropertyDescription("Locations in the flow") List<Location> locations
+    List<Location> locations
   ) {}
 
   public record Location(
-    @JsonPropertyDescription("Component where the location is") String component,
-    @JsonPropertyDescription("Text range of the location") TextRange textRange,
-    @JsonPropertyDescription("Message describing the location") String msg
+    String component,
+    TextRange textRange,
+    String msg
   ) {}
 
   public record Comment(
-    @JsonPropertyDescription("Comment identifier") String key,
-    @JsonPropertyDescription("Login of the user who wrote the comment") String login,
-    @JsonPropertyDescription("HTML-formatted comment text") String htmlText,
-    @JsonPropertyDescription("Markdown-formatted comment text") String markdown,
-    @JsonPropertyDescription("Whether the comment can be updated by the current user") boolean updatable,
-    @JsonPropertyDescription("Date when the comment was created") String createdAt
+    String key,
+    String login,
+    String htmlText,
+    String markdown,
+    boolean updatable,
+    String createdAt
   ) {}
 
   public record Rule(
-    @JsonPropertyDescription("Rule key") String key,
-    @JsonPropertyDescription("Rule name") String name,
-    @JsonPropertyDescription("Security category") String securityCategory,
-    @JsonPropertyDescription("Vulnerability probability") String vulnerabilityProbability,
-    @Nullable @JsonPropertyDescription("Description of the security risk") String riskDescription,
-    @Nullable @JsonPropertyDescription("Description of potential vulnerabilities") String vulnerabilityDescription,
-    @Nullable @JsonPropertyDescription("Recommendations for fixing the issue") String fixRecommendations
+    String key,
+    String name,
+    String securityCategory,
+    String vulnerabilityProbability,
+    @Nullable String riskDescription,
+    @Nullable String vulnerabilityDescription,
+    @Nullable String fixRecommendations
   ) {}
 
 }

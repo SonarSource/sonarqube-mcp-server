@@ -31,12 +31,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchMyProjectsToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SearchMyProjectsTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -47,66 +46,7 @@ class SearchMyProjectsToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "paging":{
-               "type":"object",
-               "properties":{
-                  "hasNextPage":{
-                     "type":"boolean",
-                     "description":"Whether there are more pages available"
-                  },
-                  "pageIndex":{
-                     "type":"integer",
-                     "description":"Current page index (1-based)"
-                  },
-                  "pageSize":{
-                     "type":"integer",
-                     "description":"Number of items per page"
-                  },
-                  "total":{
-                     "type":"integer",
-                     "description":"Total number of items across all pages"
-                  }
-               },
-               "required":[
-                  "hasNextPage",
-                  "pageIndex",
-                  "pageSize",
-                  "total"
-               ],
-               "description":"Pagination information for the results"
-            },
-            "projects":{
-               "description":"List of projects found",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "key":{
-                        "type":"string",
-                        "description":"Unique project key"
-                     },
-                     "name":{
-                        "type":"string",
-                        "description":"Project display name"
-                     }
-                  },
-                  "required":[
-                     "key",
-                     "name"
-                  ]
-               }
-            }
-         },
-         "required":[
-            "paging",
-            "projects"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested

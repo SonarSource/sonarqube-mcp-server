@@ -29,12 +29,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListPullRequestsToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListPullRequestsTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -45,52 +44,7 @@ class ListPullRequestsToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "projectKey":{
-               "description":"Project key",
-               "type":"string"
-            },
-            "totalPullRequests":{
-               "description":"Total number of pull requests",
-               "type":"integer"
-            },
-            "pullRequests":{
-               "description":"List of pull requests for this project",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "key":{
-                        "type":"string",
-                        "description":"Pull request key/ID that can be used with other tools as the pullRequest parameter"
-                     },
-                     "title":{
-                        "type":"string",
-                        "description":"Pull request title"
-                     },
-                     "branch":{
-                        "type":"string",
-                        "description":"Source branch name associated with this pull request"
-                     }
-                  },
-                  "required":[
-                     "branch",
-                     "key",
-                     "title"
-                  ]
-               }
-            }
-         },
-         "required":[
-            "projectKey",
-            "pullRequests",
-            "totalPullRequests"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @SonarQubeMcpServerTest

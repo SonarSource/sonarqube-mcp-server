@@ -30,12 +30,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchSecurityHotspotsToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SearchSecurityHotspotsTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -46,145 +45,7 @@ class SearchSecurityHotspotsToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "hotspots":{
-               "description":"List of Security Hotspots found in the search",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "assignee":{
-                        "type":"string",
-                        "description":"User assigned to review the Security Hotspot"
-                     },
-                     "author":{
-                        "type":"string",
-                        "description":"Author who introduced the Security Hotspot"
-                     },
-                     "component":{
-                        "type":"string",
-                        "description":"Component (file) where the Security Hotspot is located"
-                     },
-                     "creationDate":{
-                        "type":"string",
-                        "description":"Date when the Security Hotspot was created"
-                     },
-                     "key":{
-                        "type":"string",
-                        "description":"Unique Security Hotspot identifier"
-                     },
-                     "line":{
-                        "type":"integer",
-                        "description":"Line number where the Security Hotspot is located"
-                     },
-                     "message":{
-                        "type":"string",
-                        "description":"Security Hotspot description message"
-                     },
-                     "project":{
-                        "type":"string",
-                        "description":"Project key where the Security Hotspot was found"
-                     },
-                     "resolution":{
-                        "type":"string",
-                        "description":"Resolution when status is REVIEWED (FIXED, SAFE, ACKNOWLEDGED)"
-                     },
-                     "ruleKey":{
-                        "type":"string",
-                        "description":"Rule key that triggered this Security Hotspot"
-                     },
-                     "securityCategory":{
-                        "type":"string",
-                        "description":"Security category (e.g., sql-injection, xss, weak-cryptography)"
-                     },
-                     "status":{
-                        "type":"string",
-                        "description":"Review status (TO_REVIEW, REVIEWED)"
-                     },
-                     "textRange":{
-                        "type":"object",
-                        "properties":{
-                           "endLine":{
-                              "type":"integer",
-                              "description":"Ending line number"
-                           },
-                           "endOffset":{
-                              "type":"integer",
-                              "description":"Ending offset in the line"
-                           },
-                           "startLine":{
-                              "type":"integer",
-                              "description":"Starting line number"
-                           },
-                           "startOffset":{
-                              "type":"integer",
-                              "description":"Starting offset in the line"
-                           }
-                        },
-                        "required":[
-                           "endLine",
-                           "endOffset",
-                           "startLine",
-                           "startOffset"
-                        ],
-                        "description":"Location of the Security Hotspot in the source file"
-                     },
-                     "updateDate":{
-                        "type":"string",
-                        "description":"Date when the Security Hotspot was last updated"
-                     },
-                     "vulnerabilityProbability":{
-                        "type":"string",
-                        "description":"Vulnerability probability (HIGH, MEDIUM, LOW)"
-                     }
-                  },
-                  "required":[
-                     "author",
-                     "component",
-                     "creationDate",
-                     "key",
-                     "message",
-                     "project",
-                     "securityCategory",
-                     "status",
-                     "updateDate",
-                     "vulnerabilityProbability"
-                  ]
-               }
-            },
-            "paging":{
-               "type":"object",
-               "properties":{
-                  "pageIndex":{
-                     "type":"integer",
-                     "description":"Current page index (1-based)"
-                  },
-                  "pageSize":{
-                     "type":"integer",
-                     "description":"Number of items per page"
-                  },
-                  "total":{
-                     "type":"integer",
-                     "description":"Total number of items across all pages"
-                  }
-               },
-               "required":[
-                  "pageIndex",
-                  "pageSize",
-                  "total"
-               ],
-               "description":"Pagination information for the results"
-            }
-         },
-         "required":[
-            "hotspots",
-            "paging"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested

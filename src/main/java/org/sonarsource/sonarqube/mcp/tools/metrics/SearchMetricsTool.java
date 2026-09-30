@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.metrics;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.response.SearchMetricsResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -32,7 +32,7 @@ public class SearchMetricsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchMetricsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SearchMetricsToolResponse.class)
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Metrics")
       .setDescription("Search for available metrics")

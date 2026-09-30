@@ -12,10 +12,7 @@
   <logger name="org.eclipse.lsp4j.jsonrpc" level="error"/>
   <logger name="org.eclipse.jgit" level="info"/>
   <logger name="org.sonar.scm.git.blame" level="info"/>
-  
-  <!-- Suppress verbose JSON schema generator DEBUG logs -->
-  <logger name="com.github.victools.jsonschema.generator" level="warn"/>
-  
+
   <!-- Suppress database and schema migration logs -->
   <logger name="org.flywaydb" level="warn"/>
   <logger name="org.jooq" level="warn"/>

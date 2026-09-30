@@ -30,12 +30,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class GetDuplicationsToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(GetDuplicationsTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -46,81 +45,7 @@ class GetDuplicationsToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "duplications":{
-               "description":"List of duplication groups found",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "blocks":{
-                        "description":"List of code blocks involved in this duplication",
-                        "type":"array",
-                        "items":{
-                           "type":"object",
-                           "properties":{
-                              "fileKey":{
-                                 "type":"string",
-                                 "description":"File key"
-                              },
-                              "fileName":{
-                                 "type":"string",
-                                 "description":"File name"
-                              },
-                              "from":{
-                                 "type":"integer",
-                                 "description":"Starting line number"
-                              },
-                              "size":{
-                                 "type":"integer",
-                                 "description":"Number of lines"
-                              }
-                           },
-                           "required":[
-                              "fileKey",
-                              "fileName",
-                              "from",
-                              "size"
-                           ]
-                        }
-                     }
-                  },
-                  "required":[
-                     "blocks"
-                  ]
-               }
-            },
-            "files":{
-               "description":"Map of file references to file information",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "key":{
-                        "type":"string",
-                        "description":"File key"
-                     },
-                     "name":{
-                        "type":"string",
-                        "description":"File name"
-                     }
-                  },
-                  "required":[
-                     "key",
-                     "name"
-                  ]
-               }
-            }
-         },
-         "required":[
-            "duplications",
-            "files"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested
