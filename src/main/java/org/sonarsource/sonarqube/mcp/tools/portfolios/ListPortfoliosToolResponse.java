@@ -19,37 +19,36 @@ package org.sonarsource.sonarqube.mcp.tools.portfolios;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import jakarta.annotation.Nullable;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ListPortfoliosToolResponse(
-  @JsonPropertyDescription("List of portfolios") List<Portfolio> portfolios,
-  @JsonPropertyDescription("Pagination information") @Nullable Paging paging
+  List<Portfolio> portfolios,
+  @Nullable Paging paging
 ) {
   
   /**
    * Portfolio for SonarCloud
    */
   public record CloudPortfolio(
-    @JsonPropertyDescription("Portfolio unique identifier") String id,
-    @JsonPropertyDescription("Portfolio name") String name,
-    @JsonPropertyDescription("Portfolio description") @Nullable String description,
-    @JsonPropertyDescription("Enterprise unique identifier") @Nullable String enterpriseId,
-    @JsonPropertyDescription("Selection mode (manual, automatic, etc.)") @Nullable String selection,
-    @JsonPropertyDescription("Whether this is a draft portfolio") @Nullable Boolean isDraft,
-    @JsonPropertyDescription("Draft stage if portfolio is a draft") @Nullable Integer draftStage,
-    @JsonPropertyDescription("Portfolio tags") @Nullable List<String> tags
+    String id,
+    String name,
+    @Nullable String description,
+    @Nullable String enterpriseId,
+    @Nullable String selection,
+    @Nullable Boolean isDraft,
+    @Nullable Integer draftStage,
+    @Nullable List<String> tags
   ) implements Portfolio {}
   
   /**
    * Portfolio for SonarQube Server
    */
   public record ServerPortfolio(
-    @JsonPropertyDescription("Portfolio key") String key,
-    @JsonPropertyDescription("Portfolio name") String name,
-    @JsonPropertyDescription("Component qualifier") String qualifier,
-    @JsonPropertyDescription("Portfolio visibility") String visibility,
-    @JsonPropertyDescription("Whether this portfolio is marked as favorite") @Nullable Boolean isFavorite
+    String key,
+    String name,
+    String qualifier,
+    String visibility,
+    @Nullable Boolean isFavorite
   ) implements Portfolio {}
   
   /**
@@ -58,9 +57,9 @@ public record ListPortfoliosToolResponse(
   public sealed interface Portfolio permits CloudPortfolio, ServerPortfolio {}
   
   public record Paging(
-    @JsonPropertyDescription("Current page index (1-based)") int pageIndex,
-    @JsonPropertyDescription("Number of items per page") int pageSize,
-    @JsonPropertyDescription("Total number of items across all pages") int total
+    int pageIndex,
+    int pageSize,
+    int total
   ) {}
 }
 

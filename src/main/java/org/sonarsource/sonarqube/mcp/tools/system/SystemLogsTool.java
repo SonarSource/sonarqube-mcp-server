@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.system;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -30,7 +30,7 @@ public class SystemLogsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemLogsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SystemLogsToolResponse.class)
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Logs")
       .setDescription("Get SonarQube Server system logs in plain-text format. Requires system administration permission.")

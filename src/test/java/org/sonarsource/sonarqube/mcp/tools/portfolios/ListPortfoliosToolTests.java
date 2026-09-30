@@ -32,12 +32,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ListPortfoliosToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ListPortfoliosTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -48,46 +47,7 @@ class ListPortfoliosToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "paging":{
-               "type":"object",
-               "properties":{
-                  "pageIndex":{
-                     "type":"integer",
-                     "description":"Current page index (1-based)"
-                  },
-                  "pageSize":{
-                     "type":"integer",
-                     "description":"Number of items per page"
-                  },
-                  "total":{
-                     "type":"integer",
-                     "description":"Total number of items across all pages"
-                  }
-               },
-               "required":[
-                  "pageIndex",
-                  "pageSize",
-                  "total"
-               ],
-               "description":"Pagination information"
-            },
-            "portfolios":{
-               "description":"List of portfolios",
-               "type":"array",
-               "items":{
-                  "type":"object"
-               }
-            }
-         },
-         "required":[
-            "portfolios"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested
