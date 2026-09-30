@@ -23,13 +23,13 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Serializes tool response records to JSON text.
  */
-public class SchemaUtils {
+public class ToolResponseUtils {
 
   private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder()
     .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL))
     .build();
 
-  private SchemaUtils() {
+  private ToolResponseUtils() {
     // Static class
   }
 

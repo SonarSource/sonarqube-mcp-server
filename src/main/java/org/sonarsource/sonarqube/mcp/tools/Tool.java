@@ -305,7 +305,7 @@ public abstract class Tool {
     public static Result success(Record responseObject) {
       return new Result(McpSchema.CallToolResult.builder()
         .isError(false)
-        .addTextContent(SchemaUtils.toJsonString(responseObject))
+        .addTextContent(ToolResponseUtils.toJsonString(responseObject))
         .build());
     }
 

@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SchemaUtilsTests {
+class ToolResponseUtilsTests {
 
   public record SimpleRecord(String name, int age, boolean active) {}
 
@@ -40,7 +40,7 @@ class SchemaUtilsTests {
   @Test
   void it_should_serialize_record_to_json_string() {
     var output = new SimpleRecord("John Doe", 30, true);
-    var json = SchemaUtils.toJsonString(output);
+    var json = ToolResponseUtils.toJsonString(output);
 
     assertThat(json)
       .contains("\"name\" : \"John Doe\"")
@@ -51,7 +51,7 @@ class SchemaUtilsTests {
   @Test
   void it_should_serialize_record_to_pretty_json() {
     var output = new SimpleRecord("Test", 1, false);
-    var json = SchemaUtils.toJsonString(output);
+    var json = ToolResponseUtils.toJsonString(output);
 
     assertThat(json)
       .contains("\n")
@@ -61,7 +61,7 @@ class SchemaUtilsTests {
   @Test
   void it_should_exclude_null_fields_from_json_string() {
     var output = new RecordWithNullable("required", null, 42, null);
-    var json = SchemaUtils.toJsonString(output);
+    var json = ToolResponseUtils.toJsonString(output);
 
     assertThat(json)
       .contains("\"requiredField\" : \"required\"")
@@ -74,7 +74,7 @@ class SchemaUtilsTests {
   void it_should_serialize_nested_record_to_json_string() {
     var child = new SimpleRecord("Child", 5, true);
     var parent = new NestedRecord("Parent", child);
-    var json = SchemaUtils.toJsonString(parent);
+    var json = ToolResponseUtils.toJsonString(parent);
 
     assertThat(json)
       .contains("\"parentName\" : \"Parent\"")
@@ -91,7 +91,7 @@ class SchemaUtilsTests {
       List.of(1, 2, 3),
       List.of(new SimpleRecord("Test", 25, true))
     );
-    var json = SchemaUtils.toJsonString(output);
+    var json = ToolResponseUtils.toJsonString(output);
 
     assertThat(json)
       .contains("\"Alice\"")
@@ -104,7 +104,7 @@ class SchemaUtilsTests {
   @Test
   void it_should_serialize_empty_lists() {
     var output = new RecordWithList(List.of(), List.of(), List.of());
-    var json = SchemaUtils.toJsonString(output);
+    var json = ToolResponseUtils.toJsonString(output);
 
     assertThat(json)
       .contains("\"names\" : [ ]")
