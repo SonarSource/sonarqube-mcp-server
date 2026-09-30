@@ -20,7 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -42,7 +42,7 @@ public class ListWebhooksTool extends Tool {
     var scope = isSonarQubeCloud ? "organization or project" : "instance or project";
     var description = "List all webhooks for the " + scope + ". Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
 
-    return SchemaToolBuilder.forOutput()
+    return ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Webhooks")
       .setDescription(description)

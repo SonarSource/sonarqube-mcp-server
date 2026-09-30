@@ -22,7 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.response.DependencyRisksResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -43,7 +43,7 @@ public class SearchDependencyRisksTool extends Tool {
 
   public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker,
     @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput()
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +

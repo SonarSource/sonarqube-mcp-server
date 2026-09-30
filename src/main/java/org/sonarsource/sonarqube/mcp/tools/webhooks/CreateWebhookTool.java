@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -44,7 +44,7 @@ public class CreateWebhookTool extends Tool {
     var description = "Create a new webhook for the " + scope + ". " +
       "Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
     
-    return SchemaToolBuilder.forOutput()
+    return ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Create SonarQube Webhook")
       .setDescription(description)

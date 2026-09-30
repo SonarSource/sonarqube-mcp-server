@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.languages;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.languages.response.ListResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -30,7 +30,7 @@ public class ListLanguagesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListLanguagesTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput()
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Supported Languages")
       .setDescription("List all programming languages supported in this instance")

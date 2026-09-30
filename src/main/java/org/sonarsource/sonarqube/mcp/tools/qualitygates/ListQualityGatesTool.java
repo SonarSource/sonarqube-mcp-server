@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.qualitygates;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ListResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -29,7 +29,7 @@ public class ListQualityGatesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListQualityGatesTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput()
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Quality Gates")
       .setDescription("List all quality gates.")

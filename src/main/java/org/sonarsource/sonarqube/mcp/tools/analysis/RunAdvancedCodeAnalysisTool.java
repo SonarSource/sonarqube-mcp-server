@@ -26,7 +26,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationReque
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -56,7 +56,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   }
 
   private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey) {
-    var builder = SchemaToolBuilder.forOutput()
+    var builder = ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("SonarQube Vortex Code Analysis")
       .setDescription("Run Vortex analysis on a single file using the server-side engine. " +

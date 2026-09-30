@@ -21,7 +21,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.PortfoliosResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.views.response.SearchResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -46,7 +46,7 @@ public class ListPortfoliosTool extends Tool {
   }
 
   private static McpSchema.Tool createToolDefinition(boolean isSonarQubeCloud) {
-    var builder = SchemaToolBuilder.forOutput()
+    var builder = ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Portfolios");
       

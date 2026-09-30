@@ -20,7 +20,7 @@ import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.SourceLinesResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -34,7 +34,7 @@ public class GetFileCoverageDetailsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetFileCoverageDetailsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput()
+    super(ToolMetadataBuilder.builder()
         .setName(TOOL_NAME)
         .setTitle("Get SonarQube File Coverage Details")
         .setDescription("Get complete line-by-line coverage information for a file, " +

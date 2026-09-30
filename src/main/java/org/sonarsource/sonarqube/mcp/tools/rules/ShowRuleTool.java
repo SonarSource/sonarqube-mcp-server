@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.rules;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -31,7 +31,7 @@ public class ShowRuleTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ShowRuleTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput()
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Rule Details")
       .setDescription("Shows detailed information about a SonarQube rule.")

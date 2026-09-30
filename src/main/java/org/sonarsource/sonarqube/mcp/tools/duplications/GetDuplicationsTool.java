@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.duplications;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.duplications.response.DuplicationsResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -33,7 +33,7 @@ public class GetDuplicationsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetDuplicationsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput()
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Code Duplications")
       .setDescription("Get duplications for a file. Requires Browse permission on file's project")

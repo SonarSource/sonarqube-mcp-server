@@ -21,7 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.HotspotsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -48,7 +48,7 @@ public class SearchSecurityHotspotsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchSecurityHotspotsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput()
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Security Hotspots")
       .setDescription("Search for Security Hotspots in a project.")

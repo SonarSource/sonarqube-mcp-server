@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.sources;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.ScmResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -33,7 +33,7 @@ public class GetScmInfoTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetScmInfoTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput()
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube SCM Information")
       .setDescription("Get SCM information of source files. Requires See Source Code permission on file's project")

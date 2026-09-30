@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.pullrequests;
 
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -33,7 +33,7 @@ public class ListPullRequestsTool extends Tool {
   private final String configuredProjectKey;
 
   public ListPullRequestsTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput()
+    super(ToolMetadataBuilder.builder()
         .setName(TOOL_NAME)
         .setTitle("List SonarQube Pull Requests")
         .setDescription("List all pull requests for a project. " +
