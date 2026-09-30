@@ -35,11 +35,15 @@ public class SonarQubeMcpTestClient {
   }
 
   public static void assertResultEquals(McpSchema.CallToolResult actual, String expected) {
-    assertThat(JsonParser.parseString(gson.toJson(actual.structuredContent()))).isEqualTo(JsonParser.parseString(expected));
+    assertThat(JsonParser.parseString(textContent(actual))).isEqualTo(JsonParser.parseString(expected));
   }
 
-  public static void assertSchemaEquals(Map<String, Object> actual, String expected) {
-    assertThat(JsonParser.parseString(gson.toJson(actual))).isEqualTo(JsonParser.parseString(expected));
+  public static String compactJson(McpSchema.CallToolResult result) {
+    return gson.toJson(JsonParser.parseString(textContent(result)));
+  }
+
+  private static String textContent(McpSchema.CallToolResult result) {
+    return ((McpSchema.TextContent) result.content().getFirst()).text();
   }
 
   public static void assertMissingRequiredArgument(McpSchema.CallToolResult result, String argumentName) {

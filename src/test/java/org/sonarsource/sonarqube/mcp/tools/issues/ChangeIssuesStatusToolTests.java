@@ -30,7 +30,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertToolExecutionError;
 
 class ChangeIssuesStatusToolTests {
@@ -59,7 +58,7 @@ class ChangeIssuesStatusToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ChangeIssueStatusTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -70,35 +69,7 @@ class ChangeIssuesStatusToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "issueKey":{
-               "type":"string",
-               "description":"The key of the issue that was updated"
-            },
-            "message":{
-               "type":"string",
-               "description":"Success or error message"
-            },
-            "newStatus":{
-               "type":"string",
-               "description":"The new status of the issue"
-            },
-            "success":{
-               "type":"boolean",
-               "description":"Whether the operation was successful"
-            }
-         },
-         "required":[
-            "issueKey",
-            "message",
-            "newStatus",
-            "success"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested

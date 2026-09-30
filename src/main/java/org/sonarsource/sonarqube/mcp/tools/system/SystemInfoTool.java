@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.InfoResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -32,7 +32,7 @@ public class SystemInfoTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemInfoTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SystemInfoToolResponse.class)
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Information")
       .setDescription("Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. " +

@@ -16,19 +16,18 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.pullrequests;
 
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import java.util.List;
 
 public record ListPullRequestsToolResponse(
-  @JsonPropertyDescription("Project key") String projectKey,
-  @JsonPropertyDescription("Total number of pull requests") int totalPullRequests,
-  @JsonPropertyDescription("List of pull requests for this project") List<PullRequest> pullRequests
+  String projectKey,
+  int totalPullRequests,
+  List<PullRequest> pullRequests
 ) {
 
   public record PullRequest(
-    @JsonPropertyDescription("Pull request key/ID that can be used with other tools as the pullRequest parameter") String key,
-    @JsonPropertyDescription("Pull request title") String title,
-    @JsonPropertyDescription("Source branch name associated with this pull request") String branch
+    String key,
+    String title,
+    String branch
   ) {
   }
 }

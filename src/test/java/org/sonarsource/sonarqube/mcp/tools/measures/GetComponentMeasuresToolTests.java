@@ -32,12 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class GetComponentMeasuresToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(GetComponentMeasuresTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -48,126 +47,7 @@ class GetComponentMeasuresToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "component":{
-               "type":"object",
-               "properties":{
-                  "description":{
-                     "type":"string",
-                     "description":"Component description"
-                  },
-                  "key":{
-                     "type":"string",
-                     "description":"Component key"
-                  },
-                  "language":{
-                     "type":"string",
-                     "description":"Programming language"
-                  },
-                  "name":{
-                     "type":"string",
-                     "description":"Component display name"
-                  },
-                  "path":{
-                     "type":"string",
-                     "description":"Component path"
-                  },
-                  "qualifier":{
-                     "type":"string",
-                     "description":"Component qualifier (TRK for project, FIL for file, etc.)"
-                  }
-               },
-               "required":[
-                  "key",
-                  "name",
-                  "qualifier"
-               ],
-               "description":"Component information"
-            },
-            "measures":{
-               "description":"List of measures for the component",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "bestValue":{
-                        "type":"boolean",
-                        "description":"Whether this is the metric's best possible value"
-                     },
-                     "metric":{
-                        "type":"string",
-                        "description":"Metric key"
-                     },
-                     "period":{
-                        "type":"integer",
-                        "description":"New Code period index, present when value is a New Code metric"
-                     },
-                     "value":{
-                        "type":"string",
-                        "description":"Measure value"
-                     }
-                  },
-                  "required":[
-                     "metric"
-                  ]
-               }
-            },
-            "metrics":{
-               "description":"Metadata about the metrics",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "custom":{
-                        "type":"boolean",
-                        "description":"Whether this is a custom metric"
-                     },
-                     "description":{
-                        "type":"string",
-                        "description":"Metric description"
-                     },
-                     "domain":{
-                        "type":"string",
-                        "description":"Metric domain/category"
-                     },
-                     "hidden":{
-                        "type":"boolean",
-                        "description":"Whether the metric is hidden"
-                     },
-                     "key":{
-                        "type":"string",
-                        "description":"Metric key"
-                     },
-                     "name":{
-                        "type":"string",
-                        "description":"Metric display name"
-                     },
-                     "type":{
-                        "type":"string",
-                        "description":"Metric value type"
-                     }
-                  },
-                  "required":[
-                     "custom",
-                     "description",
-                     "domain",
-                     "hidden",
-                     "key",
-                     "name",
-                     "type"
-                  ]
-               }
-            }
-         },
-         "required":[
-            "component",
-            "measures"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested

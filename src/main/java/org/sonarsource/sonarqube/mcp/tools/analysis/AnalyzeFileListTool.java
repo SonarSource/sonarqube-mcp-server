@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -31,7 +31,7 @@ public class AnalyzeFileListTool extends Tool {
   private final SonarQubeIdeBridgeClient bridgeClient;
 
   public AnalyzeFileListTool(SonarQubeIdeBridgeClient bridgeClient) {
-    super(SchemaToolBuilder.forOutput(AnalyzeFileListToolResponse.class)
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("SonarQube for IDE File Analysis")
       .setDescription("Analyze files in the current working directory using SonarQube for IDE. " +
