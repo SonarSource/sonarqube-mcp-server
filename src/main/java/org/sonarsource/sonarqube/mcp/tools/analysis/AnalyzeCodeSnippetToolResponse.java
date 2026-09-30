@@ -19,28 +19,27 @@ import jakarta.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AnalyzeCodeSnippetToolResponse(
-  @JsonPropertyDescription("List of issues found in the code snippet") List<Issue> issues,
-  @JsonPropertyDescription("Total number of issues") int issueCount,
-  @JsonPropertyDescription("Deprecation notice for this tool") String deprecationNotice
+  List<Issue> issues,
+  int issueCount,
+  String deprecationNotice
 ) {
   
   public record Issue(
-    @JsonPropertyDescription("Rule key that triggered the issue") String ruleKey,
-    @JsonPropertyDescription("Primary issue message") String primaryMessage,
-    @JsonPropertyDescription("Issue severity level") String severity,
-    @JsonPropertyDescription("Clean code attribute") String cleanCodeAttribute,
-    @JsonPropertyDescription("Software quality impacts") String impacts,
-    @JsonPropertyDescription("Whether quick fixes are available") boolean hasQuickFixes,
-    @JsonPropertyDescription("Location in the code") @Nullable TextRange textRange
+    String ruleKey,
+    String primaryMessage,
+    String severity,
+    String cleanCodeAttribute,
+    String impacts,
+    boolean hasQuickFixes,
+    @Nullable TextRange textRange
   ) {}
   
   public record TextRange(
-    @JsonPropertyDescription("Starting line number") int startLine,
-    @JsonPropertyDescription("Ending line number") int endLine
+    int startLine,
+    int endLine
   ) {}
 }
 

@@ -19,27 +19,26 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import jakarta.annotation.Nullable;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SystemHealthToolResponse(
-  @JsonPropertyDescription("Overall health status of the system") String health,
-  @JsonPropertyDescription("List of health issues, if any") @Nullable List<Cause> causes,
-  @JsonPropertyDescription("List of cluster nodes with their health status") @Nullable List<Node> nodes
+  String health,
+  @Nullable List<Cause> causes,
+  @Nullable List<Node> nodes
 ) {
   
   public record Cause(
-    @JsonPropertyDescription("Description of the health issue") String message
+    String message
   ) {}
   
   public record Node(
-    @JsonPropertyDescription("Node name") String name,
-    @JsonPropertyDescription("Node type (APPLICATION, SEARCH, etc.)") String type,
-    @JsonPropertyDescription("Health status of this node") String health,
-    @JsonPropertyDescription("Host address") String host,
-    @JsonPropertyDescription("Port number") int port,
-    @JsonPropertyDescription("Timestamp when the node started") String startedAt,
-    @JsonPropertyDescription("List of node-specific health issues") @Nullable List<Cause> causes
+    String name,
+    String type,
+    String health,
+    String host,
+    int port,
+    String startedAt,
+    @Nullable List<Cause> causes
   ) {}
 }
 

@@ -32,12 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class CreateWebhookToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(CreateWebhookTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -48,35 +47,7 @@ class CreateWebhookToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "hasSecret":{
-               "type":"boolean",
-               "description":"Whether the webhook has a secret"
-            },
-            "key":{
-               "type":"string",
-               "description":"The created webhook key"
-            },
-            "name":{
-               "type":"string",
-               "description":"The webhook name"
-            },
-            "url":{
-               "type":"string",
-               "description":"The webhook URL"
-            }
-         },
-         "required":[
-            "hasSecret",
-            "key",
-            "name",
-            "url"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   private static final String URL = "https://example.com/webhook";

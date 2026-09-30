@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.sources;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -32,7 +32,7 @@ public class GetRawSourceTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetRawSourceTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(GetRawSourceToolResponse.class)
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Raw Source Code")
       .setDescription("Get source code as raw text. Requires 'See Source Code' permission on file.")

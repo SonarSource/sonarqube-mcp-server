@@ -16,43 +16,42 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Nullable;
 import java.util.List;
 
 public record SearchSecurityHotspotsToolResponse(
-  @JsonPropertyDescription("List of Security Hotspots found in the search") List<Hotspot> hotspots,
-  @JsonPropertyDescription("Pagination information for the results") Paging paging) {
+  List<Hotspot> hotspots,
+  Paging paging) {
 
   public record Hotspot(
-    @JsonPropertyDescription("Unique Security Hotspot identifier") String key,
-    @JsonPropertyDescription("Component (file) where the Security Hotspot is located") String component,
-    @JsonPropertyDescription("Project key where the Security Hotspot was found") String project,
-    @JsonPropertyDescription("Security category (e.g., sql-injection, xss, weak-cryptography)") String securityCategory,
-    @JsonPropertyDescription("Vulnerability probability (HIGH, MEDIUM, LOW)") String vulnerabilityProbability,
-    @JsonPropertyDescription("Review status (TO_REVIEW, REVIEWED)") String status,
-    @Nullable @JsonPropertyDescription("Resolution when status is REVIEWED (FIXED, SAFE, ACKNOWLEDGED)") String resolution,
-    @Nullable @JsonPropertyDescription("Line number where the Security Hotspot is located") Integer line,
-    @JsonPropertyDescription("Security Hotspot description message") String message,
-    @Nullable @JsonPropertyDescription("User assigned to review the Security Hotspot") String assignee,
-    @JsonPropertyDescription("Author who introduced the Security Hotspot") String author,
-    @JsonPropertyDescription("Date when the Security Hotspot was created") String creationDate,
-    @JsonPropertyDescription("Date when the Security Hotspot was last updated") String updateDate,
-    @Nullable @JsonPropertyDescription("Location of the Security Hotspot in the source file") TextRange textRange,
-    @Nullable @JsonPropertyDescription("Rule key that triggered this Security Hotspot") String ruleKey
+    String key,
+    String component,
+    String project,
+    String securityCategory,
+    String vulnerabilityProbability,
+    String status,
+    @Nullable String resolution,
+    @Nullable Integer line,
+    String message,
+    @Nullable String assignee,
+    String author,
+    String creationDate,
+    String updateDate,
+    @Nullable TextRange textRange,
+    @Nullable String ruleKey
   ) {}
 
   public record TextRange(
-    @JsonPropertyDescription("Starting line number") Integer startLine,
-    @JsonPropertyDescription("Ending line number") Integer endLine,
-    @JsonPropertyDescription("Starting offset in the line") Integer startOffset,
-    @JsonPropertyDescription("Ending offset in the line") Integer endOffset
+    Integer startLine,
+    Integer endLine,
+    Integer startOffset,
+    Integer endOffset
   ) {}
 
   public record Paging(
-    @JsonPropertyDescription("Current page index (1-based)") Integer pageIndex,
-    @JsonPropertyDescription("Number of items per page") Integer pageSize,
-    @JsonPropertyDescription("Total number of items across all pages") Integer total
+    Integer pageIndex,
+    Integer pageSize,
+    Integer total
   ) {}
 
 }
