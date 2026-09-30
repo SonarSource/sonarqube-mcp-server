@@ -17,20 +17,11 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.github.victools.jsonschema.generator.OptionPreset;
-import com.github.victools.jsonschema.generator.SchemaGenerator;
-import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder;
-import com.github.victools.jsonschema.generator.SchemaVersion;
-import com.github.victools.jsonschema.module.jackson.JacksonOption;
-import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
-import jakarta.annotation.Nullable;
-import java.util.Map;
 
 /**
- * Utility class for generating JSON schemas from Java classes and serializing objects.
- * Uses jsonschema-generator library for schema generation.
+ * Serializes tool response records to JSON text.
  */
 public class SchemaUtils {
 
@@ -38,33 +29,8 @@ public class SchemaUtils {
     .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL))
     .build();
 
-  private static final SchemaGenerator SCHEMA_GENERATOR;
-
-  static {
-    var configBuilder = new SchemaGeneratorConfigBuilder(SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
-      .with(new JacksonSchemaModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED));
-    configBuilder.forFields()
-      .withRequiredCheck(field -> field.getAnnotationConsideringFieldAndGetter(Nullable.class) == null);
-    configBuilder.forMethods()
-      .withRequiredCheck(method -> method.getAnnotationConsideringFieldAndGetter(Nullable.class) == null);
-    SCHEMA_GENERATOR = new SchemaGenerator(configBuilder.build());
-  }
-
   private SchemaUtils() {
     // Static class
-  }
-
-  @SuppressWarnings("unchecked")
-  public static Map<String, Object> generateOutputSchema(Class<? extends Record> clazz) {
-    var schemaNode = SCHEMA_GENERATOR.generateSchema(clazz);
-    var schema = OBJECT_MAPPER.convertValue(schemaNode, Map.class);
-    schema.remove("$schema");
-    return schema;
-  }
-
-  @SuppressWarnings("unchecked")
-  public static Map<String, Object> toStructuredContent(Record obj) {
-    return OBJECT_MAPPER.convertValue(obj, Map.class);
   }
 
   public static String toJsonString(Record response) {
@@ -76,4 +42,3 @@ public class SchemaUtils {
   }
 
 }
-

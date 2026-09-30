@@ -19,29 +19,28 @@ package org.sonarsource.sonarqube.mcp.tools.qualitygates;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.annotation.Nullable;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ListQualityGatesToolResponse(
-  @JsonPropertyDescription("List of quality gates") List<QualityGate> qualityGates
+  List<QualityGate> qualityGates
 ) {
   
   public record QualityGate(
-    @JsonPropertyDescription("Quality gate ID") @Nullable Long id,
-    @JsonPropertyDescription("Quality gate name") String name,
-    @JsonPropertyDescription("Whether this is the default quality gate") boolean isDefault,
-    @JsonPropertyDescription("Whether this is a built-in quality gate") boolean isBuiltIn,
-    @JsonPropertyDescription("List of conditions") @Nullable List<Condition> conditions,
-    @JsonPropertyDescription("Clean as You Code status") @Nullable String caycStatus,
-    @JsonPropertyDescription("Whether it has standard conditions") @Nullable Boolean hasStandardConditions,
-    @JsonPropertyDescription("Whether it has MQR conditions") @Nullable Boolean hasMQRConditions,
-    @JsonPropertyDescription("Whether AI code is supported") @Nullable Boolean isAiCodeSupported
+    @Nullable Long id,
+    String name,
+    boolean isDefault,
+    boolean isBuiltIn,
+    @Nullable List<Condition> conditions,
+    @Nullable String caycStatus,
+    @Nullable Boolean hasStandardConditions,
+    @Nullable Boolean hasMQRConditions,
+    @Nullable Boolean isAiCodeSupported
   ) {}
   
   public record Condition(
-    @JsonPropertyDescription("Metric key") String metric,
-    @JsonPropertyDescription("Comparison operator") String op,
-    @JsonPropertyDescription("Error threshold") int error
+    String metric,
+    String op,
+    int error
   ) {}
 }
 

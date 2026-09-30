@@ -32,12 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class GetScmInfoToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(GetScmInfoTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -48,47 +47,7 @@ class GetScmInfoToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "scmLines":{
-               "description":"SCM information for each line",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "author":{
-                        "type":"string",
-                        "description":"Author who last modified this line"
-                     },
-                     "datetime":{
-                        "type":"string",
-                        "description":"Date and time of last modification"
-                     },
-                     "lineNumber":{
-                        "type":"integer",
-                        "description":"Line number in the file"
-                     },
-                     "revision":{
-                        "type":"string",
-                        "description":"SCM revision/commit identifier"
-                     }
-                  },
-                  "required":[
-                     "author",
-                     "datetime",
-                     "lineNumber",
-                     "revision"
-                  ]
-               }
-            }
-         },
-         "required":[
-            "scmLines"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested

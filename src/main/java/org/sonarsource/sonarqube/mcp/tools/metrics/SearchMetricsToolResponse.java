@@ -18,24 +18,23 @@ package org.sonarsource.sonarqube.mcp.tools.metrics;
 
 import java.util.List;
 import jakarta.annotation.Nullable;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 public record SearchMetricsToolResponse(
-  @JsonPropertyDescription("List of metrics matching the search") List<Metric> metrics,
-  @JsonPropertyDescription("Total number of metrics") int total,
-  @JsonPropertyDescription("Current page number") int page,
-  @JsonPropertyDescription("Number of items per page") int pageSize
+  List<Metric> metrics,
+  int total,
+  int page,
+  int pageSize
 ) {
   
   public record Metric(
-    @JsonPropertyDescription("Metric unique identifier") String id,
-    @JsonPropertyDescription("Metric key") String key,
-    @JsonPropertyDescription("Metric display name") String name,
-    @Nullable @JsonPropertyDescription("Metric description") String description,
-    @Nullable @JsonPropertyDescription("Metric domain/category") String domain,
-    @JsonPropertyDescription("Metric value type") String type,
-    @JsonPropertyDescription("Whether the metric is hidden") boolean hidden,
-    @JsonPropertyDescription("Whether this is a custom metric") boolean custom
+    String id,
+    String key,
+    String name,
+    @Nullable String description,
+    @Nullable String domain,
+    String type,
+    boolean hidden,
+    boolean custom
   ) {}
 }
 

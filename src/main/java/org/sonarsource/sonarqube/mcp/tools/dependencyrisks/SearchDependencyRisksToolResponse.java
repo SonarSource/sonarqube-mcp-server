@@ -19,43 +19,42 @@ package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.annotation.Nullable;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SearchDependencyRisksToolResponse(
-  @JsonPropertyDescription("List of dependency risk issues") List<IssueRelease> issuesReleases,
-  @JsonPropertyDescription("Pagination information for the results") Paging paging
+  List<IssueRelease> issuesReleases,
+  Paging paging
 ) {
   
   public record IssueRelease(
-    @JsonPropertyDescription("Issue unique key") String key,
-    @JsonPropertyDescription("Issue severity level") String severity,
-    @JsonPropertyDescription("Issue type") String type,
-    @JsonPropertyDescription("Software quality dimension") String quality,
-    @JsonPropertyDescription("Issue status") String status,
-    @JsonPropertyDescription("Creation timestamp") String createdAt,
-    @JsonPropertyDescription("CVE or vulnerability identifier") @Nullable String vulnerabilityId,
-    @JsonPropertyDescription("CVSS score") @Nullable String cvssScore,
-    @JsonPropertyDescription("Dependency release information") @Nullable Release release,
-    @JsonPropertyDescription("Issue assignee") @Nullable Assignee assignee
+    String key,
+    String severity,
+    String type,
+    String quality,
+    String status,
+    String createdAt,
+    @Nullable String vulnerabilityId,
+    @Nullable String cvssScore,
+    @Nullable Release release,
+    @Nullable Assignee assignee
   ) {}
   
   public record Release(
-    @JsonPropertyDescription("Package name") String packageName,
-    @JsonPropertyDescription("Package version") String version,
-    @JsonPropertyDescription("Package manager (npm, maven, etc.)") String packageManager,
-    @JsonPropertyDescription("Whether this dependency was newly introduced") @Nullable Boolean newlyIntroduced,
-    @JsonPropertyDescription("Direct dependency summary") @Nullable Boolean directSummary
+    String packageName,
+    String version,
+    String packageManager,
+    @Nullable Boolean newlyIntroduced,
+    @Nullable Boolean directSummary
   ) {}
   
   public record Assignee(
-    @JsonPropertyDescription("Assignee name") String name
+    String name
   ) {}
 
   public record Paging(
-    @JsonPropertyDescription("Current page index (1-based)") int pageIndex,
-    @JsonPropertyDescription("Number of items per page") int pageSize,
-    @JsonPropertyDescription("Total number of items across all pages") int total
+    int pageIndex,
+    int pageSize,
+    int total
   ) {}
 }
 
