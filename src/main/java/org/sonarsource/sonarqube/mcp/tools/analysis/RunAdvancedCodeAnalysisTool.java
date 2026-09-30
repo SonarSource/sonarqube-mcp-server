@@ -49,13 +49,13 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private final Path configuredWorkspacePath;
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath) {
-    super(buildSchema(configuredProjectKey), ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
+    super(buildTool(configuredProjectKey), ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;
   }
 
-  private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey) {
+  private static McpSchema.Tool buildTool(@Nullable String configuredProjectKey) {
     var builder = ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("SonarQube Vortex Code Analysis")
