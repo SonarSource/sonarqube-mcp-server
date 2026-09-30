@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.measures;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -51,14 +50,7 @@ public class SearchFilesByCoverageTool extends Tool {
   private final String configuredProjectKey;
 
   public SearchFilesByCoverageTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(buildToolDefinition(configuredProjectKey),
-      ToolCategory.COVERAGE);
-    this.serverApiProvider = serverApiProvider;
-    this.configuredProjectKey = configuredProjectKey;
-  }
-
-  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
         .setName(TOOL_NAME)
         .setTitle("Search SonarQube Files by Coverage")
         .setDescription("Search for files in a project sorted by coverage (ascending - worst coverage first). " +
@@ -69,7 +61,10 @@ public class SearchFilesByCoverageTool extends Tool {
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Page index (1-based, default: 1)")
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size (default: 100, max: 500)")
         .setReadOnlyHint()
-        .build();
+        .build(),
+      ToolCategory.COVERAGE);
+    this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override

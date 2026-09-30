@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.rules;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
@@ -32,19 +31,15 @@ public class ShowRuleTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ShowRuleTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(),
-      ToolCategory.RULES);
-    this.serverApiProvider = serverApiProvider;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Rule Details")
       .setDescription("Shows detailed information about a SonarQube rule.")
       .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)")
       .setReadOnlyHint()
-      .build();
+      .build(),
+      ToolCategory.RULES);
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override

@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.duplications;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
 import java.util.List;
 import jakarta.annotation.Nullable;
@@ -57,14 +56,7 @@ public class SearchDuplicatedFilesTool extends Tool {
   private final String configuredProjectKey;
 
   public SearchDuplicatedFilesTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(buildToolDefinition(configuredProjectKey),
-      ToolCategory.DUPLICATIONS);
-    this.serverApiProvider = serverApiProvider;
-    this.configuredProjectKey = configuredProjectKey;
-  }
-
-  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
         .setName(TOOL_NAME)
         .setTitle("Search SonarQube Files With Duplications")
         .setDescription("Search for files with code duplications in a project. " +
@@ -76,7 +68,10 @@ public class SearchDuplicatedFilesTool extends Tool {
         .addNumberProperty(PAGE_INDEX_PROPERTY, "Optional: Page number for manual pagination (starts at 1). " +
           "If not specified, auto-fetches all duplicated files.")
         .setReadOnlyHint()
-        .build();
+        .build(),
+      ToolCategory.DUPLICATIONS);
+    this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override

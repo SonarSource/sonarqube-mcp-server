@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.metrics;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.response.SearchMetricsResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -33,20 +32,16 @@ public class SearchMetricsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchMetricsTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(),
-      ToolCategory.MEASURES);
-    this.serverApiProvider = serverApiProvider;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Metrics")
       .setDescription("Search for available metrics")
       .addNumberProperty(PAGE_INDEX_PROPERTY, "1-based page index (default: 1)")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size. Must be greater than 0 and less than or equal to 500 (default: 100)")
       .setReadOnlyHint()
-      .build();
+      .build(),
+      ToolCategory.MEASURES);
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override

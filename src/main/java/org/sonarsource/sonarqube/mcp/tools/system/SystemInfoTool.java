@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Map;
@@ -33,19 +32,15 @@ public class SystemInfoTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemInfoTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(),
-      ToolCategory.SYSTEM);
-    this.serverApiProvider = serverApiProvider;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Information")
       .setDescription("Get detailed information about SonarQube Server system configuration including JVM state, database, search indexes, and settings. " +
         "Requires 'Administer' permissions.")
       .setReadOnlyHint()
-      .build();
+      .build(),
+      ToolCategory.SYSTEM);
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override

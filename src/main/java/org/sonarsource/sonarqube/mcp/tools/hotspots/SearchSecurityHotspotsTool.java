@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.HotspotsApi;
@@ -49,13 +48,7 @@ public class SearchSecurityHotspotsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SearchSecurityHotspotsTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(),
-      ToolCategory.SECURITY_HOTSPOTS);
-    this.serverApiProvider = serverApiProvider;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Security Hotspots")
       .setDescription("Search for Security Hotspots in a project.")
@@ -70,7 +63,9 @@ public class SearchSecurityHotspotsTool extends Tool {
       .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional 1-based page index. Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
-      .build();
+      .build(),
+      ToolCategory.SECURITY_HOTSPOTS);
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override

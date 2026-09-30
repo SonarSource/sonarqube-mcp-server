@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Collections;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -33,19 +32,15 @@ public class ShowSecurityHotspotTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ShowSecurityHotspotTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(),
-      ToolCategory.SECURITY_HOTSPOTS);
-    this.serverApiProvider = serverApiProvider;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Security Hotspot Details")
       .setDescription("Get detailed information about a specific Security Hotspot, including rule details, code context, flows, and comments.")
       .addRequiredStringProperty(HOTSPOT_KEY_PROPERTY, "The key of the Security Hotspot to retrieve")
       .setReadOnlyHint()
-      .build();
+      .build(),
+      ToolCategory.SECURITY_HOTSPOTS);
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override

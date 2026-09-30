@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -33,20 +32,16 @@ public class GetRawSourceTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetRawSourceTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(),
-      ToolCategory.SOURCES);
-    this.serverApiProvider = serverApiProvider;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Raw Source Code")
       .setDescription("Get source code as raw text. Requires 'See Source Code' permission on file.")
       .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.php)")
       .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
-      .build();
+      .build(),
+      ToolCategory.SOURCES);
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override

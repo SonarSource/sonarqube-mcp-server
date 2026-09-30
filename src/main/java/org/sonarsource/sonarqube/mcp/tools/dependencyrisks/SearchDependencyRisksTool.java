@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.dependencyrisks;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -44,15 +43,7 @@ public class SearchDependencyRisksTool extends Tool {
 
   public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker,
     @Nullable String configuredProjectKey) {
-    super(buildToolDefinition(configuredProjectKey),
-      ToolCategory.DEPENDENCY_RISKS);
-    this.serverApiProvider = serverApiProvider;
-    this.sonarQubeVersionChecker = sonarQubeVersionChecker;
-    this.configuredProjectKey = configuredProjectKey;
-  }
-
-  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +
@@ -62,7 +53,11 @@ public class SearchDependencyRisksTool extends Tool {
       .addNumberProperty(PAGE_INDEX_PROPERTY, "An optional page index (1-based). Defaults to 1.")
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
-      .build();
+      .build(),
+      ToolCategory.DEPENDENCY_RISKS);
+    this.serverApiProvider = serverApiProvider;
+    this.sonarQubeVersionChecker = sonarQubeVersionChecker;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override

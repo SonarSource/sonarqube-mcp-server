@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.sources;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.SourceLinesResponse;
@@ -35,13 +34,7 @@ public class GetFileCoverageDetailsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetFileCoverageDetailsTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(),
-      ToolCategory.COVERAGE);
-    this.serverApiProvider = serverApiProvider;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
         .setName(TOOL_NAME)
         .setTitle("Get SonarQube File Coverage Details")
         .setDescription("Get complete line-by-line coverage information for a file, " +
@@ -51,7 +44,9 @@ public class GetFileCoverageDetailsTool extends Tool {
         .addRequiredStringProperty(KEY_PROPERTY, "File key (e.g. my_project:src/foo/Bar.java)")
         .addBranchAndPullRequestProperties()
         .setReadOnlyHint()
-        .build();
+        .build(),
+      ToolCategory.COVERAGE);
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override

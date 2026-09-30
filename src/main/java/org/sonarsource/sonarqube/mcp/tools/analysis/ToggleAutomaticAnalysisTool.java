@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -30,20 +29,16 @@ public class ToggleAutomaticAnalysisTool extends Tool {
   private final SonarQubeIdeBridgeClient bridgeClient;
 
   public ToggleAutomaticAnalysisTool(SonarQubeIdeBridgeClient bridgeClient) {
-    super(buildToolDefinition(),
-      ToolCategory.ANALYSIS, ToolCategory.IDE);
-    this.bridgeClient = bridgeClient;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Toggle SonarQube for IDE Automatic Analysis")
       .setDescription("Enable or disable SonarQube for IDE automatic analysis. " +
         "When enabled, SonarQube for IDE will automatically analyze files as they are modified in the working directory. " +
         "When disabled, automatic analysis is turned off.")
       .addBooleanProperty(ENABLED_PROPERTY, "Enable or disable the automatic analysis")
-      .build();
+      .build(),
+      ToolCategory.ANALYSIS, ToolCategory.IDE);
+    this.bridgeClient = bridgeClient;
   }
 
   @Override

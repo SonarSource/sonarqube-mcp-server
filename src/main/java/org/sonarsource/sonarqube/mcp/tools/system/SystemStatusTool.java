@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.system;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -29,18 +28,14 @@ public class SystemStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemStatusTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(),
-      ToolCategory.SYSTEM);
-    this.serverApiProvider = serverApiProvider;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Status")
       .setDescription("Get state information about SonarQube Server. Returns status (STARTING, UP, DOWN, RESTARTING, DB_MIGRATION_NEEDED, DB_MIGRATION_RUNNING), version, and id.")
       .setReadOnlyHint()
-      .build();
+      .build(),
+      ToolCategory.SYSTEM);
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override

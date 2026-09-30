@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import jakarta.annotation.Nullable;
@@ -33,13 +32,7 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(),
-      ToolCategory.AGENTIC_READINESS);
-    this.serverApiProvider = serverApiProvider;
-  }
-
-  private static McpSchema.Tool buildToolDefinition() {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get Agentic Readiness Assessment")
       .setDescription(
@@ -48,7 +41,9 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
           + "readiness level and a per-pillar breakdown, each with recommended actions and supporting evidence.")
       .addRequiredStringProperty("assessmentId", "The assessment ID returned by start_agentic_readiness_assessment.")
       .setReadOnlyHint()
-      .build();
+      .build(),
+      ToolCategory.AGENTIC_READINESS);
+    this.serverApiProvider = serverApiProvider;
   }
 
   @Override

@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
@@ -37,14 +36,7 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
   private final String configuredProjectKey;
 
   public StartAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(buildToolDefinition(configuredProjectKey),
-      ToolCategory.AGENTIC_READINESS);
-    this.serverApiProvider = serverApiProvider;
-    this.configuredProjectKey = configuredProjectKey;
-  }
-
-  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
-    return ToolDefinitionBuilder.builder()
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Start Agentic Readiness Assessment")
       .setDescription(
@@ -53,7 +45,10 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
           + "an assessmentId — use get_agentic_readiness_assessment with that ID to poll for results.")
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
       .addStringProperty(BRANCH_PROPERTY, "Branch to assess. Omit to use the project's default branch.")
-      .build();
+      .build(),
+      ToolCategory.AGENTIC_READINESS);
+    this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
