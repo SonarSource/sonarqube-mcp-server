@@ -21,7 +21,7 @@ import java.util.Map;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -32,7 +32,7 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(GetAgenticReadinessAssessmentToolResponse.class)
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Get Agentic Readiness Assessment")
       .setDescription(

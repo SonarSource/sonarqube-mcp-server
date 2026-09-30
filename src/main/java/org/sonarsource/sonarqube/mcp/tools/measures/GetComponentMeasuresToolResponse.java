@@ -19,39 +19,38 @@ package org.sonarsource.sonarqube.mcp.tools.measures;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.annotation.Nullable;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record GetComponentMeasuresToolResponse(
-  @JsonPropertyDescription("Component information") Component component,
-  @JsonPropertyDescription("List of measures for the component") List<Measure> measures,
-  @JsonPropertyDescription("Metadata about the metrics") @Nullable List<Metric> metrics
+  Component component,
+  List<Measure> measures,
+  @Nullable List<Metric> metrics
 ) {
   
   public record Component(
-    @JsonPropertyDescription("Component key") String key,
-    @JsonPropertyDescription("Component display name") String name,
-    @JsonPropertyDescription("Component qualifier (TRK for project, FIL for file, etc.)") String qualifier,
-    @JsonPropertyDescription("Component description") @Nullable String description,
-    @JsonPropertyDescription("Programming language") @Nullable String language,
-    @JsonPropertyDescription("Component path") @Nullable String path
+    String key,
+    String name,
+    String qualifier,
+    @Nullable String description,
+    @Nullable String language,
+    @Nullable String path
   ) {}
   
   public record Measure(
-    @JsonPropertyDescription("Metric key") String metric,
-    @JsonPropertyDescription("Measure value") @Nullable String value,
-    @JsonPropertyDescription("New Code period index, present when value is a New Code metric") @Nullable Integer period,
-    @JsonPropertyDescription("Whether this is the metric's best possible value") @Nullable Boolean bestValue
+    String metric,
+    @Nullable String value,
+    @Nullable Integer period,
+    @Nullable Boolean bestValue
   ) {}
   
   public record Metric(
-    @JsonPropertyDescription("Metric key") String key,
-    @JsonPropertyDescription("Metric display name") String name,
-    @JsonPropertyDescription("Metric description") String description,
-    @JsonPropertyDescription("Metric domain/category") String domain,
-    @JsonPropertyDescription("Metric value type") String type,
-    @JsonPropertyDescription("Whether the metric is hidden") boolean hidden,
-    @JsonPropertyDescription("Whether this is a custom metric") boolean custom
+    String key,
+    String name,
+    String description,
+    String domain,
+    String type,
+    boolean hidden,
+    boolean custom
   ) {}
 }
 

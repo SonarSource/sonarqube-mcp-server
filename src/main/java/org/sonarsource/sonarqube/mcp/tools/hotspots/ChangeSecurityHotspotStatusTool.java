@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -35,7 +35,7 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ChangeSecurityHotspotStatusTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ChangeSecurityHotspotStatusToolResponse.class)
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Security Hotspot Status")
       .setDescription("""

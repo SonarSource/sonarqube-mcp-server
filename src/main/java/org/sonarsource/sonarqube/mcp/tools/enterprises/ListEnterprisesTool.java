@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.enterprises;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.ListResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -36,7 +36,7 @@ public class ListEnterprisesTool extends Tool {
   }
 
   private static McpSchema.Tool createToolDefinition() {
-    return SchemaToolBuilder.forOutput(ListEnterprisesToolResponse.class)
+    return ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Cloud Enterprises")
       .setDescription("List the enterprises available in SonarQube Cloud that you have access to. " +

@@ -32,12 +32,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarlint.core.serverapi.UrlUtils.urlEncode;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class ProjectStatusToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ProjectStatusTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -48,54 +47,7 @@ class ProjectStatusToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-         "type":"object",
-         "properties":{
-            "conditions":{
-               "description":"List of quality gate conditions",
-               "type":"array",
-               "items":{
-                  "type":"object",
-                  "properties":{
-                     "actualValue":{
-                        "type":"string",
-                        "description":"Metric actual value"
-                     },
-                     "errorThreshold":{
-                        "type":"string",
-                        "description":"Error threshold value"
-                     },
-                     "metricKey":{
-                        "type":"string",
-                        "description":"Metric key"
-                     },
-                     "status":{
-                        "type":"string",
-                        "description":"Condition status (OK, ERROR, etc.)"
-                     }
-                  },
-                  "required":[
-                     "metricKey",
-                     "status"
-                  ]
-               }
-            },
-            "ignoredConditions":{
-               "type":"boolean",
-               "description":"Whether the quality gate is ignored"
-            },
-            "status":{
-               "type":"string",
-               "description":"Overall quality gate status (OK, WARN, ERROR, etc.)"
-            }
-         },
-         "required":[
-            "conditions",
-            "status"
-         ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested

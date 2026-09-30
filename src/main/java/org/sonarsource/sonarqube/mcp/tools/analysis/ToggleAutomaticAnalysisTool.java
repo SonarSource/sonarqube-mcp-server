@@ -17,7 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -29,7 +29,7 @@ public class ToggleAutomaticAnalysisTool extends Tool {
   private final SonarQubeIdeBridgeClient bridgeClient;
 
   public ToggleAutomaticAnalysisTool(SonarQubeIdeBridgeClient bridgeClient) {
-    super(SchemaToolBuilder.forOutput(ToggleAutomaticAnalysisToolResponse.class)
+    super(ToolMetadataBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Toggle SonarQube for IDE Automatic Analysis")
       .setDescription("Enable or disable SonarQube for IDE automatic analysis. " +

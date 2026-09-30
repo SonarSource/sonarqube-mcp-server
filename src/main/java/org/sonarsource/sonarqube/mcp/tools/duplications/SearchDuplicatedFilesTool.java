@@ -24,7 +24,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.ComponentTreeParams;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentMeasuresResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentTreeResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolMetadataBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -56,7 +56,7 @@ public class SearchDuplicatedFilesTool extends Tool {
   private final String configuredProjectKey;
 
   public SearchDuplicatedFilesTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(SearchDuplicatedFilesToolResponse.class)
+    super(ToolMetadataBuilder.builder()
         .setName(TOOL_NAME)
         .setTitle("Search SonarQube Files With Duplications")
         .setDescription("Search for files with code duplications in a project. " +

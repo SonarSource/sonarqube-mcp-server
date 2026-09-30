@@ -17,57 +17,56 @@
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import jakarta.annotation.Nullable;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record RunAdvancedCodeAnalysisToolResponse(
-  @JsonPropertyDescription("List of issues found in the analysis") List<Issue> issues,
-  @JsonPropertyDescription("Result of analyzing a patch, showing new, matched, and closed issues") @Nullable PatchResult patchResult,
-  @JsonPropertyDescription("Non-fatal errors that occurred during analysis") @Nullable List<AnalysisError> analysisErrors
+  List<Issue> issues,
+  @Nullable PatchResult patchResult,
+  @Nullable List<AnalysisError> analysisErrors
 ) {
 
   public record Issue(
-    @JsonPropertyDescription("Unique identifier of the issue") String id,
-    @JsonPropertyDescription("Project-relative path of the file containing the issue") @Nullable String filePath,
-    @JsonPropertyDescription("Primary message of the issue") String message,
-    @JsonPropertyDescription("The rule key (e.g., java:S1854)") String rule,
-    @JsonPropertyDescription("Location of the issue in the source file") @Nullable TextRange textRange,
-    @JsonPropertyDescription("Secondary locations and flows for the issue") @Nullable List<Flow> flows
+    String id,
+    @Nullable String filePath,
+    String message,
+    String rule,
+    @Nullable TextRange textRange,
+    @Nullable List<Flow> flows
   ) {
   }
 
   public record TextRange(
-    @JsonPropertyDescription("Starting line number (1-based)") int startLine,
-    @JsonPropertyDescription("Ending line number (1-based)") int endLine
+    int startLine,
+    int endLine
   ) {
   }
 
   public record Flow(
-    @JsonPropertyDescription("The type of flow: UNDEFINED, DATA, or EXECUTION") @Nullable String type,
-    @JsonPropertyDescription("Description of the flow, if any") @Nullable String description,
-    @JsonPropertyDescription("List of locations in this flow") @Nullable List<Location> locations
+    @Nullable String type,
+    @Nullable String description,
+    @Nullable List<Location> locations
   ) {
   }
 
   public record Location(
-    @JsonPropertyDescription("Text range of this location") @Nullable TextRange textRange,
-    @JsonPropertyDescription("Message explaining this location in the flow") @Nullable String message,
-    @JsonPropertyDescription("File path for this location") @Nullable String file
+    @Nullable TextRange textRange,
+    @Nullable String message,
+    @Nullable String file
   ) {
   }
 
   public record PatchResult(
-    @JsonPropertyDescription("Issues that appear only in the patched version") List<Issue> newIssues,
-    @JsonPropertyDescription("Issues that exist in both original and patched versions") List<Issue> matchedIssues,
-    @JsonPropertyDescription("Issue IDs that were closed/fixed by the patch") List<String> closedIssues
+    List<Issue> newIssues,
+    List<Issue> matchedIssues,
+    List<String> closedIssues
   ) {
   }
 
   public record AnalysisError(
-    @JsonPropertyDescription("Error code identifying the type of failure") String code,
-    @JsonPropertyDescription("Human-readable description of what went wrong") String message
+    String code,
+    String message
   ) {
   }
 
