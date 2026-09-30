@@ -20,7 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.response.ShowResponse;
-import org.sonarsource.sonarqube.mcp.tools.SchemaToolBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -32,7 +32,7 @@ public class ShowSecurityHotspotTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ShowSecurityHotspotTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ShowSecurityHotspotToolResponse.class)
+    super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Security Hotspot Details")
       .setDescription("Get detailed information about a specific Security Hotspot, including rule details, code context, flows, and comments.")

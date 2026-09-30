@@ -17,29 +17,28 @@
 package org.sonarsource.sonarqube.mcp.tools.duplications;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record GetDuplicationsToolResponse(
-  @JsonPropertyDescription("List of duplication groups found") List<Duplication> duplications,
-  @JsonPropertyDescription("Map of file references to file information") List<FileInfo> files
+  List<Duplication> duplications,
+  List<FileInfo> files
 ) {
 
   public record Duplication(
-    @JsonPropertyDescription("List of code blocks involved in this duplication") List<Block> blocks
+    List<Block> blocks
   ) {}
 
   public record Block(
-    @JsonPropertyDescription("Starting line number") int from,
-    @JsonPropertyDescription("Number of lines") int size,
-    @JsonPropertyDescription("File name") String fileName,
-    @JsonPropertyDescription("File key") String fileKey
+    int from,
+    int size,
+    String fileName,
+    String fileKey
   ) {}
 
   public record FileInfo(
-    @JsonPropertyDescription("File key") String key,
-    @JsonPropertyDescription("File name") String name
+    String key,
+    String name
   ) {}
 
 }
