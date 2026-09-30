@@ -42,7 +42,7 @@ public class ListWebhooksTool extends Tool {
     var scope = isSonarQubeCloud ? "organization or project" : "instance or project";
     var description = "List all webhooks for the " + scope + ". Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
 
-    return SchemaToolBuilder.forOutput(ListWebhooksToolResponse.class)
+    return SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Webhooks")
       .setDescription(description)

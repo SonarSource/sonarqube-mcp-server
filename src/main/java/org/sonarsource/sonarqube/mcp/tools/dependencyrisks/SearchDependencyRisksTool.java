@@ -43,7 +43,7 @@ public class SearchDependencyRisksTool extends Tool {
 
   public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker,
     @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(SearchDependencyRisksToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +

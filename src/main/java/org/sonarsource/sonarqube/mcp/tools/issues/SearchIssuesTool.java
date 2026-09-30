@@ -60,7 +60,7 @@ public class SearchIssuesTool extends Tool {
     var description = "Search for issues (bugs, vulnerabilities, code smells) in " + scope + ". " +
       "Filter by severities=['HIGH','BLOCKER'] for critical issues, impactSoftwareQualities=['SECURITY'] for security, issueStatuses=['OPEN'] to exclude resolved.";
     
-    return SchemaToolBuilder.forOutput(SearchIssuesToolResponse.class)
+    return SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues")
       .setDescription(description)

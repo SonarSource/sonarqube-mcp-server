@@ -34,7 +34,7 @@ public class ChangeIssueStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ChangeIssueStatusTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ChangeIssueStatusToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Issue Status")
       .setDescription("""

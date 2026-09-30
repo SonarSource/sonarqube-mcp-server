@@ -56,7 +56,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   }
 
   private static McpSchema.Tool buildSchema(@Nullable String configuredProjectKey) {
-    var builder = SchemaToolBuilder.forOutput(RunAdvancedCodeAnalysisToolResponse.class)
+    var builder = SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("SonarQube Vortex Code Analysis")
       .setDescription("Run Vortex analysis on a single file using the server-side engine. " +

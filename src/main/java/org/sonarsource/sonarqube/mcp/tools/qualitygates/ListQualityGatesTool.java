@@ -29,7 +29,7 @@ public class ListQualityGatesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListQualityGatesTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ListQualityGatesToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Quality Gates")
       .setDescription("List all quality gates.")

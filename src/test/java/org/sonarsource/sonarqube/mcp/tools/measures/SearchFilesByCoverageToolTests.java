@@ -28,12 +28,12 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.compactJson;
 
 class SearchFilesByCoverageToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream()
@@ -46,98 +46,7 @@ class SearchFilesByCoverageToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-        "type": "object",
-        "properties": {
-          "projectKey": {
-            "type": "string",
-            "description": "Project key"
-          },
-          "totalFiles": {
-            "type": "integer",
-            "description": "Total number of files in the project"
-          },
-          "filesReturned": {
-            "type": "integer",
-            "description": "Number of files returned in this response"
-          },
-          "pageIndex": {
-            "type": "integer",
-            "description": "Current page index"
-          },
-          "pageSize": {
-            "type": "integer",
-            "description": "Page size"
-          },
-          "projectSummary": {
-            "type": "object",
-            "properties": {
-              "coverage": {
-                "type": "number",
-                "description": "Overall project coverage percentage"
-              },
-              "linesToCover": {
-                "type": "integer",
-                "description": "Total lines to cover in the project"
-              },
-              "uncoveredLines": {
-                "type": "integer",
-                "description": "Total uncovered lines in the project"
-              }
-            },
-            "description": "Project-level coverage summary"
-          },
-          "files": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "key": {
-                  "type": "string",
-                  "description": "File component key"
-                },
-                "path": {
-                  "type": "string",
-                  "description": "File path relative to project root"
-                },
-                "coverage": {
-                  "type": "number",
-                  "description": "Overall coverage percentage for this file"
-                },
-                "lineCoverage": {
-                  "type": "number",
-                  "description": "Line coverage percentage"
-                },
-                "branchCoverage": {
-                  "type": "number",
-                  "description": "Branch coverage percentage"
-                },
-                "linesToCover": {
-                  "type": "integer",
-                  "description": "Number of lines to cover"
-                },
-                "uncoveredLines": {
-                  "type": "integer",
-                  "description": "Number of uncovered lines"
-                },
-                "conditionsToCover": {
-                  "type": "integer",
-                  "description": "Number of conditions (branches) to cover"
-                },
-                "uncoveredConditions": {
-                  "type": "integer",
-                  "description": "Number of uncovered conditions"
-                }
-              },
-              "required": ["key", "path"]
-            },
-            "description": "List of files with coverage information, sorted by coverage (ascending)"
-          }
-        },
-        "required": ["files", "filesReturned", "pageIndex", "pageSize", "projectKey", "totalFiles"]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested
@@ -251,7 +160,7 @@ class SearchFilesByCoverageToolTests {
         Map.of("projectKey", "my_project"));
 
       assertThat(result.isError()).isFalse();
-      var json = new com.google.gson.Gson().toJson(result.structuredContent());
+      var json = compactJson(result);
       assertThat(json).contains("\"projectKey\":\"my_project\"");
       assertThat(json).contains("\"totalFiles\":2");
       assertThat(json).contains("\"filesReturned\":2");
@@ -312,7 +221,7 @@ class SearchFilesByCoverageToolTests {
 
       // Only Foo.java should be returned (coverage <= 50, which is 45.5%)
       assertThat(result.isError()).isFalse();
-      var json = new com.google.gson.Gson().toJson(result.structuredContent());
+      var json = compactJson(result);
       assertThat(json).contains("\"filesReturned\":1");
       assertThat(json).contains("my_project:src/Foo.java");
       assertThat(json).doesNotContain("my_project:src/Bar.java");

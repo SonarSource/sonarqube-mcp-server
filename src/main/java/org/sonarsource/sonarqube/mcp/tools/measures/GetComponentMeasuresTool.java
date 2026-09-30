@@ -39,7 +39,7 @@ public class GetComponentMeasuresTool extends Tool {
   private final String configuredProjectKey;
 
   public GetComponentMeasuresTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(GetComponentMeasuresToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Project Measures")
       .setDescription("Get SonarQube measures for a project, such as ncloc, complexity, violations, coverage, etc.")

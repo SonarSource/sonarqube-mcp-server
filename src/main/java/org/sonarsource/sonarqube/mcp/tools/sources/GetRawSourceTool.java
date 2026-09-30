@@ -32,7 +32,7 @@ public class GetRawSourceTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetRawSourceTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(GetRawSourceToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube Raw Source Code")
       .setDescription("Get source code as raw text. Requires 'See Source Code' permission on file.")

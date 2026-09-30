@@ -30,7 +30,7 @@ public class ListLanguagesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListLanguagesTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ListLanguagesToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Supported Languages")
       .setDescription("List all programming languages supported in this instance")

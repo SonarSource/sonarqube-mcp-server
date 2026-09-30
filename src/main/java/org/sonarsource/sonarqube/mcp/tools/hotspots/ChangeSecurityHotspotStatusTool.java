@@ -35,7 +35,7 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ChangeSecurityHotspotStatusTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ChangeSecurityHotspotStatusToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Change SonarQube Security Hotspot Status")
       .setDescription("""

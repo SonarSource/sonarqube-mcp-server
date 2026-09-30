@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
+import com.google.gson.JsonParser;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +35,6 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool.FILE_ABSOLUTE_PATHS_PROPERTY;
 
 class AnalyzeFileListToolTests {
@@ -49,7 +49,7 @@ class AnalyzeFileListToolTests {
   }
 
   @Test
-  void it_should_validate_output_schema_and_annotations() {
+  void it_should_validate_annotations() {
     assertThat(underTest.getCategories()).containsExactlyInAnyOrder(ToolCategory.ANALYSIS, ToolCategory.IDE);
 
     assertThat(underTest.definition().annotations()).isNotNull();
@@ -58,68 +58,7 @@ class AnalyzeFileListToolTests {
     assertThat(underTest.definition().annotations().idempotentHint()).isFalse();
     assertThat(underTest.definition().annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(underTest.definition().outputSchema(), """
-      {
-          "type":"object",
-          "properties":{
-             "findings":{
-                "description":"List of findings from the analysis",
-                "type":"array",
-                "items":{
-                   "type":"object",
-                   "properties":{
-                      "filePath":{
-                         "type":"string",
-                         "description":"File path where the finding was detected"
-                      },
-                      "message":{
-                         "type":"string",
-                         "description":"Description of the finding"
-                      },
-                      "ruleKey":{
-                         "type":"string",
-                         "description":"Rule key that triggered the finding"
-                      },
-                      "severity":{
-                         "type":"string",
-                         "description":"Severity level of the finding"
-                      },
-                      "textRange":{
-                         "type":"object",
-                         "properties":{
-                            "endLine":{
-                               "type":"integer",
-                               "description":"Ending line number"
-                            },
-                            "startLine":{
-                               "type":"integer",
-                               "description":"Starting line number"
-                            }
-                         },
-                         "required":[
-                            "endLine",
-                            "startLine"
-                         ],
-                         "description":"Location in the source file"
-                      }
-                   },
-                   "required":[
-                      "message",
-                      "ruleKey"
-                   ]
-                }
-             },
-             "findingsCount":{
-                "type":"integer",
-                "description":"Total number of findings"
-             }
-          },
-          "required":[
-             "findings",
-             "findingsCount"
-          ]
-      }
-      """);
+    assertThat(underTest.definition().outputSchema()).isNull();
   }
 
   @Nested
@@ -227,13 +166,9 @@ class AnalyzeFileListToolTests {
       ), null)).toCallToolResult();
 
       assertThat(result.isError()).isFalse();
-      // Verify we have all 150 findings in structured content
-      @SuppressWarnings("unchecked")
-      var structuredContent = (Map<String, Object>) result.structuredContent();
-      assertThat(structuredContent).isNotNull();
-      var findingsList = (List<?>) structuredContent.get("findings");
-      assertThat(findingsList).hasSize(150);
-      assertThat(structuredContent).containsEntry("findingsCount", 150);
+      var json = JsonParser.parseString(((McpSchema.TextContent) result.content().getFirst()).text()).getAsJsonObject();
+      assertThat(json.getAsJsonArray("findings")).hasSize(150);
+      assertThat(json.get("findingsCount").getAsInt()).isEqualTo(150);
     }
 
     @Test

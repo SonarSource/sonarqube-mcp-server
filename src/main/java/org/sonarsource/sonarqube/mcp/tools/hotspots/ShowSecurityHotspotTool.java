@@ -32,7 +32,7 @@ public class ShowSecurityHotspotTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ShowSecurityHotspotTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ShowSecurityHotspotToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Security Hotspot Details")
       .setDescription("Get detailed information about a specific Security Hotspot, including rule details, code context, flows, and comments.")

@@ -45,24 +45,18 @@ public class SchemaToolBuilder {
 
   private final Map<String, Object> properties;
   private final List<String> requiredProperties;
-  private final Map<String, Object> outputSchemaFromClass;
   private String name;
   private String title;
   private String description;
   private boolean isReadOnly;
 
-  public SchemaToolBuilder(Map<String, Object> outputSchemaFromClass) {
+  public SchemaToolBuilder() {
     this.properties = new HashMap<>();
     this.requiredProperties = new ArrayList<>();
-    this.outputSchemaFromClass = outputSchemaFromClass;
   }
 
-  /**
-   * Factory method to create a SchemaToolBuilder with automatic output schema generation from a class.
-   * This is the recommended approach for defining structured output.
-   */
-  public static SchemaToolBuilder forOutput(Class<? extends Record> outputClass) {
-    return new SchemaToolBuilder(SchemaUtils.generateOutputSchema(outputClass));
+  public static SchemaToolBuilder forOutput() {
+    return new SchemaToolBuilder();
   }
 
   public SchemaToolBuilder setName(String name) {
@@ -198,7 +192,6 @@ public class SchemaToolBuilder {
     return McpSchema.Tool.builder(name, inputSchema)
       .title(title)
       .description(description)
-      .outputSchema(outputSchemaFromClass)
       .annotations(toolAnnotations)
       .build();
   }

@@ -30,7 +30,7 @@ public class SystemLogsTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public SystemLogsTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(SystemLogsToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Get SonarQube System Logs")
       .setDescription("Get SonarQube Server system logs in plain-text format. Requires system administration permission.")

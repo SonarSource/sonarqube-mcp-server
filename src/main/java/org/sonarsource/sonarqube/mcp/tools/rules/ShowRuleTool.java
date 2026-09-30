@@ -31,7 +31,7 @@ public class ShowRuleTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ShowRuleTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(ShowRuleToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Rule Details")
       .setDescription("Shows detailed information about a SonarQube rule.")

@@ -17,15 +17,14 @@
 package org.sonarsource.sonarqube.mcp.tools.languages;
 
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 public record ListLanguagesToolResponse(
-  @JsonPropertyDescription("List of supported programming languages") List<Language> languages
+  List<Language> languages
 ) {
   
   public record Language(
-    @JsonPropertyDescription("Language key identifier") String key,
-    @JsonPropertyDescription("Human-readable language name") String name
+    String key,
+    String name
   ) {}
 }
 

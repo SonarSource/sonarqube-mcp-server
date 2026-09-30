@@ -41,7 +41,7 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
   private final String configuredProjectKey;
 
   public ListAgenticReadinessAssessmentsTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(ListAgenticReadinessAssessmentsToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("List Agentic Readiness Assessments")
       .setDescription(

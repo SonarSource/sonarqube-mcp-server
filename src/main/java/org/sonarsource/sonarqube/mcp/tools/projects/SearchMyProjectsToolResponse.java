@@ -18,27 +18,26 @@ package org.sonarsource.sonarqube.mcp.tools.projects;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 /**
- * Response object for SearchMyProjectsTool with structured output.
+ * Response object for SearchMyProjectsTool.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SearchMyProjectsToolResponse(
-  @JsonPropertyDescription("List of projects found") List<Project> projects,
-  @JsonPropertyDescription("Pagination information for the results") Paging paging
+  List<Project> projects,
+  Paging paging
 ) {
   
   public record Project(
-    @JsonPropertyDescription("Unique project key") String key,
-    @JsonPropertyDescription("Project display name") String name
+    String key,
+    String name
   ) {}
   
   public record Paging(
-    @JsonPropertyDescription("Current page index (1-based)") int pageIndex,
-    @JsonPropertyDescription("Number of items per page") int pageSize,
-    @JsonPropertyDescription("Total number of items across all pages") int total,
-    @JsonPropertyDescription("Whether there are more pages available") boolean hasNextPage
+    int pageIndex,
+    int pageSize,
+    int total,
+    boolean hasNextPage
   ) {}
 }
 

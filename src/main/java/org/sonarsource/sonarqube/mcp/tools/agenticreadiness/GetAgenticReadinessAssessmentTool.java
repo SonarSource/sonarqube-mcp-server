@@ -32,7 +32,7 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public GetAgenticReadinessAssessmentTool(ServerApiProvider serverApiProvider) {
-    super(SchemaToolBuilder.forOutput(GetAgenticReadinessAssessmentToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
       .setName(TOOL_NAME)
       .setTitle("Get Agentic Readiness Assessment")
       .setDescription(

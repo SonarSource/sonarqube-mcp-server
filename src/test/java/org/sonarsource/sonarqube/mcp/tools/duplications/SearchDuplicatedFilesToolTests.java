@@ -28,12 +28,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 
 class SearchDuplicatedFilesToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(SearchDuplicatedFilesTool.TOOL_NAME)).findFirst().orElseThrow();
@@ -44,95 +43,7 @@ class SearchDuplicatedFilesToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-        "type":"object",
-        "properties":{
-          "files":{
-            "description":"List of files with duplications, sorted by most duplicated first",
-            "type":"array",
-            "items":{
-              "type":"object",
-              "properties":{
-                "duplicatedBlocks":{
-                  "type":"integer",
-                  "description":"Number of duplicated blocks"
-                },
-                "duplicatedLines":{
-                  "type":"integer",
-                  "description":"Number of duplicated lines"
-                },
-                "duplicatedLinesDensity":{
-                  "type":"string",
-                  "description":"Duplication density percentage"
-                },
-                "key":{
-                  "type":"string",
-                  "description":"File key"
-                },
-                "name":{
-                  "type":"string",
-                  "description":"File name"
-                },
-                "path":{
-                  "type":"string",
-                  "description":"File path"
-                }
-              },
-              "required":[
-                "key",
-                "name"
-              ]
-            }
-          },
-          "paging":{
-            "description":"Pagination information",
-            "type":"object",
-            "properties":{
-              "pageIndex":{
-                "type":"integer",
-                "description":"Current page number"
-              },
-              "pageSize":{
-                "type":"integer",
-                "description":"Number of results per page"
-              },
-              "total":{
-                "type":"integer",
-                "description":"Total number of duplicated files"
-              }
-            },
-            "required":[
-              "pageIndex",
-              "pageSize",
-              "total"
-            ]
-          },
-          "summary":{
-            "description":"Summary of duplication metrics",
-            "type":"object",
-            "properties":{
-              "overallDuplicationDensity":{
-                "type":"string",
-                "description":"Overall duplication density percentage"
-              },
-              "totalDuplicatedBlocks":{
-                "type":"integer",
-                "description":"Total duplicated blocks in the project"
-              },
-              "totalDuplicatedLines":{
-                "type":"integer",
-                "description":"Total duplicated lines in the project"
-              }
-            }
-          }
-        },
-        "required":[
-          "files",
-          "paging"
-        ]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Nested

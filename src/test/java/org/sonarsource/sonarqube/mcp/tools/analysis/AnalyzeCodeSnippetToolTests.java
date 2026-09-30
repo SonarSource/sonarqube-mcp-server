@@ -40,13 +40,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
-import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertSchemaEquals;
 import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool.TOOL_NAME;
 
 class AnalyzeCodeSnippetToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_output_schema_and_annotations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(TOOL_NAME)).findFirst().orElseThrow();
@@ -57,78 +56,7 @@ class AnalyzeCodeSnippetToolTests {
     assertThat(tool.annotations().idempotentHint()).isFalse();
     assertThat(tool.annotations().destructiveHint()).isFalse();
 
-    assertSchemaEquals(tool.outputSchema(), """
-      {
-        "type": "object",
-        "properties": {
-          "deprecationNotice": {
-            "type": "string",
-            "description": "Deprecation notice for this tool"
-          },
-          "issueCount": {
-            "type": "integer",
-            "description": "Total number of issues"
-          },
-          "issues": {
-            "type": "array",
-            "description": "List of issues found in the code snippet",
-            "items": {
-              "type": "object",
-              "properties": {
-                "cleanCodeAttribute": {
-                  "type": "string",
-                  "description": "Clean code attribute"
-                },
-                "hasQuickFixes": {
-                  "type": "boolean",
-                  "description": "Whether quick fixes are available"
-                },
-                "impacts": {
-                  "type": "string",
-                  "description": "Software quality impacts"
-                },
-                "primaryMessage": {
-                  "type": "string",
-                  "description": "Primary issue message"
-                },
-                "ruleKey": {
-                  "type": "string",
-                  "description": "Rule key that triggered the issue"
-                },
-                "severity": {
-                  "type": "string",
-                  "description": "Issue severity level"
-                },
-                "textRange": {
-                  "type": "object",
-                  "properties": {
-                    "endLine": {
-                      "type": "integer",
-                      "description": "Ending line number"
-                    },
-                    "startLine": {
-                      "type": "integer",
-                      "description": "Starting line number"
-                    }
-                  },
-                  "required": ["endLine", "startLine"],
-                  "description": "Location in the code"
-                }
-              },
-              "required": [
-                "cleanCodeAttribute",
-                "hasQuickFixes",
-                "impacts",
-                "primaryMessage",
-                "ruleKey",
-                "severity"
-              ]
-            }
-          }
-        },
-        "required": ["deprecationNotice", "issueCount", "issues"]
-      }
-      """);
+    assertThat(tool.outputSchema()).isNull();
   }
 
   @Test

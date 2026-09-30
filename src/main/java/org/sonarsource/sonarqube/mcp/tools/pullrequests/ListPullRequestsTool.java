@@ -33,7 +33,7 @@ public class ListPullRequestsTool extends Tool {
   private final String configuredProjectKey;
 
   public ListPullRequestsTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey) {
-    super(SchemaToolBuilder.forOutput(ListPullRequestsToolResponse.class)
+    super(SchemaToolBuilder.forOutput()
         .setName(TOOL_NAME)
         .setTitle("List SonarQube Pull Requests")
         .setDescription("List all pull requests for a project. " +
