@@ -17,17 +17,16 @@
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 public record ListWebhooksToolResponse(
-  @JsonPropertyDescription("List of configured webhooks") List<Webhook> webhooks
+  List<Webhook> webhooks
 ) {
   
   public record Webhook(
-    @JsonPropertyDescription("Webhook unique key") String key,
-    @JsonPropertyDescription("Webhook display name") String name,
-    @JsonPropertyDescription("Target URL for the webhook") String url,
-    @JsonPropertyDescription("Whether the webhook has a configured secret") boolean hasSecret
+    String key,
+    String name,
+    String url,
+    boolean hasSecret
   ) {}
 }
 

@@ -300,15 +300,12 @@ public abstract class Tool {
 
   public static class Result {
     /**
-     * Create a successful result from a response object.
-     * The response object will be serialized to both JSON text content and structured content.
-     * This follows the MCP spec recommendation that structured content should also be available as text.
+     * Create a successful result from a response object, returned once as JSON text.
      */
     public static Result success(Record responseObject) {
       return new Result(McpSchema.CallToolResult.builder()
         .isError(false)
-        .addTextContent(SchemaUtils.toJsonString(responseObject))
-        .structuredContent(SchemaUtils.toStructuredContent(responseObject))
+        .addTextContent(ToolResponseUtils.toJsonString(responseObject))
         .build());
     }
 

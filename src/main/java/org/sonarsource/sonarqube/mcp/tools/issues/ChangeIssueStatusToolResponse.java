@@ -17,13 +17,12 @@
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ChangeIssueStatusToolResponse(
-  @JsonPropertyDescription("Whether the operation was successful") boolean success,
-  @JsonPropertyDescription("Success or error message") String message,
-  @JsonPropertyDescription("The key of the issue that was updated") String issueKey,
-  @JsonPropertyDescription("The new status of the issue") String newStatus
+  boolean success,
+  String message,
+  String issueKey,
+  String newStatus
 ) {}
 
