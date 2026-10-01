@@ -3,9 +3,9 @@
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :dependencies --write-locks
 ch.qos.logback:logback-classic:1.5.35=compileClasspath
-ch.qos.logback:logback-classic:1.6.3=runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.6.4=runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.5.35=compileClasspath
-ch.qos.logback:logback-core:1.6.3=runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-core:1.6.4=runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.ethlo.time:itu:1.14.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.22=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-core:2.22.3=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -119,7 +119,7 @@ org.ow2.asm:asm:9.9=jacocoAnt
 org.reactivestreams:reactive-streams:1.0.4=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.slf4j:jul-to-slf4j:2.0.17=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.slf4j:slf4j-api:2.0.17=compileClasspath
-org.slf4j:slf4j-api:2.0.18=runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.slf4j:slf4j-api:2.0.19=runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.snakeyaml:snakeyaml-engine:3.0.1=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.sonarsource.api.plugin:sonar-plugin-api:14.0.0.4498=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.sonarsource.classloader:sonar-classloader:1.2.1.2095=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
