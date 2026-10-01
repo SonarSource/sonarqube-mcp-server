@@ -2,8 +2,8 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :its:dependencies --write-locks
-ch.qos.logback:logback-classic:1.6.3=testRuntimeClasspath
-ch.qos.logback:logback-core:1.6.3=testRuntimeClasspath
+ch.qos.logback:logback-classic:1.6.4=testRuntimeClasspath
+ch.qos.logback:logback-core:1.6.4=testRuntimeClasspath
 com.ethlo.time:itu:1.14.0=testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.20=testCompileClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.22=testRuntimeClasspath
@@ -89,7 +89,7 @@ org.reactivestreams:reactive-streams:1.0.4=testRuntimeClasspath
 org.rnorth.duct-tape:duct-tape:1.0.8=testCompileClasspath,testRuntimeClasspath
 org.slf4j:jul-to-slf4j:2.0.17=testRuntimeClasspath
 org.slf4j:slf4j-api:1.7.36=testCompileClasspath
-org.slf4j:slf4j-api:2.0.18=testRuntimeClasspath
+org.slf4j:slf4j-api:2.0.19=testRuntimeClasspath
 org.snakeyaml:snakeyaml-engine:3.0.1=testRuntimeClasspath
 org.sonarsource.api.plugin:sonar-plugin-api:14.0.0.4498=testRuntimeClasspath
 org.sonarsource.classloader:sonar-classloader:1.2.1.2095=testRuntimeClasspath
