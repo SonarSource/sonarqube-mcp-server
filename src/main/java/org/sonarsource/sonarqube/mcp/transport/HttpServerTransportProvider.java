@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Locale;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
@@ -58,6 +60,7 @@ public class HttpServerTransportProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String MCP_ENDPOINT = "/mcp";
+  static final String SERVER_THREAD_NAME = "mcp-http-server";
   public static final String CONTEXT_TOKEN_KEY = "sonarqube-token";
   public static final String CONTEXT_ORG_KEY = "sonarqube-org";
   public static final String CONTEXT_TOOLSETS_KEY = "sonarqube-toolsets";
@@ -80,6 +83,8 @@ public class HttpServerTransportProvider {
   private final String appVersion;
   private final HttpServletStatelessServerTransport mcpTransportProvider;
   private Server httpServer;
+  @Nullable
+  private ExecutorService serverExecutor;
 
   /**
    * Create HTTP transport provider with custom host binding and authentication.
@@ -245,47 +250,67 @@ public class HttpServerTransportProvider {
     httpServer.addConnector(connector);
     httpServer.setHandler(servletContextHandler);
 
-    CompletableFuture.runAsync(() -> {
-      try {
-        httpServer.start();
-        var protocol = httpsEnabled ? "https" : "http";
-        LOG.info("MCP " + protocol.toUpperCase(Locale.getDefault()) + " server started successfully on " + protocol + "://" + host + ":" + port + MCP_ENDPOINT);
-        startupFuture.complete(null);
-        httpServer.join();
-      } catch (InterruptedException e) {
-        LOG.info("MCP HTTP server was interrupted - this is normal during shutdown");
-        Thread.currentThread().interrupt();
-        if (!startupFuture.isDone()) {
-          startupFuture.completeExceptionally(e);
-        }
-      } catch (Exception e) {
-        LOG.error("Error starting MCP HTTP server", e);
-        if (!startupFuture.isDone()) {
-          startupFuture.completeExceptionally(e);
-        }
-      }
-    });
+    // Join on a dedicated thread. CompletableFuture.runAsync would park a common-pool worker
+    // inside Server.join for the life of the process, and stop() could never be scheduled.
+    var server = httpServer;
+    var ready = startupFuture;
+    serverExecutor().execute(() -> launchAndJoin(server, ready));
 
     return startupFuture;
   }
 
+  private void launchAndJoin(Server server, CompletableFuture<Void> startupFuture) {
+    try {
+      server.start();
+      var protocol = httpsEnabled ? "https" : "http";
+      LOG.info("MCP " + protocol.toUpperCase(Locale.getDefault()) + " server started successfully on " + protocol + "://" + host + ":" + port + MCP_ENDPOINT);
+      startupFuture.complete(null);
+      server.join();
+    } catch (InterruptedException e) {
+      LOG.info("MCP HTTP server was interrupted - this is normal during shutdown");
+      Thread.currentThread().interrupt();
+      if (!startupFuture.isDone()) {
+        startupFuture.completeExceptionally(e);
+      }
+    } catch (Exception e) {
+      LOG.error("Error starting MCP HTTP server", e);
+      if (!startupFuture.isDone()) {
+        startupFuture.completeExceptionally(e);
+      }
+    }
+  }
+
   public CompletableFuture<Void> stopServer() {
-    if (httpServer == null) {
+    var server = httpServer;
+    if (server == null) {
       LOG.info("HTTP server is not running");
       return CompletableFuture.completedFuture(null);
     }
 
-    return CompletableFuture.runAsync(() -> {
-      LOG.info("Stopping MCP HTTP server...");
+    LOG.info("Stopping MCP HTTP server...");
+    try {
+      // Stop on the caller thread so shutdown is not queued behind the thread blocked in join().
+      server.stop();
+      httpServer = null;
+      LOG.info("MCP HTTP server stopped successfully");
+    } catch (Exception e) {
+      LOG.error("Error stopping HTTP server", e);
+    }
+    if (serverExecutor != null) {
+      serverExecutor.shutdown();
+    }
+    return CompletableFuture.completedFuture(null);
+  }
 
-      try {
-        httpServer.stop();
-        httpServer = null;
-        LOG.info("MCP HTTP server stopped successfully");
-      } catch (Exception e) {
-        LOG.error("Error stopping HTTP server", e);
-      }
-    });
+  private ExecutorService serverExecutor() {
+    if (serverExecutor == null || serverExecutor.isShutdown()) {
+      serverExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        var thread = new Thread(runnable, SERVER_THREAD_NAME);
+        thread.setDaemon(true);
+        return thread;
+      });
+    }
+    return serverExecutor;
   }
 
   public String getServerUrl() {

@@ -100,14 +100,15 @@ class HttpClientAdapter implements HttpClient {
       this.wrapped = apacheClient.execute(httpRequest, new FutureCallback<>() {
         @Override
         public void completed(SimpleHttpResponse result) {
+          // Complete on this callback thread. completeAsync() would queue the completion on
+          // ForkJoinPool.commonPool, which can stay blocked for the life of the HTTP server.
+          String uri;
           try {
-            var uri = httpRequest.getUri().toString();
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
-              new HttpResponse(uri, result));
+            uri = httpRequest.getUri().toString();
           } catch (URISyntaxException e) {
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
-              new HttpResponse(httpRequest.getRequestUri(), result));
+            uri = httpRequest.getRequestUri();
           }
+          HttpClientAdapter.CompletableFutureWrappingFuture.this.complete(new HttpResponse(uri, result));
         }
 
         @Override
