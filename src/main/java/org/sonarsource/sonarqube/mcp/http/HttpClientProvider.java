@@ -21,6 +21,7 @@ import java.net.ProxySelector;
 import java.time.Duration;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.TlsConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
@@ -32,6 +33,7 @@ import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -40,6 +42,8 @@ public class HttpClientProvider {
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final Duration API_TIMEOUT = Duration.ofSeconds(30);
   private static final Duration ANALYTICS_TIMEOUT = Duration.ofSeconds(10);
+  private static final Timeout DEFAULT_REQUEST_TIMEOUT = Timeout.of(API_TIMEOUT);
+  private static final TimeValue STALE_CONNECTION_CHECK_INTERVAL = TimeValue.ofSeconds(2);
   private final CloseableHttpAsyncClient httpClient;
   private final String userAgent;
   private final String sslProtocol;
@@ -53,6 +57,14 @@ public class HttpClientProvider {
   }
 
   HttpClientProvider(String userAgent, Duration apiTimeout, Duration analyticsTimeout) {
+    this(userAgent, apiTimeout, analyticsTimeout, DEFAULT_REQUEST_TIMEOUT);
+  }
+
+  HttpClientProvider(String userAgent, Timeout requestTimeout) {
+    this(userAgent, API_TIMEOUT, ANALYTICS_TIMEOUT, requestTimeout);
+  }
+
+  private HttpClientProvider(String userAgent, Duration apiTimeout, Duration analyticsTimeout, Timeout requestTimeout) {
     this.userAgent = userAgent;
     this.apiTimeout = apiTimeout;
     this.analyticsTimeout = analyticsTimeout;
@@ -81,6 +93,11 @@ public class HttpClientProvider {
         // Force HTTP/1 since we know SQ/SC don't support HTTP/2 ATM
         .setVersionPolicy(HttpVersionPolicy.FORCE_HTTP_1)
         .build())
+      .setDefaultConnectionConfig(ConnectionConfig.custom()
+        .setConnectTimeout(requestTimeout)
+        .setSocketTimeout(requestTimeout)
+        .setValidateAfterInactivity(STALE_CONNECTION_CHECK_INTERVAL)
+        .build())
       .build();
 
     var defaultProxySelector = ProxySelector.getDefault();
@@ -90,9 +107,17 @@ public class HttpClientProvider {
       .setConnectionManager(asyncConnectionManager)
       .addResponseInterceptorFirst(new RedirectInterceptor())
       .setUserAgent(userAgent)
-      .setDefaultRequestConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(30)).build())
+      .setDefaultRequestConfig(RequestConfig.custom()
+        .setConnectionRequestTimeout(requestTimeout)
+        .setConnectTimeout(requestTimeout)
+        .setResponseTimeout(requestTimeout)
+        .setConnectionKeepAlive(requestTimeout)
+        .setHardCancellationEnabled(true)
+        .build())
       .setIOReactorConfig(buildReactorConfig())
-      .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
+      .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider())
+      .evictExpiredConnections()
+      .evictIdleConnections(requestTimeout);
     if (defaultProxySelector != null) {
       httpClientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(defaultProxySelector));
     }

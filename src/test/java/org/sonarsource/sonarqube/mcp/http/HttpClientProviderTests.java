@@ -84,6 +84,35 @@ class HttpClientProviderTests {
   }
 
   @Test
+  void it_should_fail_when_the_response_exceeds_the_timeout() {
+    sonarqubeMock.stubFor(get("/stalled")
+      .willReturn(aResponse().withFixedDelay(10_000)));
+
+    var underTest = new HttpClientProvider(USER_AGENT, Timeout.ofMilliseconds(500));
+    try {
+      var future = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/stalled"));
+      var error = assertThrows(ExecutionException.class, () -> future.get(3, TimeUnit.SECONDS));
+
+      assertThat(future).isCompletedExceptionally();
+      assertThat(isTimeout(error)).isTrue();
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
+  private static boolean isTimeout(Throwable error) {
+    var current = error;
+    while (current != null) {
+      var typeName = current.getClass().getName();
+      if (typeName.contains("Timeout") || typeName.contains("SocketTimeout")) {
+        return true;
+      }
+      current = current.getCause();
+    }
+    return false;
+  }
+
+  @Test
   void it_should_support_cancellation() {
     sonarqubeMock.stubFor(get("/delayed")
       .willReturn(aResponse()
