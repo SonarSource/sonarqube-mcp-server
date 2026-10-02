@@ -477,6 +477,16 @@ test.describe('config-generator.html', () => {
     await expect(page.locator('#httpPort')).toHaveValue('8080');
   });
 
+  test('Copy shareable link survives rapid repeat clicks', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await selectCursor(page);
+    await page.evaluate(() => document.getElementById('feedbackFab')?.remove());
+    await expect(page.locator('#copyLinkBtn')).toBeEnabled();
+    await page.locator('#copyLinkBtn').click();
+    await page.locator('#copyLinkBtn').click();
+    await expect(page.locator('#copyLinkBtn')).toContainText('Copy shareable link', { timeout: 3000 });
+  });
+
   test('Copy shareable link copies URL without token', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await selectCursor(page);
@@ -485,7 +495,7 @@ test.describe('config-generator.html', () => {
     await page.locator('#token').fill('sqp_super_secret_token');
     await page.locator('#card-sqc').click();
     await expect(page.locator('#copyLinkBtn')).toBeEnabled();
-    await page.evaluate(() => document.getElementById('feedbackFab')?.classList.remove('open'));
+    await page.evaluate(() => document.getElementById('feedbackFab')?.remove());
     await page.locator('#copyLinkBtn').click();
     await expect(page.locator('#copyLinkBtn')).toContainText('Copied');
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());

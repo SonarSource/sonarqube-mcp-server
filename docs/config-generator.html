@@ -1123,22 +1123,21 @@
     const toast = document.getElementById('copyToast');
     toast.textContent = toastMessage;
     toast.classList.add('show');
-    const origHtml = btn.innerHTML;
+    if (btn.dataset.origHtml === undefined) btn.dataset.origHtml = btn.innerHTML;
     btn.innerHTML = copiedLabel;
-    if (btn.classList.contains('btn-primary')) {
-      btn.style.background = 'var(--green)';
-      btn.style.borderColor = 'var(--green)';
-    } else {
-      btn.style.color = 'var(--green)';
-      btn.style.borderColor = 'var(--green)';
-    }
-    setTimeout(() => {
+    btn.style.background = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+    clearTimeout(btn._copyTimer);
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => {
       toast.classList.remove('show');
       toast.textContent = 'Copied to clipboard';
-      btn.innerHTML = origHtml;
+    }, 2000);
+    btn._copyTimer = setTimeout(() => {
+      btn.innerHTML = btn.dataset.origHtml;
+      delete btn.dataset.origHtml;
       btn.style.background = '';
       btn.style.borderColor = '';
-      btn.style.color = '';
     }, 2000);
   }
 
