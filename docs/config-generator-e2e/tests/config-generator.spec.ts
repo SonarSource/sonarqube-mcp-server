@@ -477,6 +477,25 @@ test.describe('config-generator.html', () => {
     await expect(page.locator('#httpPort')).toHaveValue('8080');
   });
 
+  test('Copy link copies shareable URL without token', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await selectCursor(page);
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#pf-org').fill('share-org');
+    await page.locator('#token').fill('sqp_super_secret_token');
+    await page.locator('#card-sqc').click();
+    await expect(page.locator('#copyLinkBtn')).toBeEnabled();
+    await page.evaluate(() => document.getElementById('feedbackFab')?.classList.remove('open'));
+    await page.locator('#copyLinkBtn').click();
+    await expect(page.locator('#copyLinkBtn')).toContainText('Link copied');
+    const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboard).toContain('agent=cursor');
+    expect(clipboard).toContain('org=share-org');
+    expect(clipboard).toContain('transport=sqc');
+    expect(clipboard).not.toMatch(/token/i);
+    expect(clipboard).not.toContain('sqp_super_secret_token');
+  });
+
   test('URL params: restores paths with spaces and backslashes', async ({ page }) => {
     const workspacePath = '/Users/Jane Doe/project';
     const certPath = 'C:\\certs\\custom';

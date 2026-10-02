@@ -186,14 +186,23 @@
         </div>
         <pre><code id="codeOutput">Please select a target client (step 1) to build the configuration.</code></pre>
       </div>
-      <button class="btn-primary" id="copyBtn" onclick="copyCode()" disabled>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-        </svg>
-        Copy configuration
-      </button>
-      <p class="help-text" style="text-align:center; margin-top: 8px;">Do not share this generated text with others if it contains your SonarQube user token.</p>
+      <div class="copy-actions">
+        <button class="btn-primary" id="copyBtn" onclick="copyCode()" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Copy configuration
+        </button>
+        <button class="btn-secondary btn-copy-link" id="copyLinkBtn" onclick="copyShareLink()" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          Copy link
+        </button>
+      </div>
+      <p class="help-text" style="text-align:center; margin-top: 8px;">Do not share the generated configuration if it contains your SonarQube user token. Copy link shares settings only — never your token.</p>
     </div>
   </div>
 </div>
@@ -591,6 +600,7 @@
     syncSqcUrl();
     syncWorkspaceMountVisibility();
     syncToolsetStates();
+    document.getElementById('copyLinkBtn').disabled = false;
     if (!applyParamsFromUrl()) updateUI();
   }
 
@@ -1101,22 +1111,48 @@
     syncUrlFromState();
   }
 
+  function getShareableUrl() {
+    const params = buildShareableParams();
+    const qs = params.toString();
+    return qs
+      ? `${window.location.origin}${window.location.pathname}?${qs}`
+      : `${window.location.origin}${window.location.pathname}`;
+  }
+
+  function showCopyFeedback(btn, toastMessage, copiedLabel) {
+    const toast = document.getElementById('copyToast');
+    toast.textContent = toastMessage;
+    toast.classList.add('show');
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = copiedLabel;
+    if (btn.classList.contains('btn-primary')) {
+      btn.style.background = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+    } else {
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+    }
+    setTimeout(() => {
+      toast.classList.remove('show');
+      toast.textContent = 'Copied to clipboard';
+      btn.innerHTML = origHtml;
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 2000);
+  }
+
   function copyCode() {
     const code = document.getElementById('codeOutput').textContent;
     navigator.clipboard.writeText(code).then(() => {
-      const toast = document.getElementById('copyToast');
-      toast.classList.add('show');
-      const btn = document.getElementById('copyBtn');
-      const origHtml = btn.innerHTML;
-      btn.innerHTML = 'Copied';
-      btn.style.background = 'var(--green)';
-      btn.style.borderColor = 'var(--green)';
-      setTimeout(() => {
-        toast.classList.remove('show');
-        btn.innerHTML = origHtml;
-        btn.style.background = '';
-        btn.style.borderColor = '';
-      }, 2000);
+      showCopyFeedback(document.getElementById('copyBtn'), 'Copied to clipboard', 'Copied');
+    });
+  }
+
+  function copyShareLink() {
+    if (!flow) return;
+    navigator.clipboard.writeText(getShareableUrl()).then(() => {
+      showCopyFeedback(document.getElementById('copyLinkBtn'), 'Share link copied', 'Link copied');
     });
   }
 
