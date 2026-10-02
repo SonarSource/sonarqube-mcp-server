@@ -60,7 +60,7 @@ configurations.all {
             because("CVE-2024-25710 + CVE-2024-26308")
         }
         if (requested.group.startsWith("tools.jackson")) {
-            useVersion("3.1.7")
+            useVersion("3.2.3")
             because("CVE-2026-29062 + GHSA-72hv-8253-57qq + CVE-2026-68494 + CVE-2026-77310 + CVE-2026-83557 + CVE-2026-89407 + CVE-2026-91776 + CVE-2026-91777")
         }
         // Pulled in transitively by sonarlint-core
