@@ -252,6 +252,240 @@
 
   let flow = null;
   let state = { agent: '', env: '', transport: 'stdio', httpMode: 'client', sqcRegion: 'eu' };
+  let isApplyingFromUrl = false;
+  let urlSyncTimer = null;
+
+  const URL_PARAM_BLOCKLIST = new Set(['token', 'SONARQUBE_TOKEN', 'keystorePassword', 'truststorePassword']);
+
+  function collectSecretFieldIds() {
+    const ids = new Set(['token']);
+    flow.platforms.forEach(p => p.fields.forEach(f => { if (f.secret) ids.add(f.id); }));
+    const httpsTransport = flow.transports.find(t => t.id === 'https');
+    if (httpsTransport && httpsTransport.modes && httpsTransport.modes.launch && httpsTransport.modes.launch.extraFields) {
+      httpsTransport.modes.launch.extraFields.forEach(f => { if (f.secret) ids.add(f.id); });
+    }
+    return ids;
+  }
+
+  function isBlockedUrlParam(key) {
+    if (URL_PARAM_BLOCKLIST.has(key)) return true;
+    const lower = key.toLowerCase();
+    return lower.includes('token') || lower.includes('password');
+  }
+
+  function isValidAgent(id) { return flow.agents.some(a => a.id === id); }
+  function isValidEnv(id) { return flow.platforms.some(p => p.id === id); }
+  function isValidTransport(id) { return flow.transports.some(t => t.id === id); }
+  function isValidHttpMode(mode) { return mode === 'client' || mode === 'launch'; }
+
+  function getCheckedToolsetKeys() {
+    const keys = [];
+    flow.toolsets.forEach(t => {
+      const cb = document.getElementById('tool-' + t.key);
+      if (cb && !cb.disabled && cb.checked) keys.push(t.key);
+    });
+    return keys;
+  }
+
+  function toolsetsDifferFromDefaults() {
+    const defaults = new Set(getDefaultToolsetKeys());
+    return flow.toolsets.some(t => {
+      const cb = document.getElementById('tool-' + t.key);
+      if (!cb || cb.disabled) return false;
+      return cb.checked !== defaults.has(t.key);
+    });
+  }
+
+  function buildShareableParams() {
+    const params = new URLSearchParams();
+
+    if (state.agent) params.set('agent', state.agent);
+    if (state.env && state.env !== flow.platforms[0].id) params.set('env', state.env);
+    if (state.transport && state.transport !== 'stdio') params.set('transport', state.transport);
+    if ((state.transport === 'http' || state.transport === 'https') && state.httpMode !== 'client') {
+      params.set('httpMode', state.httpMode);
+    }
+
+    const platform = flow.platforms.find(p => p.id === state.env);
+    if (platform) {
+      platform.fields.forEach(f => {
+        if (f.secret || f.id === 'token') return;
+        const el = document.getElementById('pf-' + f.id);
+        const val = el ? el.value.trim() : '';
+        if (val) params.set(f.id, val);
+      });
+    }
+
+    if (state.transport === 'http' || state.transport === 'https') {
+      const transport = flow.transports.find(t => t.id === state.transport);
+      const modeObj = transport && transport.modes ? transport.modes[state.httpMode] : null;
+      const defaultHost = modeObj && modeObj.fields
+        ? (modeObj.fields.find(f => f.id === 'httpHost') || {}).default || ''
+        : '';
+      const defaultPort = modeObj && modeObj.fields
+        ? (modeObj.fields.find(f => f.id === 'httpPort') || {}).default || '8080'
+        : '8080';
+      const httpHost = document.getElementById('httpHost').value.trim();
+      const httpPort = document.getElementById('httpPort').value.trim();
+      if (httpHost && httpHost !== defaultHost) params.set('httpHost', httpHost);
+      if (state.httpMode === 'launch' && httpPort && httpPort !== defaultPort) params.set('httpPort', httpPort);
+    }
+
+    if (state.transport === 'https' && state.httpMode === 'launch') {
+      const httpsTransport = flow.transports.find(t => t.id === 'https');
+      if (httpsTransport && httpsTransport.modes && httpsTransport.modes.launch && httpsTransport.modes.launch.extraFields) {
+        httpsTransport.modes.launch.extraFields.forEach(f => {
+          if (f.secret) return;
+          const el = document.getElementById(f.id);
+          const val = el ? el.value.trim() : '';
+          if (val) params.set(f.id, val);
+        });
+      }
+    }
+
+    if (toolsetsDifferFromDefaults()) {
+      params.set('toolsets', getCheckedToolsetKeys().join(','));
+    }
+
+    if (document.getElementById('opt-debug').checked) params.set('debug', '1');
+    if (document.getElementById('opt-readonly').checked) params.set('readonly', '1');
+    if (document.getElementById('opt-certs').checked) params.set('certs', '1');
+
+    const certPath = document.getElementById('certPath').value.trim();
+    if (certPath) params.set('certPath', certPath);
+
+    const projectKey = document.getElementById('projectKey').value.trim();
+    if (projectKey) params.set('projectKey', projectKey);
+
+    if (document.getElementById('opt-workspace-mount').checked) {
+      params.set('workspaceMount', '1');
+      const workspaceHostPath = document.getElementById('workspaceHostPath').value.trim();
+      if (workspaceHostPath) params.set('workspaceHostPath', workspaceHostPath);
+    }
+
+    return params;
+  }
+
+  function syncUrlFromState() {
+    if (isApplyingFromUrl || !flow) return;
+    clearTimeout(urlSyncTimer);
+    urlSyncTimer = setTimeout(() => {
+      const params = buildShareableParams();
+      const qs = params.toString();
+      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      if (currentUrl !== newUrl) {
+        history.replaceState(null, '', newUrl);
+      }
+    }, 150);
+  }
+
+  function setCheckbox(id, checked) {
+    const el = document.getElementById(id);
+    if (el) el.checked = checked;
+  }
+
+  function setInputValue(id, value) {
+    const el = document.getElementById(id);
+    if (el && value != null) el.value = value;
+  }
+
+  function applyParamsFromUrl() {
+    if (!flow) return false;
+    const params = new URLSearchParams(window.location.search);
+    if ([...params.keys()].length === 0) return false;
+
+    isApplyingFromUrl = true;
+    try {
+      const agent = params.get('agent');
+      if (agent && isValidAgent(agent)) {
+        document.getElementById('agent').value = agent;
+        state.agent = agent;
+      }
+
+      const env = params.get('env');
+      if (env && isValidEnv(env)) setEnv(env);
+
+      const platform = flow.platforms.find(p => p.id === state.env);
+      if (platform) {
+        platform.fields.forEach(f => {
+          if (f.secret || f.id === 'token' || isBlockedUrlParam(f.id)) return;
+          const val = params.get(f.id);
+          if (val != null) setInputValue('pf-' + f.id, val);
+        });
+      }
+
+      const transport = params.get('transport');
+      if (transport && isValidTransport(transport)) {
+        const transportDef = flow.transports.find(t => t.id === transport);
+        if (transportDef && transportDef.availableFor.includes(state.env)) {
+          setTransport(transport);
+        }
+      }
+
+      const httpMode = params.get('httpMode');
+      if (httpMode && isValidHttpMode(httpMode) && (state.transport === 'http' || state.transport === 'https')) {
+        setHttpMode(httpMode);
+      }
+
+      if (params.has('httpHost') && !isBlockedUrlParam('httpHost')) {
+        setInputValue('httpHost', params.get('httpHost'));
+      }
+      if (params.has('httpPort') && !isBlockedUrlParam('httpPort')) {
+        setInputValue('httpPort', params.get('httpPort'));
+      }
+
+      if (state.transport === 'https' && state.httpMode === 'launch') {
+        const httpsTransport = flow.transports.find(t => t.id === 'https');
+        if (httpsTransport && httpsTransport.modes && httpsTransport.modes.launch && httpsTransport.modes.launch.extraFields) {
+          httpsTransport.modes.launch.extraFields.forEach(f => {
+            if (f.secret || isBlockedUrlParam(f.id)) return;
+            const val = params.get(f.id);
+            if (val != null) setInputValue(f.id, val);
+          });
+        }
+      }
+
+      if (params.has('toolsets') && !isBlockedUrlParam('toolsets')) {
+        syncToolsetStates();
+        const validKeys = new Set(flow.toolsets.map(t => t.key));
+        const selected = new Set(
+          params.get('toolsets').split(',').map(s => s.trim()).filter(k => validKeys.has(k))
+        );
+        flow.toolsets.forEach(t => {
+          const cb = document.getElementById('tool-' + t.key);
+          if (!cb || cb.disabled) return;
+          cb.checked = selected.has(t.key);
+        });
+      }
+
+      if (params.get('debug') === '1') setCheckbox('opt-debug', true);
+      if (params.get('readonly') === '1') setCheckbox('opt-readonly', true);
+      if (params.get('certs') === '1') {
+        setCheckbox('opt-certs', true);
+        toggleCerts();
+      }
+      if (params.has('certPath') && !isBlockedUrlParam('certPath')) {
+        setInputValue('certPath', params.get('certPath'));
+      }
+      if (params.has('projectKey') && !isBlockedUrlParam('projectKey')) {
+        setInputValue('projectKey', params.get('projectKey'));
+      }
+      if (params.get('workspaceMount') === '1') {
+        setCheckbox('opt-workspace-mount', true);
+        toggleWorkspaceMount();
+        if (params.has('workspaceHostPath') && !isBlockedUrlParam('workspaceHostPath')) {
+          setInputValue('workspaceHostPath', params.get('workspaceHostPath'));
+        }
+      }
+
+      updateUI();
+    } finally {
+      isApplyingFromUrl = false;
+    }
+    syncUrlFromState();
+    return true;
+  }
 
   fetch('config-flow.json')
     .then(r => r.json())
@@ -318,7 +552,7 @@
     syncSqcUrl();
     syncWorkspaceMountVisibility();
     syncToolsetStates();
-    updateUI();
+    if (!applyParamsFromUrl()) updateUI();
   }
 
   function renderPlatformFields() {
@@ -791,6 +1025,7 @@
     if (!flow || !state.agent) {
       document.getElementById('codeOutput').textContent = 'Please select a target client (step 1) to build the configuration.';
       document.getElementById('instructionAlert').classList.add('hidden');
+      syncUrlFromState();
       return;
     }
 
@@ -822,6 +1057,7 @@
     alertBox.innerHTML = `<div>${instructions}</div>`;
     alertBox.classList.remove('hidden');
     document.getElementById('codeOutput').textContent = code;
+    syncUrlFromState();
   }
 
   function copyCode() {

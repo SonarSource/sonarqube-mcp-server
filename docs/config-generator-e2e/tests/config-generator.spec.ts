@@ -411,4 +411,64 @@ test.describe('config-generator.html', () => {
     expect(parsed.mcpServers.sonarqube.headers).toBeDefined();
     expect(parsed.mcpServers.sonarqube.headers.SONARQUBE_PROJECT_KEY).toBeUndefined();
   });
+
+  test('URL params: restores non-sensitive configuration on load', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&env=cloud&transport=sqc&org=my-shared-org&projectKey=shared_project&readonly=1');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#agent')).toHaveValue('cursor');
+    await expect(page.locator('#envControl .segment-btn[data-value="cloud"]')).toHaveClass(/active/);
+    await expect(page.locator('#card-sqc')).toHaveClass(/active/);
+    await expect(page.locator('#pf-org')).toHaveValue('my-shared-org');
+    await expect(page.locator('#projectKey')).toHaveValue('shared_project');
+    await expect(page.locator('#opt-readonly')).toBeChecked();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.headers['SONARQUBE_ORG']).toBe('my-shared-org');
+    expect(parsed.mcpServers.sonarqube.headers['SONARQUBE_READ_ONLY']).toBe('true');
+  });
+
+  test('URL params: never includes user token', async ({ page }) => {
+    await selectCursor(page);
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#pf-org').fill('my-org');
+    await page.locator('#token').fill('sqp_super_secret_token');
+    await page.locator('#card-sqc').click();
+    await page.waitForFunction(() => {
+      const search = window.location.search;
+      return search.includes('agent=cursor') && !search.includes('token');
+    });
+    const search = new URL(page.url()).searchParams;
+    expect(search.has('token')).toBe(false);
+    expect(search.has('SONARQUBE_TOKEN')).toBe(false);
+    expect(page.url()).not.toContain('sqp_super_secret_token');
+    expect(page.url()).toContain('agent=cursor');
+    expect(page.url()).toContain('org=my-org');
+    expect(page.url()).toContain('transport=sqc');
+  });
+
+  test('URL params: ignores invalid values safely', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=not-a-real-agent&transport=teleport&foo=bar');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#agent')).toHaveValue('');
+    await expect(page.locator('#card-stdio')).toHaveClass(/active/);
+    await expect(page.locator('#codeOutput')).toContainText('Please select a target client');
+  });
+
+  test('URL params: refresh preserves non-sensitive configuration', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&transport=sqc&org=refresh-org');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#pf-org')).toHaveValue('refresh-org');
+    await page.reload();
+    await expect(page.locator('#agent')).toHaveValue('cursor');
+    await expect(page.locator('#pf-org')).toHaveValue('refresh-org');
+    await expect(page.locator('#card-sqc')).toHaveClass(/active/);
+  });
+
+  test('URL params: secret query params are ignored on load', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&token=leaked-token&keystorePassword=leaked-password');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#agent')).toHaveValue('cursor');
+    await expect(page.locator('#token')).toHaveValue('');
+    await expect(page.locator('#keystorePassword')).toHaveValue('');
+  });
 });

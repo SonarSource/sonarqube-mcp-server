@@ -12,8 +12,9 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npx serve .. -l 4173 --no-clipboard',
-    cwd: __dirname,
+    // python http.server preserves query strings (serve clean-url redirects drop them)
+    command: 'python3 -m http.server 4173',
+    cwd: `${__dirname}/..`,
     url: 'http://127.0.0.1:4173/config-generator.html',
     reuseExistingServer: true,
   },
