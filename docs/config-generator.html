@@ -279,8 +279,12 @@
   function isValidHttpMode(mode) { return mode === 'client' || mode === 'launch'; }
 
   const SAFE_SCALAR_VALUE = /^[A-Za-z0-9_.:\/@-]*$/;
-  const SAFE_PATH_VALUE = /^[A-Za-z0-9_./@:-]*$/;
   const SAFE_BIND_HOST = /^[A-Za-z0-9._-]*$/;
+  const UNSAFE_CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+
+  function isSafePathValue(value) {
+    return !UNSAFE_CONTROL_CHARS.test(value);
+  }
 
   function isValidHttpUrl(value) {
     try {
@@ -306,7 +310,7 @@
     }
     if (fieldId === 'url') return isValidHttpUrl(value);
     if (fieldId === 'certPath' || fieldId === 'workspaceHostPath' || fieldId === 'keystorePath' || fieldId === 'truststorePath') {
-      return SAFE_PATH_VALUE.test(value);
+      return isSafePathValue(value);
     }
     if (fieldId === 'org' || fieldId === 'projectKey') return SAFE_SCALAR_VALUE.test(value);
     return SAFE_SCALAR_VALUE.test(value);

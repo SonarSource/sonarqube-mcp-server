@@ -476,4 +476,19 @@ test.describe('config-generator.html', () => {
     await expect(page.locator('#pf-org')).toHaveValue('');
     await expect(page.locator('#httpPort')).toHaveValue('8080');
   });
+
+  test('URL params: restores paths with spaces and backslashes', async ({ page }) => {
+    const workspacePath = '/Users/Jane Doe/project';
+    const certPath = 'C:\\certs\\custom';
+    await page.goto(
+      '/config-generator.html?agent=cursor&workspaceMount=1'
+      + '&workspaceHostPath=' + encodeURIComponent(workspacePath)
+      + '&certs=1&certPath=' + encodeURIComponent(certPath),
+    );
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#opt-workspace-mount')).toBeChecked();
+    await expect(page.locator('#workspaceHostPath')).toHaveValue(workspacePath);
+    await expect(page.locator('#opt-certs')).toBeChecked();
+    await expect(page.locator('#certPath')).toHaveValue(certPath);
+  });
 });
