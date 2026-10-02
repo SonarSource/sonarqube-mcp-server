@@ -5,7 +5,6 @@
     "test": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1",
-    "serve": "^14.2.4"
+    "@playwright/test": "^1.49.1"
   }
 }

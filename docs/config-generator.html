@@ -278,6 +278,53 @@
   function isValidTransport(id) { return flow.transports.some(t => t.id === id); }
   function isValidHttpMode(mode) { return mode === 'client' || mode === 'launch'; }
 
+  const SAFE_SCALAR_VALUE = /^[A-Za-z0-9_.:\/@-]*$/;
+  const SAFE_PATH_VALUE = /^[A-Za-z0-9_./@:-]*$/;
+  const SAFE_BIND_HOST = /^[A-Za-z0-9._-]*$/;
+
+  function isValidHttpUrl(value) {
+    try {
+      const u = new URL(value);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  function isValidShareablePort(value) {
+    return /^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= 65535;
+  }
+
+  function isValidUrlParamField(fieldId, value) {
+    if (value == null || value === '') return false;
+    if (fieldId === 'httpPort') return isValidShareablePort(value);
+    if (fieldId === 'httpHost') {
+      if ((state.transport === 'http' || state.transport === 'https') && state.httpMode === 'launch') {
+        return SAFE_BIND_HOST.test(value);
+      }
+      return isValidHttpUrl(value);
+    }
+    if (fieldId === 'url') return isValidHttpUrl(value);
+    if (fieldId === 'certPath' || fieldId === 'workspaceHostPath' || fieldId === 'keystorePath' || fieldId === 'truststorePath') {
+      return SAFE_PATH_VALUE.test(value);
+    }
+    if (fieldId === 'org' || fieldId === 'projectKey') return SAFE_SCALAR_VALUE.test(value);
+    return SAFE_SCALAR_VALUE.test(value);
+  }
+
+  function shellQuote(value) {
+    return "'" + String(value).replace(/'/g, "'\\''") + "'";
+  }
+
+  function shellDoubleQuote(value) {
+    return '"' + String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`') + '"';
+  }
+
+  function applyValidatedUrlParam(fieldId, elementId, rawValue) {
+    if (rawValue == null || isBlockedUrlParam(fieldId)) return;
+    if (isValidUrlParamField(fieldId, rawValue)) setInputValue(elementId, rawValue);
+  }
+
   function getCheckedToolsetKeys() {
     const keys = [];
     flow.toolsets.forEach(t => {
@@ -410,8 +457,7 @@
       if (platform) {
         platform.fields.forEach(f => {
           if (f.secret || f.id === 'token' || isBlockedUrlParam(f.id)) return;
-          const val = params.get(f.id);
-          if (val != null) setInputValue('pf-' + f.id, val);
+          applyValidatedUrlParam(f.id, 'pf-' + f.id, params.get(f.id));
         });
       }
 
@@ -428,20 +474,15 @@
         setHttpMode(httpMode);
       }
 
-      if (params.has('httpHost') && !isBlockedUrlParam('httpHost')) {
-        setInputValue('httpHost', params.get('httpHost'));
-      }
-      if (params.has('httpPort') && !isBlockedUrlParam('httpPort')) {
-        setInputValue('httpPort', params.get('httpPort'));
-      }
+      applyValidatedUrlParam('httpHost', 'httpHost', params.get('httpHost'));
+      applyValidatedUrlParam('httpPort', 'httpPort', params.get('httpPort'));
 
       if (state.transport === 'https' && state.httpMode === 'launch') {
         const httpsTransport = flow.transports.find(t => t.id === 'https');
         if (httpsTransport && httpsTransport.modes && httpsTransport.modes.launch && httpsTransport.modes.launch.extraFields) {
           httpsTransport.modes.launch.extraFields.forEach(f => {
             if (f.secret || isBlockedUrlParam(f.id)) return;
-            const val = params.get(f.id);
-            if (val != null) setInputValue(f.id, val);
+            applyValidatedUrlParam(f.id, f.id, params.get(f.id));
           });
         }
       }
@@ -465,18 +506,12 @@
         setCheckbox('opt-certs', true);
         toggleCerts();
       }
-      if (params.has('certPath') && !isBlockedUrlParam('certPath')) {
-        setInputValue('certPath', params.get('certPath'));
-      }
-      if (params.has('projectKey') && !isBlockedUrlParam('projectKey')) {
-        setInputValue('projectKey', params.get('projectKey'));
-      }
+      applyValidatedUrlParam('certPath', 'certPath', params.get('certPath'));
+      applyValidatedUrlParam('projectKey', 'projectKey', params.get('projectKey'));
       if (params.get('workspaceMount') === '1') {
         setCheckbox('opt-workspace-mount', true);
         toggleWorkspaceMount();
-        if (params.has('workspaceHostPath') && !isBlockedUrlParam('workspaceHostPath')) {
-          setInputValue('workspaceHostPath', params.get('workspaceHostPath'));
-        }
+        applyValidatedUrlParam('workspaceHostPath', 'workspaceHostPath', params.get('workspaceHostPath'));
       }
 
       updateUI();
@@ -964,12 +999,14 @@
     if (vals.workspaceMountHost) dockerArgs.push('-v', `${vals.workspaceMountHost}:/app/mcp-workspace:rw`);
     for (const [k, v] of Object.entries(vals.envVars)) dockerArgs.push('-e', `${k}=${v}`);
     dockerArgs.push(flow.dockerImage);
-    return `claude mcp add --transport stdio sonarqube \\\n  -- docker ${dockerArgs.join(' ')}`;
+    return `claude mcp add --transport stdio sonarqube \\\n  -- docker ${dockerArgs.map(shellQuote).join(' ')}`;
   }
 
   function formatClaudeHttp(vals) {
-    let cmd = `claude mcp add --transport http sonarqube ${vals.clientUrl}`;
-    for (const [k, v] of Object.entries(vals.httpHeaders)) cmd += ` \\\n  --header "${k}: ${v}"`;
+    let cmd = `claude mcp add --transport http sonarqube ${shellQuote(vals.clientUrl)}`;
+    for (const [k, v] of Object.entries(vals.httpHeaders)) {
+      cmd += ` \\\n  --header ${shellDoubleQuote(k + ': ' + v)}`;
+    }
     return cmd;
   }
 
@@ -1038,9 +1075,9 @@
     if (vals.isHttpLaunch) {
       const proto = state.transport.toUpperCase();
       instructions = `<strong>Launch the ${proto} server</strong>: Run this command in your terminal to host the MCP server.`;
-      let cmd = 'docker run \\\n  --init --pull=always \\\n  -d -p ' + vals.httpPort + ':' + vals.httpPort + ' \\';
-      if (vals.certPath) cmd += `\n  -v ${vals.certPath}:/usr/local/share/ca-certificates/:ro \\`;
-      for (const [k, v] of Object.entries(vals.envVars)) cmd += `\n  -e ${k}="${v}" \\`;
+      let cmd = 'docker run \\\n  --init --pull=always \\\n  -d -p ' + shellQuote(vals.httpPort + ':' + vals.httpPort) + ' \\';
+      if (vals.certPath) cmd += `\n  -v ${shellQuote(vals.certPath + ':/usr/local/share/ca-certificates/:ro')} \\`;
+      for (const [k, v] of Object.entries(vals.envVars)) cmd += `\n  -e ${shellQuote(k + '=' + v)} \\`;
       cmd += '\n  ' + flow.dockerImage;
       code = cmd;
     } else {
