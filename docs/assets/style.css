@@ -426,6 +426,16 @@ pre code {
   font-family: inherit;
 }
 .btn:hover { border-color: var(--accent); background: var(--accent-dim); text-decoration: none; }
+.copy-actions {
+  display: grid;
+  gap: 8px;
+}
+.copy-actions .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
