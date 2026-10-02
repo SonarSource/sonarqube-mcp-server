@@ -477,7 +477,7 @@ test.describe('config-generator.html', () => {
     await expect(page.locator('#httpPort')).toHaveValue('8080');
   });
 
-  test('Copy link copies shareable URL without token', async ({ page, context }) => {
+  test('Copy shareable link copies URL without token', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await selectCursor(page);
     await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
@@ -487,7 +487,7 @@ test.describe('config-generator.html', () => {
     await expect(page.locator('#copyLinkBtn')).toBeEnabled();
     await page.evaluate(() => document.getElementById('feedbackFab')?.classList.remove('open'));
     await page.locator('#copyLinkBtn').click();
-    await expect(page.locator('#copyLinkBtn')).toContainText('Link copied');
+    await expect(page.locator('#copyLinkBtn')).toContainText('Copied');
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboard).toContain('agent=cursor');
     expect(clipboard).toContain('org=share-org');
