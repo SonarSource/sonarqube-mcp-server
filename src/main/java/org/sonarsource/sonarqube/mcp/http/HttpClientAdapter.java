@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.http;
 import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.function.Supplier;
 import jakarta.annotation.Nullable;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
@@ -35,17 +36,17 @@ class HttpClientAdapter implements HttpClient {
   private static final String X_API_KEY_HEADER = "x-api-key";
   private static final String LOCALHOST = "localhost";
   private static final String LOCALHOST_ORIGIN = "http://localhost";
-  private final CloseableHttpAsyncClient apacheClient;
+  private final Supplier<CloseableHttpAsyncClient> apacheClient;
   private final String token;
   private final boolean isBridgeClient;
   @Nullable
   private final String apiKey;
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient) {
+  HttpClientAdapter(Supplier<CloseableHttpAsyncClient> apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient) {
     this(apacheClient, sonarqubeCloudToken, isBridgeClient, null);
   }
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, @Nullable String apiKey) {
+  HttpClientAdapter(Supplier<CloseableHttpAsyncClient> apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, @Nullable String apiKey) {
     this.apacheClient = apacheClient;
     this.token = sonarqubeCloudToken;
     this.isBridgeClient = isBridgeClient;
@@ -97,7 +98,7 @@ class HttpClientAdapter implements HttpClient {
     private final Future<SimpleHttpResponse> wrapped;
 
     private CompletableFutureWrappingFuture(SimpleHttpRequest httpRequest) {
-      this.wrapped = apacheClient.execute(httpRequest, new FutureCallback<>() {
+      this.wrapped = apacheClient.get().execute(httpRequest, new FutureCallback<>() {
         @Override
         public void completed(SimpleHttpResponse result) {
           try {

@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.io.CloseMode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -135,6 +136,42 @@ class HttpClientProviderTests {
     underTest.getHttpClient("token").postAsync(sonarqubeMock.url("/test"), "text/html", "").get(2, TimeUnit.SECONDS);
 
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/test")));
+  }
+
+  @Test
+  void it_should_recover_existing_clients_after_http_reactor_stops() {
+    var provider = new HttpClientProvider(USER_AGENT);
+    var authenticatedClient = provider.getHttpClient("token");
+    var anonymousClient = provider.getAnonymousHttpClient();
+    var stoppedClient = provider.getRunningClient();
+    stoppedClient.close(CloseMode.IMMEDIATE);
+
+    try (var ignored = authenticatedClient.getAsync(sonarqubeMock.url("/recovered")).join()) {
+      // nothing
+    }
+
+    assertThat(provider.getRunningClient()).isNotSameAs(stoppedClient);
+    sonarqubeMock.verify(getRequestedFor(urlEqualTo("/recovered"))
+      .withHeader("Authorization", equalTo("Bearer token"))
+      .withHeader("User-Agent", equalTo(USER_AGENT)));
+
+    try (var ignored = anonymousClient.postAsync(sonarqubeMock.url("/recovered-post"), "text/plain", "body").join()) {
+      // nothing
+    }
+
+    sonarqubeMock.verify(postRequestedFor(urlEqualTo("/recovered-post")));
+    provider.shutdown();
+  }
+
+  @Test
+  void it_should_not_recreate_client_after_provider_shutdown() {
+    var provider = new HttpClientProvider(USER_AGENT);
+    var client = provider.getHttpClient("token");
+    provider.shutdown();
+    var url = sonarqubeMock.url("/test");
+
+    assertThat(assertThrows(IllegalStateException.class, () -> client.getAsync(url)))
+      .hasMessageContaining("shut down");
   }
 
   @Test
