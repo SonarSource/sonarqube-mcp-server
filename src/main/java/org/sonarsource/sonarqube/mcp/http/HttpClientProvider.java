@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.http;
 
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
+import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.hc.client5.http.config.TlsConfig;
@@ -30,16 +31,22 @@ import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.reactor.IOReactorStatus;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 public class HttpClientProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
-  private final CloseableHttpAsyncClient httpClient;
+  private CloseableHttpAsyncClient httpClient;
   private final String userAgent;
+  private final SSLContext sslContext;
+  private final ProxySelector defaultProxySelector;
+  private final IOReactorConfig socksConfig;
   private final String sslProtocol;
   private final int trustedCertificates;
   private final String proxySelector;
+  private boolean shutDown;
+  private boolean clientStale;
 
   public HttpClientProvider(String userAgent) {
     this.userAgent = userAgent;
@@ -58,10 +65,17 @@ public class HttpClientProvider {
         sslFactoryBuilder::withSystemPropertyDerivedTrustMaterial);
     }
     var sslFactory = sslFactoryBuilder.build();
-    var sslContext = sslFactory.getSslContext();
+    this.sslContext = sslFactory.getSslContext();
     this.sslProtocol = sslContext.getProtocol();
     this.trustedCertificates = sslFactory.getTrustedCertificates().size();
 
+    this.defaultProxySelector = ProxySelector.getDefault();
+    this.proxySelector = defaultProxySelector != null ? defaultProxySelector.getClass().getName() : "none";
+    this.socksConfig = buildSocksProxyConfig();
+    this.httpClient = createHttpClient();
+  }
+
+  private CloseableHttpAsyncClient createHttpClient() {
     var asyncConnectionManager = PoolingAsyncClientConnectionManagerBuilder.create()
       .setTlsStrategy(new DefaultClientTlsStrategy(sslContext))
       .setDefaultTlsConfig(TlsConfig.custom()
@@ -69,9 +83,6 @@ public class HttpClientProvider {
         .setVersionPolicy(HttpVersionPolicy.FORCE_HTTP_1)
         .build())
       .build();
-
-    var defaultProxySelector = ProxySelector.getDefault();
-    this.proxySelector = defaultProxySelector != null ? defaultProxySelector.getClass().getName() : "none";
 
     var httpClientBuilder = HttpAsyncClients.custom()
       .setConnectionManager(asyncConnectionManager)
@@ -81,13 +92,12 @@ public class HttpClientProvider {
     if (defaultProxySelector != null) {
       httpClientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(defaultProxySelector));
     }
-    var socksConfig = buildSocksProxyConfig();
     if (socksConfig != null) {
       httpClientBuilder.setIOReactorConfig(socksConfig);
     }
-    this.httpClient = httpClientBuilder.build();
-
-    httpClient.start();
+    var client = httpClientBuilder.build();
+    client.start();
+    return client;
   }
 
   private static boolean isClientCertificateConfigured() {
@@ -128,11 +138,11 @@ public class HttpClientProvider {
   }
 
   public HttpClient getHttpClient(String sonarqubeCloudToken) {
-    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false);
+    return new HttpClientAdapter(this, sonarqubeCloudToken, false);
   }
 
   public HttpClient getAnonymousHttpClient() {
-    return new HttpClientAdapter(httpClient, null, false);
+    return new HttpClientAdapter(this, null, false);
   }
 
   /**
@@ -140,7 +150,7 @@ public class HttpClientProvider {
    * Bridge client adds special Host and Origin headers for localhost communication.
    */
   public HttpClient getHttpClientForBridge() {
-    return new HttpClientAdapter(httpClient, null, true);
+    return new HttpClientAdapter(this, null, true);
   }
 
   /**
@@ -148,10 +158,31 @@ public class HttpClientProvider {
    * Sends an x-api-key header on every request.
    */
   public HttpClient getHttpClientForAnalytics(String apiKey) {
-    return new HttpClientAdapter(httpClient, null, false, apiKey);
+    return new HttpClientAdapter(this, null, false, apiKey);
   }
 
-  public void shutdown() {
+  synchronized CloseableHttpAsyncClient getRunningClient() {
+    if (shutDown) {
+      throw new IllegalStateException("HTTP client provider has been shut down");
+    }
+    var status = httpClient.getStatus();
+    if (clientStale || status == IOReactorStatus.SHUTTING_DOWN || status == IOReactorStatus.SHUT_DOWN) {
+      LOG.warn("HTTP client stopped; creating a new client");
+      httpClient.close(CloseMode.IMMEDIATE);
+      httpClient = createHttpClient();
+      clientStale = false;
+    }
+    return httpClient;
+  }
+
+  synchronized void markClientStale(CloseableHttpAsyncClient client) {
+    if (!shutDown && httpClient == client) {
+      clientStale = true;
+    }
+  }
+
+  public synchronized void shutdown() {
+    shutDown = true;
     httpClient.close(CloseMode.IMMEDIATE);
   }
 

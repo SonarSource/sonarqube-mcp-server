@@ -26,6 +26,7 @@ import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.reactor.IOReactorShutdownException;
 
 class HttpClientAdapter implements HttpClient {
 
@@ -35,18 +36,18 @@ class HttpClientAdapter implements HttpClient {
   private static final String X_API_KEY_HEADER = "x-api-key";
   private static final String LOCALHOST = "localhost";
   private static final String LOCALHOST_ORIGIN = "http://localhost";
-  private final CloseableHttpAsyncClient apacheClient;
+  private final HttpClientProvider provider;
   private final String token;
   private final boolean isBridgeClient;
   @Nullable
   private final String apiKey;
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient) {
-    this(apacheClient, sonarqubeCloudToken, isBridgeClient, null);
+  HttpClientAdapter(HttpClientProvider provider, @Nullable String sonarqubeCloudToken, boolean isBridgeClient) {
+    this(provider, sonarqubeCloudToken, isBridgeClient, null);
   }
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, @Nullable String apiKey) {
-    this.apacheClient = apacheClient;
+  HttpClientAdapter(HttpClientProvider provider, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, @Nullable String apiKey) {
+    this.provider = provider;
     this.token = sonarqubeCloudToken;
     this.isBridgeClient = isBridgeClient;
     this.apiKey = apiKey;
@@ -97,29 +98,36 @@ class HttpClientAdapter implements HttpClient {
     private final Future<SimpleHttpResponse> wrapped;
 
     private CompletableFutureWrappingFuture(SimpleHttpRequest httpRequest) {
-      this.wrapped = apacheClient.execute(httpRequest, new FutureCallback<>() {
-        @Override
-        public void completed(SimpleHttpResponse result) {
-          try {
-            var uri = httpRequest.getUri().toString();
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
-              new HttpResponse(uri, result));
-          } catch (URISyntaxException e) {
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
-              new HttpResponse(httpRequest.getRequestUri(), result));
+      var client = provider.getRunningClient();
+      try {
+        this.wrapped = client.execute(httpRequest, new FutureCallback<>() {
+          @Override
+          public void completed(SimpleHttpResponse result) {
+            try {
+              var uri = httpRequest.getUri().toString();
+              HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
+                new HttpResponse(uri, result));
+            } catch (URISyntaxException e) {
+              HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
+                new HttpResponse(httpRequest.getRequestUri(), result));
+            }
           }
-        }
 
-        @Override
-        public void failed(Exception ex) {
-          HttpClientAdapter.CompletableFutureWrappingFuture.this.completeExceptionally(ex);
-        }
+          @Override
+          public void failed(Exception ex) {
+            markClientStaleOnReactorShutdown(client, ex);
+            HttpClientAdapter.CompletableFutureWrappingFuture.this.completeExceptionally(ex);
+          }
 
-        @Override
-        public void cancelled() {
-          HttpClientAdapter.CompletableFutureWrappingFuture.this.cancel();
-        }
-      });
+          @Override
+          public void cancelled() {
+            HttpClientAdapter.CompletableFutureWrappingFuture.this.cancel();
+          }
+        });
+      } catch (RuntimeException ex) {
+        markClientStaleOnReactorShutdown(client, ex);
+        throw ex;
+      }
     }
 
     private void cancel() {
@@ -129,6 +137,15 @@ class HttpClientAdapter implements HttpClient {
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
       return wrapped.cancel(mayInterruptIfRunning);
+    }
+
+    private void markClientStaleOnReactorShutdown(CloseableHttpAsyncClient client, Throwable failure) {
+      for (var cause = failure; cause != null; cause = cause.getCause()) {
+        if (cause instanceof IOReactorShutdownException) {
+          provider.markClientStale(client);
+          return;
+        }
+      }
     }
   }
 
