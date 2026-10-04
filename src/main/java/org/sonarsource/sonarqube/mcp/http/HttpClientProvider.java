@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.http;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.time.Duration;
+import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.hc.client5.http.config.TlsConfig;
@@ -37,6 +38,7 @@ import org.apache.hc.core5.http.protocol.HttpCoreContext;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.reactor.IOReactorStatus;
 import org.apache.hc.core5.util.Timeout;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -45,13 +47,18 @@ public class HttpClientProvider {
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final Duration API_TIMEOUT = Duration.ofSeconds(30);
   private static final Duration ANALYTICS_TIMEOUT = Duration.ofSeconds(10);
-  private final CloseableHttpAsyncClient httpClient;
+  private CloseableHttpAsyncClient httpClient;
   private final String userAgent;
+  private final SSLContext sslContext;
+  private final ProxySelector defaultProxySelector;
+  private final IOReactorConfig reactorConfig;
   private final String sslProtocol;
   private final int trustedCertificates;
   private final String proxySelector;
   private final Duration apiTimeout;
   private final Duration analyticsTimeout;
+  private boolean shutDown;
+  private boolean clientStale;
 
   public HttpClientProvider(String userAgent) {
     this(userAgent, API_TIMEOUT, ANALYTICS_TIMEOUT);
@@ -76,10 +83,17 @@ public class HttpClientProvider {
         sslFactoryBuilder::withSystemPropertyDerivedTrustMaterial);
     }
     var sslFactory = BlockedCertificateTrustManager.protect(sslFactoryBuilder.build());
-    var sslContext = sslFactory.getSslContext();
+    this.sslContext = sslFactory.getSslContext();
     this.sslProtocol = sslContext.getProtocol();
     this.trustedCertificates = sslFactory.getTrustedCertificates().size();
 
+    this.defaultProxySelector = ProxySelector.getDefault();
+    this.proxySelector = defaultProxySelector != null ? defaultProxySelector.getClass().getName() : "none";
+    this.reactorConfig = buildReactorConfig();
+    this.httpClient = createHttpClient();
+  }
+
+  private CloseableHttpAsyncClient createHttpClient() {
     var asyncConnectionManager = PoolingAsyncClientConnectionManagerBuilder.create()
       .setTlsStrategy(new DefaultClientTlsStrategy(sslContext))
       .setDefaultTlsConfig(TlsConfig.custom()
@@ -87,9 +101,6 @@ public class HttpClientProvider {
         .setVersionPolicy(HttpVersionPolicy.FORCE_HTTP_1)
         .build())
       .build();
-
-    var defaultProxySelector = ProxySelector.getDefault();
-    this.proxySelector = defaultProxySelector != null ? defaultProxySelector.getClass().getName() : "none";
 
     var httpClientBuilder = HttpAsyncClients.custom()
       .setConnectionManager(asyncConnectionManager)
@@ -103,14 +114,14 @@ public class HttpClientProvider {
         }
       })
       .setDefaultRequestConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(30)).build())
-      .setIOReactorConfig(buildReactorConfig())
+      .setIOReactorConfig(reactorConfig)
       .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
     if (defaultProxySelector != null) {
       httpClientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(defaultProxySelector));
     }
-    this.httpClient = httpClientBuilder.build();
-
-    httpClient.start();
+    var client = httpClientBuilder.build();
+    client.start();
+    return client;
   }
 
   private static boolean isClientCertificateConfigured() {
@@ -151,11 +162,11 @@ public class HttpClientProvider {
   }
 
   public HttpClient getHttpClient(String sonarqubeCloudToken) {
-    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false, apiTimeout);
+    return new HttpClientAdapter(this, sonarqubeCloudToken, false, apiTimeout);
   }
 
   public HttpClient getAnonymousHttpClient() {
-    return new HttpClientAdapter(httpClient, null, false, apiTimeout);
+    return new HttpClientAdapter(this, null, false, apiTimeout);
   }
 
   /**
@@ -163,7 +174,7 @@ public class HttpClientProvider {
    * Bridge client adds special Host and Origin headers for localhost communication.
    */
   public HttpClient getHttpClientForBridge() {
-    return new HttpClientAdapter(httpClient, null, true, apiTimeout);
+    return new HttpClientAdapter(this, null, true, apiTimeout);
   }
 
   /**
@@ -171,10 +182,31 @@ public class HttpClientProvider {
    * Sends an x-api-key header on every request.
    */
   public HttpClient getHttpClientForAnalytics(String apiKey) {
-    return new HttpClientAdapter(httpClient, null, false, analyticsTimeout, apiKey);
+    return new HttpClientAdapter(this, null, false, analyticsTimeout, apiKey);
   }
 
-  public void shutdown() {
+  synchronized CloseableHttpAsyncClient getRunningClient() {
+    if (shutDown) {
+      throw new IllegalStateException("HTTP client provider has been shut down");
+    }
+    var status = httpClient.getStatus();
+    if (clientStale || status == IOReactorStatus.SHUTTING_DOWN || status == IOReactorStatus.SHUT_DOWN) {
+      LOG.warn("HTTP client stopped; creating a new client");
+      httpClient.close(CloseMode.IMMEDIATE);
+      httpClient = createHttpClient();
+      clientStale = false;
+    }
+    return httpClient;
+  }
+
+  synchronized void markClientStale(CloseableHttpAsyncClient client) {
+    if (!shutDown && httpClient == client) {
+      clientStale = true;
+    }
+  }
+
+  public synchronized void shutdown() {
+    shutDown = true;
     httpClient.close(CloseMode.IMMEDIATE);
   }
 
