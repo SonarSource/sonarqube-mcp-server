@@ -234,9 +234,13 @@ Common building blocks (used for stdio configs):
         { "mcpServers": { "sonarqube": {
             "command": "docker", "args": [...], "env": { ... }
         }}}
-      HTTP shape (Cursor, Kiro, Generic):
+      HTTP shape (Cursor, Kiro):
         { "mcpServers": { "sonarqube": {
             "url": "<url>", "headers": { ... }
+        }}}
+      HTTP shape (Generic):
+        { "mcpServers": { "sonarqube": {
+            "type": "http", "url": "<url>", "headers": { ... }
         }}}
       HTTP shape (Antigravity): uses "serverUrl" instead of "url"; no "type".
       HTTP shape (Windsurf):    uses "serverUrl" instead of "url"; no "type".

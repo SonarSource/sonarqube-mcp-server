@@ -39,17 +39,17 @@ python3 -m http.server 8080
 # Then open http://localhost:8080/config-generator.html
 ```
 
-Any static HTTP server works (`npx serve .`, `http-server`, etc.). GitHub Pages is already an HTTP server in production, so no extra config is needed there.
+Use a static server that preserves query strings in the URL (required for shareable configuration links). `python3 -m http.server` works; avoid `npx serve .` without disabling clean URLs, because its redirects drop query parameters. GitHub Pages is already an HTTP server in production, so no extra config is needed there.
 
 ## Running the E2E tests (Playwright)
 
-The Playwright suite auto-starts its own static server (see [`playwright.config.ts`](config-generator-e2e/playwright.config.ts)).
+The Playwright suite auto-starts `python3 -m http.server` (see [`playwright.config.ts`](config-generator-e2e/playwright.config.ts)). Python 3 must be available on your PATH.
 
 ```bash
 cd docs/config-generator-e2e
 npm install                       # first time only
 npx playwright install chromium   # first time only
-npx playwright test               # run the suite (5 tests, ~7s)
+npx playwright test               # run the suite (~10s)
 ```
 
 Useful flags:
