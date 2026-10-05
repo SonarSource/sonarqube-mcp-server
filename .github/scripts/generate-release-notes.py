@@ -254,23 +254,25 @@ def fetch_jira_ticket(base_url: str, auth_header: str, key: str) -> dict | None:
     if len(description) > JIRA_DESCRIPTION_MAX_CHARS:
         description = description[:JIRA_DESCRIPTION_MAX_CHARS].rstrip() + "…"
     issue_type = ((fields.get("issuetype") or {}).get("name") or "").strip()
-
-    parent: dict | None = None
-    parent_raw = fields.get("parent")
-    if parent_raw and parent_raw.get("key"):
-        parent_fields = parent_raw.get("fields") or {}
-        status_raw = parent_fields.get("status") or {}
-        parent = {
-            "key": parent_raw["key"],
-            "summary": (parent_fields.get("summary") or "").strip(),
-            "issueType": ((parent_fields.get("issuetype") or {}).get("name") or "").strip(),
-            "status": (status_raw.get("name") or "").strip(),
-            # Jira's coarse status grouping: 'new' | 'indeterminate' | 'done' | 'undefined'.
-            # More reliable across configurations than the human-readable status name.
-            "statusCategory": ((status_raw.get("statusCategory") or {}).get("key") or "").strip(),
-        }
+    parent = _parse_jira_parent(fields.get("parent"))
 
     return {"key": key, "summary": summary, "description": description, "issueType": issue_type, "parent": parent}
+
+
+def _parse_jira_parent(parent_raw: dict | None) -> dict | None:
+    if not parent_raw or not parent_raw.get("key"):
+        return None
+    parent_fields = parent_raw.get("fields") or {}
+    status_raw = parent_fields.get("status") or {}
+    return {
+        "key": parent_raw["key"],
+        "summary": (parent_fields.get("summary") or "").strip(),
+        "issueType": ((parent_fields.get("issuetype") or {}).get("name") or "").strip(),
+        "status": (status_raw.get("name") or "").strip(),
+        # Jira's coarse status grouping: 'new' | 'indeterminate' | 'done' | 'undefined'.
+        # More reliable across configurations than the human-readable status name.
+        "statusCategory": ((status_raw.get("statusCategory") or {}).get("key") or "").strip(),
+    }
 
 
 def fetch_jira_tickets(commits: list[dict[str, str]]) -> list[dict]:
