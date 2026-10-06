@@ -177,10 +177,11 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
   - `SONARQUBE_TOOLSETS: <comma-separated-keys>` — optional; narrows the server-level toolset for this request (cannot add toolsets beyond what the server was launched with)
   - `SONARQUBE_READ_ONLY: true|false` — optional; can further restrict to read-only for this request (cannot lift a server-level read-only restriction)
 
-#### `OAUTH` Mode (Not Yet Implemented)
-- OAuth 2.1 with PKCE
-- Per MCP specification
-- Future enhancement
+#### `OAUTH` Mode (Dev9 Prototype)
+
+Auth0 handles authorization and PKCE. The MCP server verifies the incoming MCP access token and exchanges it through native Auth0 OBO with an explicit scope set restricted to the incoming delegation. It verifies the returned Cloud token and places only that token in the trusted request context. Read and write scopes are independent. OAuth is opt-in, and this first pass accepts GitHub users while SSO is deferred.
+
+`SONARQUBE_OAUTH_METADATA_URL` optionally sets the HTTPS protected-resource metadata URL advertised by 401 and 403 challenges. When configured, the external endpoint owns that document and the MCP server does not expose a local copy. When omitted, the server retains its public `/.well-known/oauth-protected-resource/mcp` metadata endpoint. This setting changes neither the MCP resource audience nor Auth0 discovery/JWKS configuration.
 
 ---
 
@@ -188,7 +189,7 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 
 ### Design: Stateless Per-Request Token Extraction
 
-The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function runs synchronously on the request thread and populates a `McpTransportContext` map with the request headers.
+The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function runs synchronously on the request thread and populates a `McpTransportContext`. Token mode extracts the request headers as shown below. OAuth mode requires the authentication filter's trusted request attribute and extracts the verified, exchanged Cloud token from it. It never copies the incoming MCP access token into the Cloud context.
 
 The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>` during tool execution, so `ServerApiProvider.get()` can access the token and org without any session lookup:
 

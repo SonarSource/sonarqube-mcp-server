@@ -20,6 +20,7 @@ import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.server.McpStatelessServerHandler;
 import io.modelcontextprotocol.server.transport.HttpServletStatelessServerTransport;
 import io.modelcontextprotocol.spec.McpStatelessServerTransport;
+import jakarta.annotation.Nullable;
 import jakarta.servlet.DispatcherType;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,8 +28,8 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
@@ -41,12 +42,14 @@ import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthRequestAuthentication;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import reactor.core.publisher.Mono;
 
 /**
@@ -66,6 +69,10 @@ public class HttpServerTransportProvider {
   private final int port;
   private final String host;
   private final AuthMode authMode;
+  @Nullable
+  private final OAuthProtectedResourceMetadata oauthMetadata;
+  @Nullable
+  private final Function<String, OAuthRequestAuthentication> oauthAuthenticator;
   private final boolean isSonarQubeCloud;
   @Nullable
   private final String serverOrg;
@@ -104,6 +111,31 @@ public class HttpServerTransportProvider {
     boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
     Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
     List<String> allowedOrigins, String appVersion, boolean isRunningInContainer) {
+    this(new HttpTransportSettings(port, host, authMode, isSonarQubeCloud, serverOrg,
+      new HttpTransportSettings.TlsSettings(httpsEnabled, httpsKeystorePath, httpsKeystorePassword, httpsKeystoreType,
+        httpsTruststorePath, httpsTruststorePassword, httpsTruststoreType),
+      new HttpTransportSettings.RequestSettings(allowedOrigins, appVersion, isRunningInContainer)), null, null);
+  }
+
+  public HttpServerTransportProvider(HttpTransportSettings settings, @Nullable OAuthProtectedResourceMetadata oauthMetadata,
+    @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
+    var port = settings.port();
+    var host = settings.host();
+    var authMode = settings.authMode();
+    var isSonarQubeCloud = settings.isSonarQubeCloud();
+    var serverOrg = settings.serverOrg();
+    var httpsEnabled = settings.tls().enabled();
+    var httpsKeystorePath = settings.tls().keystorePath();
+    var httpsKeystorePassword = settings.tls().keystorePassword();
+    var httpsKeystoreType = settings.tls().keystoreType();
+    var httpsTruststorePath = settings.tls().truststorePath();
+    var httpsTruststorePassword = settings.tls().truststorePassword();
+    var httpsTruststoreType = settings.tls().truststoreType();
+    var allowedOrigins = settings.requests().allowedOrigins();
+    var appVersion = settings.requests().appVersion();
+    var isRunningInContainer = settings.requests().isRunningInContainer();
+    this.oauthAuthenticator = oauthAuthenticator;
+    this.oauthMetadata = oauthMetadata;
     this.port = port;
     this.host = host;
     this.authMode = authMode;
@@ -124,7 +156,12 @@ public class HttpServerTransportProvider {
       .jsonMapper(McpJsonMappers.DEFAULT)
       .contextExtractor(request -> {
         try {
-          var token = AuthenticationFilter.extractToken(request);
+          var authentication = authMode == AuthMode.OAUTH
+            ? (OAuthRequestAuthentication) request.getAttribute(AuthenticationFilter.OAUTH_AUTHENTICATION_ATTRIBUTE) : null;
+          if (authMode == AuthMode.OAUTH && authentication == null) {
+            throw new IllegalStateException("Missing trusted OAuth request authentication");
+          }
+          var token = authentication != null ? authentication.cloudToken() : AuthenticationFilter.extractToken(request);
           var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
           var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);
           var contextBuilder = new HashMap<String, Object>();
@@ -139,7 +176,9 @@ public class HttpServerTransportProvider {
           if (toolsets != null && !toolsets.isBlank()) {
             contextBuilder.put(CONTEXT_TOOLSETS_KEY, ToolCategory.parseCategories(toolsets.trim()));
           }
-          if (readOnly != null && !readOnly.isBlank()) {
+          if (authentication != null && !authentication.scopes().contains("write:all")) {
+            contextBuilder.put(CONTEXT_READ_ONLY_KEY, true);
+          } else if (readOnly != null && !readOnly.isBlank()) {
             contextBuilder.put(CONTEXT_READ_ONLY_KEY, Boolean.parseBoolean(readOnly.trim()));
           }
           return McpTransportContext.create(contextBuilder);
@@ -218,8 +257,12 @@ public class HttpServerTransportProvider {
     var securityFilter = new FilterHolder(new McpSecurityFilter(host, allowedOrigins, appVersion));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarQubeCloud, serverOrg));
+    var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarQubeCloud, serverOrg, oauthMetadata, oauthAuthenticator));
     servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
+
+    if (authMode == AuthMode.OAUTH && oauthMetadata != null && oauthMetadata.isSelfHosted()) {
+      servletContextHandler.addServlet(new ServletHolder(oauthMetadata), OAuthProtectedResourceMetadata.PATH);
+    }
 
     var servletHolder = new ServletHolder(mcpTransportProvider);
     servletHolder.setAsyncSupported(true);
@@ -346,3 +389,5 @@ public class HttpServerTransportProvider {
   }
 
 }
+
+
