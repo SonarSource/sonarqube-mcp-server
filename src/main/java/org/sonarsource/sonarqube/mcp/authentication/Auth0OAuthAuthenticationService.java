@@ -17,6 +17,9 @@
 package org.sonarsource.sonarqube.mcp.authentication;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import jakarta.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -25,11 +28,11 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -39,7 +42,7 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
   private final Auth0TokenVerifier verifier;
   private final Auth0TokenExchange exchange;
   private final Clock clock;
-  private final Map<CacheKey, CacheEntry> cache = new LinkedHashMap<>(16, 0.75f, true);
+  private final Cache<CacheKey, CacheEntry> cache;
   private final Semaphore exchanges = new Semaphore(16);
 
   public Auth0OAuthAuthenticationService(OAuthConfiguration configuration) {
@@ -51,6 +54,10 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     this.verifier = verifier;
     this.exchange = exchange;
     this.clock = clock;
+    this.cache = CacheBuilder.newBuilder()
+      .maximumSize(configuration.cacheSize())
+      .expireAfterWrite(configuration.cacheTtl())
+      .build();
   }
 
   @Override
@@ -71,11 +78,31 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     }
     var key = new CacheKey(fingerprint(token), source.getIssuer(), source.getSubject(), source.getClaim("azp").asString(),
       configuration.cloudAudience(), scopes);
-    var cached = cached(key);
-    if (cached != null) {
-      verifier.verifyCloud(cached.authentication().cloudToken());
-      return cached.authentication();
+    var authentication = cachedOrExchange(key, token, source, scopes).authentication();
+    verifier.verifyCloud(authentication.cloudToken());
+    return authentication;
+  }
+
+  private CacheEntry cachedOrExchange(CacheKey key, String token, DecodedJWT source, Set<String> scopes) {
+    var cached = cache.getIfPresent(key);
+    if (cached != null && !cached.expiresAt().isAfter(clock.instant())) {
+      cache.asMap().remove(key, cached);
     }
+    try {
+      var entry = cache.get(key, () -> exchange(token, source, scopes));
+      if (!entry.expiresAt().isAfter(clock.instant())) {
+        cache.asMap().remove(key, entry);
+      }
+      return entry;
+    } catch (ExecutionException | UncheckedExecutionException e) {
+      if (e.getCause() instanceof OAuthAuthenticationException authenticationFailure) {
+        throw authenticationFailure;
+      }
+      throw OAuthAuthenticationException.unavailable();
+    }
+  }
+
+  private CacheEntry exchange(String token, DecodedJWT source, Set<String> scopes) {
     if (!exchanges.tryAcquire()) {
       throw OAuthAuthenticationException.unavailable();
     }
@@ -85,29 +112,9 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
       validateExchange(source, downstream, scopes);
       var authentication = new OAuthRequestAuthentication(cloudToken, scopes(downstream));
       var expiresAt = earliest(source.getExpiresAtAsInstant(), downstream.getExpiresAtAsInstant(), clock.instant().plus(configuration.cacheTtl()));
-      if (expiresAt.isAfter(clock.instant())) {
-        synchronized (cache) {
-          cache.entrySet().removeIf(entry -> !entry.getValue().expiresAt().isAfter(clock.instant()));
-          while (cache.size() >= configuration.cacheSize()) {
-            cache.remove(cache.keySet().iterator().next());
-          }
-          cache.put(key, new CacheEntry(authentication, expiresAt));
-        }
-      }
-      return authentication;
+      return new CacheEntry(authentication, expiresAt);
     } finally {
       exchanges.release();
-    }
-  }
-
-  private CacheEntry cached(CacheKey key) {
-    synchronized (cache) {
-      var result = cache.get(key);
-      if (result != null && !result.expiresAt().isAfter(clock.instant())) {
-        cache.remove(key);
-        return null;
-      }
-      return result;
     }
   }
 

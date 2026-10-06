@@ -269,9 +269,11 @@ class Auth0OAuthAuthenticationServiceTest {
       released.await(5, TimeUnit.SECONDS);
       throw OAuthAuthenticationException.unavailable();
     });
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
-    var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
-    var tasks = Stream.generate(() -> CompletableFuture.runAsync(() -> assertStatus(source, 503), executor)).limit(16).toList();
+    var sources = java.util.stream.IntStream.range(0, 17)
+      .mapToObj(index -> source().withClaim("scope", "read:all").withJWTId("concurrent-" + index).sign(algorithm)).toList();
+    var source = sources.get(16);
+    var executor = java.util.concurrent.Executors.newFixedThreadPool(16);
+    var tasks = sources.subList(0, 16).stream().map(token -> CompletableFuture.runAsync(() -> assertStatus(token, 503), executor)).toList();
     try {
       assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
       assertStatus(source, 503);
@@ -283,6 +285,44 @@ class Auth0OAuthAuthenticationServiceTest {
     }
     assertStatus(source, 503);
     verify(exchange, times(17)).exchange(anyString(), any());
+  }
+
+  @Test
+  void should_share_a_single_exchange_between_concurrent_requests_for_the_same_authorization() throws Exception {
+    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    var started = new CountDownLatch(1);
+    var released = new CountDownLatch(1);
+    when(exchange.exchange(source, Set.of("read:all"))).thenAnswer(invocation -> {
+      started.countDown();
+      released.await(5, TimeUnit.SECONDS);
+      return cloud;
+    });
+    try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+      var requests = Stream.generate(() -> CompletableFuture.supplyAsync(() -> service.authenticate(source), executor)).limit(16).toList();
+      try {
+        assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+      } finally {
+        released.countDown();
+      }
+      for (var request : requests) {
+        assertThat(request.get(5, TimeUnit.SECONDS).cloudToken()).isEqualTo(cloud);
+      }
+    }
+    verify(exchange).exchange(source, Set.of("read:all"));
+  }
+
+  @Test
+  void should_not_cache_failed_exchanges() {
+    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenThrow(OAuthAuthenticationException.unavailable()).thenReturn(cloud);
+
+    assertStatus(source, 503);
+    assertThat(service.authenticate(source).cloudToken()).isEqualTo(cloud);
+    assertThat(service.authenticate(source).cloudToken()).isEqualTo(cloud);
+
+    verify(exchange, times(2)).exchange(source, Set.of("read:all"));
   }
 
   @Test

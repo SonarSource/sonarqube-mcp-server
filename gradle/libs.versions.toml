@@ -1,4 +1,5 @@
 [versions]
+guava = "33.7.1-jre"
 sonarlint-core = "12.0.2.87499"
 
 sonarqube = "7.5.0.8588"
@@ -28,6 +29,7 @@ auth0-jwt = "4.6.1"
 auth0-jwks = "0.24.1"
 
 [libraries]
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
 auth0-jwt = { module = "com.auth0:java-jwt", version.ref = "auth0-jwt" }
 auth0-jwks = { module = "com.auth0:jwks-rsa", version.ref = "auth0-jwks" }
 sonarlint-java-client-utils = { module = "org.sonarsource.sonarlint.core:sonarlint-java-client-utils", version.ref = "sonarlint-core" }
