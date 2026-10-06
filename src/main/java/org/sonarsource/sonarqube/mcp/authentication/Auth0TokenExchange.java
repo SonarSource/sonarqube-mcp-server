@@ -16,66 +16,80 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.auth0.client.auth.AuthAPI;
+import com.auth0.exception.APIException;
+import com.auth0.exception.Auth0Exception;
+import com.auth0.net.client.DefaultHttpClient;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
+import java.io.InterruptedIOException;
 import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import okhttp3.OkHttpClient;
 
 final class Auth0TokenExchange {
   private static final String ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
-  private static final String ERROR_FIELD = "error";
+  private static final int MAXIMUM_RESPONSE_BYTES = 65_536;
   private final OAuthConfiguration configuration;
-  private final HttpClient client;
-  private final URI endpoint;
+  private final AuthAPI client;
 
   Auth0TokenExchange(OAuthConfiguration configuration) {
-    this(configuration, HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build(),
-      URI.create(configuration.issuer()).resolve("oauth/token"));
+    this(configuration, configuration.issuer());
   }
 
-  Auth0TokenExchange(OAuthConfiguration configuration, HttpClient client, URI endpoint) {
+  Auth0TokenExchange(OAuthConfiguration configuration, String issuer) {
     this.configuration = configuration;
-    this.client = client;
-    this.endpoint = endpoint;
+    var transport = new OkHttpClient.Builder()
+      .connectTimeout(Duration.ofSeconds(5))
+      .readTimeout(Duration.ofSeconds(10))
+      .callTimeout(Duration.ofSeconds(10))
+      .followRedirects(false)
+      .followSslRedirects(false)
+      .retryOnConnectionFailure(false)
+      .addInterceptor(chain -> {
+        var response = chain.proceed(chain.request());
+        try {
+          if (response.peekBody(MAXIMUM_RESPONSE_BYTES + 1L).contentLength() > MAXIMUM_RESPONSE_BYTES) {
+            throw OAuthAuthenticationException.invalidExchange();
+          }
+          return response;
+        } catch (IOException | RuntimeException e) {
+          response.close();
+          throw e;
+        }
+      }).build();
+    var http = DefaultHttpClient.newBuilder().withClient(transport).withMaxRetries(0).build();
+    this.client = AuthAPI.newBuilder(issuer, configuration.clientId(), configuration.clientSecret()).withHttpClient(http).build();
   }
 
   String exchange(String token, Set<String> scopes) {
-    var fields = new LinkedHashMap<String, String>();
-    fields.put("grant_type", "urn:ietf:params:oauth:grant-type:token-exchange");
-    fields.put("subject_token_type", ACCESS_TOKEN_TYPE);
-    fields.put("requested_token_type", ACCESS_TOKEN_TYPE);
-    fields.put("subject_token", token);
-    fields.put("audience", configuration.cloudAudience());
-    fields.put("scope", scopes.stream().sorted().collect(Collectors.joining(" ")));
-    fields.put("client_id", configuration.clientId());
-    fields.put("client_secret", configuration.clientSecret());
-    var request = HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(10))
-      .header("Content-Type", "application/x-www-form-urlencoded")
-      .POST(HttpRequest.BodyPublishers.ofString(form(fields))).build();
+    if (Thread.currentThread().isInterrupted()) {
+      throw OAuthAuthenticationException.unavailable();
+    }
+    if (scopes.isEmpty()) {
+      throw OAuthAuthenticationException.invalidExchange();
+    }
     try {
-      var response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
-      byte[] bytes;
-      try (var body = response.body()) {
-        bytes = body.readNBytes(65537);
-      }
-      if (bytes.length > 65536) {
+      var request = client.exchangeToken(token, ACCESS_TOKEN_TYPE)
+        .setAudience(configuration.cloudAudience())
+        .setScope(scopes.stream().sorted().collect(Collectors.joining(" ")));
+      request.addParameter("requested_token_type", ACCESS_TOKEN_TYPE);
+      var response = request.execute();
+      var body = response.getBody();
+      if (response.getStatusCode() != 200 || body == null || !"Bearer".equalsIgnoreCase(body.getTokenType())) {
         throw OAuthAuthenticationException.invalidExchange();
       }
-      return accessToken(response.statusCode(), bytes);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw OAuthAuthenticationException.unavailable();
-    } catch (IOException e) {
+      var exchanged = body.getAccessToken();
+      if (exchanged == null || exchanged.isBlank() || exchanged.length() > 16_384) {
+        throw OAuthAuthenticationException.invalidExchange();
+      }
+      return exchanged;
+    } catch (APIException e) {
+      throw exchangeFailure(e);
+    } catch (Auth0Exception e) {
+      if (e.getCause() instanceof InterruptedIOException interrupted && "interrupted".equals(interrupted.getMessage())) {
+        Thread.currentThread().interrupt();
+      }
       throw OAuthAuthenticationException.unavailable();
     } catch (OAuthAuthenticationException e) {
       throw e;
@@ -84,37 +98,14 @@ final class Auth0TokenExchange {
     }
   }
 
-  private static String accessToken(int status, byte[] bytes) {
-    if (status >= 500 || status == 429) {
-      throw OAuthAuthenticationException.unavailable();
+  private static OAuthAuthenticationException exchangeFailure(APIException failure) {
+    if (failure.getStatusCode() >= 500 || failure.getStatusCode() == 429) {
+      return OAuthAuthenticationException.unavailable();
     }
-    var json = JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8)).getAsJsonObject();
-    requireSuccess(status, json);
-    if (!json.has("token_type") || !"Bearer".equalsIgnoreCase(json.get("token_type").getAsString()) || !json.has("access_token")) {
-      throw OAuthAuthenticationException.invalidExchange();
+    if (failure.getStatusCode() == 400 && ("invalid_grant".equals(failure.getError()) || "invalid_token".equals(failure.getError()))) {
+      return OAuthAuthenticationException.unauthorized();
     }
-    var exchanged = json.get("access_token").getAsString();
-    if (exchanged.isBlank() || exchanged.length() > 16384) {
-      throw OAuthAuthenticationException.invalidExchange();
-    }
-    return exchanged;
-  }
-
-  private static void requireSuccess(int status, JsonObject json) {
-    if (status == 200) {
-      return;
-    }
-    var error = json.has(ERROR_FIELD) && json.get(ERROR_FIELD).isJsonPrimitive() ? json.get(ERROR_FIELD).getAsString() : "";
-    if (status == 400 && Set.of("invalid_grant", "invalid_token").contains(error)) {
-      throw OAuthAuthenticationException.unauthorized();
-    }
-    throw OAuthAuthenticationException.invalidExchange();
-  }
-
-  private static String form(Map<String, String> fields) {
-    return fields.entrySet().stream().map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "="
-      + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8)).collect(Collectors.joining("&"));
+    return OAuthAuthenticationException.invalidExchange();
   }
 }
-
 
