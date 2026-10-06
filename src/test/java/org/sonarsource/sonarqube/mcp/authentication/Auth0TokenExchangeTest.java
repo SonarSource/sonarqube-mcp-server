@@ -55,12 +55,17 @@ class Auth0TokenExchangeTest {
 
   @Test
   void should_send_authenticated_native_exchange_with_explicit_exact_scopes() {
-    auth0.stubFor(post("/oauth/token").willReturn(aResponse().withBody("{\"access_token\":\"token-b\",\"token_type\":\"Bearer\"}")));
+    auth0.stubFor(post("/oauth/token").atPriority(10)
+      .willReturn(aResponse().withStatus(400).withBody("{\"error\":\"invalid_request\"}")));
+    auth0.stubFor(post("/oauth/token").atPriority(1)
+      .withFormParam("requested_token_type", equalTo("urn:ietf:params:oauth:token-type:access_token"))
+      .willReturn(aResponse().withBody("{\"access_token\":\"token-b\",\"token_type\":\"Bearer\"}")));
     assertThat(exchange.exchange("token-a", Set.of("read:all"))).isEqualTo("token-b");
     auth0.verify(postRequestedFor(urlEqualTo("/oauth/token"))
       .withHeader("Content-Type", equalTo("application/x-www-form-urlencoded"))
       .withFormParam("grant_type", equalTo("urn:ietf:params:oauth:grant-type:token-exchange"))
       .withFormParam("subject_token_type", equalTo("urn:ietf:params:oauth:token-type:access_token"))
+      .withFormParam("requested_token_type", equalTo("urn:ietf:params:oauth:token-type:access_token"))
       .withFormParam("subject_token", equalTo("token-a"))
       .withFormParam("audience", equalTo("https://api.sc-dev9.io/"))
       .withFormParam("scope", equalTo("read:all"))

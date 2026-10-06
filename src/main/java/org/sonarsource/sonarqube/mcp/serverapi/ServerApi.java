@@ -40,7 +40,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.SourcesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
-import org.sonarsource.sonarqube.mcp.serverapi.users.GroupsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.views.ViewsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 
@@ -150,10 +149,6 @@ public class ServerApi {
     return new ProjectBranchesApi(helper);
   }
 
-  public GroupsApi groupsApi() {
-    return new GroupsApi(helper);
-  }
-
   public UsersApi usersApi() {
     return new UsersApi(helper);
   }
@@ -171,4 +166,3 @@ public class ServerApi {
   }
 
 }
-

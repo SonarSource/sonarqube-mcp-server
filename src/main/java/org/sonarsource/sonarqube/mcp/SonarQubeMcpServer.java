@@ -70,9 +70,6 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
-import org.sonarsource.sonarqube.mcp.tools.groups.ListGroupsTool;
-import org.sonarsource.sonarqube.mcp.tools.groups.CreateGroupTool;
-import org.sonarsource.sonarqube.mcp.tools.groups.DeleteGroupTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ChangeSecurityHotspotStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.SearchSecurityHotspotsTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ShowSecurityHotspotTool;
@@ -435,7 +432,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   private void loadBackendIndependentTools(ServerApi serverApi) {
     if (mcpConfiguration.isSonarQubeCloud()) {
-      supportedTools.addAll(List.of(new ListEnterprisesTool(this), new ListGroupsTool(this), new CreateGroupTool(this), new DeleteGroupTool(this)));
+      supportedTools.add(new ListEnterprisesTool(this));
     } else {
       supportedTools.addAll(List.of(
         new SystemHealthTool(this),

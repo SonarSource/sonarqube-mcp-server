@@ -51,6 +51,7 @@ final class Auth0TokenExchange {
     var fields = new LinkedHashMap<String, String>();
     fields.put("grant_type", "urn:ietf:params:oauth:grant-type:token-exchange");
     fields.put("subject_token_type", ACCESS_TOKEN_TYPE);
+    fields.put("requested_token_type", ACCESS_TOKEN_TYPE);
     fields.put("subject_token", token);
     fields.put("audience", configuration.cloudAudience());
     fields.put("scope", scopes.stream().sorted().collect(Collectors.joining(" ")));
