@@ -347,6 +347,12 @@ class McpServerLaunchConfigurationHttpTest {
     assertThat(configured.getOAuthMetadata()).isNotNull();
     assertThat(configured.getOAuthConfiguration().cacheTtl()).isEqualTo(java.time.Duration.ofSeconds(30));
     assertThat(configured.getOAuthConfiguration().cacheSize()).isEqualTo(256);
+    assertThat(configured.getOAuthMetadata().isSelfHosted()).isTrue();
+    environment.put("SONARQUBE_OAUTH_METADATA_URL", "https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp");
+    var external = new McpServerLaunchConfiguration(environment);
+    assertThat(external.getOAuthMetadata().isSelfHosted()).isFalse();
+    assertThat(external.getOAuthMetadata().challenge()).contains("https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp");
+    assertThat(external.getOAuthConfiguration().resource()).isEqualTo("https://api.sc-dev9.io/mcp");
     environment.put("SONARQUBE_IS_CLOUD", "false");
     org.assertj.core.api.Assertions.assertThatIllegalArgumentException().isThrownBy(() -> new McpServerLaunchConfiguration(environment));
   }

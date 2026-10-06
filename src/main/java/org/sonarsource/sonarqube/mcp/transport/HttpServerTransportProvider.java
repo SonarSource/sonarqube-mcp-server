@@ -254,7 +254,7 @@ public class HttpServerTransportProvider {
     var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarQubeCloud, serverOrg, oauthMetadata, oauthAuthenticator));
     servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    if (authMode == AuthMode.OAUTH && oauthMetadata != null) {
+    if (authMode == AuthMode.OAUTH && oauthMetadata != null && oauthMetadata.isSelfHosted()) {
       servletContextHandler.addServlet(new ServletHolder(oauthMetadata), OAuthProtectedResourceMetadata.PATH);
     }
 

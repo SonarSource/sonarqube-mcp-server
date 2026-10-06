@@ -80,6 +80,26 @@ class HttpServerTransportIntegrationTest {
   }
 
   @Test
+  void should_use_authentication_api_metadata_without_exposing_a_local_copy() throws Exception {
+    var externalUrl = "https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp";
+    var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://auth-dev9.sc-dev9.io/", externalUrl);
+    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.OAUTH, true, null, false,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false, metadata);
+    httpServer.startServer().join();
+    try (var client = HttpClient.newHttpClient()) {
+      var protectedRequest = client.send(HttpRequest.newBuilder(URI.create(httpServer.getServerUrl()))
+        .POST(HttpRequest.BodyPublishers.ofString("{}")).build(), HttpResponse.BodyHandlers.ofString());
+      assertThat(protectedRequest.statusCode()).isEqualTo(401);
+      assertThat(protectedRequest.headers().firstValue("WWW-Authenticate")).contains(metadata.challenge());
+      var previousMetadata = client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + testPort + OAuthProtectedResourceMetadata.PATH))
+        .GET().build(), HttpResponse.BodyHandlers.ofString());
+      assertThat(previousMetadata.statusCode()).isEqualTo(401);
+      assertThat(previousMetadata.headers().firstValue("WWW-Authenticate")).contains(metadata.challenge());
+      assertThat(previousMetadata.body()).doesNotContain("authorization_servers", "scopes_supported");
+    }
+  }
+
+  @Test
   void should_start_and_stop_http_server() {
     var startFuture = httpServer.startServer();
 

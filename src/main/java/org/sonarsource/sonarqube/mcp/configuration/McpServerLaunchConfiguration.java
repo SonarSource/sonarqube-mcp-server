@@ -209,7 +209,8 @@ public final class McpServerLaunchConfiguration {
     }
     this.oauthMetadata = this.authMode == AuthMode.OAUTH ? new OAuthProtectedResourceMetadata(
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_RESOURCE", null),
-      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_ISSUER", null)) : null;
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_ISSUER", null),
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_METADATA_URL", null)) : null;
     this.oauthConfiguration = this.authMode == AuthMode.OAUTH ? new OAuthConfiguration(
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_ISSUER", null),
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_RESOURCE", null),

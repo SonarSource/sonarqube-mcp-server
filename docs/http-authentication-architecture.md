@@ -181,6 +181,8 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 
 Auth0 handles authorization and PKCE. The MCP server verifies the incoming MCP access token and exchanges it through native Auth0 OBO with an explicit scope set restricted to the incoming delegation. It verifies the returned Cloud token and places only that token in the trusted request context. Read and write scopes are independent. OAuth is opt-in, and this first pass accepts GitHub users while SSO is deferred.
 
+`SONARQUBE_OAUTH_METADATA_URL` optionally sets the HTTPS protected-resource metadata URL advertised by 401 and 403 challenges. When configured, the external endpoint owns that document and the MCP server does not expose a local copy. When omitted, the server retains its public `/.well-known/oauth-protected-resource/mcp` metadata endpoint. This setting changes neither the MCP resource audience nor Auth0 discovery/JWKS configuration.
+
 ---
 
 ## Token Propagation

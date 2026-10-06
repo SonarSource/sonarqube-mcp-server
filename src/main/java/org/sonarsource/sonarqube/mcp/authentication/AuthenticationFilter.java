@@ -101,7 +101,7 @@ public class AuthenticationFilter implements Filter {
     var httpRequest = (HttpServletRequest) req;
     var httpResponse = (HttpServletResponse) resp;
 
-    if (authMode == AuthMode.OAUTH && oauthMetadata != null && OAuthProtectedResourceMetadata.PATH.equals(httpRequest.getRequestURI())) {
+    if (authMode == AuthMode.OAUTH && oauthMetadata != null && oauthMetadata.isSelfHosted() && OAuthProtectedResourceMetadata.PATH.equals(httpRequest.getRequestURI())) {
       filterChain.doFilter(req, resp);
       return;
     }

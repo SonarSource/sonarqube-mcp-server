@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.authentication;
 
 import com.google.gson.Gson;
+import jakarta.annotation.Nullable;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,8 +31,14 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
   public static final String PATH = "/.well-known/oauth-protected-resource/mcp";
   private final String resource;
   private final String issuer;
+  private final URI metadataUri;
+  private final boolean selfHosted;
 
   public OAuthProtectedResourceMetadata(String resource, String issuer) {
+    this(resource, issuer, null);
+  }
+
+  public OAuthProtectedResourceMetadata(String resource, String issuer, @Nullable String metadataUrl) {
     var resourceUri = validatedHttpsUri(resource);
     var issuerUri = validatedHttpsUri(issuer);
     if (!"/mcp".equals(resourceUri.getPath()) || !"/".equals(issuerUri.getPath())) {
@@ -39,21 +46,27 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
     }
     this.resource = resource;
     this.issuer = issuer;
+    this.metadataUri = metadataUrl == null ? resourceUri.resolve(PATH) : validatedHttpsUri(metadataUrl);
+    this.selfHosted = metadataUrl == null;
   }
 
   private static URI validatedHttpsUri(String value) {
     if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException("OAuth resource and issuer must be explicitly configured");
+      throw new IllegalArgumentException("OAuth URL settings must be explicitly configured");
     }
     var uri = URI.create(value);
     if (!"https".equals(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null) {
-      throw new IllegalArgumentException("OAuth resource and issuer must be HTTPS URLs without credentials, query, or fragment");
+      throw new IllegalArgumentException("OAuth URL settings must be HTTPS URLs without credentials, query, or fragment");
     }
     return uri;
   }
 
+  public boolean isSelfHosted() {
+    return selfHosted;
+  }
+
   public String challenge() {
-    return "Bearer resource_metadata=\"" + URI.create(resource).resolve(PATH) + "\", scope=\"read:all\"";
+    return "Bearer resource_metadata=\"" + metadataUri + "\", scope=\"read:all\"";
   }
 
   @Override

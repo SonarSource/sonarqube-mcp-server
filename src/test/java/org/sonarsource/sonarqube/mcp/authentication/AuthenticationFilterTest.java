@@ -193,6 +193,32 @@ class AuthenticationFilterTest {
   }
 
   @Test
+  void should_challenge_at_the_external_owner_for_the_previous_local_metadata_path() throws Exception {
+    var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://auth-dev9.sc-dev9.io/",
+      "https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp");
+    var filter = new AuthenticationFilter(AuthMode.OAUTH, true, null, metadata);
+    when(request.getRequestURI()).thenReturn(OAuthProtectedResourceMetadata.PATH);
+    when(request.getMethod()).thenReturn("GET");
+    filter.doFilter(request, response, filterChain);
+    verify(response).setStatus(401);
+    verify(response).setHeader("WWW-Authenticate", metadata.challenge());
+    verify(filterChain, never()).doFilter(request, response);
+  }
+
+  @Test
+  void should_offer_scope_escalation_at_the_external_metadata_owner() throws Exception {
+    var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://auth-dev9.sc-dev9.io/",
+      "https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp");
+    var filter = new AuthenticationFilter(AuthMode.OAUTH, true, null, metadata, token -> { throw OAuthAuthenticationException.insufficientScope(); });
+    when(request.getMethod()).thenReturn("POST");
+    when(request.getHeader("Authorization")).thenReturn("Bearer valid-token-without-delegation");
+    filter.doFilter(request, response, filterChain);
+    verify(response).setStatus(403);
+    verify(response).setHeader("WWW-Authenticate", metadata.challenge() + ", error=\"insufficient_scope\"");
+    verify(filterChain, never()).doFilter(request, response);
+  }
+
+  @Test
   void should_offer_read_scope_escalation_for_a_valid_token_without_delegation() throws Exception {
     var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://auth-dev9.sc-dev9.io/");
     var filter = new AuthenticationFilter(AuthMode.OAUTH, true, null, metadata, token -> {
