@@ -50,4 +50,7 @@ public interface HttpClient {
 
   CompletableFuture<Response> postAsync(String url, String contentType, String body);
 
+  CompletableFuture<Response> deleteAsync(String url);
+
 }
+

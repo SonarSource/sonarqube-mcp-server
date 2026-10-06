@@ -67,6 +67,11 @@ class HttpClientAdapter implements HttpClient {
   }
 
   @Override
+  public CompletableFuture<Response> deleteAsync(String url) {
+    return executeAsync(SimpleRequestBuilder.delete(url).build(), token);
+  }
+
+  @Override
   public CompletableFuture<Response> getAsync(String url) {
     var requestBuilder = SimpleRequestBuilder.get(url);
 
@@ -151,3 +156,4 @@ class HttpClientAdapter implements HttpClient {
   }
 
 }
+
