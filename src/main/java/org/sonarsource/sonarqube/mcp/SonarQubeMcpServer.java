@@ -26,6 +26,7 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpServerTransportProvider;
+import jakarta.annotation.Nullable;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -39,11 +40,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import jakarta.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsClient;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
+import org.sonarsource.sonarqube.mcp.authentication.Auth0OAuthAuthenticationService;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
@@ -64,11 +65,17 @@ import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.GetAgenticReadinessAssessmentTool;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.ListAgenticReadinessAssessmentsTool;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.branches.ListBranchesTool;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
+import org.sonarsource.sonarqube.mcp.tools.duplications.GetDuplicationsTool;
+import org.sonarsource.sonarqube.mcp.tools.duplications.SearchDuplicatedFilesTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ChangeSecurityHotspotStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.SearchSecurityHotspotsTool;
@@ -81,11 +88,10 @@ import org.sonarsource.sonarqube.mcp.tools.measures.SearchFilesByCoverageTool;
 import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
 import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
+import org.sonarsource.sonarqube.mcp.tools.pullrequests.ListPullRequestsTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
-import org.sonarsource.sonarqube.mcp.tools.duplications.GetDuplicationsTool;
-import org.sonarsource.sonarqube.mcp.tools.duplications.SearchDuplicatedFilesTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetFileCoverageDetailsTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
@@ -94,14 +100,10 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemInfoTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemLogsTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
-import org.sonarsource.sonarqube.mcp.tools.branches.ListBranchesTool;
-import org.sonarsource.sonarqube.mcp.tools.pullrequests.ListPullRequestsTool;
-import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.GetAgenticReadinessAssessmentTool;
-import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.ListAgenticReadinessAssessmentsTool;
-import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
 import org.sonarsource.sonarqube.mcp.transport.StdioInitializeErrorReporter;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
@@ -226,23 +228,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var authConfig = mcpConfiguration.getAuthMode();
 
     if (mcpConfiguration.isHttpEnabled() && authConfig != null) {
-      this.httpServerManager = new HttpServerTransportProvider(
-        mcpConfiguration.getHttpPort(),
-        mcpConfiguration.getHttpHost(),
-        authConfig,
-        mcpConfiguration.isSonarQubeCloud(),
-        mcpConfiguration.getSonarqubeOrg(),
-        mcpConfiguration.isHttpsEnabled(),
-        mcpConfiguration.getHttpsKeystorePath(),
-        mcpConfiguration.getHttpsKeystorePassword(),
-        mcpConfiguration.getHttpsKeystoreType(),
-        mcpConfiguration.getHttpsTruststorePath(),
-        mcpConfiguration.getHttpsTruststorePassword(),
-        mcpConfiguration.getHttpsTruststoreType(),
-        mcpConfiguration.getHttpAllowedOrigins(),
-        mcpConfiguration.getAppVersion(),
-        mcpConfiguration.isRunningInContainer()
-      );
+      this.httpServerManager = new HttpServerTransportProvider(HttpTransportSettings.from(mcpConfiguration),
+        mcpConfiguration.getOAuthMetadata(),
+        mcpConfiguration.getOAuthConfiguration() != null ? new Auth0OAuthAuthenticationService(mcpConfiguration.getOAuthConfiguration()) : null);
       this.transportProvider = null;
     } else {
       this.httpServerManager = null;
@@ -898,3 +886,5 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
 }
+
+
