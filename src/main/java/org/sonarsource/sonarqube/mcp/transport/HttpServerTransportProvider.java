@@ -43,7 +43,10 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthRequestAuthenticator;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthRequestAuthentication;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -66,6 +69,10 @@ public class HttpServerTransportProvider {
   private final int port;
   private final String host;
   private final AuthMode authMode;
+  @Nullable
+  private final OAuthProtectedResourceMetadata oauthMetadata;
+  @Nullable
+  private final OAuthRequestAuthenticator oauthAuthenticator;
   private final boolean isSonarQubeCloud;
   @Nullable
   private final String serverOrg;
@@ -104,6 +111,25 @@ public class HttpServerTransportProvider {
     boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
     Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
     List<String> allowedOrigins, String appVersion, boolean isRunningInContainer) {
+    this(port, host, authMode, isSonarQubeCloud, serverOrg, httpsEnabled, httpsKeystorePath, httpsKeystorePassword, httpsKeystoreType,
+      httpsTruststorePath, httpsTruststorePassword, httpsTruststoreType, allowedOrigins, appVersion, isRunningInContainer, null);
+  }
+
+  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
+    boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
+    Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
+    List<String> allowedOrigins, String appVersion, boolean isRunningInContainer, @Nullable OAuthProtectedResourceMetadata oauthMetadata) {
+    this(port, host, authMode, isSonarQubeCloud, serverOrg, httpsEnabled, httpsKeystorePath, httpsKeystorePassword, httpsKeystoreType,
+      httpsTruststorePath, httpsTruststorePassword, httpsTruststoreType, allowedOrigins, appVersion, isRunningInContainer, oauthMetadata, null);
+  }
+
+  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
+    boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
+    Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
+    List<String> allowedOrigins, String appVersion, boolean isRunningInContainer, @Nullable OAuthProtectedResourceMetadata oauthMetadata,
+    @Nullable OAuthRequestAuthenticator oauthAuthenticator) {
+    this.oauthAuthenticator = oauthAuthenticator;
+    this.oauthMetadata = oauthMetadata;
     this.port = port;
     this.host = host;
     this.authMode = authMode;
@@ -124,7 +150,12 @@ public class HttpServerTransportProvider {
       .jsonMapper(McpJsonMappers.DEFAULT)
       .contextExtractor(request -> {
         try {
-          var token = AuthenticationFilter.extractToken(request);
+          var authentication = authMode == AuthMode.OAUTH
+            ? (OAuthRequestAuthentication) request.getAttribute(AuthenticationFilter.OAUTH_AUTHENTICATION_ATTRIBUTE) : null;
+          if (authMode == AuthMode.OAUTH && authentication == null) {
+            throw new IllegalStateException("Missing trusted OAuth request authentication");
+          }
+          var token = authentication != null ? authentication.cloudToken() : AuthenticationFilter.extractToken(request);
           var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
           var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);
           var contextBuilder = new HashMap<String, Object>();
@@ -139,7 +170,9 @@ public class HttpServerTransportProvider {
           if (toolsets != null && !toolsets.isBlank()) {
             contextBuilder.put(CONTEXT_TOOLSETS_KEY, ToolCategory.parseCategories(toolsets.trim()));
           }
-          if (readOnly != null && !readOnly.isBlank()) {
+          if (authentication != null && !authentication.scopes().contains("write:all")) {
+            contextBuilder.put(CONTEXT_READ_ONLY_KEY, true);
+          } else if (readOnly != null && !readOnly.isBlank()) {
             contextBuilder.put(CONTEXT_READ_ONLY_KEY, Boolean.parseBoolean(readOnly.trim()));
           }
           return McpTransportContext.create(contextBuilder);
@@ -218,8 +251,12 @@ public class HttpServerTransportProvider {
     var securityFilter = new FilterHolder(new McpSecurityFilter(host, allowedOrigins, appVersion));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarQubeCloud, serverOrg));
+    var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarQubeCloud, serverOrg, oauthMetadata, oauthAuthenticator));
     servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
+
+    if (authMode == AuthMode.OAUTH && oauthMetadata != null) {
+      servletContextHandler.addServlet(new ServletHolder(oauthMetadata), OAuthProtectedResourceMetadata.PATH);
+    }
 
     var servletHolder = new ServletHolder(mcpTransportProvider);
     servletHolder.setAsyncSupported(true);
@@ -346,3 +383,4 @@ public class HttpServerTransportProvider {
   }
 
 }
+
