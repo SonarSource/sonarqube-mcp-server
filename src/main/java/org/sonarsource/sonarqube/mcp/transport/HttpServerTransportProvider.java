@@ -20,6 +20,7 @@ import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.server.McpStatelessServerHandler;
 import io.modelcontextprotocol.server.transport.HttpServletStatelessServerTransport;
 import io.modelcontextprotocol.spec.McpStatelessServerTransport;
+import jakarta.annotation.Nullable;
 import jakarta.servlet.DispatcherType;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,8 +28,8 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
@@ -41,15 +42,14 @@ import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
-import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
-import org.sonarsource.sonarqube.mcp.authentication.OAuthRequestAuthenticator;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthRequestAuthentication;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import reactor.core.publisher.Mono;
 
 /**
@@ -72,7 +72,7 @@ public class HttpServerTransportProvider {
   @Nullable
   private final OAuthProtectedResourceMetadata oauthMetadata;
   @Nullable
-  private final OAuthRequestAuthenticator oauthAuthenticator;
+  private final Function<String, OAuthRequestAuthentication> oauthAuthenticator;
   private final boolean isSonarQubeCloud;
   @Nullable
   private final String serverOrg;
@@ -111,23 +111,29 @@ public class HttpServerTransportProvider {
     boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
     Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
     List<String> allowedOrigins, String appVersion, boolean isRunningInContainer) {
-    this(port, host, authMode, isSonarQubeCloud, serverOrg, httpsEnabled, httpsKeystorePath, httpsKeystorePassword, httpsKeystoreType,
-      httpsTruststorePath, httpsTruststorePassword, httpsTruststoreType, allowedOrigins, appVersion, isRunningInContainer, null);
+    this(new HttpTransportSettings(port, host, authMode, isSonarQubeCloud, serverOrg,
+      new HttpTransportSettings.TlsSettings(httpsEnabled, httpsKeystorePath, httpsKeystorePassword, httpsKeystoreType,
+        httpsTruststorePath, httpsTruststorePassword, httpsTruststoreType),
+      new HttpTransportSettings.RequestSettings(allowedOrigins, appVersion, isRunningInContainer)), null, null);
   }
 
-  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
-    boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
-    Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
-    List<String> allowedOrigins, String appVersion, boolean isRunningInContainer, @Nullable OAuthProtectedResourceMetadata oauthMetadata) {
-    this(port, host, authMode, isSonarQubeCloud, serverOrg, httpsEnabled, httpsKeystorePath, httpsKeystorePassword, httpsKeystoreType,
-      httpsTruststorePath, httpsTruststorePassword, httpsTruststoreType, allowedOrigins, appVersion, isRunningInContainer, oauthMetadata, null);
-  }
-
-  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
-    boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
-    Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
-    List<String> allowedOrigins, String appVersion, boolean isRunningInContainer, @Nullable OAuthProtectedResourceMetadata oauthMetadata,
-    @Nullable OAuthRequestAuthenticator oauthAuthenticator) {
+  public HttpServerTransportProvider(HttpTransportSettings settings, @Nullable OAuthProtectedResourceMetadata oauthMetadata,
+    @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
+    var port = settings.port();
+    var host = settings.host();
+    var authMode = settings.authMode();
+    var isSonarQubeCloud = settings.isSonarQubeCloud();
+    var serverOrg = settings.serverOrg();
+    var httpsEnabled = settings.tls().enabled();
+    var httpsKeystorePath = settings.tls().keystorePath();
+    var httpsKeystorePassword = settings.tls().keystorePassword();
+    var httpsKeystoreType = settings.tls().keystoreType();
+    var httpsTruststorePath = settings.tls().truststorePath();
+    var httpsTruststorePassword = settings.tls().truststorePassword();
+    var httpsTruststoreType = settings.tls().truststoreType();
+    var allowedOrigins = settings.requests().allowedOrigins();
+    var appVersion = settings.requests().appVersion();
+    var isRunningInContainer = settings.requests().isRunningInContainer();
     this.oauthAuthenticator = oauthAuthenticator;
     this.oauthMetadata = oauthMetadata;
     this.port = port;
@@ -383,4 +389,5 @@ public class HttpServerTransportProvider {
   }
 
 }
+
 

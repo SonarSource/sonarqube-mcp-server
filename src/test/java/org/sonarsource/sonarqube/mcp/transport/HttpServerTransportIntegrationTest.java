@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.transport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -34,7 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
-import com.google.gson.JsonParser;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
 
 class HttpServerTransportIntegrationTest {
 
@@ -58,8 +58,9 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_offer_unauthenticated_oauth_discovery_and_keep_mcp_closed() throws Exception {
     var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://sonarsource-dev9.eu.auth0.com/");
-    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.OAUTH, true, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false, metadata);
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", AuthMode.OAUTH, true, null,
+      new HttpTransportSettings.TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new HttpTransportSettings.RequestSettings(List.of(), "1.0.0", false)), metadata, null);
     httpServer.startServer().join();
     var client = HttpClient.newHttpClient();
     var discovery = client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + testPort + OAuthProtectedResourceMetadata.PATH)).GET().build(),
@@ -83,8 +84,9 @@ class HttpServerTransportIntegrationTest {
   void should_use_authentication_api_metadata_without_exposing_a_local_copy() throws Exception {
     var externalUrl = "https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp";
     var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://auth-dev9.sc-dev9.io/", externalUrl);
-    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.OAUTH, true, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false, metadata);
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", AuthMode.OAUTH, true, null,
+      new HttpTransportSettings.TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new HttpTransportSettings.RequestSettings(List.of(), "1.0.0", false)), metadata, null);
     httpServer.startServer().join();
     try (var client = HttpClient.newHttpClient()) {
       var protectedRequest = client.send(HttpRequest.newBuilder(URI.create(httpServer.getServerUrl()))
@@ -355,4 +357,5 @@ class HttpServerTransportIntegrationTest {
     }
   }
 }
+
 

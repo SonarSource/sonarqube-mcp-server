@@ -14,10 +14,20 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.authentication;
+package org.sonarsource.sonarqube.mcp.transport;
 
-@FunctionalInterface
-public interface OAuthRequestAuthenticator {
-  OAuthRequestAuthentication authenticate(String token);
+import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class HttpTransportSettingsTest {
+  @Test
+  void should_keep_tls_passwords_out_of_settings_diagnostics() {
+    var settings = new HttpTransportSettings.TlsSettings(true, Path.of("keystore.p12"), "private-key-password", "PKCS12",
+      Path.of("truststore.p12"), "private-trust-password", "PKCS12");
+
+    assertThat(settings.toString()).contains("credentials=redacted").doesNotContain("private-key-password", "private-trust-password");
+  }
 }
 

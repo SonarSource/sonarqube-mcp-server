@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 
 final class Auth0TokenExchange {
   private static final String ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
+  private static final String ERROR_FIELD = "error";
   private final OAuthConfiguration configuration;
   private final HttpClient client;
   private final URI endpoint;
@@ -69,25 +71,7 @@ final class Auth0TokenExchange {
       if (bytes.length > 65536) {
         throw OAuthAuthenticationException.invalidExchange();
       }
-      if (response.statusCode() >= 500 || response.statusCode() == 429) {
-        throw OAuthAuthenticationException.unavailable();
-      }
-      var json = JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8)).getAsJsonObject();
-      if (response.statusCode() != 200) {
-        var error = json.has("error") && json.get("error").isJsonPrimitive() ? json.get("error").getAsString() : "";
-        if (response.statusCode() == 400 && Set.of("invalid_grant", "invalid_token").contains(error)) {
-          throw OAuthAuthenticationException.unauthorized();
-        }
-        throw OAuthAuthenticationException.invalidExchange();
-      }
-      if (!json.has("token_type") || !"Bearer".equalsIgnoreCase(json.get("token_type").getAsString()) || !json.has("access_token")) {
-        throw OAuthAuthenticationException.invalidExchange();
-      }
-      var exchanged = json.get("access_token").getAsString();
-      if (exchanged.isBlank() || exchanged.length() > 16384) {
-        throw OAuthAuthenticationException.invalidExchange();
-      }
-      return exchanged;
+      return accessToken(response.statusCode(), bytes);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw OAuthAuthenticationException.unavailable();
@@ -100,9 +84,37 @@ final class Auth0TokenExchange {
     }
   }
 
+  private static String accessToken(int status, byte[] bytes) {
+    if (status >= 500 || status == 429) {
+      throw OAuthAuthenticationException.unavailable();
+    }
+    var json = JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8)).getAsJsonObject();
+    requireSuccess(status, json);
+    if (!json.has("token_type") || !"Bearer".equalsIgnoreCase(json.get("token_type").getAsString()) || !json.has("access_token")) {
+      throw OAuthAuthenticationException.invalidExchange();
+    }
+    var exchanged = json.get("access_token").getAsString();
+    if (exchanged.isBlank() || exchanged.length() > 16384) {
+      throw OAuthAuthenticationException.invalidExchange();
+    }
+    return exchanged;
+  }
+
+  private static void requireSuccess(int status, JsonObject json) {
+    if (status == 200) {
+      return;
+    }
+    var error = json.has(ERROR_FIELD) && json.get(ERROR_FIELD).isJsonPrimitive() ? json.get(ERROR_FIELD).getAsString() : "";
+    if (status == 400 && Set.of("invalid_grant", "invalid_token").contains(error)) {
+      throw OAuthAuthenticationException.unauthorized();
+    }
+    throw OAuthAuthenticationException.invalidExchange();
+  }
+
   private static String form(Map<String, String> fields) {
     return fields.entrySet().stream().map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "="
       + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8)).collect(Collectors.joining("&"));
   }
 }
+
 

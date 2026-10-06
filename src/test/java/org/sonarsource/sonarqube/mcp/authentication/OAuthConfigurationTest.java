@@ -30,8 +30,9 @@ class OAuthConfigurationTest {
   @ParameterizedTest
   @MethodSource("invalidSettings")
   void should_reject_missing_credentials_insecure_audience_or_unbounded_cache(String audience, String secret, long ttl, int size) {
+    var cacheTtl = Duration.ofSeconds(ttl);
     assertThatThrownBy(() -> new OAuthConfiguration("https://auth-dev9.sc-dev9.io/", "https://api.sc-dev9.io/mcp", audience,
-      "backend", secret, Duration.ofSeconds(ttl), size)).isInstanceOf(IllegalArgumentException.class);
+      "backend", secret, cacheTtl, size)).isInstanceOf(IllegalArgumentException.class);
   }
 
   static Stream<Arguments> invalidSettings() {
@@ -49,4 +50,5 @@ class OAuthConfigurationTest {
     assertThat(configuration.toString()).contains("credentials=redacted").doesNotContain("sensitive-secret");
   }
 }
+
 

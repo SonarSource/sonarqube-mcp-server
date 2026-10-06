@@ -16,6 +16,9 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,6 +26,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 class OAuthProtectedResourceMetadataTest {
@@ -55,6 +62,18 @@ class OAuthProtectedResourceMetadataTest {
     assertThatIllegalArgumentException().isThrownBy(() -> new OAuthProtectedResourceMetadata(resource, issuer));
   }
 
+  @Test
+  void should_handle_metadata_writer_failure_without_propagating_it() throws Exception {
+    var metadata = new OAuthProtectedResourceMetadata("https://api.example.com/mcp", "https://tenant.auth0.com/");
+    var request = mock(HttpServletRequest.class);
+    var response = mock(HttpServletResponse.class);
+    when(response.getWriter()).thenThrow(new IOException("connection closed"));
+
+    assertThatCode(() -> metadata.doGet(request, response)).doesNotThrowAnyException();
+
+    verify(response).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+  }
+
   static Stream<Arguments> invalidUrls() {
     return Stream.of(
       Arguments.of(null, "https://tenant.auth0.com/"),
@@ -68,4 +87,5 @@ class OAuthProtectedResourceMetadataTest {
       Arguments.of("https://api.example.com/mcp", "https://tenant.auth0.com/#other"));
   }
 }
+
 

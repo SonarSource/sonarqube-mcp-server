@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.authentication;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
+import jakarta.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -29,9 +30,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public final class Auth0OAuthAuthenticationService implements OAuthRequestAuthenticator {
+public final class Auth0OAuthAuthenticationService implements Function<String, OAuthRequestAuthentication> {
   public static final Set<String> DELEGATION_SCOPES = Set.of("read:all", "write:all");
   private final OAuthConfiguration configuration;
   private final Auth0TokenVerifier verifier;
@@ -52,11 +54,15 @@ public final class Auth0OAuthAuthenticationService implements OAuthRequestAuthen
   }
 
   @Override
+  public OAuthRequestAuthentication apply(String token) {
+    return authenticate(token);
+  }
+
   public OAuthRequestAuthentication authenticate(String token) {
     var source = verifier.verifyMcp(token);
     var scopes = scopes(source);
     if (!validLifetime(source) || source.getAudience().contains(configuration.cloudAudience()) || blank(source.getSubject())
-      || !source.getSubject().matches("oauth2\\|github\\|github\\|[0-9]+") || blank(source.getClaim("azp").asString())
+      || !source.getSubject().matches("oauth2\\|github\\|github\\|\\d+") || blank(source.getClaim("azp").asString())
       || !source.getClaim("org_id").isMissing() || !source.getClaim("act").isMissing()) {
       throw OAuthAuthenticationException.unauthorized();
     }
@@ -135,7 +141,7 @@ public final class Auth0OAuthAuthenticationService implements OAuthRequestAuthen
       && java.time.Duration.between(issuedAt, expiresAt).compareTo(java.time.Duration.ofSeconds(300)) <= 0;
   }
 
-  private static boolean blank(String value) {
+  private static boolean blank(@Nullable String value) {
     return value == null || value.isBlank();
   }
 
@@ -154,4 +160,5 @@ public final class Auth0OAuthAuthenticationService implements OAuthRequestAuthen
   private record CacheKey(String authorizationFingerprint, String issuer, String subject, String client, String audience, Set<String> scopes) { }
   private record CacheEntry(OAuthRequestAuthentication authentication, Instant expiresAt) { }
 }
+
 

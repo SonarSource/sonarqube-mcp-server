@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import jakarta.annotation.Nullable;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -25,7 +26,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import jakarta.annotation.Nullable;
+import java.util.function.Function;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -61,11 +62,13 @@ public class AuthenticationFilter implements Filter {
   private static final String SONARQUBE_ORG_HEADER = McpServerLaunchConfiguration.SONARQUBE_ORG;
   private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
 
+  private static final String JSON_CONTENT_TYPE = "application/json";
+
   public static final String OAUTH_AUTHENTICATION_ATTRIBUTE = AuthenticationFilter.class.getName() + ".oauth";
 
   private final AuthMode authMode;
   @Nullable
-  private final OAuthRequestAuthenticator oauthAuthenticator;
+  private final Function<String, OAuthRequestAuthentication> oauthAuthenticator;
   @Nullable
   private final OAuthProtectedResourceMetadata oauthMetadata;
   private final boolean isSonarQubeCloud;
@@ -81,7 +84,7 @@ public class AuthenticationFilter implements Filter {
   }
 
   public AuthenticationFilter(AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
-    @Nullable OAuthProtectedResourceMetadata oauthMetadata, @Nullable OAuthRequestAuthenticator oauthAuthenticator) {
+    @Nullable OAuthProtectedResourceMetadata oauthMetadata, @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
     this.oauthAuthenticator = oauthAuthenticator;
     this.oauthMetadata = oauthMetadata;
     this.authMode = authMode;
@@ -162,7 +165,7 @@ public class AuthenticationFilter implements Filter {
     }
     OAuthRequestAuthentication authentication;
     try {
-      authentication = oauthAuthenticator.authenticate(token);
+      authentication = oauthAuthenticator.apply(token);
     } catch (OAuthAuthenticationException e) {
       sendOAuthError(response, e);
       return;
@@ -173,7 +176,7 @@ public class AuthenticationFilter implements Filter {
 
   private void sendOAuthError(HttpServletResponse response, OAuthAuthenticationException error) throws IOException {
     response.setStatus(error.status());
-    response.setContentType("application/json");
+    response.setContentType(JSON_CONTENT_TYPE);
     response.setHeader("Cache-Control", "no-store");
     if (error.status() == 401 || error.status() == 403) {
       var challenge = oauthMetadata != null ? oauthMetadata.challenge() : "Bearer realm=\"MCP Server\"";
@@ -257,14 +260,14 @@ public class AuthenticationFilter implements Filter {
 
   private static void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-    response.setContentType("application/json");
+    response.setContentType(JSON_CONTENT_TYPE);
     response.setHeader("WWW-Authenticate", "Bearer realm=\"MCP Server\"");
     response.getWriter().write(jsonRpcError(message));
   }
 
   private static void sendBadRequestResponse(HttpServletResponse response, String message) throws IOException {
     response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    response.setContentType("application/json");
+    response.setContentType(JSON_CONTENT_TYPE);
     response.getWriter().write(jsonRpcError(message));
   }
 
@@ -278,4 +281,5 @@ public class AuthenticationFilter implements Filter {
   }
 
 }
+
 

@@ -24,8 +24,9 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
-import java.net.URI;
+import jakarta.annotation.Nullable;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.concurrent.TimeUnit;
@@ -41,35 +42,24 @@ final class Auth0TokenVerifier {
   Auth0TokenVerifier(OAuthConfiguration configuration, JwkProvider provider) {
     var algorithm = Algorithm.RSA256(new RSAKeyProvider() {
       @Override
-      public RSAPublicKey getPublicKeyById(String keyId) {
+      public RSAPublicKey getPublicKeyById(@Nullable String keyId) {
         if (keyId == null || keyId.isBlank() || keyId.length() > 256) {
           throw OAuthAuthenticationException.unauthorized();
         }
-        try {
-          var jwk = provider.get(keyId);
-          if (jwk.getAlgorithm() != null && !"RS256".equals(jwk.getAlgorithm())) {
-            throw OAuthAuthenticationException.unauthorized();
-          }
-          if (!(jwk.getPublicKey() instanceof RSAPublicKey key)) {
-            throw OAuthAuthenticationException.unauthorized();
-          }
-          return key;
-        } catch (OAuthAuthenticationException e) {
-          throw e;
-        } catch (com.auth0.jwk.NetworkException | com.auth0.jwk.RateLimitReachedException e) {
-          throw OAuthAuthenticationException.unavailable();
-        } catch (com.auth0.jwk.SigningKeyNotFoundException e) {
-          throw OAuthAuthenticationException.unauthorized();
-        } catch (Exception e) {
-          throw OAuthAuthenticationException.unavailable();
-        }
+        return signingKey(provider, keyId);
       }
 
       @Override
-      public RSAPrivateKey getPrivateKey() { return null; }
+      @Nullable
+      public RSAPrivateKey getPrivateKey() {
+        return null;
+      }
 
       @Override
-      public String getPrivateKeyId() { return null; }
+      @Nullable
+      public String getPrivateKeyId() {
+        return null;
+      }
     });
     this.mcpVerifier = JWT.require(algorithm).withIssuer(configuration.issuer()).withAudience(configuration.resource())
       .withClaimPresence("exp").withClaimPresence("iat").withClaimPresence("sub").withClaimPresence("azp").build();
@@ -77,11 +67,11 @@ final class Auth0TokenVerifier {
       .withClaimPresence("exp").withClaimPresence("iat").withClaimPresence("sub").withClaimPresence("azp").build();
   }
 
-  DecodedJWT verifyMcp(String token) {
+  DecodedJWT verifyMcp(@Nullable String token) {
     return verify(mcpVerifier, token);
   }
 
-  DecodedJWT verifyCloud(String token) {
+  DecodedJWT verifyCloud(@Nullable String token) {
     try {
       return verify(cloudVerifier, token);
     } catch (OAuthAuthenticationException e) {
@@ -92,7 +82,7 @@ final class Auth0TokenVerifier {
     }
   }
 
-  private static DecodedJWT verify(JWTVerifier verifier, String token) {
+  private static DecodedJWT verify(JWTVerifier verifier, @Nullable String token) {
     if (token == null || token.isBlank() || token.length() > 16384) {
       throw OAuthAuthenticationException.unauthorized();
     }
@@ -100,6 +90,27 @@ final class Auth0TokenVerifier {
       return verifier.verify(token);
     } catch (JWTVerificationException e) {
       throw OAuthAuthenticationException.unauthorized();
+    }
+  }
+
+  private static RSAPublicKey signingKey(JwkProvider provider, String keyId) {
+    try {
+      var jwk = provider.get(keyId);
+      if (jwk.getAlgorithm() != null && !"RS256".equals(jwk.getAlgorithm())) {
+        throw OAuthAuthenticationException.unauthorized();
+      }
+      if (!(jwk.getPublicKey() instanceof RSAPublicKey key)) {
+        throw OAuthAuthenticationException.unauthorized();
+      }
+      return key;
+    } catch (OAuthAuthenticationException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e instanceof com.auth0.jwk.SigningKeyNotFoundException
+        && !(e instanceof com.auth0.jwk.NetworkException) && !(e instanceof com.auth0.jwk.RateLimitReachedException)) {
+        throw OAuthAuthenticationException.unauthorized();
+      }
+      throw OAuthAuthenticationException.unavailable();
     }
   }
 
@@ -113,4 +124,5 @@ final class Auth0TokenVerifier {
     }
   }
 }
+
 

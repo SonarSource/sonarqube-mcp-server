@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
 import reactor.core.publisher.Mono;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,9 +44,9 @@ class OAuthHttpTransportTest {
     var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://auth-dev9.sc-dev9.io/");
     int port;
     try (var socket = new ServerSocket(0)) { port = socket.getLocalPort(); }
-    var server = new HttpServerTransportProvider(port, "127.0.0.1", AuthMode.OAUTH, true, null, false,
-      Paths.get("unused.p12"), "unused", "PKCS12", null, null, null, List.of(), "1.0.0", false, metadata,
-      token -> {
+    var server = new HttpServerTransportProvider(new HttpTransportSettings(port, "127.0.0.1", AuthMode.OAUTH, true, null,
+      new HttpTransportSettings.TlsSettings(false, Paths.get("unused.p12"), "unused", "PKCS12", null, null, null),
+      new HttpTransportSettings.RequestSettings(List.of(), "1.0.0", false)), metadata, token -> {
         assertThat(token).isEqualTo("mcp-token-a");
         return authentication;
       });
@@ -78,4 +79,5 @@ class OAuthHttpTransportTest {
     }
   }
 }
+
 

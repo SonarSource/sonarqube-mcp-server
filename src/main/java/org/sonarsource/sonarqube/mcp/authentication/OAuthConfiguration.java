@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import jakarta.annotation.Nullable;
 import java.net.URI;
 import java.time.Duration;
 
@@ -50,24 +51,45 @@ public final class OAuthConfiguration {
     this.cacheSize = cacheSize;
   }
 
-  private static String required(String value) {
+  private static String required(@Nullable String value) {
     if (value == null || value.isBlank() || value.startsWith("${")) {
       throw new IllegalArgumentException("OAuth exchange credentials and audience must be explicitly configured");
     }
     return value;
   }
 
-  public String issuer() { return issuer; }
-  public String resource() { return resource; }
-  public String cloudAudience() { return cloudAudience; }
-  public String clientId() { return clientId; }
-  String clientSecret() { return clientSecret; }
-  public Duration cacheTtl() { return cacheTtl; }
-  public int cacheSize() { return cacheSize; }
+  public String issuer() {
+    return issuer;
+  }
+
+  public String resource() {
+    return resource;
+  }
+
+  public String cloudAudience() {
+    return cloudAudience;
+  }
+
+  public String clientId() {
+    return clientId;
+  }
+
+  String clientSecret() {
+    return clientSecret;
+  }
+
+  public Duration cacheTtl() {
+    return cacheTtl;
+  }
+
+  public int cacheSize() {
+    return cacheSize;
+  }
 
   @Override
   public String toString() {
     return "OAuthConfiguration[issuer=" + issuer + ", resource=" + resource + ", cloudAudience=" + cloudAudience + ", credentials=redacted]";
   }
 }
+
 

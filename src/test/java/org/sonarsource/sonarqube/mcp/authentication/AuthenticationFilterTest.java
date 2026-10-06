@@ -21,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -236,8 +238,8 @@ class AuthenticationFilterTest {
   @org.junit.jupiter.params.provider.ValueSource(strings = {"Bearer", "bearer", "BEARER"})
   void should_authenticate_oauth_mcp_post_without_an_organization_header(String scheme) throws Exception {
     var authentication = new OAuthRequestAuthentication("cloud-token-b", java.util.Set.of("read:all"));
-    var authenticator = mock(OAuthRequestAuthenticator.class);
-    when(authenticator.authenticate("mcp-token-a")).thenReturn(authentication);
+    Function<String, OAuthRequestAuthentication> authenticator = mock(Function.class);
+    when(authenticator.apply("mcp-token-a")).thenReturn(authentication);
     var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://auth-dev9.sc-dev9.io/");
     var filter = new AuthenticationFilter(AuthMode.OAUTH, true, null, metadata, authenticator);
     when(request.getMethod()).thenReturn("POST");
@@ -252,32 +254,32 @@ class AuthenticationFilterTest {
 
   @Test
   void should_reject_ambiguous_oauth_authorization_headers() throws Exception {
-    var authenticator = mock(OAuthRequestAuthenticator.class);
+    Function<String, OAuthRequestAuthentication> authenticator = mock(Function.class);
     var filter = new AuthenticationFilter(AuthMode.OAUTH, true, null, null, authenticator);
     when(request.getHeaders("Authorization")).thenReturn(java.util.Collections.enumeration(java.util.List.of("Bearer first", "Bearer second")));
     when(request.getHeader("Authorization")).thenReturn("Bearer first");
     filter.doFilter(request, response, filterChain);
     verify(response).setStatus(401);
-    verify(authenticator, never()).authenticate(org.mockito.ArgumentMatchers.anyString());
+    verify(authenticator, never()).apply(org.mockito.ArgumentMatchers.anyString());
   }
 
   @Test
   void should_reject_legacy_token_header_for_oauth() throws Exception {
-    var authenticator = mock(OAuthRequestAuthenticator.class);
+    Function<String, OAuthRequestAuthentication> authenticator = mock(Function.class);
     var filter = new AuthenticationFilter(AuthMode.OAUTH, true, null, null, authenticator);
     when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("legacy-token");
 
     filter.doFilter(request, response, filterChain);
 
     verify(response).setStatus(401);
-    verify(authenticator, never()).authenticate(org.mockito.ArgumentMatchers.anyString());
+    verify(authenticator, never()).apply(org.mockito.ArgumentMatchers.anyString());
     verify(filterChain, never()).doFilter(request, response);
   }
 
   @Test
   void should_not_turn_exchange_outage_into_a_new_login_challenge() throws Exception {
-    var authenticator = mock(OAuthRequestAuthenticator.class);
-    when(authenticator.authenticate("mcp-token-a")).thenThrow(OAuthAuthenticationException.unavailable());
+    Function<String, OAuthRequestAuthentication> authenticator = mock(Function.class);
+    when(authenticator.apply("mcp-token-a")).thenThrow(OAuthAuthenticationException.unavailable());
     var filter = new AuthenticationFilter(AuthMode.OAUTH, true, null, null, authenticator);
     when(request.getHeader("Authorization")).thenReturn("Bearer mcp-token-a");
 
@@ -293,7 +295,7 @@ class AuthenticationFilterTest {
     var authentication = new OAuthRequestAuthentication("cloud-token-b", java.util.Set.of("read:all"));
     var filter = new AuthenticationFilter(AuthMode.OAUTH, true, null, null, token -> authentication);
     when(request.getHeader("Authorization")).thenReturn("Bearer mcp-token-a");
-    org.mockito.Mockito.doThrow(new jakarta.servlet.ServletException("Cloud permission denied")).when(filterChain).doFilter(request, response);
+    doThrow(new jakarta.servlet.ServletException("Cloud permission denied")).when(filterChain).doFilter(request, response);
     org.assertj.core.api.Assertions.assertThatThrownBy(() -> filter.doFilter(request, response, filterChain))
       .isInstanceOf(jakarta.servlet.ServletException.class).hasMessage("Cloud permission denied");
   }
@@ -401,4 +403,5 @@ class AuthenticationFilterTest {
   }
 
 }
+
 

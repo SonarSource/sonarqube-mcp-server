@@ -98,8 +98,10 @@ class Auth0TokenExchangeTest {
   void should_never_follow_exchange_redirects() {
     auth0.stubFor(post("/oauth/token").willReturn(aResponse().withStatus(307).withHeader("Location", auth0.baseUrl() + "/other")
       .withBody("{}")));
-    assertThatThrownBy(() -> exchange.exchange("token-a", Set.of("read:all"))).isInstanceOf(OAuthAuthenticationException.class);
+    var scopes = Set.of("read:all");
+    assertThatThrownBy(() -> exchange.exchange("token-a", scopes)).isInstanceOf(OAuthAuthenticationException.class);
     auth0.verify(0, postRequestedFor(urlEqualTo("/other")));
   }
 }
+
 

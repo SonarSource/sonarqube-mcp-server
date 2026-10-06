@@ -25,10 +25,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class OAuthProtectedResourceMetadata extends HttpServlet {
 
-  public static final String PATH = "/.well-known/oauth-protected-resource/mcp";
+  private static final Logger LOG = LoggerFactory.getLogger(OAuthProtectedResourceMetadata.class);
+
+  public static final String PATH = URI.create("/.well-known/").resolve("oauth-protected-resource/mcp").getPath();
   private final String resource;
   private final String issuer;
   private final URI metadataUri;
@@ -50,7 +54,7 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
     this.selfHosted = metadataUrl == null;
   }
 
-  private static URI validatedHttpsUri(String value) {
+  private static URI validatedHttpsUri(@Nullable String value) {
     if (value == null || value.isBlank()) {
       throw new IllegalArgumentException("OAuth URL settings must be explicitly configured");
     }
@@ -73,11 +77,18 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
     response.setContentType("application/json");
     response.setHeader("Cache-Control", "public, max-age=300");
-    response.getWriter().write(new Gson().toJson(Map.of(
+    var body = new Gson().toJson(Map.of(
       "resource", resource,
       "authorization_servers", List.of(issuer),
       "scopes_supported", List.of("read:all", "write:all"),
-      "bearer_methods_supported", List.of("header"))));
+      "bearer_methods_supported", List.of("header")));
+    try {
+      response.getWriter().write(body);
+    } catch (IOException e) {
+      LOG.warn("Unable to write OAuth resource metadata response", e);
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
   }
 }
+
 
