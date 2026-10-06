@@ -49,6 +49,8 @@ public class ToolDefinitionBuilder {
   private String title;
   private String description;
   private boolean isReadOnly;
+  private boolean isDestructive;
+  private boolean isIdempotent;
 
   public ToolDefinitionBuilder() {
     this.properties = new HashMap<>();
@@ -166,6 +168,16 @@ public class ToolDefinitionBuilder {
     return this;
   }
 
+  public ToolDefinitionBuilder setDestructiveHint() {
+    this.isDestructive = true;
+    return this;
+  }
+
+  public ToolDefinitionBuilder setIdempotentHint() {
+    this.isIdempotent = true;
+    return this;
+  }
+
   public McpSchema.Tool build() {
     if (name == null || description == null) {
       throw new IllegalStateException("Name and description must be set before building the tool.");
@@ -184,8 +196,8 @@ public class ToolDefinitionBuilder {
     var toolAnnotations = new McpSchema.ToolAnnotations(
       null,
       isReadOnly,
-      false,
-      false,
+      isDestructive,
+      isIdempotent,
       true,
       null);
 
@@ -196,3 +208,4 @@ public class ToolDefinitionBuilder {
       .build();
   }
 }
+

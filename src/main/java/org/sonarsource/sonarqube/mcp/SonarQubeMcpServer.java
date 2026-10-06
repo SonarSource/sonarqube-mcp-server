@@ -70,6 +70,9 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
+import org.sonarsource.sonarqube.mcp.tools.groups.ListGroupsTool;
+import org.sonarsource.sonarqube.mcp.tools.groups.CreateGroupTool;
+import org.sonarsource.sonarqube.mcp.tools.groups.DeleteGroupTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ChangeSecurityHotspotStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.SearchSecurityHotspotsTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ShowSecurityHotspotTool;
@@ -102,6 +105,7 @@ import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadines
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
+import org.sonarsource.sonarqube.mcp.authentication.Auth0OAuthAuthenticationService;
 import org.sonarsource.sonarqube.mcp.transport.StdioInitializeErrorReporter;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
@@ -241,7 +245,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getHttpsTruststoreType(),
         mcpConfiguration.getHttpAllowedOrigins(),
         mcpConfiguration.getAppVersion(),
-        mcpConfiguration.isRunningInContainer()
+        mcpConfiguration.isRunningInContainer(),
+        mcpConfiguration.getOAuthMetadata(),
+        mcpConfiguration.getOAuthConfiguration() != null ? new Auth0OAuthAuthenticationService(mcpConfiguration.getOAuthConfiguration()) : null
       );
       this.transportProvider = null;
     } else {
@@ -429,7 +435,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   private void loadBackendIndependentTools(ServerApi serverApi) {
     if (mcpConfiguration.isSonarQubeCloud()) {
-      supportedTools.add(new ListEnterprisesTool(this));
+      supportedTools.addAll(List.of(new ListEnterprisesTool(this), new ListGroupsTool(this), new CreateGroupTool(this), new DeleteGroupTool(this)));
     } else {
       supportedTools.addAll(List.of(
         new SystemHealthTool(this),
@@ -898,3 +904,4 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
 }
+

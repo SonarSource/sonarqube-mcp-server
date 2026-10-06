@@ -605,7 +605,7 @@ By default, only important toolsets are enabled. Enable additional toolsets only
 | **Measures**          | `measures`          | Retrieve metrics and measures (includes both measures and metrics tools)                                                                                    |
 | **Languages**         | `languages`         | List supported programming languages                                                                                                                        |
 | **Portfolios**        | `portfolios`        | Manage portfolios and enterprises (Cloud and Server)                                                                                                        |
-| **System**            | `system`            | System administration tools (Server only)                                                                                                                   |
+| **System**            | `system`            | System administration tools (Server) and organization group administration (Cloud)                                                                                                                   |
 | **Webhooks**          | `webhooks`          | Manage webhooks                                                                                                                                             |
 | **Dependency Risks**  | `dependency-risks`  | Analyze dependency risks and security issues (SCA)                                                                                                          |
 | **Coverage**          | `coverage`          | Test coverage analysis and improvement tools                                                                                                                |
