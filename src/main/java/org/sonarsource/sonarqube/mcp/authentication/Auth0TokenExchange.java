@@ -20,7 +20,6 @@ import com.auth0.client.auth.AuthAPI;
 import com.auth0.exception.APIException;
 import com.auth0.exception.Auth0Exception;
 import com.auth0.net.client.DefaultHttpClient;
-import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.Set;
@@ -29,7 +28,6 @@ import okhttp3.OkHttpClient;
 
 final class Auth0TokenExchange {
   private static final String ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
-  private static final int MAXIMUM_RESPONSE_BYTES = 65_536;
   private final OAuthConfiguration configuration;
   private final AuthAPI client;
 
@@ -41,23 +39,10 @@ final class Auth0TokenExchange {
     this.configuration = configuration;
     var transport = new OkHttpClient.Builder()
       .connectTimeout(Duration.ofSeconds(5))
-      .readTimeout(Duration.ofSeconds(10))
       .callTimeout(Duration.ofSeconds(10))
       .followRedirects(false)
-      .followSslRedirects(false)
       .retryOnConnectionFailure(false)
-      .addInterceptor(chain -> {
-        var response = chain.proceed(chain.request());
-        try {
-          if (response.peekBody(MAXIMUM_RESPONSE_BYTES + 1L).contentLength() > MAXIMUM_RESPONSE_BYTES) {
-            throw OAuthAuthenticationException.invalidExchange();
-          }
-          return response;
-        } catch (IOException | RuntimeException e) {
-          response.close();
-          throw e;
-        }
-      }).build();
+      .build();
     var http = DefaultHttpClient.newBuilder().withClient(transport).withMaxRetries(0).build();
     this.client = AuthAPI.newBuilder(issuer, configuration.clientId(), configuration.clientSecret()).withHttpClient(http).build();
   }
