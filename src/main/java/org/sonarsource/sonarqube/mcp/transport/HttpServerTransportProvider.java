@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.transport;
 
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.server.McpStatelessServerHandler;
 import io.modelcontextprotocol.server.transport.HttpServletStatelessServerTransport;
@@ -59,6 +61,7 @@ import reactor.core.publisher.Mono;
  */
 public class HttpServerTransportProvider {
 
+  private static final String HTTPS_PROTOCOL = "https";
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String MCP_ENDPOINT = "/mcp";
   public static final String CONTEXT_TOKEN_KEY = "sonarqube-token";
@@ -119,84 +122,37 @@ public class HttpServerTransportProvider {
 
   public HttpServerTransportProvider(HttpTransportSettings settings, @Nullable OAuthProtectedResourceMetadata oauthMetadata,
     @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
-    var port = settings.port();
-    var host = settings.host();
-    var authMode = settings.authMode();
-    var isSonarQubeCloud = settings.isSonarQubeCloud();
-    var serverOrg = settings.serverOrg();
-    var httpsEnabled = settings.tls().enabled();
-    var httpsKeystorePath = settings.tls().keystorePath();
-    var httpsKeystorePassword = settings.tls().keystorePassword();
-    var httpsKeystoreType = settings.tls().keystoreType();
-    var httpsTruststorePath = settings.tls().truststorePath();
-    var httpsTruststorePassword = settings.tls().truststorePassword();
-    var httpsTruststoreType = settings.tls().truststoreType();
-    var allowedOrigins = settings.requests().allowedOrigins();
-    var appVersion = settings.requests().appVersion();
-    var isRunningInContainer = settings.requests().isRunningInContainer();
     this.oauthAuthenticator = oauthAuthenticator;
     this.oauthMetadata = oauthMetadata;
-    this.port = port;
-    this.host = host;
-    this.authMode = authMode;
-    this.isSonarQubeCloud = isSonarQubeCloud;
-    this.serverOrg = serverOrg;
-    this.httpsEnabled = httpsEnabled;
-    this.httpsKeystorePath = httpsKeystorePath;
-    this.httpsKeystorePassword = httpsKeystorePassword;
-    this.httpsKeystoreType = httpsKeystoreType;
-    this.httpsTruststorePath = httpsTruststorePath;
-    this.httpsTruststorePassword = httpsTruststorePassword;
-    this.httpsTruststoreType = httpsTruststoreType;
-    this.allowedOrigins = List.copyOf(allowedOrigins);
-    this.appVersion = appVersion;
+    this.port = settings.port();
+    this.host = settings.host();
+    this.authMode = settings.authMode();
+    this.isSonarQubeCloud = settings.isSonarQubeCloud();
+    this.serverOrg = settings.serverOrg();
+    this.httpsEnabled = settings.tls().enabled();
+    this.httpsKeystorePath = settings.tls().keystorePath();
+    this.httpsKeystorePassword = settings.tls().keystorePassword();
+    this.httpsKeystoreType = settings.tls().keystoreType();
+    this.httpsTruststorePath = settings.tls().truststorePath();
+    this.httpsTruststorePassword = settings.tls().truststorePassword();
+    this.httpsTruststoreType = settings.tls().truststoreType();
+    this.allowedOrigins = List.copyOf(settings.requests().allowedOrigins());
+    this.appVersion = settings.requests().appVersion();
 
     this.mcpTransportProvider = HttpServletStatelessServerTransport.builder()
       .messageEndpoint(MCP_ENDPOINT)
       .jsonMapper(McpJsonMappers.DEFAULT)
-      .contextExtractor(request -> {
-        try {
-          var authentication = authMode == AuthMode.OAUTH
-            ? (OAuthRequestAuthentication) request.getAttribute(AuthenticationFilter.OAUTH_AUTHENTICATION_ATTRIBUTE) : null;
-          if (authMode == AuthMode.OAUTH && authentication == null) {
-            throw new IllegalStateException("Missing trusted OAuth request authentication");
-          }
-          var token = authentication != null ? authentication.cloudToken() : AuthenticationFilter.extractToken(request);
-          var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
-          var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);
-          var contextBuilder = new HashMap<String, Object>();
-          contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
-          if (isSonarQubeCloud) {
-            var orgHeader = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
-            var org = (orgHeader != null && !orgHeader.isBlank()) ? orgHeader.trim() : serverOrg;
-            if (org != null && !org.isBlank()) {
-              contextBuilder.put(CONTEXT_ORG_KEY, org);
-            }
-          }
-          if (toolsets != null && !toolsets.isBlank()) {
-            contextBuilder.put(CONTEXT_TOOLSETS_KEY, ToolCategory.parseCategories(toolsets.trim()));
-          }
-          if (authentication != null && !authentication.scopes().contains("write:all")) {
-            contextBuilder.put(CONTEXT_READ_ONLY_KEY, true);
-          } else if (readOnly != null && !readOnly.isBlank()) {
-            contextBuilder.put(CONTEXT_READ_ONLY_KEY, Boolean.parseBoolean(readOnly.trim()));
-          }
-          return McpTransportContext.create(contextBuilder);
-        } catch (Exception e) {
-          LOG.error("Failed to extract MCP transport context from request for URI '" + request.getRequestURI() + "'", e);
-          throw e;
-        }
-      })
+      .contextExtractor(this::extractTransportContext)
       .build();
 
-    var protocol = httpsEnabled ? "https" : "http";
+    var protocol = httpsEnabled ? HTTPS_PROTOCOL : "http";
     LOG.info("Created " + protocol.toUpperCase(Locale.getDefault()) + " transport provider for "
       + protocol + "://" + host + ":" + port + MCP_ENDPOINT + " with authentication: " + authMode);
 
     // Warn about security risk when binding to all interfaces outside a container.
     // In containers, 0.0.0.0 is required for port mapping to work; the host-side flag controls exposure.
     // Outside a container (e.g. JAR), 0.0.0.0 exposes the server on all host interfaces and enables DNS rebinding attacks.
-    if ("0.0.0.0".equals(host) && !isRunningInContainer) {
+    if ("0.0.0.0".equals(host) && !settings.requests().isRunningInContainer()) {
       LOG.warn("SECURITY WARNING: MCP HTTP server is configured to bind to all network interfaces (0.0.0.0). " +
         "This exposes the server to your entire network and is susceptible to DNS rebinding attacks. " +
         "For local use, consider using 127.0.0.1 instead.");
@@ -207,6 +163,57 @@ public class HttpServerTransportProvider {
       LOG.warn("SECURITY WARNING: MCP server is using HTTP without SSL/TLS encryption. " +
         "Tokens and data will be transmitted in plain text. " +
         "For production use, consider enabling HTTPS with SONARQUBE_TRANSPORT=https.");
+    }
+  }
+
+  private McpTransportContext extractTransportContext(HttpServletRequest request) {
+    try {
+      var authentication = requestAuthentication(request);
+      var token = authentication != null ? authentication.cloudToken() : AuthenticationFilter.extractToken(request);
+      var context = new HashMap<String, Object>();
+      context.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
+      addOrganization(context, request);
+      addRequestPolicy(context, request, authentication);
+      return McpTransportContext.create(context);
+    } catch (Exception e) {
+      LOG.error("Failed to extract MCP transport context from request for URI '" + request.getRequestURI() + "'", e);
+      throw e;
+    }
+  }
+
+  @Nullable
+  private OAuthRequestAuthentication requestAuthentication(HttpServletRequest request) {
+    if (authMode != AuthMode.OAUTH) {
+      return null;
+    }
+    var authentication = (OAuthRequestAuthentication) request.getAttribute(AuthenticationFilter.OAUTH_AUTHENTICATION_ATTRIBUTE);
+    if (authentication == null) {
+      throw new IllegalStateException("Missing trusted OAuth request authentication");
+    }
+    return authentication;
+  }
+
+  private void addOrganization(Map<String, Object> context, HttpServletRequest request) {
+    if (!isSonarQubeCloud) {
+      return;
+    }
+    var orgHeader = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
+    var organization = orgHeader != null && !orgHeader.isBlank() ? orgHeader.trim() : serverOrg;
+    if (organization != null && !organization.isBlank()) {
+      context.put(CONTEXT_ORG_KEY, organization);
+    }
+  }
+
+  private static void addRequestPolicy(Map<String, Object> context, HttpServletRequest request, @Nullable OAuthRequestAuthentication authentication) {
+    var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
+    if (toolsets != null && !toolsets.isBlank()) {
+      context.put(CONTEXT_TOOLSETS_KEY, ToolCategory.parseCategories(toolsets.trim()));
+    }
+    var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);
+    if (authentication != null && !authentication.scopes().contains("write:all")) {
+      context.put(CONTEXT_READ_ONLY_KEY, true);
+    } else if (readOnly != null && !readOnly.isBlank()) {
+      context.put(CONTEXT_READ_ONLY_KEY, Boolean.parseBoolean(readOnly.trim()));
     }
   }
 
@@ -291,7 +298,7 @@ public class HttpServerTransportProvider {
     CompletableFuture.runAsync(() -> {
       try {
         httpServer.start();
-        var protocol = httpsEnabled ? "https" : "http";
+        var protocol = httpsEnabled ? HTTPS_PROTOCOL : "http";
         LOG.info("MCP " + protocol.toUpperCase(Locale.getDefault()) + " server started successfully on " + protocol + "://" + host + ":" + port + MCP_ENDPOINT);
         startupFuture.complete(null);
         httpServer.join();
@@ -332,7 +339,7 @@ public class HttpServerTransportProvider {
   }
 
   public String getServerUrl() {
-    var protocol = httpsEnabled ? "https" : "http";
+    var protocol = httpsEnabled ? HTTPS_PROTOCOL : "http";
     return protocol + "://" + host + ":" + port + MCP_ENDPOINT;
   }
 
@@ -389,5 +396,6 @@ public class HttpServerTransportProvider {
   }
 
 }
+
 
 

@@ -34,7 +34,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
-import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
 
 class HttpServerTransportIntegrationTest {
 

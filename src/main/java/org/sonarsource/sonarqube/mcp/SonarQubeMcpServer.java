@@ -228,7 +228,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var authConfig = mcpConfiguration.getAuthMode();
 
     if (mcpConfiguration.isHttpEnabled() && authConfig != null) {
-      this.httpServerManager = new HttpServerTransportProvider(HttpTransportSettings.from(mcpConfiguration), mcpConfiguration.getOAuthMetadata(), mcpConfiguration.getOAuthConfiguration() != null ? new Auth0OAuthAuthenticationService(mcpConfiguration.getOAuthConfiguration()) : null);
+      this.httpServerManager = new HttpServerTransportProvider(HttpTransportSettings.from(mcpConfiguration),
+        mcpConfiguration.getOAuthMetadata(),
+        mcpConfiguration.getOAuthConfiguration() != null ? new Auth0OAuthAuthenticationService(mcpConfiguration.getOAuthConfiguration()) : null);
       this.transportProvider = null;
     } else {
       this.httpServerManager = null;
