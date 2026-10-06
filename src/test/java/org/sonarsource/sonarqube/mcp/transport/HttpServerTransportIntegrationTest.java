@@ -33,6 +33,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
+import com.google.gson.JsonParser;
 
 class HttpServerTransportIntegrationTest {
 
@@ -51,6 +53,30 @@ class HttpServerTransportIntegrationTest {
     if (httpServer != null) {
       httpServer.stopServer().join();
     }
+  }
+
+  @Test
+  void should_offer_unauthenticated_oauth_discovery_and_keep_mcp_closed() throws Exception {
+    var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://sonarsource-dev9.eu.auth0.com/");
+    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.OAUTH, true, null, false,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false, metadata);
+    httpServer.startServer().join();
+    var client = HttpClient.newHttpClient();
+    var discovery = client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + testPort + OAuthProtectedResourceMetadata.PATH)).GET().build(),
+      HttpResponse.BodyHandlers.ofString());
+    assertThat(discovery.statusCode()).isEqualTo(200);
+    var body = JsonParser.parseString(discovery.body()).getAsJsonObject();
+    assertThat(body.get("resource").getAsString()).isEqualTo("https://api.sc-dev9.io/mcp");
+    assertThat(body.getAsJsonArray("authorization_servers").get(0).getAsString()).isEqualTo("https://sonarsource-dev9.eu.auth0.com/");
+    assertThat(body.getAsJsonArray("scopes_supported")).hasSize(2);
+    assertThat(discovery.headers().firstValue("Content-Type")).contains("application/json");
+    var protectedRequest = client.send(HttpRequest.newBuilder(URI.create(httpServer.getServerUrl())).POST(HttpRequest.BodyPublishers.ofString("{}"))
+      .header("SONARQUBE_TOKEN", "legacy-token").build(), HttpResponse.BodyHandlers.ofString());
+    assertThat(protectedRequest.statusCode()).isEqualTo(401);
+    assertThat(protectedRequest.headers().firstValue("WWW-Authenticate")).contains(metadata.challenge());
+    var postToMetadata = client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + testPort + OAuthProtectedResourceMetadata.PATH))
+      .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+    assertThat(postToMetadata.statusCode()).isEqualTo(405);
   }
 
   @Test
@@ -309,3 +335,4 @@ class HttpServerTransportIntegrationTest {
     }
   }
 }
+
