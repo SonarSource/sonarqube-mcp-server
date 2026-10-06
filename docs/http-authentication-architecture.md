@@ -177,7 +177,7 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
   - `SONARQUBE_TOOLSETS: <comma-separated-keys>` — optional; narrows the server-level toolset for this request (cannot add toolsets beyond what the server was launched with)
   - `SONARQUBE_READ_ONLY: true|false` — optional; can further restrict to read-only for this request (cannot lift a server-level read-only restriction)
 
-#### `OAUTH` Mode (Dev9 Prototype)
+#### OAuth Mode
 
 Auth0 handles authorization and PKCE. The MCP server verifies the incoming MCP access token and exchanges it through native Auth0 OBO with an explicit scope set restricted to the incoming delegation. The exchange uses the Auth0 Java Authentication API SDK with explicit native OBO parameters, bounded timeouts and responses, and redirects/retries disabled. It verifies the returned Cloud token and places only that token in the trusted request context. Read and write scopes are independent. OAuth is opt-in, and this first pass accepts GitHub users while SSO is deferred.
 
