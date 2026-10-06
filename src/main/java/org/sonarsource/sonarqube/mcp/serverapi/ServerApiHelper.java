@@ -129,6 +129,14 @@ public class ServerApiHelper {
     return client.postAsync(buildApiSubdomainUrl(relativePath), contentType, body).join();
   }
 
+  public HttpClient.Response deleteApiSubdomain(String relativePath) {
+    var response = client.deleteAsync(buildApiSubdomainUrl(relativePath)).join();
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
   private String buildEndpointUrl(String relativePath) {
     return concat(endpointParams.baseUrl(), relativePath);
   }
@@ -225,3 +233,4 @@ public class ServerApiHelper {
   }
 
 }
+
