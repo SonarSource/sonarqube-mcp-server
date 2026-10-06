@@ -102,6 +102,7 @@ import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadines
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
+import org.sonarsource.sonarqube.mcp.authentication.Auth0OAuthAuthenticationService;
 import org.sonarsource.sonarqube.mcp.transport.StdioInitializeErrorReporter;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
@@ -241,7 +242,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getHttpsTruststoreType(),
         mcpConfiguration.getHttpAllowedOrigins(),
         mcpConfiguration.getAppVersion(),
-        mcpConfiguration.isRunningInContainer()
+        mcpConfiguration.isRunningInContainer(),
+        mcpConfiguration.getOAuthMetadata(),
+        mcpConfiguration.getOAuthConfiguration() != null ? new Auth0OAuthAuthenticationService(mcpConfiguration.getOAuthConfiguration()) : null
       );
       this.transportProvider = null;
     } else {
@@ -898,3 +901,4 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
 }
+
