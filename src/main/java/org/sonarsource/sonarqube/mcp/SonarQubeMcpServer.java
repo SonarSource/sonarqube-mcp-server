@@ -79,6 +79,7 @@ import org.sonarsource.sonarqube.mcp.tools.languages.ListLanguagesTool;
 import org.sonarsource.sonarqube.mcp.tools.measures.GetComponentMeasuresTool;
 import org.sonarsource.sonarqube.mcp.tools.measures.SearchFilesByCoverageTool;
 import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
+import org.sonarsource.sonarqube.mcp.tools.organizations.ListOrganizationsTool;
 import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
@@ -429,7 +430,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   private void loadBackendIndependentTools(ServerApi serverApi) {
     if (mcpConfiguration.isSonarQubeCloud()) {
-      supportedTools.add(new ListEnterprisesTool(this));
+      supportedTools.addAll(List.of(
+        new ListEnterprisesTool(this),
+        new ListOrganizationsTool(this)));
     } else {
       supportedTools.addAll(List.of(
         new SystemHealthTool(this),
