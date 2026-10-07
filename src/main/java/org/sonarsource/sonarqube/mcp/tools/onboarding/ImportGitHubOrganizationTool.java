@@ -119,8 +119,9 @@ public class ImportGitHubOrganizationTool extends Tool {
     var requestedKey = key;
     var existing = api.organizationByKey(key).organizations().stream().filter(org -> org.key().equals(requestedKey)).findFirst();
     if (existing.isPresent()) {
-      OnboardingSupport.requireAdmin(existing.get());
-      if (existing.get().alm() != null) {
+      var memberOrganization = OnboardingSupport.organization(api, key);
+      OnboardingSupport.requireAdmin(memberOrganization);
+      if (memberOrganization.alm() != null) {
         return Result.failure("Organization key is bound to another DevOps account. Choose another organizationKey.");
       }
       api.bindOrganization(key, id);

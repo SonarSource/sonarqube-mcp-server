@@ -53,21 +53,25 @@ final class OnboardingSupport {
     }
   }
 
-  static List<Organization> matchingOrganizations(CloudOnboardingApi api, String owner) {
-    var matches = new ArrayList<Organization>();
+  private static List<Organization> memberOrganizations(CloudOnboardingApi api) {
+    var organizations = new ArrayList<Organization>();
     int page = 1;
     while (true) {
       var data = api.memberOrganizations(page);
-      data.organizations().stream().filter(org -> boundTo(org, owner)).forEach(matches::add);
+      organizations.addAll(data.organizations());
       if (page * 100 >= data.paging().total()) {
-        return matches;
+        return organizations;
       }
       page++;
     }
   }
 
+  static List<Organization> matchingOrganizations(CloudOnboardingApi api, String owner) {
+    return memberOrganizations(api).stream().filter(org -> boundTo(org, owner)).toList();
+  }
+
   static Organization organization(CloudOnboardingApi api, String key) {
-    return api.organizationByKey(key).organizations().stream().filter(org -> org.key().equals(key)).findFirst()
+    return memberOrganizations(api).stream().filter(org -> org.key().equals(key)).findFirst()
       .orElseThrow(() -> new IllegalArgumentException("Organization was not found or is inaccessible."));
   }
 

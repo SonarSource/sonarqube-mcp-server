@@ -230,6 +230,9 @@ class CloudOnboardingToolTests {
   @SonarQubeMcpServerTest
   void it_should_bind_unbound_organization_and_preserve_its_subscription(SonarQubeMcpServerTestHarness harness) {
     emptyMembers(harness);
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo("/api/organizations/search"))
+      .withQueryParam("member", equalTo("true")).atPriority(1)
+      .willReturn(okJson("{\"organizations\":[{\"key\":\"org\",\"name\":\"Org\",\"actions\":{\"admin\":true}}],\"paging\":{\"total\":1}}")));
     harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo("/api/organizations/search")).withQueryParam("organizations", equalTo("org"))
       .willReturn(okJson("{\"organizations\":[{\"key\":\"org\",\"name\":\"Org\",\"actions\":{\"admin\":true}}]}")));
     harness.getMockSonarQubeServer().stubFor(post(urlPathEqualTo("/api/alm_integration/show_dop_organization"))
@@ -272,6 +275,23 @@ class CloudOnboardingToolTests {
       .withRequestBody(matchingJsonPath("$.entityId", equalTo("uuid")))
       .withRequestBody(matchingJsonPath("$.email", equalTo("user@example.com")))
       .withRequestBody(notMatching(".*priceId.*")));
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_create_a_cardless_trial_when_subscription_lookup_returns_404(SonarQubeMcpServerTestHarness harness) {
+    subscriptionSetup(harness);
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo("/billing/subscriptions"))
+      .inScenario("new trial").whenScenarioStateIs("Started")
+      .willReturn(notFound()).willSetStateTo("subscribed"));
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo("/billing/subscriptions"))
+      .inScenario("new trial").whenScenarioStateIs("subscribed")
+      .willReturn(okJson("{\"subscriptions\":[" + TRIAL + "]}")));
+    harness.getMockSonarQubeServer().stubFor(post(urlPathEqualTo("/billing/subscriptions"))
+      .willReturn(aResponse().withStatus(201).withBody("{}")));
+    var result = json(client(harness).callTool(EnsureCloudSubscriptionTool.TOOL_NAME,
+      Map.of("organizationKey", "org")));
+    assertThat(result).contains("ready", "team", "NONE");
+    verify(harness, 1, postRequestedFor(urlPathEqualTo("/billing/subscriptions")));
   }
 
   @SonarQubeMcpServerTest
@@ -367,6 +387,44 @@ class CloudOnboardingToolTests {
     getJson(harness, "/api/alm_integration/list_repositories", "{\"repositories\":[{\"slug\":\"owner/repo\",\"installationKey\":\"owner/repo|123\",\"linkedProjects\":[{\"key\":\"project\",\"name\":\"Project\"}]}]}");
     assertThat(json(mcp.callTool(ImportGitHubRepositoryTool.TOOL_NAME, Map.of("organizationKey", "org", "repository", "owner/repo")))).contains("reused");
     verify(harness, 1, postRequestedFor(urlPathEqualTo("/api/alm_integration/provision_projects")));
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_import_a_bound_repository_using_member_organization_details(SonarQubeMcpServerTestHarness harness) {
+    organization(harness);
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo("/api/organizations/search"))
+      .withQueryParam("organizations", equalTo("org")).atPriority(1)
+      .willReturn(okJson("{\"organizations\":[{\"key\":\"org\",\"name\":\"Org\"}]}")));
+    getJson(harness, "/api/alm_integration/list_repositories", """
+      {"repositories":[{"slug":"owner/repo","installationKey":"owner/repo|123","linkedProjects":[]}]}
+      """);
+    harness.getMockSonarQubeServer().stubFor(post(urlPathEqualTo("/api/alm_integration/provision_projects"))
+      .willReturn(okJson("{\"projects\":[{\"key\":\"project\",\"name\":\"Project\"}]}")));
+    var result = json(client(harness).callTool(ImportGitHubRepositoryTool.TOOL_NAME,
+      Map.of("organizationKey", "org", "repository", "owner/repo")));
+    assertThat(result).contains("ready", "project");
+    verify(harness, 0, getRequestedFor(urlPathEqualTo("/api/organizations/search"))
+      .withQueryParam("organizations", equalTo("org")));
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_reject_a_differently_bound_key_when_by_key_search_omits_alm(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo("/api/organizations/search"))
+      .withQueryParam("member", equalTo("true"))
+      .willReturn(okJson("""
+        {"organizations":[{"key":"org","name":"Org","actions":{"admin":true},
+          "alm":{"key":"github","url":"https://github.com/other"}}],"paging":{"total":1}}
+        """)));
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo("/api/organizations/search"))
+      .withQueryParam("organizations", equalTo("org"))
+      .willReturn(okJson("{\"organizations\":[{\"key\":\"org\",\"name\":\"Org\",\"actions\":{\"admin\":true}}]}")));
+    harness.getMockSonarQubeServer().stubFor(post(urlPathEqualTo("/api/alm_integration/show_dop_organization"))
+      .willReturn(okJson("{\"almOrganization\":{\"key\":\"owner\",\"name\":\"Owner\"}}")));
+    var result = client(harness).callTool(ImportGitHubOrganizationTool.TOOL_NAME,
+      Map.of("github", "owner", "organizationKey", "org", "installationId", "123"));
+    assertThat(result.isError()).isTrue();
+    assertThat(result.content().toString()).contains("bound to another DevOps account");
+    verify(harness, 0, postRequestedFor(urlPathEqualTo("/api/alm_integration/bind_organization")));
   }
 
   @SonarQubeMcpServerTest

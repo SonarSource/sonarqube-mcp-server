@@ -20,6 +20,7 @@ import com.google.gson.Gson;
 import java.util.List;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 
 public class CloudBillingApi {
@@ -37,7 +38,12 @@ public class CloudBillingApi {
   }
 
   public Subscriptions subscriptions(String id) {
-    return getBilling(resourcePath("/billing/subscriptions", id), Subscriptions.class);
+    try {
+      return getBilling(resourcePath("/billing/subscriptions", id), Subscriptions.class);
+    } catch (NotFoundException e) {
+      // Cloud reports an unsubscribed organization as 404 on this endpoint.
+      return new Subscriptions(List.of());
+    }
   }
 
   public Customer customer(String id) {
