@@ -106,6 +106,11 @@ import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
 import org.sonarsource.sonarqube.mcp.transport.StdioInitializeErrorReporter;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
+import org.sonarsource.sonarqube.mcp.tools.onboarding.DiscoverGitHubRepositoryTool;
+import org.sonarsource.sonarqube.mcp.tools.onboarding.EnsureCloudSubscriptionTool;
+import org.sonarsource.sonarqube.mcp.tools.onboarding.GetCloudAnalysisStatusTool;
+import org.sonarsource.sonarqube.mcp.tools.onboarding.ImportGitHubOrganizationTool;
+import org.sonarsource.sonarqube.mcp.tools.onboarding.ImportGitHubRepositoryTool;
 
 public class SonarQubeMcpServer implements ServerApiProvider {
 
@@ -418,6 +423,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void loadBackendIndependentTools(ServerApi serverApi) {
     if (mcpConfiguration.isSonarQubeCloud()) {
       supportedTools.add(new ListEnterprisesTool(this));
+      supportedTools.addAll(List.of(
+        new DiscoverGitHubRepositoryTool(this),
+        new ImportGitHubOrganizationTool(this),
+        new EnsureCloudSubscriptionTool(this),
+        new ImportGitHubRepositoryTool(this),
+        new GetCloudAnalysisStatusTool(this)));
     } else {
       supportedTools.addAll(List.of(
         new SystemHealthTool(this),
@@ -657,15 +668,31 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    * Get ServerApi instance for the current request context.
    * - In HTTP stateless mode: Creates a new ServerApi per tool call using the token and org
    *   extracted from the HTTP request headers via McpTransportContext.
-   *   Org resolution follows strict rules:
+   *   Token-mode org resolution follows strict rules:
    *   - If SONARQUBE_ORG is set at server startup, it is used for all requests and clients
    *     must NOT supply a SONARQUBE_ORG header (doing so results in an error).
    *   - If SONARQUBE_ORG is not set at server startup, clients connecting to SonarQube Cloud
-   *     must supply a SONARQUBE_ORG header on every request.
+   *     supply SONARQUBE_ORG for organization-scoped tools; onboarding does not require it.
+   * - OAuth mode: organization headers are rejected by the transport; API operations use their explicit resource identifiers.
    * - In stdio mode: Returns the global ServerApi instance created at startup.
    */
   @Override
   public ServerApi get() {
+    var api = getForOnboarding();
+    if (api.isSonarQubeCloud() && api.getOrganization() == null
+      && mcpConfiguration.getAuthMode() != org.sonarsource.sonarqube.mcp.authentication.AuthMode.OAUTH) {
+      throw new IllegalStateException("Select an organization with SONARQUBE_ORG before using organization-scoped tools. Use onboarding tools to discover or import it first.");
+    }
+    return api;
+  }
+
+  @Override
+  public ServerApi getForProject() {
+    return getForOnboarding();
+  }
+
+  @Override
+  public ServerApi getForOnboarding() {
     if (mcpConfiguration.isHttpEnabled()) {
       var ctx = currentTransportContext.get();
       if (ctx == null) {
@@ -688,7 +715,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (serverOrg != null) {
       return serverOrg;
     }
-    return orgFromRequest;
+    return orgFromRequest == null || orgFromRequest.isBlank() ? null : orgFromRequest;
   }
 
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
@@ -721,8 +748,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       this.serverApi = createServerApiWithToken(token);
       LOG.info("Auto-selected SonarQube Cloud organization: " + resolvedOrganization.key());
     } else if (organizations.isEmpty()) {
-      throw new IllegalStateException("No SonarQube Cloud organization is associated with the provided token. " +
-        "Set SONARQUBE_ORG to the organization you want to use.");
+      LOG.info("No SonarQube Cloud organization found; account-scoped onboarding tools are available.");
     } else {
       var keys = organizations.stream().map(OrganizationsApi.Organization::key).sorted().toList();
       throw new IllegalStateException("The provided token is associated with multiple SonarQube Cloud organizations " +
