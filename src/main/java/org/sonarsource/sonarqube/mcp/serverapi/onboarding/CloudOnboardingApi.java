@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.onboarding;
 
 import com.google.gson.Gson;
+import org.apache.commons.lang3.StringUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,6 +26,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 
 /** Account-scoped Cloud APIs; organization is explicit, never stored in a shared session. */
 public class CloudOnboardingApi {
+  private static final String ORGANIZATION = "organization";
+  private static final String INSTALLATION_ID = "installationId";
   private final ServerApiHelper helper;
   private final Gson gson = new Gson();
 
@@ -44,7 +47,7 @@ public class CloudOnboardingApi {
     try (var response = helper.getAnonymous("/static_configuration/configuration.json")) {
       var configuration = gson.fromJson(response.bodyAsString(), StaticConfiguration.class);
       if (configuration == null || configuration.api() == null || configuration.api().v2() == null
-        || !configuration.api().v2().replaceAll("/+$", "").equals(apiUrl().replaceAll("/+$", ""))) {
+        || !StringUtils.stripEnd(configuration.api().v2(), "/").equals(StringUtils.stripEnd(apiUrl(), "/"))) {
         throw new IllegalStateException("Cloud web/API configuration does not match this MCP deployment.");
       }
       return new Environment(configuration.environmentName(), configuration.api().v2());
@@ -61,15 +64,10 @@ public class CloudOnboardingApi {
     }
   }
 
-  private <T> T getBilling(String path, Class<T> type) {
-    try (var response = helper.getApiSubdomain(path)) {
-      return gson.fromJson(response.bodyAsString(), type);
-    }
-  }
-
   private <T> T postForm(String path, Map<String, String> fields, Class<T> type) {
     var body = fields.entrySet().stream()
-      .map(e -> java.net.URLEncoder.encode(e.getKey(), java.nio.charset.StandardCharsets.UTF_8) + "=" + java.net.URLEncoder.encode(e.getValue(), java.nio.charset.StandardCharsets.UTF_8))
+      .map(e -> java.net.URLEncoder.encode(e.getKey(), java.nio.charset.StandardCharsets.UTF_8) + "="
+        + java.net.URLEncoder.encode(e.getValue(), java.nio.charset.StandardCharsets.UTF_8))
       .collect(Collectors.joining("&"));
     try (var response = helper.post(path, "application/x-www-form-urlencoded", body)) {
       return type == Void.class ? null : gson.fromJson(response.bodyAsString(), type);
@@ -90,7 +88,7 @@ public class CloudOnboardingApi {
   }
 
   public InstallationInfo installationInfo(String installationId) {
-    return postForm("/api/alm_integration/show_dop_organization", Map.of("installationId", installationId), InstallationInfo.class);
+    return postForm("/api/alm_integration/show_dop_organization", Map.of(INSTALLATION_ID, installationId), InstallationInfo.class);
   }
 
   public ApplicationInfo applicationInfo() {
@@ -98,45 +96,19 @@ public class CloudOnboardingApi {
   }
 
   public Organization createOrganization(String key, String name, String installationId) {
-    return postForm("/api/organizations/create", Map.of("key", key, "name", name, "installationId", installationId), CreatedOrganization.class).organization();
+    return postForm("/api/organizations/create", Map.of("key", key, "name", name, INSTALLATION_ID, installationId), CreatedOrganization.class).organization();
   }
 
   public void bindOrganization(String key, String installationId) {
-    postForm("/api/alm_integration/bind_organization", Map.of("organization", key, "installationId", installationId), Void.class);
+    postForm("/api/alm_integration/bind_organization", Map.of(ORGANIZATION, key, INSTALLATION_ID, installationId), Void.class);
   }
 
   public Repositories repositories(String key) {
-    return get(new UrlBuilder("/api/alm_integration/list_repositories").addParam("organization", key).build(), Repositories.class);
+    return get(new UrlBuilder("/api/alm_integration/list_repositories").addParam(ORGANIZATION, key).build(), Repositories.class);
   }
 
   public Projects provision(String organization, String installationKey) {
-    return postForm("/api/alm_integration/provision_projects", Map.of("organization", organization, "installationKeys", installationKey), Projects.class);
-  }
-
-  public Subscriptions subscriptions(String id) {
-    return getBilling(resourcePath("/billing/subscriptions", id), Subscriptions.class);
-  }
-
-  public Customer customer(String id) {
-    return getBilling(resourcePath("/billing/customers", id), Customer.class);
-  }
-
-  private static String resourcePath(String path, String id) {
-    return new UrlBuilder(path).addParam("resourceId", id).addParam("resourceType", "organization").build();
-  }
-
-  public Plan[] plans() {
-    return getBilling("/billing/plans?product=SonarCloud", Plan[].class);
-  }
-
-  public User currentUser() {
-    return get("/api/users/current", User.class);
-  }
-
-  public void subscribe(Map<String, String> body) {
-    try (var response = helper.postApiSubdomain("/billing/subscriptions", "application/json", gson.toJson(body))) {
-      // Response is not evidence that the subscription is active. Read it back separately.
-    }
+    return postForm("/api/alm_integration/provision_projects", Map.of(ORGANIZATION, organization, "installationKeys", installationKey), Projects.class);
   }
 
   public Analyses analyses(String project) {
@@ -171,14 +143,6 @@ public class CloudOnboardingApi {
   }
   public record Projects(List<Project> projects) { }
   public record Project(String key, String name) { }
-  public record Subscriptions(List<Subscription> subscriptions) { }
-  public record Subscription(String planKey, String status, Boolean trial, TrialPeriod trialPeriod) { }
-  public record TrialPeriod(String start, String end) { }
-  public record Customer(String paymentMethodStatus) { }
-  public record Plan(String name, List<Tier> tiers) { }
-  public record Tier(String priceId, List<Currency> currencyOptions) { }
-  public record Currency(long unitAmount) { }
-  public record User(String email) { }
   public record Analyses(List<Analysis> analyses) { }
   public record Analysis(String key, String date, String revision) { }
   public record Eligibility(boolean eligible, String ineligibilityReason) { }

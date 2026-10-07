@@ -44,10 +44,19 @@ public class ImportGitHubOrganizationTool extends Tool {
     OnboardingSupport.validateOwner(owner);
     var key = arguments.getOptionalString("organizationKey");
     var id = arguments.getOptionalString("installationId");
-    if (id != null && !id.matches("[0-9]+")) {
+    if (id != null && !id.matches("\\d+")) {
       return Result.failure("installationId must be numeric.");
     }
     var api = provider.getForOnboarding().cloudOnboardingApi();
+    var bound = reuseBoundOrganization(api, owner, key);
+    if (bound != null) {
+      return bound;
+    }
+    return resolveInstallation(api, owner, key, id);
+  }
+
+  @jakarta.annotation.Nullable
+  private static Result reuseBoundOrganization(CloudOnboardingApi api, String owner, @jakarta.annotation.Nullable String key) {
     var matches = OnboardingSupport.matchingOrganizations(api, owner);
     if (matches.size() > 1) {
       if (key == null) {
@@ -67,6 +76,11 @@ public class ImportGitHubOrganizationTool extends Tool {
       }
       return ready(api, org.key(), owner);
     }
+    return null;
+  }
+
+  private static Result resolveInstallation(CloudOnboardingApi api, String owner, @jakarta.annotation.Nullable String key,
+    @jakarta.annotation.Nullable String id) {
     if (id == null) {
       var installations = api.installations().applications().stream().filter(app -> app.key().equalsIgnoreCase(owner)).toList();
       if (installations.size() > 1) {
@@ -83,6 +97,10 @@ public class ImportGitHubOrganizationTool extends Tool {
       }
       return Result.success(new Response("browser_required", api.serverUrl(), null, owner, url.toString(), "user", 5));
     }
+    return bindInstallation(api, owner, key, id);
+  }
+
+  private static Result bindInstallation(CloudOnboardingApi api, String owner, @jakarta.annotation.Nullable String key, String id) {
     CloudOnboardingApi.InstallationInfo info;
     try {
       info = api.installationInfo(id);

@@ -21,13 +21,15 @@ import java.util.Arrays;
 import java.util.HashMap;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.onboarding.CloudOnboardingApi;
+import org.sonarsource.sonarqube.mcp.serverapi.onboarding.CloudBillingApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 
 public class EnsureCloudSubscriptionTool extends Tool {
   public static final String TOOL_NAME = "ensure_cloud_subscription";
-  private static final String[] PLANS = {"team-trial", "free"};
+  private static final String TEAM_TRIAL = "team-trial";
+  private static final String[] PLANS = {TEAM_TRIAL, "free"};
   private final ServerApiProvider provider;
 
   public EnsureCloudSubscriptionTool(ServerApiProvider provider) {
@@ -43,9 +45,10 @@ public class EnsureCloudSubscriptionTool extends Tool {
   @Override
   public Result execute(Arguments arguments) {
     var key = arguments.getStringOrThrow("organizationKey");
-    var plan = arguments.getEnumOrDefault("plan", PLANS, "team-trial");
+    var plan = arguments.getEnumOrDefault("plan", PLANS, TEAM_TRIAL);
     var server = provider.getForOnboarding();
     var api = server.cloudOnboardingApi();
+    var billing = server.cloudBillingApi();
     var org = OnboardingSupport.organization(api, key);
     OnboardingSupport.requireAdmin(org);
     // Do not use getOrganizationUuidV4: it swallows authorization/network errors.
@@ -54,43 +57,47 @@ public class EnsureCloudSubscriptionTool extends Tool {
       return Result.success(new Response("organization_pending", key, null, null, 5));
     }
     var id = organizations.getFirst().uuidV4();
-    var existing = api.subscriptions(id).subscriptions();
+    var existing = billing.subscriptions(id).subscriptions();
     if (!existing.isEmpty()) {
       var subscription = existing.getFirst();
       return Result.success(new Response("reused", key, subscription,
-        Boolean.TRUE.equals(subscription.trial()) ? api.customer(id).paymentMethodStatus() : null, null));
+        Boolean.TRUE.equals(subscription.trial()) ? billing.customer(id).paymentMethodStatus() : null, null));
     }
     if (Boolean.FALSE.equals(arguments.getOptionalBoolean("createIfMissing"))) {
       return Result.success(new Response("pending", key, null, null, 5));
     }
+    return createSubscription(billing, org, key, id, plan);
+  }
+
+  private static Result createSubscription(CloudBillingApi billing, CloudOnboardingApi.Organization org, String key, String id, String plan) {
     var body = new HashMap<String, String>();
     body.put("customerName", org.name());
     body.put("entityId", id);
     body.put("entityType", "organization");
     if ("free".equals(plan)) {
-      var prices = Arrays.stream(api.plans()).filter(p -> "free_v2".equalsIgnoreCase(p.name()))
+      var prices = Arrays.stream(billing.plans()).filter(p -> "free_v2".equalsIgnoreCase(p.name()))
         .flatMap(p -> p.tiers().stream()).filter(t -> !t.currencyOptions().isEmpty() && t.currencyOptions().stream().allMatch(c -> c.unitAmount() == 0))
-        .map(CloudOnboardingApi.Tier::priceId).distinct().toList();
+        .map(CloudBillingApi.Tier::priceId).distinct().toList();
       if (prices.size() != 1) {
         return Result.failure("Could not identify one zero-cost Free plan.");
       }
       body.put("priceId", prices.getFirst());
     }
-    var email = api.currentUser().email();
+    var email = billing.currentUser().email();
     if (email != null && !email.isBlank()) {
       body.put("email", email);
-    } else if ("team-trial".equals(plan)) {
+    } else if (TEAM_TRIAL.equals(plan)) {
       return Result.failure("An account email is required for the cardless Team trial.");
     }
-    api.subscribe(body);
-    var confirmed = api.subscriptions(id).subscriptions();
+    billing.subscribe(body);
+    var confirmed = billing.subscriptions(id).subscriptions();
     if (confirmed.isEmpty()) {
       // Never invite a blind repeat of a subscription POST while billing is eventually consistent.
       return Result.success(new Response("pending", key, null, null, 5));
     }
     var subscription = confirmed.getFirst();
-    if ("team-trial".equals(plan)) {
-      validateTrial(api, id, subscription);
+    if (TEAM_TRIAL.equals(plan)) {
+      validateTrial(billing, id, subscription);
     } else if (!"free_v2".equalsIgnoreCase(subscription.planKey()) || Boolean.TRUE.equals(subscription.trial())) {
       return Result.failure("Cloud did not confirm the requested Free subscription. Review billing before continuing.");
     }
@@ -98,7 +105,7 @@ public class EnsureCloudSubscriptionTool extends Tool {
       Boolean.TRUE.equals(subscription.trial()) ? "NONE" : null, null));
   }
 
-  private static void validateTrial(CloudOnboardingApi api, String id, CloudOnboardingApi.Subscription subscription) {
+  private static void validateTrial(CloudBillingApi billing, String id, CloudBillingApi.Subscription subscription) {
     var period = subscription.trialPeriod();
     try {
       if (!"team".equalsIgnoreCase(subscription.planKey()) || !Boolean.TRUE.equals(subscription.trial())
@@ -109,10 +116,10 @@ public class EnsureCloudSubscriptionTool extends Tool {
     } catch (java.time.format.DateTimeParseException e) {
       throw new IllegalArgumentException("Cloud returned an invalid trial period.");
     }
-    if (!"NONE".equals(api.customer(id).paymentMethodStatus())) {
+    if (!"NONE".equals(billing.customer(id).paymentMethodStatus())) {
       throw new IllegalArgumentException("Cloud did not confirm a cardless trial. Review billing before continuing.");
     }
   }
 
-  public record Response(String status, String organizationKey, CloudOnboardingApi.Subscription subscription, String paymentMethodStatus, Integer retryAfterSeconds) { }
+  public record Response(String status, String organizationKey, CloudBillingApi.Subscription subscription, String paymentMethodStatus, Integer retryAfterSeconds) { }
 }

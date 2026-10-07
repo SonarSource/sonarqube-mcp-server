@@ -47,7 +47,7 @@ final class OnboardingSupport {
     }
     try {
       var uri = URI.create(organization.alm().url());
-      return "github.com".equalsIgnoreCase(uri.getHost()) && uri.getPath().replaceAll("^/|/$", "").equalsIgnoreCase(owner);
+      return "github.com".equalsIgnoreCase(uri.getHost()) && uri.getPath().replaceAll("(^/)|(/$)", "").equalsIgnoreCase(owner);
     } catch (IllegalArgumentException e) {
       return false;
     }
@@ -56,12 +56,14 @@ final class OnboardingSupport {
   static List<Organization> matchingOrganizations(CloudOnboardingApi api, String owner) {
     var matches = new ArrayList<Organization>();
     int page = 1;
-    CloudOnboardingApi.Organizations data;
-    do {
-      data = api.memberOrganizations(page);
+    while (true) {
+      var data = api.memberOrganizations(page);
       data.organizations().stream().filter(org -> boundTo(org, owner)).forEach(matches::add);
-    } while (page++ * 100 < data.paging().total());
-    return matches;
+      if (page * 100 >= data.paging().total()) {
+        return matches;
+      }
+      page++;
+    }
   }
 
   static Organization organization(CloudOnboardingApi api, String key) {
