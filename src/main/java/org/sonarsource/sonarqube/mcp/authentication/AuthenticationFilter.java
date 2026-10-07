@@ -50,7 +50,8 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
  * Org validation (SonarQube Cloud token mode only):
  * <ul>
  *   <li>If a server-level org is configured, the per-request SONARQUBE_ORG header must be absent.</li>
- *   <li>If no server-level org is configured, the per-request SONARQUBE_ORG header is required.</li>
+ *   <li>Without a server-level org, account-scoped onboarding can run without SONARQUBE_ORG.
+ *       Organization-scoped tools require it at execution time.</li>
  * </ul>
  */
 public class AuthenticationFilter implements Filter {
@@ -201,15 +202,8 @@ public class AuthenticationFilter implements Filter {
             "Remove the SONARQUBE_ORG header from your request.");
         return false;
       }
-    } else {
-      if (org == null || org.isBlank()) {
-        LOG.warn("Rejected request missing required SONARQUBE_ORG header");
-        sendBadRequestResponse(response,
-          "A SONARQUBE_ORG header is required: this server is not configured with a default organization. " +
-            "Provide your SonarQube Cloud organization key in the SONARQUBE_ORG request header.");
-        return false;
-      }
     }
+
     return true;
   }
 
