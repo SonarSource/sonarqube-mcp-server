@@ -22,7 +22,7 @@ Each discovery match includes `organizationKey`, `admin`, and matching `reposito
 
 - One linked project: reuse its key; skip organization import, subscription signup and repository import. Read analysis status and findings.
 - Multiple organizations or linked projects: use a verified explicit key or ask which project to review. Do not choose by similar name.
-- Organization found but repository not linked: retain its organization and subscription. Import only the missing repository. Repository absence indicates access still needs approval; it does not authorize changing visibility or fabricating installation keys.
+- Organization found but repository not linked: retain its binding. Once repository access is confirmed, call `ensure_cloud_subscription` as an admin to reuse its existing plan or start a trial if unsubscribed, then import the project. The by-key organization lookup can omit `alm`, so use the discovery match for the binding. Repository absence indicates access still needs approval; do not change visibility or fabricate an installation key.
 - No matching organization: proceed with missing organization setup below.
 
 Viewing findings does not require organization-admin permissions. Setup mutations do.
@@ -41,7 +41,7 @@ Call discovery again after organization binding. Confirm the target repository i
 
 ## Subscription when missing
 
-Run `ensure_cloud_subscription` only for new/missing organization setup. Use `organizationKey` and `plan: team-trial` (default), or `plan: free` only when requested. An organization with existing linked projects skips this tool. A matching existing organization that only needs a repository import preserves its subscription without signup.
+Call `ensure_cloud_subscription` for a newly created organization or a matching one with no linked project, after repository access is confirmed. Use `organizationKey` and `plan: team-trial` (default), or `plan: free` only when requested. An organization with existing linked projects skips this tool. The tool preserves existing subscriptions. For an unsubscribed organization, it treats dev9 billing 404 as no subscription and can create the requested trial; after a pending or uncertain POST, use `createIfMissing: false`.
 
 - `reused`: preserve the returned subscription, including an existing Free, paid, expired or paused subscription. Never replace it to get a trial.
 - `ready`: newly submitted or resumed signup has been read back and verified. A Team trial is verified active, with a valid future expiry and no payment method; Free uses a unique zero-cost price.
