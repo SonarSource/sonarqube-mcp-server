@@ -74,7 +74,7 @@ public class ProjectStatusTool extends Tool {
       return Tool.Result.failure("Project ID doesn't work with branches or pull requests");
     }
 
-    var projectStatus = serverApiProvider.get().qualityGatesApi().getProjectQualityGateStatus(
+    var projectStatus = serverApiProvider.getForProject().qualityGatesApi().getProjectQualityGateStatus(
       analysisId, branchPullRequest.branch(), projectId, projectKey, branchPullRequest.pullRequest());
     var toolResponse = buildStructuredContent(projectStatus);
     return Tool.Result.success(toolResponse);

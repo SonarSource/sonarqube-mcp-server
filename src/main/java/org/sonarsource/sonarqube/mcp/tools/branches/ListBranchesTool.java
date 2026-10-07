@@ -78,7 +78,7 @@ public class ListBranchesTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
 
-    var response = serverApiProvider.get().projectBranchesApi().listBranches(projectKey);
+    var response = serverApiProvider.getForProject().projectBranchesApi().listBranches(projectKey);
 
     if (isSonarQubeCloud) {
       return executeForCloud(arguments, projectKey, response);
