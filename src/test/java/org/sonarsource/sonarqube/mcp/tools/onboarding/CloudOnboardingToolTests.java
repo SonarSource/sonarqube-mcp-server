@@ -176,7 +176,21 @@ class CloudOnboardingToolTests {
     getJson(harness, "/api/alm_integration/list_unbound_applications", "{\"applications\":[]}");
     getJson(harness, "/api/alm_integration/show_app_info", "{\"application\":{\"installationUrl\":\"https://github.com/apps/dev9/installations/new\"}}");
     assertThat(json(client(harness).callTool(ImportGitHubOrganizationTool.TOOL_NAME, Map.of("github", "owner"))))
-      .contains("browser_required", "https://github.com/apps/dev9/installations/new", "user");
+      .contains("browser_required", "https://github.com/apps/dev9/installations/new?state=sonarqube-mcp", "user");
+    verify(harness, 0, postRequestedFor(anyUrl()));
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_replace_installation_state_and_preserve_other_url_parameters(SonarQubeMcpServerTestHarness harness) {
+    emptyMembers(harness);
+    getJson(harness, "/api/alm_integration/list_unbound_applications", "{\"applications\":[]}");
+    getJson(harness, "/api/alm_integration/show_app_info", """
+      {"application":{"installationUrl":"https://github.com/apps/dev9/installations/new?state=previous&target_id=123#access"}}
+      """);
+    var response = JsonParser.parseString(json(client(harness).callTool(ImportGitHubOrganizationTool.TOOL_NAME, Map.of("github", "owner"))))
+      .getAsJsonObject();
+    assertThat(response.get("url").getAsString())
+      .isEqualTo("https://github.com/apps/dev9/installations/new?target_id=123&state=sonarqube-mcp#access");
     verify(harness, 0, postRequestedFor(anyUrl()));
   }
 

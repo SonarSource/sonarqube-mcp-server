@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.onboarding;
 
 import java.net.URI;
 import java.util.Locale;
+import org.apache.hc.core5.net.URIBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.onboarding.CloudOnboardingApi;
@@ -95,7 +96,8 @@ public class ImportGitHubOrganizationTool extends Tool {
       if (!"https".equals(url.getScheme()) || !"github.com".equals(url.getHost()) || url.getUserInfo() != null) {
         return Result.failure("Cloud returned an unexpected GitHub installation URL.");
       }
-      return Result.success(new Response("browser_required", api.serverUrl(), null, owner, url.toString(), "user", 5));
+      var installationUrl = new URIBuilder(url).setParameter("state", "sonarqube-mcp").toString();
+      return Result.success(new Response("browser_required", api.serverUrl(), null, owner, installationUrl, "user", 5));
     }
     return bindInstallation(api, owner, key, id);
   }
