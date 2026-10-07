@@ -75,11 +75,14 @@ class AutoDetectOrganizationTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_fail_startup_when_token_has_no_organization(SonarQubeMcpServerTestHarness harness) {
+  void it_should_allow_onboarding_when_token_has_no_organization(SonarQubeMcpServerTestHarness harness) {
     stubOrganizationsList(harness, "[]");
 
-    assertThatThrownBy(() -> harness.newClient(CLOUD_WITHOUT_ORG))
-      .hasMessageContaining("No SonarQube Cloud organization is associated with the provided token");
+    var client = harness.newClient(CLOUD_WITHOUT_ORG);
+    assertThat(client.listTools()).anyMatch(tool -> tool.name().equals("discover_github_repository"));
+    var result = client.callTool("search_my_sonarqube_projects");
+    assertThat(result.isError()).isTrue();
+    assertThat(result.content().getFirst().toString()).contains("Select an organization");
   }
 
   @SonarQubeMcpServerTest

@@ -42,6 +42,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
 import org.sonarsource.sonarqube.mcp.serverapi.views.ViewsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
+import org.sonarsource.sonarqube.mcp.serverapi.onboarding.CloudOnboardingApi;
 
 public class ServerApi {
 
@@ -155,6 +156,13 @@ public class ServerApi {
 
   public OrganizationsApi organizationsApi() {
     return new OrganizationsApi(helper);
+  }
+
+  public CloudOnboardingApi cloudOnboardingApi() {
+    if (!isSonarQubeCloud) {
+      throw new IllegalStateException("Onboarding is only supported on SonarQube Cloud.");
+    }
+    return new CloudOnboardingApi(helper);
   }
 
   public String getOrganization() {
