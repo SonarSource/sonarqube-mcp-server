@@ -160,7 +160,7 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 6. Tool execution - tools/call (ServerApiProvider.get())
    ├─> Read McpTransportContext from ThreadLocal
    ├─> Extract CONTEXT_TOKEN_KEY value
-   ├─> Resolve org: use server-level env var (header must be absent) OR per-request header (required if env var not set)
+   ├─> Resolve org: use server-level env var (header must be absent) OR per-request header (needed for organization-wide tools)
    ├─> Create ServerApi with client's token and resolved org
    └─> Call SonarQube API
 ```
@@ -173,7 +173,7 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 - Headers:
   - `Authorization: Bearer <token>` — **preferred**, required on every request
   - `SONARQUBE_TOKEN: <token>` — **deprecated**, still accepted for backward compatibility; will be removed in a future version
-  - `SONARQUBE_ORG: <org>` — for SonarQube Cloud, identifies the organization. **Mutually exclusive with the server-level `SONARQUBE_ORG` env var**: if the env var is set at startup, clients must not send this header (results in an error); if the env var is not set, clients must send this header on every request
+  - `SONARQUBE_ORG: <org>` — for SonarQube Cloud, identifies the organization. **Mutually exclusive with the server-level `SONARQUBE_ORG` env var**: if the env var is set at startup, clients must not send this header (results in an error); if the env var is not set, organization-wide tools require this header, while onboarding and explicitly scoped project findings do not
   - `SONARQUBE_TOOLSETS: <comma-separated-keys>` — optional; narrows the server-level toolset for this request (cannot add toolsets beyond what the server was launched with)
   - `SONARQUBE_READ_ONLY: true|false` — optional; can further restrict to read-only for this request (cannot lift a server-level read-only restriction)
 
@@ -306,3 +306,7 @@ Per-request filtering is applied at the **`tools/list` response**: `PerRequestTo
 - [Jakarta Servlet Specification](https://jakarta.ee/specifications/servlet/)
 
 ---
+
+## Account-scoped onboarding
+
+Authenticated Cloud callers may omit `SONARQUBE_ORG` while discovering/importing their first organization. Onboarding takes explicit organization keys and keeps no selected-organization session state. Project findings tools with explicit identifiers also work without this header; organization-wide tools reject missing context at execution. See [Cloud onboarding](cloud-onboarding.md). OAuth verifies and exchanges the caller’s MCP token before onboarding calls; request both read and write scopes for provisioning.
