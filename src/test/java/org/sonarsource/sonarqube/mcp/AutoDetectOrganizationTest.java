@@ -83,6 +83,10 @@ class AutoDetectOrganizationTest {
     var result = client.callTool("search_my_sonarqube_projects");
     assertThat(result.isError()).isTrue();
     assertThat(result.content().getFirst().toString()).contains("Select an organization");
+    var emptyIssueKeys = client.callTool("search_sonar_issues_in_projects", Map.of("issueKey", java.util.List.of()));
+    assertThat(emptyIssueKeys.isError()).isTrue();
+    assertThat(emptyIssueKeys.content().getFirst().toString()).contains("Select an organization");
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/issues/search")).isZero();
   }
 
   @SonarQubeMcpServerTest

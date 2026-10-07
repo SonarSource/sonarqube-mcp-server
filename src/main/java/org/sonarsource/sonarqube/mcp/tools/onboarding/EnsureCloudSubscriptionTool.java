@@ -37,7 +37,7 @@ public class EnsureCloudSubscriptionTool extends Tool {
       .setDescription("Preserve an existing subscription, or start a cardless Team trial/Free subscription when absent.")
       .addRequiredStringProperty("organizationKey", "Cloud organization key.")
       .addEnumProperty("plan", PLANS, "Defaults to team-trial; free is explicit zero-cost signup.")
-      .addBooleanProperty("createIfMissing", "Defaults to true. Set false to check a pending signup without submitting it again.")
+      .addBooleanProperty("createIfMissing", "Defaults to true. False verifies a pending signup without submitting it again.")
       .build(), ToolCategory.PROJECTS);
     this.provider = provider;
   }
@@ -46,6 +46,7 @@ public class EnsureCloudSubscriptionTool extends Tool {
   public Result execute(Arguments arguments) {
     var key = arguments.getStringOrThrow("organizationKey");
     var plan = arguments.getEnumOrDefault("plan", PLANS, TEAM_TRIAL);
+    var resumeOnly = Boolean.FALSE.equals(arguments.getOptionalBoolean("createIfMissing"));
     var server = provider.getForOnboarding();
     var api = server.cloudOnboardingApi();
     var billing = server.cloudBillingApi();
@@ -60,10 +61,13 @@ public class EnsureCloudSubscriptionTool extends Tool {
     var existing = billing.subscriptions(id).subscriptions();
     if (!existing.isEmpty()) {
       var subscription = existing.getFirst();
+      if (resumeOnly) {
+        return confirmedSubscription(billing, key, id, plan, subscription);
+      }
       return Result.success(new Response("reused", key, subscription,
         Boolean.TRUE.equals(subscription.trial()) ? billing.customer(id).paymentMethodStatus() : null, null));
     }
-    if (Boolean.FALSE.equals(arguments.getOptionalBoolean("createIfMissing"))) {
+    if (resumeOnly) {
       return Result.success(new Response("pending", key, null, null, 5));
     }
     return createSubscription(billing, org, key, id, plan);
@@ -95,7 +99,11 @@ public class EnsureCloudSubscriptionTool extends Tool {
       // Never invite a blind repeat of a subscription POST while billing is eventually consistent.
       return Result.success(new Response("pending", key, null, null, 5));
     }
-    var subscription = confirmed.getFirst();
+    return confirmedSubscription(billing, key, id, plan, confirmed.getFirst());
+  }
+
+  private static Result confirmedSubscription(CloudBillingApi billing, String key, String id, String plan,
+    CloudBillingApi.Subscription subscription) {
     if (TEAM_TRIAL.equals(plan)) {
       validateTrial(billing, id, subscription);
     } else if (!"free_v2".equalsIgnoreCase(subscription.planKey()) || Boolean.TRUE.equals(subscription.trial())) {

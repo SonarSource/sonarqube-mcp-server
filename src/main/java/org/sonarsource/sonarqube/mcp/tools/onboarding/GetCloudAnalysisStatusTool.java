@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.onboarding;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.onboarding.CloudOnboardingApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -41,7 +42,7 @@ public class GetCloudAnalysisStatusTool extends Tool {
     var key = arguments.getStringOrThrow("projectKey");
     var api = provider.getForOnboarding().cloudOnboardingApi();
     var analyses = api.analyses(key).analyses();
-    var url = new UrlBuilder(api.serverUrl() + "/dashboard").addParam("id", key).build();
+    var url = new UrlBuilder(ServerApiHelper.concat(api.serverUrl(), "dashboard")).addParam("id", key).build();
     if (!analyses.isEmpty()) {
       return Result.success(new Response("completed", key, analyses.getFirst(), null, url, null));
     }

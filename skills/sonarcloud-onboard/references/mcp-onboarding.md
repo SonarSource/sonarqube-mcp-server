@@ -44,7 +44,7 @@ Call discovery again after organization binding. Confirm the target repository i
 Run `ensure_cloud_subscription` only for new/missing organization setup. Use `organizationKey` and `plan: team-trial` (default), or `plan: free` only when requested. An organization with existing linked projects skips this tool. A matching existing organization that only needs a repository import preserves its subscription without signup.
 
 - `reused`: preserve the returned subscription, including an existing Free, paid, expired or paused subscription. Never replace it to get a trial.
-- `ready`: newly submitted signup has been read back. A Team trial is verified active, with a valid future expiry and no payment method; Free uses a unique zero-cost price.
+- `ready`: newly submitted or resumed signup has been read back and verified. A Team trial is verified active, with a valid future expiry and no payment method; Free uses a unique zero-cost price.
 - `organization_pending`: the UUID is not yet visible and no signup was submitted. Wait at least `retryAfterSeconds` and repeat the original call.
 - `pending`: billing visibility is delayed after signup. Repeat with `createIfMissing: false` and the same organization/plan, waiting at least `retryAfterSeconds`. This reads status without another signup POST. If there is still no subscription after 10 minutes, stop and report incomplete billing; do not retry creation blindly.
 

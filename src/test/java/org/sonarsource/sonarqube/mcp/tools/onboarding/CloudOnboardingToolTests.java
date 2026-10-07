@@ -279,6 +279,42 @@ class CloudOnboardingToolTests {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_verify_resumed_trial_without_creating_another_subscription(SonarQubeMcpServerTestHarness harness) {
+    subscriptionSetup(harness);
+    getJson(harness, "/billing/subscriptions", "{\"subscriptions\":[" + TRIAL + "]}");
+    var mcp = client(harness);
+    assertThat(json(mcp.callTool(EnsureCloudSubscriptionTool.TOOL_NAME, Map.of("organizationKey", "org", "createIfMissing", false))))
+      .contains("ready", "team", "NONE");
+    getJson(harness, "/billing/customers", "{\"paymentMethodStatus\":\"VALID\"}");
+    var invalid = mcp.callTool(EnsureCloudSubscriptionTool.TOOL_NAME, Map.of("organizationKey", "org", "createIfMissing", false));
+    assertThat(invalid.isError()).isTrue();
+    assertThat(invalid.content().toString()).contains("cardless trial");
+    verify(harness, 0, postRequestedFor(urlPathEqualTo("/billing/subscriptions")));
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_verify_resumed_free_signup_and_reject_unexpected_plan(SonarQubeMcpServerTestHarness harness) {
+    subscriptionSetup(harness);
+    getJson(harness, "/billing/subscriptions", "{\"subscriptions\":[{\"planKey\":\"free_v2\",\"trial\":false}]}");
+    var mcp = client(harness);
+    var arguments = Map.<String, Object>of("organizationKey", "org", "plan", "free", "createIfMissing", false);
+    assertThat(json(mcp.callTool(EnsureCloudSubscriptionTool.TOOL_NAME, arguments))).contains("ready", "free_v2");
+    getJson(harness, "/billing/subscriptions", "{\"subscriptions\":[" + TRIAL + "]}");
+    var invalid = mcp.callTool(EnsureCloudSubscriptionTool.TOOL_NAME, arguments);
+    assertThat(invalid.isError()).isTrue();
+    assertThat(invalid.content().toString()).contains("requested Free subscription");
+    verify(harness, 0, postRequestedFor(urlPathEqualTo("/billing/subscriptions")));
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_normalize_dashboard_url_with_trailing_server_slash(SonarQubeMcpServerTestHarness harness) {
+    getJson(harness, "/api/project_analyses/search", "{\"analyses\":[{\"key\":\"analysis\",\"date\":\"2026-01-01\"}]}");
+    var mcp = harness.newClient(Map.of("SONARQUBE_ORG", "org", "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl() + "/"));
+    var result = JsonParser.parseString(json(mcp.callTool(GetCloudAnalysisStatusTool.TOOL_NAME, Map.of("projectKey", "p")))).getAsJsonObject();
+    assertThat(result.get("url").getAsString()).isEqualTo(harness.getMockSonarQubeServer().baseUrl() + "/dashboard?id=p");
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_reject_unverified_cardless_trial(SonarQubeMcpServerTestHarness harness) {
     subscriptionSetup(harness);
     getJson(harness, "/billing/customers", "{\"paymentMethodStatus\":\"VALID\"}");
