@@ -29,12 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
         with:
           version: 2026.6.1
 
       - id: build-step
-        uses: SonarSource/ci-github-actions/build-gradle@21206070b4306949454171904b8d2b4ec349b0c5 # 2.0.1
+        uses: SonarSource/ci-github-actions/build-gradle@62463382a24f2004ffa20adbe9985f6459e031e6 # 2.3.0
         with:
           deploy-pull-request: true
           artifactory-reader-role: private-reader
@@ -60,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
         with:
           version: 2026.6.1
 
@@ -71,7 +71,7 @@ jobs:
           secrets: |
             development/team/sonarlint/kv/data/sonarcloud-it token | SONARCLOUD_IT_TOKEN;
 
-      - uses: SonarSource/ci-github-actions/config-gradle@21206070b4306949454171904b8d2b4ec349b0c5 # 2.0.1
+      - uses: SonarSource/ci-github-actions/config-gradle@62463382a24f2004ffa20adbe9985f6459e031e6 # 2.3.0
         with:
           artifactory-reader-role: private-reader
 
@@ -102,6 +102,6 @@ jobs:
     runs-on: github-ubuntu-latest-s  # Public repository runner
     name: Promote
     steps:
-      - uses: SonarSource/ci-github-actions/promote@21206070b4306949454171904b8d2b4ec349b0c5 # 2.0.1
+      - uses: SonarSource/ci-github-actions/promote@62463382a24f2004ffa20adbe9985f6459e031e6 # 2.3.0
         with:
           promote-pull-request: true
