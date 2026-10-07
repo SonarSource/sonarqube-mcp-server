@@ -82,7 +82,7 @@ public class SearchSecurityHotspotsTool extends Tool {
     }
 
     var searchParams = extractSearchParams(arguments, branchPullRequest);
-    var response = serverApiProvider.get().hotspotsApi().search(searchParams);
+    var response = serverApiProvider.getForProject().hotspotsApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }
