@@ -310,10 +310,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.serverApi = initializeServerApi(mcpConfiguration);
     resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
+    sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
     this.orgFeatureEntitlements = new OrgFeatureEntitlements(serverApi);
     loadBackendIndependentTools(serverApi);
-
-    sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
 
     // Initialize backend immediately with empty analyzers so we can check IDE bridge availability
     backendService.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
