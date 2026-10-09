@@ -273,12 +273,19 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
-    // Start background initialization in a separate thread
-    CompletableFuture.runAsync(this::initializeBackgroundServices)
-      .exceptionally(ex -> {
+    startBackgroundInitialization();
+  }
+
+  private void startBackgroundInitialization() {
+    var thread = new Thread(() -> {
+      try {
+        initializeBackgroundServices();
+      } catch (Exception ex) {
         LOG.error("Fatal error during background initialization", ex);
-        return null;
-      });
+      }
+    }, "mcp-background-init");
+    thread.setDaemon(true);
+    thread.start();
   }
 
   /**
