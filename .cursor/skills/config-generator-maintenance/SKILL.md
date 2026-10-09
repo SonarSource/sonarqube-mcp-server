@@ -125,6 +125,8 @@ Append to `platforms[]` in `docs/config-flow.json`:
 
 If the embedded SQC server covers this region, also add an entry under `transports[sqc].urls` and update `availableFor`.
 
+Any field holding a credential MUST have `"secret": true`: secret fields are excluded from the shareable URL query string (`buildShareableParams()`) and rejected on restore. Non-secret fields are serialized into the URL automatically.
+
 ## Adding a new transport
 
 Only needed when the MCP server gains a new transport (a new way to talk to it, not a new agent). Append to `transports[]`:
@@ -142,6 +144,8 @@ Only needed when the MCP server gains a new transport (a new way to talk to it, 
 ```
 
 `valueDelivery` is the key abstraction: `"env"` means the renderer builds Docker `-e` flags; `"headers"` means HTTP headers. The renderer doesn't need more logic.
+
+If the transport adds HTTPS launch `extraFields` (e.g. keystore paths or passwords), mark any credential field with `"secret": true` so it is never written to or restored from the shareable URL.
 
 ## Output formatters
 
@@ -224,6 +228,7 @@ Top-nav button (☀ / ☾) sets `data-theme="light"` on `<html>` and persists to
 - Footer reads `© <year> SonarSource Sàrl` + Documentation + SonarQube CLI + llms.txt + GitHub. (Playwright)
 - `config-flow.json` is **not** advertised in the UI (implementation detail).
 - SQC + default toolsets → generated config omits `SONARQUBE_TOOLSETS` entirely. (Playwright)
+- Secret fields never appear in the shareable URL: `secret: true` excludes a field from `buildShareableParams()` and from restore; `token` is always blocked. (Playwright)
 - Claude stdio bakes env vars as `-e KEY=VALUE` into the docker command (not `--env`), because Claude's `--env` parser is unreliable. (See [`agents.md`](agents.md).)
 
 ## Style rules
@@ -280,7 +285,7 @@ npx playwright install chromium   # once per machine
 npm test
 ```
 
-Playwright's `webServer` serves the parent `docs/` directory and loads `/config-generator.html`. Current suite: 31 tests covering smoke flow, per-transport behaviour, toolset filtering, Pascal-case placeholders, theme toggle, footer, llms.txt ASCII constraint, favicon, external stylesheet, alphabetical agent order, product-name capitalization, project key behaviour.
+Playwright's `webServer` serves the parent `docs/` directory and loads `/config-generator.html`. Current suite: 40 tests covering smoke flow, per-transport behaviour, toolset filtering, Pascal-case placeholders, theme toggle, footer, llms.txt ASCII constraint, favicon, external stylesheet, alphabetical agent order, product-name capitalization, project key behaviour, URL-parameter persistence (restore, refresh, token exclusion, secret-param rejection, shell-injection rejection, paths with spaces/backslashes), and the Copy shareable link button.
 
 ## Post-change checklist
 
