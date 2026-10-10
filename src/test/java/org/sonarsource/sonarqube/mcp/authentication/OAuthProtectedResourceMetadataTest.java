@@ -37,7 +37,7 @@ class OAuthProtectedResourceMetadataTest {
   @Test
   void should_challenge_for_initial_read_delegation_using_the_configured_public_host() {
     var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://sonarsource-dev9.eu.auth0.com/");
-    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.sc-dev9.io/.well-known/oauth-protected-resource/mcp\", scope=\"read:all\"");
+    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.sc-dev9.io/.well-known/oauth-protected-resource/mcp\", scope=\"read:all write:all\"");
     assertThat(metadata.isSelfHosted()).isTrue();
   }
 
@@ -45,7 +45,7 @@ class OAuthProtectedResourceMetadataTest {
   void should_advertise_an_external_owner_without_serving_a_duplicate_document() {
     var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://auth-dev9.sc-dev9.io/",
       "https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp");
-    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp\", scope=\"read:all\"");
+    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp\", scope=\"read:all write:all\"");
     assertThat(metadata.isSelfHosted()).isFalse();
   }
 
