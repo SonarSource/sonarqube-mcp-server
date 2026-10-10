@@ -70,7 +70,7 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
   }
 
   public String challenge() {
-    return "Bearer resource_metadata=\"" + metadataUri + "\", scope=\"read:all\"";
+    return "Bearer resource_metadata=\"" + metadataUri + "\", scope=\"read:all write:all\"";
   }
 
   @Override
