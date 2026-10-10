@@ -25,5 +25,14 @@ import java.util.function.Supplier;
  * - In HTTP mode: Creates per-request ServerApi instances using the client token from the Authorization: Bearer header
  */
 public interface ServerApiProvider extends Supplier<ServerApi> {
+  /** Access for tools with an explicit project, analysis or issue identifier. */
+  default ServerApi getForProject() {
+    return get();
+  }
+
+  /** Account-scoped access before an organization has been imported. */
+  default ServerApi getForOnboarding() {
+    return get();
+  }
 }
 
