@@ -114,6 +114,22 @@ class SonarQubeMcpServerHttpTest {
     assertThat(server.getMcpConfiguration().isHttpEnabled()).isFalse();
   }
 
+  @SonarQubeMcpServerTest
+  void should_keep_system_tools_server_only_on_cloud_http(SonarQubeMcpServerTestHarness harness) {
+    var environment = createTestEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TRANSPORT", "http");
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "projects,system,portfolios");
+    harness.prepareMockWebServer(environment);
+    var server = new SonarQubeMcpServer(environment);
+    try {
+      assertThat(server.getSupportedTools()).noneMatch(tool -> tool.getCategories().contains(org.sonarsource.sonarqube.mcp.tools.ToolCategory.SYSTEM));
+      assertThat(server.getSupportedTools()).anyMatch(tool -> "list_enterprises".equals(tool.definition().name()));
+    } finally {
+      server.shutdown();
+    }
+  }
+
   private Map<String, String> createTestEnvironment(String baseUrl) {
     var environment = new HashMap<String, String>();
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir"));
@@ -122,3 +138,4 @@ class SonarQubeMcpServerHttpTest {
     return environment;
   }
 }
+

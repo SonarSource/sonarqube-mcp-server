@@ -1178,6 +1178,9 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
   - `q` - Optional search query to filter projects by name (partial match) or key (exact match) - _String_
 
 
+- **list_organizations** - _(SonarQube Cloud only)_ List the SonarQube Cloud organizations you are a member of.
+
+
 - **list_branches** - List analyzed branches for a project.
   - **SonarQube Cloud**: returns long-lived (`LONG`) and short-lived (`SHORT`) branches with `type` and `mergeBranch` fields. Optional `branchTypes` filter: `ALL` (default), `LONG`, or `SHORT`.
   - **SonarQube Server**: returns all analyzed branches (name, quality gate, analysis date). No `type`, `mergeBranch`, or `branchTypes` filter.
