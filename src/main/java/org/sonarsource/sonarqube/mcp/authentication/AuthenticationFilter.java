@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import jakarta.annotation.Nullable;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -25,7 +26,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import jakarta.annotation.Nullable;
+import java.util.function.Function;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -43,10 +44,10 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
  * <ul>
  *   <li>TOKEN (default) - Client must provide a SonarQube token via {@code Authorization: Bearer <token>}
  *       (or the deprecated {@code SONARQUBE_TOKEN} header) on every request</li>
- *   <li>OAUTH - OAuth 2.1 with PKCE (not yet implemented)</li>
+ *   <li>OAUTH - OAuth access-token verification and Auth0 token exchange</li>
  * </ul>
  * <p>
- * Org validation (SonarQube Cloud only):
+ * Org validation (SonarQube Cloud token mode only):
  * <ul>
  *   <li>If a server-level org is configured, the per-request SONARQUBE_ORG header must be absent.</li>
  *   <li>If no server-level org is configured, the per-request SONARQUBE_ORG header is required.</li>
@@ -61,12 +62,31 @@ public class AuthenticationFilter implements Filter {
   private static final String SONARQUBE_ORG_HEADER = McpServerLaunchConfiguration.SONARQUBE_ORG;
   private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
 
+  private static final String JSON_CONTENT_TYPE = "application/json";
+
+  public static final String OAUTH_AUTHENTICATION_ATTRIBUTE = AuthenticationFilter.class.getName() + ".oauth";
+
   private final AuthMode authMode;
+  @Nullable
+  private final Function<String, OAuthRequestAuthentication> oauthAuthenticator;
+  @Nullable
+  private final OAuthProtectedResourceMetadata oauthMetadata;
   private final boolean isSonarQubeCloud;
   @Nullable
   private final String serverOrg;
 
   public AuthenticationFilter(AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg) {
+    this(authMode, isSonarQubeCloud, serverOrg, null);
+  }
+
+  public AuthenticationFilter(AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg, @Nullable OAuthProtectedResourceMetadata oauthMetadata) {
+    this(authMode, isSonarQubeCloud, serverOrg, oauthMetadata, null);
+  }
+
+  public AuthenticationFilter(AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
+    @Nullable OAuthProtectedResourceMetadata oauthMetadata, @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
+    this.oauthAuthenticator = oauthAuthenticator;
+    this.oauthMetadata = oauthMetadata;
     this.authMode = authMode;
     this.isSonarQubeCloud = isSonarQubeCloud;
     this.serverOrg = serverOrg;
@@ -83,6 +103,11 @@ public class AuthenticationFilter implements Filter {
     throws IOException, ServletException {
     var httpRequest = (HttpServletRequest) req;
     var httpResponse = (HttpServletResponse) resp;
+
+    if (authMode == AuthMode.OAUTH && oauthMetadata != null && oauthMetadata.isSelfHosted() && OAuthProtectedResourceMetadata.PATH.equals(httpRequest.getRequestURI())) {
+      filterChain.doFilter(req, resp);
+      return;
+    }
 
     if ("OPTIONS".equals(httpRequest.getMethod())) {
       filterChain.doFilter(req, resp);
@@ -107,8 +132,7 @@ public class AuthenticationFilter implements Filter {
     }
 
     if (authMode == AuthMode.OAUTH) {
-      LOG.warn("OAuth authentication attempted but not yet implemented");
-      sendUnauthorizedResponse(httpResponse, "OAuth authentication not yet implemented");
+      authenticateOAuth(httpRequest, httpResponse, filterChain);
       return;
     }
 
@@ -119,6 +143,49 @@ public class AuthenticationFilter implements Filter {
   @Override
   public void destroy() {
     // No cleanup needed
+  }
+
+  private void authenticateOAuth(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+    var authorizationHeaders = request.getHeaders(AUTHORIZATION_HEADER);
+    if (authorizationHeaders != null && java.util.Collections.list(authorizationHeaders).size() != 1) {
+      sendOAuthError(response, OAuthAuthenticationException.unauthorized());
+      return;
+    }
+    var token = extractBearerToken(request);
+    if (oauthAuthenticator == null || token == null || token.isBlank()) {
+      sendOAuthError(response, OAuthAuthenticationException.unauthorized());
+      return;
+    }
+    if (request.getHeader(SONARQUBE_ORG_HEADER) != null) {
+      sendBadRequestResponse(response, "OAuth organization selection belongs in tool arguments");
+      return;
+    }
+    if (!validateReadOnly(request, response)) {
+      return;
+    }
+    OAuthRequestAuthentication authentication;
+    try {
+      authentication = oauthAuthenticator.apply(token);
+    } catch (OAuthAuthenticationException e) {
+      sendOAuthError(response, e);
+      return;
+    }
+    request.setAttribute(OAUTH_AUTHENTICATION_ATTRIBUTE, authentication);
+    chain.doFilter(request, response);
+  }
+
+  private void sendOAuthError(HttpServletResponse response, OAuthAuthenticationException error) throws IOException {
+    response.setStatus(error.status());
+    response.setContentType(JSON_CONTENT_TYPE);
+    response.setHeader("Cache-Control", "no-store");
+    if (error.status() == 401 || error.status() == 403) {
+      var challenge = oauthMetadata != null ? oauthMetadata.challenge() : "Bearer realm=\"MCP Server\"";
+      if (error.status() == 403) {
+        challenge += ", error=\"insufficient_scope\"";
+      }
+      response.setHeader("WWW-Authenticate", challenge);
+    }
+    response.getWriter().write(jsonRpcError(error.getMessage()));
   }
 
   private boolean validateOrg(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -185,7 +252,7 @@ public class AuthenticationFilter implements Filter {
   @Nullable
   private static String extractBearerToken(HttpServletRequest request) {
     var authHeader = request.getHeader(AUTHORIZATION_HEADER);
-    if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+    if (authHeader == null || !authHeader.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
       return null;
     }
     return authHeader.substring(BEARER_PREFIX.length());
@@ -193,14 +260,14 @@ public class AuthenticationFilter implements Filter {
 
   private static void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-    response.setContentType("application/json");
+    response.setContentType(JSON_CONTENT_TYPE);
     response.setHeader("WWW-Authenticate", "Bearer realm=\"MCP Server\"");
     response.getWriter().write(jsonRpcError(message));
   }
 
   private static void sendBadRequestResponse(HttpServletResponse response, String message) throws IOException {
     response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    response.setContentType("application/json");
+    response.setContentType(JSON_CONTENT_TYPE);
     response.getWriter().write(jsonRpcError(message));
   }
 
@@ -214,3 +281,5 @@ public class AuthenticationFilter implements Filter {
   }
 
 }
+
+
