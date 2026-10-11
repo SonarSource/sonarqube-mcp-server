@@ -39,8 +39,8 @@ public final class OAuthConfiguration {
     if (!URI.create(resource).resolve("/").equals(cloudUri)) {
       throw new IllegalArgumentException("OAuth MCP resource and Cloud audience must share the same API origin");
     }
-    if (cacheTtl.isNegative() || cacheTtl.compareTo(Duration.ofSeconds(30)) > 0 || cacheSize < 1 || cacheSize > 1024) {
-      throw new IllegalArgumentException("OAuth exchange cache requires a TTL between zero and 30 seconds and a size between one and 1024");
+    if (cacheTtl.isNegative() || cacheTtl.compareTo(Duration.ofSeconds(60)) > 0 || cacheSize < 1 || cacheSize > 5000) {
+      throw new IllegalArgumentException("OAuth exchange cache requires a TTL between zero and 60 seconds and a size between one and 5000");
     }
     this.issuer = issuer;
     this.resource = resource;

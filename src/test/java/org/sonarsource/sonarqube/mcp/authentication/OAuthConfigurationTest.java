@@ -38,9 +38,17 @@ class OAuthConfigurationTest {
   static Stream<Arguments> invalidSettings() {
     return Stream.of(Arguments.of("http://api.sc-dev9.io/", "secret", 30, 256),
       Arguments.of("https://api.sonarcloud.io/", "secret", 30, 256), Arguments.of("https://api.sc-dev9.io/", "", 30, 256),
-      Arguments.of("https://api.sc-dev9.io/", "${SECRET}", 30, 256), Arguments.of("https://api.sc-dev9.io/", "secret", 31, 256),
+      Arguments.of("https://api.sc-dev9.io/", "${SECRET}", 30, 256), Arguments.of("https://api.sc-dev9.io/", "secret", 61, 256),
       Arguments.of("https://api.sc-dev9.io/", "secret", -1, 256), Arguments.of("https://api.sc-dev9.io/", "secret", 30, 0),
-      Arguments.of("https://api.sc-dev9.io/", "secret", 30, 1025));
+      Arguments.of("https://api.sc-dev9.io/", "secret", 30, 5001));
+  }
+
+  @Test
+  void should_accept_maximum_cache_bounds() {
+    var configuration = new OAuthConfiguration("https://auth-dev9.sc-dev9.io/", "https://api.sc-dev9.io/mcp", "https://api.sc-dev9.io/",
+      "backend", "secret", Duration.ofSeconds(60), 5000);
+    assertThat(configuration.cacheTtl()).isEqualTo(Duration.ofSeconds(60));
+    assertThat(configuration.cacheSize()).isEqualTo(5000);
   }
 
   @Test
