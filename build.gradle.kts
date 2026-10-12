@@ -108,6 +108,10 @@ configurations {
 }
 
 dependencies {
+	implementation(libs.guava)
+	implementation(libs.auth0.sdk)
+	implementation(libs.auth0.jwt)
+	implementation(libs.auth0.jwks)
 	implementation(libs.mcp.server)
 	implementation(libs.sonarlint.java.client.utils)
 	implementation(libs.sonarlint.rpc.java.client)

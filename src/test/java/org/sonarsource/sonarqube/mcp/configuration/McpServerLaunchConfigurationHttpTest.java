@@ -330,6 +330,46 @@ class McpServerLaunchConfigurationHttpTest {
     assertThat(config.getHttpAllowedOrigins()).isEqualTo(List.of());
   }
 
+  @Test
+  void should_require_explicit_oauth_trust_settings_for_cloud_http() {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", "http");
+    environment.put("SONARQUBE_IS_CLOUD", "true");
+    environment.put("SONARQUBE_HTTP_AUTH_MODE", "OAUTH");
+    org.assertj.core.api.Assertions.assertThatIllegalArgumentException().isThrownBy(() -> new McpServerLaunchConfiguration(environment));
+    environment.put("SONARQUBE_OAUTH_RESOURCE", "https://api.sc-dev9.io/mcp");
+    environment.put("SONARQUBE_OAUTH_ISSUER", "https://sonarsource-dev9.eu.auth0.com/");
+    environment.put("SONARQUBE_CLOUD_API_URL", "https://api.sc-dev9.io");
+    environment.put("SONARQUBE_OAUTH_CLOUD_AUDIENCE", "https://api.sc-dev9.io/");
+    environment.put("SONARQUBE_OAUTH_CLIENT_ID", "backend");
+    environment.put("SONARQUBE_OAUTH_CLIENT_SECRET", "test-secret");
+    var configured = new McpServerLaunchConfiguration(environment);
+    assertThat(configured.getOAuthMetadata()).isNotNull();
+    assertThat(configured.getOAuthConfiguration().cacheTtl()).isEqualTo(java.time.Duration.ofSeconds(30));
+    assertThat(configured.getOAuthConfiguration().cacheSize()).isEqualTo(256);
+    assertThat(configured.getOAuthMetadata().isSelfHosted()).isTrue();
+    environment.put("SONARQUBE_OAUTH_METADATA_URL", "https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp");
+    var external = new McpServerLaunchConfiguration(environment);
+    assertThat(external.getOAuthMetadata().isSelfHosted()).isFalse();
+    assertThat(external.getOAuthMetadata().challenge()).contains("https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp");
+    assertThat(external.getOAuthConfiguration().resource()).isEqualTo("https://api.sc-dev9.io/mcp");
+    environment.put("SONARQUBE_IS_CLOUD", "false");
+    org.assertj.core.api.Assertions.assertThatIllegalArgumentException().isThrownBy(() -> new McpServerLaunchConfiguration(environment));
+  }
+
+  @Test
+  void should_reject_oauth_without_explicit_exchange_credentials_or_matching_api_endpoint() {
+    var environment = createMinimalTestEnvironment();
+    environment.putAll(Map.of("SONARQUBE_TRANSPORT", "http", "SONARQUBE_IS_CLOUD", "true", "SONARQUBE_HTTP_AUTH_MODE", "OAUTH",
+      "SONARQUBE_OAUTH_RESOURCE", "https://api.sc-dev9.io/mcp", "SONARQUBE_OAUTH_ISSUER", "https://auth-dev9.sc-dev9.io/",
+      "SONARQUBE_OAUTH_CLOUD_AUDIENCE", "https://api.sc-dev9.io/", "SONARQUBE_OAUTH_CLIENT_ID", "backend"));
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment)).isInstanceOf(IllegalArgumentException.class);
+    environment.put("SONARQUBE_OAUTH_CLIENT_SECRET", "test-secret");
+    environment.put("SONARQUBE_CLOUD_API_URL", "https://api.sonarcloud.io");
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment)).isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("matching the configured Cloud audience");
+  }
+
   private Map<String, String> createMinimalTestEnvironment() {
     var environment = new HashMap<String, String>();
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir"));
@@ -339,3 +379,4 @@ class McpServerLaunchConfigurationHttpTest {
   }
 
 }
+
