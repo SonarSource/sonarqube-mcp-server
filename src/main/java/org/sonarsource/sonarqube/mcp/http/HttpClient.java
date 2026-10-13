@@ -17,11 +17,13 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import java.io.Closeable;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public interface HttpClient {
 
   String JSON_CONTENT_TYPE = "application/json; charset=utf-8";
+  Duration DOWNLOAD_TIMEOUT = Duration.ofMinutes(5);
 
   interface Response extends Closeable {
 
@@ -46,7 +48,11 @@ public interface HttpClient {
 
   CompletableFuture<Response> getAsync(String url);
 
+  CompletableFuture<Response> getAsync(String url, Duration timeout);
+
   CompletableFuture<Response> getAsyncAnonymous(String url);
+
+  CompletableFuture<Response> getAsyncAnonymous(String url, Duration timeout);
 
   CompletableFuture<Response> postAsync(String url, String contentType, String body);
 

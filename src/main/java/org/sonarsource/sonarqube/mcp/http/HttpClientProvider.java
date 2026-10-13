@@ -18,9 +18,11 @@ package org.sonarsource.sonarqube.mcp.http;
 
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
+import java.time.Duration;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.hc.client5.http.config.TlsConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.client5.http.impl.auth.SystemDefaultCredentialsProvider;
@@ -30,19 +32,30 @@ import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.util.Timeout;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 public class HttpClientProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
+  private static final Duration API_TIMEOUT = Duration.ofSeconds(30);
+  private static final Duration ANALYTICS_TIMEOUT = Duration.ofSeconds(10);
   private final CloseableHttpAsyncClient httpClient;
   private final String userAgent;
   private final String sslProtocol;
   private final int trustedCertificates;
   private final String proxySelector;
+  private final Duration apiTimeout;
+  private final Duration analyticsTimeout;
 
   public HttpClientProvider(String userAgent) {
+    this(userAgent, API_TIMEOUT, ANALYTICS_TIMEOUT);
+  }
+
+  HttpClientProvider(String userAgent, Duration apiTimeout, Duration analyticsTimeout) {
     this.userAgent = userAgent;
+    this.apiTimeout = apiTimeout;
+    this.analyticsTimeout = analyticsTimeout;
     var sslFactoryBuilder = SSLFactory.builder()
       .withDefaultTrustMaterial();
     if (isClientCertificateConfigured()) {
@@ -77,13 +90,11 @@ public class HttpClientProvider {
       .setConnectionManager(asyncConnectionManager)
       .addResponseInterceptorFirst(new RedirectInterceptor())
       .setUserAgent(userAgent)
+      .setDefaultRequestConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(30)).build())
+      .setIOReactorConfig(buildReactorConfig())
       .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
     if (defaultProxySelector != null) {
       httpClientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(defaultProxySelector));
-    }
-    var socksConfig = buildSocksProxyConfig();
-    if (socksConfig != null) {
-      httpClientBuilder.setIOReactorConfig(socksConfig);
     }
     this.httpClient = httpClientBuilder.build();
 
@@ -108,14 +119,14 @@ public class HttpClientProvider {
     }
   }
 
-  private static IOReactorConfig buildSocksProxyConfig() {
+  private static IOReactorConfig buildReactorConfig() {
+    var builder = IOReactorConfig.custom().setSoTimeout(Timeout.ofSeconds(30));
     var socksHost = System.getProperty("socksProxyHost");
     if (socksHost == null) {
-      return null;
+      return builder.build();
     }
     var socksPort = Integer.parseInt(System.getProperty("socksProxyPort", "1080"));
-    var builder = IOReactorConfig.custom()
-      .setSocksProxyAddress(new InetSocketAddress(socksHost, socksPort));
+    builder.setSocksProxyAddress(new InetSocketAddress(socksHost, socksPort));
     var socksUser = System.getProperty("java.net.socks.username");
     if (socksUser != null) {
       builder.setSocksProxyUsername(socksUser);
@@ -128,11 +139,11 @@ public class HttpClientProvider {
   }
 
   public HttpClient getHttpClient(String sonarqubeCloudToken) {
-    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false);
+    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false, apiTimeout);
   }
 
   public HttpClient getAnonymousHttpClient() {
-    return new HttpClientAdapter(httpClient, null, false);
+    return new HttpClientAdapter(httpClient, null, false, apiTimeout);
   }
 
   /**
@@ -140,7 +151,7 @@ public class HttpClientProvider {
    * Bridge client adds special Host and Origin headers for localhost communication.
    */
   public HttpClient getHttpClientForBridge() {
-    return new HttpClientAdapter(httpClient, null, true);
+    return new HttpClientAdapter(httpClient, null, true, apiTimeout);
   }
 
   /**
@@ -148,7 +159,7 @@ public class HttpClientProvider {
    * Sends an x-api-key header on every request.
    */
   public HttpClient getHttpClientForAnalytics(String apiKey) {
-    return new HttpClientAdapter(httpClient, null, false, apiKey);
+    return new HttpClientAdapter(httpClient, null, false, analyticsTimeout, apiKey);
   }
 
   public void shutdown() {
