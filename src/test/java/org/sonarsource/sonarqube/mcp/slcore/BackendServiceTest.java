@@ -18,23 +18,31 @@ package org.sonarsource.sonarqube.mcp.slcore;
 
 import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalysisRpcService;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.InitializeParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +93,74 @@ class BackendServiceTest {
 
     verify(mockServer).initialize(any());
     verify(mockServer, never()).shutdown();
+  }
+
+  @Test
+  void should_complete_existing_waiters_and_use_new_backend_after_failed_initialization() throws Exception {
+    var analyzers = new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class));
+    var failedInitialization = new CompletableFuture<Void>();
+    failedInitialization.completeExceptionally(new IllegalStateException("Initialization failed"));
+    var retryServer = mock(SonarLintRpcServer.class);
+    var analysisService = mock(AnalysisRpcService.class);
+    when(mockLauncher.getServerProxy()).thenReturn(mockServer, retryServer);
+    when(mockServer.initialize(any())).thenReturn(failedInitialization);
+    when(retryServer.initialize(any())).thenReturn(CompletableFuture.completedFuture(null));
+    when(retryServer.getAnalysisService()).thenReturn(analysisService);
+    when(analysisService.analyzeFilesAndTrack(any())).thenReturn(CompletableFuture.completedFuture(mock(AnalyzeFilesResponse.class)));
+    var existingWaiter = backendService.analyzeFilesAndTrack(UUID.randomUUID(), List.of());
+
+    assertThat(backendService.initialize(analyzers)).isFalse();
+    assertThatThrownBy(existingWaiter::get).isInstanceOf(ExecutionException.class).hasRootCauseInstanceOf(IllegalStateException.class);
+    verify(mockLauncher).close();
+
+    backendService.restartWithAnalyzers(analyzers);
+    backendService.analyzeFilesAndTrack(UUID.randomUUID(), List.of()).get();
+
+    verify(analysisService, timeout(1000)).analyzeFilesAndTrack(any());
+  }
+
+  @Test
+  void restartWithAnalyzers_should_report_failed_initialization() {
+    var failedInitialization = new CompletableFuture<Void>();
+    failedInitialization.completeExceptionally(new IllegalStateException("Initialization failed"));
+    when(mockServer.initialize(any())).thenReturn(failedInitialization);
+    var analyzers = new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class));
+
+    assertThatThrownBy(() -> backendService.restartWithAnalyzers(analyzers))
+      .isInstanceOf(IllegalStateException.class).hasMessage("Backend initialization failed");
+    verify(mockLauncher).close();
+  }
+
+  @Test
+  void restartWithAnalyzers_should_report_failure_after_shutting_down_running_backend() {
+    var failedInitialization = new CompletableFuture<Void>();
+    failedInitialization.completeExceptionally(new IllegalStateException("Restart failed"));
+    when(mockServer.initialize(any())).thenReturn(CompletableFuture.completedFuture(null), failedInitialization);
+    var analyzers = new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class));
+    backendService.initialize(analyzers);
+
+    assertThatThrownBy(() -> backendService.restartWithAnalyzers(analyzers))
+      .isInstanceOf(IllegalStateException.class).hasMessage("Backend restart failed");
+    verify(mockServer).shutdown();
+    verify(mockLauncher, times(2)).close();
+    assertThat(backendService.analyzeFilesAndTrack(UUID.randomUUID(), List.of())).isCompletedExceptionally();
+  }
+
+  @Test
+  void initialize_should_settle_waiters_and_close_launcher_when_interrupted() {
+    when(mockServer.initialize(any())).thenReturn(new CompletableFuture<>());
+    var analyzers = new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class));
+    var existingWaiter = backendService.analyzeFilesAndTrack(UUID.randomUUID(), List.of());
+
+    try {
+      Thread.currentThread().interrupt();
+      assertThat(backendService.initialize(analyzers)).isFalse();
+      assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      assertThat(existingWaiter).isCompletedExceptionally();
+      verify(mockLauncher).close();
+    } finally {
+      Thread.interrupted();
+    }
   }
 
   @Test
@@ -193,4 +269,3 @@ class BackendServiceTest {
   }
 
 }
-

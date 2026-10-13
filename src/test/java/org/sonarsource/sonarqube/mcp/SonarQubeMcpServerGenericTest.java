@@ -25,8 +25,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
@@ -37,6 +39,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 class SonarQubeMcpServerGenericTest {
 
@@ -661,6 +665,31 @@ class SonarQubeMcpServerGenericTest {
       .contains("analyze_code_snippet");
 
     server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_report_failed_analyzer_restart_without_removing_rest_tools(SonarQubeMcpServerTestHarness harness) throws Exception {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TOOLSETS", "analysis,issues,projects,quality-gates");
+    harness.prepareMockWebServer(environment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
+    var backendField = SonarQubeMcpServer.class.getDeclaredField("backendService");
+    backendField.setAccessible(true);
+    var originalBackend = backendField.get(server);
+    var failingBackend = mock(BackendService.class);
+    doThrow(new IllegalStateException("Restart failed")).when(failingBackend).restartWithAnalyzers(org.mockito.ArgumentMatchers.any());
+    backendField.set(server, failingBackend);
+
+    try {
+      server.start();
+
+      assertThatThrownBy(server::waitForInitialization)
+        .isInstanceOf(ExecutionException.class).hasRootCauseMessage("Restart failed");
+      assertThat(server.getSupportedTools()).anyMatch(tool -> tool.getCategories().contains(ToolCategory.ISSUES));
+    } finally {
+      backendField.set(server, originalBackend);
+      server.shutdown();
+    }
   }
 
   @SonarQubeMcpServerTest
