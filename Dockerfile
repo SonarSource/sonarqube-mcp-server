@@ -5,7 +5,7 @@ RUN apk update &&  \
 
 WORKDIR /app
 
-ARG MCP_SERVER_VERSION=1.28.0.4397
+ARG MCP_SERVER_VERSION=1.29.0.4488
 ADD https://binaries.sonarsource.com/Distribution/sonarqube-mcp-server/sonarqube-mcp-server-${MCP_SERVER_VERSION}.jar ./sonarqube-mcp-server.jar
 
 RUN jdeps --ignore-missing-deps -q  \
