@@ -17,8 +17,16 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.net.ServerSocket;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
@@ -88,6 +96,115 @@ class HttpClientProviderTests {
       sonarqubeMock.verify(0, getRequestedFor(urlEqualTo("/redirected-keys")));
     } finally {
       provider.shutdown();
+    }
+  }
+
+
+  @Test
+  void it_should_remove_cancelled_deadlines_from_the_queue() {
+    var scheduler = HttpClientAdapter.createDeadlineScheduler();
+    try {
+      var deadline = scheduler.schedule(() -> { }, 5, TimeUnit.MINUTES);
+      assertThat(scheduler.getQueue()).hasSize(1);
+      assertThat(deadline.cancel(false)).isTrue();
+      assertThat(scheduler.getQueue()).isEmpty();
+    } finally {
+      scheduler.shutdownNow();
+    }
+  }
+
+  @Test
+  void it_should_time_out_stalled_response_headers() {
+    sonarqubeMock.stubFor(get("/stalled-headers")
+      .willReturn(aResponse().withFixedDelay(2000)));
+    var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(200), Duration.ofMillis(200));
+
+    try {
+      var future = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/stalled-headers"));
+      var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+      assertThat(error.getCause()).isInstanceOf(HttpTimeoutException.class);
+      sonarqubeMock.verify(1, getRequestedFor(urlEqualTo("/stalled-headers")));
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
+  @Test
+  void it_should_cancel_a_request_with_a_stalled_response_body() throws Exception {
+    try (var server = new ServerSocket(0); var worker = Executors.newSingleThreadExecutor()) {
+      var connectionClosed = worker.submit(() -> {
+        try (var socket = server.accept()) {
+          socket.setSoTimeout(3000);
+          var reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII));
+          while (!reader.readLine().isEmpty()) {
+            // Consume request headers before checking for the cancelled connection.
+          }
+          var output = socket.getOutputStream();
+          output.write("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nx".getBytes(StandardCharsets.US_ASCII));
+          output.flush();
+          try {
+            return reader.read() == -1;
+          } catch (SocketException e) {
+            return true;
+          }
+        }
+      });
+      var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(250), Duration.ofMillis(250));
+      try {
+        var future = underTest.getHttpClient("token").getAsync("http://localhost:" + server.getLocalPort() + "/body");
+        var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+        assertThat(error.getCause()).isInstanceOf(HttpTimeoutException.class);
+        assertThat(connectionClosed.get(2, TimeUnit.SECONDS)).isTrue();
+      } finally {
+        underTest.shutdown();
+      }
+    }
+  }
+
+  @Test
+  void it_should_allow_a_slow_download_within_its_budget() throws Exception {
+    sonarqubeMock.stubFor(get("/slow-download")
+      .willReturn(aResponse().withBody("plugin").withFixedDelay(700)));
+    var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(200), Duration.ofMillis(200));
+
+    try (var response = underTest.getAnonymousHttpClient()
+      .getAsyncAnonymous(sonarqubeMock.url("/slow-download"), Duration.ofSeconds(2))
+      .get(3, TimeUnit.SECONDS)) {
+      assertThat(response.bodyAsString()).isEqualTo("plugin");
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
+  @Test
+  void it_should_not_retry_a_timed_out_post() throws Exception {
+    try (var server = new ServerSocket(0); var worker = Executors.newSingleThreadExecutor()) {
+      var requests = worker.submit(() -> {
+        try (var socket = server.accept()) {
+          socket.setSoTimeout(2000);
+          var reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII));
+          assertThat(reader.readLine()).startsWith("POST /stalled-post ");
+          while (!reader.readLine().isEmpty()) {
+            // Consume request headers so the server can observe a retry.
+          }
+          server.setSoTimeout(700);
+          try (var ignored = server.accept()) {
+            return 2;
+          } catch (SocketTimeoutException e) {
+            return 1;
+          }
+        }
+      });
+      var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(250), Duration.ofMillis(250));
+      try {
+        var future = underTest.getHttpClient("token")
+          .postAsync("http://localhost:" + server.getLocalPort() + "/stalled-post", "text/plain", "payload");
+        var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+        assertThat(error.getCause()).isInstanceOf(HttpTimeoutException.class);
+        assertThat(requests.get(2, TimeUnit.SECONDS)).isEqualTo(1);
+      } finally {
+        underTest.shutdown();
+      }
     }
   }
 
