@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.json.TypeRef;
@@ -86,6 +87,21 @@ public class ManagedStdioClientTransport implements McpClientTransport {
 
   public void setStdErrorHandler(Consumer<String> errorHandler) {
     this.stdErrorHandler = errorHandler;
+  }
+
+  @VisibleForTesting
+  boolean isProcessAlive() {
+    return process != null && process.isAlive();
+  }
+
+  @VisibleForTesting
+  boolean wasProcessStarted() {
+    return process != null;
+  }
+
+  @VisibleForTesting
+  boolean areSchedulersDisposed() {
+    return inboundScheduler.isDisposed() && outboundScheduler.isDisposed() && errorScheduler.isDisposed();
   }
 
   @Override

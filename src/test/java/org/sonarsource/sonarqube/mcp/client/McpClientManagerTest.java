@@ -16,11 +16,19 @@
  */
 package org.sonarsource.sonarqube.mcp.client;
 
+import io.modelcontextprotocol.client.transport.ServerParameters;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
+import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
+import reactor.core.publisher.Mono;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -112,6 +120,103 @@ class McpClientManagerTest {
     assertThatThrownBy(() -> manager.executeTool("failing-server", "tool", emptyMap, null))
       .isInstanceOf(IllegalStateException.class)
       .hasMessageContaining("Service unavailable");
+  }
+
+  @Test
+  void initialize_should_close_live_child_after_handshake_timeout() throws URISyntaxException {
+    var transports = new ArrayList<ManagedStdioClientTransport>();
+    var manager = new McpClientManager(List.of(testServer("timed-out", "initialize-timeout")), UUID.randomUUID().toString(),
+      Duration.ofSeconds(1), (name, params) -> trackTransport(transports, name, params));
+
+    manager.initialize();
+
+    assertThat(manager.isServerConnected("timed-out")).isFalse();
+    assertThat(manager.getAllProxiedTools()).isEmpty();
+    assertThat(manager.getProxiedInstructions()).isEmpty();
+    assertThatThrownBy(() -> manager.executeTool("timed-out", "test_tool_1", Map.of(), null))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("Service unavailable");
+    assertFailedTransportClosed(transports);
+  }
+
+  @Test
+  void initialize_should_close_live_child_after_tools_list_error_and_keep_sibling_usable() throws URISyntaxException {
+    var transports = new ArrayList<ManagedStdioClientTransport>();
+    var configs = List.of(testServer("failed", "tools-list-error"), testServer("working", null));
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString(), Duration.ofSeconds(5),
+      (name, params) -> trackTransport(transports, name, params));
+
+    try {
+      manager.initialize();
+
+      assertThat(manager.isServerConnected("failed")).isFalse();
+      assertThat(manager.isServerConnected("working")).isTrue();
+      assertThat(manager.getAllProxiedTools()).containsKeys("test_tool_1", "test_tool_2");
+      assertThat(manager.executeTool("working", "test_tool_1", Map.of(), null).isError()).isFalse();
+      assertThatThrownBy(() -> manager.executeTool("failed", "test_tool_1", Map.of(), null))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Test tools/list failure");
+      assertThat(transports).hasSize(2);
+      assertThat(transports.get(1).isProcessAlive()).isTrue();
+      assertFailedTransportClosed(transports.subList(0, 1));
+    } finally {
+      manager.shutdown();
+    }
+  }
+
+  @Test
+  void initialize_should_preserve_discovery_error_when_cleanup_fails() throws URISyntaxException {
+    var transports = new ArrayList<ManagedStdioClientTransport>();
+    var cleanupAttempted = new AtomicBoolean();
+    var allowCleanup = new AtomicBoolean();
+    var manager = new McpClientManager(List.of(testServer("failed", "tools-list-error")), UUID.randomUUID().toString(),
+      Duration.ofSeconds(5), (name, params) -> {
+        var transport = new ManagedStdioClientTransport(name, params, McpJsonMappers.DEFAULT) {
+          @Override
+          public Mono<Void> closeGracefully() {
+            cleanupAttempted.set(true);
+            if (!allowCleanup.get()) {
+              return Mono.error(new IllegalStateException("Cleanup failed"));
+            }
+            return super.closeGracefully();
+          }
+        };
+        transports.add(transport);
+        return transport;
+      });
+
+    try {
+      manager.initialize();
+
+      assertThat(cleanupAttempted.get()).isTrue();
+      assertThatThrownBy(() -> manager.executeTool("failed", "test_tool_1", Map.of(), null))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Test tools/list failure")
+        .hasMessageNotContaining("Cleanup failed");
+    } finally {
+      allowCleanup.set(true);
+      transports.forEach(transport -> transport.closeGracefully().block(Duration.ofSeconds(10)));
+    }
+    assertFailedTransportClosed(transports);
+  }
+
+  private static ProxiedMcpServerConfig testServer(String name, String failureMode) throws URISyntaxException {
+    var script = Path.of(McpClientManagerTest.class.getResource("/test-mcp-server.py").toURI()).toString();
+    var args = failureMode == null ? List.of(script) : List.of(script, "--failure-mode", failureMode);
+    return new ProxiedMcpServerConfig(name, "python3", args, Map.of(), List.of(), Set.of(TransportMode.STDIO));
+  }
+
+  private static ManagedStdioClientTransport trackTransport(List<ManagedStdioClientTransport> transports, String name, ServerParameters params) {
+    var transport = new ManagedStdioClientTransport(name, params, McpJsonMappers.DEFAULT);
+    transports.add(transport);
+    return transport;
+  }
+
+  private static void assertFailedTransportClosed(List<ManagedStdioClientTransport> transports) {
+    assertThat(transports).hasSize(1);
+    assertThat(transports.get(0).wasProcessStarted()).isTrue();
+    assertThat(transports.get(0).isProcessAlive()).isFalse();
+    assertThat(transports.get(0).areSchedulersDisposed()).isTrue();
   }
 
   @Test
