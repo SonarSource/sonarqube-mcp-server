@@ -36,13 +36,13 @@ class AutoDetectOrganizationTest {
   private static final String AUTO_ORG_UUID = "00000000-0000-0000-0000-000000000009";
   private static final Map<String, String> CLOUD_WITHOUT_ORG = Map.of(
     "SONARQUBE_IS_CLOUD", "true",
-    "SONARQUBE_TOOLSETS", "issues");
+    "SONARQUBE_TOOLSETS", "issues,dependency-risks");
 
   @SonarQubeMcpServerTest
   void it_should_apply_sonarqube_org_to_startup_server_api(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient(Map.of(
       "SONARQUBE_ORG", AUTO_ORG_KEY,
-      "SONARQUBE_TOOLSETS", "issues"));
+      "SONARQUBE_TOOLSETS", "issues,dependency-risks"));
 
     assertThat(mcpClient.listTools()).isNotEmpty();
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(ScaApi.FEATURE_ENABLED_PATH + "?organization=" + AUTO_ORG_KEY)).isTrue();

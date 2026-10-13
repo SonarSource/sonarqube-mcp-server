@@ -466,14 +466,16 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListPullRequestsTool(this, configuredProjectKey),
       new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
 
-    if (mcpConfiguration.isHttpEnabled()) {
-      // In HTTP mode there is no startup token to probe SCA availability
-      supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
-    } else {
-      var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();
-      var scaSupportedOnSQS = !serverApi.isSonarQubeCloud() && serverApi.featuresApi().listFeatures().contains(Feature.SCA);
-      if (scaSupportedOnSQC || scaSupportedOnSQS) {
+    if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)) {
+      if (mcpConfiguration.isHttpEnabled()) {
+        // In HTTP mode there is no startup token to probe SCA availability
         supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
+      } else {
+        var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();
+        var scaSupportedOnSQS = !serverApi.isSonarQubeCloud() && serverApi.featuresApi().listFeatures().contains(Feature.SCA);
+        if (scaSupportedOnSQC || scaSupportedOnSQS) {
+          supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
+        }
       }
     }
 
