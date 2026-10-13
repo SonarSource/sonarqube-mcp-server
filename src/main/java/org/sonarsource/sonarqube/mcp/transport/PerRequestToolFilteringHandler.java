@@ -118,7 +118,7 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
       .filter(tool -> isCategoryAllowed(tool, allowedCategories))
       .filter(tool -> tool.isEnabledFor(ctx))
       .map(Tool::definition)
-      .filter(definition -> !readOnly || (definition.annotations() != null && definition.annotations().readOnlyHint()))
+      .filter(definition -> !readOnly || (definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint())))
       .toList();
   }
 
