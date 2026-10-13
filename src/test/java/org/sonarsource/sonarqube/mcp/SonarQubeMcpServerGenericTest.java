@@ -17,16 +17,19 @@
 package org.sonarsource.sonarqube.mcp;
 
 import io.modelcontextprotocol.common.McpTransportContext;
+import io.modelcontextprotocol.spec.McpSchema;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
@@ -37,10 +40,36 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SonarQubeMcpServerGenericTest {
 
   // No per-test teardown needed — the stateless HTTP mode has no global session state.
+
+  @SonarQubeMcpServerTest
+  void should_filter_optional_proxy_annotations_in_read_only_mode(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_READ_ONLY", "true");
+    harness.prepareMockWebServer(environment);
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
+
+    var noAnnotations = mockToolWithAnnotations("no_annotations", null);
+    var emptyAnnotations = mockToolWithAnnotations("empty_annotations", new McpSchema.ToolAnnotations(null, null, null, null, null, null));
+    var falseHint = mockToolWithAnnotations("false_hint", new McpSchema.ToolAnnotations(null, false, null, null, null, null));
+    var trueHint = mockToolWithAnnotations("true_hint", new McpSchema.ToolAnnotations(null, true, null, null, null, null));
+
+    assertThat(server.filterForEnabledTools(List.of(noAnnotations, emptyAnnotations, falseHint, trueHint)))
+      .containsExactly(trueHint);
+  }
+
+  private static Tool mockToolWithAnnotations(String name, McpSchema.ToolAnnotations annotations) {
+    var definition = McpSchema.Tool.builder(name, Map.of("type", "object")).annotations(annotations).build();
+    var tool = mock(Tool.class);
+    when(tool.getCategories()).thenReturn(Set.of(ToolCategory.PROJECTS));
+    when(tool.definition()).thenReturn(definition);
+    return tool;
+  }
 
   @SonarQubeMcpServerTest
   void get_should_return_server_api_in_stdio_mode(SonarQubeMcpServerTestHarness harness) {

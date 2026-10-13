@@ -88,6 +88,20 @@ class PerRequestToolFilteringHandlerTest {
   }
 
   @Test
+  void tools_list_with_read_only_header_excludes_tools_without_an_explicit_true_hint() {
+    var noAnnotations = mockTool("no_annotations", ToolCategory.ISSUES, (McpSchema.ToolAnnotations) null);
+    var emptyAnnotations = mockTool("empty_annotations", ToolCategory.ISSUES, new McpSchema.ToolAnnotations(null, null, null, null, null, null));
+    var falseHint = mockTool("false_hint", ToolCategory.ISSUES, false);
+    var trueHint = mockTool("true_hint", ToolCategory.ISSUES, true);
+    var handler = new PerRequestToolFilteringHandler(mock(McpStatelessServerHandler.class), List.of(noAnnotations, emptyAnnotations, falseHint, trueHint));
+    var context = contextWith(Map.of(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY, true));
+
+    var result = (McpSchema.ListToolsResult) handler.handleRequest(context, toolsListRequest()).block().result();
+
+    assertThat(result.tools()).extracting(McpSchema.Tool::name).containsExactly("true_hint");
+  }
+
+  @Test
   void tools_list_with_toolsets_and_read_only_applies_both_filters() {
     var issuesReadOnly = mockTool("search_issues", ToolCategory.ISSUES, true);
     var issuesWrite = mockTool("change_status", ToolCategory.ISSUES, false);
@@ -213,6 +227,27 @@ class PerRequestToolFilteringHandlerTest {
     assertThat(response.error()).isNotNull();
     assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
     assertThat(response.error().message()).contains("change_status");
+  }
+
+  @Test
+  void tools_call_with_read_only_header_enforces_explicit_true_hint() {
+    var delegate = mock(McpStatelessServerHandler.class);
+    when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
+      new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
+    var noAnnotations = mockTool("no_annotations", ToolCategory.ISSUES, (McpSchema.ToolAnnotations) null);
+    var emptyAnnotations = mockTool("empty_annotations", ToolCategory.ISSUES, new McpSchema.ToolAnnotations(null, null, null, null, null, null));
+    var falseHint = mockTool("false_hint", ToolCategory.ISSUES, false);
+    var trueHint = mockTool("true_hint", ToolCategory.ISSUES, true);
+    var handler = new PerRequestToolFilteringHandler(delegate, List.of(noAnnotations, emptyAnnotations, falseHint, trueHint));
+    var context = contextWith(Map.of(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY, true));
+
+    for (var name : List.of("no_annotations", "empty_annotations", "false_hint")) {
+      var response = handler.handleRequest(context, toolsCallRequest(name)).block();
+      assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
+    }
+    var allowedRequest = toolsCallRequest("true_hint");
+    handler.handleRequest(context, allowedRequest).block();
+    verify(delegate).handleRequest(context, allowedRequest);
   }
 
   @Test
@@ -358,7 +393,10 @@ class PerRequestToolFilteringHandlerTest {
   }
 
   private static Tool mockTool(String name, ToolCategory category, boolean readOnly) {
-    var annotations = new McpSchema.ToolAnnotations(null, readOnly, null, null, null, null);
+    return mockTool(name, category, new McpSchema.ToolAnnotations(null, readOnly, null, null, null, null));
+  }
+
+  private static Tool mockTool(String name, ToolCategory category, McpSchema.ToolAnnotations annotations) {
     var toolDef = McpSchema.Tool.builder(name, Map.of(
         "type", "object",
         "properties", Map.of(),
