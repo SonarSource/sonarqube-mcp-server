@@ -18,11 +18,11 @@ package org.sonarsource.sonarqube.mcp.serverapi;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
+import java.util.ArrayList;
 import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
@@ -206,20 +206,43 @@ public class ServerApiHelper {
     if (StringUtils.isBlank(content)) {
       return null;
     }
-    var obj = JsonParser.parseString(content).getAsJsonObject();
-    var errors = obj.getAsJsonArray("errors");
-    if (errors != null) {
-      return StreamSupport.stream(errors.spliterator(), false)
-        .map(e -> e.getAsJsonObject().get("msg").getAsString())
-        .collect(Collectors.joining(", "));
+    try {
+      var parsed = JsonParser.parseString(content);
+      if (!parsed.isJsonObject()) {
+        return null;
+      }
+      var obj = parsed.getAsJsonObject();
+      var errorsMessage = extractErrorMessages(obj.get("errors"));
+      if (errorsMessage != null) {
+        return errorsMessage;
+      }
+      JsonElement messageElement = obj.get("message");
+      if (messageElement != null && messageElement.isJsonPrimitive() && messageElement.getAsJsonPrimitive().isString()) {
+        return messageElement.getAsString();
+      }
+    } catch (JsonParseException e) {
+      return null;
     }
-    JsonElement messageElement = obj.get("message");
-
-    if (messageElement != null && messageElement.isJsonPrimitive() && !messageElement.isJsonNull()) {
-      return messageElement.getAsJsonPrimitive().getAsString();
-    }
-
     return null;
+  }
+
+  @Nullable
+  private static String extractErrorMessages(@Nullable JsonElement errors) {
+    if (errors == null || !errors.isJsonArray()) {
+      return null;
+    }
+    var messages = new ArrayList<String>();
+    for (var error : errors.getAsJsonArray()) {
+      if (!error.isJsonObject()) {
+        return null;
+      }
+      var message = error.getAsJsonObject().get("msg");
+      if (message == null || !message.isJsonPrimitive() || !message.getAsJsonPrimitive().isString()) {
+        return null;
+      }
+      messages.add(message.getAsString());
+    }
+    return messages.isEmpty() ? null : String.join(", ", messages);
   }
 
 }
