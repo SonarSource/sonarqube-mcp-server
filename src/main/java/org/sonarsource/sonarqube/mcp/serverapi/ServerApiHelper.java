@@ -21,6 +21,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.time.Duration;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import jakarta.annotation.Nullable;
@@ -89,8 +90,16 @@ public class ServerApiHelper {
     return client.getAsync(buildEndpointUrl(relativePath)).join();
   }
 
+  public HttpClient.Response rawGet(String relativePath, Duration timeout) {
+    return client.getAsync(buildEndpointUrl(relativePath), timeout).join();
+  }
+
   public HttpClient.Response rawGetAnonymous(String relativePath) {
     return client.getAsyncAnonymous(buildEndpointUrl(relativePath)).join();
+  }
+
+  public HttpClient.Response rawGetAnonymous(String relativePath, Duration timeout) {
+    return client.getAsyncAnonymous(buildEndpointUrl(relativePath), timeout).join();
   }
 
   private HttpClient.Response rawPost(String url, String contentType, String body) {
