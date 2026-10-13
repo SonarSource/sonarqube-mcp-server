@@ -33,7 +33,7 @@ public class SonarCloudCdnPluginsApi {
   }
 
   public HttpClient.Response downloadPlugin(String pluginKey, String md5) {
-    return httpClient.getAsyncAnonymous(buildDownloadUrl(baseUrl, pluginKey, md5)).join();
+    return httpClient.getAsyncAnonymous(buildDownloadUrl(baseUrl, pluginKey, md5), HttpClient.DOWNLOAD_TIMEOUT).join();
   }
 
   static String buildDownloadUrl(String baseUrl, String pluginKey, String md5) {
