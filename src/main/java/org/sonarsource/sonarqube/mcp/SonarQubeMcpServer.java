@@ -52,7 +52,6 @@ import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.plugins.PluginsSynchronizer;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
-import org.sonarsource.sonarqube.mcp.serverapi.OrgFeatureEntitlements;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -192,7 +191,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @Nullable
   private ResolvedOrganization resolvedOrganization;
   private SonarQubeVersionChecker sonarQubeVersionChecker;
-  private OrgFeatureEntitlements orgFeatureEntitlements;
   @Nullable
   private McpStatelessSyncServer statelessSyncServer;
   @Nullable
@@ -310,7 +308,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.serverApi = initializeServerApi(mcpConfiguration);
     resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-    this.orgFeatureEntitlements = new OrgFeatureEntitlements(serverApi);
+    var orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
     loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
@@ -351,15 +349,18 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     var workspaceMount = mcpConfiguration.getWorkspacePath();
 
-    if (vortexEnabledForOrg) {
+    if (vortexEnabledForOrg || (mcpConfiguration.isSonarQubeCloud() && !mcpConfiguration.isHttpEnabled() && vortexRelevantToolsetEnabled)) {
       if (workspaceMount != null) {
         LOG.info("Vortex analysis mode enabled");
-        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount));
+        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount, mcpConfiguration.isSonarQubeCloud()));
       } else {
         LOG.info("Vortex analysis mode enabled, but no workspace path configured, skipping tool registration");
       }
     }
-    if (!vortexEnabledForOrg && (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null)) {
+    if (mcpConfiguration.isSonarQubeCloud() && vortexEnabledForOrg) {
+      // Cloud calls can select another organization that needs local analysis.
+      loadLocalAnalysisTool();
+    } else if (!vortexEnabledForOrg && (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null)) {
       // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
       // token is configured (so plugins can be downloaded at startup).
       loadBackendDependentTools();
@@ -371,7 +372,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * Downloads analyzers in background and restarts the backend with them.
    * Tools are already loaded synchronously during startup.
-   * Skips analyzer download if ANALYSIS tools are disabled or advanced analysis mode is enabled.
+   * Skips analyzer download if ANALYSIS tools are disabled or the local analysis tool is absent.
    */
   private void initializeBackgroundServices() {
     try {
@@ -493,8 +494,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (!useIdeBridge) {
       LOG.info("Standard analysis mode (no IDE bridge)");
-      supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey(), mcpConfiguration.getWorkspacePath()));
+      loadLocalAnalysisTool();
     }
+  }
+
+  private void loadLocalAnalysisTool() {
+    supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey(),
+      mcpConfiguration.getWorkspacePath(), mcpConfiguration.isSonarQubeCloud(),
+      mcpConfiguration.isHttpEnabled() ? TransportMode.HTTP : TransportMode.STDIO));
   }
 
   private void logToolsLoaded() {
