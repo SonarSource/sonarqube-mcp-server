@@ -42,6 +42,7 @@ import org.sonarsource.sonarqube.mcp.analytics.ToolInvocationResult;
 import org.sonarsource.sonarqube.mcp.client.McpClientManager;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
+import org.sonarsource.sonarqube.mcp.tools.organizations.ListOrganizationsTool;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 
@@ -71,6 +72,20 @@ class ToolExecutorTest {
   void prepare() {
     mockBackendService = mock(BackendService.class);
     toolExecutor = new ToolExecutor(mockBackendService);
+  }
+
+  @Test
+  void it_should_execute_argument_free_tools_when_arguments_are_omitted_and_analytics_is_disabled() {
+    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    when(api.organizationsApi().listOrganizations()).thenReturn(List.of());
+    var request = McpSchema.CallToolRequest.builder(ListOrganizationsTool.TOOL_NAME).build();
+    assertThat(request.arguments()).isNull();
+
+    var result = toolExecutor.execute(new ListOrganizationsTool(() -> api), request);
+
+    assertThat(result.isError()).isFalse();
+    assertThat(result.content().toString()).contains("organizations");
+    verify(mockBackendService).notifyToolCalled("mcp_list_organizations", true);
   }
 
   @Test
