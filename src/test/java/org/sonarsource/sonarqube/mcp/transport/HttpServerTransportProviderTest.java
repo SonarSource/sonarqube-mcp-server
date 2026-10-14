@@ -52,7 +52,7 @@ class HttpServerTransportProviderTest {
 
   @Test
   void should_not_warn_about_all_interfaces_when_running_in_container() {
-    new HttpServerTransportProvider(8080, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+    new HttpServerTransportProvider(8080, "0.0.0.0", AuthMode.TOKEN, false, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
 
     assertThat(logAppender.list)
@@ -63,7 +63,7 @@ class HttpServerTransportProviderTest {
 
   @Test
   void should_warn_about_all_interfaces_when_not_running_in_container() {
-    new HttpServerTransportProvider(8080, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+    new HttpServerTransportProvider(8080, "0.0.0.0", AuthMode.TOKEN, false, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
 
     assertThat(logAppender.list)
