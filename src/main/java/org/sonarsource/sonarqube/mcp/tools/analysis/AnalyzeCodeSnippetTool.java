@@ -34,7 +34,6 @@ import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.StandaloneRuleC
 import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
-import org.sonarsource.sonarqube.mcp.serverapi.OrgFeatureEntitlements;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
@@ -233,7 +232,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
   private Optional<String> routingValidationError(ServerApi serverApi) {
     if (transportMode != TransportMode.STDIO || !serverApi.isSonarQubeCloud()
-      || !new OrgFeatureEntitlements(serverApi).isVortexEnabledForOrg(ResolvedOrganization.fromKey(serverApi.getOrganization()))) {
+      || !serverApi.orgFeatureEntitlements().isVortexEnabledForOrg(ResolvedOrganization.fromKey(serverApi.getOrganization()))) {
       return Optional.empty();
     }
     if (configuredWorkspacePath == null) {

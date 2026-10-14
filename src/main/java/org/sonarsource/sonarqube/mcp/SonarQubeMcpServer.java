@@ -310,7 +310,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.serverApi = initializeServerApi(mcpConfiguration);
     resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-    this.orgFeatureEntitlements = new OrgFeatureEntitlements(serverApi);
+    this.orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
     loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();

@@ -33,6 +33,7 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
+import org.sonarsource.sonarqube.mcp.serverapi.OrgFeatureEntitlements;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
@@ -74,6 +75,7 @@ class AnalyzeCodeSnippetRoutingTest {
     when(api.organizationsApi().getOrganizationUuidV4("org")).thenReturn("org-uuid");
     when(api.cagApi().getCagEntitlement("org-uuid")).thenReturn(new CagApi.CagEntitlementResponse(cag));
     when(api.a3sAnalysisApi().getA3sOrgConfig("org-uuid")).thenReturn(new A3sAnalysisApi.OrgConfigResponse("org-uuid", a3s, true));
+    when(api.orgFeatureEntitlements()).thenReturn(new OrgFeatureEntitlements(api));
     when(api.qualityProfilesApi().getQualityProfiles(null)).thenReturn(new SearchResponse(List.of()));
     var backend = mock(BackendService.class);
     when(backend.getWorkDir()).thenReturn(workDir);
