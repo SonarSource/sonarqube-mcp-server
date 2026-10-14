@@ -52,7 +52,6 @@ import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.plugins.PluginsSynchronizer;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
-import org.sonarsource.sonarqube.mcp.serverapi.OrgFeatureEntitlements;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -192,7 +191,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @Nullable
   private ResolvedOrganization resolvedOrganization;
   private SonarQubeVersionChecker sonarQubeVersionChecker;
-  private OrgFeatureEntitlements orgFeatureEntitlements;
   @Nullable
   private McpStatelessSyncServer statelessSyncServer;
   @Nullable
@@ -310,7 +308,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.serverApi = initializeServerApi(mcpConfiguration);
     resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-    this.orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
+    var orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
     loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
@@ -564,10 +562,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  private List<Tool> filterForEnabledTools(List<Tool> toolsToFilter) {
+  @VisibleForTesting
+  List<Tool> filterForEnabledTools(List<Tool> toolsToFilter) {
     return toolsToFilter.stream()
       .filter(tool -> tool.getCategories().stream().anyMatch(mcpConfiguration::isToolCategoryEnabled))
-      .filter(tool -> !mcpConfiguration.isReadOnlyMode() || tool.definition().annotations().readOnlyHint())
+      .filter(tool -> !mcpConfiguration.isReadOnlyMode() || (tool.definition().annotations() != null && Boolean.TRUE.equals(tool.definition().annotations().readOnlyHint())))
       .toList();
   }
 

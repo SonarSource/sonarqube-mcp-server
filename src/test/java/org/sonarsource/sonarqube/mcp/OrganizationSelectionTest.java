@@ -32,6 +32,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
+import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 
 class OrganizationSelectionTest {
 
@@ -125,8 +127,13 @@ class OrganizationSelectionTest {
   private static void assertOrganizationSchemas(SonarQubeMcpTestClient client, boolean cloud) {
     var names = INVOCATIONS.stream().map(Invocation::name).toList();
     client.listTools().stream().filter(tool -> names.contains(tool.name()) || tool.name().equals("search_dependency_risks")).forEach(tool -> {
-      assertThat(((Map<?, ?>) tool.inputSchema().get("properties")).containsKey("organization")).as(tool.name()).isEqualTo(cloud);
-      assertThat(((java.util.List<?>) tool.inputSchema().get("required")).contains("organization")).isFalse();
+      var properties = tool.inputSchema().get("properties");
+      if (cloud) {
+        assertThat(properties).as(tool.name()).asInstanceOf(MAP).containsKey("organization");
+      } else {
+        assertThat(properties).as(tool.name()).asInstanceOf(MAP).doesNotContainKey("organization");
+      }
+      assertThat(tool.inputSchema().get("required")).asInstanceOf(LIST).doesNotContain("organization");
     });
   }
 }

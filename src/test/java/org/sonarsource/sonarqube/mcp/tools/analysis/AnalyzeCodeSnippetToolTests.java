@@ -44,6 +44,7 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
@@ -105,7 +106,7 @@ class AnalyzeCodeSnippetToolTests {
         return api;
       };
       var tool = new AnalyzeCodeSnippetTool(backend, provider, CompletableFuture.completedFuture(null), null, null, true);
-      assertThat(((Map<?, ?>) tool.definition().inputSchema().get("properties")).containsKey("organization")).isTrue();
+      assertThat(tool.definition().inputSchema().get("properties")).asInstanceOf(MAP).containsKey("organization");
       var result = tool.execute(new Tool.Arguments(Map.of("fileContent", "class Test {}", "language", "java", "organization", "selected-org"), null));
       assertThat(result.isError()).isFalse();
       assertThat(captures).hasValue(1);

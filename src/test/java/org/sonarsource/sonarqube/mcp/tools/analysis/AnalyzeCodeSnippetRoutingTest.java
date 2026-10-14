@@ -149,8 +149,9 @@ class AnalyzeCodeSnippetRoutingTest {
       var initialization = new CompletableFuture<Void>();
       var tool = new AnalyzeCodeSnippetTool(backend, () -> api, initialization, null, null, true);
       var arguments = Map.<String, Object>of("fileContent", "<?php echo 'hello';", "language", "php");
+      var toolArguments = new Tool.Arguments(arguments, null);
 
-      assertTimeoutPreemptively(Duration.ofSeconds(2), () -> assertThatThrownBy(() -> tool.execute(new Tool.Arguments(arguments, null)))
+      assertTimeoutPreemptively(Duration.ofSeconds(2), () -> assertThatThrownBy(() -> tool.execute(toolArguments))
         .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("list_organizations"));
       assertThat(harness.getMockSonarQubeServer().countRequestsContaining(QualityProfilesApi.SEARCH_PATH)).isZero();
       verifyNoInteractions(backend);

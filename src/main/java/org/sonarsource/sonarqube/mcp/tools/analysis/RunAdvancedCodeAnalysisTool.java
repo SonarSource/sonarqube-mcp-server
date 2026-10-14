@@ -61,8 +61,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   }
 
   private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey, boolean isSonarQubeCloud) {
-    var builder = ToolDefinitionBuilder.builder()
-      .addOrganizationProperty(isSonarQubeCloud)
+    var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("SonarQube Vortex Code Analysis")
       .setDescription("Run Vortex analysis on a single file using the server-side engine. " +
