@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
@@ -47,10 +48,16 @@ public class ServerApi {
 
   private final ServerApiHelper helper;
   private final boolean isSonarQubeCloud;
+  private final OrgFeatureEntitlements orgFeatureEntitlements;
 
   public ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud) {
+    this(helper, isSonarQubeCloud, null);
+  }
+
+  private ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud, @Nullable OrgFeatureEntitlements sharedEntitlements) {
     this.helper = helper;
     this.isSonarQubeCloud = isSonarQubeCloud;
+    this.orgFeatureEntitlements = sharedEntitlements == null ? new OrgFeatureEntitlements(this) : sharedEntitlements.withApi(this);
   }
 
   public QualityGatesApi qualityGatesApi() {
@@ -157,6 +164,22 @@ public class ServerApi {
     return new OrganizationsApi(helper);
   }
 
+  public OrgFeatureEntitlements orgFeatureEntitlements() {
+    return orgFeatureEntitlements;
+  }
+
+  public ServerApi withOrganization(String organization) {
+    // Selections share stdio session caches. HTTP starts with a fresh ServerApi for every request.
+    return isSonarQubeCloud ? new ServerApi(helper.withOrganization(organization), true, orgFeatureEntitlements) : this;
+  }
+
+  public void requireOrganization() {
+    if (isSonarQubeCloud && (getOrganization() == null || getOrganization().isBlank())) {
+      throw new IllegalArgumentException("Organization is required. Call list_organizations first, then pass its key as organization, or configure SONARQUBE_ORG.");
+    }
+  }
+
+  @Nullable
   public String getOrganization() {
     return helper.getOrganization();
   }
