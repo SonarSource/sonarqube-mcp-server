@@ -30,7 +30,7 @@ public class ListOrganizationsTool extends Tool {
     super(ToolDefinitionBuilder.builder()
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Cloud Organizations")
-      .setDescription("List SonarQube Cloud organizations accessible to your token.")
+      .setDescription("List organizations accessible to your token. If the organization is ambiguous, use a returned key as organization in subsequent tools.")
       .setReadOnlyHint()
       .build(), ToolCategory.PROJECTS);
     this.serverApiProvider = serverApiProvider;
