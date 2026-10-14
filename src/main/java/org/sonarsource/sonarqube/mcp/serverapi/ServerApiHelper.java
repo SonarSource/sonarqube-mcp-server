@@ -21,8 +21,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
@@ -213,11 +213,9 @@ public class ServerApiHelper {
     var obj = JsonParser.parseString(content).getAsJsonObject();
     var errors = obj.getAsJsonArray("errors");
     if (errors != null) {
-      List<String> errorMessages = new ArrayList<>();
-      for (JsonElement e : errors) {
-        errorMessages.add(e.getAsJsonObject().get("msg").getAsString());
-      }
-      return String.join(", ", errorMessages);
+      return StreamSupport.stream(errors.spliterator(), false)
+        .map(e -> e.getAsJsonObject().get("msg").getAsString())
+        .collect(Collectors.joining(", "));
     }
     JsonElement messageElement = obj.get("message");
 

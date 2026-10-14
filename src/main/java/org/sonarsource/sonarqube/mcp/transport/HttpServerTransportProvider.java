@@ -66,9 +66,6 @@ public class HttpServerTransportProvider {
   private final int port;
   private final String host;
   private final AuthMode authMode;
-  private final boolean isSonarQubeCloud;
-  @Nullable
-  private final String serverOrg;
   private final boolean httpsEnabled;
   private final Path httpsKeystorePath;
   private final String httpsKeystorePassword;
@@ -107,8 +104,6 @@ public class HttpServerTransportProvider {
     this.port = port;
     this.host = host;
     this.authMode = authMode;
-    this.isSonarQubeCloud = isSonarQubeCloud;
-    this.serverOrg = serverOrg;
     this.httpsEnabled = httpsEnabled;
     this.httpsKeystorePath = httpsKeystorePath;
     this.httpsKeystorePassword = httpsKeystorePassword;
@@ -218,7 +213,7 @@ public class HttpServerTransportProvider {
     var securityFilter = new FilterHolder(new McpSecurityFilter(host, allowedOrigins, appVersion));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    var authFilter = new FilterHolder(new AuthenticationFilter(authMode, isSonarQubeCloud, serverOrg));
+    var authFilter = new FilterHolder(new AuthenticationFilter(authMode));
     servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var servletHolder = new ServletHolder(mcpTransportProvider);

@@ -22,7 +22,6 @@ import java.util.List;
 import jakarta.annotation.Nullable;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.serverapi.OrgFeatureEntitlements;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.response.AnalysisResponse;
@@ -62,8 +61,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   }
 
   private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey, boolean isSonarQubeCloud) {
-    var builder = ToolDefinitionBuilder.builder()
-      .addOrganizationProperty(isSonarQubeCloud)
+    var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("SonarQube Vortex Code Analysis")
       .setDescription("Run Vortex analysis on a single file using the server-side engine. " +
@@ -86,7 +84,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
     var organizationKey = serverApi.isSonarQubeCloud()
       ? serverApi.getOrganization()
       : CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
-    if (serverApi.isSonarQubeCloud() && !new OrgFeatureEntitlements(serverApi).isVortexEnabledForOrg(ResolvedOrganization.fromKey(organizationKey))) {
+    if (serverApi.isSonarQubeCloud() && !serverApi.orgFeatureEntitlements().isVortexEnabledForOrg(ResolvedOrganization.fromKey(organizationKey))) {
       return Result.failure("Vortex is not enabled for the selected SonarQube Cloud organization.");
     }
 

@@ -40,6 +40,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
+import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class RunAdvancedCodeAnalysisToolTests {
@@ -139,8 +141,44 @@ class RunAdvancedCodeAnalysisToolTests {
     assertThat(client.listTools()).anyMatch(tool -> tool.name().equals(RunAdvancedCodeAnalysisTool.TOOL_NAME));
     var result = client.callTool(RunAdvancedCodeAnalysisTool.TOOL_NAME, Map.of("projectKey", "project", "branch", "main", "filePath", "src/Main.java"));
     assertThat(result.isError()).isTrue();
-    assertThat(result.toString()).contains("Vortex is not enabled");
+    assertThat(((McpSchema.TextContent) result.content().getFirst()).text())
+      .isEqualTo("Vortex is not enabled for the selected SonarQube Cloud organization.");
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining(A3sAnalysisApi.ANALYSES_PATH)).isZero();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_allow_mounted_local_analysis_after_vortex_rejects_unentitled_org(SonarQubeMcpServerTestHarness harness) throws IOException {
+    harness.stubCagEntitlement(false);
+    harness.stubA3sEnabled(false);
+    harness.getMockSonarQubeServer().stubFor(get(QualityProfilesApi.SEARCH_PATH + "?organization=my-org&defaults=true")
+      .willReturn(okJson("{\"profiles\":[]}")));
+    var file = workspaceDir.resolve("src/LocalFallback.php");
+    Files.writeString(file, "<?php echo 'hello';");
+    try {
+      var client = harness.withPlugins().newClient(Map.of("SONARQUBE_ORG", "my-org", "SONARQUBE_TOOLSETS", "analysis"));
+      assertThat(client.listTools()).extracting(McpSchema.Tool::name)
+        .contains(RunAdvancedCodeAnalysisTool.TOOL_NAME, AnalyzeCodeSnippetTool.TOOL_NAME);
+
+      var advanced = client.callTool(RunAdvancedCodeAnalysisTool.TOOL_NAME,
+        Map.of("projectKey", "project", "branch", "main", "filePath", "src/LocalFallback.php"));
+      assertThat(advanced.isError()).isTrue();
+      assertThat(((McpSchema.TextContent) advanced.content().getFirst()).text())
+        .isEqualTo("Vortex is not enabled for the selected SonarQube Cloud organization.");
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(A3sAnalysisApi.ANALYSES_PATH)).isZero();
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(QualityProfilesApi.SEARCH_PATH)).isZero();
+
+      var local = client.callTool(AnalyzeCodeSnippetTool.TOOL_NAME,
+        Map.of("organization", "my-org", "filePath", "src/LocalFallback.php", "language", "php"));
+      assertThat(local.isError()).isFalse();
+      assertResultEquals(local,
+        "{\"issues\":[],\"issueCount\":0,\"deprecationNotice\":\"%s\"}".formatted(AnalyzeCodeSnippetTool.DEPRECATION_NOTICE));
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(QualityProfilesApi.SEARCH_PATH)).isEqualTo(1);
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(OrganizationsApi.ORGANIZATIONS_PATH)).isEqualTo(1);
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH)).isEqualTo(1);
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(A3sAnalysisApi.A3S_ORG_CONFIG_PATH)).isZero();
+    } finally {
+      Files.deleteIfExists(file);
+    }
   }
 
   @SonarQubeMcpServerTest
@@ -398,8 +436,8 @@ class RunAdvancedCodeAnalysisToolTests {
       .withRequestBody(matchingJsonPath("$.organizationKey", equalTo("selected-org"))).willReturn(okJson(SIMPLE_RESPONSE)));
     var client = harness.newClient(Map.of("SONARQUBE_ORG", "my-org", "SONARQUBE_TOOLSETS", "vortex"));
     var definition = client.listTools().stream().filter(tool -> tool.name().equals(RunAdvancedCodeAnalysisTool.TOOL_NAME)).findFirst().orElseThrow();
-    assertThat(((Map<?, ?>) definition.inputSchema().get("properties")).containsKey("organization")).isTrue();
-    assertThat(((java.util.List<?>) definition.inputSchema().get("required")).contains("organization")).isFalse();
+    assertThat(definition.inputSchema().get("properties")).asInstanceOf(MAP).containsKey("organization");
+    assertThat(definition.inputSchema().get("required")).asInstanceOf(LIST).doesNotContain("organization");
     assertThat(client.callTool(RunAdvancedCodeAnalysisTool.TOOL_NAME, selectedArguments()).isError()).isFalse();
     assertThat(client.callTool(RunAdvancedCodeAnalysisTool.TOOL_NAME, Map.of("projectKey", "project", "branch", "main", "filePath", "src/Main.java")).isError()).isTrue();
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining(A3sAnalysisApi.ANALYSES_PATH)).isEqualTo(1);
@@ -470,6 +508,29 @@ class RunAdvancedCodeAnalysisToolTests {
     assertThat(local.toString()).contains(RunAdvancedCodeAnalysisTool.TOOL_NAME);
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining(QualityProfilesApi.SEARCH_PATH)).isZero();
     assertThat(client.callTool(RunAdvancedCodeAnalysisTool.TOOL_NAME, selectedArguments()).isError()).isFalse();
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("organizationKey=selected-org")).isEqualTo(1);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH + "selected-uuid")).isEqualTo(1);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + "selected-uuid")).isEqualTo(1);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_retry_failed_startup_entitlement_then_share_the_result_between_analysis_tools(SonarQubeMcpServerTestHarness harness) {
+    harness.stubCagEntitlementError();
+    stubAnalysisResponse(harness, SIMPLE_RESPONSE);
+    var client = harness.newClient(Map.of("SONARQUBE_ORG", "my-org", "SONARQUBE_TOOLSETS", "analysis"));
+    stubAdvancedAnalysisEnabled(harness);
+
+    var local = client.callTool(AnalyzeCodeSnippetTool.TOOL_NAME, Map.of("filePath", "src/Main.java", "language", "java"));
+    assertThat(local.isError()).isTrue();
+    assertThat(local.toString()).contains(RunAdvancedCodeAnalysisTool.TOOL_NAME);
+    var advanced = client.callTool(RunAdvancedCodeAnalysisTool.TOOL_NAME,
+      Map.of("organization", "my-org", "projectKey", "project", "branch", "main", "filePath", "src/Main.java"));
+    assertThat(advanced.isError()).isFalse();
+
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(OrganizationsApi.ORGANIZATIONS_PATH)).isEqualTo(1);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH)).isEqualTo(2);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(A3sAnalysisApi.A3S_ORG_CONFIG_PATH)).isEqualTo(1);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(QualityProfilesApi.SEARCH_PATH)).isZero();
   }
 
   private static Map<String, Object> selectedArguments() {

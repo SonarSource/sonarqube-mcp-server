@@ -579,6 +579,10 @@ When the mount is active:
 
 On Cloud stdio, an organization with Vortex requires a workspace mount for analysis. Without a mount, `analyze_code_snippet` returns mount-and-restart guidance. Organizations without Vortex and HTTP connections continue to use local analysis.
 
+Cloud stdio can list `run_advanced_code_analysis` and local analysis tools together. The presence of `run_advanced_code_analysis` does not mean the selected organization is entitled to Vortex. If it returns `Vortex is not enabled for the selected SonarQube Cloud organization.`, clients should fall back to `analyze_file_list` when available, or `analyze_code_snippet`, preserving the selected organization where supported.
+
+Cloud stdio caches confirmed Vortex entitlement decisions per organization for the session; restart the MCP server to refresh them. Failed checks are retried on later calls.
+
 ### Selective Tool Enablement
 
 MCP clients load every enabled tool — its name, description, and input schema — into the agent's context on every conversation. Limiting that list with `SONARQUBE_TOOLSETS` cuts context usage and the token cost of each session.
@@ -1050,7 +1054,7 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
 
 On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_analysis` when both the CAG and A3S hubs are entitled.
 
-**When Vortex analysis is enabled**:
+**When Vortex analysis is available**:
 
 > Requires having the workspace mounted at `/app/mcp-workspace`
 

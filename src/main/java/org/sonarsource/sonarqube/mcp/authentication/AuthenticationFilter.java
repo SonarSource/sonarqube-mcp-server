@@ -58,7 +58,7 @@ public class AuthenticationFilter implements Filter {
 
   private final AuthMode authMode;
 
-  public AuthenticationFilter(AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg) {
+  public AuthenticationFilter(AuthMode authMode) {
     this.authMode = authMode;
     LOG.info("Authentication filter initialized with mode: " + authMode);
   }
