@@ -80,6 +80,13 @@ public class ToolDefinitionBuilder {
     return this;
   }
 
+  public ToolDefinitionBuilder addOrganizationProperty(boolean isSonarQubeCloud) {
+    if (isSonarQubeCloud) {
+      addStringProperty(ToolParameters.ORGANIZATION, "Organization key. Defaults to the request header or configured organization; call list_organizations if ambiguous.");
+    }
+    return this;
+  }
+
   public ToolDefinitionBuilder addBranchAndPullRequestProperties() {
     return addStringProperty(BranchPullRequestContext.BRANCH_PROPERTY, BranchPullRequestContext.BRANCH_PROPERTY_DESCRIPTION)
       .addStringProperty(BranchPullRequestContext.PULL_REQUEST_PROPERTY, BranchPullRequestContext.PULL_REQUEST_PROPERTY_DESCRIPTION);

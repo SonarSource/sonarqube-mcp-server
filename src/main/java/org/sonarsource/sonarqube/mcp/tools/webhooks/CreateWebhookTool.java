@@ -45,6 +45,7 @@ public class CreateWebhookTool extends Tool {
       "Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
     
     return ToolDefinitionBuilder.builder()
+      .addOrganizationProperty(isSonarQubeCloud)
       .setName(TOOL_NAME)
       .setTitle("Create SonarQube Webhook")
       .setDescription(description)
@@ -58,12 +59,14 @@ public class CreateWebhookTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    serverApi.requireOrganization();
     var name = arguments.getStringOrThrow(NAME_PROPERTY);
     var url = arguments.getStringOrThrow(URL_PROPERTY);
     var project = arguments.getOptionalString(PROJECT_PROPERTY);
     var secret = arguments.getOptionalString(SECRET_PROPERTY);
 
-    var apiResponse = serverApiProvider.get().webhooksApi().createWebhook(name, url, project, secret);
+    var apiResponse = serverApi.webhooksApi().createWebhook(name, url, project, secret);
     var webhook = apiResponse.webhook();
 
     var response = new CreateWebhookToolResponse(webhook.key(), webhook.name(), webhook.url(), webhook.hasSecret());

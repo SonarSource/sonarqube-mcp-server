@@ -61,6 +61,7 @@ public class SearchIssuesTool extends Tool {
       "Filter by severities=['HIGH','BLOCKER'] for critical issues, impactSoftwareQualities=['SECURITY'] for security, issueStatuses=['OPEN'] to exclude resolved.";
     
     return ToolDefinitionBuilder.builder()
+      .addOrganizationProperty(isSonarQubeCloud)
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Issues")
       .setDescription(description)
@@ -81,6 +82,8 @@ public class SearchIssuesTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    serverApi.requireOrganization();
     var branchPullRequest = BranchPullRequestContext.from(arguments);
     var validationError = branchPullRequest.validationError();
     if (validationError.isPresent()) {
@@ -93,7 +96,7 @@ public class SearchIssuesTool extends Tool {
     }
 
     var searchParams = extractSearchParams(arguments, branchPullRequest);
-    var response = serverApiProvider.get().issuesApi().search(searchParams);
+    var response = serverApi.issuesApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }

@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ListRespons
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListQualityGatesTool extends Tool {
 
@@ -29,7 +30,12 @@ public class ListQualityGatesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListQualityGatesTool(ServerApiProvider serverApiProvider) {
+    this(serverApiProvider, false);
+  }
+
+  public ListQualityGatesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(ToolDefinitionBuilder.builder()
+      .addOrganizationProperty(isSonarQubeCloud)
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Quality Gates")
       .setDescription("List all quality gates.")
@@ -41,7 +47,9 @@ public class ListQualityGatesTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var response = serverApiProvider.get().qualityGatesApi().list();
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    serverApi.requireOrganization();
+    var response = serverApi.qualityGatesApi().list();
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }
