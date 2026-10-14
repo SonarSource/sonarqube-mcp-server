@@ -39,8 +39,11 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 import org.sonarsource.sonarqube.mcp.analytics.ToolInvocationResult;
+import org.sonarsource.sonarqube.mcp.client.McpClientManager;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
+import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
+import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -94,6 +97,37 @@ class ToolExecutorTest {
     }, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of()).build());
 
     verify(mockBackendService).notifyToolCalled("mcp_tool_name", false);
+  }
+
+  static Stream<Arguments> proxied_tool_results() {
+    var content = "\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]";
+    return Stream.of(
+      Arguments.of("{" + content + "}", null, false),
+      Arguments.of("{" + content + ",\"isError\":false}", false, false),
+      Arguments.of("{" + content + ",\"isError\":true}", true, true));
+  }
+
+  @ParameterizedTest
+  @MethodSource("proxied_tool_results")
+  void it_should_execute_deserialized_proxied_result_without_changing_content_or_classification(
+    String responseJson, Boolean responseIsError, boolean expectedError) throws Exception {
+    var proxiedResult = McpJsonMappers.DEFAULT.readValue(responseJson, McpSchema.CallToolResult.class);
+    assertThat(proxiedResult.isError()).isEqualTo(responseIsError);
+    var clientManager = mock(McpClientManager.class);
+    when(clientManager.executeTool(any(), any(), any(), any())).thenReturn(proxiedResult);
+    var toolDefinition = McpSchema.Tool.builder("proxied_tool", EMPTY_INPUT_SCHEMA).build();
+    var tool = new ProxiedMcpTool("server", "proxied_tool", toolDefinition, clientManager);
+    var analyticsService = syncAnalyticsService();
+    var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null, ToolCategory::all);
+
+    var result = executor.execute(tool, McpSchema.CallToolRequest.builder("proxied_tool").arguments(Map.of()).build());
+
+    assertThat(result.isError()).isEqualTo(responseIsError == null ? null : expectedError);
+    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).isEqualTo("ok");
+    verify(mockBackendService).notifyToolCalled("mcp_proxied_tool", !expectedError);
+    var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
+    verify(analyticsService).notifyToolInvoked(resultCaptor.capture());
+    assertThat(resultCaptor.getValue().isSuccessful()).isEqualTo(!expectedError);
   }
 
   @Test
