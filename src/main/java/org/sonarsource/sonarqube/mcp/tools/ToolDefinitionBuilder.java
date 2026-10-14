@@ -28,6 +28,8 @@ public class ToolDefinitionBuilder {
   private static final String DESCRIPTION_KEY_NAME = "description";
   private static final String TYPE_PROPERTY_NAME = "type";
   private static final String ITEMS_PROPERTY_NAME = "items";
+  private static final String PROPERTIES_PROPERTY_NAME = "properties";
+  private static final String REQUIRED_PROPERTY_NAME = "required";
 
   private static final String ARRAY_TYPE = "array";
   private static final String BOOLEAN_TYPE = "boolean";
@@ -57,6 +59,26 @@ public class ToolDefinitionBuilder {
 
   public static ToolDefinitionBuilder builder() {
     return new ToolDefinitionBuilder();
+  }
+
+  public static ToolDefinitionBuilder cloudBuilder() {
+    return builder().addStringProperty(ToolParameters.ORGANIZATION,
+      "Organization key. Use only when SONARQUBE_ORG is unset; call list_organizations if ambiguous.");
+  }
+
+  public static McpSchema.Tool withoutOrganization(McpSchema.Tool definition) {
+    if (!(definition.inputSchema().get(PROPERTIES_PROPERTY_NAME) instanceof Map<?, ?> properties) || !properties.containsKey(ToolParameters.ORGANIZATION)) {
+      return definition;
+    }
+    var inputSchema = new HashMap<>(definition.inputSchema());
+    var remainingProperties = new HashMap<>(properties);
+    remainingProperties.remove(ToolParameters.ORGANIZATION);
+    inputSchema.put(PROPERTIES_PROPERTY_NAME, remainingProperties);
+    if (inputSchema.get(REQUIRED_PROPERTY_NAME) instanceof List<?> required) {
+      inputSchema.put(REQUIRED_PROPERTY_NAME, required.stream().filter(property -> !ToolParameters.ORGANIZATION.equals(property)).toList());
+    }
+    return new McpSchema.Tool(definition.name(), definition.title(), definition.description(), inputSchema,
+      definition.outputSchema(), definition.annotations(), definition.meta(), definition.icons());
   }
 
   public ToolDefinitionBuilder setName(String name) {
@@ -177,8 +199,8 @@ public class ToolDefinitionBuilder {
 
     var inputSchema = new HashMap<String, Object>();
     inputSchema.put(TYPE_PROPERTY_NAME, OBJECT_TYPE);
-    inputSchema.put("properties", properties);
-    inputSchema.put("required", List.copyOf(requiredProperties));
+    inputSchema.put(PROPERTIES_PROPERTY_NAME, properties);
+    inputSchema.put(REQUIRED_PROPERTY_NAME, List.copyOf(requiredProperties));
     inputSchema.put("additionalProperties", false);
 
     var toolAnnotations = new McpSchema.ToolAnnotations(
