@@ -47,6 +47,7 @@ public final class McpServerLaunchConfiguration {
   public static final String SONARQUBE_ORG = "SONARQUBE_ORG";
   public static final String SONARQUBE_TOKEN = "SONARQUBE_TOKEN";
   private static final String SONARQUBE_IDE_PORT_ENV = "SONARQUBE_IDE_PORT";
+  private static final String SONARQUBE_FORCE_LOCAL_ANALYSIS = "SONARQUBE_FORCE_LOCAL_ANALYSIS";
   private static final String TELEMETRY_DISABLED = "TELEMETRY_DISABLED";
   
   // Tool category configuration
@@ -108,6 +109,7 @@ public final class McpServerLaunchConfiguration {
   private final String userAgent;
   private final boolean isTelemetryEnabled;
   private final boolean isSonarQubeCloud;
+  private final boolean forceLocalAnalysis;
   
   // HTTP transport configuration
   private final boolean isHttpEnabled;
@@ -184,6 +186,7 @@ public final class McpServerLaunchConfiguration {
     this.appVersion = fetchAppVersion();
     this.userAgent = APP_NAME + " " + appVersion;
     this.isTelemetryEnabled = !Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, TELEMETRY_DISABLED, "false"));
+    this.forceLocalAnalysis = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_FORCE_LOCAL_ANALYSIS, "false"));
     
     this.httpPort = parseHttpPortValue(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_PORT, "8080"));
     this.httpHost = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_HOST, "127.0.0.1");
@@ -545,6 +548,10 @@ public final class McpServerLaunchConfiguration {
   @Nullable
   public Path getWorkspacePath() {
     return workspacePath;
+  }
+
+  public boolean isForceLocalAnalysis() {
+    return forceLocalAnalysis;
   }
 
   /**
