@@ -64,6 +64,8 @@ import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
@@ -298,11 +300,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarQubeCloud());
     }
 
-    // In stdio mode: pass the shared pre-resolved ConnectionContext
-    // In HTTP mode: pass a supplier that captures the request-scoped ServerApi synchronously to the async analytics task
-    this.toolExecutor = mcpConfiguration.isHttpEnabled()
-      ? new ToolExecutor(backendService, analyticsService, null, this, mcpConfiguration.getMcpServerId(), this::resolveEnabledToolsets)
-      : new ToolExecutor(backendService, analyticsService, connectionContext, null, mcpConfiguration.getMcpServerId(), this::resolveEnabledToolsets);
+    // Capture the invocation API before asynchronous analytics work in both transports.
+    this.toolExecutor = new ToolExecutor(backendService, analyticsService,
+      mcpConfiguration.isHttpEnabled() ? null : connectionContext, this,
+      mcpConfiguration.getMcpServerId(), this::resolveEnabledToolsets);
 
     var configuredOrgKey = mcpConfiguration.getSonarqubeOrg();
     if (configuredOrgKey != null) {
@@ -451,8 +452,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ShowSecurityHotspotTool(this),
       new ChangeSecurityHotspotStatusTool(this),
       new ProjectStatusTool(this),
-      new ShowRuleTool(this),
-      new ListQualityGatesTool(this),
+      new ShowRuleTool(this, mcpConfiguration.isSonarQubeCloud()),
+      new ListQualityGatesTool(this, mcpConfiguration.isSonarQubeCloud()),
       new ListLanguagesTool(this),
       new GetComponentMeasuresTool(this, configuredProjectKey),
       new SearchFilesByCoverageTool(this, configuredProjectKey),
@@ -468,15 +469,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListPullRequestsTool(this, configuredProjectKey),
       new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
 
-    if (mcpConfiguration.isHttpEnabled()) {
-      // In HTTP mode there is no startup token to probe SCA availability
-      supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
-    } else {
-      var scaSupportedOnSQC = serverApi.isSonarQubeCloud() && serverApi.scaApi().isScaEnabled();
-      var scaSupportedOnSQS = !serverApi.isSonarQubeCloud() && serverApi.featuresApi().listFeatures().contains(Feature.SCA);
-      if (scaSupportedOnSQC || scaSupportedOnSQS) {
-        supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey));
-      }
+    if (mcpConfiguration.isHttpEnabled() || serverApi.isSonarQubeCloud()
+      || serverApi.featuresApi().listFeatures().contains(Feature.SCA)) {
+      supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey, mcpConfiguration.isSonarQubeCloud()));
     }
 
   }
@@ -512,7 +507,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void loadProxiedServerTools() {
     proxiedToolsLoader = new ProxiedToolsLoader();
     var currentTransportMode = mcpConfiguration.isHttpEnabled() ? TransportMode.HTTP : TransportMode.STDIO;
-    var proxiedTools = proxiedToolsLoader.loadProxiedTools(currentTransportMode, mcpConfiguration.getMcpServerId());
+    var proxiedTools = proxiedToolsLoader.loadProxiedTools(currentTransportMode, mcpConfiguration.getMcpServerId(),
+      resolvedOrganization != null ? resolvedOrganization.key() : null);
     supportedTools.addAll(proxiedTools);
 
     var proxiedInstructions = proxiedToolsLoader.getProxiedInstructions();
@@ -541,18 +537,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("Agentic readiness is only available on SonarQube Cloud, skipping tools initialization");
       return false;
     }
-    // In HTTP mode the server is shared and the organization is resolved per request, so the agentic
-    // readiness feature flag cannot be probed at startup. Register the tools and let the backend enforce
-    // organization entitlement on each call (same approach as the dependency-risks tool).
-    if (mcpConfiguration.isHttpEnabled()) {
-      return true;
-    }
-    // stdio mode: a single organization is fixed at startup, so probe the feature flag once here.
-    if (!orgFeatureEntitlements.isSaraEnabledForOrg(resolvedOrganization)) {
-      LOG.debug("Agentic readiness is not enabled for organization, skipping tools initialization");
-      return false;
-    }
-    LOG.debug("Agentic readiness is enabled for organization");
+    // These APIs are project/assessment-scoped; the backend enforces entitlement per call.
     return true;
   }
 
@@ -563,6 +548,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     composedInstructions += "\n" + (mcpConfiguration.isSonarQubeCloud()
       ? BRANCH_PULL_REQUEST_INSTRUCTIONS_CLOUD
       : BRANCH_PULL_REQUEST_INSTRUCTIONS_SERVER);
+    if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.getSonarqubeOrg() == null) {
+      composedInstructions += "\nIf the organization is ambiguous, call list_organizations first, then pass its key as organization to organization-aware tools. "
+        + "When a SONARQUBE_ORG request header is set, the organization is fixed for that request; omit the organization argument.";
+    }
     if (mcpConfiguration.getProjectKey() == null) {
       composedInstructions += "\n" + PROJECT_KEY_INSTRUCTIONS;
     }
@@ -578,11 +567,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private McpStatelessServerFeatures.SyncToolSpecification toStatelessSpec(Tool tool) {
     return new McpStatelessServerFeatures.SyncToolSpecification.Builder()
-      .tool(tool.definition())
+      .tool(toolDefinition(tool))
       .callHandler((transportContext, toolRequest) -> {
         currentTransportContext.set(transportContext);
         try {
-          return toolExecutor.execute(tool, toolRequest);
+          return executeTool(tool, toolRequest);
         } finally {
           currentTransportContext.remove();
         }
@@ -592,12 +581,23 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private McpServerFeatures.SyncToolSpecification toStdioSpec(Tool tool) {
     return new McpServerFeatures.SyncToolSpecification.Builder()
-      .tool(tool.definition())
+      .tool(toolDefinition(tool))
       .callHandler((exchange, toolRequest) -> {
         captureCallingAgent(exchange);
-        return toolExecutor.execute(tool, toolRequest);
+        return executeTool(tool, toolRequest);
       })
       .build();
+  }
+
+  private McpSchema.Tool toolDefinition(Tool tool) {
+    return fixedOrganization() == null ? tool.definition() : ToolDefinitionBuilder.withoutOrganization(tool.definition());
+  }
+
+  private McpSchema.CallToolResult executeTool(Tool tool, McpSchema.CallToolRequest request) {
+    if (fixedOrganization() != null && request.arguments() != null && request.arguments().containsKey(ToolParameters.ORGANIZATION)) {
+      return Tool.Result.failure("Organization is fixed by SONARQUBE_ORG. Remove the organization argument.").toCallToolResult();
+    }
+    return toolExecutor.execute(tool, request);
   }
 
   @VisibleForTesting
@@ -672,11 +672,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    * Get ServerApi instance for the current request context.
    * - In HTTP stateless mode: Creates a new ServerApi per tool call using the token and org
    *   extracted from the HTTP request headers via McpTransportContext.
-   *   Org resolution follows strict rules:
-   *   - If SONARQUBE_ORG is set at server startup, it is used for all requests and clients
-   *     must NOT supply a SONARQUBE_ORG header (doing so results in an error).
-   *   - If SONARQUBE_ORG is not set at server startup, clients connecting to SonarQube Cloud
-   *     must supply a SONARQUBE_ORG header on every request.
+   *   A configured SONARQUBE_ORG fixes the organization; otherwise an optional header selects it per request.
    * - In stdio mode: Returns the global ServerApi instance created at startup.
    */
   @Override
@@ -698,12 +694,22 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
+  @Nullable
+  private String fixedOrganization() {
+    var configured = mcpConfiguration.getSonarqubeOrg();
+    if (configured != null) {
+      return configured;
+    }
+    var context = currentTransportContext.get();
+    if (context != null && context.get(HttpServerTransportProvider.CONTEXT_ORG_KEY) instanceof String key && !key.isBlank()) {
+      return key;
+    }
+    return null;
+  }
+
   private String getOrganization(@Nullable String orgFromRequest) {
     var serverOrg = mcpConfiguration.getSonarqubeOrg();
-    if (serverOrg != null) {
-      return serverOrg;
-    }
-    return orgFromRequest;
+    return serverOrg != null ? serverOrg : (orgFromRequest != null && !orgFromRequest.isBlank() ? orgFromRequest : null);
   }
 
   private ServerApi initializeServerApi(McpServerLaunchConfiguration mcpConfiguration) {
@@ -735,13 +741,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       this.resolvedOrganization = ResolvedOrganization.from(organization);
       this.serverApi = createServerApiWithToken(token);
       LOG.info("Auto-selected SonarQube Cloud organization: " + resolvedOrganization.key());
-    } else if (organizations.isEmpty()) {
-      throw new IllegalStateException("No SonarQube Cloud organization is associated with the provided token. " +
-        "Set SONARQUBE_ORG to the organization you want to use.");
     } else {
-      var keys = organizations.stream().map(OrganizationsApi.Organization::key).sorted().toList();
-      throw new IllegalStateException("The provided token is associated with multiple SonarQube Cloud organizations " +
-        keys + ". Set SONARQUBE_ORG to the organization you want to use.");
+      LOG.info("SonarQube Cloud organization is unresolved; use list_organizations and the organization tool argument.");
     }
   }
 

@@ -140,7 +140,6 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
    ├─> Extract token from Authorization: Bearer header (preferred)
    │   OR fall back to deprecated SONARQUBE_TOKEN header (logs a warning)
    ├─> Reject with 401 if no valid token found
-   ├─> Validate SONARQUBE_ORG header (SonarQube Cloud only)
    ├─> Validate SONARQUBE_READ_ONLY header (must be 'true' or 'false' if present)
    └─> Pass to servlet if all checks pass
 
@@ -160,7 +159,7 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 6. Tool execution - tools/call (ServerApiProvider.get())
    ├─> Read McpTransportContext from ThreadLocal
    ├─> Extract CONTEXT_TOKEN_KEY value
-   ├─> Resolve org: use server-level env var (header must be absent) OR per-request header (required if env var not set)
+   ├─> Resolve org: fixed server organization or request header; otherwise tool argument
    ├─> Create ServerApi with client's token and resolved org
    └─> Call SonarQube API
 ```
@@ -173,7 +172,7 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 - Headers:
   - `Authorization: Bearer <token>` — **preferred**, required on every request
   - `SONARQUBE_TOKEN: <token>` — **deprecated**, still accepted for backward compatibility; will be removed in a future version
-  - `SONARQUBE_ORG: <org>` — for SonarQube Cloud, identifies the organization. **Mutually exclusive with the server-level `SONARQUBE_ORG` env var**: if the env var is set at startup, clients must not send this header (results in an error); if the env var is not set, clients must send this header on every request
+  - `SONARQUBE_ORG: <org>` — optional fixed SonarQube Cloud request organization, accepted only when `SONARQUBE_ORG` is unset on the server. A configured server organization rejects this header. When either configuration or the header fixes the organization, tool `organization` arguments are omitted from schemas and rejected. Otherwise, agents can use `list_organizations` and the tool argument; tools requiring an unresolved organization return discovery guidance.
   - `SONARQUBE_TOOLSETS: <comma-separated-keys>` — optional; narrows the server-level toolset for this request (cannot add toolsets beyond what the server was launched with)
   - `SONARQUBE_READ_ONLY: true|false` — optional; can further restrict to read-only for this request (cannot lift a server-level read-only restriction)
 
@@ -205,7 +204,7 @@ The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>
 
 3. ServerApiProvider.get() (tools/call)
    └─> Reads McpTransportContext from ThreadLocal
-   └─> Extracts token and org (strict: server-level env var XOR per-request header — mixing both is an error)
+   └─> Extracts token and optional org header; the header overrides the configured default
    └─> Creates a fresh ServerApi for this request
 ```
 
@@ -242,6 +241,8 @@ Per-request filtering is applied at the **`tools/list` response**: `PerRequestTo
 - The raw header values are **never** echoed back in responses or error messages. Invalid toolset keys are silently discarded by `ToolCategory.parseCategories()`, preventing any header injection via error payloads.
 
 ### Example Client Configuration
+
+This example fixes the request organization on a server started without `SONARQUBE_ORG`. Omit the header to select organizations through tool arguments.
 
 ```json
 {
@@ -305,3 +306,5 @@ Per-request filtering is applied at the **`tools/list` response**: `PerRequestTo
 - [Jakarta Servlet Specification](https://jakarta.ee/specifications/servlet/)
 
 ---
+
+Organization-aware tool calls capture one immutable `ServerApi`. Server-level `SONARQUBE_ORG` fixes the organization and rejects client organization headers and tool arguments. Without server configuration, an organization header fixes the request organization and rejects tool arguments; with neither set, tools select the organization through their argument. Nested requests reuse it. Discovery is organization-free, and no organization is persisted between requests. Analytics captures the selected API on the request thread before asynchronous dispatch.

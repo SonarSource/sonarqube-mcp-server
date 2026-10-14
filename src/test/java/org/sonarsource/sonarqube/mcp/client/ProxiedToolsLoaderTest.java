@@ -18,6 +18,9 @@ package org.sonarsource.sonarqube.mcp.client;
 
 import java.nio.file.Path;
 import java.util.UUID;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -42,6 +45,23 @@ class ProxiedToolsLoaderTest {
     var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
 
     assertThat(tools).isEmpty();
+  }
+
+  @Test
+  void it_should_pass_detected_startup_organization_to_inheriting_proxy() {
+    var config = new ProxiedMcpServerConfig("sonar-cag", "command", List.of(), Map.of(), List.of("SONARQUBE_ORG"), Set.of(TransportMode.STDIO));
+    var scoped = ProxiedToolsLoader.withStartupOrganization(config, "detected-org");
+    assertThat(scoped.env()).containsEntry("SONARQUBE_ORG", "detected-org");
+    assertThat(config.env()).isEmpty();
+    assertThat(ProxiedToolsLoader.withStartupOrganization(config, null)).isSameAs(config);
+  }
+
+  @Test
+  void it_should_preserve_explicit_proxy_organization_and_unrelated_proxy_configs() {
+    var explicit = new ProxiedMcpServerConfig("proxy", "command", List.of(), Map.of("SONARQUBE_ORG", "explicit-org"), List.of("SONARQUBE_ORG"), Set.of(TransportMode.STDIO));
+    assertThat(ProxiedToolsLoader.withStartupOrganization(explicit, "detected-org").env()).containsEntry("SONARQUBE_ORG", "explicit-org");
+    var unrelated = new ProxiedMcpServerConfig("other", "command", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO));
+    assertThat(ProxiedToolsLoader.withStartupOrganization(unrelated, "detected-org")).isSameAs(unrelated);
   }
 
   @Test

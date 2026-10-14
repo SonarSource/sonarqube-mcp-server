@@ -59,6 +59,26 @@ public class ToolDefinitionBuilder {
     return new ToolDefinitionBuilder();
   }
 
+  public static ToolDefinitionBuilder cloudBuilder() {
+    return builder().addStringProperty(ToolParameters.ORGANIZATION,
+      "Organization key. Use only when SONARQUBE_ORG is unset; call list_organizations if ambiguous.");
+  }
+
+  public static McpSchema.Tool withoutOrganization(McpSchema.Tool definition) {
+    if (!(definition.inputSchema().get("properties") instanceof Map<?, ?> properties) || !properties.containsKey(ToolParameters.ORGANIZATION)) {
+      return definition;
+    }
+    var inputSchema = new HashMap<>(definition.inputSchema());
+    var remainingProperties = new HashMap<>(properties);
+    remainingProperties.remove(ToolParameters.ORGANIZATION);
+    inputSchema.put("properties", remainingProperties);
+    if (inputSchema.get("required") instanceof List<?> required) {
+      inputSchema.put("required", required.stream().filter(property -> !ToolParameters.ORGANIZATION.equals(property)).toList());
+    }
+    return new McpSchema.Tool(definition.name(), definition.title(), definition.description(), inputSchema,
+      definition.outputSchema(), definition.annotations(), definition.meta(), definition.icons());
+  }
+
   public ToolDefinitionBuilder setName(String name) {
     this.name = name;
     return this;
