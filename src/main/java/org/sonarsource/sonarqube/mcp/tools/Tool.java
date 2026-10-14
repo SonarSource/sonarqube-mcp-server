@@ -324,7 +324,7 @@ public abstract class Tool {
     }
 
     public boolean isError() {
-      return callToolResult.isError();
+      return Boolean.TRUE.equals(callToolResult.isError());
     }
   }
 }
