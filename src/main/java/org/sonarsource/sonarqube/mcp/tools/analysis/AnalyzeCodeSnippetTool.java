@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -31,8 +32,11 @@ import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.StandaloneRuleConfigDto;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -77,20 +81,23 @@ public class AnalyzeCodeSnippetTool extends Tool {
   private final Path configuredWorkspacePath;
 
   private final CompletableFuture<Void> initializationFuture;
+  private final TransportMode transportMode;
 
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
-    CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
-    super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath), ToolCategory.ANALYSIS);
+    CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath,
+    boolean isSonarQubeCloud, TransportMode transportMode) {
+    super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud), ToolCategory.ANALYSIS);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
     this.initializationFuture = initializationFuture;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;
+    this.transportMode = transportMode;
   }
 
-  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
+  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath, boolean isSonarQubeCloud) {
     var workspaceConfigured = configuredWorkspacePath != null;
-    var builder = ToolDefinitionBuilder.builder()
+    var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("SonarQube Code Analysis")
       .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +
@@ -114,6 +121,12 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    serverApi.requireOrganization();
+    var routingError = routingValidationError(serverApi);
+    if (routingError.isPresent()) {
+      return Result.failure(routingError.get());
+    }
     var startTime = System.currentTimeMillis();
     try {
       if (!initializationFuture.isDone()) {
@@ -177,7 +190,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
     var isTest = "TEST".equalsIgnoreCase(scope);
 
-    applyRulesFromProject(projectKey);
+    applyRulesFromProject(serverApi, projectKey);
 
     var analysisId = UUID.randomUUID();
     Path tmpFile = null;
@@ -206,15 +219,27 @@ public class AnalyzeCodeSnippetTool extends Tool {
     }
   }
 
-  private void applyRulesFromProject(@Nullable String projectKey) {
+  private Optional<String> routingValidationError(ServerApi serverApi) {
+    if (transportMode != TransportMode.STDIO || !serverApi.isSonarQubeCloud()
+      || !serverApi.orgFeatureEntitlements().isVortexEnabledForOrg(ResolvedOrganization.fromKey(serverApi.getOrganization()))) {
+      return Optional.empty();
+    }
+    if (configuredWorkspacePath == null) {
+      return Optional.of("Vortex is enabled for the selected organization. Mount your workspace at /app/mcp-workspace and restart the MCP server to use "
+        + RunAdvancedCodeAnalysisTool.TOOL_NAME + ".");
+    }
+    return Optional.of("Vortex is enabled for the selected organization. Use " + RunAdvancedCodeAnalysisTool.TOOL_NAME + " instead.");
+  }
+
+  private void applyRulesFromProject(ServerApi serverApi, @Nullable String projectKey) {
     var activeRules = new HashMap<String, StandaloneRuleConfigDto>();
-    serverApiProvider.get().qualityProfilesApi().getQualityProfiles(projectKey).profiles()
+    serverApi.qualityProfilesApi().getQualityProfiles(projectKey).profiles()
       .forEach(profile -> {
         var count = 0;
         var page = 1;
         SearchResponse searchResponse;
         do {
-          searchResponse = serverApiProvider.get().rulesApi().search(profile.key(), page);
+          searchResponse = serverApi.rulesApi().search(profile.key(), page);
           page++;
           count += searchResponse.ps();
           searchResponse.actives().forEach((ruleKey, actives) -> activeRules.put(ruleKey,
