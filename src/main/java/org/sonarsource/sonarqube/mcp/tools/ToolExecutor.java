@@ -54,10 +54,10 @@ public class ToolExecutor {
   private final ConnectionContext stdioContext;
 
   /**
-   * Supplies the request-scoped {@link ServerApi} for HTTP mode. Null when running in stdio mode.
+   * Supplies the invocation {@link ServerApi} before asynchronous analytics dispatch in either transport.
    */
   @Nullable
-  private final Supplier<ServerApi> httpServerApiSupplier;
+  private final Supplier<ServerApi> invocationApiSupplier;
 
   /**
    * MCP server ID to include in the _meta field for proxied servers to correlate telemetry.
@@ -71,12 +71,12 @@ public class ToolExecutor {
   private final Supplier<Set<ToolCategory>> enabledToolsetsSupplier;
 
   public ToolExecutor(BackendService backendService, @Nullable AnalyticsService analyticsService,
-    @Nullable ConnectionContext stdioContext, @Nullable Supplier<ServerApi> httpServerApiSupplier, @Nullable String mcpServerId,
+    @Nullable ConnectionContext stdioContext, @Nullable Supplier<ServerApi> invocationApiSupplier, @Nullable String mcpServerId,
     Supplier<Set<ToolCategory>> enabledToolsetsSupplier) {
     this.backendService = backendService;
     this.analyticsService = analyticsService;
     this.stdioContext = stdioContext;
-    this.httpServerApiSupplier = httpServerApiSupplier;
+    this.invocationApiSupplier = invocationApiSupplier;
     this.mcpServerId = mcpServerId;
     this.enabledToolsetsSupplier = enabledToolsetsSupplier;
   }
@@ -129,46 +129,41 @@ public class ToolExecutor {
       return;
     }
     var organization = arguments.getOptionalString(ToolParameters.ORGANIZATION);
-    var httpSupplier = httpServerApiSupplier;
-    if (httpSupplier != null) {
+    var context = stdioContext;
+    var captured = context != null ? context.snapshot() : null;
+    var apiSupplier = invocationApiSupplier;
+    if (apiSupplier != null) {
       ServerApi serverApi;
       try {
-        var api = httpSupplier.get();
+        var api = apiSupplier.get();
         serverApi = organization == null ? api : api.withOrganization(organization);
       } catch (Exception e) {
         LOG.debug("Failed to obtain ServerApi for analytics context, skipping event for tool " + toolName + ": " + e.getMessage());
         return;
       }
-      var agentName = stdioContext != null ? stdioContext.getCallingAgentName() : null;
-      var agentVersion = stdioContext != null ? stdioContext.getCallingAgentVersion() : null;
-      // The immutable invocation API and agent identifiers are captured before leaving the request thread.
-      service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> {
-        var context = resolveHttpContext(serverApi);
-        context.captureCallingAgent(agentName, agentVersion);
-        return context;
-      }, metrics));
-    } else if (stdioContext != null) {
-      // stdio mode: context is pre-resolved at startup — read cached values, no I/O.
-      var ctx = stdioContext;
-      service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> ctx, metrics));
+      // Capture the invocation API and calling agent before leaving the request thread; keep lookups asynchronous.
+      service.submit(() -> dispatchAnalyticsEvent(service, toolName,
+        () -> context != null ? context.snapshotFor(serverApi, captured) : resolveInvocationSnapshot(serverApi), metrics));
+    } else if (captured != null) {
+      service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> captured, metrics));
     }
   }
 
-  private static ConnectionContext resolveHttpContext(@Nullable ServerApi serverApi) {
+  private static ConnectionContext.Snapshot resolveInvocationSnapshot(@Nullable ServerApi serverApi) {
     var ctx = ConnectionContext.empty();
     if (serverApi != null) {
       ctx.resolveFrom(serverApi);
     }
-    return ctx;
+    return ctx.snapshot();
   }
 
-  private static void dispatchAnalyticsEvent(AnalyticsService service, String toolName, Supplier<ConnectionContext> ctxSupplier, InvocationMetrics metrics) {
+  private static void dispatchAnalyticsEvent(AnalyticsService service, String toolName, Supplier<ConnectionContext.Snapshot> ctxSupplier, InvocationMetrics metrics) {
     try {
       var ctx = ctxSupplier.get();
       service.notifyToolInvoked(new ToolInvocationResult(
         metrics.invocationId(), toolName,
-        ctx.getOrganizationUuidV4(), ctx.getSqsInstallationId(), ctx.getUserUuid(),
-        ctx.getCallingAgentName(), ctx.getCallingAgentVersion(),
+        ctx.organizationUuidV4(), ctx.sqsInstallationId(), ctx.userUuid(),
+        ctx.callingAgentName(), ctx.callingAgentVersion(),
         metrics.durationMs(), metrics.successful(), metrics.errorType(),
         metrics.responseSizeBytes(), metrics.invocationTimestamp(), metrics.matchingToolsets()
       ));
