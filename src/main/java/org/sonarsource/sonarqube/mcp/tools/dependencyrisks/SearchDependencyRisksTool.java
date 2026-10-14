@@ -43,7 +43,12 @@ public class SearchDependencyRisksTool extends Tool {
 
   public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker,
     @Nullable String configuredProjectKey) {
-    super(ToolDefinitionBuilder.builder()
+    this(serverApiProvider, sonarQubeVersionChecker, configuredProjectKey, false);
+  }
+
+  public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker,
+    @Nullable String configuredProjectKey, boolean isSonarQubeCloud) {
+    super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +
@@ -62,7 +67,8 @@ public class SearchDependencyRisksTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
-    var provider = serverApiProvider.get();
+    var provider = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    provider.requireOrganization();
     if (!provider.isSonarQubeCloud() && !sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.4")) {
       return Tool.Result.failure("Search Dependency Risks tool is not available because it requires SonarQube Server 2025.4 Enterprise or higher.");
     }

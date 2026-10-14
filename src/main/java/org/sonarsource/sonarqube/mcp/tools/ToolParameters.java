@@ -22,6 +22,7 @@ package org.sonarsource.sonarqube.mcp.tools;
 public final class ToolParameters {
 
   public static final String PROJECT_KEY = "projectKey";
+  public static final String ORGANIZATION = "organization";
   public static final String PROJECT_KEYS = "projectKeys";
   public static final String PAGE_INDEX = "pageIndex";
   public static final String PAGE_SIZE = "pageSize";
