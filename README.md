@@ -577,6 +577,8 @@ When the mount is active:
 - `run_advanced_code_analysis` is available with a workspace mount and checks the selected organization's combined Vortex entitlement on each call
 - `analyze_code_snippet`: `filePath` is required and `fileContent` is not used — the server resolves the file the same way. On Cloud stdio, it remains available for organizations without Vortex; organizations with Vortex use `run_advanced_code_analysis`.
 
+On Cloud stdio, an organization with Vortex requires a workspace mount for analysis. Without a mount, `analyze_code_snippet` returns mount-and-restart guidance. Organizations without Vortex and HTTP connections continue to use local analysis.
+
 ### Selective Tool Enablement
 
 MCP clients load every enabled tool — its name, description, and input schema — into the agent's context on every conversation. Limiting that list with `SONARQUBE_TOOLSETS` cuts context usage and the token cost of each session.

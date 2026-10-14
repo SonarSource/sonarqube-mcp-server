@@ -73,7 +73,8 @@ class AnalyzeCodeSnippetToolTests {
     // Create a future that completes exceptionally
     var failedFuture = new CompletableFuture<Void>();
     failedFuture.completeExceptionally(new RuntimeException("Initialization failed"));
-    var tool = new AnalyzeCodeSnippetTool(mock(BackendService.class), mock(ServerApiProvider.class), failedFuture, null, null);
+    var api = mock(ServerApi.class);
+    var tool = new AnalyzeCodeSnippetTool(mock(BackendService.class), () -> api, failedFuture, null, null);
 
     var callToolResult = tool.execute(new Tool.Arguments(Map.of(), null));
 

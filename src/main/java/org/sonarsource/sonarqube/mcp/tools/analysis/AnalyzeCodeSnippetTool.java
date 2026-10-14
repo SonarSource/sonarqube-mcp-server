@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -31,6 +32,7 @@ import org.sonarsource.sonarlint.core.commons.api.SonarLanguage;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.rules.StandaloneRuleConfigDto;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.OrgFeatureEntitlements;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -80,7 +82,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
   private final Path configuredWorkspacePath;
 
   private final CompletableFuture<Void> initializationFuture;
-  private final boolean vortexAnalysisAvailable;
+  private final TransportMode transportMode;
 
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
     CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath) {
@@ -89,19 +91,19 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
     CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath, boolean isSonarQubeCloud) {
-    this(backendService, serverApiProvider, initializationFuture, configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud, false);
+    this(backendService, serverApiProvider, initializationFuture, configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud, TransportMode.STDIO);
   }
 
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
     CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath,
-    boolean isSonarQubeCloud, boolean vortexAnalysisAvailable) {
+    boolean isSonarQubeCloud, TransportMode transportMode) {
     super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud), ToolCategory.ANALYSIS);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
     this.initializationFuture = initializationFuture;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;
-    this.vortexAnalysisAvailable = vortexAnalysisAvailable;
+    this.transportMode = transportMode;
   }
 
   private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath, boolean isSonarQubeCloud) {
@@ -131,6 +133,12 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    serverApi.requireOrganization();
+    var routingError = routingValidationError(serverApi);
+    if (routingError.isPresent()) {
+      return Result.failure(routingError.get());
+    }
     var startTime = System.currentTimeMillis();
     try {
       if (!initializationFuture.isDone()) {
@@ -194,12 +202,6 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
     var isTest = "TEST".equalsIgnoreCase(scope);
 
-    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-    serverApi.requireOrganization();
-    if (vortexAnalysisAvailable && serverApi.isSonarQubeCloud()
-      && new OrgFeatureEntitlements(serverApi).isVortexEnabledForOrg(ResolvedOrganization.fromKey(serverApi.getOrganization()))) {
-      return Result.failure("Vortex is enabled for the selected organization. Use " + RunAdvancedCodeAnalysisTool.TOOL_NAME + " instead.");
-    }
     applyRulesFromProject(serverApi, projectKey);
 
     var analysisId = UUID.randomUUID();
@@ -227,6 +229,18 @@ public class AnalyzeCodeSnippetTool extends Tool {
         }
       }
     }
+  }
+
+  private Optional<String> routingValidationError(ServerApi serverApi) {
+    if (transportMode != TransportMode.STDIO || !serverApi.isSonarQubeCloud()
+      || !new OrgFeatureEntitlements(serverApi).isVortexEnabledForOrg(ResolvedOrganization.fromKey(serverApi.getOrganization()))) {
+      return Optional.empty();
+    }
+    if (configuredWorkspacePath == null) {
+      return Optional.of("Vortex is enabled for the selected organization. Mount your workspace at /app/mcp-workspace and restart the MCP server to use "
+        + RunAdvancedCodeAnalysisTool.TOOL_NAME + ".");
+    }
+    return Optional.of("Vortex is enabled for the selected organization. Use " + RunAdvancedCodeAnalysisTool.TOOL_NAME + " instead.");
   }
 
   private void applyRulesFromProject(ServerApi serverApi, @Nullable String projectKey) {

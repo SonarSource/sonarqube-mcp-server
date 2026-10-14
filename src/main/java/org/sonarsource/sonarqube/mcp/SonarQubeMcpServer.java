@@ -503,7 +503,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void loadLocalAnalysisTool() {
     supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey(),
       mcpConfiguration.getWorkspacePath(), mcpConfiguration.isSonarQubeCloud(),
-      supportedTools.stream().anyMatch(RunAdvancedCodeAnalysisTool.class::isInstance)));
+      mcpConfiguration.isHttpEnabled() ? TransportMode.HTTP : TransportMode.STDIO));
   }
 
   private void logToolsLoaded() {
