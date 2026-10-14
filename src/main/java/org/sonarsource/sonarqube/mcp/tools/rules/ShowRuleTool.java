@@ -36,8 +36,7 @@ public class ShowRuleTool extends Tool {
   }
 
   public ShowRuleTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
-    super(ToolDefinitionBuilder.builder()
-      .addOrganizationProperty(isSonarQubeCloud)
+    super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Rule Details")
       .setDescription("Shows detailed information about a SonarQube rule.")

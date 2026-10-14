@@ -44,8 +44,7 @@ public class CreateWebhookTool extends Tool {
     var description = "Create a new webhook for the " + scope + ". " +
       "Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
     
-    return ToolDefinitionBuilder.builder()
-      .addOrganizationProperty(isSonarQubeCloud)
+    return (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Create SonarQube Webhook")
       .setDescription(description)

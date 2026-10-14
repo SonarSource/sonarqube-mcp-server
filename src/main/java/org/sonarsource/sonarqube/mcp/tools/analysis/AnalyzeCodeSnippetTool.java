@@ -107,8 +107,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
   private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath, boolean isSonarQubeCloud) {
     var workspaceConfigured = configuredWorkspacePath != null;
-    var builder = ToolDefinitionBuilder.builder()
-      .addOrganizationProperty(isSonarQubeCloud)
+    var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("SonarQube Code Analysis")
       .setDescription("Analyze a file or code snippet to identify code quality and security issues. " +

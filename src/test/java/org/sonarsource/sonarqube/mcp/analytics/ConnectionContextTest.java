@@ -226,7 +226,7 @@ class ConnectionContextTest {
         .mapToObj(ignored -> CompletableFuture.supplyAsync(() -> ctx.snapshotFor(api, captured), executor))
         .toList();
 
-      assertThat(results).allSatisfy(result -> assertThat(result.join().organizationUuidV4()).isEqualTo("org-uuid"));
+      assertThat(results).isNotEmpty().allSatisfy(result -> assertThat(result.join().organizationUuidV4()).isEqualTo("org-uuid"));
     }
     verify(api.organizationsApi()).getOrganizationUuidV4("org");
     verify(api.usersApi(), never()).getCurrentUserId();

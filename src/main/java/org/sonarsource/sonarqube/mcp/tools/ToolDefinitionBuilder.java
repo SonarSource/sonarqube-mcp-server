@@ -59,6 +59,11 @@ public class ToolDefinitionBuilder {
     return new ToolDefinitionBuilder();
   }
 
+  public static ToolDefinitionBuilder cloudBuilder() {
+    return builder().addStringProperty(ToolParameters.ORGANIZATION,
+      "Organization key. Defaults to the request header or configured organization; call list_organizations if ambiguous.");
+  }
+
   public ToolDefinitionBuilder setName(String name) {
     this.name = name;
     return this;
@@ -77,13 +82,6 @@ public class ToolDefinitionBuilder {
   public ToolDefinitionBuilder addStringProperty(String propertyName, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, STRING_TYPE, DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
-    return this;
-  }
-
-  public ToolDefinitionBuilder addOrganizationProperty(boolean isSonarQubeCloud) {
-    if (isSonarQubeCloud) {
-      addStringProperty(ToolParameters.ORGANIZATION, "Organization key. Defaults to the request header or configured organization; call list_organizations if ambiguous.");
-    }
     return this;
   }
 

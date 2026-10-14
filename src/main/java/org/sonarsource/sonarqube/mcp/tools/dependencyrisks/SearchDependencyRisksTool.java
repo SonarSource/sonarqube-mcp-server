@@ -48,8 +48,7 @@ public class SearchDependencyRisksTool extends Tool {
 
   public SearchDependencyRisksTool(ServerApiProvider serverApiProvider, SonarQubeVersionChecker sonarQubeVersionChecker,
     @Nullable String configuredProjectKey, boolean isSonarQubeCloud) {
-    super(ToolDefinitionBuilder.builder()
-      .addOrganizationProperty(isSonarQubeCloud)
+    super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Search SonarQube Dependency Risks")
       .setDescription("Search for software composition analysis issues (dependency risks) of a project, " +

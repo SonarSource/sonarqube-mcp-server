@@ -34,8 +34,7 @@ public class ListQualityGatesTool extends Tool {
   }
 
   public ListQualityGatesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
-    super(ToolDefinitionBuilder.builder()
-      .addOrganizationProperty(isSonarQubeCloud)
+    super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Quality Gates")
       .setDescription("List all quality gates.")
