@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiPredicate;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -31,9 +33,21 @@ public class OrgFeatureEntitlements {
   private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ServerApi api;
+  private final ConcurrentMap<String, String> organizationUuids;
+  private final ConcurrentMap<String, Boolean> vortexEntitlements;
 
   public OrgFeatureEntitlements(ServerApi api) {
+    this(api, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+  }
+
+  private OrgFeatureEntitlements(ServerApi api, ConcurrentMap<String, String> organizationUuids, ConcurrentMap<String, Boolean> vortexEntitlements) {
     this.api = api;
+    this.organizationUuids = organizationUuids;
+    this.vortexEntitlements = vortexEntitlements;
+  }
+
+  OrgFeatureEntitlements withApi(ServerApi selectedApi) {
+    return new OrgFeatureEntitlements(selectedApi, organizationUuids, vortexEntitlements);
   }
 
   /**
@@ -45,7 +59,25 @@ public class OrgFeatureEntitlements {
     if (!api.isSonarQubeCloud()) {
       return isServerCagEnabled() && isServerA3sEnabled();
     }
-    return checkForOrg(org, (orgUuidV4, orgKey) -> isCloudCagEnabled(orgUuidV4, orgKey) && isCloudA3sEnabled(orgUuidV4, orgKey));
+    if (org == null) {
+      return false;
+    }
+    // Only confirmed decisions are cached; a failed lookup returns null and is retried later.
+    return Boolean.TRUE.equals(vortexEntitlements.computeIfAbsent(org.key(), key -> checkCloudVortexEntitlement(org)));
+  }
+
+  @Nullable
+  private Boolean checkCloudVortexEntitlement(ResolvedOrganization org) {
+    var orgUuidV4 = organizationUuids.computeIfAbsent(org.key(), key -> {
+      var uuid = org.uuidV4() != null ? org.uuidV4() : api.organizationsApi().getOrganizationUuidV4(key);
+      return uuid == null || uuid.isBlank() ? null : uuid;
+    });
+    if (orgUuidV4 == null) {
+      LOG.debug("Entitlement check: could not resolve UUID for org '" + org.key() + "' - skipping");
+      return null;
+    }
+    var cagEnabled = isCloudCagEnabled(orgUuidV4, org.key());
+    return Boolean.TRUE.equals(cagEnabled) ? isCloudA3sEnabled(orgUuidV4, org.key()) : cagEnabled;
   }
 
   public boolean isSaraEnabledForOrg(@Nullable ResolvedOrganization org) {
@@ -65,11 +97,12 @@ public class OrgFeatureEntitlements {
     return check.test(orgUuidV4, orgKey);
   }
 
-  private boolean isCloudCagEnabled(String orgUuidV4, String orgKey) {
+  @Nullable
+  private Boolean isCloudCagEnabled(String orgUuidV4, String orgKey) {
     var entitlement = api.cagApi().getCagEntitlement(orgUuidV4);
     if (entitlement == null) {
       LOG.debug("Vortex entitlement check: could not retrieve CAG entitlement for org '" + orgKey + "'");
-      return false;
+      return null;
     }
     if (!entitlement.hasEntitlement()) {
       LOG.debug("Vortex entitlement check: org '" + orgKey + "' is not entitled to use CAG");
@@ -78,11 +111,12 @@ public class OrgFeatureEntitlements {
     return true;
   }
 
-  private boolean isCloudA3sEnabled(String orgUuidV4, String orgKey) {
+  @Nullable
+  private Boolean isCloudA3sEnabled(String orgUuidV4, String orgKey) {
     var config = api.a3sAnalysisApi().getA3sOrgConfig(orgUuidV4);
     if (config == null) {
       LOG.debug("Vortex entitlement check: could not retrieve A3S org config for org '" + orgKey + "'");
-      return false;
+      return null;
     }
     if (!config.enabled()) {
       LOG.debug("Vortex entitlement check: advanced analysis is not enabled for org '" + orgKey + "'");
