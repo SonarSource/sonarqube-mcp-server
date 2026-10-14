@@ -22,6 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ShowRuleTool extends Tool {
 
@@ -30,8 +31,8 @@ public class ShowRuleTool extends Tool {
 
   private final ServerApiProvider serverApiProvider;
 
-  public ShowRuleTool(ServerApiProvider serverApiProvider) {
-    super(ToolDefinitionBuilder.builder()
+  public ShowRuleTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
+    super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Show SonarQube Rule Details")
       .setDescription("Shows detailed information about a SonarQube rule.")
@@ -44,8 +45,10 @@ public class ShowRuleTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    serverApi.requireOrganization();
     var ruleKey = arguments.getStringOrThrow(KEY_PROPERTY);
-    var response = serverApiProvider.get().rulesApi().showRule(ruleKey);
+    var response = serverApi.rulesApi().showRule(ruleKey);
     var toolResponse = buildStructuredContent(response.rule());
     return Tool.Result.success(toolResponse);
   }
