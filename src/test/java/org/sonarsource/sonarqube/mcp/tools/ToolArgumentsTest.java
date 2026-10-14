@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,6 +92,53 @@ class ToolArgumentsTest {
     var result = arguments.getOptionalInteger("stringIntArg");
 
     assertThat(result).isEqualTo(123);
+  }
+
+  @Test
+  void should_accept_integral_numeric_types_as_optional_integers() {
+    for (var value : List.of((byte) 2, (short) 2, 2, 2L, 2.0f, 2.0d, new BigInteger("2"), new BigDecimal("2.000"))) {
+      var arguments = new Tool.Arguments(Map.of("value", value), null);
+
+      assertThat(arguments.getOptionalInteger("value")).isEqualTo(2);
+    }
+  }
+
+  @Test
+  void should_reject_fractional_and_overflowing_optional_integers() {
+    for (var value : List.of(2.5f, 2.5d, new BigDecimal("2.5"), (long) Integer.MAX_VALUE + 1, new BigInteger("2147483648"), Double.NaN)) {
+      var arguments = new Tool.Arguments(Map.of("value", value), null);
+
+      assertThatThrownBy(() -> arguments.getOptionalInteger("value"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("value must be a 32-bit integer");
+    }
+  }
+
+  @Test
+  void should_accept_finite_optional_decimal_numbers_and_strings() {
+    for (var value : List.of(80.5f, 80.5d, new BigDecimal("80.5"), "80.5")) {
+      var arguments = new Tool.Arguments(Map.of("value", value), null);
+
+      assertThat(arguments.getOptionalDouble("value")).isEqualTo(80.5);
+    }
+  }
+
+  @Test
+  void should_reject_non_finite_optional_decimals() {
+    for (var value : List.of(Double.NaN, Double.POSITIVE_INFINITY, "Infinity")) {
+      var arguments = new Tool.Arguments(Map.of("value", value), null);
+
+      assertThatThrownBy(() -> arguments.getOptionalDouble("value"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("value must be a finite number");
+    }
+  }
+
+  @Test
+  void should_return_null_when_optional_decimal_is_missing() {
+    var arguments = new Tool.Arguments(Map.of(), null);
+
+    assertThat(arguments.getOptionalDouble("value")).isNull();
   }
 
   @Test
