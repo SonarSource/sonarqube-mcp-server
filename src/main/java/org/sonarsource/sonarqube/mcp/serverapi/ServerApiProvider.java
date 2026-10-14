@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi;
 
 import java.util.function.Supplier;
+import jakarta.annotation.Nullable;
 
 /**
  * Provider interface for obtaining ServerApi instances.
@@ -25,5 +26,10 @@ import java.util.function.Supplier;
  * - In HTTP mode: Creates per-request ServerApi instances using the client token from the Authorization: Bearer header
  */
 public interface ServerApiProvider extends Supplier<ServerApi> {
+
+  default ServerApi get(@Nullable String organization) {
+    var api = get();
+    return organization == null ? api : api.withOrganization(organization);
+  }
 }
 

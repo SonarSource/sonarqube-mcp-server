@@ -42,7 +42,7 @@ public class ListWebhooksTool extends Tool {
     var scope = isSonarQubeCloud ? "organization or project" : "instance or project";
     var description = "List all webhooks for the " + scope + ". Requires 'Administer' permission on the specified project, or global 'Administer' permission.";
 
-    return ToolDefinitionBuilder.builder()
+    return (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("List SonarQube Webhooks")
       .setDescription(description)
@@ -53,8 +53,10 @@ public class ListWebhooksTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    serverApi.requireOrganization();
     var project = arguments.getOptionalString(PROJECT_PROPERTY);
-    var response = serverApiProvider.get().webhooksApi().listWebhooks(project);
+    var response = serverApi.webhooksApi().listWebhooks(project);
     var toolResponse = buildStructuredContent(response.webhooks());
     return Tool.Result.success(toolResponse);
   }
