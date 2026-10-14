@@ -16,11 +16,16 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
+import java.net.ConnectException;
+import java.net.http.HttpTimeoutException;
+import java.util.concurrent.CompletionException;
+import javax.net.ssl.SSLHandshakeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.StatusResponse;
 
@@ -28,6 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SonarQubeVersionCheckerTest {
@@ -69,6 +76,57 @@ class SonarQubeVersionCheckerTest {
     assertThat(throwable)
       .isInstanceOf(IllegalStateException.class)
       .hasMessage(SonarQubeVersionChecker.UNSUPPORTED_SERVER_VERSION_MESSAGE);
+    verify(systemApi).getStatus();
+  }
+
+  @Test
+  void it_should_recover_when_sonarqube_server_becomes_available() {
+    when(systemApi.getStatus())
+      .thenThrow(new CompletionException(new ConnectException("Connection refused")))
+      .thenReturn(new StatusResponse("id", "2025.1", "UP"));
+
+    assertThatCode(versionChecker::failIfSonarQubeServerVersionIsNotSupported)
+      .doesNotThrowAnyException();
+    verify(systemApi, times(2)).getStatus();
+  }
+
+  @Test
+  void it_should_report_a_clear_error_when_sonarqube_server_stays_unavailable() {
+    when(systemApi.getStatus()).thenThrow(new ServerInternalErrorException("Error 503"));
+
+    var throwable = catchThrowable(versionChecker::failIfSonarQubeServerVersionIsNotSupported);
+
+    assertThat(throwable)
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("unavailable after 3 attempts")
+      .hasMessageContaining("wait for SonarQube to become healthy")
+      .hasCauseInstanceOf(ServerInternalErrorException.class);
+    verify(systemApi, times(3)).getStatus();
+  }
+
+  @Test
+  void it_should_report_tls_failure_without_retrying() {
+    when(systemApi.getStatus()).thenThrow(new CompletionException(new SSLHandshakeException("PKIX path building failed")));
+
+    var throwable = catchThrowable(versionChecker::failIfSonarQubeServerVersionIsNotSupported);
+
+    assertThat(throwable)
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("SSLHandshakeException: PKIX path building failed")
+      .hasMessageContaining("Check SONARQUBE_URL and its connection settings");
+    verify(systemApi).getStatus();
+  }
+
+  @Test
+  void it_should_report_timeout_without_retrying() {
+    when(systemApi.getStatus()).thenThrow(new CompletionException(new HttpTimeoutException("request timed out")));
+
+    var throwable = catchThrowable(versionChecker::failIfSonarQubeServerVersionIsNotSupported);
+
+    assertThat(throwable)
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("HttpTimeoutException: request timed out");
+    verify(systemApi).getStatus();
   }
 
   @Test
