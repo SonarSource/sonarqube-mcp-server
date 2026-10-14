@@ -18,6 +18,9 @@ package org.sonarsource.sonarqube.mcp.client;
 
 import java.nio.file.Path;
 import java.util.UUID;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -39,15 +42,32 @@ class ProxiedToolsLoaderTest {
   @Test
   void loadProxiedTools_should_return_empty_when_no_servers_configured() {
     loader = new ProxiedToolsLoader();
-    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
+    var tools = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString(), null);
 
     assertThat(tools).isEmpty();
   }
 
   @Test
+  void it_should_pass_detected_startup_organization_to_inheriting_proxy() {
+    var config = new ProxiedMcpServerConfig("sonar-cag", "command", List.of(), Map.of(), List.of("SONARQUBE_ORG"), Set.of(TransportMode.STDIO));
+    var scoped = ProxiedToolsLoader.withStartupOrganization(config, "detected-org");
+    assertThat(scoped.env()).containsEntry("SONARQUBE_ORG", "detected-org");
+    assertThat(config.env()).isEmpty();
+    assertThat(ProxiedToolsLoader.withStartupOrganization(config, null)).isSameAs(config);
+  }
+
+  @Test
+  void it_should_preserve_explicit_proxy_organization_and_unrelated_proxy_configs() {
+    var explicit = new ProxiedMcpServerConfig("proxy", "command", List.of(), Map.of("SONARQUBE_ORG", "explicit-org"), List.of("SONARQUBE_ORG"), Set.of(TransportMode.STDIO));
+    assertThat(ProxiedToolsLoader.withStartupOrganization(explicit, "detected-org").env()).containsEntry("SONARQUBE_ORG", "explicit-org");
+    var unrelated = new ProxiedMcpServerConfig("other", "command", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO));
+    assertThat(ProxiedToolsLoader.withStartupOrganization(unrelated, "detected-org")).isSameAs(unrelated);
+  }
+
+  @Test
   void shutdown_should_not_fail_when_called_multiple_times() {
     loader = new ProxiedToolsLoader();
-    loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
+    loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString(), null);
 
     assertThatCode(() -> {
       loader.shutdown();
@@ -61,8 +81,8 @@ class ProxiedToolsLoaderTest {
     var loader1 = new ProxiedToolsLoader();
     var loader2 = new ProxiedToolsLoader();
 
-    var tools1 = loader1.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
-    var tools2 = loader2.loadProxiedTools(TransportMode.HTTP, UUID.randomUUID().toString());
+    var tools1 = loader1.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString(), null);
+    var tools2 = loader2.loadProxiedTools(TransportMode.HTTP, UUID.randomUUID().toString(), null);
 
     assertThat(tools1).isNotNull().isEmpty();
     assertThat(tools2).isNotNull().isEmpty();
@@ -75,11 +95,11 @@ class ProxiedToolsLoaderTest {
   void loadProxiedTools_after_shutdown_should_work() {
     loader = new ProxiedToolsLoader();
     
-    var tools1 = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
+    var tools1 = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString(), null);
     loader.shutdown();
     
     // Loading again after shutdown should still work
-    var tools2 = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
+    var tools2 = loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString(), null);
     
     assertThat(tools1).isNotNull();
     assertThat(tools2).isNotNull();
@@ -95,7 +115,7 @@ class ProxiedToolsLoaderTest {
   @Test
   void getProxiedInstructions_should_return_empty_when_no_servers_configured() {
     loader = new ProxiedToolsLoader();
-    loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString());
+    loader.loadProxiedTools(TransportMode.STDIO, UUID.randomUUID().toString(), null);
 
     assertThat(loader.getProxiedInstructions()).isEmpty();
   }

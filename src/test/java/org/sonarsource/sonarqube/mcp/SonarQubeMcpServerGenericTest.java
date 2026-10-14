@@ -313,7 +313,7 @@ class SonarQubeMcpServerGenericTest {
   @SonarQubeMcpServerTest
   void should_not_append_cag_instructions_in_http_mode_even_when_cag_enabled(SonarQubeMcpServerTestHarness harness) {
     var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_IS_CLOUD", "true");
     environment.put("SONARQUBE_TOOLSETS", "cag");
     harness.prepareMockWebServer(environment);
     harness.stubCagEntitlement(true); // CAG allowed but HTTP mode does not support it
@@ -441,7 +441,7 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_not_register_sara_tools_when_flag_disabled_for_org(SonarQubeMcpServerTestHarness harness) {
+  void should_register_sara_tools_independently_of_startup_flag(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     harness.prepareMockWebServer(environment); // SARA flag disabled by default
@@ -453,11 +453,11 @@ class SonarQubeMcpServerGenericTest {
     server.start();
 
     assertThat(server.getSupportedTools())
-      .as("SARA tools should not be loaded when the feature flag is disabled for the org")
-      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+      .as("Backend checks readiness entitlement on each call")
+      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
-      .as("SARA instructions should not be present when the feature flag is disabled for the org")
-      .doesNotContain("## Agentic Readiness Assessment");
+      .as("Readiness instructions are available on Cloud")
+      .contains("## Agentic Readiness Assessment");
 
     server.shutdown();
   }
@@ -489,7 +489,7 @@ class SonarQubeMcpServerGenericTest {
   @SonarQubeMcpServerTest
   void should_register_sara_tools_in_http_mode_regardless_of_flag(SonarQubeMcpServerTestHarness harness) {
     var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_IS_CLOUD", "true");
     harness.prepareMockWebServer(environment); // SARA flag disabled by default — irrelevant in HTTP mode
 
     var server = new SonarQubeMcpServer(environment);
@@ -510,7 +510,7 @@ class SonarQubeMcpServerGenericTest {
   @SonarQubeMcpServerTest
   void should_not_register_sara_tools_in_http_mode_when_toolset_disabled(SonarQubeMcpServerTestHarness harness) {
     var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_IS_CLOUD", "true");
     environment.put("SONARQUBE_TOOLSETS", "projects,issues"); // agentic-readiness toolset disabled
     harness.prepareMockWebServer(environment);
 
@@ -611,11 +611,11 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_not_register_sara_tools_when_feature_flag_api_fails(SonarQubeMcpServerTestHarness harness) {
+  void should_register_sara_tools_independently_of_startup_flag_api(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     harness.prepareMockWebServer(environment);
-    harness.stubSaraError(); // Feature flag API returns 500 - fail-safe should skip SARA
+    harness.stubSaraError(); // Startup feature flag failure does not hide project-scoped tools
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -624,11 +624,11 @@ class SonarQubeMcpServerGenericTest {
     server.start();
 
     assertThat(server.getSupportedTools())
-      .as("SARA tools should not be loaded when the feature flag API fails (fail-safe)")
-      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+      .as("Readiness tools are registered independently of startup feature flag failures")
+      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
-      .as("SARA instructions should not be present when the feature flag API fails (fail-safe)")
-      .doesNotContain("## Agentic Readiness Assessment");
+      .as("Readiness instructions remain available on Cloud")
+      .contains("## Agentic Readiness Assessment");
 
     server.shutdown();
   }
@@ -785,24 +785,26 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void get_should_return_server_api_in_http_mode_when_server_org_is_set_and_no_org_header(SonarQubeMcpServerTestHarness harness) {
+  void get_should_return_orgless_server_api_in_http_mode_without_org_header(SonarQubeMcpServerTestHarness harness) {
     var environment = createSonarCloudHttpEnvironment();
-    environment.put("SONARQUBE_ORG", "my-org");
     harness.prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(environment);
     server.start();
 
     var context = McpTransportContext.create(Map.of(HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "squ_valid_token"));
-    server.withTransportContext(context, () ->
-      assertThat(server.get()).isNotNull());
+    server.withTransportContext(context, () -> {
+      var api = server.get();
+      assertThat(api.isSonarQubeCloud()).isTrue();
+      assertThat(api.getOrganization()).isNull();
+    });
 
     server.shutdown();
   }
 
 
   @SonarQubeMcpServerTest
-  void get_should_return_server_api_in_http_mode_when_no_server_org_and_client_sends_org_header(SonarQubeMcpServerTestHarness harness) {
+  void get_should_return_server_api_in_http_mode_with_client_org_header(SonarQubeMcpServerTestHarness harness) {
     var environment = createSonarCloudHttpEnvironment();
     harness.prepareMockWebServer(environment);
 
@@ -812,8 +814,11 @@ class SonarQubeMcpServerGenericTest {
     var context = McpTransportContext.create(Map.of(
       HttpServerTransportProvider.CONTEXT_TOKEN_KEY, "squ_valid_token",
       HttpServerTransportProvider.CONTEXT_ORG_KEY, "client-org"));
-    server.withTransportContext(context, () ->
-      assertThat(server.get()).isNotNull());
+    server.withTransportContext(context, () -> {
+      var api = server.get();
+      assertThat(api.isSonarQubeCloud()).isTrue();
+      assertThat(api.getOrganization()).isEqualTo("client-org");
+    });
 
     server.shutdown();
   }
@@ -821,6 +826,7 @@ class SonarQubeMcpServerGenericTest {
 
   private Map<String, String> createSonarCloudHttpEnvironment() {
     var environment = new HashMap<String, String>();
+    environment.put("SONARQUBE_IS_CLOUD", "true");
     environment.put("STORAGE_PATH", System.getProperty("java.io.tmpdir"));
     environment.put("SONARQUBE_TRANSPORT", "http");
     environment.put("SONARQUBE_HTTP_PORT", String.valueOf(findAvailablePort()));

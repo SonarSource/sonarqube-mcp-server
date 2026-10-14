@@ -18,6 +18,8 @@ package org.sonarsource.sonarqube.mcp.client;
 
 import java.io.File;
 import java.util.List;
+import java.util.HashMap;
+import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -38,7 +40,7 @@ public class ProxiedToolsLoader {
    * 5. Discovers tools from connected servers
    * 6. Creates tool wrappers for integration
    */
-  public List<Tool> loadProxiedTools(TransportMode currentTransportMode, String mcpServerId) {
+  public List<Tool> loadProxiedTools(TransportMode currentTransportMode, String mcpServerId, @Nullable String startupOrganization) {
     var parseResult = ProxiedServerConfigParser.parse();
     
     if (!parseResult.success()) {
@@ -47,7 +49,7 @@ public class ProxiedToolsLoader {
       return List.of();
     }
 
-    var allConfigs = parseResult.configs();
+    var allConfigs = parseResult.configs().stream().map(config -> withStartupOrganization(config, startupOrganization)).toList();
     if (allConfigs.isEmpty()) {
       LOG.info("No proxied MCP servers configured");
       return List.of();
@@ -109,6 +111,15 @@ public class ProxiedToolsLoader {
       LOG.warn("Continuing without proxied MCP servers");
       return List.of();
     }
+  }
+
+  static ProxiedMcpServerConfig withStartupOrganization(ProxiedMcpServerConfig config, @Nullable String startupOrganization) {
+    if (startupOrganization == null || !config.inherits().contains(McpServerLaunchConfiguration.SONARQUBE_ORG)) {
+      return config;
+    }
+    var environment = new HashMap<>(config.env());
+    environment.putIfAbsent(McpServerLaunchConfiguration.SONARQUBE_ORG, startupOrganization);
+    return new ProxiedMcpServerConfig(config.name(), config.command(), config.args(), environment, config.inherits(), config.supportedTransports());
   }
 
   /**
