@@ -17,10 +17,19 @@
 package org.sonarsource.sonarqube.mcp.serverapi;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import java.util.Collections;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
@@ -29,7 +38,9 @@ import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
@@ -50,14 +61,29 @@ class OrgFeatureEntitlementsTest {
 
   private OrgFeatureEntitlements orgFeatureEntitlements;
   private OrgFeatureEntitlements serverOrgFeatureEntitlements;
+  private HttpClientProvider httpClientProvider;
+  private ServerApiHelper cloudHelper;
+  private ServerApiHelper serverHelper;
+  private ServerApi cloudApi;
 
   @BeforeAll
+  void initHelpers() {
+    httpClientProvider = new HttpClientProvider("test");
+    var httpClient = httpClientProvider.getHttpClient("token");
+    cloudHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), ORG_KEY, null, true), httpClient);
+    serverHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), httpClient);
+  }
+
+  @BeforeEach
   void init() {
-    var httpClient = new HttpClientProvider("test").getHttpClient("token");
-    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), ORG_KEY, null, true), httpClient);
-    orgFeatureEntitlements = new OrgFeatureEntitlements(new ServerApi(helper, true));
-    var serverHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), httpClient);
-    serverOrgFeatureEntitlements = new OrgFeatureEntitlements(new ServerApi(serverHelper, false));
+    cloudApi = new ServerApi(cloudHelper, true);
+    orgFeatureEntitlements = cloudApi.orgFeatureEntitlements();
+    serverOrgFeatureEntitlements = new ServerApi(serverHelper, false).orgFeatureEntitlements();
+  }
+
+  @AfterAll
+  void closeHttpClient() {
+    httpClientProvider.shutdown();
   }
 
   @Test
@@ -144,6 +170,114 @@ class OrgFeatureEntitlementsTest {
   }
 
   @Test
+  void it_should_reuse_startup_entitlement_and_known_uuid_for_explicit_default_selection() {
+    stubCagEntitlement(true);
+    stubA3sConfig(true);
+
+    assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITH_KNOWN_UUID)).isTrue();
+    var selectedApi = cloudApi.withOrganization(ORG_KEY);
+    assertThat(selectedApi.orgFeatureEntitlements().isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isTrue();
+
+    verifyLookupCounts(0, 1, 1);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_cache_confirmed_unentitled_results(boolean cagEnabled) {
+    stubOrganizationUuid();
+    stubCagEntitlement(cagEnabled);
+    stubA3sConfig(false);
+
+    assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isFalse();
+    assertThat(cloudApi.withOrganization(ORG_KEY).orgFeatureEntitlements().isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isFalse();
+
+    verifyLookupCounts(1, 1, cagEnabled ? 1 : 0);
+  }
+
+  @ParameterizedTest
+  // The HTTP client retries a 503 once before the entitlement check returns a failure.
+  @CsvSource({"uuid, 500, 2, 1, 1", "uuid, 200, 2, 1, 1", "cag, 503, 1, 3, 1", "a3s, 503, 1, 2, 3"})
+  void it_should_retry_missing_or_failed_checks_without_refetching_resolved_uuid(String failingApi, int status,
+    int uuidLookups, int cagLookups, int a3sLookups) {
+    stubOrganizationUuid();
+    stubCagEntitlement(true);
+    stubA3sConfig(true);
+    var failingPath = switch (failingApi) {
+      case "uuid" -> OrganizationsApi.ORGANIZATIONS_PATH;
+      case "cag" -> CagApi.CAG_ENTITLEMENT_PATH + ORG_UUID;
+      default -> A3sAnalysisApi.A3S_ORG_CONFIG_PATH + ORG_UUID;
+    };
+    sonarqubeMock.stubFor(get(urlPathEqualTo(failingPath)).willReturn(aResponse().withStatus(status).withBody("[]")));
+    assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isFalse();
+
+    stubOrganizationUuid();
+    stubCagEntitlement(true);
+    stubA3sConfig(true);
+    var selected = cloudApi.withOrganization(ORG_KEY).orgFeatureEntitlements();
+    assertThat(selected.isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isTrue();
+    assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isTrue();
+
+    verifyLookupCounts(uuidLookups, cagLookups, a3sLookups);
+  }
+
+  @Test
+  void it_should_cache_organizations_independently_without_changing_the_default() {
+    stubOrganizationUuid();
+    stubCagEntitlement(true);
+    stubA3sConfig(true);
+    sonarqubeMock.stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)).withQueryParam("organizationKey", equalTo("other-org"))
+      .willReturn(jsonResponse("[{\"uuidV4\":\"other-uuid\"}]", 200)));
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + "other-uuid"))
+      .willReturn(jsonResponse("{\"hasEntitlement\":false}", 200)));
+
+    assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isTrue();
+    var otherOrg = ResolvedOrganization.fromKey("other-org");
+    assertThat(cloudApi.withOrganization("other-org").orgFeatureEntitlements().isVortexEnabledForOrg(otherOrg)).isFalse();
+    assertThat(cloudApi.withOrganization("other-org").orgFeatureEntitlements().isVortexEnabledForOrg(otherOrg)).isFalse();
+    assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isTrue();
+    assertThat(cloudApi.getOrganization()).isEqualTo(ORG_KEY);
+
+    verifyLookupCounts(2, 1, 1);
+    sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + "other-uuid")));
+  }
+
+  @Test
+  void it_should_coalesce_concurrent_checks_for_the_same_organization() throws Exception {
+    stubOrganizationUuid();
+    stubA3sConfig(true);
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+      .willReturn(jsonResponse("{\"hasEntitlement\":true}", 200).withFixedDelay(100)));
+
+    try (var executor = Executors.newFixedThreadPool(4)) {
+      Callable<Boolean> check = () -> cloudApi.withOrganization(ORG_KEY).orgFeatureEntitlements().isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID);
+      for (var result : executor.invokeAll(Collections.nCopies(8, check), 5, TimeUnit.SECONDS)) {
+        assertThat(result.get()).isTrue();
+      }
+    }
+
+    verifyLookupCounts(1, 1, 1);
+  }
+
+  @Test
+  void it_should_keep_fresh_http_request_apis_isolated_across_tokens() {
+    stubCagEntitlement(true);
+    stubA3sConfig(true);
+    assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITH_KNOWN_UUID)).isTrue();
+
+    stubCagEntitlement(false);
+    var requestHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), ORG_KEY, null, true),
+      httpClientProvider.getHttpClient("other-token"));
+    var requestApi = new ServerApi(requestHelper, true).withOrganization(ORG_KEY);
+    assertThat(requestApi.orgFeatureEntitlements().isVortexEnabledForOrg(ORG_WITH_KNOWN_UUID)).isFalse();
+    assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITH_KNOWN_UUID)).isTrue();
+
+    sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+      .withHeader("Authorization", equalTo("Bearer token")));
+    sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+      .withHeader("Authorization", equalTo("Bearer other-token")));
+  }
+
+  @Test
   void vortex_should_be_enabled_on_server_when_both_hubs_are_entitled() {
     stubServerCagEntitlement(true);
     stubServerA3sEntitlement(true);
@@ -224,6 +358,17 @@ class OrgFeatureEntitlementsTest {
       .willReturn(jsonResponse("""
         {"hasEntitlement":%s}
         """.formatted(hasEntitlement), 200)));
+  }
+
+  private void stubOrganizationUuid() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .willReturn(jsonResponse("[{\"uuidV4\":\"%s\"}]".formatted(ORG_UUID), 200)));
+  }
+
+  private void verifyLookupCounts(int uuidLookups, int cagLookups, int a3sLookups) {
+    sonarqubeMock.verify(uuidLookups, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)));
+    sonarqubeMock.verify(cagLookups, getRequestedFor(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + ORG_UUID)));
+    sonarqubeMock.verify(a3sLookups, getRequestedFor(urlPathEqualTo(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + ORG_UUID)));
   }
 
   private void stubServerCagEntitlement(boolean hasEntitlement) {
