@@ -412,7 +412,7 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_not_register_sara_tools_when_flag_disabled_for_org(SonarQubeMcpServerTestHarness harness) {
+  void should_register_sara_tools_independently_of_startup_flag(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     harness.prepareMockWebServer(environment); // SARA flag disabled by default
@@ -424,11 +424,11 @@ class SonarQubeMcpServerGenericTest {
     server.start();
 
     assertThat(server.getSupportedTools())
-      .as("SARA tools should not be loaded when the feature flag is disabled for the org")
-      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+      .as("Backend checks readiness entitlement on each call")
+      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
-      .as("SARA instructions should not be present when the feature flag is disabled for the org")
-      .doesNotContain("## Agentic Readiness Assessment");
+      .as("Readiness instructions are available on Cloud")
+      .contains("## Agentic Readiness Assessment");
 
     server.shutdown();
   }
@@ -582,11 +582,11 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_not_register_sara_tools_when_feature_flag_api_fails(SonarQubeMcpServerTestHarness harness) {
+  void should_register_sara_tools_independently_of_startup_flag_api(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     harness.prepareMockWebServer(environment);
-    harness.stubSaraError(); // Feature flag API returns 500 - fail-safe should skip SARA
+    harness.stubSaraError(); // Startup feature flag failure does not hide project-scoped tools
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -595,11 +595,11 @@ class SonarQubeMcpServerGenericTest {
     server.start();
 
     assertThat(server.getSupportedTools())
-      .as("SARA tools should not be loaded when the feature flag API fails (fail-safe)")
-      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+      .as("Readiness tools are registered independently of startup feature flag failures")
+      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
-      .as("SARA instructions should not be present when the feature flag API fails (fail-safe)")
-      .doesNotContain("## Agentic Readiness Assessment");
+      .as("Readiness instructions remain available on Cloud")
+      .contains("## Agentic Readiness Assessment");
 
     server.shutdown();
   }

@@ -41,6 +41,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 import org.sonarsource.sonarqube.mcp.analytics.ToolInvocationResult;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
+import org.sonarsource.sonarqube.mcp.tools.organizations.ListOrganizationsTool;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -68,6 +69,20 @@ class ToolExecutorTest {
   void prepare() {
     mockBackendService = mock(BackendService.class);
     toolExecutor = new ToolExecutor(mockBackendService);
+  }
+
+  @Test
+  void it_should_execute_argument_free_tools_when_arguments_are_omitted_and_analytics_is_disabled() {
+    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    when(api.organizationsApi().listOrganizations()).thenReturn(List.of());
+    var request = McpSchema.CallToolRequest.builder(ListOrganizationsTool.TOOL_NAME).build();
+    assertThat(request.arguments()).isNull();
+
+    var result = toolExecutor.execute(new ListOrganizationsTool(() -> api), request);
+
+    assertThat(result.isError()).isFalse();
+    assertThat(result.content().toString()).contains("organizations");
+    verify(mockBackendService).notifyToolCalled("mcp_list_organizations", true);
   }
 
   @Test
@@ -251,6 +266,45 @@ class ToolExecutorTest {
 
     verify(mockServerApi).isSonarQubeCloud();
     verify(analyticsService).notifyToolInvoked(any(ToolInvocationResult.class));
+  }
+
+  @Test
+  void it_should_capture_selected_organization_before_async_analytics_in_both_transports() {
+    for (var stdio : List.of(true, false)) {
+      var analyticsService = mock(AnalyticsService.class);
+      var defaultApi = mock(ServerApi.class);
+      var selectedApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+      when(defaultApi.withOrganization("selected-org")).thenReturn(selectedApi);
+      when(selectedApi.isSonarQubeCloud()).thenReturn(true);
+      when(selectedApi.getOrganization()).thenReturn("selected-org");
+      when(selectedApi.organizationsApi().getOrganizationUuidV4("selected-org")).thenReturn("selected-uuid");
+      when(selectedApi.usersApi().getCurrentUserId()).thenReturn("selected-user");
+      var context = ConnectionContext.empty();
+      context.captureCallingAgent("agent", "1.0");
+      var currentApi = new java.util.concurrent.atomic.AtomicReference<>(defaultApi);
+      var executor = new ToolExecutor(mockBackendService, analyticsService, stdio ? context : null, currentApi::get, null, ToolCategory::all);
+      record TestResponse(String message) {}
+      var tool = new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).description("").build(), ToolCategory.PROJECTS) {
+        @Override
+        public Result execute(Arguments arguments) {
+          return Result.success(new TestResponse("ok"));
+        }
+      };
+
+      executor.execute(tool, McpSchema.CallToolRequest.builder("tool_name").arguments(Map.of("organization", "selected-org")).build());
+      var taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+      verify(analyticsService).submit(taskCaptor.capture());
+      currentApi.set(null);
+      taskCaptor.getValue().run();
+
+      var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
+      verify(analyticsService).notifyToolInvoked(resultCaptor.capture());
+      assertThat(resultCaptor.getValue().organizationUuidV4()).isEqualTo("selected-uuid");
+      assertThat(resultCaptor.getValue().userUuid()).isEqualTo("selected-user");
+      if (stdio) {
+        assertThat(resultCaptor.getValue().callingAgentName()).isEqualTo("agent");
+      }
+    }
   }
 
   @Test

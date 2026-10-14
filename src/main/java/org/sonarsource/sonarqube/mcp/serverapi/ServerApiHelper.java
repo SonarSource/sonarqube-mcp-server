@@ -50,6 +50,10 @@ public class ServerApiHelper {
     return endpointParams.organization();
   }
 
+  public ServerApiHelper withOrganization(String organization) {
+    return new ServerApiHelper(new EndpointParams(endpointParams.baseUrl(), organization, endpointParams.apiBaseUrl(), endpointParams.isSonarQubeCloud()), client);
+  }
+
   public boolean isSonarQubeCloud() {
     return endpointParams.isSonarQubeCloud();
   }

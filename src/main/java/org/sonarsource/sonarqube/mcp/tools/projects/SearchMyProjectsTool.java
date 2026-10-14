@@ -46,6 +46,7 @@ public class SearchMyProjectsTool extends Tool {
       "Use this first when projectKey is unknown - most other tools require the project key from this response.";
 
     return ToolDefinitionBuilder.builder()
+      .addOrganizationProperty(isSonarQubeCloud)
       .setName(TOOL_NAME)
       .setTitle("Search My SonarQube Projects")
       .setDescription(description)
@@ -58,6 +59,8 @@ public class SearchMyProjectsTool extends Tool {
 
   @Override
   public Tool.Result execute(Tool.Arguments arguments) {
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    serverApi.requireOrganization();
     var page = arguments.getPageIndexOrDefault(1);
     var pageSize = arguments.getPageSizeOrDefault(MAX_PAGE_SIZE);
     var searchQuery = arguments.getOptionalString(SEARCH_QUERY_PROPERTY);
@@ -66,7 +69,7 @@ public class SearchMyProjectsTool extends Tool {
       return Tool.Result.failure("Page size must be greater than 0 and less than or equal to " + MAX_PAGE_SIZE);
     }
     
-    var projects = serverApiProvider.get().componentsApi().searchProjects(page, pageSize, searchQuery);
+    var projects = serverApi.componentsApi().searchProjects(page, pageSize, searchQuery);
     var toolResponse = buildStructuredContent(projects);
     return Tool.Result.success(toolResponse);
   }

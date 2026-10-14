@@ -202,29 +202,20 @@ class AuthenticationFilterTest {
 
     filter.doFilter(request, response, filterChain);
 
-    if (allowed) {
-      verify(filterChain).doFilter(request, response);
-      verify(response, never()).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    } else {
-      verify(response).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-      verify(filterChain, never()).doFilter(request, response);
-      assertThat(responseWriter.toString())
-        .contains("\"jsonrpc\":\"2.0\"")
-        .contains("\"code\":-32000")
-        .contains("SONARQUBE_ORG header is required");
-    }
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_BAD_REQUEST);
   }
 
   static Stream<Arguments> sonarCloudOrgHeaderScenarios() {
     return Stream.of(
-      Arguments.of(null, false),
-      Arguments.of("  ", false),
+      Arguments.of(null, true),
+      Arguments.of("  ", true),
       Arguments.of("my-org", true)
     );
   }
 
   @Test
-  void should_reject_sonarcloud_request_with_org_header_when_server_org_already_configured() throws Exception {
+  void should_allow_org_header_to_override_configured_default() throws Exception {
     var filter = new AuthenticationFilter(AuthMode.TOKEN, true, "server-org");
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
@@ -232,13 +223,8 @@ class AuthenticationFilterTest {
 
     filter.doFilter(request, response, filterChain);
 
-    verify(response).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    verify(filterChain, never()).doFilter(request, response);
-    var responseJson = responseWriter.toString();
-    assertThat(responseJson)
-      .contains("\"jsonrpc\":\"2.0\"")
-      .contains("\"code\":-32000")
-      .contains("SONARQUBE_ORG header is not allowed");
+    verify(filterChain).doFilter(request, response);
+    verify(response, never()).setStatus(HttpServletResponse.SC_BAD_REQUEST);
   }
 
   @Test

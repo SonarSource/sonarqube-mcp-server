@@ -22,6 +22,9 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
+import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
+import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
+import org.sonarsource.sonarqube.mcp.tools.organizations.ListOrganizationsTool;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -45,7 +48,8 @@ class AutoDetectOrganizationTest {
       "SONARQUBE_TOOLSETS", "issues"));
 
     assertThat(mcpClient.listTools()).isNotEmpty();
-    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(ScaApi.FEATURE_ENABLED_PATH + "?organization=" + AUTO_ORG_KEY)).isTrue();
+    mcpClient.callTool(SearchMyProjectsTool.TOOL_NAME);
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&ps=500&organization=" + AUTO_ORG_KEY)).isTrue();
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining(OrganizationsApi.ORGANIZATIONS_PATH + "?excludeEligibility=true")).isZero();
   }
 
@@ -59,8 +63,9 @@ class AutoDetectOrganizationTest {
     var mcpClient = harness.newClient(CLOUD_WITHOUT_ORG);
 
     assertThat(mcpClient.listTools()).isNotEmpty();
-    // The org-scoped SCA probe proves the auto-detected org was applied to the ServerApi
-    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(ScaApi.FEATURE_ENABLED_PATH + "?organization=" + AUTO_ORG_KEY)).isTrue();
+    // Project search proves the auto-detected organization is retained as the session default
+    mcpClient.callTool(SearchMyProjectsTool.TOOL_NAME);
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&ps=500&organization=" + AUTO_ORG_KEY)).isTrue();
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining("organizationKey=")).isZero();
   }
 
@@ -75,15 +80,17 @@ class AutoDetectOrganizationTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_fail_startup_when_token_has_no_organization(SonarQubeMcpServerTestHarness harness) {
+  void it_should_start_unresolved_when_token_has_no_organization(SonarQubeMcpServerTestHarness harness) {
     stubOrganizationsList(harness, "[]");
 
-    assertThatThrownBy(() -> harness.newClient(CLOUD_WITHOUT_ORG))
-      .hasMessageContaining("No SonarQube Cloud organization is associated with the provided token");
+    var client = harness.newClient(CLOUD_WITHOUT_ORG);
+    assertThat(client.listTools()).anyMatch(tool -> tool.name().equals(ListOrganizationsTool.TOOL_NAME));
+    assertThat(client.callTool(SearchMyProjectsTool.TOOL_NAME).content().getFirst().toString()).contains("list_organizations", "organization");
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(ComponentsApi.COMPONENTS_SEARCH_PATH)).isZero();
   }
 
   @SonarQubeMcpServerTest
-  void it_should_fail_startup_when_token_has_multiple_organizations(SonarQubeMcpServerTestHarness harness) {
+  void it_should_start_unresolved_when_token_has_multiple_organizations(SonarQubeMcpServerTestHarness harness) {
     stubOrganizationsList(harness, """
       [
         {"id":"id-1","key":"org-one","name":"Org One","uuidV4":"%s"},
@@ -91,10 +98,23 @@ class AutoDetectOrganizationTest {
       ]
       """.formatted(AUTO_ORG_UUID));
 
-    assertThatThrownBy(() -> harness.newClient(CLOUD_WITHOUT_ORG))
-      .hasMessageContaining("multiple SonarQube Cloud organizations")
-      .hasMessageContaining("org-one")
-      .hasMessageContaining("org-two");
+    var client = harness.newClient(CLOUD_WITHOUT_ORG);
+    assertThat(client.listTools()).anyMatch(tool -> tool.name().equals(ListOrganizationsTool.TOOL_NAME));
+    assertThat(client.callTool(SearchMyProjectsTool.TOOL_NAME).content().getFirst().toString()).contains("list_organizations");
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(ComponentsApi.COMPONENTS_SEARCH_PATH)).isZero();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_start_with_token_only_for_zero_one_and_multiple_organizations(SonarQubeMcpServerTestHarness harness) {
+    for (var organizations : java.util.List.of("[]", "[{\"key\":\"only-org\"}]", "[{\"key\":\"org-a\"},{\"key\":\"org-b\"}]")) {
+      stubOrganizationsList(harness, organizations);
+      var client = harness.newClient(Map.of(
+        "SONARQUBE_URL", "${SONARQUBE_URL}",
+        "SONARQUBE_CLOUD_API_URL", harness.getMockSonarQubeServer().baseUrl(),
+        "SONARQUBE_TOOLSETS", "issues"));
+      assertThat(client.listTools()).anyMatch(tool -> tool.name().equals(ListOrganizationsTool.TOOL_NAME));
+    }
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(OrganizationsApi.ORGANIZATIONS_PATH + "?excludeEligibility=true")).isEqualTo(3);
   }
 
   private static void stubOrganizationsList(SonarQubeMcpServerTestHarness harness, String jsonBody) {
