@@ -54,7 +54,7 @@ class SearchDependencyRisksToolTests {
   class WithSonarCloudServer {
 
     @SonarQubeMcpServerTest
-    void it_should_not_find_tool_if_sca_is_disabled(SonarQubeMcpServerTestHarness harness) {
+    void it_should_register_discovery_but_reject_unentitled_organization_at_runtime(SonarQubeMcpServerTestHarness harness) {
       harness.getMockSonarQubeServer().stubFor(get(ScaApi.FEATURE_ENABLED_PATH + "?organization=org").willReturn(aResponse().withResponseBody(
         Body.fromJsonBytes("""
           {
@@ -68,7 +68,11 @@ class SearchDependencyRisksToolTests {
       assertThat(mcpClient.listTools())
         .isNotEmpty()
         .extracting(McpSchema.Tool::name)
-        .doesNotContain(SearchDependencyRisksTool.TOOL_NAME);
+        .contains(SearchDependencyRisksTool.TOOL_NAME);
+      var result = mcpClient.callTool(SearchDependencyRisksTool.TOOL_NAME, Map.of("projectKey", "my-project"));
+      assertThat(result.isError()).isTrue();
+      assertThat(result.toString()).contains("Advanced Security is not enabled");
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(ScaApi.DEPENDENCY_RISKS_PATH)).isZero();
     }
 
   }
