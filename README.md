@@ -1172,6 +1172,8 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 ### Projects
 
+- **list_organizations** - List SonarQube Cloud organizations that a user is a member of, including keys, names, IDs, and UUIDs.
+
 - **search_my_sonarqube_projects** - Find SonarQube projects. The response is paginated.
   - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
   - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 500) - _Integer_
