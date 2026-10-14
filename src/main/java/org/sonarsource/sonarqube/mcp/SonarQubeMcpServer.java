@@ -80,6 +80,7 @@ import org.sonarsource.sonarqube.mcp.tools.measures.GetComponentMeasuresTool;
 import org.sonarsource.sonarqube.mcp.tools.measures.SearchFilesByCoverageTool;
 import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
 import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
+import org.sonarsource.sonarqube.mcp.tools.organizations.ListOrganizationsTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
@@ -430,6 +431,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void loadBackendIndependentTools(ServerApi serverApi) {
     if (mcpConfiguration.isSonarQubeCloud()) {
       supportedTools.add(new ListEnterprisesTool(this));
+      supportedTools.add(new ListOrganizationsTool(this));
     } else {
       supportedTools.addAll(List.of(
         new SystemHealthTool(this),
