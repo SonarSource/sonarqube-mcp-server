@@ -20,6 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -102,7 +103,7 @@ public class ToolExecutor {
     }
 
     try {
-      result = tool.execute(new Tool.Arguments(toolRequest.arguments(), meta));
+      result = tool.execute(new Tool.Arguments(toolRequest.arguments() != null ? toolRequest.arguments() : Map.of(), meta));
       logSuccess(toolName, invocationTimestamp);
     } catch (Exception e) {
       errorType = resolveErrorType(e);
