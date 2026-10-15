@@ -28,6 +28,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -39,7 +40,7 @@ final class Auth0JwkProvider implements JwkProvider {
   private final UrlJwkProvider provider;
   private final Clock clock;
   private final ArrayDeque<Instant> refreshAttempts = new ArrayDeque<>();
-  private volatile Refresh refresh = new Refresh(new Snapshot(Map.of(), Instant.MIN), null);
+  private final AtomicReference<Refresh> refresh = new AtomicReference<>(new Refresh(new Snapshot(Map.of(), Instant.MIN), null));
 
   Auth0JwkProvider(String issuer, Clock clock) {
     this(urlProvider(issuer), clock);
@@ -52,17 +53,17 @@ final class Auth0JwkProvider implements JwkProvider {
 
   @Override
   public Jwk get(String keyId) {
-    var observed = refresh;
+    var observed = refresh.get();
     var known = observed.snapshot().find(keyId, clock.instant());
     if (known != null) {
       return known;
     }
     synchronized (this) {
       // Requests waiting for the same refresh share its result, including failures.
-      if (refresh == observed) {
-        refresh = refresh(observed.snapshot());
+      if (refresh.get() == observed) {
+        refresh.set(refresh(observed.snapshot()));
       }
-      var result = refresh;
+      var result = refresh.get();
       var key = result.snapshot().find(keyId, clock.instant());
       if (key != null) {
         return key;

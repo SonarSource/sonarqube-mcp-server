@@ -32,6 +32,8 @@ import java.time.Clock;
 import java.time.DateTimeException;
 
 final class Auth0TokenVerifier {
+  private static final long CLOCK_SKEW_SECONDS = 60;
+
   private final JWTVerifier mcpVerifier;
   private final JWTVerifier cloudVerifier;
 
@@ -71,6 +73,7 @@ final class Auth0TokenVerifier {
 
   private static JWTVerifier verifier(Algorithm algorithm, String issuer, String audience, Clock clock) {
     var verification = (JWTVerifier.BaseVerification) JWT.require(algorithm).withIssuer(issuer).withAudience(audience)
+      .acceptIssuedAt(CLOCK_SKEW_SECONDS).acceptNotBefore(CLOCK_SKEW_SECONDS)
       .withClaimPresence("exp").withClaimPresence("iat").withClaimPresence("sub").withClaimPresence("azp");
     return verification.build(clock);
   }
