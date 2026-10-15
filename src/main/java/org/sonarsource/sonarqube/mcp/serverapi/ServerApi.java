@@ -57,7 +57,7 @@ public class ServerApi {
   private ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud, @Nullable OrgFeatureEntitlements sharedEntitlements) {
     this.helper = helper;
     this.isSonarQubeCloud = isSonarQubeCloud;
-    this.orgFeatureEntitlements = sharedEntitlements == null ? new OrgFeatureEntitlements(this) : sharedEntitlements.withApi(this);
+    this.orgFeatureEntitlements = sharedEntitlements == null ? new OrgFeatureEntitlements(this) : sharedEntitlements;
   }
 
   public QualityGatesApi qualityGatesApi() {

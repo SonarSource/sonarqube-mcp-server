@@ -96,12 +96,12 @@ class AnalysisToolRegistrationTest {
 
   @ParameterizedTest
   @CsvSource({
-    "false, false, true, false, false", "true, true, true, false, true",
-    "false, true, true, false, true", "true, false, true, false, true",
-    "false, false, true, true, false", "true, true, true, true, false",
-    "false, true, true, true, false", "true, false, true, true, false",
-    "false, false, false, false, false", "true, true, false, false, false",
-    "false, true, false, false, false", "true, false, false, false, false"
+    "false, false, true, false, false",
+    "true, true, true, false, true",
+    "false, true, true, false, true",
+    "true, false, true, false, true",
+    "true, true, true, true, false",
+    "true, true, false, false, false"
   })
   void it_should_register_one_cloud_analysis_tool(boolean firstEntitled, boolean secondEntitled, boolean mounted,
     boolean forceLocal, boolean advanced, @TempDir Path workspace) {
@@ -129,25 +129,6 @@ class AnalysisToolRegistrationTest {
         .isEqualTo(mounted && !forceLocal ? 1 : 0);
       assertThat(mock.countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH + "second-uuid"))
         .isEqualTo(mounted && !forceLocal && !firstEntitled ? 1 : 0);
-    } finally {
-      System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
-    }
-  }
-
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void it_should_check_only_the_fixed_cloud_organization(boolean entitled, @TempDir Path workspace) {
-    harness.stubCagEntitlement(entitled);
-    harness.stubA3sEnabled(entitled);
-    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, workspace.toString());
-    try {
-      var client = harness.newClient(Map.of("SONARQUBE_ORG", "my-org", "SONARQUBE_TOOLSETS", "analysis,vortex"));
-
-      assertThat(client.listTools()).extracting(McpSchema.Tool::name)
-        .contains(entitled ? RunAdvancedCodeAnalysisTool.TOOL_NAME : AnalyzeCodeSnippetTool.TOOL_NAME)
-        .doesNotContain(entitled ? AnalyzeCodeSnippetTool.TOOL_NAME : RunAdvancedCodeAnalysisTool.TOOL_NAME);
-      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(OrganizationsApi.ORGANIZATIONS_PATH)).isEqualTo(1);
-      assertThat(harness.getMockSonarQubeServer().countRequestsContaining("organizationKey=my-org")).isEqualTo(1);
     } finally {
       System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
     }

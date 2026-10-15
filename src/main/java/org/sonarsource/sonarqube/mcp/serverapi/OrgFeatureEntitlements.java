@@ -33,21 +33,18 @@ public class OrgFeatureEntitlements {
   private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ServerApi api;
-  private final ConcurrentMap<String, String> organizationUuids;
-  private final ConcurrentMap<String, Boolean> vortexEntitlements;
+  private final ConcurrentMap<String, String> organizationUuids = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, Boolean> vortexEntitlements = new ConcurrentHashMap<>();
 
   public OrgFeatureEntitlements(ServerApi api) {
-    this(api, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
-  }
-
-  private OrgFeatureEntitlements(ServerApi api, ConcurrentMap<String, String> organizationUuids, ConcurrentMap<String, Boolean> vortexEntitlements) {
     this.api = api;
-    this.organizationUuids = organizationUuids;
-    this.vortexEntitlements = vortexEntitlements;
   }
 
-  OrgFeatureEntitlements withApi(ServerApi selectedApi) {
-    return new OrgFeatureEntitlements(selectedApi, organizationUuids, vortexEntitlements);
+  public void cacheOrganizationUuid(ResolvedOrganization org) {
+    var uuid = org.uuidV4();
+    if (uuid != null && !uuid.isBlank()) {
+      organizationUuids.putIfAbsent(org.key(), uuid);
+    }
   }
 
   /**

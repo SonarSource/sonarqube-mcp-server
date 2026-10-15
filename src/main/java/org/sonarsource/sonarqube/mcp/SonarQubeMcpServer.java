@@ -311,6 +311,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var organizations = resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     var orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
+    organizations.forEach(orgFeatureEntitlements::cacheOrganizationUuid);
     loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
@@ -358,7 +359,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * Downloads analyzers in background and restarts the backend with them.
    * Tools are already loaded synchronously during startup.
-   * Skips analyzer download if ANALYSIS tools are disabled or the local analysis tool is absent.
+   * Downloads analyzers only when the local analysis tool is enabled.
    */
   private void initializeBackgroundServices() {
     try {
@@ -369,29 +370,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         connectionContext.resolveFrom(serverApi);
       }
 
-      if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isHttpEnabled()) {
-        LOG.info("Cloud HTTP mode - skipping analyzers download (analysis is only available over stdio)");
-        initializationFuture.complete(null);
-        return;
-      }
-
-      // Check if ANALYSIS tools are enabled before downloading analyzers
-      if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)) {
-        LOG.info("Analysis tools are disabled - skipping analyzers download");
-        initializationFuture.complete(null);
-        return;
-      }
-
-      // In HTTP mode without a startup token, plugins cannot be downloaded.
-      if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null) {
-        LOG.info("HTTP mode without startup token - skipping analyzers download (set SONARQUBE_TOKEN at server level to enable local analysis for SonarQube Server)");
-        initializationFuture.complete(null);
-        return;
-      }
-
-      // Skip analyzer download when the local analysis tool is not present
-      if (supportedTools.stream().noneMatch(AnalyzeCodeSnippetTool.class::isInstance)) {
-        LOG.info("Local analysis tool is not present - skipping analyzers download");
+      if (filterForEnabledTools(supportedTools).stream().noneMatch(AnalyzeCodeSnippetTool.class::isInstance)) {
+        LOG.info("Local analysis tool is not enabled - skipping analyzers download");
         initializationFuture.complete(null);
         return;
       }
@@ -500,22 +480,14 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   private void loadAnalysisTools(boolean vortexAnalysisEnabled) {
-    if (mcpConfiguration.isSonarQubeCloud()) {
-      if (mcpConfiguration.isHttpEnabled()) {
-        LOG.debug("Cloud HTTP mode - skipping analysis tool registration");
-        return;
-      }
-      if (vortexAnalysisEnabled) {
-        loadAdvancedAnalysisTool();
-      } else if (mcpConfiguration.isForceLocalAnalysis()) {
-        loadLocalAnalysisTool();
-      } else {
-        loadBackendDependentTools();
-      }
+    if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isHttpEnabled()) {
+      LOG.debug("Cloud HTTP mode - skipping analysis tool registration");
       return;
     }
     if (vortexAnalysisEnabled) {
       loadAdvancedAnalysisTool();
+    } else if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isForceLocalAnalysis()) {
+      loadLocalAnalysisTool();
     } else if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
       loadBackendDependentTools();
     }
