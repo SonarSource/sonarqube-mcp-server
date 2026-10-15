@@ -576,14 +576,16 @@ By default, analysis tool `analyze_code_snippet` requires the agent to pass the 
 
 With a mount, analysis tools read files directly using `filePath`; `fileContent` is not needed.
 
-On SonarQube Cloud over stdio, analysis is selected at startup (subject to enabled toolsets):
+Over stdio, analysis is selected at startup (subject to enabled toolsets):
 
-- Vortex analysis (`run_advanced_code_analysis`) when a workspace is mounted and at least one accessible organization is entitled. Only entitled organizations can use it.
-- Local analysis otherwise, through SonarQube for IDE if connected or `analyze_code_snippet`. Without a mount, snippet analysis requires `fileContent`.
+- **SonarQube Cloud:** Vortex analysis (`run_advanced_code_analysis`) with a workspace mount and at least one entitled organization; local analysis otherwise. Vortex analysis only accepts entitled organizations.
+- **SonarQube Server:** Vortex analysis for entitled instances (requires a workspace mount); local analysis for instances without Vortex.
 
-If `SONARQUBE_ORG` is set, only that organization is considered. To use snippets for all organizations, set `SONARQUBE_FORCE_LOCAL_ANALYSIS=true`, enable the `analysis` toolset, and restart.
+Local analysis uses SonarQube for IDE if connected or `analyze_code_snippet`. Without a mount, snippet analysis requires `fileContent`.
 
-Analysis is unavailable on Cloud over HTTP/HTTPS.
+On Cloud, `SONARQUBE_ORG` limits the entitlement check to that organization. To use snippets for all organizations, set `SONARQUBE_FORCE_LOCAL_ANALYSIS=true`, enable the `analysis` toolset, and restart. This setting has no effect on Server.
+
+Over HTTP/HTTPS, Server supports snippet analysis with a startup `SONARQUBE_TOKEN`; Cloud exposes no analysis tools.
 
 ### Selective Tool Enablement
 
