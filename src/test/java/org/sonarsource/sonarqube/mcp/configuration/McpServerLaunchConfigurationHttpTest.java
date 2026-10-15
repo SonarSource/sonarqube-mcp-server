@@ -23,8 +23,35 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class McpServerLaunchConfigurationHttpTest {
+
+  @ParameterizedTest
+  @ValueSource(strings = {"http", "https"})
+  void should_accept_legacy_server_organization_configuration(String transport) {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", transport);
+    environment.put("SONARQUBE_ORG", "my-org");
+
+    var configuration = new McpServerLaunchConfiguration(environment);
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"http", "https"})
+  void should_accept_legacy_server_organization_property(String transport) {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", transport);
+    System.setProperty("SONARQUBE_ORG", "my-org");
+    try {
+      assertThat(new McpServerLaunchConfiguration(environment).getSonarqubeOrg()).isEqualTo("my-org");
+    } finally {
+      System.clearProperty("SONARQUBE_ORG");
+    }
+  }
 
   @Test
   void should_default_http_to_disabled() {

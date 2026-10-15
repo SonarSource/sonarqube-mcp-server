@@ -27,6 +27,8 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -48,6 +50,21 @@ class HttpServerTransportProviderTest {
   void tearDown() {
     mcpLogger.detachAppender(logAppender);
     logAppender.stop();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void should_warn_once_only_when_legacy_cloud_organization_is_configured(boolean configured) {
+    new HttpServerTransportProvider(8080, "127.0.0.1", AuthMode.TOKEN, true, configured ? "my-org" : null, true,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+
+    var warnings = logAppender.list.stream().filter(event -> event.getLevel() == Level.WARN)
+      .map(ILoggingEvent::getFormattedMessage).filter(message -> message.contains("SONARQUBE_ORG")).toList();
+    if (configured) {
+      assertThat(warnings).singleElement().asString().contains("deprecated", "request header", "organization argument");
+    } else {
+      assertThat(warnings).isEmpty();
+    }
   }
 
   @Test

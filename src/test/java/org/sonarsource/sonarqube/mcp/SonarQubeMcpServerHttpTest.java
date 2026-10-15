@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -80,26 +81,34 @@ class SonarQubeMcpServerHttpTest {
         new StdioServerTransportProvider(null),
         null,
         environment);
-    stdioServer.start();
-    stdioServer.waitForInitialization();
-    var stdioTools = stdioServer.getSupportedTools().stream()
-        .map(tool -> tool.definition().name())
-        .sorted()
-        .toList();
-    
     environment.put("SONARQUBE_TRANSPORT", "http");
+    try (var socket = new ServerSocket(0)) {
+      environment.put("SONARQUBE_HTTP_PORT", Integer.toString(socket.getLocalPort()));
+    }
     var httpServer = new SonarQubeMcpServer(environment);
-    httpServer.start();
-    httpServer.waitForInitialization();
-    var httpTools = httpServer.getSupportedTools().stream()
+    try {
+      stdioServer.start();
+      stdioServer.waitForInitialization();
+      var stdioTools = stdioServer.getSupportedTools().stream()
         .map(tool -> tool.definition().name())
         .sorted()
         .toList();
 
-    assertThat(stdioTools).isNotEmpty();
-    assertThat(httpTools)
-      .isNotEmpty()
-      .isEqualTo(stdioTools);
+      httpServer.start();
+      httpServer.waitForInitialization();
+      var httpTools = httpServer.getSupportedTools().stream()
+        .map(tool -> tool.definition().name())
+        .sorted()
+        .toList();
+
+      assertThat(stdioTools).isNotEmpty();
+      assertThat(httpTools)
+        .isNotEmpty()
+        .isEqualTo(stdioTools);
+    } finally {
+      httpServer.shutdown();
+      stdioServer.shutdown();
+    }
   }
 
   @SonarQubeMcpServerTest

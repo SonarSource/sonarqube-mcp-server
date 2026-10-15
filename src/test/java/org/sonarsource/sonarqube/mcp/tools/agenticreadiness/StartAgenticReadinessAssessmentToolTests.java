@@ -179,12 +179,12 @@ class StartAgenticReadinessAssessmentToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_not_register_tools_when_sara_flag_is_disabled(SonarQubeMcpServerTestHarness harness) {
+  void it_should_register_tools_independently_of_startup_sara_flag(SonarQubeMcpServerTestHarness harness) {
     var mcpClient = harness.newClient(ORG_ENV);
 
     var toolNames = mcpClient.listTools().stream().map(McpSchema.Tool::name).toList();
     assertThat(toolNames)
       .isNotEmpty()
-      .doesNotContain(StartAgenticReadinessAssessmentTool.TOOL_NAME);
+      .contains(StartAgenticReadinessAssessmentTool.TOOL_NAME);
   }
 }

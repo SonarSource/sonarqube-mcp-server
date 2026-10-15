@@ -19,6 +19,13 @@ package org.sonarsource.sonarqube.mcp.tools.analysis;
 import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.io.TempDir;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesResponse;
+import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
+import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +44,10 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool.TOOL_NAME;
@@ -64,13 +74,48 @@ class AnalyzeCodeSnippetToolTests {
     // Create a future that completes exceptionally
     var failedFuture = new CompletableFuture<Void>();
     failedFuture.completeExceptionally(new RuntimeException("Initialization failed"));
-    var tool = new AnalyzeCodeSnippetTool(mock(BackendService.class), mock(ServerApiProvider.class), failedFuture, null, null);
+    var api = mock(ServerApi.class);
+    var tool = new AnalyzeCodeSnippetTool(mock(BackendService.class), () -> api, failedFuture, null, null, false);
 
     var callToolResult = tool.execute(new Tool.Arguments(Map.of(), null));
 
     assertThat(callToolResult.isError()).isTrue();
     assertThat(callToolResult.toCallToolResult().toString()).contains("Server initialization failed: Initialization failed. " +
       "Please check the server logs for more details.");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_reuse_selected_organization_for_profiles_and_all_rule_pages(SonarQubeMcpServerTestHarness harness, @TempDir Path workDir) {
+    harness.getMockSonarQubeServer().stubFor(get(QualityProfilesApi.SEARCH_PATH + "?organization=selected-org&defaults=true")
+      .willReturn(okJson("{\"profiles\":[{\"key\":\"profile\"}]}")));
+    for (var page = 1; page <= 2; page++) {
+      harness.getMockSonarQubeServer().stubFor(get(RulesApi.SEARCH_PATH + "?qprofile=profile&organization=selected-org&activation=true&f=templateKey%2Cactives&p=" + page)
+        .willReturn(okJson("{\"total\":1000,\"ps\":500,\"rules\":[],\"actives\":{}}")));
+    }
+    var backend = mock(BackendService.class);
+    when(backend.getWorkDir()).thenReturn(workDir);
+    var analysis = mock(AnalyzeFilesResponse.class);
+    when(analysis.getRawIssues()).thenReturn(List.of());
+    when(backend.analyzeFilesAndTrack(any(), any())).thenReturn(CompletableFuture.completedFuture(analysis));
+    var http = new HttpClientProvider("test");
+    try {
+      var api = new ServerApi(new ServerApiHelper(new EndpointParams(harness.getMockSonarQubeServer().baseUrl(), "default-org", null, true), http.getHttpClient("token")), true);
+      var captures = new java.util.concurrent.atomic.AtomicInteger();
+      ServerApiProvider provider = () -> {
+        captures.incrementAndGet();
+        return api;
+      };
+      var tool = new AnalyzeCodeSnippetTool(backend, provider, CompletableFuture.completedFuture(null), null, null, true);
+      assertThat(tool.definition().inputSchema().get("properties")).asInstanceOf(MAP).containsKey("organization");
+      var result = tool.execute(new Tool.Arguments(Map.of("fileContent", "class Test {}", "language", "java", "organization", "selected-org"), null));
+      assertThat(result.isError()).isFalse();
+      assertThat(captures).hasValue(1);
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(QualityProfilesApi.SEARCH_PATH + "?organization=selected-org")).isEqualTo(1);
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(RulesApi.SEARCH_PATH + "?qprofile=profile&organization=selected-org")).isEqualTo(2);
+      assertThat(api.getOrganization()).isEqualTo("default-org");
+    } finally {
+      http.shutdown();
+    }
   }
 
   @Nested

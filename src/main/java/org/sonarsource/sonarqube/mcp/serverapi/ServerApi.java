@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
@@ -157,6 +158,17 @@ public class ServerApi {
     return new OrganizationsApi(helper);
   }
 
+  public ServerApi withOrganization(String organization) {
+    return isSonarQubeCloud ? new ServerApi(helper.withOrganization(organization), true) : this;
+  }
+
+  public void requireOrganization() {
+    if (isSonarQubeCloud && (getOrganization() == null || getOrganization().isBlank())) {
+      throw new IllegalArgumentException("Organization is required. Call list_organizations first, then pass its key as organization, or configure SONARQUBE_ORG.");
+    }
+  }
+
+  @Nullable
   public String getOrganization() {
     return helper.getOrganization();
   }

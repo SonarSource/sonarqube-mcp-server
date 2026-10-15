@@ -70,10 +70,6 @@ public class ToolExecutor {
    */
   private final Supplier<Set<ToolCategory>> enabledToolsetsSupplier;
 
-  public ToolExecutor(BackendService backendService) {
-    this(backendService, null, null, null, null, ToolCategory::all);
-  }
-
   public ToolExecutor(BackendService backendService, @Nullable AnalyticsService analyticsService,
     @Nullable ConnectionContext stdioContext, @Nullable Supplier<ServerApi> httpServerApiSupplier, @Nullable String mcpServerId,
     Supplier<Set<ToolCategory>> enabledToolsetsSupplier) {
@@ -102,8 +98,9 @@ public class ToolExecutor {
       meta.put("mcp_server_id", mcpServerId);
     }
 
+    var arguments = new Tool.Arguments(toolRequest.arguments() != null ? toolRequest.arguments() : Map.of(), meta);
     try {
-      result = tool.execute(new Tool.Arguments(toolRequest.arguments() != null ? toolRequest.arguments() : Map.of(), meta));
+      result = tool.execute(arguments);
       logSuccess(toolName, invocationTimestamp);
     } catch (Exception e) {
       errorType = resolveErrorType(e);
@@ -121,26 +118,35 @@ public class ToolExecutor {
       .sorted()
       .toList();
     backendService.notifyToolCalled("mcp_" + tool.definition().name(), successful);
-    notifyAnalytics(toolName, new InvocationMetrics(invocationId, durationMs, successful, errorType, responseSizeBytes, invocationTimestamp, matchingToolsets));
+    notifyAnalytics(toolName, new InvocationMetrics(invocationId, durationMs, successful, errorType, responseSizeBytes, invocationTimestamp, matchingToolsets),
+      arguments);
     return callToolResult;
   }
 
-  private void notifyAnalytics(String toolName, InvocationMetrics metrics) {
+  private void notifyAnalytics(String toolName, InvocationMetrics metrics, Tool.Arguments arguments) {
     var service = analyticsService;
     if (service == null) {
       return;
     }
+    var organization = arguments.getOptionalString(ToolParameters.ORGANIZATION);
     var httpSupplier = httpServerApiSupplier;
     if (httpSupplier != null) {
       ServerApi serverApi;
       try {
-        serverApi = httpSupplier.get();
+        var api = httpSupplier.get();
+        serverApi = organization == null ? api : api.withOrganization(organization);
       } catch (Exception e) {
         LOG.debug("Failed to obtain ServerApi for analytics context, skipping event for tool " + toolName + ": " + e.getMessage());
         return;
       }
-      // HTTP mode: resolve context asynchronously — API calls must not block the tool response.
-      service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> resolveHttpContext(serverApi), metrics));
+      var agentName = stdioContext != null ? stdioContext.getCallingAgentName() : null;
+      var agentVersion = stdioContext != null ? stdioContext.getCallingAgentVersion() : null;
+      // The immutable invocation API and agent identifiers are captured before leaving the request thread.
+      service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> {
+        var context = resolveHttpContext(serverApi);
+        context.captureCallingAgent(agentName, agentVersion);
+        return context;
+      }, metrics));
     } else if (stdioContext != null) {
       // stdio mode: context is pre-resolved at startup — read cached values, no I/O.
       var ctx = stdioContext;
