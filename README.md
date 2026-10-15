@@ -665,7 +665,7 @@ For stdio, configure the following environment variables:
 
 > ⚠️ Connection to SonarQube Server requires a token of type **USER** and will not function properly if project tokens or global tokens are used.
 
-> 💡 **Configuration Tip (stdio mode)**: A token without a URL defaults to SonarQube Cloud. Set `SONARQUBE_URL` for SonarQube Server or a Cloud region. `SONARQUBE_ORG` fixes the Cloud organization when set.
+> 💡 **Configuration Tip (stdio mode)**: A token without a URL defaults to SonarQube Cloud. Set `SONARQUBE_URL` for SonarQube Server or a different Cloud region. `SONARQUBE_ORG` fixes the Cloud organization when set.
 
 In stdio, setting `SONARQUBE_ORG` fixes the Cloud organization. Tool `organization` arguments are omitted from schemas and rejected, like `projectKey` when `SONARQUBE_PROJECT_KEY` is set.
 
