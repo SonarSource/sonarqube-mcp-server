@@ -76,7 +76,7 @@ class Auth0OAuthAuthenticationServiceTest {
   void setUp() {
     algorithm = Algorithm.RSA256((RSAPublicKey) KEY.getPublic(), (RSAPrivateKey) KEY.getPrivate());
     var jwk = Jwk.fromValues(keyValues("test-key", KEY));
-    configuration = config(Duration.ofSeconds(30), 256);
+    configuration = config(Duration.ofSeconds(60), 256);
     clock = new MutableClock();
     verifier = spy(new Auth0TokenVerifier(configuration, keyId -> jwk, clock));
     exchange = mock(Auth0TokenExchange.class);
@@ -179,7 +179,12 @@ class Auth0OAuthAuthenticationServiceTest {
     verify(exchange).exchange(source, Set.of("read:all"));
     verify(verifier, times(2)).verifyMcp(source);
     verify(verifier, times(3)).verifyCloud(cloud);
-    clock.advance(Duration.ofSeconds(30));
+    clock.advance(Duration.ofSeconds(59));
+    service.authenticate(source);
+    verify(exchange).exchange(source, Set.of("read:all"));
+    verify(verifier, times(3)).verifyMcp(source);
+    verify(verifier, times(4)).verifyCloud(cloud);
+    clock.advance(Duration.ofSeconds(1));
     service.authenticate(source);
     verify(exchange, times(2)).exchange(source, Set.of("read:all"));
   }
