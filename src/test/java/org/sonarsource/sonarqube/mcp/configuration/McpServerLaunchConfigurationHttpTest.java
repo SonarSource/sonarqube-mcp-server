@@ -23,8 +23,37 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class McpServerLaunchConfigurationHttpTest {
+
+  @ParameterizedTest
+  @ValueSource(strings = {"http", "https"})
+  void should_reject_server_organization_configuration(String transport) {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", transport);
+    environment.put("SONARQUBE_ORG", "my-org");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("SONARQUBE_ORG cannot be configured on an HTTP server. Use the optional SONARQUBE_ORG request header or tool organization argument.");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"http", "https"})
+  void should_reject_server_organization_property(String transport) {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", transport);
+    System.setProperty("SONARQUBE_ORG", "my-org");
+    try {
+      assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("SONARQUBE_ORG cannot be configured on an HTTP server");
+    } finally {
+      System.clearProperty("SONARQUBE_ORG");
+    }
+  }
 
   @Test
   void should_default_http_to_disabled() {
