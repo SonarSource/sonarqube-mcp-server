@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 public final class OAuthProtectedResourceMetadata extends HttpServlet {
 
   private static final Logger LOG = LoggerFactory.getLogger(OAuthProtectedResourceMetadata.class);
@@ -74,16 +76,18 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
     response.setContentType("application/json");
+    response.setCharacterEncoding(UTF_8.name());
     response.setHeader("Cache-Control", "public, max-age=300");
     var body = new Gson().toJson(Map.of(
       "resource", resource,
       "authorization_servers", List.of(issuer),
-      "scopes_supported", List.of("read:all", "write:all"),
+      "scopes_supported", SUPPORTED_SCOPES.stream().sorted().toList(),
       "bearer_methods_supported", List.of("header")));
     try {
       response.getWriter().write(body);
     } catch (IOException e) {
       LOG.warn("Unable to write OAuth resource metadata response", e);
+      response.setHeader("Cache-Control", "no-store");
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
   }
