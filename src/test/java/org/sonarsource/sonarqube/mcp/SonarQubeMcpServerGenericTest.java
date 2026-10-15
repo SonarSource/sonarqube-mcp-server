@@ -122,7 +122,7 @@ class SonarQubeMcpServerGenericTest {
           .contains("Proxy selector: " + proxySelectorName)
           .contains("HTTP client user agent: " + configuration.getUserAgent())
           .contains("Enabled toolsets: " + configuration.getEnabledToolsets())
-          .contains("Advanced analysis: false")
+          .contains("Advanced analysis tool registered: false")
           .contains("Telemetry enabled: false")
           .contains("App version: " + configuration.getAppVersion())
           .contains("Storage path: " + configuration.getStoragePath())
