@@ -36,13 +36,9 @@ public final class OAuthConfiguration {
     this(issuer, resource, cloudAudience, clientId, clientSecret, DEFAULT_CACHE_TTL, DEFAULT_CACHE_SIZE);
   }
 
-  public OAuthConfiguration(String issuer, String resource, String cloudAudience, String clientId, String clientSecret, Duration cacheTtl, int cacheSize) {
-    var resourceUri = OAuthProtectedResourceMetadata.validatedResourceUri(resource, issuer);
-    var cloudUri = URI.create(required(cloudAudience));
-    if (!"https".equals(cloudUri.getScheme()) || cloudUri.getHost() == null || !"/".equals(cloudUri.getPath())
-      || cloudUri.getUserInfo() != null || cloudUri.getQuery() != null || cloudUri.getFragment() != null || cloudAudience.equals(resource)) {
-      throw new IllegalArgumentException("OAuth Cloud audience must be a distinct HTTPS API root ending in /");
-    }
+  public OAuthConfiguration(String issuer, String resource, String cloudAudience, String clientId, String clientSecret, @Nullable Duration cacheTtl, int cacheSize) {
+    var resourceUri = validatedResourceUri(resource, issuer);
+    var cloudUri = validatedHttpsUri(required(cloudAudience));
     if (!resourceUri.resolve("/").equals(cloudUri)) {
       throw new IllegalArgumentException("OAuth MCP resource and Cloud audience must share the same API origin");
     }
@@ -56,6 +52,26 @@ public final class OAuthConfiguration {
     this.clientSecret = required(clientSecret);
     this.cacheTtl = cacheTtl;
     this.cacheSize = cacheSize;
+  }
+
+  static URI validatedResourceUri(String resource, String issuer) {
+    var resourceUri = validatedHttpsUri(resource);
+    var issuerUri = validatedHttpsUri(issuer);
+    if (!"/mcp".equals(resourceUri.getRawPath()) || !"/".equals(issuerUri.getRawPath())) {
+      throw new IllegalArgumentException("OAuth requires an HTTPS MCP resource ending in /mcp and an Auth0 issuer ending in /");
+    }
+    return resourceUri;
+  }
+
+  static URI validatedHttpsUri(@Nullable String value) {
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException("OAuth URL settings must be explicitly configured");
+    }
+    var uri = URI.create(value);
+    if (!"https".equals(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null) {
+      throw new IllegalArgumentException("OAuth URL settings must be HTTPS URLs without credentials, query, or fragment");
+    }
+    return uri;
   }
 
   private static String required(@Nullable String value) {
