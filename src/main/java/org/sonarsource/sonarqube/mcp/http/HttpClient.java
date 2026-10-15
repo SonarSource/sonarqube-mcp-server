@@ -56,4 +56,6 @@ public interface HttpClient {
 
   CompletableFuture<Response> postAsync(String url, String contentType, String body);
 
+  CompletableFuture<Response> postAsync(String url, String contentType, String body, Duration timeout);
+
 }
