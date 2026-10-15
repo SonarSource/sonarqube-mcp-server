@@ -156,9 +156,6 @@ public final class McpServerLaunchConfiguration {
     // SONARQUBE_TOKEN, SONARQUBE_ORG, and SONARQUBE_URL may be forwarded as literal "${VAR}" strings by MCP clients
     // when the corresponding host environment variable is unset; treat those as unset.
     this.sonarqubeOrg = ignoreUnresolvedPlaceholder(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null), SONARQUBE_ORG);
-    if (isHttpEnabled && sonarqubeOrg != null) {
-      throw new IllegalArgumentException("SONARQUBE_ORG cannot be configured on an HTTP server. Use the optional SONARQUBE_ORG request header or tool organization argument.");
-    }
     var sonarqubeUrlFromEnv = ignoreUnresolvedPlaceholder(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, null), SONARQUBE_URL);
     
     // Check for deprecated SONARQUBE_CLOUD_URL (backward compatibility)

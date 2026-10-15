@@ -46,7 +46,8 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
  *   <li>OAUTH - OAuth 2.1 with PKCE (not yet implemented)</li>
  * </ul>
  * <p>
- * The optional SONARQUBE_ORG header selects a fixed request organization.
+ * The optional SONARQUBE_ORG header selects a fixed request organization when no server organization is configured.
+ * A configured server organization rejects client organization headers.
  */
 public class AuthenticationFilter implements Filter {
 
@@ -57,9 +58,12 @@ public class AuthenticationFilter implements Filter {
   private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
 
   private final AuthMode authMode;
+  @Nullable
+  private final String serverOrg;
 
-  public AuthenticationFilter(AuthMode authMode) {
+  public AuthenticationFilter(AuthMode authMode, @Nullable String serverOrg) {
     this.authMode = authMode;
+    this.serverOrg = serverOrg;
     LOG.info("Authentication filter initialized with mode: " + authMode);
   }
 
@@ -84,6 +88,12 @@ public class AuthenticationFilter implements Filter {
       if (token == null || token.isBlank()) {
         LOG.warn("Missing or empty SonarQube token for URI '" + httpRequest.getRequestURI() + "'");
         sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via Authorization: Bearer <token> header.");
+        return;
+      }
+      var org = httpRequest.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
+      if (serverOrg != null && org != null && !org.isBlank()) {
+        sendBadRequestResponse(httpResponse, "The SONARQUBE_ORG header is not allowed: this server is already configured with an organization. "
+          + "Remove the SONARQUBE_ORG header from your request.");
         return;
       }
       if (!validateReadOnly(httpRequest, httpResponse)) {

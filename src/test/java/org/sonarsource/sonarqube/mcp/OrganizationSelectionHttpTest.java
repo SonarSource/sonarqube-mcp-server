@@ -107,6 +107,49 @@ class OrganizationSelectionHttpTest {
     }
   }
 
+  @SonarQubeMcpServerTest
+  void it_should_preserve_legacy_server_organization_without_sharing_request_tokens(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
+    var port = availablePort();
+    var environment = httpEnvironment(harness, storage, port);
+    environment.put("SONARQUBE_ORG", "server-org");
+    stubProjects(harness, "token-a", "server-org");
+    stubProjects(harness, "token-b", "server-org");
+    var server = new SonarQubeMcpServer(environment);
+    try (var client = HttpClient.newHttpClient()) {
+      server.start();
+      assertOrganizationParameter(client, port, null, false);
+      for (var org : new String[]{"server-org", "other-org"}) {
+        var response = client.send(request(port, "token-a", org, "tools/list", Map.of()), HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.body()).contains("SONARQUBE_ORG header is not allowed");
+      }
+      for (var org : new String[]{"server-org", "other-org", ""}) {
+        var response = client.send(request(port, "token-a", null, "tools/call", toolParams(Map.of("organization", org))),
+          HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("Organization is fixed by SONARQUBE_ORG");
+      }
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(ComponentsApi.COMPONENTS_SEARCH_PATH)).isZero();
+      var futures = new ArrayList<CompletableFuture<Void>>();
+      for (var index = 0; index < 12; index++) {
+        var token = index % 2 == 0 ? "token-a" : "token-b";
+        futures.add(client.sendAsync(request(port, token, null, "tools/call", toolParams(Map.of())), HttpResponse.BodyHandlers.ofString())
+          .thenAccept(response -> {
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(response.body()).contains("server-org-project").doesNotContain("Forbidden", "Organization is required");
+          }));
+      }
+      CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(ComponentsApi.COMPONENTS_SEARCH_PATH)).isEqualTo(12);
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .filteredOn(request -> "Bearer token-a".equals(request.authorizationHeader())).hasSize(6);
+      assertThat(harness.getMockSonarQubeServer().getReceivedRequests())
+        .filteredOn(request -> "Bearer token-b".equals(request.authorizationHeader())).hasSize(6);
+    } finally {
+      server.shutdown();
+    }
+  }
+
   private static void assertOrganizationParameter(HttpClient client, int port, String org, boolean expected) throws Exception {
     var response = client.send(request(port, "token-a", org, "tools/list", Map.of()), HttpResponse.BodyHandlers.ofString());
     assertThat(response.statusCode()).isEqualTo(200);

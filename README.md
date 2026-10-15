@@ -643,11 +643,11 @@ docker run --init --pull=always -i --rm \
 
 For stdio, configure the following environment variables:
 
-| Environment variable  | Description                                                                                                               | Required |
-|-----------------------|---------------------------------------------------------------------------------------------------------------------------|----------|
-| `SONARQUBE_TOKEN`     | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/)         | Yes      |
-| `SONARQUBE_ORG`       | Optional fixed SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                         | No       |
-| `SONARQUBE_URL`       | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarQube Cloud US: `https://sonarqube.us` | No       |
+| Environment variable | Description                                                                                                               | Required |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `SONARQUBE_TOKEN`    | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/)         | Yes      |
+| `SONARQUBE_ORG`      | Optional fixed SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                            | No       |
+| `SONARQUBE_URL`      | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarQube Cloud US: `https://sonarqube.us` | No       |
 
 **Examples:**
 
@@ -669,9 +669,9 @@ For stdio, configure the following environment variables:
 
 In stdio, setting `SONARQUBE_ORG` fixes the Cloud organization. Tool `organization` arguments are omitted from schemas and rejected, like `projectKey` when `SONARQUBE_PROJECT_KEY` is set.
 
-With `SONARQUBE_ORG` unset, agents can call `list_organizations` to discover organization keys, names, IDs, and UUIDs accessible to your user account, then pass a key as the optional `organization` argument on organization-aware tools. Stdio retains a uniquely detected organization as its default; zero or multiple organizations leave it unresolved. A tool argument applies only to that call and never changes the detected default.
+With `SONARQUBE_ORG` unset, agents can call `list_organizations` to discover organization keys, names, IDs, and UUIDs accessible to your user account, then pass a key as the optional `organization` argument on organization-aware tools. Stdio retains a uniquely detected organization as its default; zero or multiple organizations leave it unresolved. A tool argument applies only to that call and never changes the detected default. Snippet profile and rule lookups use the organization selected for that call.
 
-In HTTP, `SONARQUBE_ORG` cannot be configured on the server. An optional client `SONARQUBE_ORG` header fixes the organization for that request and disallows tool `organization` arguments. Without the header, use the tool argument. Tools that require an organization report discovery guidance when all are missing. Organization discovery and tools whose APIs consume only resource identifiers do not require an organization argument. Organization-aware issue search and dependency-risk entitlement checks use the selected organization.
+In HTTP/HTTPS, server-level `SONARQUBE_ORG` remains supported for compatibility but is deprecated and logs a startup warning. It fixes the organization for every request and rejects client organization headers and tool `organization` arguments. When no server organization is configured, an optional client `SONARQUBE_ORG` header fixes the organization for that request and disallows tool `organization` arguments. Without the header, use the tool argument. Tools that require an organization report discovery guidance when all are missing. Organization discovery and tools whose APIs consume only resource identifiers do not require an organization argument. Organization-aware issue search and dependency-risk entitlement checks use the selected organization.
 
 Vortex context tools use the configured or uniquely detected startup organization. Runtime organization arguments do not reconfigure the proxied context engine; unresolved startup organizations skip that proxy.
 
@@ -719,8 +719,8 @@ Unencrypted Streamable HTTP transport. Use HTTPS instead for multi-user deployme
 | `SONARQUBE_MCP_IN_CONTAINER` | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false` |
 
 **Note:** In Streamable HTTP mode (HTTP or HTTPS), the server is stateless — each client request must include an `Authorization: Bearer <token>` header carrying the user's own SonarQube token. For SonarQube Cloud, the organization is resolved as follows:
-- `SONARQUBE_ORG` is an optional request header that fixes the organization for that request. It cannot be configured on the HTTP server.
-- Organization-aware tools accept an optional `organization` argument when the request header is unset. Supplying the argument when the header fixes the organization is rejected.
+- `SONARQUBE_ORG` is an optional request header that fixes the organization for that request. Deprecated server-level configuration fixes it for all requests and rejects client organization headers and tool organization arguments.
+- Organization-aware tools accept an optional `organization` argument when neither server configuration nor the request header fixes the organization. Supplying the argument when the organization is fixed is rejected.
 - Without a default, agents can call `list_organizations` using only their token, then pass the chosen key to subsequent tools.
 
 Clients can also narrow the visible tools per-request by supplying `SONARQUBE_TOOLSETS` and/or `SONARQUBE_READ_ONLY` headers; these apply additional filtering on top of the server-level configuration — they can only reduce the scope, never expand it.
@@ -1360,15 +1360,15 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 <details>
 <summary>Context Augmentation Environment Variables</summary>
 
-| Variable                 | Description                                                        | Required | Default                 |
-|--------------------------|--------------------------------------------------------------------|----------|-------------------------|
-| `SONARQUBE_URL`          | SonarQube Cloud URL                                                | Yes      | `https://sonarcloud.io` |
-| `SONARQUBE_TOKEN`        | Authentication token                                               | Yes      | None                    |
-| `SONARQUBE_ORG`          | Cloud organization; passed to the proxy from startup configuration or unique detection | No | None                    |
-| `SONARQUBE_PROJECT_KEY`  | Project key on SonarQube Cloud                                     | Yes      | None                    |
-| `SONAR_SQ_BRANCH`        | Explicit SonarQube branch override *                               | No       | None                    |
-| `SONARQUBE_DEBUG_ENABLED`| Activate debug logging (for troubleshooting)                       | No       | False                   |
-| `SONAR_LOG_LEVEL`        | Logging verbosity (`TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`)   | No       | `INFO`                  |
+| Variable                  | Description                                                                            | Required | Default                 |
+| ------------------------- | -------------------------------------------------------------------------------------- | -------- | ----------------------- |
+| `SONARQUBE_URL`           | SonarQube Cloud URL                                                                    | Yes      | `https://sonarcloud.io` |
+| `SONARQUBE_TOKEN`         | Authentication token                                                                   | Yes      | None                    |
+| `SONARQUBE_ORG`           | Cloud organization; passed to the proxy from startup configuration or unique detection | No       | None                    |
+| `SONARQUBE_PROJECT_KEY`   | Project key on SonarQube Cloud                                                         | Yes      | None                    |
+| `SONAR_SQ_BRANCH`         | Explicit SonarQube branch override *                                                   | No       | None                    |
+| `SONARQUBE_DEBUG_ENABLED` | Activate debug logging (for troubleshooting)                                           | No       | False                   |
+| `SONAR_LOG_LEVEL`         | Logging verbosity (`TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`)                       | No       | `INFO`                  |
 
 * To be provided when not using git, or when the git branch name doesn't match the branch name in SonarQube.
 

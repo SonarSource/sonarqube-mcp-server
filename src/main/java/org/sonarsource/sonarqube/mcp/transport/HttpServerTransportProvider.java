@@ -20,6 +20,7 @@ import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.server.McpStatelessServerHandler;
 import io.modelcontextprotocol.server.transport.HttpServletStatelessServerTransport;
 import io.modelcontextprotocol.spec.McpStatelessServerTransport;
+import jakarta.annotation.Nullable;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.file.Files;
@@ -66,6 +67,8 @@ public class HttpServerTransportProvider {
   private final int port;
   private final String host;
   private final AuthMode authMode;
+  @Nullable
+  private final String serverOrg;
   private final boolean httpsEnabled;
   private final Path httpsKeystorePath;
   private final String httpsKeystorePassword;
@@ -85,6 +88,7 @@ public class HttpServerTransportProvider {
    * @param host Host to bind to (127.0.0.1 for localhost, 0.0.0.0 for all interfaces)
    * @param authMode Authentication mode (e.g., TOKEN, OAUTH)
    * @param isSonarQubeCloud Whether this server connects to SonarQube Cloud
+   * @param serverOrg Deprecated fixed Cloud organization for all requests
    * @param httpsEnabled Whether to enable HTTPS/TLS
    * @param httpsKeystorePath Path to keystore file (contains server certificate and private key)
    * @param httpsKeystorePassword Keystore password
@@ -96,13 +100,17 @@ public class HttpServerTransportProvider {
    * @param appVersion The version of the MCP server
    * @param isRunningInContainer Whether the server is running inside a container (suppresses the 0.0.0.0 security warning)
    */
-  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarQubeCloud,
+  public HttpServerTransportProvider(int port, String host, AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
     boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
     Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
     List<String> allowedOrigins, String appVersion, boolean isRunningInContainer) {
     this.port = port;
     this.host = host;
     this.authMode = authMode;
+    this.serverOrg = isSonarQubeCloud ? serverOrg : null;
+    if (this.serverOrg != null) {
+      LOG.warn("Configuring SONARQUBE_ORG on an HTTP server is deprecated. Remove it and use the optional SONARQUBE_ORG request header or tool organization argument instead.");
+    }
     this.httpsEnabled = httpsEnabled;
     this.httpsKeystorePath = httpsKeystorePath;
     this.httpsKeystorePassword = httpsKeystorePassword;
@@ -116,7 +124,7 @@ public class HttpServerTransportProvider {
     this.mcpTransportProvider = HttpServletStatelessServerTransport.builder()
       .messageEndpoint(MCP_ENDPOINT)
       .jsonMapper(McpJsonMappers.DEFAULT)
-      .contextExtractor(request -> extractTransportContext(request, isSonarQubeCloud))
+      .contextExtractor(request -> extractTransportContext(request, isSonarQubeCloud, this.serverOrg))
       .build();
 
     var protocol = httpsEnabled ? "https" : "http";
@@ -140,7 +148,7 @@ public class HttpServerTransportProvider {
     }
   }
 
-  private static McpTransportContext extractTransportContext(HttpServletRequest request, boolean isSonarQubeCloud) {
+  private static McpTransportContext extractTransportContext(HttpServletRequest request, boolean isSonarQubeCloud, @Nullable String serverOrg) {
     try {
       var token = AuthenticationFilter.extractToken(request);
       var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
@@ -148,7 +156,7 @@ public class HttpServerTransportProvider {
       var contextBuilder = new HashMap<String, Object>();
       contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
       if (isSonarQubeCloud) {
-        var org = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
+        var org = serverOrg != null ? serverOrg : request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
         if (org != null && !org.isBlank()) {
           contextBuilder.put(CONTEXT_ORG_KEY, org.trim());
         }
@@ -213,7 +221,7 @@ public class HttpServerTransportProvider {
     var securityFilter = new FilterHolder(new McpSecurityFilter(host, allowedOrigins, appVersion));
     servletContextHandler.addFilter(securityFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    var authFilter = new FilterHolder(new AuthenticationFilter(authMode));
+    var authFilter = new FilterHolder(new AuthenticationFilter(authMode, serverOrg));
     servletContextHandler.addFilter(authFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     var servletHolder = new ServletHolder(mcpTransportProvider);

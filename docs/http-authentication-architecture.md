@@ -140,6 +140,7 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
    ├─> Extract token from Authorization: Bearer header (preferred)
    │   OR fall back to deprecated SONARQUBE_TOKEN header (logs a warning)
    ├─> Reject with 401 if no valid token found
+   ├─> Reject SONARQUBE_ORG headers when a deprecated server organization is configured
    ├─> Validate SONARQUBE_READ_ONLY header (must be 'true' or 'false' if present)
    └─> Pass to servlet if all checks pass
 
@@ -147,6 +148,7 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
    ├─> contextExtractor runs: extracts token from Authorization: Bearer
    │   (or deprecated SONARQUBE_TOKEN), plus SONARQUBE_ORG,
    │   SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
+   ├─> Apply the configured server organization, otherwise the optional request header
    ├─> Creates McpTransportContext with all extracted values
    ├─> Parse JSON-RPC message
    └─> Dispatch to PerRequestToolFilteringHandler
@@ -172,7 +174,8 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 - Headers:
   - `Authorization: Bearer <token>` — **preferred**, required on every request
   - `SONARQUBE_TOKEN: <token>` — **deprecated**, still accepted for backward compatibility; will be removed in a future version
-  - `SONARQUBE_ORG: <org>` — optional fixed SonarQube Cloud request organization. When set, tool `organization` arguments are omitted from schemas and rejected. Otherwise, agents can use `list_organizations` and the tool argument; tools requiring an unresolved organization return discovery guidance.
+  - Deprecated server-level `SONARQUBE_ORG` fixes the Cloud organization for every request and logs a startup warning. Client organization headers and tool `organization` arguments are rejected.
+  - `SONARQUBE_ORG: <org>` — optional fixed SonarQube Cloud request organization when no server organization is configured. When set, tool `organization` arguments are omitted from schemas and rejected. Otherwise, agents can use `list_organizations` and the tool argument; tools requiring an unresolved organization return discovery guidance.
   - `SONARQUBE_TOOLSETS: <comma-separated-keys>` — optional; narrows the server-level toolset for this request (cannot add toolsets beyond what the server was launched with)
   - `SONARQUBE_READ_ONLY: true|false` — optional; can further restrict to read-only for this request (cannot lift a server-level read-only restriction)
 
@@ -204,7 +207,8 @@ The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>
 
 3. ServerApiProvider.get() (tools/call)
    └─> Reads McpTransportContext from ThreadLocal
-   └─> Extracts token and optional org header; the header fixes the request organization
+   └─> Extracts token and effective org: configured SONARQUBE_ORG is fixed (request header rejected);
+       otherwise the optional header fixes the request organization
    └─> Creates a fresh ServerApi for this request
 ```
 
@@ -242,7 +246,7 @@ Per-request filtering is applied at the **`tools/list` response**: `PerRequestTo
 
 ### Example Client Configuration
 
-This example fixes the request organization. Omit the header to select organizations through tool arguments.
+When no server organization is configured, this example fixes the request organization. Omit the header to select organizations through tool arguments.
 
 ```json
 {
@@ -307,4 +311,4 @@ This example fixes the request organization. Omit the header to select organizat
 
 ---
 
-Organization-aware tool calls capture one immutable `ServerApi`. An optional organization header fixes the request organization and rejects tool arguments; without it, tools select the organization through their argument. Nested requests reuse the selected API. Discovery is organization-free, and no organization is persisted between requests. Analytics captures the selected API on the request thread before asynchronous dispatch.
+Organization-aware tool calls capture one immutable `ServerApi`. A configured server organization or optional organization header fixes the organization and rejects tool arguments; without either, tools select the organization through their argument. Nested requests reuse the selected API. Discovery is organization-free, and per-call selections are never persisted between requests. Analytics captures the selected API on the request thread before asynchronous dispatch.

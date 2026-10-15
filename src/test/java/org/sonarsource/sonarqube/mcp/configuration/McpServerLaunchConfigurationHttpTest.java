@@ -30,26 +30,24 @@ class McpServerLaunchConfigurationHttpTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"http", "https"})
-  void should_reject_server_organization_configuration(String transport) {
+  void should_accept_legacy_server_organization_configuration(String transport) {
     var environment = createMinimalTestEnvironment();
     environment.put("SONARQUBE_TRANSPORT", transport);
     environment.put("SONARQUBE_ORG", "my-org");
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("SONARQUBE_ORG cannot be configured on an HTTP server. Use the optional SONARQUBE_ORG request header or tool organization argument.");
+    var configuration = new McpServerLaunchConfiguration(environment);
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"http", "https"})
-  void should_reject_server_organization_property(String transport) {
+  void should_accept_legacy_server_organization_property(String transport) {
     var environment = createMinimalTestEnvironment();
     environment.put("SONARQUBE_TRANSPORT", transport);
     System.setProperty("SONARQUBE_ORG", "my-org");
     try {
-      assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("SONARQUBE_ORG cannot be configured on an HTTP server");
+      assertThat(new McpServerLaunchConfiguration(environment).getSonarqubeOrg()).isEqualTo("my-org");
     } finally {
       System.clearProperty("SONARQUBE_ORG");
     }

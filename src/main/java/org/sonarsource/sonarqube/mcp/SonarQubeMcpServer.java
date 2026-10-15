@@ -233,6 +233,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getHttpHost(),
         authConfig,
         mcpConfiguration.isSonarQubeCloud(),
+        mcpConfiguration.getSonarqubeOrg(),
         mcpConfiguration.isHttpsEnabled(),
         mcpConfiguration.getHttpsKeystorePath(),
         mcpConfiguration.getHttpsKeystorePassword(),
@@ -354,7 +355,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (vortexEnabledForOrg) {
       if (workspaceMount != null) {
         LOG.info("Vortex analysis mode enabled");
-        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount));
+        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount, mcpConfiguration.isSonarQubeCloud()));
       } else {
         LOG.info("Vortex analysis mode enabled, but no workspace path configured, skipping tool registration");
       }
@@ -493,7 +494,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (!useIdeBridge) {
       LOG.info("Standard analysis mode (no IDE bridge)");
-      supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey(), mcpConfiguration.getWorkspacePath()));
+      supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey(), mcpConfiguration.getWorkspacePath(),
+        mcpConfiguration.isSonarQubeCloud()));
     }
   }
 
