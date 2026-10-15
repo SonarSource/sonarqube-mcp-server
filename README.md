@@ -397,7 +397,7 @@ SonarQube MCP Server is available as a Windsurf plugin. Follow these instruction
 1. Open Windsurf **Settings** > **Cascade** > **MCP Servers** and select **Open MCP Marketplace** 
 2. Search for `sonarqube` on the Cascade MCP Marketplace
 3. Choose the **SonarQube MCP Server** and select **Install**
-4. Add the required SonarQube User token. Then add the organization key if you want to connect with SonarQube Cloud, or the SonarQube URL if you want to connect to SonarQube Server or Community Build.
+4. Add the required SonarQube User token. Optionally add a default organization key for SonarQube Cloud, or add the SonarQube URL for SonarQube Server or Community Build.
 
 For **SonarQube Cloud US**, set the URL to `https://sonarqube.us`.
 
@@ -641,18 +641,18 @@ docker run --init --pull=always -i --rm \
 
 #### SonarQube Cloud
 
-To enable full functionality, the following environment variables must be set before starting the server:
+For stdio, configure the following environment variables:
 
-| Environment variable  | Description                                                                                                               | Required |
-|-----------------------|---------------------------------------------------------------------------------------------------------------------------|----------|
-| `SONARQUBE_TOKEN`     | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/)         | Yes      |
-| `SONARQUBE_ORG`       | Your SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                                      | Yes      |
-| `SONARQUBE_URL`       | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarQube Cloud US: `https://sonarqube.us` | No       |
+| Environment variable | Description                                                                                                               | Required |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `SONARQUBE_TOKEN`    | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/)         | Yes      |
+| `SONARQUBE_ORG`      | Optional fixed SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                            | No       |
+| `SONARQUBE_URL`      | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarQube Cloud US: `https://sonarqube.us` | No       |
 
 **Examples:**
 
-- **SonarQube Cloud**: Only `SONARQUBE_TOKEN` and `SONARQUBE_ORG` are needed
-- **SonarQube Cloud US**: Set `SONARQUBE_TOKEN`, `SONARQUBE_ORG`, and `SONARQUBE_URL=https://sonarqube.us`
+- **SonarQube Cloud**: Only `SONARQUBE_TOKEN` is required. `SONARQUBE_ORG` fixes the organization when set.
+- **SonarQube Cloud US**: Set `SONARQUBE_TOKEN` and `SONARQUBE_URL=https://sonarqube.us`; `SONARQUBE_ORG` is optional.
 
 #### SonarQube Server
 
@@ -665,7 +665,15 @@ To enable full functionality, the following environment variables must be set be
 
 > ⚠️ Connection to SonarQube Server requires a token of type **USER** and will not function properly if project tokens or global tokens are used.
 
-> 💡 **Configuration Tip (stdio mode)**: The presence of `SONARQUBE_ORG` determines whether you're connecting to SonarQube Cloud or Server. If `SONARQUBE_ORG` is set, SonarQube Cloud is used; otherwise, SonarQube Server is used.
+> 💡 **Configuration Tip (stdio mode)**: A token without a URL defaults to SonarQube Cloud. Set `SONARQUBE_URL` for SonarQube Server or a different Cloud region. `SONARQUBE_ORG` fixes the Cloud organization when set.
+
+In stdio, setting `SONARQUBE_ORG` fixes the Cloud organization. Tool `organization` arguments are omitted from schemas and rejected, like `projectKey` when `SONARQUBE_PROJECT_KEY` is set.
+
+With `SONARQUBE_ORG` unset, agents can call `list_organizations` to discover organization keys, names, IDs, and UUIDs accessible to your user account, then pass a key as the optional `organization` argument on organization-aware tools. Stdio retains a uniquely detected organization as its default; zero or multiple organizations leave it unresolved. A tool argument applies only to that call and never changes the detected default. Snippet profile and rule lookups use the organization selected for that call.
+
+In HTTP/HTTPS, server-level `SONARQUBE_ORG` remains supported for compatibility but is deprecated and logs a startup warning. It fixes the organization for every request and rejects client organization headers and tool `organization` arguments. When no server organization is configured, an optional client `SONARQUBE_ORG` header fixes the organization for that request and disallows tool `organization` arguments. Without the header, use the tool argument. Tools that require an organization report discovery guidance when all are missing. Organization discovery and tools whose APIs consume only resource identifiers do not require an organization argument. Organization-aware issue search and dependency-risk entitlement checks use the selected organization.
+
+Vortex context tools use the configured or uniquely detected startup organization. Runtime organization arguments do not reconfigure the proxied context engine; unresolved startup organizations skip that proxy.
 
 ### Transport Modes
 
@@ -711,8 +719,10 @@ Unencrypted Streamable HTTP transport. Use HTTPS instead for multi-user deployme
 | `SONARQUBE_MCP_IN_CONTAINER` | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false` |
 
 **Note:** In Streamable HTTP mode (HTTP or HTTPS), the server is stateless — each client request must include an `Authorization: Bearer <token>` header carrying the user's own SonarQube token. For SonarQube Cloud, the organization is resolved as follows:
-- If `SONARQUBE_ORG` is set at server startup, all requests are routed to that organization. Clients must **not** send a `SONARQUBE_ORG` header — doing so will result in an error.
-- If `SONARQUBE_ORG` is not set at server startup, each client **must** supply a `SONARQUBE_ORG` header on every request.
+- `SONARQUBE_ORG` is an optional request header that fixes the organization for that request. Deprecated server-level configuration fixes it for all requests and rejects client organization headers and tool organization arguments.
+- Organization-aware tools accept an optional `organization` argument when neither server configuration nor the request header fixes the organization. Supplying the argument when the organization is fixed is rejected.
+- Without a default, agents can call `list_organizations` using only their token, then pass the chosen key to subsequent tools.
+
 Clients can also narrow the visible tools per-request by supplying `SONARQUBE_TOOLSETS` and/or `SONARQUBE_READ_ONLY` headers; these apply additional filtering on top of the server-level configuration — they can only reduce the scope, never expand it.
 No session state is maintained between requests.
 
@@ -750,8 +760,6 @@ docker run --init --pull=always -p 127.0.0.1:8443:8443 \
   -e SONARQUBE_TRANSPORT=https \
   -e SONARQUBE_HTTP_HOST=0.0.0.0 \
   -e SONARQUBE_HTTP_PORT=8443 \
-  -e SONARQUBE_TOKEN="<init-token>" \
-  -e SONARQUBE_ORG="<your-org>" \
   sonarsource/sonarqube-mcp
 ```
 
@@ -762,12 +770,13 @@ docker run --init --pull=always -p 8443:8443 \
   -e SONARQUBE_TRANSPORT=https \
   -e SONARQUBE_HTTP_HOST=0.0.0.0 \
   -e SONARQUBE_HTTP_PORT=8443 \
-  -e SONARQUBE_TOKEN="<init-token>" \
-  -e SONARQUBE_ORG="<your-org>" \
   sonarsource/sonarqube-mcp
 ```
 
 **Client Configuration (SonarQube Cloud):**
+
+Optionally set `SONARQUBE_ORG` in client headers to fix the request organization, or omit it to select organizations through tool arguments.
+
 ```json
 {
   "mcpServers": {
@@ -775,7 +784,6 @@ docker run --init --pull=always -p 8443:8443 \
       "url": "https://your-server:8443/mcp",
       "headers": {
         "Authorization": "Bearer <your-token>",
-        "SONARQUBE_ORG": "<your-org>",
         "SONARQUBE_TOOLSETS": "issues,quality-gates",
         "SONARQUBE_READ_ONLY": "true"
       }
@@ -1172,7 +1180,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 ### Projects
 
-- **list_organizations** - List SonarQube Cloud organizations that a user is a member of, including keys, names, IDs, and UUIDs.
+- **list_organizations** - List SonarQube Cloud organizations that a user is a member of, including keys, names, IDs, and UUIDs. Use a returned key as `organization` on subsequent tools.
 
 - **search_my_sonarqube_projects** - Find SonarQube projects. The response is paginated.
   - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
@@ -1352,15 +1360,15 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 <details>
 <summary>Context Augmentation Environment Variables</summary>
 
-| Variable                 | Description                                                        | Required | Default                 |
-|--------------------------|--------------------------------------------------------------------|----------|-------------------------|
-| `SONARQUBE_URL`          | SonarQube Cloud URL                                                | Yes      | `https://sonarcloud.io` |
-| `SONARQUBE_TOKEN`        | Authentication token                                               | Yes      | None                    |
-| `SONARQUBE_ORG`          | Organization key on SonarQube Cloud                                | Yes      | None                    |
-| `SONARQUBE_PROJECT_KEY`  | Project key on SonarQube Cloud                                     | Yes      | None                    |
-| `SONAR_SQ_BRANCH`        | Explicit SonarQube branch override *                               | No       | None                    |
-| `SONARQUBE_DEBUG_ENABLED`| Activate debug logging (for troubleshooting)                       | No       | False                   |
-| `SONAR_LOG_LEVEL`        | Logging verbosity (`TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`)   | No       | `INFO`                  |
+| Variable                  | Description                                                                            | Required | Default                 |
+| ------------------------- | -------------------------------------------------------------------------------------- | -------- | ----------------------- |
+| `SONARQUBE_URL`           | SonarQube Cloud URL                                                                    | Yes      | `https://sonarcloud.io` |
+| `SONARQUBE_TOKEN`         | Authentication token                                                                   | Yes      | None                    |
+| `SONARQUBE_ORG`           | Cloud organization; passed to the proxy from startup configuration or unique detection | No       | None                    |
+| `SONARQUBE_PROJECT_KEY`   | Project key on SonarQube Cloud                                                         | Yes      | None                    |
+| `SONAR_SQ_BRANCH`         | Explicit SonarQube branch override *                                                   | No       | None                    |
+| `SONARQUBE_DEBUG_ENABLED` | Activate debug logging (for troubleshooting)                                           | No       | False                   |
+| `SONAR_LOG_LEVEL`         | Logging verbosity (`TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`)                       | No       | `INFO`                  |
 
 * To be provided when not using git, or when the git branch name doesn't match the branch name in SonarQube.
 

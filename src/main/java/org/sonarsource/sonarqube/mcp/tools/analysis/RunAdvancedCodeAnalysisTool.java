@@ -48,15 +48,15 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private final String configuredProjectKey;
   private final Path configuredWorkspacePath;
 
-  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath) {
-    super(buildToolDefinition(configuredProjectKey), ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
+  public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath, boolean isSonarQubeCloud) {
+    super(buildToolDefinition(configuredProjectKey, isSonarQubeCloud), ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;
   }
 
-  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey) {
-    var builder = ToolDefinitionBuilder.builder()
+  private static McpSchema.Tool buildToolDefinition(@Nullable String configuredProjectKey, boolean isSonarQubeCloud) {
+    var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("SonarQube Vortex Code Analysis")
       .setDescription("Run Vortex analysis on a single file using the server-side engine. " +
@@ -74,13 +74,11 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
-    var serverApi = serverApiProvider.get();
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    serverApi.requireOrganization();
     var organizationKey = serverApi.isSonarQubeCloud()
       ? serverApi.getOrganization()
       : CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER;
-    if (organizationKey == null) {
-      throw new IllegalStateException("run_advanced_code_analysis requires an organization to be configured in MCP (SONARQUBE_ORG).");
-    }
 
     String fileContent;
     try {
