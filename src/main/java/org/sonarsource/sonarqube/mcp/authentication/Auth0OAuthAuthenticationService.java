@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
 public final class Auth0OAuthAuthenticationService implements Function<String, OAuthRequestAuthentication> {
   public static final Set<String> DELEGATION_SCOPES = Set.of("read:all", "write:all");
@@ -48,12 +49,13 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
   private final Cache<CacheKey, CacheEntry> cache;
   private final Semaphore exchanges = new Semaphore(16);
 
-  public Auth0OAuthAuthenticationService(OAuthConfiguration configuration) {
-    this(configuration, Clock.systemUTC());
+  public Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client) {
+    this(configuration, client, Clock.systemUTC());
   }
 
-  private Auth0OAuthAuthenticationService(OAuthConfiguration configuration, Clock clock) {
-    this(configuration, new Auth0TokenVerifier(configuration, clock), new Auth0TokenExchange(configuration), clock);
+  private Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client, Clock clock) {
+    this(configuration, new Auth0TokenVerifier(configuration, new Auth0JwkProvider(configuration.issuer(), client, clock), clock),
+      new Auth0TokenExchange(configuration), clock);
   }
 
   Auth0OAuthAuthenticationService(OAuthConfiguration configuration, Auth0TokenVerifier verifier, Auth0TokenExchange exchange, Clock clock) {
