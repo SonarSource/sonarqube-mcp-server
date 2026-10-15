@@ -223,7 +223,7 @@ public final class McpServerLaunchConfiguration {
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CLOUD_AUDIENCE", null),
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CLIENT_ID", null),
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CLIENT_SECRET", null),
-      Duration.ofSeconds(Long.parseLong(getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CACHE_TTL_SECONDS", "30"))),
+      Duration.ofSeconds(Long.parseLong(getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CACHE_TTL_SECONDS", "60"))),
       Integer.parseInt(getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CACHE_SIZE", "256"))) : null;
     validateOAuthCloudConfiguration(sonarqubeUrlFromEnv);
     this.httpAllowedOrigins = parseAllowedOrigins(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_ALLOWED_ORIGINS, null));
