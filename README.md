@@ -574,21 +574,16 @@ By default, analysis tool `analyze_code_snippet` requires the agent to pass the 
 }
 ```
 
-With a mount, both analysis tools read the project-relative `filePath` directly; `fileContent` is not used.
+With a mount, analysis tools read files directly using `filePath`; `fileContent` is not needed.
 
-Cloud stdio selects one analysis tool at startup, subject to the enabled toolsets:
+On SonarQube Cloud over stdio, analysis is selected at startup (subject to enabled toolsets):
 
-- With a workspace mount, `run_advanced_code_analysis` is selected if any organization accessible to the token has the combined Vortex entitlement. This includes accounts with a mix of entitled and unentitled organizations.
-- Otherwise, `analyze_code_snippet` is selected. Without a workspace mount, pass `fileContent`.
-- Set `SONARQUBE_FORCE_LOCAL_ANALYSIS=true` to select `analyze_code_snippet` for all organizations, including entitled ones. Restart the server after changing this setting.
+- Vortex analysis (`run_advanced_code_analysis`) when a workspace is mounted and at least one accessible organization is entitled. Only entitled organizations can use it.
+- Local analysis otherwise, through SonarQube for IDE if connected or `analyze_code_snippet`. Without a mount, snippet analysis requires `fileContent`.
 
-An explicitly configured, available SonarQube for IDE bridge keeps replacing snippets in the normal local path. The force-local setting selects snippets directly.
+If `SONARQUBE_ORG` is set, only that organization is considered. To use snippets for all organizations, set `SONARQUBE_FORCE_LOCAL_ANALYSIS=true`, enable the `analysis` toolset, and restart.
 
-When `SONARQUBE_ORG` fixes an organization, only that organization's entitlement is considered. For mixed accounts using advanced analysis, an unentitled selection returns the stable error `Vortex is not enabled for the selected SonarQube Cloud organization.` To analyze that organization locally, restart with `SONARQUBE_FORCE_LOCAL_ANALYSIS=true` and the `analysis` toolset enabled.
-
-Cloud stdio reuses the organization UUIDs discovered at startup and caches confirmed Vortex entitlement decisions for the session. Failed checks are not cached; the advanced tool retries them on later calls. Restart the server to refresh entitlements or the selected analysis tool.
-
-Cloud HTTP/HTTPS exposes no analysis tools and does not download analyzers, even with a startup token. SonarQube Server retains local HTTP/HTTPS analysis when a startup `SONARQUBE_TOKEN` is configured, and its existing stdio Vortex and IDE behavior.
+Analysis is unavailable on Cloud over HTTP/HTTPS.
 
 ### Selective Tool Enablement
 
