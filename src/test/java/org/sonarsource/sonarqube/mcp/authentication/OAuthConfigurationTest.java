@@ -35,7 +35,7 @@ class OAuthConfigurationTest {
   private static final String AUDIENCE = "https://api.example.com/";
 
   @Test
-  void it_should_default_to_a_30_second_cache_with_256_entries() {
+  void it_should_default_to_a_60_second_cache_with_256_entries() {
     var configuration = new OAuthConfiguration(ISSUER, RESOURCE, AUDIENCE, "backend", "secret");
 
     assertThat(configuration.issuer()).isEqualTo(ISSUER);
@@ -43,7 +43,7 @@ class OAuthConfigurationTest {
     assertThat(configuration.cloudAudience()).isEqualTo(AUDIENCE);
     assertThat(configuration.clientId()).isEqualTo("backend");
     assertThat(configuration.clientSecret()).isEqualTo("secret");
-    assertThat(configuration.cacheTtl()).isEqualTo(Duration.ofSeconds(30));
+    assertThat(configuration.cacheTtl()).isEqualTo(Duration.ofSeconds(60));
     assertThat(configuration.cacheSize()).isEqualTo(256);
   }
 
@@ -80,17 +80,17 @@ class OAuthConfigurationTest {
     return Stream.of(
       Arguments.of(null, 256),
       Arguments.of(Duration.ofNanos(-1), 256),
-      Arguments.of(Duration.ofSeconds(30).plusNanos(1), 256),
-      Arguments.of(Duration.ofSeconds(60), 256),
-      Arguments.of(Duration.ofSeconds(30), 0),
-      Arguments.of(Duration.ofSeconds(30), 5001));
+      Arguments.of(Duration.ofSeconds(60).plusNanos(1), 256),
+      Arguments.of(Duration.ofSeconds(61), 256),
+      Arguments.of(Duration.ofSeconds(60), 0),
+      Arguments.of(Duration.ofSeconds(60), 5001));
   }
 
   @Test
   void it_should_accept_maximum_cache_bounds() {
-    var configuration = new OAuthConfiguration(ISSUER, RESOURCE, AUDIENCE, "backend", "secret", Duration.ofSeconds(30), 5000);
+    var configuration = new OAuthConfiguration(ISSUER, RESOURCE, AUDIENCE, "backend", "secret", Duration.ofSeconds(60), 5000);
 
-    assertThat(configuration.cacheTtl()).isEqualTo(Duration.ofSeconds(30));
+    assertThat(configuration.cacheTtl()).isEqualTo(Duration.ofSeconds(60));
     assertThat(configuration.cacheSize()).isEqualTo(5000);
   }
 
