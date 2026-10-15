@@ -109,6 +109,7 @@ public class McpSecurityFilter implements Filter {
 
     if (origin != null && isOriginInAllowlist(origin)) {
       httpResponse.setHeader("Access-Control-Allow-Origin", origin);
+      httpResponse.setHeader("Access-Control-Expose-Headers", "WWW-Authenticate");
     } else if (isOptionsRequest) {
       httpResponse.setHeader("Access-Control-Allow-Origin", "*");
     }
