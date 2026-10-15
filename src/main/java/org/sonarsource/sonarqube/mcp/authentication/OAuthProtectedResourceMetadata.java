@@ -34,6 +34,8 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
 
   private static final Logger LOG = LoggerFactory.getLogger(OAuthProtectedResourceMetadata.class);
 
+  // RFC 9728 discovery path for /mcp; deployments can configure an external metadata URL.
+  @SuppressWarnings("java:S1075")
   public static final String PATH = "/.well-known/oauth-protected-resource/mcp";
   private static final Set<String> SUPPORTED_SCOPES = Set.of("read:all", "write:all");
   private final String resource;
@@ -46,31 +48,11 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
   }
 
   public OAuthProtectedResourceMetadata(String resource, String issuer, @Nullable String metadataUrl) {
-    var resourceUri = validatedResourceUri(resource, issuer);
+    var resourceUri = OAuthConfiguration.validatedResourceUri(resource, issuer);
     this.resource = resource;
     this.issuer = issuer;
-    this.metadataUri = metadataUrl == null ? resourceUri.resolve(PATH) : validatedHttpsUri(metadataUrl);
+    this.metadataUri = metadataUrl == null ? resourceUri.resolve(PATH) : OAuthConfiguration.validatedHttpsUri(metadataUrl);
     this.selfHosted = metadataUrl == null;
-  }
-
-  static URI validatedResourceUri(String resource, String issuer) {
-    var resourceUri = validatedHttpsUri(resource);
-    var issuerUri = validatedHttpsUri(issuer);
-    if (!"/mcp".equals(resourceUri.getRawPath()) || !"/".equals(issuerUri.getRawPath())) {
-      throw new IllegalArgumentException("OAuth requires an HTTPS MCP resource ending in /mcp and an Auth0 issuer ending in /");
-    }
-    return resourceUri;
-  }
-
-  private static URI validatedHttpsUri(@Nullable String value) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException("OAuth URL settings must be explicitly configured");
-    }
-    var uri = URI.create(value);
-    if (!"https".equals(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null) {
-      throw new IllegalArgumentException("OAuth URL settings must be HTTPS URLs without credentials, query, or fragment");
-    }
-    return uri;
   }
 
   public boolean isSelfHosted() {
