@@ -26,6 +26,7 @@ import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import reactor.core.publisher.Mono;
 
 /**
@@ -113,11 +114,14 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
     @SuppressWarnings("unchecked")
     var allowedCategories = (Set<ToolCategory>) ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
     var readOnly = Boolean.TRUE.equals(ctx.get(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY));
+    var organization = ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
+    var organizationFixed = organization instanceof String key && !key.isBlank();
 
     return allTools.stream()
       .filter(tool -> isCategoryAllowed(tool, allowedCategories))
       .filter(tool -> tool.isEnabledFor(ctx))
       .map(Tool::definition)
+      .map(definition -> organizationFixed ? ToolDefinitionBuilder.withoutOrganization(definition) : definition)
       .filter(definition -> !readOnly || (definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint())))
       .toList();
   }

@@ -42,7 +42,7 @@ class HttpServerTransportIntegrationTest {
   @BeforeEach
   void setUp() {
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
+    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
   }
 
@@ -163,7 +163,7 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_allow_authenticated_mcp_with_external_origin_on_container_binding() throws Exception {
     var containerPort = findAvailablePort();
-    var containerServer = new HttpServerTransportProvider(containerPort, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+    var containerServer = new HttpServerTransportProvider(containerPort, "0.0.0.0", AuthMode.TOKEN, false, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
 
     try {
@@ -192,7 +192,7 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_reject_unauthenticated_external_origin_on_non_mcp_path() throws Exception {
     var containerPort = findAvailablePort();
-    var containerServer = new HttpServerTransportProvider(containerPort, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+    var containerServer = new HttpServerTransportProvider(containerPort, "0.0.0.0", AuthMode.TOKEN, false, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
 
     try {
@@ -242,7 +242,7 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_use_custom_host_and_port() {
     var customPort = findAvailablePort();
-    var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
+    var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1", AuthMode.TOKEN, false, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
 
     try {
