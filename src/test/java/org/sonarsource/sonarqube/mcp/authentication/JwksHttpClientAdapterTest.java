@@ -53,7 +53,7 @@ class JwksHttpClientAdapterTest {
 
   @ParameterizedTest
   @ValueSource(ints = {302, 401, 403, 500, 503})
-  void it_should_reject_http_errors_and_close_the_response(int status) throws Exception {
+  void it_should_reject_http_errors_and_close_the_response(int status) {
     var response = mock(HttpClient.Response.class);
     when(response.isSuccessful()).thenCallRealMethod();
     when(response.code()).thenReturn(status);
