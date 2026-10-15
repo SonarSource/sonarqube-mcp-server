@@ -37,7 +37,7 @@ class McpServerLaunchConfigurationHttpTest {
 
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("SONARQUBE_ORG cannot be configured on an HTTP server. Use the optional SONARQUBE_ORG request header or tool organization argument.");
+      .hasMessage("SONARQUBE_ORG cannot be configured on an HTTP server. Use the tool organization argument, or the optional SONARQUBE_ORG request header in TOKEN mode.");
   }
 
   @ParameterizedTest
