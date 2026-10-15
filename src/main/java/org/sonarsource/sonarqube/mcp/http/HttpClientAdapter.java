@@ -49,7 +49,7 @@ class HttpClientAdapter implements HttpClient {
   @Nullable
   private final String apiKey;
 
-  static ScheduledThreadPoolExecutor createDeadlineScheduler() {
+  private static ScheduledThreadPoolExecutor createDeadlineScheduler() {
     var scheduler = new ScheduledThreadPoolExecutor(1, runnable -> {
       var thread = new Thread(runnable, "sonarqube-mcp-http-deadlines");
       thread.setDaemon(true);

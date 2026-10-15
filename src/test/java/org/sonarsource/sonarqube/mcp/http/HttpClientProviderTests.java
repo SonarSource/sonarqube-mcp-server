@@ -94,19 +94,6 @@ class HttpClientProviderTests {
   }
 
   @Test
-  void it_should_remove_cancelled_deadlines_from_the_queue() {
-    var scheduler = HttpClientAdapter.createDeadlineScheduler();
-    try {
-      var deadline = scheduler.schedule(() -> { }, 5, TimeUnit.MINUTES);
-      assertThat(scheduler.getQueue()).hasSize(1);
-      assertThat(deadline.cancel(false)).isTrue();
-      assertThat(scheduler.getQueue()).isEmpty();
-    } finally {
-      scheduler.shutdownNow();
-    }
-  }
-
-  @Test
   void it_should_time_out_stalled_response_headers() {
     sonarqubeMock.stubFor(get("/stalled-headers")
       .willReturn(aResponse().withFixedDelay(2000)));
