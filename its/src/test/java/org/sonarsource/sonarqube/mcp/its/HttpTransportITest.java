@@ -61,6 +61,7 @@ class HttpTransportITest {
     return McpServerTestContainers.builder()
       .withExposedPort(MCP_HTTP_PORT)
       .withEnv("SONARQUBE_TRANSPORT", "http")
+      .withEnv("SONARQUBE_ORG", "")
       .withEnv("SONARQUBE_HTTP_PORT", String.valueOf(MCP_HTTP_PORT))
       .withEnv("SONARQUBE_HTTP_HOST", "0.0.0.0")
       .withAdditionalApkPackages("wget", "nodejs")
