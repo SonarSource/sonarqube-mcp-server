@@ -53,7 +53,7 @@ class McpServerLaunchConfigurationOAuthTest {
     assertThat(oauth.issuer()).isEqualTo("https://login.example.com/");
     assertThat(oauth.cloudAudience()).isEqualTo("https://api.example.com/");
     assertThat(oauth.clientId()).isEqualTo("mcp-backend");
-    assertThat(oauth.cacheTtl()).isEqualTo(Duration.ofSeconds(30));
+    assertThat(oauth.cacheTtl()).isEqualTo(Duration.ofSeconds(60));
     assertThat(oauth.cacheSize()).isEqualTo(256);
     assertThat(oauth.toString()).doesNotContain("client-secret");
     assertThat(configuration.getOAuthMetadata()).isNotNull();
@@ -86,7 +86,7 @@ class McpServerLaunchConfigurationOAuthTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"0, 1", "30, 5000", "10, 100"})
+  @CsvSource({"0, 1", "60, 5000", "10, 100"})
   void it_should_apply_bounded_cache_settings(int ttl, int size) {
     var environment = oauthEnvironment();
     environment.put("SONARQUBE_OAUTH_CACHE_TTL_SECONDS", Integer.toString(ttl));
@@ -100,7 +100,7 @@ class McpServerLaunchConfigurationOAuthTest {
 
   @ParameterizedTest
   @CsvSource({
-    "SONARQUBE_OAUTH_CACHE_TTL_SECONDS, -1", "SONARQUBE_OAUTH_CACHE_TTL_SECONDS, 31",
+    "SONARQUBE_OAUTH_CACHE_TTL_SECONDS, -1", "SONARQUBE_OAUTH_CACHE_TTL_SECONDS, 61",
     "SONARQUBE_OAUTH_CACHE_SIZE, 0", "SONARQUBE_OAUTH_CACHE_SIZE, 5001",
     "SONARQUBE_OAUTH_CACHE_TTL_SECONDS, invalid", "SONARQUBE_OAUTH_CACHE_SIZE, 2147483648"
   })
