@@ -25,9 +25,12 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.function.Function;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.transport.OAuthScopeContext;
+import org.sonarsource.sonarqube.mcp.transport.OAuthScopeResponseWrapper;
 
 /**
  * Authentication filter for the stateless MCP HTTP transport.
@@ -43,10 +46,10 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
  * <ul>
  *   <li>TOKEN (default) - Client must provide a SonarQube token via {@code Authorization: Bearer <token>}
  *       (or the deprecated {@code SONARQUBE_TOKEN} header) on every request</li>
- *   <li>OAUTH - OAuth 2.1 with PKCE (not yet implemented)</li>
+ *   <li>OAUTH - Verified MCP access tokens exchanged for scoped Cloud credentials</li>
  * </ul>
  * <p>
- * The optional SONARQUBE_ORG header selects a fixed request organization.
+ * In TOKEN mode the optional SONARQUBE_ORG header selects a fixed request organization.
  */
 public class AuthenticationFilter implements Filter {
 
@@ -56,10 +59,24 @@ public class AuthenticationFilter implements Filter {
   private static final String SONARQUBE_TOKEN_HEADER = McpServerLaunchConfiguration.SONARQUBE_TOKEN;
   private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
 
+  public static final String OAUTH_AUTHENTICATION_ATTRIBUTE = AuthenticationFilter.class.getName() + ".oauth";
+  public static final String OAUTH_SCOPE_ATTRIBUTE = AuthenticationFilter.class.getName() + ".scopes";
+
   private final AuthMode authMode;
+  @Nullable
+  private final OAuthProtectedResourceMetadata oauthMetadata;
+  @Nullable
+  private final Function<String, OAuthRequestAuthentication> oauthAuthenticator;
 
   public AuthenticationFilter(AuthMode authMode) {
+    this(authMode, null, null);
+  }
+
+  public AuthenticationFilter(AuthMode authMode, @Nullable OAuthProtectedResourceMetadata oauthMetadata,
+    @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
     this.authMode = authMode;
+    this.oauthMetadata = oauthMetadata;
+    this.oauthAuthenticator = oauthAuthenticator;
     LOG.info("Authentication filter initialized with mode: " + authMode);
   }
 
@@ -74,7 +91,7 @@ public class AuthenticationFilter implements Filter {
     var httpRequest = (HttpServletRequest) req;
     var httpResponse = (HttpServletResponse) resp;
 
-    if ("OPTIONS".equals(httpRequest.getMethod())) {
+    if ("OPTIONS".equals(httpRequest.getMethod()) || isLocalMetadataRequest(httpRequest)) {
       filterChain.doFilter(req, resp);
       return;
     }
@@ -94,13 +111,74 @@ public class AuthenticationFilter implements Filter {
     }
 
     if (authMode == AuthMode.OAUTH) {
-      LOG.warn("OAuth authentication attempted but not yet implemented");
-      sendUnauthorizedResponse(httpResponse, "OAuth authentication not yet implemented");
+      authenticateOAuth(httpRequest, httpResponse, filterChain);
       return;
     }
 
     LOG.warn("Unsupported authentication mode: " + authMode);
     sendUnauthorizedResponse(httpResponse, "Unsupported authentication mode");
+  }
+
+  private boolean isLocalMetadataRequest(HttpServletRequest request) {
+    return authMode == AuthMode.OAUTH && oauthMetadata != null && oauthMetadata.isSelfHosted()
+      && OAuthProtectedResourceMetadata.PATH.equals(request.getRequestURI())
+      && ("GET".equals(request.getMethod()) || "HEAD".equals(request.getMethod()));
+  }
+
+  private void authenticateOAuth(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+    response.setHeader("Cache-Control", "no-store");
+    if (oauthMetadata == null || oauthAuthenticator == null) {
+      sendOAuthError(response, OAuthAuthenticationException.unavailable(), false);
+      return;
+    }
+    var headers = request.getHeaders(AUTHORIZATION_HEADER);
+    if (headers == null || !headers.hasMoreElements()) {
+      sendOAuthError(response, OAuthAuthenticationException.unauthorized(), false);
+      return;
+    }
+    var header = headers.nextElement();
+    var token = bearerToken(header);
+    if (headers.hasMoreElements() || token == null || !token.matches("[A-Za-z0-9._~+/-]+=*")) {
+      sendOAuthError(response, OAuthAuthenticationException.unauthorized(), true);
+      return;
+    }
+    if (request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG) != null) {
+      sendBadRequestResponse(response, "SONARQUBE_ORG is not supported in OAuth mode. Use the tool organization argument.");
+      return;
+    }
+    if (!validateReadOnly(request, response)) {
+      return;
+    }
+    OAuthRequestAuthentication authentication;
+    try {
+      authentication = oauthAuthenticator.apply(token);
+      if (authentication == null) {
+        throw OAuthAuthenticationException.unavailable();
+      }
+    } catch (OAuthAuthenticationException e) {
+      sendOAuthError(response, e, true);
+      return;
+    }
+    var scopes = new OAuthScopeContext(authentication.scopes());
+    request.setAttribute(OAUTH_AUTHENTICATION_ATTRIBUTE, authentication);
+    request.setAttribute(OAUTH_SCOPE_ATTRIBUTE, scopes);
+    chain.doFilter(request, new OAuthScopeResponseWrapper(response, scopes, oauthMetadata));
+  }
+
+  private void sendOAuthError(HttpServletResponse response, OAuthAuthenticationException error, boolean tokenProvided) throws IOException {
+    response.setStatus(error.status());
+    response.setContentType("application/json");
+    response.setHeader("Cache-Control", "no-store");
+    if (oauthMetadata != null && (error.status() == 401 || error.status() == 403)) {
+      var challenge = oauthMetadata.challenge();
+      if (error.status() == 403) {
+        challenge += ", error=\"insufficient_scope\"";
+      } else if (tokenProvided) {
+        challenge += ", error=\"invalid_token\"";
+      }
+      response.setHeader("WWW-Authenticate", challenge);
+    }
+    response.getWriter().write(jsonRpcError(error.getMessage()));
   }
 
   @Override
@@ -146,8 +224,12 @@ public class AuthenticationFilter implements Filter {
    */
   @Nullable
   private static String extractBearerToken(HttpServletRequest request) {
-    var authHeader = request.getHeader(AUTHORIZATION_HEADER);
-    if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+    return bearerToken(request.getHeader(AUTHORIZATION_HEADER));
+  }
+
+  @Nullable
+  private static String bearerToken(@Nullable String authHeader) {
+    if (authHeader == null || !authHeader.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
       return null;
     }
     return authHeader.substring(BEARER_PREFIX.length());
