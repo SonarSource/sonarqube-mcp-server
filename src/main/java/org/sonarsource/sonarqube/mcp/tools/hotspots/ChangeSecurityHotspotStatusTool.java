@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.hotspots;
 
+import java.util.Set;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -53,6 +54,11 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
       .build(),
       ToolCategory.SECURITY_HOTSPOTS);
     this.serverApiProvider = serverApiProvider;
+  }
+
+  @Override
+  public Set<String> requiredOAuthScopes() {
+    return Set.of("write:all");
   }
 
   @Override
