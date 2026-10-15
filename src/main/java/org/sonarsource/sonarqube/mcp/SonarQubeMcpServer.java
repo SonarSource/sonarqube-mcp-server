@@ -52,7 +52,6 @@ import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.plugins.PluginsSynchronizer;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
-import org.sonarsource.sonarqube.mcp.serverapi.OrgFeatureEntitlements;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -309,9 +308,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       this.resolvedOrganization = ResolvedOrganization.fromKey(configuredOrgKey);
     }
     this.serverApi = initializeServerApi(mcpConfiguration);
-    resolveOrganizationAtStartup();
+    var organizations = resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-    var orgFeatureEntitlements = new OrgFeatureEntitlements(serverApi);
+    var orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
+    organizations.forEach(orgFeatureEntitlements::cacheOrganizationUuid);
     loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
@@ -329,8 +329,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var vortexEnabledForOrg = !mcpConfiguration.isHttpEnabled()
       && vortexRelevantToolsetEnabled
       && orgFeatureEntitlements.isVortexEnabledForOrg(resolvedOrganization);
+    var vortexAnalysisEnabled = isVortexAnalysisEnabled(organizations, vortexRelevantToolsetEnabled, vortexEnabledForOrg);
 
-    if (vortexEnabledForOrg && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
+    if ((vortexEnabledForOrg || vortexAnalysisEnabled) && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
       LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
       composedInstructions += VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS;
     }
@@ -350,21 +351,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     // Agentic readiness tools
     loadSaraTools();
 
-    var workspaceMount = mcpConfiguration.getWorkspacePath();
-
-    if (vortexEnabledForOrg) {
-      if (workspaceMount != null) {
-        LOG.info("Vortex analysis mode enabled");
-        supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount, mcpConfiguration.isSonarQubeCloud()));
-      } else {
-        LOG.info("Vortex analysis mode enabled, but no workspace path configured, skipping tool registration");
-      }
-    }
-    if (!vortexEnabledForOrg && (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null)) {
-      // In HTTP mode, analysis tools requiring local analyzers are only enabled when a startup
-      // token is configured (so plugins can be downloaded at startup).
-      loadBackendDependentTools();
-    }
+    loadAnalysisTools(vortexAnalysisEnabled);
 
     logToolsLoaded();
   }
@@ -372,7 +359,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * Downloads analyzers in background and restarts the backend with them.
    * Tools are already loaded synchronously during startup.
-   * Skips analyzer download if ANALYSIS tools are disabled or advanced analysis mode is enabled.
+   * Downloads analyzers only when the local analysis tool is enabled.
    */
   private void initializeBackgroundServices() {
     try {
@@ -383,23 +370,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         connectionContext.resolveFrom(serverApi);
       }
 
-      // Check if ANALYSIS tools are enabled before downloading analyzers
-      if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)) {
-        LOG.info("Analysis tools are disabled - skipping analyzers download");
-        initializationFuture.complete(null);
-        return;
-      }
-
-      // In HTTP mode without a startup token, plugins cannot be downloaded.
-      if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null) {
-        LOG.info("HTTP mode without startup token - skipping analyzers download (set SONARQUBE_TOKEN at server level to enable local analysis in HTTP mode)");
-        initializationFuture.complete(null);
-        return;
-      }
-
-      // Skip analyzer download when the local analysis tool is not present
-      if (supportedTools.stream().noneMatch(AnalyzeCodeSnippetTool.class::isInstance)) {
-        LOG.info("Local analysis tool is not present - skipping analyzers download");
+      if (filterForEnabledTools(supportedTools).stream().noneMatch(AnalyzeCodeSnippetTool.class::isInstance)) {
+        LOG.info("Local analysis tool is not enabled - skipping analyzers download");
         initializationFuture.complete(null);
         return;
       }
@@ -494,9 +466,46 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (!useIdeBridge) {
       LOG.info("Standard analysis mode (no IDE bridge)");
-      supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey(), mcpConfiguration.getWorkspacePath(),
-        mcpConfiguration.isSonarQubeCloud()));
+      loadLocalAnalysisTool();
     }
+  }
+
+  private boolean isVortexAnalysisEnabled(List<ResolvedOrganization> organizations, boolean vortexRelevantToolsetEnabled, boolean vortexEnabledForOrg) {
+    if (!mcpConfiguration.isSonarQubeCloud()) {
+      return vortexEnabledForOrg;
+    }
+    return !mcpConfiguration.isHttpEnabled() && !mcpConfiguration.isForceLocalAnalysis() && mcpConfiguration.getWorkspacePath() != null
+      && vortexRelevantToolsetEnabled && (resolvedOrganization != null ? vortexEnabledForOrg
+        : organizations.stream().anyMatch(org -> serverApi.orgFeatureEntitlements().isVortexEnabledForOrg(org)));
+  }
+
+  private void loadAnalysisTools(boolean vortexAnalysisEnabled) {
+    if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isHttpEnabled()) {
+      LOG.debug("Cloud HTTP mode - skipping analysis tool registration");
+      return;
+    }
+    if (vortexAnalysisEnabled) {
+      loadAdvancedAnalysisTool();
+    } else if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isForceLocalAnalysis()) {
+      loadLocalAnalysisTool();
+    } else if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
+      loadBackendDependentTools();
+    }
+  }
+
+  private void loadAdvancedAnalysisTool() {
+    var workspaceMount = mcpConfiguration.getWorkspacePath();
+    if (workspaceMount != null) {
+      LOG.info("Advanced analysis tool registered");
+      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount, mcpConfiguration.isSonarQubeCloud()));
+    } else {
+      LOG.info("No workspace path configured; advanced analysis tool is not registered");
+    }
+  }
+
+  private void loadLocalAnalysisTool() {
+    supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey(),
+      mcpConfiguration.getWorkspacePath(), mcpConfiguration.isSonarQubeCloud()));
   }
 
   private void logToolsLoaded() {
@@ -659,7 +668,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.debug("=== Debug Level Configuration Details ===");
     httpClientProvider.logConnectionSettings();
     LOG.debug("Enabled toolsets: " + mcpConfiguration.getEnabledToolsets());
-    LOG.debug("Advanced analysis: " + supportedTools.stream().anyMatch(RunAdvancedCodeAnalysisTool.class::isInstance));
+    LOG.debug("Advanced analysis tool registered: " + supportedTools.stream().anyMatch(RunAdvancedCodeAnalysisTool.class::isInstance));
     LOG.debug("Telemetry enabled: " + mcpConfiguration.isTelemetryEnabled());
     LOG.debug("App version: " + mcpConfiguration.getAppVersion());
     LOG.debug("Storage path: " + mcpConfiguration.getStoragePath());
@@ -713,14 +722,18 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   /**
    * Auto-detects the SonarQube Cloud organization in stdio mode when {@code SONARQUBE_ORG} is unset.
    * When the token belongs to exactly one organization it is adopted and the startup {@link ServerApi} is rebuilt.
+   * Returns the relevant organizations with their discovered UUIDs for startup analysis selection.
    */
-  private void resolveOrganizationAtStartup() {
-    if (resolvedOrganization != null || mcpConfiguration.isHttpEnabled() || !mcpConfiguration.isSonarQubeCloud()) {
-      return;
+  private List<ResolvedOrganization> resolveOrganizationAtStartup() {
+    if (mcpConfiguration.isHttpEnabled() || !mcpConfiguration.isSonarQubeCloud()) {
+      return List.of();
+    }
+    if (resolvedOrganization != null) {
+      return List.of(resolvedOrganization);
     }
     var token = mcpConfiguration.getSonarQubeToken();
     if (token == null || serverApi == null) {
-      return;
+      return List.of();
     }
     List<OrganizationsApi.Organization> organizations;
     try {
@@ -737,6 +750,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     } else {
       LOG.info("SonarQube Cloud organization is unresolved; use list_organizations and the organization tool argument.");
     }
+    return organizations.stream().map(ResolvedOrganization::from).toList();
   }
 
   private ServerApi createServerApiWithToken(@Nullable String token) {
