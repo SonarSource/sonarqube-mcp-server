@@ -48,10 +48,16 @@ public class ServerApi {
 
   private final ServerApiHelper helper;
   private final boolean isSonarQubeCloud;
+  private final OrgFeatureEntitlements orgFeatureEntitlements;
 
   public ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud) {
+    this(helper, isSonarQubeCloud, null);
+  }
+
+  private ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud, @Nullable OrgFeatureEntitlements sharedEntitlements) {
     this.helper = helper;
     this.isSonarQubeCloud = isSonarQubeCloud;
+    this.orgFeatureEntitlements = sharedEntitlements == null ? new OrgFeatureEntitlements(this) : sharedEntitlements;
   }
 
   public QualityGatesApi qualityGatesApi() {
@@ -158,8 +164,13 @@ public class ServerApi {
     return new OrganizationsApi(helper);
   }
 
+  public OrgFeatureEntitlements orgFeatureEntitlements() {
+    return orgFeatureEntitlements;
+  }
+
   public ServerApi withOrganization(String organization) {
-    return isSonarQubeCloud ? new ServerApi(helper.withOrganization(organization), true) : this;
+    // Selections share stdio session caches. HTTP starts with a fresh ServerApi for every request.
+    return isSonarQubeCloud ? new ServerApi(helper.withOrganization(organization), true, orgFeatureEntitlements) : this;
   }
 
   public void requireOrganization() {
