@@ -75,6 +75,23 @@ class HttpClientProviderTests {
   }
 
   @Test
+  void it_should_fetch_anonymously_without_following_redirects() {
+    sonarqubeMock.stubFor(get("/issuer-keys").willReturn(aResponse().withStatus(302)
+      .withHeader("Location", sonarqubeMock.url("/redirected-keys"))));
+    var provider = new HttpClientProvider(USER_AGENT);
+    try {
+      try (var response = provider.getHttpClient("private-token").getAsyncAnonymousWithoutRedirects(sonarqubeMock.url("/issuer-keys")).join()) {
+        assertThat(response.code()).isEqualTo(302);
+      }
+      sonarqubeMock.verify(getRequestedFor(urlEqualTo("/issuer-keys"))
+        .withoutHeader("Authorization"));
+      sonarqubeMock.verify(0, getRequestedFor(urlEqualTo("/redirected-keys")));
+    } finally {
+      provider.shutdown();
+    }
+  }
+
+  @Test
   void it_should_preserve_post_on_permanent_moved_status() {
     sonarqubeMock.stubFor(post("/afterMove").willReturn(aResponse()));
     sonarqubeMock.stubFor(post("/permanentMoved")

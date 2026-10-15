@@ -16,27 +16,32 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
-import com.auth0.jwk.Jwk;
-import com.auth0.jwk.JwkProvider;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.google.gson.Gson;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.MutableClock;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.CONFIGURATION;
@@ -48,14 +53,15 @@ import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.sign
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.token;
 
 class Auth0TokenVerifierTest {
+  private static final String JWKS_URL = CONFIGURATION.issuer() + ".well-known/jwks.json";
   private final MutableClock clock = new MutableClock();
-  private final JwkProvider keys = mock(JwkProvider.class);
+  private final HttpClient client = mock(HttpClient.class);
   private Auth0TokenVerifier verifier;
 
   @BeforeEach
-  void prepare() throws Exception {
-    when(keys.get("key")).thenReturn(Jwk.fromValues(keyValues("key", KEY)));
-    verifier = new Auth0TokenVerifier(CONFIGURATION, keys, clock);
+  void prepare() {
+    serveKeys(List.of(keyValues("key", KEY)));
+    verifier = new Auth0TokenVerifier(CONFIGURATION, new Auth0JwkProvider(CONFIGURATION.issuer(), client, clock), clock);
   }
 
   @Test
@@ -69,6 +75,19 @@ class Auth0TokenVerifierTest {
     clock.advance(Duration.ofSeconds(299));
     assertFailure(() -> verifier.verifyMcp(mcp), 401);
     assertFailure(() -> verifier.verifyCloud(cloud), 502);
+  }
+
+  @Test
+  void it_should_validate_each_token_independently_with_cached_signing_keys() {
+    assertThat(verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withSubject("first-user"))).getSubject()).isEqualTo("first-user");
+
+    var forged = token(CONFIGURATION.resource()).sign(Algorithm.RSA256((RSAPublicKey) OTHER_KEY.getPublic(), (RSAPrivateKey) OTHER_KEY.getPrivate()));
+    assertFailure(() -> verifier.verifyMcp(forged), 401);
+    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withExpiresAt(NOW))), 401);
+    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.cloudAudience()))), 401);
+
+    assertThat(verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withSubject("second-user"))).getSubject()).isEqualTo("second-user");
+    verify(client, times(1)).getAsyncAnonymousWithoutRedirects(JWKS_URL);
   }
 
   @Test
@@ -89,7 +108,7 @@ class Auth0TokenVerifierTest {
   void it_should_reject_unexpected_algorithms_before_fetching_a_key() {
     assertFailure(() -> verifier.verifyMcp(token(CONFIGURATION.resource()).sign(Algorithm.none())), 401);
     assertFailure(() -> verifier.verifyMcp(token(CONFIGURATION.resource()).sign(Algorithm.HMAC256("secret"))), 401);
-    verifyNoInteractions(keys);
+    verifyNoInteractions(client);
   }
 
   @ParameterizedTest
@@ -131,7 +150,7 @@ class Auth0TokenVerifierTest {
   void it_should_reject_missing_or_malformed_tokens(String value) {
     assertFailure(() -> verifier.verifyMcp(value), 401);
     assertFailure(() -> verifier.verifyCloud(value), 502);
-    verifyNoInteractions(keys);
+    verifyNoInteractions(client);
   }
 
   @ParameterizedTest
@@ -145,13 +164,13 @@ class Auth0TokenVerifierTest {
       assertFailure(() -> verifier.verifyMcp(untrusted), 401);
       assertFailure(() -> verifier.verifyCloud(untrusted), 502);
     }
-    verifyNoInteractions(keys);
+    verifyNoInteractions(client);
   }
 
   @Test
   void it_should_reject_oversized_tokens_before_fetching_a_key() {
     assertFailure(() -> verifier.verifyMcp("x".repeat(16385)), 401);
-    verifyNoInteractions(keys);
+    verifyNoInteractions(client);
   }
 
   @ParameterizedTest
@@ -159,58 +178,56 @@ class Auth0TokenVerifierTest {
   @ValueSource(strings = {" "})
   void it_should_reject_missing_or_blank_key_ids(String keyId) {
     assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withKeyId(keyId))), 401);
-    verifyNoInteractions(keys);
+    verifyNoInteractions(client);
   }
 
   @Test
   void it_should_reject_oversized_key_ids_before_fetching_a_key() {
     assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withKeyId("k".repeat(257)))), 401);
-    verifyNoInteractions(keys);
+    verifyNoInteractions(client);
   }
 
   @Test
-  void it_should_reject_keys_for_a_different_algorithm() throws Exception {
+  void it_should_reject_keys_for_a_different_algorithm() {
     var values = new HashMap<>(keyValues("key", KEY));
     values.put("alg", "RS512");
-    when(keys.get("key")).thenReturn(Jwk.fromValues(values));
+    serveKeys(List.of(values));
 
     assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()))), 401);
   }
 
   @Test
-  void it_should_allow_rsa_keys_without_an_algorithm_declaration() throws Exception {
+  void it_should_allow_rsa_keys_without_an_algorithm_declaration() {
     var values = new HashMap<>(keyValues("key", KEY));
     values.remove("alg");
-    when(keys.get("key")).thenReturn(Jwk.fromValues(values));
+    serveKeys(List.of(values));
 
     assertThat(verifier.verifyMcp(sign(token(CONFIGURATION.resource()))).getSubject()).isNotBlank();
   }
 
   @Test
-  void it_should_reject_non_rsa_public_keys() throws Exception {
-    var jwk = mock(Jwk.class);
-    var publicKey = mock(ECPublicKey.class);
-    when(jwk.getType()).thenReturn("RSA");
-    when(jwk.getPublicKey()).thenReturn(publicKey);
-    when(keys.get("key")).thenReturn(jwk);
+  void it_should_reject_malformed_rsa_keys_at_the_provider_boundary() {
+    var values = new HashMap<>(keyValues("key", KEY));
+    values.put("n", "invalid base64!");
+    serveKeys(List.of(values));
 
-    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()))), 401);
+    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()))), 503);
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"n", "e"})
-  void it_should_sanitize_unchecked_key_material_failures(String missingField) throws Exception {
+  void it_should_sanitize_unchecked_key_material_failures(String missingField) {
     var incomplete = new HashMap<>(keyValues("key", KEY));
     incomplete.remove(missingField);
-    when(keys.get("key")).thenReturn(Jwk.fromValues(incomplete));
+    serveKeys(List.of(incomplete));
 
     assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()))), 503);
     assertFailure(() -> verifier.verifyCloud(sign(token(CONFIGURATION.cloudAudience()))), 503);
   }
 
   @Test
-  void it_should_preserve_service_unavailable_for_both_token_types() throws Exception {
-    when(keys.get("key")).thenThrow(OAuthAuthenticationException.unavailable());
+  void it_should_preserve_service_unavailable_for_both_token_types() {
+    when(client.getAsyncAnonymousWithoutRedirects(JWKS_URL)).thenReturn(CompletableFuture.failedFuture(new IOException("private upstream failure")));
 
     assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()))), 503);
     assertFailure(() -> verifier.verifyCloud(sign(token(CONFIGURATION.cloudAudience()))), 503);
@@ -222,6 +239,13 @@ class Auth0TokenVerifierTest {
 
     assertThatThrownBy(() -> verifier.verifyMcp(credential)).isInstanceOf(OAuthAuthenticationException.class)
       .hasMessage("A valid MCP OAuth access token is required").hasNoCause();
+  }
+
+  private void serveKeys(List<Map<String, Object>> keys) {
+    var response = mock(HttpClient.Response.class);
+    when(response.isSuccessful()).thenReturn(true);
+    when(response.bodyAsString()).thenReturn(new Gson().toJson(Map.of("keys", keys)));
+    when(client.getAsyncAnonymousWithoutRedirects(JWKS_URL)).thenReturn(CompletableFuture.completedFuture(response));
   }
 
   private static void assertFailure(Runnable operation, int status) {

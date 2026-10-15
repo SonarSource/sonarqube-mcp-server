@@ -16,23 +16,29 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import com.auth0.jwk.InvalidPublicKeyException;
 import com.auth0.jwk.Jwk;
 import com.auth0.jwk.JwkException;
-import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.UrlJwkProvider;
+import com.auth0.jwt.interfaces.RSAKeyProvider;
 import jakarta.annotation.Nullable;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
-final class Auth0JwkProvider implements JwkProvider {
+final class Auth0JwkProvider implements RSAKeyProvider {
   private static final Duration SNAPSHOT_TTL = Duration.ofHours(1);
   private static final Duration REFRESH_WINDOW = Duration.ofMinutes(1);
   private static final int MAX_REFRESH_ATTEMPTS = 10;
@@ -40,19 +46,18 @@ final class Auth0JwkProvider implements JwkProvider {
   private final UrlJwkProvider provider;
   private final Clock clock;
   private final ArrayDeque<Instant> refreshAttempts = new ArrayDeque<>();
-  private final AtomicReference<Refresh> refresh = new AtomicReference<>(new Refresh(new Snapshot(Map.of(), Instant.MIN), null));
+  private final AtomicReference<Refresh> refresh = new AtomicReference<>(new Refresh(new Snapshot(Map.of(), Set.of(), Instant.MIN), null));
 
-  Auth0JwkProvider(String issuer, Clock clock) {
-    this(urlProvider(issuer), clock);
-  }
-
-  Auth0JwkProvider(UrlJwkProvider provider, Clock clock) {
-    this.provider = provider;
+  Auth0JwkProvider(String issuer, HttpClient client, Clock clock) {
+    this.provider = urlProvider(issuer, client);
     this.clock = clock;
   }
 
   @Override
-  public Jwk get(String keyId) {
+  public RSAPublicKey getPublicKeyById(@Nullable String keyId) {
+    if (keyId == null || keyId.isBlank() || keyId.length() > 256) {
+      throw OAuthAuthenticationException.unauthorized();
+    }
     var observed = refresh.get();
     var known = observed.snapshot().find(keyId, clock.instant());
     if (known != null) {
@@ -75,6 +80,18 @@ final class Auth0JwkProvider implements JwkProvider {
     }
   }
 
+  @Override
+  @Nullable
+  public RSAPrivateKey getPrivateKey() {
+    return null;
+  }
+
+  @Override
+  @Nullable
+  public String getPrivateKeyId() {
+    return null;
+  }
+
   private Refresh refresh(Snapshot previous) {
     var now = clock.instant();
     while (!refreshAttempts.isEmpty() && !refreshAttempts.getFirst().isAfter(now.minus(REFRESH_WINDOW))) {
@@ -85,32 +102,42 @@ final class Auth0JwkProvider implements JwkProvider {
     }
     refreshAttempts.addLast(now);
     try {
-      var fetched = provider.getAll();
-      for (var key : fetched) {
-        if ("RSA".equals(key.getType()) && (key.getAlgorithm() == null || "RS256".equals(key.getAlgorithm()))) {
-          key.getPublicKey();
+      var fetched = provider.getAll().stream().collect(Collectors.toUnmodifiableMap(Jwk::getId, Function.identity()));
+      var keys = new HashMap<String, RSAPublicKey>();
+      for (var jwk : fetched.values()) {
+        if ("RSA".equals(jwk.getType()) && (jwk.getAlgorithm() == null || "RS256".equals(jwk.getAlgorithm()))) {
+          if (!(jwk.getPublicKey() instanceof RSAPublicKey key)) {
+            throw new InvalidPublicKeyException("Invalid RSA signing key");
+          }
+          keys.put(jwk.getId(), key);
         }
       }
-      var keys = fetched.stream().collect(Collectors.toUnmodifiableMap(Jwk::getId, Function.identity()));
-      return new Refresh(new Snapshot(keys, clock.instant().plus(SNAPSHOT_TTL)), null);
+      return new Refresh(new Snapshot(Map.copyOf(keys), Set.copyOf(fetched.keySet()), clock.instant().plus(SNAPSHOT_TTL)), null);
     } catch (JwkException | RuntimeException e) {
       // Retain a still-fresh snapshot, but never extend its lifetime after a failed fetch.
       return new Refresh(previous, OAuthAuthenticationException.unavailable());
     }
   }
 
-  private static UrlJwkProvider urlProvider(String issuer) {
+  private static UrlJwkProvider urlProvider(String issuer, HttpClient client) {
     try {
-      return new UrlJwkProvider(URI.create(issuer).resolve(".well-known/jwks.json").toURL(), 5000, 5000);
+      return new UrlJwkProvider(URI.create(issuer).resolve(".well-known/jwks.json").toURL(), new JwksHttpClientAdapter(client));
     } catch (MalformedURLException e) {
       throw new IllegalArgumentException("Invalid OAuth issuer URL");
     }
   }
 
-  private record Snapshot(Map<String, Jwk> keys, Instant expiresAt) {
+  private record Snapshot(Map<String, RSAPublicKey> keys, Set<String> knownKeyIds, Instant expiresAt) {
     @Nullable
-    Jwk find(String keyId, Instant now) {
-      return now.isBefore(expiresAt) ? keys.get(keyId) : null;
+    RSAPublicKey find(String keyId, Instant now) {
+      if (!now.isBefore(expiresAt)) {
+        return null;
+      }
+      var key = keys.get(keyId);
+      if (key == null && knownKeyIds.contains(keyId)) {
+        throw OAuthAuthenticationException.unauthorized();
+      }
+      return key;
     }
   }
 

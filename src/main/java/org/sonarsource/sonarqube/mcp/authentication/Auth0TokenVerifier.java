@@ -16,9 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
-import com.auth0.jwk.JwkException;
-import com.auth0.jwk.JwkProvider;
-import com.auth0.jwk.SigningKeyNotFoundException;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -26,8 +23,6 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
 import jakarta.annotation.Nullable;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.time.Clock;
 import java.time.DateTimeException;
 
@@ -37,36 +32,8 @@ final class Auth0TokenVerifier {
   private final JWTVerifier mcpVerifier;
   private final JWTVerifier cloudVerifier;
 
-  Auth0TokenVerifier(OAuthConfiguration configuration) {
-    this(configuration, Clock.systemUTC());
-  }
-
-  Auth0TokenVerifier(OAuthConfiguration configuration, Clock clock) {
-    this(configuration, new Auth0JwkProvider(configuration.issuer(), clock), clock);
-  }
-
-  Auth0TokenVerifier(OAuthConfiguration configuration, JwkProvider provider, Clock clock) {
-    var algorithm = Algorithm.RSA256(new RSAKeyProvider() {
-      @Override
-      public RSAPublicKey getPublicKeyById(@Nullable String keyId) {
-        if (keyId == null || keyId.isBlank() || keyId.length() > 256) {
-          throw OAuthAuthenticationException.unauthorized();
-        }
-        return signingKey(provider, keyId);
-      }
-
-      @Override
-      @Nullable
-      public RSAPrivateKey getPrivateKey() {
-        return null;
-      }
-
-      @Override
-      @Nullable
-      public String getPrivateKeyId() {
-        return null;
-      }
-    });
+  Auth0TokenVerifier(OAuthConfiguration configuration, RSAKeyProvider provider, Clock clock) {
+    var algorithm = Algorithm.RSA256(provider);
     this.mcpVerifier = verifier(algorithm, configuration.issuer(), configuration.resource(), clock);
     this.cloudVerifier = verifier(algorithm, configuration.issuer(), configuration.cloudAudience(), clock);
   }
@@ -106,25 +73,6 @@ final class Auth0TokenVerifier {
       return verified;
     } catch (JWTVerificationException | DateTimeException e) {
       throw OAuthAuthenticationException.unauthorized();
-    }
-  }
-
-  private static RSAPublicKey signingKey(JwkProvider provider, String keyId) {
-    try {
-      var jwk = provider.get(keyId);
-      if (!"RSA".equals(jwk.getType()) || (jwk.getAlgorithm() != null && !"RS256".equals(jwk.getAlgorithm()))) {
-        throw OAuthAuthenticationException.unauthorized();
-      }
-      if (!(jwk.getPublicKey() instanceof RSAPublicKey key)) {
-        throw OAuthAuthenticationException.unauthorized();
-      }
-      return key;
-    } catch (OAuthAuthenticationException e) {
-      throw e;
-    } catch (SigningKeyNotFoundException e) {
-      throw OAuthAuthenticationException.unauthorized();
-    } catch (JwkException | RuntimeException e) {
-      throw OAuthAuthenticationException.unavailable();
     }
   }
 }
