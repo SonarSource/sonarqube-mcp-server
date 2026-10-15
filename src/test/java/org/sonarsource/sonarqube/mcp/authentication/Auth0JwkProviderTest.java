@@ -263,8 +263,9 @@ class Auth0JwkProviderTest {
     verify(fetched, times(1)).getAll();
   }
 
-  @Test
-  void it_should_not_block_known_keys_behind_an_unknown_key_refresh() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_not_block_known_keys_behind_an_unknown_key_refresh(boolean fail) throws Exception {
     var fetched = mock(UrlJwkProvider.class);
     var started = new CountDownLatch(1);
     var release = new CountDownLatch(1);
@@ -272,12 +273,15 @@ class Auth0JwkProviderTest {
     when(fetched.getAll()).thenReturn(keys).thenAnswer(call -> {
       started.countDown();
       assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+      if (fail) {
+        throw new SigningKeyNotFoundException("private upstream failure", null);
+      }
       return keys;
     });
     var concurrent = new Auth0JwkProvider(fetched, clock);
     concurrent.get("key");
     try (var executor = Executors.newFixedThreadPool(2)) {
-      var unknown = executor.submit(() -> assertFailure(() -> concurrent.get("unknown"), 401));
+      var unknown = executor.submit(() -> assertFailure(() -> concurrent.get("unknown"), fail ? 503 : 401));
       assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
       try {
         assertThat(executor.submit(() -> concurrent.get("key")).get(1, TimeUnit.SECONDS).getId()).isEqualTo("key");
@@ -286,6 +290,8 @@ class Auth0JwkProviderTest {
       }
       unknown.get(5, TimeUnit.SECONDS);
     }
+    assertThat(concurrent.get("key").getId()).isEqualTo("key");
+    verify(fetched, times(2)).getAll();
   }
 
   private void serveKeys(List<Map<String, Object>> keys) {
