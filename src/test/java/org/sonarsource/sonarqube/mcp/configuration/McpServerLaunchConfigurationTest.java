@@ -83,12 +83,49 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_in_stdio_mode_when_token_only_without_url_or_org(@TempDir Path tempDir) {
+  void should_default_https_store_passwords(@TempDir Path tempDir) {
+    var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TRANSPORT", "https"));
+
+    assertThat(configuration.getHttpsKeystorePassword()).isEqualTo("sonarlint");
+    assertThat(configuration.getHttpsTruststorePassword()).isEqualTo("sonarlint");
+  }
+
+  @Test
+  void should_override_https_keystore_password_independently(@TempDir Path tempDir) {
+    var configuration = new McpServerLaunchConfiguration(Map.of(
+      "STORAGE_PATH", tempDir.toString(), "SONARQUBE_TRANSPORT", "https", "SONARQUBE_HTTPS_KEYSTORE_PASSWORD", "keystore-password"));
+
+    assertThat(configuration.getHttpsKeystorePassword()).isEqualTo("keystore-password");
+    assertThat(configuration.getHttpsTruststorePassword()).isEqualTo("sonarlint");
+  }
+
+  @Test
+  void should_override_https_truststore_password_independently(@TempDir Path tempDir) {
+    var configuration = new McpServerLaunchConfiguration(Map.of(
+      "STORAGE_PATH", tempDir.toString(), "SONARQUBE_TRANSPORT", "https", "SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD", "truststore-password"));
+
+    assertThat(configuration.getHttpsKeystorePassword()).isEqualTo("sonarlint");
+    assertThat(configuration.getHttpsTruststorePassword()).isEqualTo("truststore-password");
+  }
+
+  @Test
+  void should_override_both_https_store_passwords(@TempDir Path tempDir) {
+    var configuration = new McpServerLaunchConfiguration(Map.of(
+      "STORAGE_PATH", tempDir.toString(), "SONARQUBE_TRANSPORT", "https",
+      "SONARQUBE_HTTPS_KEYSTORE_PASSWORD", "keystore-password", "SONARQUBE_HTTPS_TRUSTSTORE_PASSWORD", "truststore-password"));
+
+    assertThat(configuration.getHttpsKeystorePassword()).isEqualTo("keystore-password");
+    assertThat(configuration.getHttpsTruststorePassword()).isEqualTo("truststore-password");
+  }
+
+  @Test
+  void should_default_to_cloud_in_stdio_mode_with_token_only(@TempDir Path tempDir) {
     var arg = Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token");
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+    var configuration = new McpServerLaunchConfiguration(arg);
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(configuration.getSonarqubeOrg()).isNull();
   }
 
   @Test
@@ -107,16 +144,17 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
-  void should_throw_in_stdio_mode_when_only_is_cloud_flag_is_set(@TempDir Path tempDir) {
+  void should_allow_cloud_flag_without_org_or_url(@TempDir Path tempDir) {
     var arg = Map.of(
       "STORAGE_PATH", tempDir.toString(),
       "SONARQUBE_TOKEN", "token",
       "SONARQUBE_IS_CLOUD", "true"
     );
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+    var configuration = new McpServerLaunchConfiguration(arg);
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(configuration.getSonarqubeOrg()).isNull();
   }
 
   @Test
@@ -553,9 +591,10 @@ class McpServerLaunchConfigurationTest {
       "SONARQUBE_URL", "${SONARQUBE_URL}"
     );
 
-    assertThatThrownBy(() -> new McpServerLaunchConfiguration(arg))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("SONARQUBE_URL or SONARQUBE_ORG must be set");
+    var configuration = new McpServerLaunchConfiguration(arg);
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarcloud.io");
+    assertThat(configuration.getSonarqubeOrg()).isNull();
   }
 
   @Test
