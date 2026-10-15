@@ -46,7 +46,7 @@ public class PluginsApi {
   public HttpClient.Response downloadPlugin(String pluginKey) {
     var downloadPath = DOWNLOAD_PLUGINS_PATH + "?plugin=" + pluginKey;
     // On SonarQube Cloud, plugin endpoints don't require authentication
-    return isSonarQubeCloud ? helper.rawGetAnonymous(downloadPath) : helper.rawGet(downloadPath);
+    return isSonarQubeCloud ? helper.rawGetAnonymous(downloadPath, HttpClient.DOWNLOAD_TIMEOUT) : helper.rawGet(downloadPath, HttpClient.DOWNLOAD_TIMEOUT);
   }
 
 }
