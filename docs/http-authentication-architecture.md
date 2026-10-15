@@ -200,7 +200,7 @@ By default, `GET /.well-known/oauth-protected-resource/mcp` serves public metada
 
 The verifier fetches the configured issuer's JSON Web Key Set (JWKS), never a URL supplied by a token. A successful refresh replaces the complete key set for one hour. Fresh known keys bypass refresh throttling; concurrent refreshes share a result. Network refresh attempts, including failures, are limited to ten per minute, with 5-second connection/read timeouts. A failed refresh never extends snapshot validity, and expired snapshots require a successful refresh.
 
-The exchange cache is isolated by A's authorization fingerprint, issuer, user, client, target audience, and scopes. Identical concurrent loads share one exchange, with at most 16 exchanges in flight. Failed exchanges are not cached. Entries expire at the earliest of A's expiry, B's expiry, or the configured TTL: 0–30 seconds (default 30; zero disables reuse). Cache size is 1–5000 entries (default 256). A is verified before every lookup and B before every return, including cache hits. The cache is held in memory and creates no MCP session.
+The exchange cache is isolated by A's authorization fingerprint, issuer, user, client, target audience, and scopes. Identical concurrent loads share one exchange, with at most 16 exchanges in flight. Failed exchanges are not cached. Entries expire at the earliest of A's expiry, B's expiry, or the configured TTL: 0–60 seconds (default 60; zero disables reuse). Cache size is 1–5000 entries (default 256). A is verified before every lookup and B before every return, including cache hits. The cache is held in memory and creates no MCP session.
 
 ---
 
@@ -339,7 +339,7 @@ The automated tests use controlled signing keys and simulated Auth0/Cloud respon
 
 - [MCP Specification - HTTP Transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
 - [MCP Specification - Authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
-- [Hosted MCP OAuth security design](https://github.com/SonarSource/sonarcloud-authentication/blob/6abbc469e8118d0b4b2cf85b04f3f58c6f44c970/docs/mcp-oauth-security-review-request.md)
+- [Hosted MCP OAuth security design](https://github.com/SonarSource/sonarcloud-authentication/blob/6abbc469e8118d0b4b2cf85b04f3f58c6f44c970/docs/mcp-oauth-security-review-request.md), with the [60-second cache amendment](https://github.com/SonarSource/sonarcloud-authentication/pull/1792)
 - [SC-59185](https://sonarsource.atlassian.net/browse/SC-59185)
 - [MCP Java SDK Documentation](https://modelcontextprotocol.io/sdk/java/mcp-overview)
 - [Jakarta Servlet Specification](https://jakarta.ee/specifications/servlet/)
