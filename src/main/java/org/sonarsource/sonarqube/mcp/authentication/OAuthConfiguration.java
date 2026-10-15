@@ -21,7 +21,7 @@ import java.net.URI;
 import java.time.Duration;
 
 public final class OAuthConfiguration {
-  public static final Duration DEFAULT_CACHE_TTL = Duration.ofSeconds(30);
+  public static final Duration DEFAULT_CACHE_TTL = Duration.ofSeconds(60);
   public static final int DEFAULT_CACHE_SIZE = 256;
 
   private final String issuer;
@@ -47,7 +47,7 @@ public final class OAuthConfiguration {
       throw new IllegalArgumentException("OAuth MCP resource and Cloud audience must share the same API origin");
     }
     if (cacheTtl == null || cacheTtl.isNegative() || cacheTtl.compareTo(DEFAULT_CACHE_TTL) > 0 || cacheSize < 1 || cacheSize > 5000) {
-      throw new IllegalArgumentException("OAuth exchange cache requires a TTL between zero and 30 seconds and a size between one and 5000");
+      throw new IllegalArgumentException("OAuth exchange cache requires a TTL between zero and 60 seconds and a size between one and 5000");
     }
     this.issuer = issuer;
     this.resource = resource;
