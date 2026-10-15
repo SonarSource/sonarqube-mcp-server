@@ -274,7 +274,7 @@ class Auth0JwkProviderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"missing-n", "missing-e", "wrong-type-n", "wrong-type-e", "invalid-base64-n", "invalid-base64-e"})
-  void it_should_reject_malformed_rsa_material_before_replacing_the_snapshot(String malformed) throws Exception {
+  void it_should_reject_malformed_rsa_material_before_replacing_the_snapshot(String malformed) {
     provider.getPublicKeyById("key");
     clock.advance(Duration.ofMinutes(59));
     var broken = new HashMap<>(keyValues("broken", OTHER_KEY));
