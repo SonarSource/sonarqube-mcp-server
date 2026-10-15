@@ -83,6 +83,21 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
+  void should_default_force_local_analysis_to_false(@TempDir Path tempDir) {
+    var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token"));
+
+    assertThat(configuration.isForceLocalAnalysis()).isFalse();
+  }
+
+  @Test
+  void should_enable_force_local_analysis(@TempDir Path tempDir) {
+    var configuration = new McpServerLaunchConfiguration(Map.of(
+      "STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_FORCE_LOCAL_ANALYSIS", "true"));
+
+    assertThat(configuration.isForceLocalAnalysis()).isTrue();
+  }
+
+  @Test
   void should_default_https_store_passwords(@TempDir Path tempDir) {
     var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TRANSPORT", "https"));
 
