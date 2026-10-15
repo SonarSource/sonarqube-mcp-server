@@ -16,13 +16,15 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
-import com.auth0.jwk.Jwk;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.RSAKeyProvider;
+import com.google.gson.Gson;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,6 +45,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.MutableClock;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -75,12 +78,32 @@ class Auth0OAuthAuthenticationServiceTest {
   @BeforeEach
   void setUp() {
     algorithm = Algorithm.RSA256((RSAPublicKey) KEY.getPublic(), (RSAPrivateKey) KEY.getPrivate());
-    var jwk = Jwk.fromValues(keyValues("test-key", KEY));
+    var keyProvider = mock(RSAKeyProvider.class);
+    when(keyProvider.getPublicKeyById("test-key")).thenReturn((RSAPublicKey) KEY.getPublic());
     configuration = config(Duration.ofSeconds(60), 256);
     clock = new MutableClock();
-    verifier = spy(new Auth0TokenVerifier(configuration, keyId -> jwk, clock));
+    verifier = spy(new Auth0TokenVerifier(configuration, keyProvider, clock));
     exchange = mock(Auth0TokenExchange.class);
     service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock);
+  }
+
+  @Test
+  void it_should_use_the_provided_http_client_for_signing_keys() {
+    var client = mock(HttpClient.class);
+    var response = mock(HttpClient.Response.class);
+    when(response.isSuccessful()).thenReturn(true);
+    when(response.bodyAsString()).thenReturn(new Gson().toJson(Map.of("keys", List.of(keyValues("test-key", KEY)))));
+    when(client.getAsyncAnonymousWithoutRedirects(ISSUER + ".well-known/jwks.json"))
+      .thenReturn(CompletableFuture.completedFuture(response));
+    var authentication = new Auth0OAuthAuthenticationService(configuration, client);
+    var source = source().withSubject("invalid-source").withIssuedAt(Instant.now().minusSeconds(1))
+      .withExpiresAt(Instant.now().plusSeconds(299)).sign(algorithm);
+
+    assertThatThrownBy(() -> authentication.authenticate(source))
+      .isInstanceOfSatisfying(OAuthAuthenticationException.class, failure -> assertThat(failure.status()).isEqualTo(401));
+
+    verify(client).getAsyncAnonymousWithoutRedirects(ISSUER + ".well-known/jwks.json");
+    verify(response).close();
   }
 
   @ParameterizedTest
