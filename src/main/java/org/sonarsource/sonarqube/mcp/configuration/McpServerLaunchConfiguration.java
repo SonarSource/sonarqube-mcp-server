@@ -20,6 +20,7 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -29,9 +30,12 @@ import java.util.UUID;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthConfiguration;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.stripEnd;
 
 public final class McpServerLaunchConfiguration {
 
@@ -124,6 +128,10 @@ public final class McpServerLaunchConfiguration {
   @Nullable
   private final AuthMode authMode;
   private final List<String> httpAllowedOrigins;
+  @Nullable
+  private final OAuthConfiguration oauthConfiguration;
+  @Nullable
+  private final OAuthProtectedResourceMetadata oauthMetadata;
 
   // Tool category configuration
   private final Set<ToolCategory> enabledToolsets;
@@ -196,6 +204,25 @@ public final class McpServerLaunchConfiguration {
     this.httpsTruststoreType = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTPS_TRUSTSTORE_TYPE, DEFAULT_KEYSTORE_TYPE);
     
     this.authMode = parseAuthMode(environment);
+    if (this.authMode == AuthMode.OAUTH && sonarqubeOrg != null) {
+      throw new IllegalArgumentException("SONARQUBE_ORG cannot be configured in OAuth mode. Use the tool organization argument.");
+    }
+    if (this.authMode == AuthMode.OAUTH && !this.isSonarQubeCloud) {
+      throw new IllegalArgumentException("OAuth is supported only for SonarQube Cloud");
+    }
+    this.oauthMetadata = this.authMode == AuthMode.OAUTH ? new OAuthProtectedResourceMetadata(
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_RESOURCE", null),
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_ISSUER", null),
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_METADATA_URL", null)) : null;
+    this.oauthConfiguration = this.authMode == AuthMode.OAUTH ? new OAuthConfiguration(
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_ISSUER", null),
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_RESOURCE", null),
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CLOUD_AUDIENCE", null),
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CLIENT_ID", null),
+      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CLIENT_SECRET", null),
+      Duration.ofSeconds(Long.parseLong(getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CACHE_TTL_SECONDS", "30"))),
+      Integer.parseInt(getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CACHE_SIZE", "256"))) : null;
+    validateOAuthCloudConfiguration(sonarqubeUrlFromEnv);
     this.httpAllowedOrigins = parseAllowedOrigins(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_HTTP_ALLOWED_ORIGINS, null));
 
     // Parse tool category configuration
@@ -212,6 +239,25 @@ public final class McpServerLaunchConfiguration {
     this.isRunningInContainer = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_MCP_IN_CONTAINER, "false"));
 
     this.mcpServerId = UUID.randomUUID().toString();
+  }
+
+  private void validateOAuthCloudConfiguration(@Nullable String sonarqubeUrlFromEnv) {
+    if (oauthConfiguration != null && (sonarqubeUrlFromEnv == null || sonarqubeCloudApiUrl == null
+      || !oauthConfiguration.cloudAudience().equals(stripEnd(sonarqubeCloudApiUrl, "/") + "/"))) {
+      throw new IllegalArgumentException("OAuth requires explicit SonarQube Cloud URLs matching the configured Cloud audience");
+    }
+    if (oauthConfiguration != null) {
+      var cloudUrl = URI.create(sonarqubeUrl);
+      if (!"https".equals(cloudUrl.getScheme()) || cloudUrl.getHost() == null || cloudUrl.getUserInfo() != null
+        || cloudUrl.getQuery() != null || cloudUrl.getFragment() != null) {
+        throw new IllegalArgumentException("OAuth requires an HTTPS SonarQube Cloud URL without credentials, query, or fragment");
+      }
+    }
+  }
+
+  @Nullable
+  public OAuthConfiguration getOAuthConfiguration() {
+    return oauthConfiguration;
   }
 
   public Path getStoragePath() {
@@ -329,6 +375,11 @@ public final class McpServerLaunchConfiguration {
 
   public String getHttpsTruststoreType() {
     return httpsTruststoreType;
+  }
+
+  @Nullable
+  public OAuthProtectedResourceMetadata getOAuthMetadata() {
+    return oauthMetadata;
   }
 
   @Nullable
