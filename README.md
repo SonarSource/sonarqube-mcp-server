@@ -1332,6 +1332,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 <summary>Guidelines Tools</summary>
 
 - **get_guidelines** - Get coding guidelines based on SonarQube project issues, catalog categories, or a combination of both.
+  With a supporting Vortex context engine build, this call and `sonar context guidelines get` also return the Server's applicable administrator-defined Agent Guidelines. The shared engine resolves the configured project to its UUID, reads `/api/v2/agentic/applicable-guidelines` using the caller's credentials, and includes a separate advisory Markdown section with instruction IDs, scopes and project context. Without a configured project, it reads enabled instance defaults. Vortex registration and entitlement checks still apply. For local development, select the built context executable in a proxied-server configuration supplied through `-Dproxied.mcp.servers.config.path=<config-file>`. The CLI's development build accepts the same executable through `SONAR_CONTEXT_AUGMENTATION_BINARY_PATH`. Released CLI and MCP packages require a coordinated context-engine version update after publication.
     - `mode` - Guidelines retrieval mode: `project_based`, `category_based`, or `combined` - _Required String_
     - `categories` - List of category names (required for `category_based` and `combined` modes) - _String[]_
     - `languages` - List of target languages in SonarQube repository key format (required when `categories` is provided) - _String[]_
