@@ -194,7 +194,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @Nullable
   private ResolvedOrganization resolvedOrganization;
   private SonarQubeVersionChecker sonarQubeVersionChecker;
-  private OrgFeatureEntitlements orgFeatureEntitlements;
   @Nullable
   private McpStatelessSyncServer statelessSyncServer;
   @Nullable
@@ -311,7 +310,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.serverApi = initializeServerApi(mcpConfiguration);
     resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-    this.orgFeatureEntitlements = new OrgFeatureEntitlements(serverApi);
+    var orgFeatureEntitlements = new OrgFeatureEntitlements(serverApi);
     loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
