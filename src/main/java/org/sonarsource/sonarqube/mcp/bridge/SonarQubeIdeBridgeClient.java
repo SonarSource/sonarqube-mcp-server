@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.bridge;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import jakarta.annotation.Nullable;
@@ -30,6 +31,7 @@ import org.sonarsource.sonarqube.mcp.http.HttpClient;
 public class SonarQubeIdeBridgeClient {
 
   private static final McpLogger LOG = McpLogger.getInstance();
+  private static final Duration ANALYSIS_TIMEOUT = Duration.ofMinutes(5);
 
   public static final String TOGGLE_AUTOMATIC_ANALYSIS_PATH = "/sonarlint/api/analysis/automatic/config";
   public static final String ANALYSIS_FILES_PATH = "/sonarlint/api/analysis/files";
@@ -82,7 +84,7 @@ public class SonarQubeIdeBridgeClient {
     var analysisRequest = new AnalyzeFileListRequest(fileAbsolutePaths);
     var requestBody = gson.toJson(analysisRequest);
 
-    try (var response = helper.post(ANALYSIS_FILES_PATH, HttpClient.JSON_CONTENT_TYPE, requestBody)) {
+    try (var response = helper.post(ANALYSIS_FILES_PATH, HttpClient.JSON_CONTENT_TYPE, requestBody, ANALYSIS_TIMEOUT)) {
       var analysisResponse = gson.fromJson(response.bodyAsString(), AnalyzeFileListResponse.class);
       return Optional.of(analysisResponse);
     } catch (Exception e) {
