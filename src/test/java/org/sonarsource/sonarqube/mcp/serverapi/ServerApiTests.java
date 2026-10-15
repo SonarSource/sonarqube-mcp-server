@@ -101,10 +101,13 @@ class ServerApiTests {
   @MethodSource("getErrorResponses")
   void it_should_throw_appropriate_exception_on_error_response(int statusCode, Class<? extends Exception> expectedException, String messageTemplate) {
     sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(statusCode)));
+    sonarqubeMock.stubFor(post("/test").willReturn(aResponse().withStatus(statusCode)));
     var expectedMessage = messageTemplate.contains("%s") ? messageTemplate.formatted(sonarqubeMock.baseUrl()) : messageTemplate;
 
     var exception = assertThrows(expectedException, () -> serverApiHelper.get("/test"));
     assertThat(exception).hasMessage(expectedMessage);
+    var postException = assertThrows(expectedException, () -> serverApiHelper.post("/test", "application/json", "{}", Duration.ofSeconds(5)));
+    assertThat(postException).hasMessage(expectedMessage);
   }
 
   static Stream<Arguments> errorBodyParsingCases() {
@@ -212,17 +215,6 @@ class ServerApiTests {
     try (var response = serverApiHelper.post("/test", "application/json", "{}", Duration.ofSeconds(5))) {
       assertThat(response.bodyAsString()).isEqualTo("{\"result\":\"ok\"}");
     }
-  }
-
-  @ParameterizedTest
-  @MethodSource("getErrorResponses")
-  void it_should_handle_post_errors_with_an_explicit_timeout(int statusCode, Class<? extends Exception> expectedException, String messageTemplate) {
-    sonarqubeMock.stubFor(post("/test").willReturn(aResponse().withStatus(statusCode)));
-    var expectedMessage = messageTemplate.contains("%s") ? messageTemplate.formatted(sonarqubeMock.baseUrl()) : messageTemplate;
-
-    var exception = assertThrows(expectedException, () -> serverApiHelper.post("/test", "application/json", "{}", Duration.ofSeconds(5)));
-
-    assertThat(exception).hasMessage(expectedMessage);
   }
 
   static Stream<Arguments> buildApiSubdomainUrlCases() {
