@@ -31,7 +31,7 @@ import org.sonarsource.sonarqube.mcp.http.HttpClient;
 public class SonarQubeIdeBridgeClient {
 
   private static final McpLogger LOG = McpLogger.getInstance();
-  private static final Duration ANALYSIS_TIMEOUT = Duration.ofMinutes(5);
+  private static final Duration ANALYSIS_TIMEOUT = Duration.ofSeconds(60);
 
   public static final String TOGGLE_AUTOMATIC_ANALYSIS_PATH = "/sonarlint/api/analysis/automatic/config";
   public static final String ANALYSIS_FILES_PATH = "/sonarlint/api/analysis/files";

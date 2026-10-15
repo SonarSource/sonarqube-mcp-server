@@ -77,7 +77,7 @@ class SonarQubeIdeBridgeClientTests {
   class RequestAnalyzeFileList {
     @Test
     void it_should_return_empty_when_request_fails() {
-      when(helper.post("/sonarlint/api/analysis/files", HttpClient.JSON_CONTENT_TYPE, "{\"fileAbsolutePaths\":[\"file1.java\"]}", Duration.ofMinutes(5)))
+      when(helper.post("/sonarlint/api/analysis/files", HttpClient.JSON_CONTENT_TYPE, "{\"fileAbsolutePaths\":[\"file1.java\"]}", Duration.ofSeconds(60)))
         .thenThrow(new RuntimeException("Server error"));
 
       var result = underTest.requestAnalyzeFileList(List.of("file1.java"));
@@ -87,7 +87,7 @@ class SonarQubeIdeBridgeClientTests {
 
     @Test
     void it_should_return_success_when_analysis_succeeds() {
-      when(helper.post("/sonarlint/api/analysis/files", HttpClient.JSON_CONTENT_TYPE, "{\"fileAbsolutePaths\":[\"file1.java\"]}", Duration.ofMinutes(5)))
+      when(helper.post("/sonarlint/api/analysis/files", HttpClient.JSON_CONTENT_TYPE, "{\"fileAbsolutePaths\":[\"file1.java\"]}", Duration.ofSeconds(60)))
         .thenReturn(response);
       when(response.bodyAsString()).thenReturn("{\"findings\":[]}");
 
@@ -99,7 +99,7 @@ class SonarQubeIdeBridgeClientTests {
 
     @Test
     void it_should_return_empty_when_exception_is_thrown() {
-      when(helper.post("/sonarlint/api/analysis/files", HttpClient.JSON_CONTENT_TYPE, "{\"fileAbsolutePaths\":[\"file1.java\"]}", Duration.ofMinutes(5)))
+      when(helper.post("/sonarlint/api/analysis/files", HttpClient.JSON_CONTENT_TYPE, "{\"fileAbsolutePaths\":[\"file1.java\"]}", Duration.ofSeconds(60)))
         .thenThrow(new RuntimeException("Network error"));
 
       var result = underTest.requestAnalyzeFileList(List.of("file1.java"));
