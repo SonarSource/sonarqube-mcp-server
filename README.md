@@ -838,7 +838,7 @@ Set `SONARQUBE_HTTP_AUTH_MODE=OAUTH` and configure the following server environm
 | `SONARQUBE_OAUTH_CLIENT_ID` | Auth0 backend application's client ID for token exchange. | Required |
 | `SONARQUBE_OAUTH_CLIENT_SECRET` | Auth0 backend application's client secret. Credential diagnostics are redacted. | Required |
 | `SONARQUBE_OAUTH_METADATA_URL` | External HTTPS protected-resource metadata document. When set, the local metadata endpoint is not registered. | Local metadata |
-| `SONARQUBE_OAUTH_CACHE_TTL_SECONDS` | Maximum exchange reuse, from `0` to `30` seconds. `0` disables reuse; token expiry can shorten it. | `30` |
+| `SONARQUBE_OAUTH_CACHE_TTL_SECONDS` | Maximum exchange reuse, from `0` to `60` seconds. `0` disables reuse; token expiry can shorten it. | `60` |
 | `SONARQUBE_OAUTH_CACHE_SIZE` | Maximum cached exchanges, from `1` to `5000`. | `256` |
 
 All OAuth trust URLs must use HTTPS and contain no credentials, query, or fragment. For non-standard Cloud hostnames, also set `SONARQUBE_IS_CLOUD=true`. Do not configure a server-level `SONARQUBE_ORG`.
