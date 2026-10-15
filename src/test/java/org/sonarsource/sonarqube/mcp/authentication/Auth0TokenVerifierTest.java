@@ -107,8 +107,22 @@ class Auth0TokenVerifierTest {
   @Test
   void it_should_reject_expired_or_not_yet_valid_tokens() {
     assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withExpiresAt(NOW))), 401);
-    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withNotBefore(NOW.plusSeconds(1)))), 401);
-    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withIssuedAt(NOW.plusSeconds(1)))), 401);
+    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withNotBefore(NOW.plusSeconds(61)))), 401);
+    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withIssuedAt(NOW.plusSeconds(61)))), 401);
+    assertFailure(() -> verifier.verifyCloud(sign(token(CONFIGURATION.cloudAudience()).withExpiresAt(NOW))), 502);
+    assertFailure(() -> verifier.verifyCloud(sign(token(CONFIGURATION.cloudAudience()).withNotBefore(NOW.plusSeconds(61)))), 502);
+    assertFailure(() -> verifier.verifyCloud(sign(token(CONFIGURATION.cloudAudience()).withIssuedAt(NOW.plusSeconds(61)))), 502);
+  }
+
+  @ParameterizedTest
+  @ValueSource(longs = {1, 60})
+  void it_should_tolerate_clock_skew_for_issued_at_and_not_before(long skewSeconds) {
+    var future = NOW.plusSeconds(skewSeconds);
+    var mcp = sign(token(CONFIGURATION.resource()).withIssuedAt(future).withNotBefore(future));
+    var cloud = sign(token(CONFIGURATION.cloudAudience()).withIssuedAt(future).withNotBefore(future));
+
+    assertThat(verifier.verifyMcp(mcp).getIssuedAtAsInstant()).isEqualTo(future);
+    assertThat(verifier.verifyCloud(cloud).getNotBeforeAsInstant()).isEqualTo(future);
   }
 
   @ParameterizedTest
@@ -175,8 +189,9 @@ class Auth0TokenVerifierTest {
   @Test
   void it_should_reject_non_rsa_public_keys() throws Exception {
     var jwk = mock(Jwk.class);
+    var publicKey = mock(ECPublicKey.class);
     when(jwk.getType()).thenReturn("RSA");
-    when(jwk.getPublicKey()).thenReturn(mock(ECPublicKey.class));
+    when(jwk.getPublicKey()).thenReturn(publicKey);
     when(keys.get("key")).thenReturn(jwk);
 
     assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()))), 401);
