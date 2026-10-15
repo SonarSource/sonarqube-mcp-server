@@ -17,14 +17,33 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.net.ServerSocket;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
+import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -72,6 +91,164 @@ class HttpClientProviderTests {
     assertThrows(TimeoutException.class, () -> future.get(100, TimeUnit.MILLISECONDS));
     assertThat(future.cancel(true)).isTrue();
     assertThat(future).isCancelled();
+  }
+
+  @Test
+  void it_should_time_out_stalled_response_headers() {
+    sonarqubeMock.stubFor(get("/stalled-headers")
+      .willReturn(aResponse().withFixedDelay(2000)));
+    var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(200), Duration.ofMillis(200));
+
+    try {
+      var future = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/stalled-headers"));
+      var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+      assertThat(error.getCause()).isInstanceOf(HttpTimeoutException.class);
+      sonarqubeMock.verify(1, getRequestedFor(urlEqualTo("/stalled-headers")));
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_cancel_a_request_with_a_stalled_response_body(boolean customPostTimeout) throws Exception {
+    try (var server = new ServerSocket(0); var worker = Executors.newSingleThreadExecutor()) {
+      var connectionClosed = worker.submit(() -> {
+        try (var socket = server.accept()) {
+          socket.setSoTimeout(3000);
+          var reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII));
+          while (!reader.readLine().isEmpty()) {
+            // Consume request headers before checking for the cancelled connection.
+          }
+          var output = socket.getOutputStream();
+          output.write("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nx".getBytes(StandardCharsets.US_ASCII));
+          output.flush();
+          try {
+            return reader.read() == -1;
+          } catch (SocketException e) {
+            return true;
+          }
+        }
+      });
+      var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(250), Duration.ofMillis(250));
+      try {
+        var client = underTest.getHttpClient("token");
+        var url = "http://localhost:" + server.getLocalPort() + "/body";
+        var future = customPostTimeout
+          ? client.postAsync(url, "text/plain", "", Duration.ofMillis(250))
+          : client.getAsync(url);
+        var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+        assertThat(error.getCause()).isInstanceOfAny(HttpTimeoutException.class, SocketTimeoutException.class);
+        assertThat(connectionClosed.get(2, TimeUnit.SECONDS)).isTrue();
+      } finally {
+        underTest.shutdown();
+      }
+    }
+  }
+
+  @Test
+  void it_should_isolate_analysis_api_and_analytics_deadlines() throws Exception {
+    sonarqubeMock.stubFor(post(SonarQubeIdeBridgeClient.ANALYSIS_FILES_PATH)
+      .willReturn(aResponse().withBody("{\"findings\":[]}").withFixedDelay(700)));
+    sonarqubeMock.stubFor(get("/stalled-api").willReturn(aResponse().withFixedDelay(2000)));
+    sonarqubeMock.stubFor(get(SonarQubeIdeBridgeClient.STATUS_PATH).willReturn(aResponse().withFixedDelay(2000)));
+    sonarqubeMock.stubFor(post("/stalled-analytics").willReturn(aResponse().withFixedDelay(2000)));
+    var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(200), Duration.ofMillis(100));
+    var bridgeHttpClient = underTest.getHttpClientForBridge();
+    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), bridgeHttpClient);
+    var bridge = new SonarQubeIdeBridgeClient(helper);
+
+    try {
+      var analysis = CompletableFuture.supplyAsync(() -> bridge.requestAnalyzeFileList(List.of("file.java")));
+      var api = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/stalled-api"));
+      var status = bridgeHttpClient.getAsync(sonarqubeMock.url(SonarQubeIdeBridgeClient.STATUS_PATH));
+      var analytics = underTest.getHttpClientForAnalytics("api-key")
+        .postAsync(sonarqubeMock.url("/stalled-analytics"), "application/json", "{}");
+
+      for (var future : List.of(api, status, analytics)) {
+        var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+        assertThat(error.getCause()).isInstanceOf(HttpTimeoutException.class);
+      }
+      assertThat(analysis.get(3, TimeUnit.SECONDS)).isPresent();
+      sonarqubeMock.verify(1, postRequestedFor(urlEqualTo(SonarQubeIdeBridgeClient.ANALYSIS_FILES_PATH))
+        .withHeader("Host", equalTo("localhost"))
+        .withHeader("Origin", equalTo("http://localhost"))
+        .withRequestBody(equalTo("{\"fileAbsolutePaths\":[\"file.java\"]}")));
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
+  @Test
+  void it_should_override_the_socket_timeout_only_for_the_explicit_post() throws Exception {
+    sonarqubeMock.stubFor(post("/slow-analysis").willReturn(aResponse().withBody("findings").withFixedDelay(700)));
+    sonarqubeMock.stubFor(get("/stalled-api").willReturn(aResponse().withFixedDelay(2000)));
+    try (var apacheClient = HttpAsyncClients.custom()
+      .setDefaultRequestConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMilliseconds(200)).build())
+      .setIOReactorConfig(IOReactorConfig.custom().setSoTimeout(Timeout.ofMilliseconds(200)).build())
+      .build()) {
+      apacheClient.start();
+      var client = new HttpClientAdapter(apacheClient, null, true, Duration.ofSeconds(5));
+
+      try (var response = client.postAsync(sonarqubeMock.url("/slow-analysis"), "text/plain", "", Duration.ofSeconds(3))
+        .get(4, TimeUnit.SECONDS)) {
+        assertThat(response.bodyAsString()).isEqualTo("findings");
+      }
+      var future = client.getAsync(sonarqubeMock.url("/stalled-api"));
+      var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+      assertThat(error.getCause()).isInstanceOf(SocketTimeoutException.class);
+    }
+  }
+
+  @Test
+  void it_should_allow_a_slow_download_within_its_budget() throws Exception {
+    sonarqubeMock.stubFor(get("/slow-download")
+      .willReturn(aResponse().withBody("plugin").withFixedDelay(700)));
+    var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(200), Duration.ofMillis(200));
+
+    try (var response = underTest.getAnonymousHttpClient()
+      .getAsyncAnonymous(sonarqubeMock.url("/slow-download"), Duration.ofSeconds(2))
+      .get(3, TimeUnit.SECONDS)) {
+      assertThat(response.bodyAsString()).isEqualTo("plugin");
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_not_retry_a_timed_out_post(boolean customTimeout) throws Exception {
+    try (var server = new ServerSocket(0); var worker = Executors.newSingleThreadExecutor()) {
+      var requests = worker.submit(() -> {
+        try (var socket = server.accept()) {
+          socket.setSoTimeout(2000);
+          var reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII));
+          assertThat(reader.readLine()).startsWith("POST /stalled-post ");
+          while (!reader.readLine().isEmpty()) {
+            // Consume request headers so the server can observe a retry.
+          }
+          server.setSoTimeout(700);
+          try (var ignored = server.accept()) {
+            return 2;
+          } catch (SocketTimeoutException e) {
+            return 1;
+          }
+        }
+      });
+      var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(250), Duration.ofMillis(250));
+      try {
+        var client = underTest.getHttpClient("token");
+        var url = "http://localhost:" + server.getLocalPort() + "/stalled-post";
+        var future = customTimeout
+          ? client.postAsync(url, "text/plain", "payload", Duration.ofMillis(250))
+          : client.postAsync(url, "text/plain", "payload");
+        var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+        assertThat(error.getCause()).isInstanceOfAny(HttpTimeoutException.class, SocketTimeoutException.class);
+        assertThat(requests.get(2, TimeUnit.SECONDS)).isEqualTo(1);
+      } finally {
+        underTest.shutdown();
+      }
+    }
   }
 
   @Test
