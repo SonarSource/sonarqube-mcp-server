@@ -33,6 +33,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -90,6 +91,9 @@ class OAuthProtectedResourceMetadataTest {
 
     verify(response).setContentType("application/json");
     verify(response).setHeader("Cache-Control", "public, max-age=300");
+    var inOrder = inOrder(response);
+    inOrder.verify(response).setCharacterEncoding("UTF-8");
+    inOrder.verify(response).getWriter();
     assertThat(JsonParser.parseString(output.toString())).isEqualTo(JsonParser.parseString("""
       {
         "resource": "https://api.example.com/mcp",
@@ -122,7 +126,10 @@ class OAuthProtectedResourceMetadataTest {
 
     assertThatCode(() -> metadata.doGet(request, response)).doesNotThrowAnyException();
 
-    verify(response).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    var inOrder = inOrder(response);
+    inOrder.verify(response).setHeader("Cache-Control", "public, max-age=300");
+    inOrder.verify(response).setHeader("Cache-Control", "no-store");
+    inOrder.verify(response).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
   }
 
   static Stream<Arguments> invalidUrls() {
