@@ -156,6 +156,9 @@ public final class McpServerLaunchConfiguration {
     // SONARQUBE_TOKEN, SONARQUBE_ORG, and SONARQUBE_URL may be forwarded as literal "${VAR}" strings by MCP clients
     // when the corresponding host environment variable is unset; treat those as unset.
     this.sonarqubeOrg = ignoreUnresolvedPlaceholder(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_ORG, null), SONARQUBE_ORG);
+    if (isHttpEnabled && sonarqubeOrg != null) {
+      throw new IllegalArgumentException("SONARQUBE_ORG cannot be configured on an HTTP server. Use the optional SONARQUBE_ORG request header or tool organization argument.");
+    }
     var sonarqubeUrlFromEnv = ignoreUnresolvedPlaceholder(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_URL, null), SONARQUBE_URL);
     
     // Check for deprecated SONARQUBE_CLOUD_URL (backward compatibility)
@@ -165,8 +168,7 @@ public final class McpServerLaunchConfiguration {
     }
 
     var forceSonarQubeCloud = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_IS_CLOUD, "false"));
-    validateStdioConfiguration(isHttpEnabled, sonarqubeUrlFromEnv, this.sonarqubeOrg);
-    this.isSonarQubeCloud = resolveSonarQubeCloud(forceSonarQubeCloud, this.sonarqubeOrg, sonarqubeUrlFromEnv, isHttpEnabled);
+    this.isSonarQubeCloud = resolveSonarQubeCloud(forceSonarQubeCloud, this.sonarqubeOrg, sonarqubeUrlFromEnv);
     this.sonarqubeUrl = resolveUrl(this.isSonarQubeCloud, sonarqubeUrlFromEnv);
 
     this.sonarqubeCloudApiUrl = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_CLOUD_API_URL, null);
@@ -410,34 +412,19 @@ public final class McpServerLaunchConfiguration {
   }
 
   /**
-   * In stdio mode, either SONARQUBE_URL or SONARQUBE_ORG must be set.
-   * There is no per-request org resolution, so connecting without a URL or org key makes no sense.
-   * In HTTP mode, no validation is needed: the server defaults to sonarcloud.io and resolves from the Authorization header at request time.
-   */
-  private static void validateStdioConfiguration(boolean isHttpEnabled, @Nullable String url, @Nullable String org) {
-    if (!isHttpEnabled && url == null && org == null) {
-      throw new IllegalArgumentException(
-        "SONARQUBE_URL or SONARQUBE_ORG must be set. " +
-          "Set SONARQUBE_URL to your SonarQube Server URL or SonarQube Cloud URL, " +
-          "or set SONARQUBE_ORG to connect to SonarQube Cloud."
-      );
-    }
-  }
-
-  /**
    * Resolves whether the server is connecting to SonarQube Cloud.
    * Signal priority (highest to lowest):
    *   1. SONARQUBE_IS_CLOUD=true → explicit override
    *   2. SONARQUBE_ORG set → org implies SQC
    *   3. SONARQUBE_URL is a known SQC hostname (sonarcloud.io, sonarqube.us, …)
-   *   4. No SONARQUBE_URL → Cloud when HTTP transport is enabled (defaults to sonarcloud.io); stdio requires URL or ORG (see validateStdioConfiguration)
+   *   4. No SONARQUBE_URL → Cloud (defaults to sonarcloud.io)
    *   5. SONARQUBE_URL is unknown host → SQS
    */
-  private static boolean resolveSonarQubeCloud(boolean forceSonarCloud, @Nullable String org, @Nullable String url, boolean isHttpEnabled) {
+  private static boolean resolveSonarQubeCloud(boolean forceSonarCloud, @Nullable String org, @Nullable String url) {
     if (forceSonarCloud || org != null || isSonarQubeCloudUrl(url)) {
       return true;
     }
-    return url == null && isHttpEnabled;
+    return url == null;
   }
 
   /**
