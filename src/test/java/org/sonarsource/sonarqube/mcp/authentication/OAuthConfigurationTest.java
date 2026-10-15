@@ -57,11 +57,30 @@ class OAuthConfigurationTest {
 
   @ParameterizedTest
   @NullAndEmptySource
-  @ValueSource(strings = {"${AUDIENCE}", "http://api.example.com/", "https://api.example.com", "https://api.example.com/mcp",
+  @ValueSource(strings = {" ", "${AUDIENCE}", "http://api.example.com/", "HTTPS://api.example.com/",
+    "https://api.example.com", "https://api.example.com/mcp", "https://api.example.com/%2f", "https://api.example.com:443/",
     "https://api.other.com/", "https://api.example.com:8443/", "https://user:secret@api.example.com/",
     "https://api.example.com/?audience=other", "https://api.example.com/#other"})
   void it_should_reject_invalid_or_different_cloud_api_origins(String audience) {
     assertThatIllegalArgumentException().isThrownBy(() -> new OAuthConfiguration(ISSUER, RESOURCE, audience, "backend", "secret"));
+  }
+
+  @Test
+  void it_should_accept_a_cloud_audience_with_different_host_case() {
+    var audience = "https://API.EXAMPLE.COM/";
+    var configuration = new OAuthConfiguration(ISSUER, RESOURCE, audience, "backend", "secret");
+
+    assertThat(configuration.cloudAudience()).isEqualTo(audience);
+  }
+
+  @Test
+  void it_should_accept_matching_explicit_api_ports() {
+    var resource = "https://api.example.com:8443/mcp";
+    var audience = "https://api.example.com:8443/";
+    var configuration = new OAuthConfiguration(ISSUER, resource, audience, "backend", "secret");
+
+    assertThat(configuration.resource()).isEqualTo(resource);
+    assertThat(configuration.cloudAudience()).isEqualTo(audience);
   }
 
   @Test
