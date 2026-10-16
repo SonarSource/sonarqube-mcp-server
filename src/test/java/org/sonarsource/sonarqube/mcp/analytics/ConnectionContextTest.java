@@ -16,16 +16,25 @@
  */
 package org.sonarsource.sonarqube.mcp.analytics;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.StatusResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,14 +69,13 @@ class ConnectionContextTest {
 
   @Test
   void resolveFrom_for_sqc_fetches_org_uuid_and_user_id() {
-    var serverApi = mock(ServerApi.class);
+    var serverApi = cloudApi("my-org", "org-uuid-v4");
     var usersApi = mock(UsersApi.class);
     var orgsApi = mock(OrganizationsApi.class);
 
-    when(serverApi.isSonarQubeCloud()).thenReturn(true);
     when(serverApi.getOrganization()).thenReturn("my-org");
-    when(serverApi.usersApi()).thenReturn(usersApi);
-    when(serverApi.organizationsApi()).thenReturn(orgsApi);
+    doReturn(usersApi).when(serverApi).usersApi();
+    doReturn(orgsApi).when(serverApi).organizationsApi();
     when(orgsApi.getOrganizationUuidV4("my-org")).thenReturn("org-uuid-v4");
     when(usersApi.getCurrentUserId()).thenReturn("user-uuid");
 
@@ -156,6 +164,162 @@ class ConnectionContextTest {
     assertThat(ctx.getCallingAgentName()).isEqualTo("cursor");
     assertThat(ctx.getCallingAgentVersion()).isEqualTo("1.0.0");
     assertThat(ctx.getSqsInstallationId()).isEqualTo("server-id");
+  }
+
+  @Test
+  void it_should_cache_selected_organizations_without_changing_default_or_identity() {
+    var defaultApi = cloudApi("default-org", "default-uuid");
+    var selectedApi = cloudApi("selected-org", "selected-uuid");
+    var ctx = ConnectionContext.empty();
+    ctx.captureCallingAgent("agent", "1.0");
+    ctx.resolveFrom(defaultApi);
+    var captured = ctx.snapshot();
+
+    var selected = ctx.snapshotFor(selectedApi, captured);
+    assertThat(selected).isEqualTo(new ConnectionContext.Snapshot("selected-uuid", null, "user-uuid", "agent", "1.0"));
+    assertThat(ctx.snapshotFor(selectedApi, captured)).isEqualTo(selected);
+    assertThat(ctx.snapshotFor(defaultApi, captured)).isEqualTo(captured);
+    assertThat(ctx.snapshot()).isEqualTo(captured);
+    verify(defaultApi.organizationsApi()).getOrganizationUuidV4("default-org");
+    verify(defaultApi.usersApi()).getCurrentUserId();
+    verify(selectedApi.organizationsApi()).getOrganizationUuidV4("selected-org");
+    verify(selectedApi.usersApi(), never()).getCurrentUserId();
+  }
+
+  @Test
+  void it_should_retry_missing_and_failed_selected_organization_lookups() {
+    var ctx = ConnectionContext.empty();
+    ctx.resolveFrom(cloudApi("default-org", "default-uuid"));
+    var api = cloudApi("selected-org", null);
+    when(api.organizationsApi().getOrganizationUuidV4("selected-org"))
+      .thenReturn(null).thenThrow(new IllegalStateException("lookup failed")).thenReturn("selected-uuid");
+    var captured = ctx.snapshot();
+
+    assertThat(ctx.snapshotFor(api, captured).organizationUuidV4()).isNull();
+    assertThatThrownBy(() -> ctx.snapshotFor(api, captured)).hasMessage("lookup failed");
+    assertThat(ctx.snapshotFor(api, captured).organizationUuidV4()).isEqualTo("selected-uuid");
+    assertThat(ctx.snapshotFor(api, captured).organizationUuidV4()).isEqualTo("selected-uuid");
+    assertThat(ctx.snapshot()).isEqualTo(captured);
+    verify(api.organizationsApi(), times(3)).getOrganizationUuidV4("selected-org");
+  }
+
+  @Test
+  void it_should_retry_failed_startup_user_lookup_and_reuse_the_recovered_identity() {
+    var api = cloudApi("org", "org-uuid");
+    when(api.usersApi().getCurrentUserId()).thenReturn(null, "recovered-user");
+    var ctx = ConnectionContext.empty();
+    ctx.resolveFrom(api);
+    var captured = ctx.snapshot();
+
+    assertThat(captured.userUuid()).isNull();
+    assertThat(ctx.snapshotFor(api, captured).userUuid()).isEqualTo("recovered-user");
+    assertThat(ctx.snapshotFor(api, captured).userUuid()).isEqualTo("recovered-user");
+    verify(api.usersApi(), times(2)).getCurrentUserId();
+  }
+
+  @Test
+  void it_should_use_identity_resolved_after_capture_while_preserving_the_captured_agent() {
+    var api = cloudApi("org", "org-uuid");
+    var ctx = ConnectionContext.empty();
+    var captured = ctx.snapshot();
+
+    ctx.resolveFrom(api);
+    ctx.captureCallingAgent("later-agent", "2.0");
+
+    var invocation = ctx.snapshotFor(api, captured);
+    assertThat(invocation.userUuid()).isEqualTo("user-uuid");
+    assertThat(invocation.callingAgentName()).isNull();
+    assertThat(invocation.callingAgentVersion()).isNull();
+    verify(api.usersApi()).getCurrentUserId();
+  }
+
+  @Test
+  void it_should_retry_missing_startup_organization_without_mutating_the_default_snapshot() {
+    var api = cloudApi("default-org", null);
+    when(api.organizationsApi().getOrganizationUuidV4("default-org")).thenReturn(null, "default-uuid");
+    var ctx = ConnectionContext.empty();
+    ctx.resolveFrom(api);
+    var captured = ctx.snapshot();
+
+    assertThat(captured.organizationUuidV4()).isNull();
+    assertThat(ctx.snapshotFor(api, captured).organizationUuidV4()).isEqualTo("default-uuid");
+    assertThat(ctx.snapshotFor(api, captured).organizationUuidV4()).isEqualTo("default-uuid");
+    assertThat(ctx.snapshot()).isEqualTo(captured);
+    verify(api.organizationsApi(), times(2)).getOrganizationUuidV4("default-org");
+    verify(api.usersApi()).getCurrentUserId();
+  }
+
+  @Test
+  void it_should_share_successful_organization_lookups_between_concurrent_invocations() {
+    var ctx = ConnectionContext.empty();
+    var captured = ctx.snapshot();
+    var api = cloudApi("org", "org-uuid");
+    try (var executor = Executors.newFixedThreadPool(4)) {
+      var results = IntStream.range(0, 16)
+        .mapToObj(ignored -> CompletableFuture.supplyAsync(() -> ctx.snapshotFor(api, captured), executor))
+        .toList();
+
+      assertThat(results).isNotEmpty().allSatisfy(result -> assertThat(result.join().organizationUuidV4()).isEqualTo("org-uuid"));
+    }
+    verify(api.organizationsApi()).getOrganizationUuidV4("org");
+    verify(api.usersApi()).getCurrentUserId();
+  }
+
+  @Test
+  void it_should_retry_failed_startup_server_identity_resolution() {
+    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    when(api.systemApi().getStatus()).thenThrow(new IllegalStateException("unavailable"))
+      .thenReturn(new StatusResponse("server-id", "2026.1", "UP"));
+    when(api.usersApi().getCurrentUserId()).thenReturn("user-uuid");
+    var ctx = ConnectionContext.empty();
+    assertThatThrownBy(() -> ctx.resolveFrom(api)).hasMessage("unavailable");
+
+    var recovered = ctx.snapshotFor(api, ctx.snapshot());
+
+    assertThat(recovered.sqsInstallationId()).isEqualTo("server-id");
+    assertThat(recovered.userUuid()).isEqualTo("user-uuid");
+    assertThat(ctx.snapshotFor(api, recovered)).isEqualTo(recovered);
+    verify(api.systemApi(), times(2)).getStatus();
+    verify(api.usersApi()).getCurrentUserId();
+  }
+
+  @Test
+  void it_should_reuse_server_identity_in_invocation_snapshots() {
+    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    when(api.systemApi().getStatus()).thenReturn(new StatusResponse("server-id", "10.0", "UP"));
+    when(api.usersApi().getCurrentUserId()).thenReturn("user-uuid");
+    var ctx = ConnectionContext.empty();
+    ctx.resolveFrom(api);
+    ctx.captureCallingAgent("agent", "1.0");
+    var captured = ctx.snapshot();
+
+    assertThat(ctx.snapshotFor(api, captured)).isEqualTo(new ConnectionContext.Snapshot(null, "server-id", "user-uuid", "agent", "1.0"));
+    assertThat(ctx.snapshotFor(api, captured)).isEqualTo(captured);
+    verify(api.systemApi()).getStatus();
+    verify(api.usersApi()).getCurrentUserId();
+    verify(api.organizationsApi(), never()).getOrganizationUuidV4(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void it_should_keep_snapshots_immutable_after_context_resolution_and_agent_capture() {
+    var ctx = ConnectionContext.empty();
+    var captured = ctx.snapshot();
+
+    ctx.resolveFrom(cloudApi("org", "org-uuid"));
+    ctx.captureCallingAgent("agent", "1.0");
+
+    assertThat(captured).isEqualTo(new ConnectionContext.Snapshot(null, null, null, null, null));
+    assertThat(ctx.snapshot()).isEqualTo(new ConnectionContext.Snapshot("org-uuid", null, "user-uuid", "agent", "1.0"));
+  }
+
+  private static ServerApi cloudApi(String organization, String uuid) {
+    var api = spy(new ServerApi(mock(ServerApiHelper.class), true));
+    doReturn(mock(OrganizationsApi.class)).when(api).organizationsApi();
+    doReturn(mock(UsersApi.class)).when(api).usersApi();
+    when(api.getOrganization()).thenReturn(organization);
+    when(api.organizationsApi().getOrganizationUuidV4(organization)).thenReturn(uuid);
+    when(api.usersApi().getCurrentUserId()).thenReturn("user-uuid");
+    return api;
   }
 
 }
