@@ -16,18 +16,17 @@
  */
 package org.sonarsource.sonarqube.mcp.analytics;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 
 /**
  * Per-session (or per-request) context used to enrich analytics events.
  * Holds connection identifiers resolved from the SonarQube API, and the calling agent info captured during the MCP handshake.
  * <ul>
  *   <li>In stdio mode: a single shared instance is populated once at startup via {@link #resolveFrom(ServerApi)}
- *       and reused for all tool calls. Organization UUIDs selected per invocation are cached in this session.
+ *       and reused for all tool calls. Organization UUIDs are cached by the session's {@link ServerApi}.
  *       {@link #captureCallingAgent} is also written to this instance.</li>
  *   <li>In HTTP mode: a fresh instance is created per tool call inside the async analytics dispatch task.
  *       {@link #resolveFrom(ServerApi)} is called there with the request-scoped {@link ServerApi},
@@ -50,7 +49,6 @@ public class ConnectionContext {
   @Nullable
   private volatile String userUuid;
   private final AtomicReference<CallingAgent> callingAgent = new AtomicReference<>();
-  private final ConcurrentMap<String, String> organizationUuids = new ConcurrentHashMap<>();
 
   private ConnectionContext() {
   }
@@ -66,10 +64,17 @@ public class ConnectionContext {
   public void resolveFrom(ServerApi serverApi) {
     if (serverApi.isSonarQubeCloud()) {
       this.organizationUuidV4 = resolveOrganizationUuid(serverApi);
-    } else {
+    }
+    resolveIdentityFrom(serverApi);
+  }
+
+  private synchronized void resolveIdentityFrom(ServerApi serverApi) {
+    if (!serverApi.isSonarQubeCloud() && sqsInstallationId == null) {
       this.sqsInstallationId = serverApi.systemApi().getStatus().id();
     }
-    this.userUuid = serverApi.usersApi().getCurrentUserId();
+    if (userUuid == null) {
+      this.userUuid = serverApi.usersApi().getCurrentUserId();
+    }
   }
 
   public Snapshot snapshot() {
@@ -79,13 +84,13 @@ public class ConnectionContext {
   }
 
   /**
-   * Reuses captured stdio identity and agent information, resolving only the selected organization.
-   * Successful UUID lookups are shared within the session; missing or failed lookups can be retried.
+   * Reuses resolved stdio identity and captured agent information, retrying unresolved identity asynchronously.
    * Creating an invocation snapshot never changes the default organization identifiers.
    */
   public Snapshot snapshotFor(ServerApi serverApi, Snapshot captured) {
     var selectedOrgUuid = serverApi.isSonarQubeCloud() ? resolveOrganizationUuid(serverApi) : null;
-    return new Snapshot(selectedOrgUuid, captured.sqsInstallationId(), captured.userUuid(), captured.callingAgentName(), captured.callingAgentVersion());
+    resolveIdentityFrom(serverApi);
+    return new Snapshot(selectedOrgUuid, sqsInstallationId, userUuid, captured.callingAgentName(), captured.callingAgentVersion());
   }
 
   @Nullable
@@ -94,10 +99,7 @@ public class ConnectionContext {
     if (orgKey == null || orgKey.isBlank()) {
       return null;
     }
-    return organizationUuids.computeIfAbsent(orgKey, key -> {
-      var uuid = serverApi.organizationsApi().getOrganizationUuidV4(key);
-      return uuid == null || uuid.isBlank() ? null : uuid;
-    });
+    return serverApi.resolveOrganizationUuid(ResolvedOrganization.fromKey(orgKey));
   }
 
   /**

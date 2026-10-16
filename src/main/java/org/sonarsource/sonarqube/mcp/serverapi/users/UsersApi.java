@@ -20,6 +20,7 @@ import com.google.gson.Gson;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 
 public class UsersApi {
 
@@ -27,6 +28,9 @@ public class UsersApi {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private final ServerApiHelper helper;
+  @Nullable
+  private String currentUserId;
+  private boolean currentUserResolved;
 
   public UsersApi(ServerApiHelper helper) {
     this.helper = helper;
@@ -34,16 +38,23 @@ public class UsersApi {
 
   /**
    * Returns the UUID of the currently authenticated user. Available on SonarQube Cloud and SonarQube Server 2025.6+.
+   * Caches successful responses and unsupported endpoints; transient failures remain retryable.
    */
   @Nullable
-  public String getCurrentUserId() {
+  public synchronized String getCurrentUserId() {
+    if (currentUserResolved) {
+      return currentUserId;
+    }
     try (var response = helper.get(CURRENT_USER_PATH)) {
       var dto = new Gson().fromJson(response.bodyAsString(), CurrentUserResponse.class);
-      return dto.id();
+      currentUserId = dto.id();
+      currentUserResolved = true;
+    } catch (NotFoundException e) {
+      currentUserResolved = true;
     } catch (Exception e) {
       LOG.debug("Could not retrieve current user id: " + e.getMessage());
-      return null;
     }
+    return currentUserId;
   }
 
   record CurrentUserResponse(String id) {

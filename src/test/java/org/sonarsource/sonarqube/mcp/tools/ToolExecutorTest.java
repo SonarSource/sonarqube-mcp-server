@@ -33,6 +33,9 @@ import org.mockito.ArgumentCaptor;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
@@ -51,9 +54,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -311,7 +316,7 @@ class ToolExecutorTest {
 
     executeDummyTool(executor);
 
-    verify(mockServerApi).isSonarQubeCloud();
+    verify(mockServerApi.usersApi()).getCurrentUserId();
     verify(analyticsService).notifyToolInvoked(any(ToolInvocationResult.class));
   }
 
@@ -319,16 +324,9 @@ class ToolExecutorTest {
   void it_should_capture_selected_organization_before_async_analytics_in_both_transports() {
     for (var stdio : List.of(true, false)) {
       var analyticsService = mock(AnalyticsService.class);
-      var defaultApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
-      when(defaultApi.isSonarQubeCloud()).thenReturn(true);
-      when(defaultApi.getOrganization()).thenReturn("default-org");
-      when(defaultApi.organizationsApi().getOrganizationUuidV4("default-org")).thenReturn("default-uuid");
-      when(defaultApi.usersApi().getCurrentUserId()).thenReturn("cached-user");
-      var selectedApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
-      when(defaultApi.withOrganization("selected-org")).thenReturn(selectedApi);
-      when(selectedApi.isSonarQubeCloud()).thenReturn(true);
-      when(selectedApi.getOrganization()).thenReturn("selected-org");
-      when(selectedApi.organizationsApi().getOrganizationUuidV4("selected-org")).thenReturn("selected-uuid");
+      var defaultApi = cloudApi("default-org", "default-uuid");
+      var selectedApi = cloudApi("selected-org", "selected-uuid");
+      doReturn(selectedApi).when(defaultApi).withOrganization("selected-org");
       when(selectedApi.usersApi().getCurrentUserId()).thenReturn("selected-user");
       var context = ConnectionContext.empty();
       context.captureCallingAgent("agent", "1.0");
@@ -367,16 +365,9 @@ class ToolExecutorTest {
 
   @Test
   void it_should_reuse_stdio_startup_identity_and_cache_organization_selections() {
-    var defaultApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
-    when(defaultApi.isSonarQubeCloud()).thenReturn(true);
-    when(defaultApi.getOrganization()).thenReturn("default-org");
-    when(defaultApi.organizationsApi().getOrganizationUuidV4("default-org")).thenReturn("default-uuid");
-    when(defaultApi.usersApi().getCurrentUserId()).thenReturn("cached-user");
-    var selectedApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
-    when(defaultApi.withOrganization("selected-org")).thenReturn(selectedApi);
-    when(selectedApi.isSonarQubeCloud()).thenReturn(true);
-    when(selectedApi.getOrganization()).thenReturn("selected-org");
-    when(selectedApi.organizationsApi().getOrganizationUuidV4("selected-org")).thenReturn("selected-uuid");
+    var defaultApi = cloudApi("default-org", "default-uuid");
+    var selectedApi = cloudApi("selected-org", "selected-uuid");
+    doReturn(selectedApi).when(defaultApi).withOrganization("selected-org");
     var context = ConnectionContext.empty();
     context.resolveFrom(defaultApi);
     context.captureCallingAgent("agent", "1.0");
@@ -407,9 +398,7 @@ class ToolExecutorTest {
 
   @Test
   void it_should_retry_failed_stdio_uuid_lookup_without_affecting_tool_results() {
-    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
-    when(api.isSonarQubeCloud()).thenReturn(true);
-    when(api.getOrganization()).thenReturn("org");
+    var api = cloudApi("org", "org-uuid");
     when(api.organizationsApi().getOrganizationUuidV4("org"))
       .thenThrow(new IllegalStateException("unavailable")).thenReturn("org-uuid");
     var analyticsService = syncAnalyticsService();
@@ -420,7 +409,7 @@ class ToolExecutorTest {
     assertThat(executeDummyTool(executor).isError()).isFalse();
 
     verify(api.organizationsApi(), times(2)).getOrganizationUuidV4("org");
-    verify(api.usersApi(), never()).getCurrentUserId();
+    verify(api.usersApi()).getCurrentUserId();
     var events = ArgumentCaptor.forClass(ToolInvocationResult.class);
     verify(analyticsService, times(2)).notifyToolInvoked(events.capture());
     assertThat(events.getAllValues()).extracting(ToolInvocationResult::organizationUuidV4).containsOnly("org-uuid");
@@ -454,7 +443,7 @@ class ToolExecutorTest {
   @Test
   void it_should_capture_calling_agent_before_async_dispatch() {
     var analyticsService = mock(AnalyticsService.class);
-    var api = mock(ServerApi.class);
+    var api = cloudApi("org", "org-uuid");
     var context = ConnectionContext.empty();
     var executor = new ToolExecutor(mockBackendService, analyticsService, context, () -> api, null, ToolCategory::all);
     executeDummyTool(executor);
@@ -466,27 +455,24 @@ class ToolExecutorTest {
 
     var event = ArgumentCaptor.forClass(ToolInvocationResult.class);
     verify(analyticsService).notifyToolInvoked(event.capture());
+    assertThat(event.getValue().userUuid()).isEqualTo("cached-user");
     assertThat(event.getValue().callingAgentName()).isNull();
     assertThat(event.getValue().callingAgentVersion()).isNull();
   }
 
   @Test
   void it_should_isolate_http_identity_and_repeat_lookups_after_request_context_is_cleared() {
-    var apiA = mock(ServerApi.class, RETURNS_DEEP_STUBS);
-    var apiB = mock(ServerApi.class, RETURNS_DEEP_STUBS);
-    for (var api : List.of(apiA, apiB)) {
-      when(api.isSonarQubeCloud()).thenReturn(true);
-      when(api.getOrganization()).thenReturn("shared-org");
-    }
-    when(apiA.organizationsApi().getOrganizationUuidV4("shared-org")).thenReturn("uuid-a");
+    var apiA = cloudApi("shared-org", "uuid-a");
+    var apiB = cloudApi("shared-org", "uuid-b");
+    var nextRequestApiA = cloudApi("shared-org", "uuid-a");
     when(apiA.usersApi().getCurrentUserId()).thenReturn("user-a");
-    when(apiB.organizationsApi().getOrganizationUuidV4("shared-org")).thenReturn("uuid-b");
     when(apiB.usersApi().getCurrentUserId()).thenReturn("user-b");
+    when(nextRequestApiA.usersApi().getCurrentUserId()).thenReturn("user-a");
     var requestApi = new ThreadLocal<ServerApi>();
     var analyticsService = mock(AnalyticsService.class);
     var executor = new ToolExecutor(mockBackendService, analyticsService, null, requestApi::get, null, ToolCategory::all);
 
-    for (var api : List.of(apiA, apiB, apiA)) {
+    for (var api : List.of(apiA, apiB, nextRequestApiA)) {
       requestApi.set(api);
       try {
         executeDummyTool(executor);
@@ -506,8 +492,10 @@ class ToolExecutorTest {
     verify(analyticsService, times(3)).notifyToolInvoked(events.capture());
     assertThat(events.getAllValues()).extracting(ToolInvocationResult::userUuid).containsExactly("user-a", "user-b", "user-a");
     assertThat(events.getAllValues()).extracting(ToolInvocationResult::organizationUuidV4).containsExactly("uuid-a", "uuid-b", "uuid-a");
-    verify(apiA.usersApi(), times(2)).getCurrentUserId();
-    verify(apiA.organizationsApi(), times(2)).getOrganizationUuidV4("shared-org");
+    verify(apiA.usersApi()).getCurrentUserId();
+    verify(apiA.organizationsApi()).getOrganizationUuidV4("shared-org");
+    verify(nextRequestApiA.usersApi()).getCurrentUserId();
+    verify(nextRequestApiA.organizationsApi()).getOrganizationUuidV4("shared-org");
     verify(apiB.usersApi()).getCurrentUserId();
     verify(apiB.organizationsApi()).getOrganizationUuidV4("shared-org");
   }
@@ -595,6 +583,16 @@ class ToolExecutorTest {
       .containsEntry("client_meta", "client_value")
       .containsEntry("invocation_id", capturedMeta.get("invocation_id"))
       .containsEntry("mcp_server_id", mcpServerId);
+  }
+
+  private static ServerApi cloudApi(String organization, String uuid) {
+    var api = spy(new ServerApi(mock(ServerApiHelper.class), true));
+    doReturn(mock(OrganizationsApi.class)).when(api).organizationsApi();
+    doReturn(mock(UsersApi.class)).when(api).usersApi();
+    when(api.getOrganization()).thenReturn(organization);
+    when(api.organizationsApi().getOrganizationUuidV4(organization)).thenReturn(uuid);
+    when(api.usersApi().getCurrentUserId()).thenReturn("cached-user");
+    return api;
   }
 
   /** Stubs submit() to run the Runnable synchronously so assertions need no async wait. */

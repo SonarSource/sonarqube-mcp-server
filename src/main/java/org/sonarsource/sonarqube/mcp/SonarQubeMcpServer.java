@@ -311,7 +311,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var organizations = resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     var orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
-    organizations.forEach(orgFeatureEntitlements::cacheOrganizationUuid);
+    organizations.forEach(serverApi::cacheOrganizationUuid);
     loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();

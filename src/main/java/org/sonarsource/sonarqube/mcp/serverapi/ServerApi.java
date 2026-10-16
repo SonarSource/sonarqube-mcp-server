@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
@@ -32,6 +34,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.languages.LanguagesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.measures.MeasuresApi;
 import org.sonarsource.sonarqube.mcp.serverapi.metrics.MetricsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.pullrequests.PullRequestsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
@@ -49,15 +52,19 @@ public class ServerApi {
   private final ServerApiHelper helper;
   private final boolean isSonarQubeCloud;
   private final OrgFeatureEntitlements orgFeatureEntitlements;
+  private final ConcurrentMap<String, String> organizationUuids;
+  private final UsersApi usersApi;
 
   public ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud) {
     this(helper, isSonarQubeCloud, null);
   }
 
-  private ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud, @Nullable OrgFeatureEntitlements sharedEntitlements) {
+  private ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud, @Nullable ServerApi sessionApi) {
     this.helper = helper;
     this.isSonarQubeCloud = isSonarQubeCloud;
-    this.orgFeatureEntitlements = sharedEntitlements == null ? new OrgFeatureEntitlements(this) : sharedEntitlements;
+    this.organizationUuids = sessionApi == null ? new ConcurrentHashMap<>() : sessionApi.organizationUuids;
+    this.usersApi = sessionApi == null ? new UsersApi(helper) : sessionApi.usersApi;
+    this.orgFeatureEntitlements = sessionApi == null ? new OrgFeatureEntitlements(this) : sessionApi.orgFeatureEntitlements;
   }
 
   public QualityGatesApi qualityGatesApi() {
@@ -157,7 +164,7 @@ public class ServerApi {
   }
 
   public UsersApi usersApi() {
-    return new UsersApi(helper);
+    return usersApi;
   }
 
   public OrganizationsApi organizationsApi() {
@@ -168,9 +175,25 @@ public class ServerApi {
     return orgFeatureEntitlements;
   }
 
+  public void cacheOrganizationUuid(ResolvedOrganization org) {
+    var uuid = org.uuidV4();
+    if (uuid != null && !uuid.isBlank()) {
+      organizationUuids.putIfAbsent(org.key(), uuid);
+    }
+  }
+
+  /** Shares successful lookups within a stdio session or HTTP request; failures remain retryable. */
+  @Nullable
+  public String resolveOrganizationUuid(ResolvedOrganization org) {
+    return organizationUuids.computeIfAbsent(org.key(), key -> {
+      var uuid = org.uuidV4() != null ? org.uuidV4() : organizationsApi().getOrganizationUuidV4(key);
+      return uuid == null || uuid.isBlank() ? null : uuid;
+    });
+  }
+
   public ServerApi withOrganization(String organization) {
     // Selections share stdio session caches. HTTP starts with a fresh ServerApi for every request.
-    return isSonarQubeCloud ? new ServerApi(helper.withOrganization(organization), true, orgFeatureEntitlements) : this;
+    return isSonarQubeCloud ? new ServerApi(helper.withOrganization(organization), true, this) : this;
   }
 
   public void requireOrganization() {
