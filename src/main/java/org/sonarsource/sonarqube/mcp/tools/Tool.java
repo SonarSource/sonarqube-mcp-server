@@ -58,7 +58,7 @@ public abstract class Tool {
   /** OAuth scopes required by the tool's downstream API calls; not part of its MCP schema. */
   public Set<String> requiredOAuthScopes() {
     return definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint())
-      ? Set.of("read:all") : Set.of("read:all", "write:all");
+      ? Set.of("read:all") : Set.of("write:all");
   }
 
   public abstract Result execute(Arguments arguments);
