@@ -17,7 +17,8 @@
 package org.sonarsource.sonarqube.mcp.serverapi.users;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -27,7 +28,9 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,12 +43,19 @@ class UsersApiTest {
     .build();
 
   private UsersApi usersApi;
+  private HttpClientProvider httpClientProvider;
 
-  @BeforeAll
+  @BeforeEach
   void init() {
-    var httpClient = new HttpClientProvider("test").getHttpClient("token");
+    httpClientProvider = new HttpClientProvider("test");
+    var httpClient = httpClientProvider.getHttpClient("token");
     var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), httpClient);
     usersApi = new UsersApi(helper);
+  }
+
+  @AfterEach
+  void closeHttpClient() {
+    httpClientProvider.shutdown();
   }
 
   @Test
@@ -56,6 +66,8 @@ class UsersApiTest {
         """, 200)));
 
     assertThat(usersApi.getCurrentUserId()).isEqualTo("user-uuid-abc");
+    assertThat(usersApi.getCurrentUserId()).isEqualTo("user-uuid-abc");
+    sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(UsersApi.CURRENT_USER_PATH)));
   }
 
   @Test
@@ -66,6 +78,8 @@ class UsersApiTest {
         """, 200)));
 
     assertThat(usersApi.getCurrentUserId()).isNull();
+    assertThat(usersApi.getCurrentUserId()).isNull();
+    sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(UsersApi.CURRENT_USER_PATH)));
   }
 
   @Test
@@ -77,11 +91,26 @@ class UsersApiTest {
   }
 
   @Test
-  void it_should_return_null_on_server_error() {
+  void it_should_retry_server_errors_and_cache_recovered_identity() {
     sonarqubeMock.stubFor(get(UsersApi.CURRENT_USER_PATH)
       .willReturn(aResponse().withStatus(500)));
 
     assertThat(usersApi.getCurrentUserId()).isNull();
+
+    sonarqubeMock.stubFor(get(UsersApi.CURRENT_USER_PATH).willReturn(jsonResponse("{\"id\":\"recovered-user\"}", 200)));
+
+    assertThat(usersApi.getCurrentUserId()).isEqualTo("recovered-user");
+    assertThat(usersApi.getCurrentUserId()).isEqualTo("recovered-user");
+    sonarqubeMock.verify(2, getRequestedFor(urlPathEqualTo(UsersApi.CURRENT_USER_PATH)));
+  }
+
+  @Test
+  void it_should_not_retry_an_unsupported_current_user_endpoint() {
+    sonarqubeMock.stubFor(get(UsersApi.CURRENT_USER_PATH).willReturn(aResponse().withStatus(404)));
+
+    assertThat(usersApi.getCurrentUserId()).isNull();
+    assertThat(usersApi.getCurrentUserId()).isNull();
+    sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(UsersApi.CURRENT_USER_PATH)));
   }
 
 }

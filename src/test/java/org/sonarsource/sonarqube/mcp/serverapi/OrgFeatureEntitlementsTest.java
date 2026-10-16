@@ -30,12 +30,14 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
+import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -182,6 +184,28 @@ class OrgFeatureEntitlementsTest {
   }
 
   @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_share_organization_uuids_between_telemetry_and_entitlements(boolean discoveredAtStartup) {
+    if (discoveredAtStartup) {
+      cloudApi.cacheOrganizationUuid(ORG_WITH_KNOWN_UUID);
+    }
+    stubOrganizationUuid();
+    stubCagEntitlement(false);
+    sonarqubeMock.stubFor(get(UsersApi.CURRENT_USER_PATH).willReturn(jsonResponse("{\"id\":\"user-id\"}", 200)));
+    var context = ConnectionContext.empty();
+
+    context.resolveFrom(cloudApi);
+    assertThat(context.getOrganizationUuidV4()).isEqualTo(ORG_UUID);
+    var selectedApi = cloudApi.withOrganization(ORG_KEY);
+    assertThat(selectedApi.orgFeatureEntitlements().isVortexEnabledForOrg(ORG_WITHOUT_KNOWN_UUID)).isFalse();
+    assertThat(context.snapshotFor(selectedApi, context.snapshot()).organizationUuidV4()).isEqualTo(ORG_UUID);
+
+    verifyLookupCounts(discoveredAtStartup ? 0 : 1, 1, 0);
+    assertThat(selectedApi.usersApi().getCurrentUserId()).isEqualTo("user-id");
+    sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(UsersApi.CURRENT_USER_PATH)));
+  }
+
+  @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void it_should_cache_confirmed_unentitled_results(boolean cagEnabled) {
     stubOrganizationUuid();
@@ -260,6 +284,10 @@ class OrgFeatureEntitlementsTest {
 
   @Test
   void it_should_keep_fresh_http_request_apis_isolated_across_tokens() {
+    stubOrganizationUuid();
+    sonarqubeMock.stubFor(get(UsersApi.CURRENT_USER_PATH).willReturn(jsonResponse("{\"id\":\"user-a\"}", 200)));
+    assertThat(cloudApi.resolveOrganizationUuid(ORG_WITHOUT_KNOWN_UUID)).isEqualTo(ORG_UUID);
+    assertThat(cloudApi.usersApi().getCurrentUserId()).isEqualTo("user-a");
     stubCagEntitlement(true);
     stubA3sConfig(true);
     assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITH_KNOWN_UUID)).isTrue();
@@ -268,6 +296,10 @@ class OrgFeatureEntitlementsTest {
     var requestHelper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), ORG_KEY, null, true),
       httpClientProvider.getHttpClient("other-token"));
     var requestApi = new ServerApi(requestHelper, true).withOrganization(ORG_KEY);
+    sonarqubeMock.stubFor(get(UsersApi.CURRENT_USER_PATH).willReturn(jsonResponse("{\"id\":\"user-b\"}", 200)));
+    assertThat(requestApi.resolveOrganizationUuid(ORG_WITHOUT_KNOWN_UUID)).isEqualTo(ORG_UUID);
+    assertThat(requestApi.usersApi().getCurrentUserId()).isEqualTo("user-b");
+    assertThat(cloudApi.usersApi().getCurrentUserId()).isEqualTo("user-a");
     assertThat(requestApi.orgFeatureEntitlements().isVortexEnabledForOrg(ORG_WITH_KNOWN_UUID)).isFalse();
     assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(ORG_WITH_KNOWN_UUID)).isTrue();
 
@@ -275,6 +307,12 @@ class OrgFeatureEntitlementsTest {
       .withHeader("Authorization", equalTo("Bearer token")));
     sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
       .withHeader("Authorization", equalTo("Bearer other-token")));
+    for (var token : java.util.List.of("token", "other-token")) {
+      sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+        .withHeader("Authorization", equalTo("Bearer " + token)));
+      sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(UsersApi.CURRENT_USER_PATH))
+        .withHeader("Authorization", equalTo("Bearer " + token)));
+    }
   }
 
   @Test
