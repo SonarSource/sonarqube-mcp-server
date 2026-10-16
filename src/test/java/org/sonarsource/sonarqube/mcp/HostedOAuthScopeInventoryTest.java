@@ -58,10 +58,9 @@ class HostedOAuthScopeInventoryTest {
         "search_dependency_risks", "get_agentic_readiness_assessment", "list_agentic_readiness_assessments")) {
         expected.put(name, Set.of("read:all"));
       }
-      for (var name : List.of("change_sonar_issue_status", "change_security_hotspot_status", "create_webhook")) {
+      for (var name : List.of("change_sonar_issue_status", "change_security_hotspot_status", "create_webhook", "start_agentic_readiness_assessment")) {
         expected.put(name, Set.of("write:all"));
       }
-      expected.put("start_agentic_readiness_assessment", Set.of("read:all", "write:all"));
 
       var actual = server.getSupportedTools().stream().collect(Collectors.toMap(tool -> tool.definition().name(), Tool::requiredOAuthScopes));
       assertThat(actual).containsExactlyInAnyOrderEntriesOf(expected);
@@ -71,7 +70,7 @@ class HostedOAuthScopeInventoryTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_use_only_posts_for_write_only_tools_including_optional_paths(SonarQubeMcpServerTestHarness harness) {
+  void it_should_preserve_mutation_tool_requests_including_optional_paths(SonarQubeMcpServerTestHarness harness) {
     var backend = harness.getMockSonarQubeServer();
     backend.stubFor(post(IssuesApi.DO_TRANSITION_PATH).willReturn(ok()));
     backend.stubFor(post(IssuesApi.ADD_COMMENT_PATH).willReturn(ok()));
@@ -95,7 +94,7 @@ class HostedOAuthScopeInventoryTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_require_both_scopes_for_the_assessment_get_then_post(SonarQubeMcpServerTestHarness harness) {
+  void it_should_resolve_the_project_before_starting_the_assessment(SonarQubeMcpServerTestHarness harness) {
     var backend = harness.getMockSonarQubeServer();
     backend.stubFor(get(urlPathEqualTo(ProjectBranchesApi.BRANCHES_LIST_PATH)).willReturn(okJson("""
       {"branches":[{"name":"main","isMain":true,"branchId":"project-id"}]}
