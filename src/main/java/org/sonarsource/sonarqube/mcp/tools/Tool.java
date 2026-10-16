@@ -55,6 +55,12 @@ public abstract class Tool {
     return true;
   }
 
+  /** OAuth scopes required by the tool's downstream API calls; not part of its MCP schema. */
+  public Set<String> requiredOAuthScopes() {
+    return definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint())
+      ? Set.of("read:all") : Set.of("write:all");
+  }
+
   public abstract Result execute(Arguments arguments);
 
   public static String resolveFileContent(@Nullable Path configuredWorkspacePath, Arguments arguments, String filePathProperty,
