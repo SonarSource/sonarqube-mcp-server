@@ -22,7 +22,10 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import reactor.core.publisher.Mono;
@@ -378,18 +381,23 @@ class PerRequestToolFilteringHandlerTest {
     verify(delegate).handleNotification(context, notification);
   }
 
-  @Test
-  void tools_call_with_non_map_params_delegates_to_sdk_handler() {
+  @ParameterizedTest
+  @MethodSource("invalidToolCallParams")
+  void tools_call_with_invalid_params_delegates_to_sdk_handler(Object params) {
     var delegate = mock(McpStatelessServerHandler.class);
     when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
       new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
 
     var handler = new PerRequestToolFilteringHandler(delegate, List.of());
-    var request = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_TOOLS_CALL, REQUEST_ID, "not-a-map");
+    var request = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_TOOLS_CALL, REQUEST_ID, params);
 
     handler.handleRequest(contextWithToken(), request).block();
 
     verify(delegate).handleRequest(contextWithToken(), request);
+  }
+
+  private static Stream<Object> invalidToolCallParams() {
+    return Stream.of(null, "not-a-map", Map.of(), Map.of("name", 42));
   }
 
   private static Tool mockTool(String name, ToolCategory category, boolean readOnly) {
