@@ -91,22 +91,7 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
       return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), result, null));
     }
     if (McpSchema.METHOD_TOOLS_CALL.equals(request.method())) {
-      var toolName = extractToolName(request);
-      if (toolName != null) {
-        var tool = allTools.stream().filter(candidate -> toolName.equals(candidate.definition().name())).findFirst().orElse(null);
-        if (tool == null || !isOrdinarilyAllowed(tool, transportContext)) {
-          return toolNotFound(request, toolName);
-        }
-        var authorization = (OAuthScopeContext) transportContext.get(OAuthScopeContext.CONTEXT_KEY);
-        if (authorization != null && !authorization.permits(tool.requiredOAuthScopes())) {
-          authorization.deny(tool.requiredOAuthScopes());
-          var error = new McpSchema.JSONRPCResponse.JSONRPCError(-32001, "Insufficient OAuth scope", null);
-          return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
-        }
-        if (!tool.isEnabledFor(transportContext)) {
-          return toolNotFound(request, toolName);
-        }
-      }
+      return handleToolCall(transportContext, request);
     }
     // https://github.com/modelcontextprotocol/java-sdk/issues/784
     if (!SUPPORTED_REQUEST_METHODS.contains(request.method())) {
@@ -120,6 +105,27 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
   @Override
   public Mono<Void> handleNotification(McpTransportContext transportContext, McpSchema.JSONRPCNotification notification) {
     return delegate.handleNotification(transportContext, notification);
+  }
+
+  private Mono<McpSchema.JSONRPCResponse> handleToolCall(McpTransportContext transportContext, McpSchema.JSONRPCRequest request) {
+    var toolName = extractToolName(request);
+    if (toolName == null) {
+      return delegate.handleRequest(transportContext, request);
+    }
+    var tool = allTools.stream().filter(candidate -> toolName.equals(candidate.definition().name())).findFirst().orElse(null);
+    if (tool == null || !isOrdinarilyAllowed(tool, transportContext)) {
+      return toolNotFound(request, toolName);
+    }
+    var authorization = (OAuthScopeContext) transportContext.get(OAuthScopeContext.CONTEXT_KEY);
+    if (authorization != null && !authorization.permits(tool.requiredOAuthScopes())) {
+      authorization.deny(tool.requiredOAuthScopes());
+      var error = new McpSchema.JSONRPCResponse.JSONRPCError(-32001, "Insufficient OAuth scope", null);
+      return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
+    }
+    if (!tool.isEnabledFor(transportContext)) {
+      return toolNotFound(request, toolName);
+    }
+    return delegate.handleRequest(transportContext, request);
   }
 
   private List<McpSchema.Tool> filterTools(McpTransportContext ctx) {
