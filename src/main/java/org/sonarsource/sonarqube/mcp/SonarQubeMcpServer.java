@@ -298,7 +298,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarQubeCloud());
     }
 
-    // Capture the invocation API before asynchronous analytics work in both transports.
+    // Capture the invocation API for analytics; stdio reuses session identity, HTTP resolves identity per call.
     this.toolExecutor = new ToolExecutor(backendService, analyticsService,
       mcpConfiguration.isHttpEnabled() ? null : connectionContext, this,
       mcpConfiguration.getMcpServerId(), this::resolveEnabledToolsets);
@@ -311,7 +311,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var organizations = resolveOrganizationAtStartup();
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     var orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
-    organizations.forEach(orgFeatureEntitlements::cacheOrganizationUuid);
+    organizations.forEach(serverApi::cacheOrganizationUuid);
     loadBackendIndependentTools(serverApi);
 
     sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();

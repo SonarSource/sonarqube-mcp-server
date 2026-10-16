@@ -33,18 +33,10 @@ public class OrgFeatureEntitlements {
   private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ServerApi api;
-  private final ConcurrentMap<String, String> organizationUuids = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, Boolean> vortexEntitlements = new ConcurrentHashMap<>();
 
   public OrgFeatureEntitlements(ServerApi api) {
     this.api = api;
-  }
-
-  public void cacheOrganizationUuid(ResolvedOrganization org) {
-    var uuid = org.uuidV4();
-    if (uuid != null && !uuid.isBlank()) {
-      organizationUuids.putIfAbsent(org.key(), uuid);
-    }
   }
 
   /**
@@ -65,10 +57,7 @@ public class OrgFeatureEntitlements {
 
   @Nullable
   private Boolean checkCloudVortexEntitlement(ResolvedOrganization org) {
-    var orgUuidV4 = organizationUuids.computeIfAbsent(org.key(), key -> {
-      var uuid = org.uuidV4() != null ? org.uuidV4() : api.organizationsApi().getOrganizationUuidV4(key);
-      return uuid == null || uuid.isBlank() ? null : uuid;
-    });
+    var orgUuidV4 = api.resolveOrganizationUuid(org);
     if (orgUuidV4 == null) {
       LOG.debug("Entitlement check: could not resolve UUID for org '" + org.key() + "' - skipping");
       return null;
@@ -86,7 +75,7 @@ public class OrgFeatureEntitlements {
       return false;
     }
     var orgKey = org.key();
-    var orgUuidV4 = org.uuidV4() != null ? org.uuidV4() : api.organizationsApi().getOrganizationUuidV4(orgKey);
+    var orgUuidV4 = api.resolveOrganizationUuid(org);
     if (orgUuidV4 == null) {
       LOG.debug("Entitlement check: could not resolve UUID for org '" + orgKey + "' - skipping");
       return false;
