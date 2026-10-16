@@ -75,7 +75,7 @@ class OAuthScopeHttpTest {
 
   @BeforeEach
   void start() throws Exception {
-    var tools = List.of(tool("read_tool", true, false), tool("write_tool", false, true), tool("both_tool", false, false));
+    var tools = List.of(tool("read_tool", true, false), tool("write_tool", false, false), tool("both_tool", false, true));
     var transport = HttpServletStatelessServerTransport.builder().messageEndpoint("/mcp").jsonMapper(McpJsonMappers.DEFAULT)
       .contextExtractor(request -> (McpTransportContext) request.getAttribute("test-context")).build();
     var filtering = new McpStatelessServerTransport() {
@@ -242,7 +242,7 @@ class OAuthScopeHttpTest {
     assertThat(allowed.headers().firstValue("WWW-Authenticate")).isEmpty();
   }
 
-  private Tool tool(String name, boolean readOnly, boolean writeOnly) {
+  private Tool tool(String name, boolean readOnly, boolean requiresBothScopes) {
     var definition = ToolDefinitionBuilder.builder().setName(name).setDescription(name);
     if (readOnly) {
       definition.setReadOnlyHint();
@@ -250,7 +250,7 @@ class OAuthScopeHttpTest {
     return new Tool(definition.build(), ToolCategory.ISSUES) {
       @Override
       public Set<String> requiredOAuthScopes() {
-        return writeOnly ? Set.of("write:all") : super.requiredOAuthScopes();
+        return requiresBothScopes ? Set.of("read:all", "write:all") : super.requiredOAuthScopes();
       }
 
       @Override
