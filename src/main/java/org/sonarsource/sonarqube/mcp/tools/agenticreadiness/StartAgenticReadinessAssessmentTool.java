@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
 import jakarta.annotation.Nullable;
-import java.util.Set;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
@@ -50,12 +49,6 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
       ToolCategory.AGENTIC_READINESS);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
-  }
-
-  @Override
-  public Set<String> requiredOAuthScopes() {
-    // Resolve the project ID before creating the assessment.
-    return Set.of("read:all", "write:all");
   }
 
   @Override
