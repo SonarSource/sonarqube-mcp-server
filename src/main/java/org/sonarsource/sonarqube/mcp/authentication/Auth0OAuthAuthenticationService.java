@@ -46,7 +46,7 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
   private final Auth0TokenVerifier verifier;
   private final Auth0TokenExchange exchange;
   private final Clock clock;
-  private final Cache<CacheKey, CacheEntry> cache;
+  private final Cache<String, CacheEntry> cache;
   private final Semaphore exchanges = new Semaphore(16);
 
   public Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client) {
@@ -76,6 +76,14 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
 
   public OAuthRequestAuthentication authenticate(String token) {
     var source = verifier.verifyMcp(token);
+    var scopes = validateSource(source);
+    // The cache belongs to this service's configuration; the fingerprint includes every source claim.
+    var authentication = cachedOrExchange(fingerprint(token), token, source, scopes).authentication();
+    verifier.verifyCloud(authentication.cloudToken());
+    return authentication;
+  }
+
+  private Set<String> validateSource(DecodedJWT source) {
     var scopes = scopes(source);
     if (!validLifetime(source) || source.getAudience().contains(configuration.cloudAudience()) || blank(source.getSubject())
       || !source.getSubject().matches("oauth2\\|github\\|github\\|\\d+") || blank(source.getClaim("azp").asString())
@@ -85,14 +93,10 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     if (scopes.isEmpty()) {
       throw OAuthAuthenticationException.insufficientScope();
     }
-    var key = new CacheKey(fingerprint(token), source.getIssuer(), source.getSubject(), source.getClaim("azp").asString(),
-      configuration.cloudAudience(), scopes);
-    var authentication = cachedOrExchange(key, token, source, scopes).authentication();
-    verifier.verifyCloud(authentication.cloudToken());
-    return authentication;
+    return scopes;
   }
 
-  private CacheEntry cachedOrExchange(CacheKey key, String token, DecodedJWT source, Set<String> scopes) {
+  private CacheEntry cachedOrExchange(String key, String token, DecodedJWT source, Set<String> scopes) {
     var cached = cache.getIfPresent(key);
     if (cached != null && !cached.expiresAt().isAfter(clock.instant())) {
       cache.asMap().remove(key, cached);
@@ -118,12 +122,8 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     try {
       var cloudToken = exchange.exchange(token, scopes);
       var downstream = verifier.verifyCloud(cloudToken);
-      try {
-        validateExchange(source, downstream, scopes);
-      } catch (JWTDecodeException e) {
-        throw OAuthAuthenticationException.invalidExchange();
-      }
-      var authentication = new OAuthRequestAuthentication(cloudToken, scopes(downstream));
+      var granted = validateExchange(source, downstream, scopes);
+      var authentication = new OAuthRequestAuthentication(cloudToken, granted);
       var expiresAt = earliest(source.getExpiresAtAsInstant(), downstream.getExpiresAtAsInstant(), clock.instant().plus(configuration.cacheTtl()));
       return new CacheEntry(authentication, expiresAt);
     } finally {
@@ -131,19 +131,28 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     }
   }
 
-  private void validateExchange(DecodedJWT source, DecodedJWT downstream, Set<String> allowed) {
-    var actor = downstream.getClaim("act").asMap();
-    var previousActor = actor != null && actor.get("act") instanceof Map<?, ?> previous ? previous : null;
-    var downstreamScope = downstream.getClaim("scope").asString();
-    var granted = downstreamScope == null ? Set.<String>of() : Set.copyOf(Arrays.asList(downstreamScope.split(" ")));
-    if (!validLifetime(downstream) || !Objects.equals(source.getSubject(), downstream.getSubject())
-      || !Objects.equals(configuration.clientId(), downstream.getClaim("azp").asString())
-      || !downstream.getAudience().equals(List.of(configuration.cloudAudience()))
-      || !downstream.getClaim("org_id").isMissing() || granted.isEmpty() || !allowed.containsAll(granted)
-      || actor == null || !configuration.clientId().equals(actor.get("sub"))
-      || previousActor == null || !source.getClaim("azp").asString().equals(previousActor.get("sub")) || previousActor.containsKey("act")) {
+  private Set<String> validateExchange(DecodedJWT source, DecodedJWT downstream, Set<String> allowed) {
+    try {
+      var downstreamScope = downstream.getClaim("scope").asString();
+      var granted = downstreamScope == null ? Set.<String>of() : Set.copyOf(Arrays.asList(downstreamScope.split(" ")));
+      if (!validLifetime(downstream) || !Objects.equals(source.getSubject(), downstream.getSubject())
+        || !Objects.equals(configuration.clientId(), downstream.getClaim("azp").asString())
+        || !downstream.getAudience().equals(List.of(configuration.cloudAudience()))
+        || !downstream.getClaim("org_id").isMissing() || granted.isEmpty() || !allowed.containsAll(granted)
+        || !hasExpectedActors(downstream, source.getClaim("azp").asString())) {
+        throw OAuthAuthenticationException.invalidExchange();
+      }
+      return granted;
+    } catch (JWTDecodeException e) {
       throw OAuthAuthenticationException.invalidExchange();
     }
+  }
+
+  private boolean hasExpectedActors(DecodedJWT downstream, String initiatingClient) {
+    var actor = downstream.getClaim("act").asMap();
+    return actor != null && configuration.clientId().equals(actor.get("sub"))
+      && actor.get("act") instanceof Map<?, ?> previous
+      && initiatingClient.equals(previous.get("sub")) && !previous.containsKey("act");
   }
 
   private static Set<String> scopes(DecodedJWT token) {
@@ -177,6 +186,5 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     }
   }
 
-  private record CacheKey(String authorizationFingerprint, String issuer, String subject, String client, String audience, Set<String> scopes) { }
   private record CacheEntry(OAuthRequestAuthentication authentication, Instant expiresAt) { }
 }

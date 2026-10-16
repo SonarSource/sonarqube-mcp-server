@@ -19,6 +19,8 @@ package org.sonarsource.sonarqube.mcp.authentication;
 import com.auth0.client.auth.AuthAPI;
 import com.auth0.exception.APIException;
 import com.auth0.exception.Auth0Exception;
+import com.auth0.json.auth.TokenHolder;
+import com.auth0.net.Response;
 import com.auth0.net.client.DefaultHttpClient;
 import java.io.InterruptedIOException;
 import java.time.Duration;
@@ -54,21 +56,13 @@ final class Auth0TokenExchange {
     if (scopes.isEmpty()) {
       throw OAuthAuthenticationException.invalidExchange();
     }
+    Response<TokenHolder> response;
     try {
       var request = client.exchangeToken(token, ACCESS_TOKEN_TYPE)
         .setAudience(configuration.cloudAudience())
         .setScope(scopes.stream().sorted().collect(Collectors.joining(" ")));
       request.addParameter("requested_token_type", ACCESS_TOKEN_TYPE);
-      var response = request.execute();
-      var body = response.getBody();
-      if (response.getStatusCode() != 200 || body == null || !"Bearer".equalsIgnoreCase(body.getTokenType())) {
-        throw OAuthAuthenticationException.invalidExchange();
-      }
-      var exchanged = body.getAccessToken();
-      if (exchanged == null || exchanged.isBlank() || exchanged.length() > 16_384) {
-        throw OAuthAuthenticationException.invalidExchange();
-      }
-      return exchanged;
+      response = request.execute();
     } catch (APIException e) {
       throw exchangeFailure(e);
     } catch (Auth0Exception e) {
@@ -76,11 +70,18 @@ final class Auth0TokenExchange {
         Thread.currentThread().interrupt();
       }
       throw OAuthAuthenticationException.unavailable();
-    } catch (OAuthAuthenticationException e) {
-      throw e;
     } catch (RuntimeException e) {
       throw OAuthAuthenticationException.invalidExchange();
     }
+    var body = response.getBody();
+    if (response.getStatusCode() != 200 || body == null || !"Bearer".equalsIgnoreCase(body.getTokenType())) {
+      throw OAuthAuthenticationException.invalidExchange();
+    }
+    var exchanged = body.getAccessToken();
+    if (exchanged == null || exchanged.isBlank() || exchanged.length() > 16_384) {
+      throw OAuthAuthenticationException.invalidExchange();
+    }
+    return exchanged;
   }
 
   private static OAuthAuthenticationException exchangeFailure(APIException failure) {

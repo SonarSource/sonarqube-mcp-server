@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -96,6 +97,17 @@ class Auth0TokenExchangeTest {
       assertThatThrownBy(() -> exchange.exchange("token-a", Set.of("read:all")))
         .isInstanceOfSatisfying(OAuthAuthenticationException.class, failure -> assertThat(failure.status()).isEqualTo(502));
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {201, 202, 204})
+  void it_should_require_status_200_even_for_an_otherwise_valid_response(int status) {
+    auth0.stubFor(post("/oauth/token").willReturn(aResponse().withStatus(status)
+      .withBody("{\"access_token\":\"token-b\",\"token_type\":\"Bearer\"}")));
+    var scopes = Set.of("read:all");
+
+    assertThatThrownBy(() -> exchange.exchange("token-a", scopes))
+      .isInstanceOfSatisfying(OAuthAuthenticationException.class, failure -> assertThat(failure.status()).isEqualTo(502));
   }
 
   @Test
