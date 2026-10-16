@@ -40,6 +40,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
+/**
+ * Authenticates MCP tokens and exchanges them for validated Cloud credentials.
+ * The cache and exchange limit are local to this instance; authentication needs no HTTP session state.
+ */
 public final class Auth0OAuthAuthenticationService implements Function<String, OAuthRequestAuthentication> {
   public static final Set<String> DELEGATION_SCOPES = Set.of("read:all", "write:all");
   private final OAuthConfiguration configuration;
@@ -74,6 +78,9 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     return authenticate(token);
   }
 
+  /**
+   * Verifies both tokens on every call, including when the Cloud credential comes from the cache.
+   */
   public OAuthRequestAuthentication authenticate(String token) {
     var source = verifier.verifyMcp(token);
     var scopes = validateSource(source);
@@ -83,6 +90,9 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     return authentication;
   }
 
+  /**
+   * Requires explicit delegation from a short-lived GitHub user token with no organization binding or prior actors.
+   */
   private Set<String> validateSource(DecodedJWT source) {
     var scopes = scopes(source);
     if (!validLifetime(source) || source.getAudience().contains(configuration.cloudAudience()) || blank(source.getSubject())
@@ -96,6 +106,9 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     return scopes;
   }
 
+  /**
+   * Shares one in-flight exchange per token fingerprint. Token expiration can invalidate an entry before the cache TTL.
+   */
   private CacheEntry cachedOrExchange(String key, String token, DecodedJWT source, Set<String> scopes) {
     var cached = cache.getIfPresent(key);
     if (cached != null && !cached.expiresAt().isAfter(clock.instant())) {
@@ -115,6 +128,9 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     }
   }
 
+  /**
+   * Limits Auth0 load per instance and caches validated credentials until either token expires or the TTL elapses.
+   */
   private CacheEntry exchange(String token, DecodedJWT source, Set<String> scopes) {
     if (!exchanges.tryAcquire()) {
       throw OAuthAuthenticationException.unavailable();
@@ -131,6 +147,9 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     }
   }
 
+  /**
+   * Checks the verified Cloud token against the original user and delegation, returning only the scopes actually granted.
+   */
   private Set<String> validateExchange(DecodedJWT source, DecodedJWT downstream, Set<String> allowed) {
     try {
       var downstreamScope = downstream.getClaim("scope").asString();
@@ -148,6 +167,9 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     }
   }
 
+  /**
+   * Requires exactly two actors: this backend, then the client that obtained the MCP token.
+   */
   private boolean hasExpectedActors(DecodedJWT downstream, String initiatingClient) {
     var actor = downstream.getClaim("act").asMap();
     return actor != null && configuration.clientId().equals(actor.get("sub"))
