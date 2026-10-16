@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -58,6 +59,35 @@ class HttpClientProviderTests {
 
     sonarqubeMock.verify(getRequestedFor(urlEqualTo("/test"))
       .withHeader("User-Agent", equalTo(USER_AGENT)));
+  }
+
+  @Test
+  void it_should_fail_when_the_response_exceeds_the_timeout() {
+    sonarqubeMock.stubFor(get("/stalled")
+      .willReturn(aResponse().withFixedDelay(10_000)));
+
+    var underTest = new HttpClientProvider(USER_AGENT, Timeout.ofMilliseconds(500));
+    try {
+      var future = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/stalled"));
+      var error = assertThrows(ExecutionException.class, () -> future.get(3, TimeUnit.SECONDS));
+
+      assertThat(future).isCompletedExceptionally();
+      assertThat(isTimeout(error)).isTrue();
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
+  private static boolean isTimeout(Throwable error) {
+    var current = error;
+    while (current != null) {
+      var typeName = current.getClass().getName();
+      if (typeName.contains("Timeout") || typeName.contains("SocketTimeout")) {
+        return true;
+      }
+      current = current.getCause();
+    }
+    return false;
   }
 
   @Test
