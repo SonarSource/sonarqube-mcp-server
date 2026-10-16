@@ -17,13 +17,14 @@
 package org.sonarsource.sonarqube.mcp.transport;
 
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Verified grants and a denial marker owned by one HTTP request, never by the token cache. */
 public final class OAuthScopeContext {
   public static final String CONTEXT_KEY = "oauth-scopes";
 
   private final Set<String> grantedScopes;
-  private volatile Set<String> requiredScopes = Set.of();
+  private final AtomicReference<Set<String>> requiredScopes = new AtomicReference<>(Set.of());
 
   public OAuthScopeContext(Set<String> grantedScopes) {
     this.grantedScopes = Set.copyOf(grantedScopes);
@@ -34,10 +35,10 @@ public final class OAuthScopeContext {
   }
 
   public void deny(Set<String> scopes) {
-    requiredScopes = Set.copyOf(scopes);
+    requiredScopes.set(Set.copyOf(scopes));
   }
 
   public Set<String> requiredScopes() {
-    return requiredScopes;
+    return requiredScopes.get();
   }
 }
