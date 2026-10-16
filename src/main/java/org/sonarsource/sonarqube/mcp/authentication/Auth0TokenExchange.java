@@ -28,6 +28,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import okhttp3.OkHttpClient;
 
+/**
+ * Performs Auth0's native token exchange and sanitizes upstream failures.
+ * The caller must verify the returned JWT and its delegated claims before using it.
+ */
 final class Auth0TokenExchange {
   private static final String ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
   private final OAuthConfiguration configuration;
