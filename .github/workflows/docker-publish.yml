@@ -75,20 +75,26 @@ jobs:
           case "${INPUT_UPDATE_LATEST:-auto}" in
             always) UPDATE_LATEST=true ;;
             never) UPDATE_LATEST=false ;;
+            # Dry runs never push latest, so don't depend on the Docker Hub tags API
             auto)
-              PUBLISHED=""
-              URL="https://hub.docker.com/v2/repositories/sonarsource/sonarqube-mcp/tags?page_size=100"
-              while [ -n "${URL}" ] && [ "${URL}" != "null" ]; do
-                if ! PAGE=$(curl -fsS --retry 3 "${URL}"); then
-                  echo "::error::Could not list published tags to decide whether to move latest; set update_latest explicitly"
-                  exit 1
-                fi
-                PUBLISHED="${PUBLISHED}$(jq -r '.results[].name' <<< "${PAGE}")"$'\n'
-                URL=$(jq -r '.next' <<< "${PAGE}")
-              done
-              HIGHEST=$(printf '%s\n%s\n' "${PUBLISHED}" "${VERSION}" | grep -E '^[0-9]+(\.[0-9]+){3}$' | sort -V | tail -n 1)
-              echo "Highest version (published or current): ${HIGHEST}"
-              if [ "${HIGHEST}" = "${VERSION}" ]; then UPDATE_LATEST=true; else UPDATE_LATEST=false; fi
+              if [ "${INPUT_DRY_RUN}" = "true" ]; then
+                echo "Dry run: skipping the published-version lookup"
+                UPDATE_LATEST=false
+              else
+                PUBLISHED=""
+                URL="https://hub.docker.com/v2/repositories/sonarsource/sonarqube-mcp/tags?page_size=100"
+                while [ -n "${URL}" ] && [ "${URL}" != "null" ]; do
+                  if ! PAGE=$(curl -fsS --retry 3 "${URL}"); then
+                    echo "::error::Could not list published tags to decide whether to move latest; set update_latest explicitly"
+                    exit 1
+                  fi
+                  PUBLISHED="${PUBLISHED}$(jq -r '.results[].name' <<< "${PAGE}")"$'\n'
+                  URL=$(jq -r '.next' <<< "${PAGE}")
+                done
+                HIGHEST=$(printf '%s\n%s\n' "${PUBLISHED}" "${VERSION}" | grep -E '^[0-9]+(\.[0-9]+){3}$' | sort -V | tail -n 1)
+                echo "Highest version (published or current): ${HIGHEST}"
+                if [ "${HIGHEST}" = "${VERSION}" ]; then UPDATE_LATEST=true; else UPDATE_LATEST=false; fi
+              fi
               ;;
             *)
               echo "::error::Invalid update_latest '${INPUT_UPDATE_LATEST}'"
