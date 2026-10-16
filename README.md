@@ -552,6 +552,7 @@ You should add the following variable when running the MCP Server:
 | `STORAGE_PATH`                   | Mandatory absolute path to a writable directory where SonarQube MCP Server will store its files (e.g., for creation, updates, and persistence), it is automatically provided when using the container image                 |
 | `SONARQUBE_PROJECT_KEY`          | Optional default project key. When set, all tools that require a project key will use this value automatically — the `projectKey` parameter is removed from their schema entirely. Useful when working on a single project. |
 | `SONARQUBE_IDE_PORT`             | Optional port number between 64120 and 64130 used to connect SonarQube MCP Server with SonarQube for IDE.                                                                                                                   |
+| `SONARQUBE_FORCE_LOCAL_ANALYSIS` | Set to `true` to use `analyze_code_snippet` instead of Vortex analysis on Cloud stdio, including for entitled organizations. Requires the `analysis` toolset. Default: `false`. Has no effect on SonarQube Server or Cloud HTTP. |
 | `SONARQUBE_DEBUG_ENABLED`        | When set to `true`, enables debug logging. Debug logs are written to both the log file and STDERR. Useful for troubleshooting connectivity or configuration issues. Default: `false`.                                       |
 | `SONARQUBE_LOG_TO_FILE_DISABLED` | When set to `true`, disables writing logs to disk entirely. No log files will be created under `STORAGE_PATH/logs/`. Useful in containerized or ephemeral environments where file logging is undesirable. Default: `false`. |
 
@@ -573,9 +574,18 @@ By default, analysis tool `analyze_code_snippet` requires the agent to pass the 
 }
 ```
 
-When the mount is active:
-- `run_advanced_code_analysis` becomes available if your organization is entitled to it
-- `analyze_code_snippet`: `filePath` is required and `fileContent` is not used — the server resolves the file the same way
+With a mount, analysis tools read files directly using `filePath`; `fileContent` is not needed.
+
+Over stdio, analysis is selected at startup (subject to enabled toolsets):
+
+- **SonarQube Cloud:** Vortex analysis (`run_advanced_code_analysis`) with a workspace mount and at least one entitled organization; local analysis otherwise. Vortex analysis only accepts entitled organizations.
+- **SonarQube Server:** Vortex analysis for entitled instances (requires a workspace mount); local analysis for instances without Vortex.
+
+Local analysis uses SonarQube for IDE if connected or `analyze_code_snippet`. Without a mount, snippet analysis requires `fileContent`.
+
+On Cloud, `SONARQUBE_ORG` limits the entitlement check to that organization. To use snippets for all organizations, set `SONARQUBE_FORCE_LOCAL_ANALYSIS=true`, enable the `analysis` toolset, and restart. This setting has no effect on Server.
+
+Over HTTP/HTTPS, Server supports snippet analysis with a startup `SONARQUBE_TOKEN`; Cloud exposes no analysis tools.
 
 ### Selective Tool Enablement
 
@@ -585,7 +595,7 @@ By default, only important toolsets are enabled. Enable additional toolsets only
 
 | Environment variable  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SONARQUBE_TOOLSETS`  | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `ide`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Vortex context tools (deprecated name: Context Augmentation/CAG) and Vortex analysis tools (deprecated name: Advanced Analysis/A3S) are only available in stdio mode and share a single combined organization entitlement — an org must be entitled to both to use either. On SonarQube Server, stdio lists Vortex context and `run_advanced_code_analysis` when both the CAG and A3S hubs are entitled. Prefer the unified `vortex` toolset key. The deprecated `cag` and `analysis` keys still work; a startup warning and a deprecation note in the server instructions are emitted when they are used without `vortex`. In Streamable HTTP mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [Streamable HTTP transport](#2-http-streamable-http) below). |
+| `SONARQUBE_TOOLSETS`  | Comma-separated list of toolsets to enable. When set, only these toolsets will be available. If not set, default important toolsets are enabled (`analysis`, `ide`, `issues`, `projects`, `quality-gates`, `rules`, `duplications`, `measures`, `security-hotspots`, `dependency-risks`, `coverage`, `cag`). **Note:** The `projects` toolset is always enabled as it's required to find project keys for other operations. Vortex context tools (deprecated name: Context Augmentation/CAG) and Vortex analysis tools (deprecated name: Advanced Analysis/A3S) are only available in stdio mode and share a single combined organization entitlement — an org must be entitled to both to use either. Cloud built-in analysis checks the organization selected at runtime; proxied context tools use the startup organization. On SonarQube Server, stdio lists Vortex context and `run_advanced_code_analysis` when both the CAG and A3S hubs are entitled. Prefer the unified `vortex` toolset key. The deprecated `cag` and `analysis` keys still work; a startup warning and a deprecation note in the server instructions are emitted when they are used without `vortex`. In Streamable HTTP mode, clients can send a `SONARQUBE_TOOLSETS` HTTP header to narrow this further per-request, but cannot enable toolsets beyond what the server was launched with (see [Streamable HTTP transport](#2-http-streamable-http) below). |
 | `SONARQUBE_READ_ONLY` | When set to `true`, enables read-only mode which disables all write operations (changing issue status for example). This filter is cumulative with `SONARQUBE_TOOLSETS` if both are set. Default: `false`. In Streamable HTTP mode, clients can send a `SONARQUBE_READ_ONLY` HTTP header to further restrict individual requests to read-only, but cannot lift a server-level read-only restriction (see [Streamable HTTP transport](#2-http-streamable-http) below).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 <details>
@@ -673,7 +683,7 @@ With `SONARQUBE_ORG` unset, agents can call `list_organizations` to discover org
 
 In HTTP/HTTPS, server-level `SONARQUBE_ORG` remains supported for compatibility but is deprecated and logs a startup warning. It fixes the organization for every request and rejects client organization headers and tool `organization` arguments. When no server organization is configured, an optional client `SONARQUBE_ORG` header fixes the organization for that request and disallows tool `organization` arguments. Without the header, use the tool argument. Tools that require an organization report discovery guidance when all are missing. Organization discovery and tools whose APIs consume only resource identifiers do not require an organization argument. Organization-aware issue search and dependency-risk entitlement checks use the selected organization.
 
-Vortex context tools use the configured or uniquely detected startup organization. Runtime organization arguments do not reconfigure the proxied context engine; unresolved startup organizations skip that proxy.
+Vortex context tools use the configured or uniquely detected startup organization. Runtime organization arguments do not reconfigure the proxied context engine; unresolved startup organizations skip that proxy. The built-in `run_advanced_code_analysis` tool checks combined Vortex entitlement for the organization selected on each invocation.
 
 ### Transport Modes
 
@@ -1048,11 +1058,12 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
 
 On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_analysis` when both the CAG and A3S hubs are entitled.
 
-**When Vortex analysis is enabled**:
+**When Vortex analysis is available**:
 
 > Requires having the workspace mounted at `/app/mcp-workspace`
 
-- **run_advanced_code_analysis** - Run Vortex analysis on a single file. Organization is inferred from MCP configuration (SonarQube Server uses the nil UUID placeholder).
+- **run_advanced_code_analysis** - Run Vortex analysis on a single file. On Cloud, use the optional `organization` argument when no organization is fixed by `SONARQUBE_ORG`; use `list_organizations` if ambiguous. SonarQube Server uses the nil UUID placeholder.
+    - `organization` - Cloud organization key; defaults to the configured or uniquely detected startup organization - _Optional String_
     - `projectKey` - The key of the project - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
     - `branch` - Branch name used to retrieve the latest analysis context - _Required String_
     - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). - _Required String_

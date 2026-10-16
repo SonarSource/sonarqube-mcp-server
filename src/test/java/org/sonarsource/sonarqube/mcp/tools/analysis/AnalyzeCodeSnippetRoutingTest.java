@@ -73,7 +73,7 @@ class AnalyzeCodeSnippetRoutingTest {
 
     verify(api.qualityProfilesApi()).getQualityProfiles(null);
     verify(backend).analyzeFilesAndTrack(any(), any());
-    verifyNoInteractions(api.organizationsApi(), api.cagApi(), api.a3sAnalysisApi());
+    verifyNoInteractions(api.orgFeatureEntitlements(), api.organizationsApi(), api.cagApi(), api.a3sAnalysisApi());
   }
 
   @SonarQubeMcpServerTest
