@@ -223,6 +223,26 @@ class Auth0OAuthAuthenticationServiceTest {
   }
 
   @Test
+  void it_should_isolate_the_same_authorization_between_backend_configurations() {
+    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+    var otherConfiguration = new OAuthConfiguration(ISSUER, RESOURCE, CLOUD, "other-backend", "other-secret");
+    var otherExchange = mock(Auth0TokenExchange.class);
+    var otherService = new Auth0OAuthAuthenticationService(otherConfiguration, verifier, otherExchange, clock);
+    var otherCloud = downstream().withClaim("scope", "read:all").withClaim("azp", "other-backend")
+      .withClaim("act", Map.of("sub", "other-backend", "act", Map.of("sub", CLIENT))).sign(algorithm);
+    when(otherExchange.exchange(source, Set.of("read:all"))).thenReturn(otherCloud);
+
+    assertThat(service.authenticate(source).cloudToken()).isEqualTo(cloud);
+    assertThat(otherService.authenticate(source).cloudToken()).isEqualTo(otherCloud);
+    assertThat(service.authenticate(source).cloudToken()).isEqualTo(cloud);
+    assertThat(otherService.authenticate(source).cloudToken()).isEqualTo(otherCloud);
+    verify(exchange).exchange(source, Set.of("read:all"));
+    verify(otherExchange).exchange(source, Set.of("read:all"));
+  }
+
+  @Test
   void it_should_isolate_clients_users_and_scope_combinations() {
     when(exchange.exchange(anyString(), any())).thenAnswer(invocation -> {
       var original = JWT.decode(invocation.getArgument(0));
@@ -357,6 +377,18 @@ class Auth0OAuthAuthenticationServiceTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"read:all read:all", "read:all "})
+  void it_should_preserve_accepted_downstream_scope_formatting(String grantedScope) {
+    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var cloud = downstream().withClaim("scope", grantedScope).sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+
+    assertThat(service.authenticate(source).scopes()).containsExactly("read:all");
+    assertThat(service.authenticate(source).scopes()).containsExactly("read:all");
+    verify(exchange).exchange(source, Set.of("read:all"));
+  }
+
+  @ParameterizedTest
   @ValueSource(strings = {"act", "org_id"})
   void it_should_reject_even_null_forbidden_source_claims(String claim) {
     assertStatus(source().withNullClaim(claim).withClaim("scope", "read:all").sign(algorithm), 401);
@@ -385,6 +417,7 @@ class Auth0OAuthAuthenticationServiceTest {
     nullPreviousActor.put("act", null);
     return Stream.of(true, "actor", List.of("actor"), Map.of(),
       Map.of("sub", BACKEND), Map.of("sub", BACKEND, "act", "client"),
+      Map.of("sub", 123, "act", Map.of("sub", CLIENT)), Map.of("sub", BACKEND, "act", Map.of()),
       Map.of("sub", BACKEND, "act", Map.of("sub", 123)),
       Map.of("sub", BACKEND, "act", nullPreviousActor));
   }
@@ -463,8 +496,9 @@ class Auth0OAuthAuthenticationServiceTest {
     var authentication = new OAuthRequestAuthentication("private-cloud-token", scopes);
     scopes.clear();
 
-    assertThat(authentication.scopes()).containsExactly("read:all");
-    assertThatThrownBy(() -> authentication.scopes().add("write:all")).isInstanceOf(UnsupportedOperationException.class);
+    var grantedScopes = authentication.scopes();
+    assertThat(grantedScopes).containsExactly("read:all");
+    assertThatThrownBy(() -> grantedScopes.add("write:all")).isInstanceOf(UnsupportedOperationException.class);
     assertThat(authentication.toString()).doesNotContain("private-cloud-token");
   }
 
