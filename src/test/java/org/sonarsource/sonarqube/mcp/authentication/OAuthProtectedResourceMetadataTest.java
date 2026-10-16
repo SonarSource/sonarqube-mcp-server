@@ -42,16 +42,16 @@ class OAuthProtectedResourceMetadataTest {
 
   @Test
   void it_should_challenge_for_both_delegation_scopes_using_the_configured_public_host() {
-    var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://sonarsource-dev9.eu.auth0.com/");
-    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.sc-dev9.io/.well-known/oauth-protected-resource/mcp\", scope=\"read:all write:all\"");
+    var metadata = new OAuthProtectedResourceMetadata("https://api.example.com/mcp", "https://tenant.example.com/");
+    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.example.com/.well-known/oauth-protected-resource/mcp\", scope=\"read:all write:all\"");
     assertThat(metadata.isSelfHosted()).isTrue();
   }
 
   @Test
   void it_should_advertise_an_external_metadata_owner() {
-    var metadata = new OAuthProtectedResourceMetadata("https://api.sc-dev9.io/mcp", "https://auth-dev9.sc-dev9.io/",
-      "https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp");
-    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.sc-dev9.io/authentication/.well-known/oauth-protected-resource/mcp\", scope=\"read:all write:all\"");
+    var metadata = new OAuthProtectedResourceMetadata("https://api.example.com/mcp", "https://auth.example.com/",
+      "https://api.example.com/authentication/.well-known/oauth-protected-resource/mcp");
+    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.example.com/authentication/.well-known/oauth-protected-resource/mcp\", scope=\"read:all write:all\"");
     assertThat(metadata.isSelfHosted()).isFalse();
   }
 

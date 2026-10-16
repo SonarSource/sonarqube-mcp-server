@@ -62,9 +62,10 @@ import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.KEY;
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.keyValues;
 
 class Auth0OAuthAuthenticationServiceTest {
-  private static final String ISSUER = "https://auth-dev9.sc-dev9.io/";
-  private static final String RESOURCE = "https://api.sc-dev9.io/mcp";
-  private static final String CLOUD = "https://api.sc-dev9.io/";
+  // Example hosts are token claim values; exchanges and signing-key requests are mocked.
+  private static final String ISSUER = "https://auth.example.com/";
+  private static final String RESOURCE = "https://api.example.com/mcp";
+  private static final String CLOUD = "https://api.example.com/";
   private static final String USER = "oauth2|github|github|123456789";
   private static final String CLIENT = "mcp-client";
   private static final String BACKEND = "mcp-backend";
@@ -508,7 +509,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   private JWTCreator.Builder source() {
     var now = clock.instant();
-    return JWT.create().withIssuer(ISSUER).withAudience(RESOURCE, "https://sonarsource-dev9.eu.auth0.com/userinfo")
+    return JWT.create().withIssuer(ISSUER).withAudience(RESOURCE, "https://tenant.example.com/userinfo")
       .withSubject(USER).withClaim("azp", CLIENT).withIssuedAt(now.minusSeconds(1))
       .withExpiresAt(now.plusSeconds(299)).withKeyId("test-key");
   }
