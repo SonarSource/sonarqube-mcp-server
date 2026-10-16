@@ -94,7 +94,7 @@ public class ConnectionContext {
   }
 
   @Nullable
-  private String resolveOrganizationUuid(ServerApi serverApi) {
+  private static String resolveOrganizationUuid(ServerApi serverApi) {
     var orgKey = serverApi.getOrganization();
     if (orgKey == null || orgKey.isBlank()) {
       return null;
