@@ -16,7 +16,6 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
-import java.util.Set;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.Transition;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -48,11 +47,6 @@ public class ChangeIssueStatusTool extends Tool {
       .build(),
       ToolCategory.ISSUES);
     this.serverApiProvider = serverApiProvider;
-  }
-
-  @Override
-  public Set<String> requiredOAuthScopes() {
-    return Set.of("write:all");
   }
 
   @Override
