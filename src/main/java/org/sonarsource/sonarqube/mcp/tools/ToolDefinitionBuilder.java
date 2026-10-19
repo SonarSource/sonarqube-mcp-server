@@ -51,6 +51,7 @@ public class ToolDefinitionBuilder {
   private String title;
   private String description;
   private boolean isReadOnly;
+  private boolean isDestructive;
 
   public ToolDefinitionBuilder() {
     this.properties = new HashMap<>();
@@ -116,6 +117,12 @@ public class ToolDefinitionBuilder {
   public ToolDefinitionBuilder addBooleanProperty(String propertyName, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, BOOLEAN_TYPE, DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
+    return this;
+  }
+
+  public ToolDefinitionBuilder addRequiredBooleanProperty(String propertyName, String description) {
+    addBooleanProperty(propertyName, description);
+    requiredProperties.add(propertyName);
     return this;
   }
 
@@ -188,6 +195,14 @@ public class ToolDefinitionBuilder {
     return this;
   }
 
+  /**
+   * Marks this tool as capable of removing or replacing existing data.
+   */
+  public ToolDefinitionBuilder setDestructiveHint() {
+    this.isDestructive = true;
+    return this;
+  }
+
   public McpSchema.Tool build() {
     if (name == null || description == null) {
       throw new IllegalStateException("Name and description must be set before building the tool.");
@@ -206,7 +221,7 @@ public class ToolDefinitionBuilder {
     var toolAnnotations = new McpSchema.ToolAnnotations(
       null,
       isReadOnly,
-      false,
+      isDestructive,
       false,
       true,
       null);

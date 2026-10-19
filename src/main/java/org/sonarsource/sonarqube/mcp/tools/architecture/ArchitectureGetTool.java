@@ -1,0 +1,194 @@
+/*
+ * SonarQube MCP Server
+ * Copyright (C) SonarSource
+ * mailto:info AT sonarsource DOT com
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+package org.sonarsource.sonarqube.mcp.tools.architecture;
+
+import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
+import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
+import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetIntendedToolResponse.Constraint;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetIntendedToolResponse.Group;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetIntendedToolResponse.Model;
+
+public class ArchitectureGetTool extends Tool {
+
+  public static final String TOOL_NAME = "architecture_get";
+  public static final String TARGET_PROPERTY = "target";
+  public static final String COMPONENT_PROPERTY = "component";
+  public static final String DEPTH_PROPERTY = "depth";
+  public static final String LANGUAGE_PROPERTY = "language";
+  public static final String CURRENT = "current";
+  public static final String INTENDED = "intended";
+  public static final String DIRECTIVES = "directives";
+
+  public static final String DIRECTIVES_NOT_AVAILABLE = "Directives are not available yet: waiting for the public architecture API. Nothing was read.";
+
+  static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
+  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
+
+  private final ServerApiProvider serverApiProvider;
+  @Nullable
+  private final String configuredProjectKey;
+
+  public ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
+    super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
+      .setName(TOOL_NAME)
+      .setTitle("Get Architecture")
+      .setDescription("Read current dependency graphs or intended architecture through the public API.")
+      .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS, "current: analyzed dependencies; intended: desired groups and constraints; directives: unavailable.")
+      .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
+      .addStringProperty(COMPONENT_PROPERTY, "Start below a current node key or intended group key (labels joined by /). Top level when omitted.")
+      .addNumberProperty(DEPTH_PROPERTY, "current and intended only. Levels below the start to return. Default 1 for current, all for intended.")
+      .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "current and intended only. Language to read. All languages when omitted.")
+      .setReadOnlyHint()
+      .build(),
+      ToolCategory.ARCHITECTURE);
+    this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
+  }
+
+  @Override
+  public Result execute(Arguments arguments) {
+    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, TARGETS);
+    var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
+    var component = arguments.getOptionalString(COMPONENT_PROPERTY);
+    var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);
+    var language = arguments.getOptionalEnumValue(LANGUAGE_PROPERTY, LANGUAGES);
+    if (DIRECTIVES.equals(target)) {
+      if (Stream.of(component, depth, language).anyMatch(Objects::nonNull)) {
+        throw new IllegalArgumentException("component, depth and language apply to target current and intended, not directives.");
+      }
+    } else if (depth != null && depth < 1) {
+      throw new IllegalArgumentException("depth must be 1 or more.");
+    }
+
+    if (DIRECTIVES.equals(target)) {
+      return Result.failure(DIRECTIVES_NOT_AVAILABLE);
+    }
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    if (CURRENT.equals(target)) {
+      serverApi.requireOrganization();
+      return current(serverApi.architectureApi(), projectKey, component, depth == null ? 1 : depth, language);
+    }
+    return intended(serverApi.architectureApi(), projectKey, component, depth, language);
+  }
+
+  private static Result current(ArchitectureApi api, String projectKey, @Nullable String component, int depth, @Nullable String language) {
+    var languages = language == null ? ArchitectureApi.LANGUAGES : List.of(language);
+    var graphs = languages.stream()
+      .flatMap(lang -> api.getStructure(projectKey, lang).stream().map(graph -> new GraphSlicer.LanguageGraph(lang, graph)))
+      .filter(languageGraph -> languageGraph.graph().nodes() != null && !languageGraph.graph().nodes().isEmpty())
+      .toList();
+    if (graphs.isEmpty()) {
+      return Result.success(new ArchitectureGetCurrentToolResponse(projectKey, component, depth, false, List.of(), List.of(),
+        "No current architecture for project '" + projectKey + "'" + (language == null ? "" : " in " + language)
+          + " yet. Run an analysis of a supported language (Java, C#, JavaScript, TypeScript, Python) first."));
+    }
+    return Result.success(GraphSlicer.slice(projectKey, graphs, component, depth));
+  }
+
+  private static Result intended(ArchitectureApi api, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
+    var stored = api.getIntended(projectKey);
+    var revision = IntendedRevision.of(stored);
+    var models = stored.stream()
+      .filter(model -> language == null || language.equals(model.language()))
+      .toList();
+    if (models.isEmpty()) {
+      return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, List.of(),
+        "No intended architecture is defined for project '" + projectKey + "'" + (language == null ? "" : " in " + language) + "."));
+    }
+
+    var views = models.stream()
+      .map(model -> toView(model, component, depth, component != null || depth != null || language != null))
+      .filter(Objects::nonNull)
+      .toList();
+    if (views.isEmpty()) {
+      throw new IllegalArgumentException("No group '" + component + "' in the intended architecture. Call " + TOOL_NAME
+        + " with target intended and without component to list the group keys.");
+    }
+    return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, views, null));
+  }
+
+  /**
+   * Returns null when the model has no group with the component key.
+   */
+  @Nullable
+  private static Model toView(IntendedArchitecture model, @Nullable String component, @Nullable Integer depth, boolean partial) {
+    var groups = nullToEmpty(model.groups());
+    var constraints = nullToEmpty(model.constraints());
+    if (component != null) {
+      var root = findGroup(groups, component, null);
+      if (root == null) {
+        return null;
+      }
+      groups = nullToEmpty(root.groups());
+      var prefix = component + "/";
+      constraints = constraints.stream()
+        .filter(constraint -> startsWith(constraint.from(), prefix) || startsWith(constraint.to(), prefix))
+        .toList();
+    }
+    return new Model(model.language(), model.type(), toGroups(groups, depth == null ? Integer.MAX_VALUE : depth),
+      constraints.stream().map(constraint -> new Constraint(constraint.from(), constraint.to())).toList(), partial ? true : null);
+  }
+
+  @Nullable
+  private static IntendedArchitecture.Group findGroup(List<IntendedArchitecture.Group> groups, String key, @Nullable String parentKey) {
+    for (var group : groups) {
+      var groupKey = parentKey == null ? group.label() : (parentKey + "/" + group.label());
+      if (key.equals(groupKey)) {
+        return group;
+      }
+      if (key.startsWith(groupKey + "/")) {
+        var found = findGroup(nullToEmpty(group.groups()), key, groupKey);
+        if (found != null) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+
+  private static List<Group> toGroups(List<IntendedArchitecture.Group> groups, int levels) {
+    return groups.stream().map(group -> {
+      var subgroups = nullToEmpty(group.groups());
+      var shown = levels > 1 || subgroups.isEmpty();
+      return new Group(group.label(), group.patterns(), group.isInterface(), group.interfaceAccess(),
+        shown && !subgroups.isEmpty() ? toGroups(subgroups, levels - 1) : null,
+        shown ? null : countGroups(subgroups));
+    }).toList();
+  }
+
+  private static int countGroups(List<IntendedArchitecture.Group> groups) {
+    return groups.stream().mapToInt(group -> 1 + countGroups(nullToEmpty(group.groups()))).sum();
+  }
+
+  private static boolean startsWith(@Nullable String value, String prefix) {
+    return value != null && value.startsWith(prefix);
+  }
+
+  private static <T> List<T> nullToEmpty(@Nullable List<T> list) {
+    return list == null ? List.of() : list;
+  }
+
+}

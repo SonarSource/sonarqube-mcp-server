@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.delete;
+import static com.github.tomakehurst.wiremock.client.WireMock.deleteRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -57,6 +59,26 @@ class HttpClientProviderTests {
     }
 
     sonarqubeMock.verify(getRequestedFor(urlEqualTo("/test"))
+      .withHeader("User-Agent", equalTo(USER_AGENT)));
+  }
+
+  @Test
+  void it_should_identify_mcp_on_architecture_writes() {
+    var path = "/api/v2/architecture/intended-architectures";
+    sonarqubeMock.stubFor(post(path).willReturn(aResponse().withStatus(201)));
+    sonarqubeMock.stubFor(delete(path + "/model-id").willReturn(aResponse().withStatus(204)));
+    var client = new HttpClientProvider(USER_AGENT).getHttpClient("token");
+
+    try (var response = client.postAsync(sonarqubeMock.url(path), "application/json", "{}").join()) {
+      assertThat(response.code()).isEqualTo(201);
+    }
+    try (var response = client.deleteAsync(sonarqubeMock.url(path + "/model-id")).join()) {
+      assertThat(response.code()).isEqualTo(204);
+    }
+
+    sonarqubeMock.verify(postRequestedFor(urlEqualTo(path))
+      .withHeader("User-Agent", equalTo(USER_AGENT)));
+    sonarqubeMock.verify(deleteRequestedFor(urlEqualTo(path + "/model-id"))
       .withHeader("User-Agent", equalTo(USER_AGENT)));
   }
 
