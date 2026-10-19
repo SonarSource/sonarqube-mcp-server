@@ -26,13 +26,16 @@ import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.reactor.IOReactorConfig;
@@ -55,6 +58,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -111,13 +115,29 @@ class HttpClientProviderTests {
   }
 
   @Test
-  void it_should_time_out_stalled_response_headers() {
+  void it_should_remove_cancelled_deadlines_from_the_queue() {
+    var scheduler = HttpClientAdapter.createDeadlineScheduler();
+    try {
+      var deadline = scheduler.schedule(() -> { }, 5, TimeUnit.MINUTES);
+      assertThat(scheduler.getQueue()).hasSize(1);
+      assertThat(deadline.cancel(false)).isTrue();
+      assertThat(scheduler.getQueue()).isEmpty();
+    } finally {
+      scheduler.shutdownNow();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_time_out_stalled_response_headers(boolean anonymousWithoutRedirects) {
     sonarqubeMock.stubFor(get("/stalled-headers")
       .willReturn(aResponse().withFixedDelay(2000)));
     var underTest = new HttpClientProvider(USER_AGENT, Duration.ofMillis(200), Duration.ofMillis(200));
 
     try {
-      var future = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/stalled-headers"));
+      var client = underTest.getHttpClient("token");
+      var url = sonarqubeMock.url("/stalled-headers");
+      var future = anonymousWithoutRedirects ? client.getAsyncAnonymousWithoutRedirects(url) : client.getAsync(url);
       var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
       assertThat(error.getCause()).isInstanceOf(HttpTimeoutException.class);
       sonarqubeMock.verify(1, getRequestedFor(urlEqualTo("/stalled-headers")));
@@ -128,8 +148,40 @@ class HttpClientProviderTests {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
+  void it_should_cancel_requests_and_enforce_deadlines_while_a_callback_is_blocked(boolean callerCancellation) throws Exception {
+    var apacheClient = mock(CloseableHttpAsyncClient.class);
+    var firstRequest = new CompletableFuture<SimpleHttpResponse>();
+    var secondRequest = new CompletableFuture<SimpleHttpResponse>();
+    when(apacheClient.execute(any(SimpleHttpRequest.class), any())).thenReturn(firstRequest).thenReturn(secondRequest);
+    var client = new HttpClientAdapter(apacheClient, null, false, Duration.ofSeconds(1));
+    var callbackStarted = new CompletableFuture<Void>();
+    var releaseCallback = new CompletableFuture<Void>();
+    var first = client.getAsync("http://localhost/first");
+    first.whenComplete((response, error) -> {
+      callbackStarted.complete(null);
+      assertThat(releaseCallback).succeedsWithin(Duration.ofSeconds(5));
+    });
+
+    try {
+      if (callerCancellation) {
+        CompletableFuture.runAsync(() -> first.cancel(true));
+      }
+      callbackStarted.get(2, TimeUnit.SECONDS);
+      assertThrows(CancellationException.class, () -> firstRequest.get(2, TimeUnit.SECONDS));
+      var second = client.getAsync("http://localhost/second");
+      var error = assertThrows(ExecutionException.class, () -> second.get(2, TimeUnit.SECONDS));
+      assertThat(error.getCause()).isInstanceOf(HttpTimeoutException.class);
+      assertThrows(CancellationException.class, () -> secondRequest.get(2, TimeUnit.SECONDS));
+    } finally {
+      releaseCallback.complete(null);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
   void it_should_cancel_a_request_with_a_stalled_response_body(boolean customPostTimeout) throws Exception {
-    try (var server = new ServerSocket(0); var worker = Executors.newSingleThreadExecutor()) {
+    try (var worker = Executors.newSingleThreadExecutor(); var server = new ServerSocket(0)) {
+      server.setSoTimeout(3000);
       var connectionClosed = worker.submit(() -> {
         try (var socket = server.accept()) {
           socket.setSoTimeout(3000);
@@ -235,7 +287,8 @@ class HttpClientProviderTests {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void it_should_not_retry_a_timed_out_post(boolean customTimeout) throws Exception {
-    try (var server = new ServerSocket(0); var worker = Executors.newSingleThreadExecutor()) {
+    try (var worker = Executors.newSingleThreadExecutor(); var server = new ServerSocket(0)) {
+      server.setSoTimeout(3000);
       var requests = worker.submit(() -> {
         try (var socket = server.accept()) {
           socket.setSoTimeout(2000);

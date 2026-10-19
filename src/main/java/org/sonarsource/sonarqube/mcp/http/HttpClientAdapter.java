@@ -49,7 +49,7 @@ class HttpClientAdapter implements HttpClient {
   @Nullable
   private final String apiKey;
 
-  private static ScheduledThreadPoolExecutor createDeadlineScheduler() {
+  static ScheduledThreadPoolExecutor createDeadlineScheduler() {
     var scheduler = new ScheduledThreadPoolExecutor(1, runnable -> {
       var thread = new Thread(runnable, "sonarqube-mcp-http-deadlines");
       thread.setDaemon(true);
@@ -137,6 +137,7 @@ class HttpClientAdapter implements HttpClient {
 
   private class CompletableFutureWrappingFuture extends CompletableFuture<Response> {
 
+    private final CompletableFuture<Response> outcome = new CompletableFuture<>();
     private final Future<SimpleHttpResponse> wrapped;
 
     private CompletableFutureWrappingFuture(SimpleHttpRequest httpRequest, Duration timeout) {
@@ -145,40 +146,47 @@ class HttpClientAdapter implements HttpClient {
         public void completed(SimpleHttpResponse result) {
           try {
             var uri = httpRequest.getUri().toString();
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.complete(new HttpResponse(uri, result));
+            outcome.complete(new HttpResponse(uri, result));
           } catch (URISyntaxException e) {
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.complete(new HttpResponse(httpRequest.getRequestUri(), result));
+            outcome.complete(new HttpResponse(httpRequest.getRequestUri(), result));
           }
         }
 
         @Override
         public void failed(Exception ex) {
-          HttpClientAdapter.CompletableFutureWrappingFuture.this.completeExceptionally(ex);
+          outcome.completeExceptionally(ex);
         }
 
         @Override
         public void cancelled() {
-          HttpClientAdapter.CompletableFutureWrappingFuture.this.cancel();
+          outcome.cancel(true);
         }
       });
       var deadline = DEADLINES.schedule(() -> {
-        if (completeExceptionally(new HttpTimeoutException("HTTP request exceeded its operation deadline"))) {
+        if (outcome.completeExceptionally(new HttpTimeoutException("HTTP request exceeded its operation deadline"))) {
           wrapped.cancel(true);
         }
       }, timeout.toMillis(), TimeUnit.MILLISECONDS);
-      whenComplete((response, error) -> deadline.cancel(false));
-    }
-
-    private void cancel() {
-      super.cancel(true);
+      outcome.whenComplete((response, error) -> deadline.cancel(false));
+      // Caller callbacks must not block the deadline scheduler or Apache's I/O threads.
+      outcome.whenCompleteAsync((response, error) -> {
+        if (outcome.isCancelled()) {
+          super.cancel(true);
+        } else if (error != null) {
+          completeExceptionally(error);
+        } else {
+          complete(response);
+        }
+      });
     }
 
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-      if (!super.cancel(mayInterruptIfRunning)) {
+      if (!outcome.cancel(mayInterruptIfRunning)) {
         return false;
       }
       wrapped.cancel(mayInterruptIfRunning);
+      super.cancel(mayInterruptIfRunning);
       return true;
     }
   }
