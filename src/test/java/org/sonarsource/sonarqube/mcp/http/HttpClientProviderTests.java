@@ -100,6 +100,29 @@ class HttpClientProviderTests {
     }
   }
 
+  @Test
+  void it_should_allow_analysis_to_exceed_the_api_response_timeout() throws Exception {
+    sonarqubeMock.stubFor(post(SonarQubeIdeBridgeClient.ANALYSIS_FILES_PATH)
+      .willReturn(aResponse().withBody("{\"findings\":[]}").withFixedDelay(1200)));
+    sonarqubeMock.stubFor(get("/stalled-api").willReturn(aResponse().withFixedDelay(3000)));
+    var underTest = new HttpClientProvider(USER_AGENT, Timeout.ofMilliseconds(500));
+    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), underTest.getHttpClientForBridge());
+    var bridge = new SonarQubeIdeBridgeClient(helper);
+
+    try {
+      assertThat(bridge.requestAnalyzeFileList(List.of("file.java"))).isPresent();
+      sonarqubeMock.verify(1, postRequestedFor(urlEqualTo(SonarQubeIdeBridgeClient.ANALYSIS_FILES_PATH))
+        .withHeader("Host", equalTo("localhost"))
+        .withHeader("Origin", equalTo("http://localhost"))
+        .withRequestBody(equalTo("{\"fileAbsolutePaths\":[\"file.java\"]}")));
+      var future = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/stalled-api"));
+      var error = assertThrows(ExecutionException.class, () -> future.get(3, TimeUnit.SECONDS));
+      assertThat(isTimeout(error)).isTrue();
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
   private static boolean isTimeout(Throwable error) {
     var current = error;
     while (current != null) {
