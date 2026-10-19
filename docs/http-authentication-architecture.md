@@ -21,7 +21,7 @@ The SonarQube MCP Server supports three transport modes:
 - **HTTP Transport** (Not recommended): Unencrypted network communication
 - **HTTPS Transport** (Recommended for production): Secure network-based communication with TLS encryption
 
-This document focuses on the **HTTP/HTTPS Transport** and its authentication mechanism.
+This document focuses on the **HTTP/HTTPS Transport**. `SONARQUBE_HTTP_AUTH_MODE` selects `TOKEN` (default) or opt-in `OAUTH` for SonarQube Cloud. OAuth requires a public HTTPS endpoint; HTTP can be used behind a trusted TLS-terminating proxy.
 
 ---
 
@@ -38,8 +38,8 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
                  │ HTTP GET     (optional SSE stream attempt per Streamable HTTP spec)
                  │ HTTP OPTIONS (CORS preflight)
                  │ Headers: Authorization: Bearer <token> (required, preferred)
-                 │          SONARQUBE_TOKEN (deprecated, accepted for backward compat)
-                 │          SONARQUBE_ORG (optional, SQC only)
+                 │          SONARQUBE_TOKEN (deprecated, TOKEN mode only)
+                 │          SONARQUBE_ORG (optional, Cloud TOKEN mode only)
                  │          SONARQUBE_TOOLSETS (optional, per-request override)
                  │          SONARQUBE_READ_ONLY (optional, per-request override)
                  ▼
@@ -64,7 +64,7 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │       PerRequestToolFilteringHandler                │
-│  (per-request tools/list filtering)                 │
+│  (tools/list and tools/call authorization)          │
 └────────────────┬────────────────────────────────────┘
                  │
                  ▼
@@ -79,11 +79,11 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 
 #### `HttpServerTransportProvider`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider`
-- **Purpose**: Bootstraps Jetty server and configures the stateless servlet transport with a context extractor that reads the token (from `Authorization: Bearer` or the deprecated `SONARQUBE_TOKEN` header), plus `SONARQUBE_ORG`, `SONARQUBE_TOOLSETS`, and `SONARQUBE_READ_ONLY` headers into a `McpTransportContext` for each request
+- **Purpose**: Bootstraps Jetty and extracts a fresh `McpTransportContext` per request. TOKEN mode reads the token and optional organization header. OAuth mode requires the authentication filter's trusted result and extracts only the exchanged Cloud token and its scopes. Both modes retain request tool preferences.
 
 #### `AuthenticationFilter`
 - **Location**: `org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter`
-- **Purpose**: Validates that every request carries a non-blank token. Accepts `Authorization: Bearer <token>` (preferred) and falls back to the deprecated `SONARQUBE_TOKEN` header for backward compatibility, logging a warning when the legacy header is used. No session state is created or maintained. Runs **after** `McpSecurityFilter` so CORS preflight (OPTIONS) requests and Origin validation are handled before authentication, allowing browsers to complete their preflight handshake without a token.
+- **Purpose**: Checks TOKEN credentials or authenticates OAuth requests through `Auth0OAuthAuthenticationService`. OAuth accepts a single `Authorization: Bearer` header and never falls back to the deprecated token header. Runs **after** `McpSecurityFilter`, which handles CORS preflight and Origin validation. Local OAuth metadata is public only when configured for local serving; MCP requests remain subject to authentication.
 
 #### `McpSecurityFilter`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.McpSecurityFilter`
@@ -91,11 +91,11 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 
 #### `PerRequestToolFilteringHandler`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.PerRequestToolFilteringHandler`
-- **Purpose**: Wraps the SDK's `McpStatelessServerHandler` to intercept `tools/list` responses and filter the returned tool list based on the per-request `SONARQUBE_TOOLSETS` and `SONARQUBE_READ_ONLY` headers from `McpTransportContext`. A well-behaved MCP client will only call tools it received from `tools/list`, so filtering the list is sufficient enforcement.
+- **Purpose**: Enforces request tool preferences and verified OAuth scopes on both `tools/list` and `tools/call`. Insufficient-scope calls mark a request-local `OAuthScopeContext`; `OAuthScopeResponseWrapper` converts the SDK response into an HTTP 403 challenge without dispatching the tool.
 
 #### `SonarQubeMcpServer` (ServerApiProvider)
 - **Location**: `org.sonarsource.sonarqube.mcp.SonarQubeMcpServer`
-- **Purpose**: In HTTP stateless mode, reads the current request's `McpTransportContext` from a `ThreadLocal` to extract the token and create a per-request `ServerApi` instance.
+- **Purpose**: In HTTP stateless mode, wraps tool execution with its own `ThreadLocal<McpTransportContext>`, cleaned up in `finally`. `ServerApiProvider.get()` reads it to create a per-request `ServerApi` instance.
 
 ---
 
@@ -103,7 +103,7 @@ This document focuses on the **HTTP/HTTPS Transport** and its authentication mec
 
 ### 1. Client Configuration
 
-Clients configure the HTTP endpoint with authentication using the preferred `Authorization: Bearer` header:
+In TOKEN mode, clients configure the HTTP endpoint using the preferred `Authorization: Bearer` header:
 
 ```json
 {
@@ -118,9 +118,9 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 }
 ```
 
-> **Deprecated (backward compatibility only)**: The `SONARQUBE_TOKEN` request header is still accepted but will be removed in a future version. Migrate to `Authorization: Bearer <token>`.
+> **Deprecated (TOKEN mode only)**: The `SONARQUBE_TOKEN` request header is still accepted but will be removed in a future version. Migrate to `Authorization: Bearer <token>`.
 
-### 2. Request Flow
+### 2. TOKEN Request Flow
 
 ```
 1. Client sends HTTP POST with headers
@@ -153,10 +153,10 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
    ├─> Parse JSON-RPC message
    └─> Dispatch to PerRequestToolFilteringHandler
 
-5. PerRequestToolFilteringHandler (tools/list only)
+5. PerRequestToolFilteringHandler
    ├─> Read SONARQUBE_TOOLSETS and SONARQUBE_READ_ONLY from McpTransportContext
-   ├─> If per-request headers are present, filter tool list accordingly
-   └─> Return filtered tools/list response (bypasses SDK's unfiltered response)
+   ├─> Filter tools/list and reject disallowed tools/call requests
+   └─> Preserve organization-aware schemas when no organization header is set
 
 6. Tool execution - tools/call (ServerApiProvider.get())
    ├─> Read McpTransportContext from ThreadLocal
@@ -179,10 +179,31 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
   - `SONARQUBE_TOOLSETS: <comma-separated-keys>` — optional; narrows the server-level toolset for this request (cannot add toolsets beyond what the server was launched with)
   - `SONARQUBE_READ_ONLY: true|false` — optional; can further restrict to read-only for this request (cannot lift a server-level read-only restriction)
 
-#### `OAUTH` Mode (Not Yet Implemented)
-- OAuth 2.1 with PKCE
-- Per MCP specification
-- Future enhancement
+#### OAuth Mode
+
+Auth0 handles user sign-in and authorization with Proof Key for Code Exchange (PKCE). The MCP server acts as the protected resource and exchanges tokens on the user's behalf (OBO). See the [README configuration](../README.md#hosted-sonarqube-cloud-oauth) for the environment variables. This implementation accepts GitHub-backed users; SSO is deferred.
+
+1. A request without credentials receives HTTP 401 and a `WWW-Authenticate` challenge pointing to protected-resource metadata. The document identifies the exact MCP resource, trusted Auth0 issuer, and supported `mcp:tools:read` and `mcp:tools:write` scopes.
+2. The client obtains an MCP access token (**Token A**) from Auth0 and sends it as `Authorization: Bearer <token>` on every MCP request.
+3. `Auth0TokenVerifier` validates A's RS256 signature, issuer, MCP audience, required claims, and expiry. `Auth0OAuthAuthenticationService` requires a supported GitHub user subject, an originating client, and a lifetime of at most 300 seconds. A must have no Cloud audience, actor chain (`act`), or organization claim (`org_id`), and must grant a nonempty set containing only `mcp:tools:read` and/or `mcp:tools:write`. Any other scope, including `read:all`, `write:all`, or OIDC scopes, is rejected.
+4. `Auth0TokenExchange` authenticates the backend application to Auth0 and requests a Cloud token using native token exchange. It sends explicit subject/requested access-token types, the Cloud audience, and exactly the Cloud scopes mapped from A: `mcp:tools:read` becomes `read:all`, and `mcp:tools:write` becomes `write:all`. Redirects and retries are disabled, with a 5-second connection timeout and 10-second total call timeout.
+5. The server validates the returned Cloud token (**Token B**): signature and time claims, the same user, backend client, exact Cloud audience, no organization claim, and a two-level actor chain identifying the backend followed by A's originating client. B must have a lifetime of at most 300 seconds and a nonempty scope set contained in A's mapped Cloud delegation.
+6. `AuthenticationFilter` stores B and **B's actual scopes** in trusted request attributes, creates a fresh `OAuthScopeContext`, and wraps the response before dispatch. The transport extracts B and that same scope context for the request. Missing trusted authentication fails closed. A never enters the downstream Cloud API context.
+7. Tool listing and execution enforce the verified grants. A permitted tool uses B and the call's selected organization to access Cloud APIs, which still enforce user permissions.
+
+OAuth rejects the `SONARQUBE_ORG` header. Organization-aware tools use `organization` arguments, and `list_organizations` provides discovery with `mcp:tools:read`, exchanged for `read:all` on B. No organization is stored between requests. TOKEN mode retains its optional fixed-organization header.
+
+##### Discovery and trust configuration
+
+OAuth requires explicit HTTPS SonarQube Cloud and API URLs. The configured Cloud audience must match the API root. The MCP resource uses path `/mcp` on that same API origin; the Cloud audience and Auth0 issuer use path `/`. Trust URLs cannot contain credentials, query parameters, or fragments. Exchange client credentials are explicit and redacted from configuration diagnostics.
+
+By default, `GET /.well-known/oauth-protected-resource/mcp` serves public metadata locally; `HEAD` is also supported. If `SONARQUBE_OAUTH_METADATA_URL` is set, 401/403 challenges advertise that external HTTPS document and no local copy is registered. The external operator must serve matching resource, issuer, and scope values. This setting does not change token audiences or the trusted issuer used for Auth0 discovery and signing keys.
+
+##### Signing keys and bounded exchange reuse
+
+The verifier fetches the configured issuer's JSON Web Key Set (JWKS), never a URL supplied by a token. A successful refresh replaces the complete key set for one hour. Fresh known keys bypass refresh throttling; concurrent refreshes share a result. Network refresh attempts, including failures, are limited to ten per minute, with 5-second connection/read timeouts. A failed refresh never extends snapshot validity, and expired snapshots require a successful refresh.
+
+The exchange cache is isolated by A's authorization fingerprint, issuer, user, client, target audience, and scopes. Identical concurrent loads share one exchange, with at most 16 exchanges in flight. Failed exchanges are not cached. Entries expire at the earliest of A's expiry, B's expiry, or the configured TTL: 0–60 seconds (default 60; zero disables reuse). Cache size is 1–5000 entries (default 256). A is verified before every lookup and B before every return, including cache hits. The cache is held in memory and creates no MCP session.
 
 ---
 
@@ -190,24 +211,25 @@ Clients configure the HTTP endpoint with authentication using the preferred `Aut
 
 ### Design: Stateless Per-Request Token Extraction
 
-The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function runs synchronously on the request thread and populates a `McpTransportContext` map with the request headers.
+The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function populates a fresh `McpTransportContext`. TOKEN mode extracts request headers as shown below. OAuth mode extracts the validated Cloud token and scopes from the trusted authentication result, never the incoming bearer token.
 
-The MCP SDK makes this context available via a `ThreadLocal<McpTransportContext>` during tool execution, so `ServerApiProvider.get()` can access the token and org without any session lookup:
+The SDK passes the context to the tool handler. `SonarQubeMcpServer.toStatelessSpec()` sets the server's own `ThreadLocal<McpTransportContext>` for tool execution and removes it in `finally`, so `ServerApiProvider.get()` can access the token and org without any session lookup:
 
 ```
 1. HTTP Request arrives
    └─> contextExtractor extracts token from Authorization: Bearer header
        (falls back to deprecated SONARQUBE_TOKEN for backward compat)
        plus SONARQUBE_ORG, SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
-   └─> McpTransportContext stored in ThreadLocal for this request thread
+   └─> SDK receives the request-specific McpTransportContext
 
-2. PerRequestToolFilteringHandler (tools/list only)
-   └─> Reads SONARQUBE_TOOLSETS and SONARQUBE_READ_ONLY from McpTransportContext
-   └─> Filters the SDK's full tool list down to the per-request allowed subset
+2. PerRequestToolFilteringHandler
+   └─> Reads request preferences and, in OAuth mode, verified scopes
+   └─> Filters tools/list and authorizes tools/call before dispatch
 
-3. ServerApiProvider.get() (tools/call)
-   └─> Reads McpTransportContext from ThreadLocal
-   └─> Extracts token and effective org: configured SONARQUBE_ORG is fixed (request header rejected);
+3. SonarQubeMcpServer tool wrapper (tools/call)
+   └─> Sets its ThreadLocal for tool execution and cleans it up in finally
+   └─> ServerApiProvider.get() reads McpTransportContext from that ThreadLocal
+   └─> TOKEN mode extracts the effective org: configured SONARQUBE_ORG is fixed (request header rejected);
        otherwise the optional header fixes the request organization
    └─> Creates a fresh ServerApi for this request
 ```
@@ -237,7 +259,17 @@ In HTTP(S) mode, clients can **narrow** the set of visible tools on a per-reques
 
 ### Filtering
 
-Per-request filtering is applied at the **`tools/list` response**: `PerRequestToolFilteringHandler` intercepts the SDK's response and removes tools that are not allowed for this request. The MCP client only sees tools it is permitted to use, reducing its context window accordingly. A well-behaved MCP client will only call tools it received from `tools/list`, so filtering the list is sufficient.
+`PerRequestToolFilteringHandler` applies the same restrictions to **`tools/list` and direct `tools/call` requests**. Checks run in this order: tool existence and ordinary category/read-only restrictions, OAuth scopes, per-tool enablement, then dispatch. Unknown or ordinarily filtered tools retain their existing errors.
+
+OAuth scopes are independent of the `SONARQUBE_READ_ONLY` preference and are not client-supplied headers or published tool-schema fields. Tool requirements use Token B's Cloud scope names internally:
+
+- Read-only tools require `read:all`.
+- Other tools default to `write:all`.
+- A tool can explicitly require both scopes when its operations need both.
+
+`write:all` does not grant read access, and `read:all` does not grant write access. B may contain fewer scopes than requested by A's mapped delegation; only B's grants govern tool access. An inventory test pins the hosted tool set and its scope requirements. Stdio-only Vortex tools are not exposed through hosted HTTP.
+
+An otherwise eligible call lacking scopes executes no tool or entitlement check. It returns a JSON-RPC error with actual HTTP **403**, `Cache-Control: no-store`, and a `WWW-Authenticate` challenge containing `error="insufficient_scope"`, the metadata URL, and that tool's required scopes translated back to `mcp:tools:read` / `mcp:tools:write` for the client. The request-local response wrapper preserves this status despite the stateless SDK's normal HTTP 200 response handling; denial state is never stored in the token cache or shared between requests.
 
 ### Security Notes
 
@@ -246,7 +278,7 @@ Per-request filtering is applied at the **`tools/list` response**: `PerRequestTo
 
 ### Example Client Configuration
 
-When no server organization is configured, this example fixes the request organization. Omit the header to select organizations through tool arguments.
+When no server organization is configured, this TOKEN-mode example fixes the request organization. Omit the header to select organizations through tool arguments. OAuth always uses tool arguments and rejects this header.
 
 ```json
 {
@@ -288,27 +320,33 @@ When no server organization is configured, this example fixes the request organi
 ### Token Security
 
 **Server-side**:
-- Token **never logged** in plain text
-- Token **not validated** by the MCP server (delegated to SonarQube API)
-- No token is persisted between requests
+- Credentials and token values are redacted from diagnostics; authentication errors do not expose Auth0 responses or verifier internals.
+- TOKEN-mode credentials are validated by SonarQube APIs. OAuth verifies A and B locally before using B downstream.
+- OAuth cache entries contain only validated downstream credentials and are bounded by token expiry, TTL, and capacity. Neither token is written to persistent storage.
 
 **Transport**:
-- HTTPS recommended for production (not enforced for localhost development)
-- Token in HTTP header (not URL query parameter)
+- The public OAuth resource must use HTTPS, directly or through a trusted TLS-terminating proxy.
+- Bearer tokens belong in HTTP headers, never URL query parameters.
 
 **Storage**:
-- Client responsible for secure token storage
-- Token is never persisted by the MCP server
+- Clients remain responsible for secure token storage.
+- Backend exchange credentials must come from deployment secret management.
+
+### Production Readiness
+
+The automated tests use controlled signing keys and simulated Auth0/Cloud responses. Before production rollout, validate live Auth0 application/API configuration, native OBO behavior and actor claims, Cloud scope enforcement and user permissions, regional audiences, signing-key rotation, reverse-proxy routing and challenge headers, and OAuth discovery/consent/step-up with supported MCP clients. Live Auth0/SQC validation is a deployment requirement; it is not established by the repository tests.
 
 ---
 
 ## References
 
 - [MCP Specification - HTTP Transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
-- [MCP Specification - Authorization](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization)
+- [MCP Specification - Authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
+- [Hosted MCP OAuth security design](https://github.com/SonarSource/sonarcloud-authentication/blob/2a4013861688c889d0eac06d16430c56e7589f86/docs/mcp-oauth-security-review-request.md), with the [60-second cache amendment](https://github.com/SonarSource/sonarcloud-authentication/pull/1792)
+- [SC-59185](https://sonarsource.atlassian.net/browse/SC-59185)
 - [MCP Java SDK Documentation](https://modelcontextprotocol.io/sdk/java/mcp-overview)
 - [Jakarta Servlet Specification](https://jakarta.ee/specifications/servlet/)
 
 ---
 
-Organization-aware tool calls capture one immutable `ServerApi`. A configured server organization or optional organization header fixes the organization and rejects tool arguments; without either, tools select the organization through their argument. Nested requests reuse the selected API. Discovery is organization-free, and per-call selections are never persisted between requests. Analytics captures the selected API on the request thread before asynchronous dispatch.
+Organization-aware tool calls capture one immutable `ServerApi`. In TOKEN mode, a configured server organization or optional organization header fixes the organization and rejects tool arguments; without either, tools select the organization through their argument. Nested requests reuse the selected API. Discovery is organization-free, and per-call selections are never persisted between requests. Analytics captures the selected API on the request thread before asynchronous dispatch. OAuth always selects organizations through tool arguments.
