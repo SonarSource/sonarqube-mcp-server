@@ -35,9 +35,11 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class Auth0OAuthAuthenticationService implements Function<String, OAuthRequestAuthentication> {
-  public static final Set<String> DELEGATION_SCOPES = Set.of("read:all", "write:all");
+  private static final Map<String, String> MCP_TO_DELEGATION_SCOPES = Map.of("mcp:tools:read", "read:all", "mcp:tools:write", "write:all");
+  public static final Set<String> DELEGATION_SCOPES = Set.copyOf(MCP_TO_DELEGATION_SCOPES.values());
   private final OAuthConfiguration configuration;
   private final Auth0TokenVerifier verifier;
   private final Auth0TokenExchange exchange;
@@ -67,7 +69,7 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
 
   public OAuthRequestAuthentication authenticate(String token) {
     var source = verifier.verifyMcp(token);
-    var scopes = scopes(source);
+    var scopes = delegatedScopes(source);
     if (!validLifetime(source) || source.getAudience().contains(configuration.cloudAudience()) || blank(source.getSubject())
       || !source.getSubject().matches("oauth2\\|github\\|github\\|\\d+") || blank(source.getClaim("azp").asString())
       || !source.getClaim("org_id").isMissing() || !source.getClaim("act").isMissing()) {
@@ -110,7 +112,7 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
       var cloudToken = exchange.exchange(token, scopes);
       var downstream = verifier.verifyCloud(cloudToken);
       validateExchange(source, downstream, scopes);
-      var authentication = new OAuthRequestAuthentication(cloudToken, scopes(downstream));
+      var authentication = new OAuthRequestAuthentication(cloudToken, delegationScopes(downstream));
       var expiresAt = earliest(source.getExpiresAtAsInstant(), downstream.getExpiresAtAsInstant(), clock.instant().plus(configuration.cacheTtl()));
       return new CacheEntry(authentication, expiresAt);
     } finally {
@@ -133,12 +135,18 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     }
   }
 
-  private static Set<String> scopes(DecodedJWT token) {
+  private static Set<String> delegatedScopes(DecodedJWT token) {
+    return claimScopes(token).filter(MCP_TO_DELEGATION_SCOPES::containsKey).map(MCP_TO_DELEGATION_SCOPES::get)
+      .collect(Collectors.toUnmodifiableSet());
+  }
+
+  private static Set<String> delegationScopes(DecodedJWT token) {
+    return claimScopes(token).filter(DELEGATION_SCOPES::contains).collect(Collectors.toUnmodifiableSet());
+  }
+
+  private static Stream<String> claimScopes(DecodedJWT token) {
     var value = token.getClaim("scope").asString();
-    if (value == null) {
-      return Set.of();
-    }
-    return Arrays.stream(value.split(" ")).filter(DELEGATION_SCOPES::contains).collect(Collectors.toUnmodifiableSet());
+    return value == null ? Stream.empty() : Arrays.stream(value.split(" "));
   }
 
   private static boolean validLifetime(DecodedJWT token) {

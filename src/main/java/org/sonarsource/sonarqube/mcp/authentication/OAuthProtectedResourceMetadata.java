@@ -70,7 +70,7 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
   }
 
   public String challenge() {
-    return "Bearer resource_metadata=\"" + metadataUri + "\", scope=\"read:all write:all\"";
+    return "Bearer resource_metadata=\"" + metadataUri + "\", scope=\"mcp:tools:read mcp:tools:write\"";
   }
 
   @Override
@@ -80,7 +80,7 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
     var body = new Gson().toJson(Map.of(
       "resource", resource,
       "authorization_servers", List.of(issuer),
-      "scopes_supported", List.of("read:all", "write:all"),
+      "scopes_supported", List.of("mcp:tools:read", "mcp:tools:write"),
       "bearer_methods_supported", List.of("header")));
     try {
       response.getWriter().write(body);

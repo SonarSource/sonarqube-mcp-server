@@ -40,6 +40,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -86,7 +87,7 @@ class Auth0OAuthAuthenticationServiceTest {
   @MethodSource("scopeCases")
   void should_exchange_only_explicit_independent_delegation_scopes(String scope, Set<String> expected) {
     var source = source().withClaim("scope", "openid " + scope + " offline_access").sign(algorithm);
-    var cloud = downstream().withClaim("scope", scope).sign(algorithm);
+    var cloud = downstream().withClaim("scope", String.join(" ", expected)).sign(algorithm);
     when(exchange.exchange(source, expected)).thenReturn(cloud);
 
     var authenticated = service.authenticate(source);
@@ -98,8 +99,16 @@ class Auth0OAuthAuthenticationServiceTest {
   }
 
   static Stream<Arguments> scopeCases() {
-    return Stream.of(Arguments.of("read:all", Set.of("read:all")), Arguments.of("write:all", Set.of("write:all")),
-      Arguments.of("read:all write:all", Set.of("read:all", "write:all")));
+    return Stream.of(Arguments.of("mcp:tools:read", Set.of("read:all")), Arguments.of("mcp:tools:write", Set.of("write:all")),
+      Arguments.of("mcp:tools:read mcp:tools:write", Set.of("read:all", "write:all")));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"read:all", "write:all", "read:all write:all", "mcp:tools:admin", "mcp:tools"})
+  void should_not_treat_delegation_or_unknown_scope_names_as_mcp_scopes(String scope) {
+    var source = source().withClaim("scope", "openid " + scope).sign(algorithm);
+    assertStatus(source, 403);
+    verify(exchange, times(0)).exchange(anyString(), any());
   }
 
   @Test
@@ -112,7 +121,7 @@ class Auth0OAuthAuthenticationServiceTest {
   @ParameterizedTest
   @MethodSource("invalidSources")
   void should_reject_source_trust_or_organization_changes(String field, String value) {
-    var source = source().withClaim("scope", "read:all");
+    var source = source().withClaim("scope", "mcp:tools:read");
     switch (field) {
       case "iss" -> source.withIssuer(value);
       case "aud" -> source.withAudience(value);
@@ -130,24 +139,24 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void should_reject_expired_or_missing_expiration_source() {
-    assertStatus(source().withExpiresAt(Instant.now().minusSeconds(1)).withClaim("scope", "read:all").sign(algorithm), 401);
+    assertStatus(source().withExpiresAt(Instant.now().minusSeconds(1)).withClaim("scope", "mcp:tools:read").sign(algorithm), 401);
     assertStatus(JWT.create().withIssuer(ISSUER).withAudience(RESOURCE).withSubject(USER).withClaim("azp", CLIENT)
-      .withIssuedAt(Instant.now()).withClaim("scope", "read:all").withKeyId("test-key").sign(algorithm), 401);
+      .withIssuedAt(Instant.now()).withClaim("scope", "mcp:tools:read").withKeyId("test-key").sign(algorithm), 401);
   }
 
   @Test
   void should_reject_signature_and_algorithm_confusion() throws Exception {
     var other = KeyPairGenerator.getInstance("RSA").generateKeyPair();
-    assertStatus(source().withClaim("scope", "read:all").sign(Algorithm.RSA256((RSAPublicKey) other.getPublic(), (RSAPrivateKey) other.getPrivate())), 401);
-    assertStatus(source().withClaim("scope", "read:all").sign(Algorithm.HMAC256("not-an-rsa-key")), 401);
+    assertStatus(source().withClaim("scope", "mcp:tools:read").sign(Algorithm.RSA256((RSAPublicKey) other.getPublic(), (RSAPrivateKey) other.getPrivate())), 401);
+    assertStatus(source().withClaim("scope", "mcp:tools:read").sign(Algorithm.HMAC256("not-an-rsa-key")), 401);
   }
 
   @Test
   void should_reject_unknown_signing_key_and_accept_rotation_keys_from_trusted_provider() {
     var unavailable = new Auth0TokenVerifier(configuration, keyId -> { throw new com.auth0.jwk.SigningKeyNotFoundException("unknown", null); });
     service = new Auth0OAuthAuthenticationService(configuration, unavailable, exchange, clock);
-    assertStatus(source().withClaim("scope", "read:all").sign(algorithm), 401);
-    var rotated = source().withKeyId("rotated-key").withClaim("scope", "read:all").sign(algorithm);
+    assertStatus(source().withClaim("scope", "mcp:tools:read").sign(algorithm), 401);
+    var rotated = source().withKeyId("rotated-key").withClaim("scope", "mcp:tools:read").sign(algorithm);
     service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock);
     when(exchange.exchange(rotated, Set.of("read:all"))).thenReturn(downstream().withClaim("scope", "read:all").sign(algorithm));
     assertThat(service.authenticate(rotated).scopes()).containsExactly("read:all");
@@ -155,8 +164,8 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void should_reject_overlong_lifetimes_and_wrong_actor_chain_depth() {
-    assertStatus(source().withExpiresAt(Instant.now().plusSeconds(600)).withClaim("scope", "read:all").sign(algorithm), 401);
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    assertStatus(source().withExpiresAt(Instant.now().plusSeconds(600)).withClaim("scope", "mcp:tools:read").sign(algorithm), 401);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(downstream().withClaim("scope", "read:all")
       .withClaim("act", Map.of("sub", BACKEND, "act", Map.of("sub", CLIENT, "act", Map.of("sub", "unexpected")))).sign(algorithm));
     assertStatus(source, 502);
@@ -166,13 +175,13 @@ class Auth0OAuthAuthenticationServiceTest {
   void should_report_jwks_outage_separately_from_invalid_credentials() {
     var unavailable = new Auth0TokenVerifier(configuration, keyId -> { throw new com.auth0.jwk.NetworkException("outage", null); });
     service = new Auth0OAuthAuthenticationService(configuration, unavailable, exchange, clock);
-    assertStatus(source().withClaim("scope", "read:all").sign(algorithm), 503);
+    assertStatus(source().withClaim("scope", "mcp:tools:read").sign(algorithm), 503);
   }
 
   @ParameterizedTest
   @MethodSource("invalidExchanges")
   void should_reject_expanded_or_untrusted_downstream_token(String field, String value) {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var result = downstream().withClaim("scope", "read:all");
     switch (field) {
       case "iss" -> result.withIssuer(value);
@@ -195,7 +204,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void should_reuse_only_the_same_authorization_and_reverify_every_request() {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(downstream().withClaim("scope", "read:all").sign(algorithm));
     service.authenticate(source);
     service.authenticate(source);
@@ -207,8 +216,8 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void should_isolate_two_authorizations_for_the_same_user() {
-    var first = source().withClaim("scope", "read:all").withJWTId("first").sign(algorithm);
-    var second = source().withClaim("scope", "read:all").withJWTId("second").sign(algorithm);
+    var first = source().withClaim("scope", "mcp:tools:read").withJWTId("first").sign(algorithm);
+    var second = source().withClaim("scope", "mcp:tools:read").withJWTId("second").sign(algorithm);
     when(exchange.exchange(anyString(), any())).thenReturn(downstream().withClaim("scope", "read:all").sign(algorithm));
     service.authenticate(first);
     service.authenticate(second);
@@ -224,7 +233,7 @@ class Auth0OAuthAuthenticationServiceTest {
     });
     for (var user : List.of(USER, USER + "2")) {
       for (var client : List.of(CLIENT, "other-client")) {
-        for (var scope : List.of("read:all", "write:all", "read:all write:all")) {
+        for (var scope : List.of("mcp:tools:read", "mcp:tools:write", "mcp:tools:read mcp:tools:write")) {
           service.authenticate(source().withSubject(user).withClaim("azp", client).withClaim("scope", scope).sign(algorithm));
         }
       }
@@ -237,8 +246,8 @@ class Auth0OAuthAuthenticationServiceTest {
     configuration = config(Duration.ofSeconds(30), 1);
     service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock);
     when(exchange.exchange(anyString(), any())).thenReturn(downstream().withClaim("scope", "read:all").sign(algorithm));
-    var first = source().withClaim("scope", "read:all").withJWTId("first").sign(algorithm);
-    var second = source().withClaim("scope", "read:all").withJWTId("second").sign(algorithm);
+    var first = source().withClaim("scope", "mcp:tools:read").withJWTId("first").sign(algorithm);
+    var second = source().withClaim("scope", "mcp:tools:read").withJWTId("second").sign(algorithm);
     service.authenticate(first);
     service.authenticate(second);
     service.authenticate(first);
@@ -251,7 +260,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void should_expire_cache_at_the_earliest_token_expiration() {
-    var source = source().withExpiresAt(clock.instant().plusSeconds(10)).withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withExpiresAt(clock.instant().plusSeconds(10)).withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withExpiresAt(clock.instant().plusSeconds(5)).withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
     service.authenticate(source);
@@ -270,7 +279,7 @@ class Auth0OAuthAuthenticationServiceTest {
       throw OAuthAuthenticationException.unavailable();
     });
     var sources = java.util.stream.IntStream.range(0, 17)
-      .mapToObj(index -> source().withClaim("scope", "read:all").withJWTId("concurrent-" + index).sign(algorithm)).toList();
+      .mapToObj(index -> source().withClaim("scope", "mcp:tools:read").withJWTId("concurrent-" + index).sign(algorithm)).toList();
     var source = sources.get(16);
     var executor = java.util.concurrent.Executors.newFixedThreadPool(16);
     var tasks = sources.subList(0, 16).stream().map(token -> CompletableFuture.runAsync(() -> assertStatus(token, 503), executor)).toList();
@@ -289,7 +298,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void should_share_a_single_exchange_between_concurrent_requests_for_the_same_authorization() throws Exception {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
     var started = new CountDownLatch(1);
     var released = new CountDownLatch(1);
@@ -314,7 +323,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void should_not_cache_failed_exchanges() {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenThrow(OAuthAuthenticationException.unavailable()).thenReturn(cloud);
 
