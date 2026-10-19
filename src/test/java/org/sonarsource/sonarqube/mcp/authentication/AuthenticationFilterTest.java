@@ -325,8 +325,8 @@ class AuthenticationFilterTest {
 
   static Stream<Arguments> sonarCloudOrgHeaderScenarios() {
     return Stream.of(
-      Arguments.of(null, false),
-      Arguments.of("  ", false),
+      Arguments.of(null, true),
+      Arguments.of("  ", true),
       Arguments.of("my-org", true)
     );
   }

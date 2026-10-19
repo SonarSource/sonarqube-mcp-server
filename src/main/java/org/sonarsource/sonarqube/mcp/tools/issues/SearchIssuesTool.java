@@ -93,7 +93,9 @@ public class SearchIssuesTool extends Tool {
     }
 
     var searchParams = extractSearchParams(arguments, branchPullRequest);
-    var response = serverApiProvider.get().issuesApi().search(searchParams);
+    var explicitlyScoped = componentCount(arguments) > 0 || arguments.getOptionalStringList(ISSUE_KEY_PROPERTY) != null;
+    var api = explicitlyScoped ? serverApiProvider.getForProject() : serverApiProvider.get();
+    var response = api.issuesApi().search(searchParams);
     var toolResponse = buildStructuredContent(response);
     return Tool.Result.success(toolResponse);
   }
