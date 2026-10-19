@@ -37,8 +37,10 @@ import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.util.DeadlineTimeoutException;
 import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -60,6 +62,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -146,6 +149,34 @@ class HttpClientProviderTests {
       assertThat(isTimeout(error)).isTrue();
     } finally {
       underTest.shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_preserve_the_pool_timeout_when_overriding_request_settings(boolean customPostTimeout) throws Exception {
+    sonarqubeMock.stubFor(get("/occupied").willReturn(aResponse().withFixedDelay(1500)));
+    var connectionManager = PoolingAsyncClientConnectionManagerBuilder.create().setMaxConnPerRoute(1).setMaxConnTotal(1).build();
+    var requestConfig = RequestConfig.custom()
+      .setConnectionRequestTimeout(Timeout.ofMilliseconds(200))
+      .setResponseTimeout(Timeout.ofSeconds(10))
+      .build();
+
+    try (var apacheClient = HttpAsyncClients.custom().setConnectionManager(connectionManager).setDefaultRequestConfig(requestConfig).build()) {
+      apacheClient.start();
+      var client = new HttpClientAdapter(apacheClient, null, false, Duration.ofSeconds(10), requestConfig, null);
+      var occupied = client.getAsync(sonarqubeMock.url("/occupied"));
+      try {
+        await().atMost(3, TimeUnit.SECONDS).until(() -> connectionManager.getTotalStats().getLeased() == 1);
+
+        var future = customPostTimeout
+          ? client.postAsync(sonarqubeMock.url("/queued"), HttpClient.JSON_CONTENT_TYPE, "{}", Duration.ofSeconds(60))
+          : client.getAsyncAnonymousWithoutRedirects(sonarqubeMock.url("/queued"));
+        var error = assertThrows(ExecutionException.class, () -> future.get(3, TimeUnit.SECONDS));
+        assertThat(error).hasCauseInstanceOf(DeadlineTimeoutException.class);
+      } finally {
+        occupied.cancel(true);
+      }
     }
   }
 

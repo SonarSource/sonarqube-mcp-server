@@ -50,6 +50,7 @@ public class HttpClientProvider {
   private static final Timeout DEFAULT_REQUEST_TIMEOUT = Timeout.of(API_TIMEOUT);
   private static final TimeValue STALE_CONNECTION_CHECK_INTERVAL = TimeValue.ofSeconds(2);
   private final CloseableHttpAsyncClient httpClient;
+  private final RequestConfig defaultRequestConfig;
   private final String userAgent;
   private final String sslProtocol;
   private final int trustedCertificates;
@@ -108,6 +109,14 @@ public class HttpClientProvider {
     var defaultProxySelector = ProxySelector.getDefault();
     this.proxySelector = defaultProxySelector != null ? defaultProxySelector.getClass().getName() : "none";
 
+    this.defaultRequestConfig = RequestConfig.custom()
+      .setConnectionRequestTimeout(requestTimeout)
+      .setConnectTimeout(requestTimeout)
+      .setResponseTimeout(requestTimeout)
+      .setConnectionKeepAlive(requestTimeout)
+      .setHardCancellationEnabled(true)
+      .build();
+
     var httpClientBuilder = HttpAsyncClients.custom()
       .setConnectionManager(asyncConnectionManager)
       .addResponseInterceptorFirst(new RedirectInterceptor())
@@ -119,13 +128,7 @@ public class HttpClientProvider {
           return request != null && Method.isIdempotent(request.getMethod()) && super.retryRequest(response, execCount, context);
         }
       })
-      .setDefaultRequestConfig(RequestConfig.custom()
-        .setConnectionRequestTimeout(requestTimeout)
-        .setConnectTimeout(requestTimeout)
-        .setResponseTimeout(requestTimeout)
-        .setConnectionKeepAlive(requestTimeout)
-        .setHardCancellationEnabled(true)
-        .build())
+      .setDefaultRequestConfig(defaultRequestConfig)
       .setIOReactorConfig(buildReactorConfig())
       .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider())
       .evictExpiredConnections()
@@ -176,11 +179,11 @@ public class HttpClientProvider {
   }
 
   public HttpClient getHttpClient(String sonarqubeCloudToken) {
-    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false, apiTimeout);
+    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false, apiTimeout, defaultRequestConfig, null);
   }
 
   public HttpClient getAnonymousHttpClient() {
-    return new HttpClientAdapter(httpClient, null, false, apiTimeout);
+    return new HttpClientAdapter(httpClient, null, false, apiTimeout, defaultRequestConfig, null);
   }
 
   /**
@@ -188,7 +191,7 @@ public class HttpClientProvider {
    * Bridge client adds special Host and Origin headers for localhost communication.
    */
   public HttpClient getHttpClientForBridge() {
-    return new HttpClientAdapter(httpClient, null, true, apiTimeout);
+    return new HttpClientAdapter(httpClient, null, true, apiTimeout, defaultRequestConfig, null);
   }
 
   /**
@@ -196,7 +199,7 @@ public class HttpClientProvider {
    * Sends an x-api-key header on every request.
    */
   public HttpClient getHttpClientForAnalytics(String apiKey) {
-    return new HttpClientAdapter(httpClient, null, false, analyticsTimeout, apiKey);
+    return new HttpClientAdapter(httpClient, null, false, analyticsTimeout, defaultRequestConfig, apiKey);
   }
 
   public void shutdown() {
