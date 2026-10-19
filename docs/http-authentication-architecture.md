@@ -183,15 +183,15 @@ In TOKEN mode, clients configure the HTTP endpoint using the preferred `Authoriz
 
 Auth0 handles user sign-in and authorization with Proof Key for Code Exchange (PKCE). The MCP server acts as the protected resource and exchanges tokens on the user's behalf (OBO). See the [README configuration](../README.md#hosted-sonarqube-cloud-oauth) for the environment variables. This implementation accepts GitHub-backed users; SSO is deferred.
 
-1. A request without credentials receives HTTP 401 and a `WWW-Authenticate` challenge pointing to protected-resource metadata. The document identifies the exact MCP resource, trusted Auth0 issuer, and supported `read:all` and `write:all` scopes.
+1. A request without credentials receives HTTP 401 and a `WWW-Authenticate` challenge pointing to protected-resource metadata. The document identifies the exact MCP resource, trusted Auth0 issuer, and supported `mcp:tools:read` and `mcp:tools:write` scopes.
 2. The client obtains an MCP access token (**Token A**) from Auth0 and sends it as `Authorization: Bearer <token>` on every MCP request.
-3. `Auth0TokenVerifier` validates A's RS256 signature, issuer, MCP audience, required claims, and expiry. `Auth0OAuthAuthenticationService` requires a supported GitHub user subject, an originating client, and a lifetime of at most 300 seconds. A must have no Cloud audience, actor chain (`act`), or organization claim (`org_id`), and must grant at least one delegation scope.
-4. `Auth0TokenExchange` authenticates the backend application to Auth0 and requests a Cloud token using native token exchange. It sends explicit subject/requested access-token types, the Cloud audience, and exactly A's supported delegation scopes. Redirects and retries are disabled, with a 5-second connection timeout and 10-second total call timeout.
-5. The server validates the returned Cloud token (**Token B**): signature and time claims, the same user, backend client, exact Cloud audience, no organization claim, and a two-level actor chain identifying the backend followed by A's originating client. B must have a lifetime of at most 300 seconds and a nonempty scope set contained in A's delegation.
+3. `Auth0TokenVerifier` validates A's RS256 signature, issuer, MCP audience, required claims, and expiry. `Auth0OAuthAuthenticationService` requires a supported GitHub user subject, an originating client, and a lifetime of at most 300 seconds. A must have no Cloud audience, actor chain (`act`), or organization claim (`org_id`), and must grant a nonempty set containing only `mcp:tools:read` and/or `mcp:tools:write`. Any other scope, including `read:all`, `write:all`, or OIDC scopes, is rejected.
+4. `Auth0TokenExchange` authenticates the backend application to Auth0 and requests a Cloud token using native token exchange. It sends explicit subject/requested access-token types, the Cloud audience, and exactly the Cloud scopes mapped from A: `mcp:tools:read` becomes `read:all`, and `mcp:tools:write` becomes `write:all`. Redirects and retries are disabled, with a 5-second connection timeout and 10-second total call timeout.
+5. The server validates the returned Cloud token (**Token B**): signature and time claims, the same user, backend client, exact Cloud audience, no organization claim, and a two-level actor chain identifying the backend followed by A's originating client. B must have a lifetime of at most 300 seconds and a nonempty scope set contained in A's mapped Cloud delegation.
 6. `AuthenticationFilter` stores B and **B's actual scopes** in trusted request attributes, creates a fresh `OAuthScopeContext`, and wraps the response before dispatch. The transport extracts B and that same scope context for the request. Missing trusted authentication fails closed. A never enters the downstream Cloud API context.
 7. Tool listing and execution enforce the verified grants. A permitted tool uses B and the call's selected organization to access Cloud APIs, which still enforce user permissions.
 
-OAuth rejects the `SONARQUBE_ORG` header. Organization-aware tools use `organization` arguments, and `list_organizations` provides discovery with `read:all`. No organization is stored between requests. TOKEN mode retains its optional fixed-organization header.
+OAuth rejects the `SONARQUBE_ORG` header. Organization-aware tools use `organization` arguments, and `list_organizations` provides discovery with `mcp:tools:read`, exchanged for `read:all` on B. No organization is stored between requests. TOKEN mode retains its optional fixed-organization header.
 
 ##### Discovery and trust configuration
 
@@ -261,16 +261,15 @@ In HTTP(S) mode, clients can **narrow** the set of visible tools on a per-reques
 
 `PerRequestToolFilteringHandler` applies the same restrictions to **`tools/list` and direct `tools/call` requests**. Checks run in this order: tool existence and ordinary category/read-only restrictions, OAuth scopes, per-tool enablement, then dispatch. Unknown or ordinarily filtered tools retain their existing errors.
 
-OAuth scopes are independent of the `SONARQUBE_READ_ONLY` preference and are not client-supplied headers or published tool-schema fields:
+OAuth scopes are independent of the `SONARQUBE_READ_ONLY` preference and are not client-supplied headers or published tool-schema fields. Tool requirements use Token B's Cloud scope names internally:
 
 - Read-only tools require `read:all`.
-- Other tools conservatively require both `read:all` and `write:all`.
-- Three audited POST-only tools require only `write:all`: `change_sonar_issue_status`, `change_security_hotspot_status`, and `create_webhook`.
-- `start_agentic_readiness_assessment` requires both because it reads the project before creating the assessment.
+- Other tools default to `write:all`.
+- A tool can explicitly require both scopes when its operations need both.
 
-`write:all` does not grant read access, and `read:all` does not grant write access. B may contain fewer scopes than A; only B's grants govern tool access. An inventory test pins the hosted tool set and its scope requirements. Stdio-only Vortex tools are not exposed through hosted HTTP.
+`write:all` does not grant read access, and `read:all` does not grant write access. B may contain fewer scopes than requested by A's mapped delegation; only B's grants govern tool access. An inventory test pins the hosted tool set and its scope requirements. Stdio-only Vortex tools are not exposed through hosted HTTP.
 
-An otherwise eligible call lacking scopes executes no tool or entitlement check. It returns a JSON-RPC error with actual HTTP **403**, `Cache-Control: no-store`, and a `WWW-Authenticate` challenge containing `error="insufficient_scope"`, the metadata URL, and that tool's required scopes. The request-local response wrapper preserves this status despite the stateless SDK's normal HTTP 200 response handling; denial state is never stored in the token cache or shared between requests.
+An otherwise eligible call lacking scopes executes no tool or entitlement check. It returns a JSON-RPC error with actual HTTP **403**, `Cache-Control: no-store`, and a `WWW-Authenticate` challenge containing `error="insufficient_scope"`, the metadata URL, and that tool's required scopes translated back to `mcp:tools:read` / `mcp:tools:write` for the client. The request-local response wrapper preserves this status despite the stateless SDK's normal HTTP 200 response handling; denial state is never stored in the token cache or shared between requests.
 
 ### Security Notes
 
@@ -343,7 +342,7 @@ The automated tests use controlled signing keys and simulated Auth0/Cloud respon
 
 - [MCP Specification - HTTP Transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
 - [MCP Specification - Authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
-- [Hosted MCP OAuth security design](https://github.com/SonarSource/sonarcloud-authentication/blob/6abbc469e8118d0b4b2cf85b04f3f58c6f44c970/docs/mcp-oauth-security-review-request.md), with the [60-second cache amendment](https://github.com/SonarSource/sonarcloud-authentication/pull/1792)
+- [Hosted MCP OAuth security design](https://github.com/SonarSource/sonarcloud-authentication/blob/2a4013861688c889d0eac06d16430c56e7589f86/docs/mcp-oauth-security-review-request.md), with the [60-second cache amendment](https://github.com/SonarSource/sonarcloud-authentication/pull/1792)
 - [SC-59185](https://sonarsource.atlassian.net/browse/SC-59185)
 - [MCP Java SDK Documentation](https://modelcontextprotocol.io/sdk/java/mcp-overview)
 - [Jakarta Servlet Specification](https://jakarta.ee/specifications/servlet/)

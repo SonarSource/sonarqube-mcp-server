@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.webhooks;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import java.util.Set;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -55,11 +54,6 @@ public class CreateWebhookTool extends Tool {
       .addStringProperty(SECRET_PROPERTY, "If provided, secret will be used as the key to generate the HMAC hex digest value " +
         "in the 'X-Sonar-Webhook-HMAC-SHA256' header (16-200 chars)")
       .build();
-  }
-
-  @Override
-  public Set<String> requiredOAuthScopes() {
-    return Set.of("write:all");
   }
 
   @Override

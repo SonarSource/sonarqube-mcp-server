@@ -62,9 +62,10 @@ import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.KEY;
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.keyValues;
 
 class Auth0OAuthAuthenticationServiceTest {
-  private static final String ISSUER = "https://auth-dev9.sc-dev9.io/";
-  private static final String RESOURCE = "https://api.sc-dev9.io/mcp";
-  private static final String CLOUD = "https://api.sc-dev9.io/";
+  // Example hosts are token claim values; exchanges and signing-key requests are mocked.
+  private static final String ISSUER = "https://auth.example.com/";
+  private static final String RESOURCE = "https://api.example.com/mcp";
+  private static final String CLOUD = "https://api.example.com/";
   private static final String USER = "oauth2|github|github|123456789";
   private static final String CLIENT = "mcp-client";
   private static final String BACKEND = "mcp-backend";
@@ -109,8 +110,8 @@ class Auth0OAuthAuthenticationServiceTest {
   @ParameterizedTest
   @MethodSource("scopeCases")
   void it_should_exchange_only_explicit_independent_delegation_scopes(String scope, Set<String> expected) {
-    var source = source().withClaim("scope", "openid " + scope + " offline_access").sign(algorithm);
-    var cloud = downstream().withClaim("scope", scope).sign(algorithm);
+    var source = source().withClaim("scope", scope).sign(algorithm);
+    var cloud = downstream().withClaim("scope", String.join(" ", expected)).sign(algorithm);
     when(exchange.exchange(source, expected)).thenReturn(cloud);
 
     var authenticated = service.authenticate(source);
@@ -122,21 +123,50 @@ class Auth0OAuthAuthenticationServiceTest {
   }
 
   static Stream<Arguments> scopeCases() {
-    return Stream.of(Arguments.of("read:all", Set.of("read:all")), Arguments.of("write:all", Set.of("write:all")),
-      Arguments.of("read:all write:all", Set.of("read:all", "write:all")));
+    return Stream.of(Arguments.of("mcp:tools:read", Set.of("read:all")), Arguments.of("mcp:tools:write", Set.of("write:all")),
+      Arguments.of("mcp:tools:read mcp:tools:write", Set.of("read:all", "write:all")));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", " ", "read:all", "write:all", "read:all write:all", "openid offline_access", "other:permission",
+    "mcp:tools:read read:all", "mcp:tools:write write:all", "mcp:tools:read openid", "mcp:tools:write offline_access",
+    "mcp:tools:read mcp:tools:write other:permission"})
+  void it_should_reject_any_unsupported_source_scope_without_exchange(String scope) {
+    assertStatus(source().withClaim("scope", scope).sign(algorithm), 403);
+    verify(exchange, times(0)).exchange(anyString(), any());
   }
 
   @Test
   void it_should_reject_source_without_delegation() {
-    var source = source().withClaim("scope", "openid offline_access").sign(algorithm);
-    assertStatus(source, 403);
+    assertStatus(source().sign(algorithm), 403);
+    assertStatus(source().withNullClaim("scope").sign(algorithm), 403);
     verify(exchange, times(0)).exchange(anyString(), any());
+  }
+
+  @ParameterizedTest
+  @MethodSource("malformedSourceScopes")
+  void it_should_reject_malformed_source_scopes_without_exchange(Object scope) {
+    assertStatus(source().withPayload(Map.of("scope", scope)).sign(algorithm), 403);
+    verify(exchange, times(0)).exchange(anyString(), any());
+  }
+
+  static Stream<Object> malformedSourceScopes() {
+    return Stream.of(true, 123, List.of("mcp:tools:read"), Map.of("scope", "mcp:tools:read"));
+  }
+
+  @Test
+  void it_should_not_grant_read_from_write_only_delegation() {
+    var source = source().withClaim("scope", "mcp:tools:write").sign(algorithm);
+    when(exchange.exchange(source, Set.of("write:all"))).thenReturn(downstream().withClaim("scope", "read:all").sign(algorithm));
+
+    assertStatus(source, 502);
+    verify(exchange).exchange(source, Set.of("write:all"));
   }
 
   @ParameterizedTest
   @MethodSource("invalidSources")
   void it_should_reject_source_trust_or_organization_changes(String field, String value) {
-    var source = source().withClaim("scope", "read:all");
+    var source = source().withClaim("scope", "mcp:tools:read");
     switch (field) {
       case "iss" -> source.withIssuer(value);
       case "aud" -> source.withAudience(value);
@@ -154,15 +184,15 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_reject_expired_or_missing_expiration_source() {
-    assertStatus(source().withExpiresAt(clock.instant().minusSeconds(1)).withClaim("scope", "read:all").sign(algorithm), 401);
+    assertStatus(source().withExpiresAt(clock.instant().minusSeconds(1)).withClaim("scope", "mcp:tools:read").sign(algorithm), 401);
     assertStatus(JWT.create().withIssuer(ISSUER).withAudience(RESOURCE).withSubject(USER).withClaim("azp", CLIENT)
-      .withIssuedAt(clock.instant()).withClaim("scope", "read:all").withKeyId("test-key").sign(algorithm), 401);
+      .withIssuedAt(clock.instant()).withClaim("scope", "mcp:tools:read").withKeyId("test-key").sign(algorithm), 401);
   }
 
   @Test
   void it_should_reject_overlong_lifetimes_and_wrong_actor_chain_depth() {
-    assertStatus(source().withExpiresAt(clock.instant().plusSeconds(600)).withClaim("scope", "read:all").sign(algorithm), 401);
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    assertStatus(source().withExpiresAt(clock.instant().plusSeconds(600)).withClaim("scope", "mcp:tools:read").sign(algorithm), 401);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(downstream().withClaim("scope", "read:all")
       .withClaim("act", Map.of("sub", BACKEND, "act", Map.of("sub", CLIENT, "act", Map.of("sub", "unexpected")))).sign(algorithm));
     assertStatus(source, 502);
@@ -171,7 +201,7 @@ class Auth0OAuthAuthenticationServiceTest {
   @ParameterizedTest
   @MethodSource("invalidExchanges")
   void it_should_reject_expanded_or_untrusted_downstream_token(String field, String value) {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var result = downstream().withClaim("scope", "read:all");
     switch (field) {
       case "iss" -> result.withIssuer(value);
@@ -187,14 +217,15 @@ class Auth0OAuthAuthenticationServiceTest {
 
   static Stream<Arguments> invalidExchanges() {
     return Stream.of(Arguments.of("scope", "write:all"), Arguments.of("scope", "read:all write:all"),
-      Arguments.of("scope", "read:all other:permission"), Arguments.of("scope", ""), Arguments.of("azp", "different-backend"),
+      Arguments.of("scope", "read:all other:permission"), Arguments.of("scope", "mcp:tools:read"),
+      Arguments.of("scope", "read:all mcp:tools:read"), Arguments.of("scope", ""), Arguments.of("azp", "different-backend"),
       Arguments.of("actor", "different-backend"), Arguments.of("initiator", "different-client"), Arguments.of("sub", USER + "2"),
       Arguments.of("aud", RESOURCE), Arguments.of("iss", "https://other-tenant.auth0.com/"), Arguments.of("org_id", "org_sso"));
   }
 
   @Test
   void it_should_reuse_only_the_same_authorization_and_reverify_every_request() {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
     service.authenticate(source);
@@ -214,12 +245,32 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_isolate_two_authorizations_for_the_same_user() {
-    var first = source().withClaim("scope", "read:all").withJWTId("first").sign(algorithm);
-    var second = source().withClaim("scope", "read:all").withJWTId("second").sign(algorithm);
+    var first = source().withClaim("scope", "mcp:tools:read").withJWTId("first").sign(algorithm);
+    var second = source().withClaim("scope", "mcp:tools:read").withJWTId("second").sign(algorithm);
     when(exchange.exchange(anyString(), any())).thenReturn(downstream().withClaim("scope", "read:all").sign(algorithm));
     service.authenticate(first);
     service.authenticate(second);
     verify(exchange, times(2)).exchange(anyString(), any());
+  }
+
+  @Test
+  void it_should_isolate_the_same_authorization_between_backend_configurations() {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+    var otherConfiguration = new OAuthConfiguration(ISSUER, RESOURCE, CLOUD, "other-backend", "other-secret");
+    var otherExchange = mock(Auth0TokenExchange.class);
+    var otherService = new Auth0OAuthAuthenticationService(otherConfiguration, verifier, otherExchange, clock);
+    var otherCloud = downstream().withClaim("scope", "read:all").withClaim("azp", "other-backend")
+      .withClaim("act", Map.of("sub", "other-backend", "act", Map.of("sub", CLIENT))).sign(algorithm);
+    when(otherExchange.exchange(source, Set.of("read:all"))).thenReturn(otherCloud);
+
+    assertThat(service.authenticate(source).cloudToken()).isEqualTo(cloud);
+    assertThat(otherService.authenticate(source).cloudToken()).isEqualTo(otherCloud);
+    assertThat(service.authenticate(source).cloudToken()).isEqualTo(cloud);
+    assertThat(otherService.authenticate(source).cloudToken()).isEqualTo(otherCloud);
+    verify(exchange).exchange(source, Set.of("read:all"));
+    verify(otherExchange).exchange(source, Set.of("read:all"));
   }
 
   @Test
@@ -232,7 +283,7 @@ class Auth0OAuthAuthenticationServiceTest {
     });
     for (var user : List.of(USER, USER + "2")) {
       for (var client : List.of(CLIENT, "other-client")) {
-        for (var scope : List.of("read:all", "write:all", "read:all write:all")) {
+        for (var scope : List.of("mcp:tools:read", "mcp:tools:write", "mcp:tools:read mcp:tools:write")) {
           service.authenticate(source().withSubject(user).withClaim("azp", client).withClaim("scope", scope).sign(algorithm));
         }
       }
@@ -245,8 +296,8 @@ class Auth0OAuthAuthenticationServiceTest {
     configuration = config(Duration.ofSeconds(30), 1);
     service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock);
     when(exchange.exchange(anyString(), any())).thenReturn(downstream().withClaim("scope", "read:all").sign(algorithm));
-    var first = source().withClaim("scope", "read:all").withJWTId("first").sign(algorithm);
-    var second = source().withClaim("scope", "read:all").withJWTId("second").sign(algorithm);
+    var first = source().withClaim("scope", "mcp:tools:read").withJWTId("first").sign(algorithm);
+    var second = source().withClaim("scope", "mcp:tools:read").withJWTId("second").sign(algorithm);
     service.authenticate(first);
     service.authenticate(second);
     service.authenticate(first);
@@ -259,7 +310,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_expire_cache_at_the_earliest_token_expiration() {
-    var source = source().withExpiresAt(clock.instant().plusSeconds(10)).withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withExpiresAt(clock.instant().plusSeconds(10)).withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withExpiresAt(clock.instant().plusSeconds(5)).withClaim("scope", "read:all").sign(algorithm);
     var freshCloud = downstream().withExpiresAt(clock.instant().plusSeconds(15)).withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud, freshCloud);
@@ -279,7 +330,7 @@ class Auth0OAuthAuthenticationServiceTest {
       throw OAuthAuthenticationException.unavailable();
     });
     var sources = IntStream.range(0, 17)
-      .mapToObj(index -> source().withClaim("scope", "read:all").withJWTId("concurrent-" + index).sign(algorithm)).toList();
+      .mapToObj(index -> source().withClaim("scope", "mcp:tools:read").withJWTId("concurrent-" + index).sign(algorithm)).toList();
     var source = sources.get(16);
     var executor = Executors.newFixedThreadPool(16);
     var tasks = sources.subList(0, 16).stream().map(token -> CompletableFuture.runAsync(() -> assertStatus(token, 503), executor)).toList();
@@ -298,7 +349,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_share_a_single_exchange_between_concurrent_requests_for_the_same_authorization() throws Exception {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
     var started = new CountDownLatch(1);
     var released = new CountDownLatch(1);
@@ -334,7 +385,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_not_cache_failed_exchanges() {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenThrow(OAuthAuthenticationException.unavailable()).thenReturn(cloud);
 
@@ -347,7 +398,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_return_only_the_scopes_actually_granted_in_the_cloud_token() {
-    var source = source().withClaim("scope", "read:all write:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read mcp:tools:write").sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all", "write:all"))).thenReturn(cloud);
 
@@ -357,22 +408,34 @@ class Auth0OAuthAuthenticationServiceTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"read:all read:all", "read:all "})
+  void it_should_preserve_accepted_downstream_scope_formatting(String grantedScope) {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withClaim("scope", grantedScope).sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+
+    assertThat(service.authenticate(source).scopes()).containsExactly("read:all");
+    assertThat(service.authenticate(source).scopes()).containsExactly("read:all");
+    verify(exchange).exchange(source, Set.of("read:all"));
+  }
+
+  @ParameterizedTest
   @ValueSource(strings = {"act", "org_id"})
   void it_should_reject_even_null_forbidden_source_claims(String claim) {
-    assertStatus(source().withNullClaim(claim).withClaim("scope", "read:all").sign(algorithm), 401);
+    assertStatus(source().withNullClaim(claim).withClaim("scope", "mcp:tools:read").sign(algorithm), 401);
     verify(exchange, times(0)).exchange(anyString(), any());
   }
 
   @Test
   void it_should_reject_a_source_token_also_intended_for_cloud() {
-    assertStatus(source().withAudience(RESOURCE, CLOUD).withClaim("scope", "read:all").sign(algorithm), 401);
+    assertStatus(source().withAudience(RESOURCE, CLOUD).withClaim("scope", "mcp:tools:read").sign(algorithm), 401);
     verify(exchange, times(0)).exchange(anyString(), any());
   }
 
   @ParameterizedTest
   @MethodSource("malformedActors")
   void it_should_sanitize_malformed_actor_chains(Object actor) {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").withPayload(Map.of("act", actor)).sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
 
@@ -385,6 +448,7 @@ class Auth0OAuthAuthenticationServiceTest {
     nullPreviousActor.put("act", null);
     return Stream.of(true, "actor", List.of("actor"), Map.of(),
       Map.of("sub", BACKEND), Map.of("sub", BACKEND, "act", "client"),
+      Map.of("sub", 123, "act", Map.of("sub", CLIENT)), Map.of("sub", BACKEND, "act", Map.of()),
       Map.of("sub", BACKEND, "act", Map.of("sub", 123)),
       Map.of("sub", BACKEND, "act", nullPreviousActor));
   }
@@ -392,7 +456,7 @@ class Auth0OAuthAuthenticationServiceTest {
   @ParameterizedTest
   @ValueSource(strings = {"act", "scope", "org_id"})
   void it_should_reject_null_downstream_authorization_claims(String claim) {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").withNullClaim(claim).sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
 
@@ -401,7 +465,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_reject_extra_downstream_audiences_and_overlong_lifetimes() {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all")))
       .thenReturn(downstream().withAudience(CLOUD, RESOURCE).withClaim("scope", "read:all").sign(algorithm))
       .thenReturn(downstream().withExpiresAt(clock.instant().plusSeconds(300)).withClaim("scope", "read:all").sign(algorithm));
@@ -412,7 +476,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_reject_source_expiration_before_reusing_or_replacing_the_cached_token() {
-    var source = source().withExpiresAt(clock.instant().plusSeconds(5)).withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withExpiresAt(clock.instant().plusSeconds(5)).withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withExpiresAt(clock.instant().plusSeconds(10)).withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
     service.authenticate(source);
@@ -424,7 +488,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_reject_an_expired_token_returned_by_a_replacement_exchange() {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withExpiresAt(clock.instant().plusSeconds(5)).withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
     service.authenticate(source);
@@ -436,7 +500,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_reject_cached_authentication_when_source_verification_stops_succeeding() {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(downstream().withClaim("scope", "read:all").sign(algorithm));
     service.authenticate(source);
     doThrow(OAuthAuthenticationException.unauthorized()).when(verifier).verifyMcp(source);
@@ -447,7 +511,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   @Test
   void it_should_reject_cached_authentication_when_cloud_verification_stops_succeeding() {
-    var source = source().withClaim("scope", "read:all").sign(algorithm);
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
     service.authenticate(source);
@@ -463,8 +527,9 @@ class Auth0OAuthAuthenticationServiceTest {
     var authentication = new OAuthRequestAuthentication("private-cloud-token", scopes);
     scopes.clear();
 
-    assertThat(authentication.scopes()).containsExactly("read:all");
-    assertThatThrownBy(() -> authentication.scopes().add("write:all")).isInstanceOf(UnsupportedOperationException.class);
+    var grantedScopes = authentication.scopes();
+    assertThat(grantedScopes).containsExactly("read:all");
+    assertThatThrownBy(() -> grantedScopes.add("write:all")).isInstanceOf(UnsupportedOperationException.class);
     assertThat(authentication.toString()).doesNotContain("private-cloud-token");
   }
 
@@ -474,7 +539,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   private JWTCreator.Builder source() {
     var now = clock.instant();
-    return JWT.create().withIssuer(ISSUER).withAudience(RESOURCE, "https://sonarsource-dev9.eu.auth0.com/userinfo")
+    return JWT.create().withIssuer(ISSUER).withAudience(RESOURCE, "https://tenant.example.com/userinfo")
       .withSubject(USER).withClaim("azp", CLIENT).withIssuedAt(now.minusSeconds(1))
       .withExpiresAt(now.plusSeconds(299)).withKeyId("test-key");
   }

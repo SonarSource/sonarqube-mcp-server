@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -44,8 +45,9 @@ class Auth0TokenExchangeTest {
   void setUp() {
     auth0 = new WireMockServer(wireMockConfig().dynamicPort());
     auth0.start();
-    var configuration = new OAuthConfiguration("https://auth-dev9.sc-dev9.io/", "https://api.sc-dev9.io/mcp", "https://api.sc-dev9.io/",
+    var configuration = new OAuthConfiguration("https://auth.example.com/", "https://api.example.com/mcp", "https://api.example.com/",
       "backend", "secret&with=special+characters", Duration.ofSeconds(30), 256);
+    // Send every exchange to the local stub, regardless of the issuer claim used in the configuration.
     exchange = new Auth0TokenExchange(configuration, auth0.baseUrl());
   }
 
@@ -69,7 +71,7 @@ class Auth0TokenExchangeTest {
       .withRequestBody(matchingJsonPath("$.subject_token_type", equalTo("urn:ietf:params:oauth:token-type:access_token")))
       .withRequestBody(matchingJsonPath("$.requested_token_type", equalTo("urn:ietf:params:oauth:token-type:access_token")))
       .withRequestBody(matchingJsonPath("$.subject_token", equalTo("token-a")))
-      .withRequestBody(matchingJsonPath("$.audience", equalTo("https://api.sc-dev9.io/")))
+      .withRequestBody(matchingJsonPath("$.audience", equalTo("https://api.example.com/")))
       .withRequestBody(matchingJsonPath("$.scope", equalTo(expectedScopes)))
       .withRequestBody(matchingJsonPath("$.client_id", equalTo("backend")))
       .withRequestBody(matchingJsonPath("$.client_secret", equalTo("secret&with=special+characters"))));
@@ -96,6 +98,17 @@ class Auth0TokenExchangeTest {
       assertThatThrownBy(() -> exchange.exchange("token-a", Set.of("read:all")))
         .isInstanceOfSatisfying(OAuthAuthenticationException.class, failure -> assertThat(failure.status()).isEqualTo(502));
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {201, 202, 204})
+  void it_should_require_status_200_even_for_an_otherwise_valid_response(int status) {
+    auth0.stubFor(post("/oauth/token").willReturn(aResponse().withStatus(status)
+      .withBody("{\"access_token\":\"token-b\",\"token_type\":\"Bearer\"}")));
+    var scopes = Set.of("read:all");
+
+    assertThatThrownBy(() -> exchange.exchange("token-a", scopes))
+      .isInstanceOfSatisfying(OAuthAuthenticationException.class, failure -> assertThat(failure.status()).isEqualTo(502));
   }
 
   @Test
