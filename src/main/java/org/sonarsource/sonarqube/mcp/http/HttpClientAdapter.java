@@ -17,15 +17,18 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import jakarta.annotation.Nullable;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.util.Timeout;
 
 class HttpClientAdapter implements HttpClient {
 
@@ -54,6 +57,18 @@ class HttpClientAdapter implements HttpClient {
 
   @Override
   public CompletableFuture<Response> postAsync(String url, String contentType, String body) {
+    return executeAsync(buildPostRequest(url, contentType, body), token);
+  }
+
+  @Override
+  public CompletableFuture<Response> postAsync(String url, String contentType, String body, Duration timeout) {
+    var request = buildPostRequest(url, contentType, body);
+    // Long-running operations also need a response timeout beyond the client's default.
+    request.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.of(timeout)).build());
+    return executeAsync(request, token);
+  }
+
+  private SimpleHttpRequest buildPostRequest(String url, String contentType, String body) {
     var requestBuilder = SimpleRequestBuilder.post(url)
       .setBody(body, ContentType.parse(contentType));
 
@@ -63,7 +78,7 @@ class HttpClientAdapter implements HttpClient {
         .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
     }
     
-    return executeAsync(requestBuilder.build(), token);
+    return requestBuilder.build();
   }
 
   @Override

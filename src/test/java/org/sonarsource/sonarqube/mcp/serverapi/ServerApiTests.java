@@ -20,6 +20,7 @@ import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.stream.Stream;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.AfterEach;
@@ -100,10 +101,13 @@ class ServerApiTests {
   @MethodSource("getErrorResponses")
   void it_should_throw_appropriate_exception_on_error_response(int statusCode, Class<? extends Exception> expectedException, String messageTemplate) {
     sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(statusCode)));
+    sonarqubeMock.stubFor(post("/test").willReturn(aResponse().withStatus(statusCode)));
     var expectedMessage = messageTemplate.contains("%s") ? messageTemplate.formatted(sonarqubeMock.baseUrl()) : messageTemplate;
 
     var exception = assertThrows(expectedException, () -> serverApiHelper.get("/test"));
     assertThat(exception).hasMessage(expectedMessage);
+    var postException = assertThrows(expectedException, () -> serverApiHelper.post("/test", "application/json", "{}", Duration.ofSeconds(5)));
+    assertThat(postException).hasMessage(expectedMessage);
   }
 
   static Stream<Arguments> errorBodyParsingCases() {
@@ -201,6 +205,15 @@ class ServerApiTests {
     try (var response = serverApiHelper.postApiSubdomain("/api/test", "application/json", "{\"data\": \"test\"}")) {
       assertThat(response.isSuccessful()).isTrue();
       assertThat(response.bodyAsString()).isEqualTo("{\"result\": \"ok\"}");
+    }
+  }
+
+  @Test
+  void it_should_return_a_post_response_with_an_explicit_timeout() {
+    sonarqubeMock.stubFor(post("/test").willReturn(jsonResponse("{\"result\":\"ok\"}", HttpStatus.SC_OK)));
+
+    try (var response = serverApiHelper.post("/test", "application/json", "{}", Duration.ofSeconds(5))) {
+      assertThat(response.bodyAsString()).isEqualTo("{\"result\":\"ok\"}");
     }
   }
 
