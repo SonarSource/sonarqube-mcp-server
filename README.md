@@ -1172,6 +1172,15 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 ### Projects
 
+Cloud onboarding tools are available in the `projects` toolset. They use the caller's authentication, return browser handoffs/pending status without long-running sessions, and accept explicit organization keys. See the portable [onboarding skill](skills/sonarcloud-onboard/SKILL.md) for the CLI/MCP workflow and [deployment notes](docs/cloud-onboarding.md).
+
+- **discover_github_repository** — Read existing GitHub organization/repository bindings. Required `repository` (`OWNER/REPO`); returns configured web/API hosts and exact linked projects.
+- **import_github_organization** — Reuse/create/bind a Cloud organization. Required `github`; optional `organizationKey`, `installationId`. Returns `browser_required`, `pending`, or `ready`; subscription setup is separate.
+- **ensure_cloud_subscription** — Preserve an existing subscription or start a cardless trial/Free signup. Required `organizationKey`; optional `plan` (`team-trial`, default, or `free`), `createIfMissing` (default `true`). After pending signup, use `false` to check without resubmitting.
+- **import_github_repository** — Reuse/provision the exact GitHub repository binding. Required `organizationKey`, `repository`; returns project keys.
+- **get_cloud_analysis_status** — Check completed default-branch analysis and eligibility. Required `projectKey`; optional `enableAutomaticAnalysis` (default `false`). Returns `completed`, `pending`, or `ci_required`. Classified as a write tool because it can enable analysis.
+
+
 - **search_my_sonarqube_projects** - Find SonarQube projects. The response is paginated.
   - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
   - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 500) - _Integer_

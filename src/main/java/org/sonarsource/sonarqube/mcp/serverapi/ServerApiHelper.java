@@ -50,6 +50,14 @@ public class ServerApiHelper {
     return endpointParams.organization();
   }
 
+  public String getBaseUrl() {
+    return endpointParams.baseUrl();
+  }
+
+  public String getApiBaseUrl() {
+    return buildApiSubdomainUrl("");
+  }
+
   public boolean isSonarQubeCloud() {
     return endpointParams.isSonarQubeCloud();
   }
