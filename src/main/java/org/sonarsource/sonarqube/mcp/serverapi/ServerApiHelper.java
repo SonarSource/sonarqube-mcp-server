@@ -22,6 +22,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
@@ -76,6 +77,14 @@ public class ServerApiHelper {
 
   public HttpClient.Response post(String path, String contentType, String body) {
     var response = rawPost(buildEndpointUrl(path), contentType, body);
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
+  public HttpClient.Response post(String path, String contentType, String body, Duration timeout) {
+    var response = client.postAsync(buildEndpointUrl(path), contentType, body, timeout).join();
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
