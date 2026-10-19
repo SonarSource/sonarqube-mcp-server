@@ -72,12 +72,12 @@ class SonarCloudCdnPluginsApiTest {
     var httpClient = mock(HttpClient.class);
     var response = mock(HttpClient.Response.class);
     var expectedUrl = "https://scanner.sonarcloud.io/plugins/java/versions/" + LOWERCASE_MD5 + ".jar";
-    when(httpClient.getAsyncAnonymous(expectedUrl)).thenReturn(CompletableFuture.completedFuture(response));
+    when(httpClient.getAsyncAnonymous(expectedUrl, HttpClient.DOWNLOAD_TIMEOUT)).thenReturn(CompletableFuture.completedFuture(response));
 
     var result = new SonarCloudCdnPluginsApi("https://sonarcloud.io", httpClient).downloadPlugin("java", LOWERCASE_MD5);
 
     assertThat(result).isSameAs(response);
-    verify(httpClient).getAsyncAnonymous(expectedUrl);
+    verify(httpClient).getAsyncAnonymous(expectedUrl, HttpClient.DOWNLOAD_TIMEOUT);
   }
 
 }
