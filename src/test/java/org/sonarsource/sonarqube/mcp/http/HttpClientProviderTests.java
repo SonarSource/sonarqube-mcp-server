@@ -89,7 +89,7 @@ class HttpClientProviderTests {
   }
 
   @Test
-  void it_should_allow_analysis_to_exceed_the_api_response_timeout() throws Exception {
+  void it_should_allow_analysis_to_exceed_the_api_response_timeout() {
     sonarqubeMock.stubFor(post(SonarQubeIdeBridgeClient.ANALYSIS_FILES_PATH)
       .willReturn(aResponse().withBody("{\"findings\":[]}").withFixedDelay(1200)));
     sonarqubeMock.stubFor(get("/stalled-api").willReturn(aResponse().withFixedDelay(3000)));
