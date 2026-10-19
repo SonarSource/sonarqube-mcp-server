@@ -20,6 +20,8 @@ import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.config.TlsConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
@@ -30,18 +32,27 @@ import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.Timeout;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 public class HttpClientProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
+  private static final Timeout DEFAULT_REQUEST_TIMEOUT = Timeout.ofSeconds(30);
+  private static final TimeValue STALE_CONNECTION_CHECK_INTERVAL = TimeValue.ofSeconds(2);
   private final CloseableHttpAsyncClient httpClient;
+  private final RequestConfig defaultRequestConfig;
   private final String userAgent;
   private final String sslProtocol;
   private final int trustedCertificates;
   private final String proxySelector;
 
   public HttpClientProvider(String userAgent) {
+    this(userAgent, DEFAULT_REQUEST_TIMEOUT);
+  }
+
+  HttpClientProvider(String userAgent, Timeout requestTimeout) {
     this.userAgent = userAgent;
     var sslFactoryBuilder = SSLFactory.builder()
       .withDefaultTrustMaterial();
@@ -68,16 +79,32 @@ public class HttpClientProvider {
         // Force HTTP/1 since we know SQ/SC don't support HTTP/2 ATM
         .setVersionPolicy(HttpVersionPolicy.FORCE_HTTP_1)
         .build())
+      .setDefaultConnectionConfig(ConnectionConfig.custom()
+        .setConnectTimeout(requestTimeout)
+        .setSocketTimeout(requestTimeout)
+        .setValidateAfterInactivity(STALE_CONNECTION_CHECK_INTERVAL)
+        .build())
       .build();
 
     var defaultProxySelector = ProxySelector.getDefault();
     this.proxySelector = defaultProxySelector != null ? defaultProxySelector.getClass().getName() : "none";
 
+    this.defaultRequestConfig = RequestConfig.custom()
+      .setConnectionRequestTimeout(requestTimeout)
+      .setConnectTimeout(requestTimeout)
+      .setResponseTimeout(requestTimeout)
+      .setConnectionKeepAlive(requestTimeout)
+      .setHardCancellationEnabled(true)
+      .build();
+
     var httpClientBuilder = HttpAsyncClients.custom()
       .setConnectionManager(asyncConnectionManager)
       .addResponseInterceptorFirst(new RedirectInterceptor())
       .setUserAgent(userAgent)
-      .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
+      .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider())
+      .setDefaultRequestConfig(defaultRequestConfig)
+      .evictExpiredConnections()
+      .evictIdleConnections(requestTimeout);
     if (defaultProxySelector != null) {
       httpClientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(defaultProxySelector));
     }
@@ -128,11 +155,11 @@ public class HttpClientProvider {
   }
 
   public HttpClient getHttpClient(String sonarqubeCloudToken) {
-    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false);
+    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false, defaultRequestConfig);
   }
 
   public HttpClient getAnonymousHttpClient() {
-    return new HttpClientAdapter(httpClient, null, false);
+    return new HttpClientAdapter(httpClient, null, false, defaultRequestConfig);
   }
 
   /**
@@ -140,7 +167,7 @@ public class HttpClientProvider {
    * Bridge client adds special Host and Origin headers for localhost communication.
    */
   public HttpClient getHttpClientForBridge() {
-    return new HttpClientAdapter(httpClient, null, true);
+    return new HttpClientAdapter(httpClient, null, true, defaultRequestConfig);
   }
 
   /**
@@ -148,7 +175,7 @@ public class HttpClientProvider {
    * Sends an x-api-key header on every request.
    */
   public HttpClient getHttpClientForAnalytics(String apiKey) {
-    return new HttpClientAdapter(httpClient, null, false, apiKey);
+    return new HttpClientAdapter(httpClient, null, false, defaultRequestConfig, apiKey);
   }
 
   public void shutdown() {

@@ -17,15 +17,18 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import jakarta.annotation.Nullable;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.util.Timeout;
 
 class HttpClientAdapter implements HttpClient {
 
@@ -36,17 +39,20 @@ class HttpClientAdapter implements HttpClient {
   private static final String LOCALHOST = "localhost";
   private static final String LOCALHOST_ORIGIN = "http://localhost";
   private final CloseableHttpAsyncClient apacheClient;
+  private final RequestConfig defaultRequestConfig;
   private final String token;
   private final boolean isBridgeClient;
   @Nullable
   private final String apiKey;
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient) {
-    this(apacheClient, sonarqubeCloudToken, isBridgeClient, null);
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, RequestConfig defaultRequestConfig) {
+    this(apacheClient, sonarqubeCloudToken, isBridgeClient, defaultRequestConfig, null);
   }
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, @Nullable String apiKey) {
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, RequestConfig defaultRequestConfig,
+    @Nullable String apiKey) {
     this.apacheClient = apacheClient;
+    this.defaultRequestConfig = defaultRequestConfig;
     this.token = sonarqubeCloudToken;
     this.isBridgeClient = isBridgeClient;
     this.apiKey = apiKey;
@@ -54,6 +60,18 @@ class HttpClientAdapter implements HttpClient {
 
   @Override
   public CompletableFuture<Response> postAsync(String url, String contentType, String body) {
+    return executeAsync(buildPostRequest(url, contentType, body), token);
+  }
+
+  @Override
+  public CompletableFuture<Response> postAsync(String url, String contentType, String body, Duration timeout) {
+    var request = buildPostRequest(url, contentType, body);
+    // Long-running operations also need a response timeout beyond the client's default.
+    request.setConfig(RequestConfig.copy(defaultRequestConfig).setResponseTimeout(Timeout.of(timeout)).build());
+    return executeAsync(request, token);
+  }
+
+  private SimpleHttpRequest buildPostRequest(String url, String contentType, String body) {
     var requestBuilder = SimpleRequestBuilder.post(url)
       .setBody(body, ContentType.parse(contentType));
 
@@ -63,7 +81,7 @@ class HttpClientAdapter implements HttpClient {
         .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
     }
     
-    return executeAsync(requestBuilder.build(), token);
+    return requestBuilder.build();
   }
 
   @Override
@@ -100,14 +118,15 @@ class HttpClientAdapter implements HttpClient {
       this.wrapped = apacheClient.execute(httpRequest, new FutureCallback<>() {
         @Override
         public void completed(SimpleHttpResponse result) {
+          // Complete on this callback thread. completeAsync() would queue the completion on
+          // ForkJoinPool.commonPool, which can stay blocked for the life of the HTTP server.
+          String uri;
           try {
-            var uri = httpRequest.getUri().toString();
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
-              new HttpResponse(uri, result));
+            uri = httpRequest.getUri().toString();
           } catch (URISyntaxException e) {
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
-              new HttpResponse(httpRequest.getRequestUri(), result));
+            uri = httpRequest.getRequestUri();
           }
+          HttpClientAdapter.CompletableFutureWrappingFuture.this.complete(new HttpResponse(uri, result));
         }
 
         @Override
