@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -32,10 +34,41 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.intendedArchitectures;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.MAIN_BRANCH_ID;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.stubMainBranch;
+import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.textOf;
 
 class ArchitectureGetIntendedToolTests {
 
   private static final String CLOUD_INTENDED = ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "?projectId=" + MAIN_BRANCH_ID;
+
+  @SonarQubeMcpServerTest
+  void it_should_keep_constraints_touching_selected_branch_and_leaf_roots(SonarQubeMcpServerTestHarness harness) {
+    var model = """
+      [{"type":"namespace","language":"java","groups":[{"label":"Domain","groups":[{"label":"Billing"}]},{"label":"Web"},{"label":"DomainExtra"}],
+      "constraints":[{"from":"Web","to":"Domain"},{"from":"Domain","to":"Web"},
+      {"from":"Web","to":"Domain/Billing"},{"from":"Domain/Billing","to":"Web"},
+      {"from":"Web","to":"DomainExtra"},{"from":"DomainExtra","to":"Web"}]}]""";
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED).willReturn(okJson(intendedArchitectures(model))));
+    var client = harness.newClient(CLOUD_ENV);
+    var constraints = JsonParser.parseString(model).getAsJsonArray().get(0).getAsJsonObject().getAsJsonArray("constraints");
+
+    for (var component : new String[] {"Domain", "Domain/Billing"}) {
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project", "component", component));
+      assertThat(result.isError()).isFalse();
+      var view = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("models").get(0).getAsJsonObject();
+      var expected = new JsonArray();
+      if (component.equals("Domain")) {
+        expected.add(constraints.get(0));
+        expected.add(constraints.get(1));
+      }
+      expected.add(constraints.get(2));
+      expected.add(constraints.get(3));
+      assertThat(view.getAsJsonArray("constraints")).isEqualTo(expected);
+      if (component.equals("Domain/Billing")) {
+        assertThat(view.getAsJsonArray("groups")).isEmpty();
+      }
+    }
+  }
 
   @SonarQubeMcpServerTest
   void it_should_return_the_whole_model_on_sonarqube_cloud(SonarQubeMcpServerTestHarness harness) {

@@ -134,7 +134,8 @@ public class ArchitectureGetTool extends Tool {
       groups = nullToEmpty(root.groups());
       var prefix = component + "/";
       constraints = constraints.stream()
-        .filter(constraint -> startsWith(constraint.from(), prefix) || startsWith(constraint.to(), prefix))
+        .filter(constraint -> component.equals(constraint.from()) || component.equals(constraint.to())
+          || startsWith(constraint.from(), prefix) || startsWith(constraint.to(), prefix))
         .toList();
     }
     return new Model(model.language(), model.type(), toGroups(groups, depth == null ? Integer.MAX_VALUE : depth),

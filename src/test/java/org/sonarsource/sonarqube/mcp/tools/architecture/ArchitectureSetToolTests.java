@@ -41,6 +41,57 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.textOf;
 
 class ArchitectureSetToolTests {
+  private static final String COLLIDING_CONSTRAINT_MODEL = """
+    [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[{"label":"A -> B"},{"label":"C"},{"label":"A"},{"label":"B -> C"}],
+    "constraints":[{"from":"A -> B","to":"C"}]}]""";
+
+  @Test
+  void it_should_compare_constraint_endpoint_pairs_instead_of_display_strings() {
+    var before = IntendedModels.parse(COLLIDING_CONSTRAINT_MODEL);
+    var after = IntendedModels.parse(COLLIDING_CONSTRAINT_MODEL.replace("\"from\":\"A -> B\",\"to\":\"C\"", "\"from\":\"A\",\"to\":\"B -> C\""));
+
+    var diff = IntendedModels.diff(before, after);
+    assertThat(diff.removed()).containsExactly("java constraint \"A -> B\" -> C");
+    assertThat(diff.added()).containsExactly("java constraint A -> \"B -> C\"");
+    assertThat(diff.isEmpty()).isFalse();
+  }
+
+  @Test
+  void it_should_only_reject_equal_constraint_endpoint_pairs_as_duplicates() {
+    var model = JsonParser.parseString(COLLIDING_CONSTRAINT_MODEL).getAsJsonArray();
+    var constraints = model.get(0).getAsJsonObject().getAsJsonArray("constraints");
+    constraints.add(JsonParser.parseString("{\"from\":\"A\",\"to\":\"B -> C\"}"));
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(model.toString()))).isNull();
+
+    constraints.add(constraints.get(0).deepCopy());
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(model.toString()))).contains("appears more than once");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_preview_then_apply_a_constraint_edit_with_colliding_display_text(SonarQubeMcpServerTestHarness harness) {
+    var next = COLLIDING_CONSTRAINT_MODEL.replace("\"from\":\"A -> B\",\"to\":\"C\"", "\"from\":\"A\",\"to\":\"B -> C\"");
+    stored(harness, COLLIDING_CONSTRAINT_MODEL);
+    var revision = IntendedRevision.of(IntendedModels.parse(COLLIDING_CONSTRAINT_MODEL));
+
+    var preview = set(harness, next, true, revision);
+    assertThat(preview.isError()).isFalse();
+    assertThat(textOf(preview)).contains("dry-run").doesNotContain("unchanged");
+    assertWrites(harness, 0, 0);
+
+    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("constraint-edit").whenScenarioStateIs("Started")
+      .willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
+    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("constraint-edit").whenScenarioStateIs("deleted")
+      .willReturn(okJson(intendedArchitectures("[]"))));
+    harness.getMockSonarQubeServer().stubFor(post(PATH).willReturn(aResponse().withStatus(201).withBody(created(next))));
+
+    var applied = set(harness, next, false, revision);
+    assertThat(applied.isError()).withFailMessage(textOf(applied)).isFalse();
+    assertThat(textOf(applied)).contains("replaced").doesNotContain("unchanged");
+    assertWrites(harness, 1, 1);
+    var body = JsonParser.parseString(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH).getFirst()).getAsJsonObject();
+    assertThat(body.getAsJsonArray("constraints")).isEqualTo(JsonParser.parseString(next).getAsJsonArray().get(0).getAsJsonObject().get("constraints"));
+  }
+
   @Test
   void it_should_detect_sibling_group_reordering() {
     var original = IntendedModels.parse(INTENDED_JAVA_MODEL);

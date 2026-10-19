@@ -20,11 +20,13 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -236,13 +238,13 @@ final class IntendedModels {
   }
 
   private static void checkConstraints(String language, List<IntendedArchitecture.Constraint> constraints, List<String> problems) {
-    var seen = new HashSet<String>();
+    var seen = new HashSet<IntendedArchitecture.Constraint>();
     for (var constraint : constraints) {
       if (constraint == null) {
         problems.add("A constraint of " + language + " is null.");
       } else if (constraint.from() == null || constraint.to() == null) {
         problems.add("Constraint endpoints of " + language + " must be strings.");
-      } else if (!seen.add(describe(constraint))) {
+      } else if (!seen.add(constraint)) {
         problems.add("Constraint " + describe(constraint) + " of " + language + " appears more than once.");
       }
     }
@@ -265,7 +267,7 @@ final class IntendedModels {
       model.groups().keySet().stream().filter(key -> other == null || !other.groups().containsKey(key))
         .forEach(key -> removed.add(language + " group " + key));
       model.constraints().stream().filter(constraint -> other == null || !other.constraints().contains(constraint))
-        .forEach(constraint -> removed.add(language + " constraint " + constraint));
+        .forEach(constraint -> removed.add(language + " constraint " + describe(constraint)));
     });
     after.forEach((language, model) -> {
       var other = before.get(language);
@@ -293,12 +295,12 @@ final class IntendedModels {
         }
       });
       model.constraints().stream().filter(constraint -> other == null || !other.constraints().contains(constraint))
-        .forEach(constraint -> added.add(language + " constraint " + constraint));
+        .forEach(constraint -> added.add(language + " constraint " + describe(constraint)));
     });
     return new Diff(removed, added, changed);
   }
 
-  private record IndexedModel(@Nullable String type, Map<String, GroupSettings> groups, Set<String> constraints) {
+  private record IndexedModel(@Nullable String type, Map<String, GroupSettings> groups, Set<IntendedArchitecture.Constraint> constraints) {
   }
 
   /**
@@ -316,8 +318,7 @@ final class IntendedModels {
     for (var model : models) {
       var groups = new LinkedHashMap<String, GroupSettings>();
       indexGroups(nullToEmpty(model.groups()), List.of(), groups);
-      var constraints = new TreeSet<String>();
-      nullToEmpty(model.constraints()).forEach(constraint -> constraints.add(describe(constraint)));
+      var constraints = new LinkedHashSet<>(nullToEmpty(model.constraints()));
       indexed.put(model.language(), new IndexedModel(model.type(), groups, constraints));
     }
     return indexed;
@@ -339,7 +340,11 @@ final class IntendedModels {
   }
 
   private static String describe(IntendedArchitecture.Constraint constraint) {
-    return constraint.from() + " -> " + constraint.to();
+    return describeEndpoint(constraint.from()) + " -> " + describeEndpoint(constraint.to());
+  }
+
+  private static String describeEndpoint(@Nullable String value) {
+    return value != null && value.contains(" -> ") ? new JsonPrimitive(value).toString() : String.valueOf(value);
   }
 
   private static <T> List<T> nullToEmpty(@Nullable List<T> list) {
