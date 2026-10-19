@@ -30,6 +30,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
@@ -44,6 +46,9 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ServerApiTests {
@@ -116,6 +121,58 @@ class ServerApiTests {
 
     var exception = assertThrows(IllegalStateException.class, () -> serverApiHelper.get("/test"));
     assertThat(exception).hasMessage(messageTemplate.formatted(sonarqubeMock.baseUrl()));
+  }
+
+  static Stream<Arguments> invalidForbiddenBodies() {
+    return Stream.of(
+      arguments("<html>Forbidden</html>"),
+      arguments(""),
+      arguments("{"),
+      arguments("[]"),
+      arguments("{\"errors\": {\"msg\": \"No access\"}}"),
+      arguments("{\"errors\": [null]}"),
+      arguments("{\"errors\": [{}]}"),
+      arguments("{\"errors\": [{\"msg\": {}}]}"),
+      arguments("{\"message\": []}")
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidForbiddenBodies")
+  void it_should_keep_forbidden_status_when_body_has_no_valid_message(String responseBody) {
+    sonarqubeMock.stubFor(get("/test").willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN).withBody(responseBody)));
+
+    var exception = assertThrows(ForbiddenException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("SonarQube answered with Forbidden");
+  }
+
+  @Test
+  void it_should_preserve_valid_forbidden_messages() {
+    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"errors\": [{\"msg\": \"No access\"}, {\"msg\": \"Contact an admin\"}]}", HttpStatus.SC_FORBIDDEN)));
+
+    var exception = assertThrows(ForbiddenException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("SonarQube answered with No access, Contact an admin");
+  }
+
+  @Test
+  void it_should_use_valid_message_when_errors_member_is_invalid() {
+    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"errors\": {}, \"message\": \"No access\"}", HttpStatus.SC_FORBIDDEN)));
+
+    var exception = assertThrows(ForbiddenException.class, () -> serverApiHelper.get("/test"));
+    assertThat(exception).hasMessage("SonarQube answered with No access");
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {HttpStatus.SC_BAD_REQUEST, HttpStatus.SC_UNAUTHORIZED, HttpStatus.SC_FORBIDDEN, HttpStatus.SC_NOT_FOUND, HttpStatus.SC_INTERNAL_SERVER_ERROR})
+  void it_should_close_failed_responses(int statusCode) {
+    var response = mock(HttpClient.Response.class);
+    when(response.code()).thenReturn(statusCode);
+    when(response.bodyAsString()).thenReturn("<html>Error</html>");
+    when(response.url()).thenReturn("https://example.com/test");
+
+    ServerApiHelper.handleError(response);
+
+    verify(response).close();
   }
 
   @Test
