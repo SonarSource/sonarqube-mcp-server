@@ -27,7 +27,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -55,27 +54,13 @@ class HttpServerTransportIntegrationTest {
   }
 
   @Test
-  void should_join_the_server_outside_the_common_pool() {
+  void should_serve_requests_after_the_startup_thread_exits() {
     httpServer.startServer().join();
 
-    await().atMost(5, TimeUnit.SECONDS).until(HttpServerTransportIntegrationTest::serverThreadIsBlockedInJoin);
+    await().atMost(5, TimeUnit.SECONDS).until(() -> Thread.getAllStackTraces().keySet().stream()
+      .noneMatch(thread -> HttpServerTransportProvider.SERVER_THREAD_NAME.equals(thread.getName())));
 
-    var commonPoolBlockedInServerJoin = Thread.getAllStackTraces().entrySet().stream()
-      .filter(entry -> entry.getKey().getName().startsWith("ForkJoinPool.commonPool-worker"))
-      .anyMatch(entry -> stackContainsServerJoin(entry.getValue()));
-
-    assertThat(commonPoolBlockedInServerJoin).isFalse();
-  }
-
-  private static boolean serverThreadIsBlockedInJoin() {
-    return Thread.getAllStackTraces().entrySet().stream()
-      .filter(entry -> HttpServerTransportProvider.SERVER_THREAD_NAME.equals(entry.getKey().getName()))
-      .anyMatch(entry -> stackContainsServerJoin(entry.getValue()));
-  }
-
-  private static boolean stackContainsServerJoin(StackTraceElement[] stack) {
-    return Arrays.stream(stack).anyMatch(frame ->
-      "org.eclipse.jetty.server.Server".equals(frame.getClassName()) && "join".equals(frame.getMethodName()));
+    assertThat(isServerRunning(httpServer.getServerUrl())).isTrue();
   }
 
   @Test
