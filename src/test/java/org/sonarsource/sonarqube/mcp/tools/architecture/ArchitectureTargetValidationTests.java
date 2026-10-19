@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import java.util.List;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -23,27 +24,20 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.textOf;
 
-class ArchitectureGetDirectivesToolTests {
+class ArchitectureTargetValidationTests {
 
   @SonarQubeMcpServerTest
-  void it_should_say_directives_are_not_available_without_calling_sonarqube(SonarQubeMcpServerTestHarness harness) {
+  void it_should_reject_unknown_read_targets_before_network(SonarQubeMcpServerTestHarness harness) {
     var client = harness.newClient();
 
-    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project"));
+    for (var target : List.of("directives", "unsupported")) {
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", target, "projectKey", "my_project"));
 
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).isEqualTo("Directives are not available yet: waiting for the public architecture API. Nothing was read.");
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains("current", "intended");
+    }
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
-  }
-
-  @SonarQubeMcpServerTest
-  void it_should_refuse_current_and_intended_parameters(SonarQubeMcpServerTestHarness harness) {
-    var client = harness.newClient();
-
-    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "depth", 2));
-
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("component, depth and language apply to target current and intended, not directives.");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/project_branches/")).isFalse();
   }
 
 }

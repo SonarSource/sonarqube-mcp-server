@@ -114,7 +114,7 @@ class ArchitectureHttpTest {
       }
       assertThat(send(client, port, "a", true, "tools/list", Map.of())).contains("architecture_get").doesNotContain("architecture_set");
       var rejected = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_set", "arguments",
-        Map.of("target", "directives", "projectKey", "my_project", "dryRun", false)));
+        Map.of("target", "intended", "projectKey", "my_project", "model", INTENDED_JAVA_MODEL, "dryRun", false)));
       assertThat(rejected).doesNotContain("Nothing was changed");
       assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", "/architecture/")).isEmpty();
       assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", "/architecture/")).isEmpty();

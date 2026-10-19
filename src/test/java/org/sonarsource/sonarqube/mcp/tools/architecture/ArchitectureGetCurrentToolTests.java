@@ -55,7 +55,7 @@ class ArchitectureGetCurrentToolTests {
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) tool.inputSchema().get("properties");
     assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language");
-    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives"));
+    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended"));
     assertThat(properties.get("language")).containsEntry("enum", List.of("java", "cs", "js", "ts", "py"));
   }
 

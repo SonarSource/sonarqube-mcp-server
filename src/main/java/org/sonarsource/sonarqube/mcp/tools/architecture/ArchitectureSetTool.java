@@ -43,7 +43,7 @@ public class ArchitectureSetTool extends Tool {
       .setDestructiveHint()
       .setDescription("Replace intended architecture through the public API; imported patterns and metadata cannot be preserved.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
-      .addRequiredEnumProperty("target", new String[] {"intended", "directives"}, "intended: replace the model; directives: unavailable.")
+      .addRequiredEnumProperty("target", new String[] {"intended"}, "intended: replace the model.")
       .addStringProperty(MODEL_PROPERTY, "Whole JSON response or models array from unfiltered architecture_get target intended; partial views are rejected.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get target intended; defaults to the model response revision. A mismatch prevents writing.")
@@ -55,10 +55,7 @@ public class ArchitectureSetTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
-    var target = arguments.getEnumOrThrow("target", new String[] {"intended", "directives"});
-    if ("directives".equals(target)) {
-      return Result.failure("Directives are not available yet: waiting for the public architecture API. Nothing was changed.");
-    }
+    arguments.getEnumOrThrow("target", new String[] {"intended"});
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     var dryRun = arguments.getBooleanOrThrow(DRY_RUN_PROPERTY);
     var model = arguments.getStringOrThrow(MODEL_PROPERTY);

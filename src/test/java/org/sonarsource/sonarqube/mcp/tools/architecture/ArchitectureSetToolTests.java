@@ -107,6 +107,9 @@ class ArchitectureSetToolTests {
     assertThat(tool.annotations().destructiveHint()).isTrue();
     assertThat(tool.annotations().openWorldHint()).isTrue();
     assertThat(tool.inputSchema().get("properties").toString()).contains("target", "organization", "dryRun", "revision");
+    @SuppressWarnings("unchecked")
+    var properties = (Map<String, Map<String, Object>>) tool.inputSchema().get("properties");
+    assertThat(properties.get("target")).containsEntry("enum", List.of("intended"));
   }
 
   @SonarQubeMcpServerTest
@@ -407,11 +410,15 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_reject_directives_before_network(SonarQubeMcpServerTestHarness harness) {
-    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "dryRun", false));
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("public architecture API", "Nothing was changed");
+  void it_should_reject_unknown_write_targets_before_network(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient(CLOUD_ENV);
+    for (var target : List.of("directives", "current", "unsupported")) {
+      var result = client.callTool(ArchitectureSetTool.TOOL_NAME, Map.of("target", target, "projectKey", "my_project", "dryRun", false));
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains("intended");
+    }
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/project_branches/")).isFalse();
   }
 
   @SonarQubeMcpServerTest

@@ -19,7 +19,6 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
@@ -40,12 +39,9 @@ public class ArchitectureGetTool extends Tool {
   public static final String LANGUAGE_PROPERTY = "language";
   public static final String CURRENT = "current";
   public static final String INTENDED = "intended";
-  public static final String DIRECTIVES = "directives";
-
-  public static final String DIRECTIVES_NOT_AVAILABLE = "Directives are not available yet: waiting for the public architecture API. Nothing was read.";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
-  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
+  private static final String[] TARGETS = {CURRENT, INTENDED};
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
@@ -56,11 +52,11 @@ public class ArchitectureGetTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
       .setDescription("Read current dependency graphs or intended architecture through the public API.")
-      .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS, "current: analyzed dependencies; intended: desired groups and constraints; directives: unavailable.")
+      .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS, "current: analyzed dependencies; intended: desired groups and constraints.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Start below a current node key or intended group key (labels joined by /). Top level when omitted.")
-      .addNumberProperty(DEPTH_PROPERTY, "current and intended only. Levels below the start to return. Default 1 for current, all for intended.")
-      .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "current and intended only. Language to read. All languages when omitted.")
+      .addNumberProperty(DEPTH_PROPERTY, "Levels below the start to return. Default 1 for current, all for intended.")
+      .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint()
       .build(),
       ToolCategory.ARCHITECTURE);
@@ -75,17 +71,10 @@ public class ArchitectureGetTool extends Tool {
     var component = arguments.getOptionalString(COMPONENT_PROPERTY);
     var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);
     var language = arguments.getOptionalEnumValue(LANGUAGE_PROPERTY, LANGUAGES);
-    if (DIRECTIVES.equals(target)) {
-      if (Stream.of(component, depth, language).anyMatch(Objects::nonNull)) {
-        throw new IllegalArgumentException("component, depth and language apply to target current and intended, not directives.");
-      }
-    } else if (depth != null && depth < 1) {
+    if (depth != null && depth < 1) {
       throw new IllegalArgumentException("depth must be 1 or more.");
     }
 
-    if (DIRECTIVES.equals(target)) {
-      return Result.failure(DIRECTIVES_NOT_AVAILABLE);
-    }
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     if (CURRENT.equals(target)) {
       serverApi.requireOrganization();
