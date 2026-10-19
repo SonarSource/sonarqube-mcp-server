@@ -39,7 +39,7 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
   // RFC 9728 discovery path for /mcp; deployments can configure an external metadata URL.
   @SuppressWarnings("java:S1075")
   public static final String PATH = "/.well-known/oauth-protected-resource/mcp";
-  private static final Set<String> SUPPORTED_SCOPES = Set.of("read:all", "write:all");
+  private static final Set<String> SUPPORTED_SCOPES = Set.of("mcp:tools:read", "mcp:tools:write");
   private final String resource;
   private final String issuer;
   private final URI metadataUri;

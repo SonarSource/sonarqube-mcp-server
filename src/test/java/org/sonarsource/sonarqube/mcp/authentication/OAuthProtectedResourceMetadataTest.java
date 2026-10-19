@@ -43,7 +43,7 @@ class OAuthProtectedResourceMetadataTest {
   @Test
   void it_should_challenge_for_both_delegation_scopes_using_the_configured_public_host() {
     var metadata = new OAuthProtectedResourceMetadata("https://api.example.com/mcp", "https://tenant.example.com/");
-    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.example.com/.well-known/oauth-protected-resource/mcp\", scope=\"read:all write:all\"");
+    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.example.com/.well-known/oauth-protected-resource/mcp\", scope=\"mcp:tools:read mcp:tools:write\"");
     assertThat(metadata.isSelfHosted()).isTrue();
   }
 
@@ -51,12 +51,12 @@ class OAuthProtectedResourceMetadataTest {
   void it_should_advertise_an_external_metadata_owner() {
     var metadata = new OAuthProtectedResourceMetadata("https://api.example.com/mcp", "https://auth.example.com/",
       "https://api.example.com/authentication/.well-known/oauth-protected-resource/mcp");
-    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.example.com/authentication/.well-known/oauth-protected-resource/mcp\", scope=\"read:all write:all\"");
+    assertThat(metadata.challenge()).isEqualTo("Bearer resource_metadata=\"https://api.example.com/authentication/.well-known/oauth-protected-resource/mcp\", scope=\"mcp:tools:read mcp:tools:write\"");
     assertThat(metadata.isSelfHosted()).isFalse();
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"read:all", "write:all"})
+  @ValueSource(strings = {"mcp:tools:read", "mcp:tools:write"})
   void it_should_challenge_only_for_the_operation_required_scope(String scope) {
     var metadata = new OAuthProtectedResourceMetadata("https://api.example.com/mcp", "https://tenant.auth0.com/");
 
@@ -68,7 +68,7 @@ class OAuthProtectedResourceMetadataTest {
   void it_should_sort_combined_challenge_scopes() {
     var metadata = new OAuthProtectedResourceMetadata("https://api.example.com/mcp", "https://tenant.auth0.com/");
 
-    assertThat(metadata.challenge(Set.of("write:all", "read:all"))).isEqualTo(metadata.challenge());
+    assertThat(metadata.challenge(Set.of("mcp:tools:write", "mcp:tools:read"))).isEqualTo(metadata.challenge());
   }
 
   @Test
@@ -77,6 +77,9 @@ class OAuthProtectedResourceMetadataTest {
 
     assertThatIllegalArgumentException().isThrownBy(() -> metadata.challenge(Set.of()));
     assertThatIllegalArgumentException().isThrownBy(() -> metadata.challenge(Set.of("openid")));
+    assertThatIllegalArgumentException().isThrownBy(() -> metadata.challenge(Set.of("read:all")));
+    assertThatIllegalArgumentException().isThrownBy(() -> metadata.challenge(Set.of("write:all")));
+    assertThatIllegalArgumentException().isThrownBy(() -> metadata.challenge(Set.of("mcp:tools:read", "read:all")));
   }
 
   @Test
@@ -98,7 +101,7 @@ class OAuthProtectedResourceMetadataTest {
       {
         "resource": "https://api.example.com/mcp",
         "authorization_servers": ["https://tenant.auth0.com/"],
-        "scopes_supported": ["read:all", "write:all"],
+        "scopes_supported": ["mcp:tools:read", "mcp:tools:write"],
         "bearer_methods_supported": ["header"]
       }
       """));

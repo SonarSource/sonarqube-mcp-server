@@ -45,7 +45,6 @@ import org.sonarsource.sonarqube.mcp.http.HttpClient;
  * The cache and exchange limit are local to this instance; authentication needs no HTTP session state.
  */
 public final class Auth0OAuthAuthenticationService implements Function<String, OAuthRequestAuthentication> {
-  public static final Set<String> DELEGATION_SCOPES = Set.of("read:all", "write:all");
   private final OAuthConfiguration configuration;
   private final Auth0TokenVerifier verifier;
   private final Auth0TokenExchange exchange;
@@ -94,7 +93,7 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
    * Requires explicit delegation from a short-lived GitHub user token with no organization binding or prior actors.
    */
   private Set<String> validateSource(DecodedJWT source) {
-    var scopes = scopes(source);
+    var scopes = cloudScopes(source);
     if (!validLifetime(source) || source.getAudience().contains(configuration.cloudAudience()) || blank(source.getSubject())
       || !source.getSubject().matches("oauth2\\|github\\|github\\|\\d+") || blank(source.getClaim("azp").asString())
       || !source.getClaim("org_id").isMissing() || !source.getClaim("act").isMissing()) {
@@ -177,12 +176,20 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
       && initiatingClient.equals(previous.get("sub")) && !previous.containsKey("act");
   }
 
-  private static Set<String> scopes(DecodedJWT token) {
-    var value = token.getClaim("scope").asString();
-    if (value == null) {
-      return Set.of();
+  private static Set<String> cloudScopes(DecodedJWT source) {
+    try {
+      var value = source.getClaim("scope").asString();
+      if (blank(value)) {
+        return Set.of();
+      }
+      return Arrays.stream(value.split(" ")).map(scope -> switch (scope) {
+        case "mcp:tools:read" -> "read:all";
+        case "mcp:tools:write" -> "write:all";
+        default -> throw OAuthAuthenticationException.insufficientScope();
+      }).collect(Collectors.toUnmodifiableSet());
+    } catch (JWTDecodeException e) {
+      throw OAuthAuthenticationException.insufficientScope();
     }
-    return Arrays.stream(value.split(" ")).filter(DELEGATION_SCOPES::contains).collect(Collectors.toUnmodifiableSet());
   }
 
   private static boolean validLifetime(DecodedJWT token) {
