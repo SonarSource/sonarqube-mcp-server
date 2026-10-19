@@ -18,6 +18,9 @@ package org.sonarsource.sonarqube.mcp.authentication;
 
 import java.util.Set;
 
+/**
+ * Immutable Cloud credential and granted scopes for an authenticated request; the string representation redacts the credential.
+ */
 public final class OAuthRequestAuthentication {
   private final String cloudToken;
   private final Set<String> scopes;

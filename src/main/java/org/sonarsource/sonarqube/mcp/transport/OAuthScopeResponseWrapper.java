@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.transport;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
+import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
 
 /** Converts the stateless SDK's successful JSON-RPC transport status for a scope denial to HTTP 403. */
@@ -35,7 +36,12 @@ public final class OAuthScopeResponseWrapper extends HttpServletResponseWrapper 
   public void setStatus(int status) {
     var required = authorization.requiredScopes();
     if (status == SC_OK && !required.isEmpty()) {
-      setHeader("WWW-Authenticate", metadata.challenge(required) + ", error=\"insufficient_scope\"");
+      var mcpScopes = required.stream().map(scope -> switch (scope) {
+        case "read:all" -> "mcp:tools:read";
+        case "write:all" -> "mcp:tools:write";
+        default -> throw new IllegalArgumentException("Unsupported Cloud delegation scope");
+      }).collect(Collectors.toUnmodifiableSet());
+      setHeader("WWW-Authenticate", metadata.challenge(mcpScopes) + ", error=\"insufficient_scope\"");
       setHeader("Cache-Control", "no-store");
       super.setStatus(SC_FORBIDDEN);
     } else {
