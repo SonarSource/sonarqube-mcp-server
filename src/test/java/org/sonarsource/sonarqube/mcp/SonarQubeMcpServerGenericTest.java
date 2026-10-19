@@ -29,19 +29,25 @@ import java.util.Map;
 import java.util.Set;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
+import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class SonarQubeMcpServerGenericTest {
 
@@ -661,6 +667,33 @@ class SonarQubeMcpServerGenericTest {
       .doesNotContain("analyze_file_list");
 
     server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void should_skip_sca_feature_probe_for_projects_only_when_feature_endpoint_returns_forbidden(SonarQubeMcpServerTestHarness harness) {
+    assertProjectsOnlyStartupWithoutScaProbe(harness, 403);
+  }
+
+  @SonarQubeMcpServerTest
+  void should_skip_sca_feature_probe_for_projects_only_when_feature_endpoint_fails(SonarQubeMcpServerTestHarness harness) {
+    assertProjectsOnlyStartupWithoutScaProbe(harness, 500);
+  }
+
+  private static void assertProjectsOnlyStartupWithoutScaProbe(SonarQubeMcpServerTestHarness harness, int featureStatus) {
+    harness.getMockSonarQubeServer().stubFor(get(FeaturesApi.FEATURES_LIST_PATH)
+      .willReturn(aResponse().withStatus(featureStatus)));
+    harness.getMockSonarQubeServer().stubFor(get(ComponentsApi.COMPONENTS_SEARCH_PATH + "?p=1&ps=500&qualifiers=TRK")
+      .willReturn(aResponse().withBody("""
+        {"components":[{"key":"project-key","name":"Project Name"}],"paging":{"pageIndex":1,"pageSize":500,"total":1}}
+        """)));
+
+    var client = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "projects"));
+
+    assertResultEquals(client.callTool(SearchMyProjectsTool.TOOL_NAME), """
+      {"projects":[{"key":"project-key","name":"Project Name"}],
+       "paging":{"pageIndex":1,"pageSize":500,"total":1,"hasNextPage":false}}
+      """);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(FeaturesApi.FEATURES_LIST_PATH)).isZero();
   }
 
   @SonarQubeMcpServerTest

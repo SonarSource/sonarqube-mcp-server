@@ -440,8 +440,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListPullRequestsTool(this, configuredProjectKey),
       new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
 
-    if (mcpConfiguration.isHttpEnabled() || serverApi.isSonarQubeCloud()
-      || serverApi.featuresApi().listFeatures().contains(Feature.SCA)) {
+    if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)
+      && (mcpConfiguration.isHttpEnabled() || serverApi.isSonarQubeCloud()
+        || serverApi.featuresApi().listFeatures().contains(Feature.SCA))) {
       supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey, mcpConfiguration.isSonarQubeCloud()));
     }
 
