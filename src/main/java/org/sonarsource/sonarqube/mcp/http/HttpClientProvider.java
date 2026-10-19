@@ -42,6 +42,7 @@ public class HttpClientProvider {
   private static final Timeout DEFAULT_REQUEST_TIMEOUT = Timeout.ofSeconds(30);
   private static final TimeValue STALE_CONNECTION_CHECK_INTERVAL = TimeValue.ofSeconds(2);
   private final CloseableHttpAsyncClient httpClient;
+  private final RequestConfig defaultRequestConfig;
   private final String userAgent;
   private final String sslProtocol;
   private final int trustedCertificates;
@@ -88,18 +89,20 @@ public class HttpClientProvider {
     var defaultProxySelector = ProxySelector.getDefault();
     this.proxySelector = defaultProxySelector != null ? defaultProxySelector.getClass().getName() : "none";
 
+    this.defaultRequestConfig = RequestConfig.custom()
+      .setConnectionRequestTimeout(requestTimeout)
+      .setConnectTimeout(requestTimeout)
+      .setResponseTimeout(requestTimeout)
+      .setConnectionKeepAlive(requestTimeout)
+      .setHardCancellationEnabled(true)
+      .build();
+
     var httpClientBuilder = HttpAsyncClients.custom()
       .setConnectionManager(asyncConnectionManager)
       .addResponseInterceptorFirst(new RedirectInterceptor())
       .setUserAgent(userAgent)
       .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider())
-      .setDefaultRequestConfig(RequestConfig.custom()
-        .setConnectionRequestTimeout(requestTimeout)
-        .setConnectTimeout(requestTimeout)
-        .setResponseTimeout(requestTimeout)
-        .setConnectionKeepAlive(requestTimeout)
-        .setHardCancellationEnabled(true)
-        .build())
+      .setDefaultRequestConfig(defaultRequestConfig)
       .evictExpiredConnections()
       .evictIdleConnections(requestTimeout);
     if (defaultProxySelector != null) {
@@ -152,11 +155,11 @@ public class HttpClientProvider {
   }
 
   public HttpClient getHttpClient(String sonarqubeCloudToken) {
-    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false);
+    return new HttpClientAdapter(httpClient, sonarqubeCloudToken, false, defaultRequestConfig);
   }
 
   public HttpClient getAnonymousHttpClient() {
-    return new HttpClientAdapter(httpClient, null, false);
+    return new HttpClientAdapter(httpClient, null, false, defaultRequestConfig);
   }
 
   /**
@@ -164,7 +167,7 @@ public class HttpClientProvider {
    * Bridge client adds special Host and Origin headers for localhost communication.
    */
   public HttpClient getHttpClientForBridge() {
-    return new HttpClientAdapter(httpClient, null, true);
+    return new HttpClientAdapter(httpClient, null, true, defaultRequestConfig);
   }
 
   /**
@@ -172,7 +175,7 @@ public class HttpClientProvider {
    * Sends an x-api-key header on every request.
    */
   public HttpClient getHttpClientForAnalytics(String apiKey) {
-    return new HttpClientAdapter(httpClient, null, false, apiKey);
+    return new HttpClientAdapter(httpClient, null, false, defaultRequestConfig, apiKey);
   }
 
   public void shutdown() {

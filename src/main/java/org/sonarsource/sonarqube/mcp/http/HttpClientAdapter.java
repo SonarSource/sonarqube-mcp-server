@@ -39,17 +39,20 @@ class HttpClientAdapter implements HttpClient {
   private static final String LOCALHOST = "localhost";
   private static final String LOCALHOST_ORIGIN = "http://localhost";
   private final CloseableHttpAsyncClient apacheClient;
+  private final RequestConfig defaultRequestConfig;
   private final String token;
   private final boolean isBridgeClient;
   @Nullable
   private final String apiKey;
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient) {
-    this(apacheClient, sonarqubeCloudToken, isBridgeClient, null);
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, RequestConfig defaultRequestConfig) {
+    this(apacheClient, sonarqubeCloudToken, isBridgeClient, defaultRequestConfig, null);
   }
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, @Nullable String apiKey) {
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, RequestConfig defaultRequestConfig,
+    @Nullable String apiKey) {
     this.apacheClient = apacheClient;
+    this.defaultRequestConfig = defaultRequestConfig;
     this.token = sonarqubeCloudToken;
     this.isBridgeClient = isBridgeClient;
     this.apiKey = apiKey;
@@ -64,7 +67,7 @@ class HttpClientAdapter implements HttpClient {
   public CompletableFuture<Response> postAsync(String url, String contentType, String body, Duration timeout) {
     var request = buildPostRequest(url, contentType, body);
     // Long-running operations also need a response timeout beyond the client's default.
-    request.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.of(timeout)).build());
+    request.setConfig(RequestConfig.copy(defaultRequestConfig).setResponseTimeout(Timeout.of(timeout)).build());
     return executeAsync(request, token);
   }
 
