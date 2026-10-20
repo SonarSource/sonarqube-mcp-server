@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.harness.SslTestUtils;
@@ -138,10 +139,10 @@ class OAuthHttpTransportTest {
   @Test
   void it_should_exchange_and_isolate_users_grants_organizations_and_independent_scopes_over_http() throws Exception {
     startWithRealAuthentication();
-    var first = grant("123", "first", "read:all write:all", "read:all");
-    var second = grant("456", "second", "read:all", "read:all");
-    var writer = grant("123", "writer", "write:all", "write:all");
-    var full = grant("123", "full", "read:all write:all", "read:all write:all");
+    var first = grant("123", "first", "mcp:tools:read mcp:tools:write", "read:all write:all", "read:all");
+    var second = grant("456", "second", "mcp:tools:read", "read:all", "read:all");
+    var writer = grant("123", "writer", "mcp:tools:write", "write:all", "write:all");
+    var full = grant("123", "full", "mcp:tools:read mcp:tools:write", "read:all write:all", "read:all write:all");
     stubOrganization(first, "first-org");
     stubOrganization(second, "second-org");
     stubOrganization(full, "full-org");
@@ -160,8 +161,8 @@ class OAuthHttpTransportTest {
     assertThat(projectTool.getAsJsonObject("inputSchema").getAsJsonObject("properties").has("organization")).isTrue();
     var writerTools = send(request(writer.source(), "tools/list", Map.of()).header("SONARQUBE_READ_ONLY", "false").build());
     assertThat(writerTools.body()).contains("change_sonar_issue_status").doesNotContain("list_organizations");
-    assertScopeDenied(send(call(first, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "write:all");
-    assertScopeDenied(send(call(writer, "list_organizations", Map.of())), "read:all");
+    assertScopeDenied(send(call(first, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "mcp:tools:write");
+    assertScopeDenied(send(call(writer, "list_organizations", Map.of())), "mcp:tools:read");
     assertSuccess(send(call(writer, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "successfully changed");
     assertSuccess(send(call(full, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "successfully changed");
 
@@ -202,7 +203,7 @@ class OAuthHttpTransportTest {
   @Test
   void it_should_reject_malformed_credentials_and_organization_headers_before_exchange() throws Exception {
     startWithRealAuthentication();
-    var grant = grant("123", "valid", "read:all", "read:all");
+    var grant = grant("123", "valid", "mcp:tools:read", "read:all", "read:all");
     var missing = send(request(null, "ping", Map.of()).header("SONARQUBE_TOKEN", grant.source()).build());
     assertThat(missing.statusCode()).isEqualTo(401);
     assertThat(missing.headers().firstValue("WWW-Authenticate")).hasValueSatisfying(value -> assertThat(value).contains("resource_metadata=").doesNotContain("invalid_token"));
@@ -222,6 +223,72 @@ class OAuthHttpTransportTest {
     auth0.verify(0, postRequestedFor(urlEqualTo("/oauth/token")));
     assertThat(send(request(null, "ping", Map.of()).header("Authorization", "bEaReR " + grant.source()).build()).statusCode()).isEqualTo(200);
     auth0.verify(1, postRequestedFor(urlEqualTo("/oauth/token")));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "mcp:tools:read offline_access openid profile write:all other:permission, read:all",
+    "mcp:tools:write offline_access openid profile read:all other:permission, write:all",
+    "mcp:tools:read mcp:tools:write offline_access, read:all write:all"
+  })
+  void it_should_ignore_extra_source_scopes_without_widening_tool_access_over_http(String sourceScopes, String cloudScopes) throws Exception {
+    startWithRealAuthentication();
+    var grant = grant("123", "extra-scopes", sourceScopes, cloudScopes, cloudScopes);
+    stubOrganization(grant, "my-org");
+    stubWrite(grant);
+
+    assertSuccess(send(request(grant.source(), "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+      "clientInfo", Map.of("name", "oauth-test", "version", "1.0"))).build()), "serverInfo");
+    var tools = send(request(grant.source(), "tools/list", Map.of()).build());
+    assertThat(tools.statusCode()).isEqualTo(200);
+    if (cloudScopes.contains("read:all")) {
+      assertThat(tools.body()).contains("list_organizations");
+      assertSuccess(send(call(grant, "list_organizations", Map.of())), "my-org");
+    } else {
+      assertThat(tools.body()).doesNotContain("list_organizations");
+      assertScopeDenied(send(call(grant, "list_organizations", Map.of())), "mcp:tools:read");
+      cloud.verify(0, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)));
+    }
+    if (cloudScopes.contains("write:all")) {
+      assertThat(tools.body()).contains("change_sonar_issue_status");
+      assertSuccess(send(call(grant, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "successfully changed");
+    } else {
+      assertThat(tools.body()).doesNotContain("change_sonar_issue_status");
+      assertScopeDenied(send(call(grant, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "mcp:tools:write");
+      cloud.verify(0, postRequestedFor(urlPathEqualTo(IssuesApi.DO_TRANSITION_PATH)));
+    }
+    auth0.verify(1, postRequestedFor(urlEqualTo("/oauth/token")).withRequestBody(matchingJsonPath("$.scope", equalTo(cloudScopes))));
+  }
+
+  @Test
+  void it_should_reject_source_tokens_without_mcp_scopes_before_exchange_over_http() throws Exception {
+    startWithRealAuthentication();
+    for (var scope : List.of("", "read:all", "write:all", "read:all write:all", "other:permission", "offline_access", "openid profile offline_access")) {
+      var source = sign(token(oauth.resource()).withClaim("scope", scope));
+
+      var response = send(request(source, "tools/call", Map.of("name", "list_organizations", "arguments", Map.of())).build());
+
+      assertThat(response.statusCode()).as("Token A scopes: %s", scope).isEqualTo(403);
+      assertThat(response.headers().firstValue("Cache-Control")).hasValue("no-store");
+      assertThat(response.headers().firstValue("WWW-Authenticate")).hasValueSatisfying(value -> assertThat(value)
+        .contains("scope=\"mcp:tools:read mcp:tools:write\"", "error=\"insufficient_scope\""));
+    }
+    auth0.verify(0, postRequestedFor(urlEqualTo("/oauth/token")));
+    assertThat(cloud.getAllServeEvents()).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"mcp:tools:read", "read:all offline_access", "read:all write:all"})
+  void it_should_reject_unrequested_scopes_on_the_exchanged_cloud_token_over_http(String cloudScopes) throws Exception {
+    startWithRealAuthentication();
+    var grant = grant("123", "wrong-cloud-scopes", "mcp:tools:read offline_access write:all", "read:all", cloudScopes);
+
+    var response = send(call(grant, "list_organizations", Map.of()));
+
+    assertThat(response.statusCode()).isEqualTo(502);
+    assertThat(response.headers().firstValue("Cache-Control")).hasValue("no-store");
+    auth0.verify(1, postRequestedFor(urlEqualTo("/oauth/token")).withRequestBody(matchingJsonPath("$.scope", equalTo("read:all"))));
+    assertThat(cloud.getAllServeEvents()).isEmpty();
   }
 
   @ParameterizedTest
@@ -251,7 +318,7 @@ class OAuthHttpTransportTest {
     assertThat(blocked.body()).contains("Origin not allowed");
     assertThat(blocked.headers().firstValue("Access-Control-Allow-Origin")).isEmpty();
     assertThat(blocked.headers().firstValue("Access-Control-Expose-Headers")).isEmpty();
-    assertThat(bootstrap.headers().firstValue("WWW-Authenticate")).hasValue("Bearer resource_metadata=\"" + expectedMetadata + "\", scope=\"read:all write:all\"");
+    assertThat(bootstrap.headers().firstValue("WWW-Authenticate")).hasValue("Bearer resource_metadata=\"" + expectedMetadata + "\", scope=\"mcp:tools:read mcp:tools:write\"");
     var metadataUri = URI.create(endpoint).resolve(OAuthProtectedResourceMetadata.PATH);
     var metadata = send(HttpRequest.newBuilder(metadataUri).header("Origin", CLIENT_ORIGIN).GET().build());
     assertThat(metadata.statusCode()).isEqualTo(external ? 401 : 200);
@@ -259,6 +326,8 @@ class OAuthHttpTransportTest {
       var document = JsonParser.parseString(metadata.body()).getAsJsonObject();
       assertThat(document.get("resource").getAsString()).isEqualTo(cloud.baseUrl() + "/mcp");
       assertThat(document.getAsJsonArray("authorization_servers").get(0).getAsString()).isEqualTo(ISSUER);
+      assertThat(document.getAsJsonArray("scopes_supported").asList()).extracting(JsonElement::getAsString)
+        .containsExactly("mcp:tools:read", "mcp:tools:write");
       assertThat(metadata.headers().firstValue("Cache-Control")).hasValue("public, max-age=300");
     }
     assertThat(send(HttpRequest.newBuilder(metadataUri).POST(HttpRequest.BodyPublishers.noBody()).build()).statusCode()).isEqualTo(401);
@@ -278,13 +347,13 @@ class OAuthHttpTransportTest {
     server.start();
   }
 
-  private Grant grant(String user, String id, String sourceScopes, String cloudScopes) {
+  private Grant grant(String user, String id, String sourceScopes, String requestedScopes, String cloudScopes) {
     var source = sign(token(oauth.resource()).withSubject("oauth2|github|github|" + user).withJWTId(id).withClaim("scope", sourceScopes));
     var downstream = sign(token(oauth.cloudAudience()).withSubject("oauth2|github|github|" + user).withJWTId(id + "-cloud")
       .withClaim("azp", oauth.clientId()).withClaim("scope", cloudScopes)
       .withClaim("act", Map.of("sub", oauth.clientId(), "act", Map.of("sub", "client"))));
     auth0.stubFor(post("/oauth/token").withRequestBody(matchingJsonPath("$.subject_token", equalTo(source)))
-      .withRequestBody(matchingJsonPath("$.scope", equalTo(sourceScopes)))
+      .withRequestBody(matchingJsonPath("$.scope", equalTo(requestedScopes)))
       .withRequestBody(matchingJsonPath("$.audience", equalTo(oauth.cloudAudience())))
       .willReturn(okJson(GSON.toJson(Map.of("access_token", downstream, "token_type", "Bearer")))));
     return new Grant(source, downstream);
@@ -328,6 +397,7 @@ class OAuthHttpTransportTest {
 
   private static void assertScopeDenied(HttpResponse<String> response, String requiredScope) {
     assertThat(response.statusCode()).isEqualTo(403);
+    assertThat(response.headers().firstValue("Cache-Control")).hasValue("no-store");
     assertThat(response.headers().firstValue("Access-Control-Allow-Origin")).hasValue(CLIENT_ORIGIN);
     assertThat(response.headers().firstValue("Access-Control-Expose-Headers")).hasValue("WWW-Authenticate");
     assertThat(response.headers().firstValue("WWW-Authenticate")).hasValueSatisfying(value ->
