@@ -67,7 +67,7 @@ import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.sign
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.token;
 
 class OAuthHttpTransportTest {
-  private static final String ISSUER = OAuthTestSupport.CONFIGURATION.issuer();
+  private static final String ISSUER = OAuthTestSupport.CONFIGURATION.issuer().toString();
   private static final String CLIENT_ORIGIN = "https://mcp-client.example.com";
   private static final String EXTERNAL_METADATA = "https://metadata.example.com/oauth-protected-resource";
   private static final String TRUST_STORE = "javax.net.ssl.trustStore";
@@ -339,7 +339,7 @@ class OAuthHttpTransportTest {
   private void startWithRealAuthentication() {
     var configuration = new McpServerLaunchConfiguration(environment);
     oauth = configuration.getOAuthConfiguration();
-    var keys = new Auth0JwkProvider(auth0.baseUrl() + "/", httpClients.getAnonymousHttpClient(), clock);
+    var keys = new Auth0JwkProvider(URI.create(auth0.baseUrl() + "/"), httpClients.getAnonymousHttpClient(), clock);
     var service = new Auth0OAuthAuthenticationService(oauth, new Auth0TokenVerifier(oauth, keys, clock), new Auth0TokenExchange(oauth, auth0.baseUrl()), clock);
     var transport = new HttpServerTransportProvider(HttpTransportSettings.from(configuration), configuration.getOAuthMetadata(), service::authenticate);
     endpoint = transport.getServerUrl();
