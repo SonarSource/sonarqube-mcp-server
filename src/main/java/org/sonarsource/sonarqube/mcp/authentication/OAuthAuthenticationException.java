@@ -28,6 +28,10 @@ public final class OAuthAuthenticationException extends RuntimeException {
     return new OAuthAuthenticationException(401, "A valid MCP OAuth access token is required");
   }
 
+  public static OAuthAuthenticationException insufficientScope() {
+    return new OAuthAuthenticationException(403, "MCP read or write delegation is required");
+  }
+
   public static OAuthAuthenticationException unavailable() {
     return new OAuthAuthenticationException(503, "OAuth authentication service is temporarily unavailable");
   }
