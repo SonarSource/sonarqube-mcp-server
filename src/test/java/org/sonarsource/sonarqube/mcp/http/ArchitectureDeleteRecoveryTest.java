@@ -66,7 +66,7 @@ class ArchitectureDeleteRecoveryTest {
 
   @ParameterizedTest(name = "DELETE response cancelled={0}")
   @ValueSource(booleans = {false, true})
-  void it_should_restore_after_a_committed_delete_loses_its_response(boolean cancelled) throws Exception {
+  void it_should_restore_after_a_committed_delete_loses_its_response(boolean cancelled) {
     var apacheClient = mock(CloseableHttpAsyncClient.class);
     var server = new CommittedDeleteServer(cancelled);
     when(apacheClient.execute(any(SimpleHttpRequest.class),
