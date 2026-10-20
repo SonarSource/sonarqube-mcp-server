@@ -26,6 +26,27 @@ import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 class ToolDefinitionBuilderTest {
 
   @Test
+  void it_should_keep_annotation_defaults_for_unrelated_tools() {
+    var annotations = ToolDefinitionBuilder.builder().setName("standard_tool").setDescription("Standard tool").build().annotations();
+
+    assertThat(annotations.readOnlyHint()).isFalse();
+    assertThat(annotations.destructiveHint()).isFalse();
+    assertThat(annotations.openWorldHint()).isTrue();
+  }
+
+  @Test
+  void it_should_preserve_destructive_annotation_without_organization() {
+    var definition = ToolDefinitionBuilder.cloudBuilder().setName("destructive_tool").setDescription("Destructive tool")
+      .setDestructiveHint().build();
+
+    var fixed = ToolDefinitionBuilder.withoutOrganization(definition);
+
+    assertThat(fixed.annotations()).isEqualTo(definition.annotations());
+    assertThat(fixed.annotations().destructiveHint()).isTrue();
+    assertThat(fixed.annotations().readOnlyHint()).isFalse();
+  }
+
+  @Test
   void it_should_exclude_organization_from_standard_tool_schemas() {
     var definition = ToolDefinitionBuilder.builder()
       .setName("standard_tool")
