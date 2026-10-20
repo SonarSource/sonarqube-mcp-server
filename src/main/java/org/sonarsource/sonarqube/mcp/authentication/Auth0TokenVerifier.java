@@ -25,8 +25,10 @@ import com.auth0.jwt.interfaces.RSAKeyProvider;
 import jakarta.annotation.Nullable;
 import java.time.Clock;
 import java.time.DateTimeException;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 final class Auth0TokenVerifier {
+  private static final McpLogger LOG = McpLogger.getInstance();
   private static final long CLOCK_SKEW_SECONDS = 60;
 
   private final JWTVerifier mcpVerifier;
@@ -73,6 +75,7 @@ final class Auth0TokenVerifier {
       }
       return verified;
     } catch (JWTVerificationException | DateTimeException e) {
+      LOG.debug("OAuth JWT verification failed ({})", e.getClass().getSimpleName());
       throw OAuthAuthenticationException.unauthorized();
     }
   }

@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import ch.qos.logback.classic.Level;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.google.gson.Gson;
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.LogCapture;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.MutableClock;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
@@ -108,6 +110,16 @@ class Auth0JwkProviderTest {
     assertThat(provider.getPublicKeyById("key")).isEqualTo(KEY.getPublic());
     assertThat(provider.getPublicKeyById("other")).isEqualTo(OTHER_KEY.getPublic());
     server.verify(1, getRequestedFor(urlEqualTo(JWKS_PATH)));
+  }
+
+  @Test
+  void it_should_log_refresh_failures_without_the_response_body() {
+    server.stubFor(get(JWKS_PATH).willReturn(aResponse().withBody("private-key-response")));
+
+    try (var logs = new LogCapture()) {
+      assertFailure(() -> provider.getPublicKeyById("key"), 503);
+      logs.assertLogged(Level.WARN, "OAuth signing-key refresh failed (NetworkException)");
+    }
   }
 
   @Test

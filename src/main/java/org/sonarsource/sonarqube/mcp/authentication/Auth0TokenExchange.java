@@ -27,18 +27,20 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.stream.Collectors;
 import okhttp3.OkHttpClient;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
  * Performs Auth0's native token exchange and sanitizes upstream failures.
  * The caller must verify the returned JWT and its delegated claims before using it.
  */
 final class Auth0TokenExchange {
+  private static final McpLogger LOG = McpLogger.getInstance();
   private static final String ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
   private final OAuthConfiguration configuration;
   private final AuthAPI client;
 
   Auth0TokenExchange(OAuthConfiguration configuration) {
-    this(configuration, configuration.issuer());
+    this(configuration, configuration.issuer().toString());
   }
 
   Auth0TokenExchange(OAuthConfiguration configuration, String issuer) {
@@ -73,8 +75,12 @@ final class Auth0TokenExchange {
       if (e.getCause() instanceof InterruptedIOException interrupted && "interrupted".equals(interrupted.getMessage())) {
         Thread.currentThread().interrupt();
       }
+      // SDK messages and response bodies can contain credentials; log only the failure type.
+      var cause = e.getCause() == null ? e : e.getCause();
+      LOG.warn("Auth0 token exchange unavailable (" + cause.getClass().getSimpleName() + ")");
       throw OAuthAuthenticationException.unavailable();
     } catch (RuntimeException e) {
+      LOG.warn("Auth0 token exchange failed (" + e.getClass().getSimpleName() + ")");
       throw OAuthAuthenticationException.invalidExchange();
     }
     var body = response.getBody();
@@ -90,11 +96,14 @@ final class Auth0TokenExchange {
 
   private static OAuthAuthenticationException exchangeFailure(APIException failure) {
     if (failure.getStatusCode() >= 500 || failure.getStatusCode() == 429) {
+      LOG.warn("Auth0 token exchange failed (HTTP " + failure.getStatusCode() + ")");
       return OAuthAuthenticationException.unavailable();
     }
     if (failure.getStatusCode() == 400 && ("invalid_grant".equals(failure.getError()) || "invalid_token".equals(failure.getError()))) {
+      LOG.debug("Auth0 rejected the source token (HTTP {}, {})", failure.getStatusCode(), failure.getError());
       return OAuthAuthenticationException.unauthorized();
     }
+    LOG.warn("Auth0 token exchange failed (HTTP " + failure.getStatusCode() + ")");
     return OAuthAuthenticationException.invalidExchange();
   }
 }

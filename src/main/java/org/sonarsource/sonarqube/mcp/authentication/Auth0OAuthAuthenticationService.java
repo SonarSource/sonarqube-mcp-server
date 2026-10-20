@@ -36,15 +36,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
  * Authenticates MCP tokens and exchanges them for validated Cloud credentials.
  * The cache and exchange limit are local to this instance; authentication needs no HTTP session state.
  */
-public final class Auth0OAuthAuthenticationService implements Function<String, OAuthRequestAuthentication> {
+public final class Auth0OAuthAuthenticationService {
+  private static final McpLogger LOG = McpLogger.getInstance();
   private final OAuthConfiguration configuration;
   private final Auth0TokenVerifier verifier;
   private final Auth0TokenExchange exchange;
@@ -70,11 +71,6 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
       .maximumSize(configuration.cacheSize())
       .expireAfterWrite(configuration.cacheTtl())
       .build();
-  }
-
-  @Override
-  public OAuthRequestAuthentication apply(String token) {
-    return authenticate(token);
   }
 
   /**
@@ -120,9 +116,11 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
       }
       return entry;
     } catch (ExecutionException | UncheckedExecutionException e) {
-      if (e.getCause() instanceof OAuthAuthenticationException authenticationFailure) {
+      var cause = e.getCause();
+      if (cause instanceof OAuthAuthenticationException authenticationFailure) {
         throw authenticationFailure;
       }
+      LOG.warn("OAuth exchange cache load failed (" + (cause == null ? e : cause).getClass().getSimpleName() + ")");
       throw OAuthAuthenticationException.unavailable();
     }
   }
@@ -162,6 +160,7 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
       }
       return granted;
     } catch (JWTDecodeException e) {
+      LOG.warn("OAuth Cloud token claim decoding failed (" + e.getClass().getSimpleName() + ")");
       throw OAuthAuthenticationException.invalidExchange();
     }
   }
@@ -182,12 +181,14 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
       if (blank(value)) {
         return Set.of();
       }
+      // The OAuth security contract requires Token A to contain only MCP delegation scopes, even in mixed grants.
       return Arrays.stream(value.split(" ")).map(scope -> switch (scope) {
         case "mcp:tools:read" -> "read:all";
         case "mcp:tools:write" -> "write:all";
         default -> throw OAuthAuthenticationException.insufficientScope();
       }).collect(Collectors.toUnmodifiableSet());
     } catch (JWTDecodeException e) {
+      LOG.debug("OAuth source scope decoding failed ({})", e.getClass().getSimpleName());
       throw OAuthAuthenticationException.insufficientScope();
     }
   }
@@ -211,7 +212,7 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
     } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 is unavailable");
+      throw new IllegalStateException("SHA-256 is unavailable", e);
     }
   }
 
