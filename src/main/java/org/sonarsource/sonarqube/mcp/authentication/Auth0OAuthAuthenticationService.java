@@ -181,12 +181,12 @@ public final class Auth0OAuthAuthenticationService {
       if (blank(value)) {
         return Set.of();
       }
-      // The OAuth security contract requires Token A to contain only MCP delegation scopes, even in mixed grants.
+      // Only MCP scopes grant delegation; unrelated source scopes never broaden the exchange.
       return Arrays.stream(value.split(" ")).map(scope -> switch (scope) {
         case "mcp:tools:read" -> "read:all";
         case "mcp:tools:write" -> "write:all";
-        default -> throw OAuthAuthenticationException.insufficientScope();
-      }).collect(Collectors.toUnmodifiableSet());
+        default -> null;
+      }).filter(Objects::nonNull).collect(Collectors.toUnmodifiableSet());
     } catch (JWTDecodeException e) {
       LOG.debug("OAuth source scope decoding failed ({})", e.getClass().getSimpleName());
       throw OAuthAuthenticationException.insufficientScope();
