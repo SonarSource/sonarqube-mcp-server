@@ -49,6 +49,8 @@ public interface HttpClient {
 
   CompletableFuture<Response> getAsyncAnonymous(String url);
 
+  CompletableFuture<Response> getAsyncAnonymousWithoutRedirects(String url);
+
   CompletableFuture<Response> postAsync(String url, String contentType, String body);
 
   CompletableFuture<Response> patchAsync(String url, String contentType, String body);

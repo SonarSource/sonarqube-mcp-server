@@ -23,6 +23,7 @@ import jakarta.annotation.Nullable;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ContentType;
@@ -68,15 +69,7 @@ class HttpClientAdapter implements HttpClient {
 
   @Override
   public CompletableFuture<Response> getAsync(String url) {
-    var requestBuilder = SimpleRequestBuilder.get(url);
-
-    if (isBridgeClient) {
-      requestBuilder
-        .addHeader(HOST_HEADER, LOCALHOST)
-        .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
-    }
-    
-    return executeAsync(requestBuilder.build(), token);
+    return executeAsync(buildGetRequest(url), token);
   }
 
   @Override
@@ -95,6 +88,17 @@ class HttpClientAdapter implements HttpClient {
 
   @Override
   public CompletableFuture<Response> getAsyncAnonymous(String url) {
+    return executeAsync(buildGetRequest(url), null);
+  }
+
+  @Override
+  public CompletableFuture<Response> getAsyncAnonymousWithoutRedirects(String url) {
+    var request = buildGetRequest(url);
+    request.setConfig(RequestConfig.custom().setRedirectsEnabled(false).build());
+    return executeAsync(request, null);
+  }
+
+  private SimpleHttpRequest buildGetRequest(String url) {
     var requestBuilder = SimpleRequestBuilder.get(url);
 
     if (isBridgeClient) {
@@ -102,8 +106,7 @@ class HttpClientAdapter implements HttpClient {
         .addHeader(HOST_HEADER, LOCALHOST)
         .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
     }
-    
-    return executeAsync(requestBuilder.build(), null);
+    return requestBuilder.build();
   }
 
   private class CompletableFutureWrappingFuture extends CompletableFuture<Response> {

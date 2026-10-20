@@ -50,7 +50,7 @@ public final class OAuthProtectedResourceMetadata extends HttpServlet {
   }
 
   public OAuthProtectedResourceMetadata(String resource, String issuer, @Nullable String metadataUrl) {
-    var resourceUri = OAuthConfiguration.validatedResourceUri(resource, issuer);
+    var resourceUri = OAuthConfiguration.validatedResourceUri(resource, OAuthConfiguration.validatedHttpsUri(issuer));
     this.resource = resource;
     this.issuer = issuer;
     this.metadataUri = metadataUrl == null ? resourceUri.resolve(PATH) : OAuthConfiguration.validatedHttpsUri(metadataUrl);
