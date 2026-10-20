@@ -50,7 +50,7 @@ class McpServerLaunchConfigurationOAuthTest {
     var oauth = configuration.getOAuthConfiguration();
     assertThat(oauth).isNotNull();
     assertThat(oauth.resource()).isEqualTo("https://api.example.com/mcp");
-    assertThat(oauth.issuer()).isEqualTo("https://login.example.com/");
+    assertThat(oauth.issuer()).hasToString("https://login.example.com/");
     assertThat(oauth.cloudAudience()).isEqualTo("https://api.example.com/");
     assertThat(oauth.clientId()).isEqualTo("mcp-backend");
     assertThat(oauth.cacheTtl()).isEqualTo(Duration.ofSeconds(60));
