@@ -161,6 +161,20 @@ class ArchitectureSetToolTests {
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) tool.inputSchema().get("properties");
     assertThat(properties.get("target")).containsEntry("enum", List.of("intended"));
+    assertThat(properties.get("model")).containsEntry("type", "string");
+    assertThat(tool.inputSchema()).containsEntry("required", List.of("projectKey", "target", "model", "dryRun"));
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_require_the_advertised_model_before_network(SonarQubeMcpServerTestHarness harness) {
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "dryRun", true));
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("model");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/project_branches/")).isFalse();
+    assertWrites(harness, 0, 0);
   }
 
   @SonarQubeMcpServerTest
@@ -616,8 +630,8 @@ class ArchitectureSetToolTests {
   }
 
   private static void assertWrites(SonarQubeMcpServerTestHarness harness, int deletes, int posts) {
-    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", DELETE_PATH).size()).isEqualTo(deletes);
-    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH).size()).isEqualTo(posts);
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", DELETE_PATH)).hasSize(deletes);
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).hasSize(posts);
   }
 
   private static void assertNoPrivateRequests(SonarQubeMcpServerTestHarness harness) {

@@ -44,7 +44,7 @@ public class ArchitectureSetTool extends Tool {
       .setDescription("Replace intended architecture through the public API; imported patterns and metadata cannot be preserved.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addRequiredEnumProperty("target", new String[] {"intended"}, "intended: replace the model.")
-      .addStringProperty(MODEL_PROPERTY, "Whole JSON response or models array from unfiltered architecture_get target intended; partial views are rejected.")
+      .addRequiredStringProperty(MODEL_PROPERTY, "Whole JSON response or models array from unfiltered architecture_get target intended; partial views are rejected.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get target intended; defaults to the model response revision. A mismatch prevents writing.")
       .build(),
@@ -57,20 +57,10 @@ public class ArchitectureSetTool extends Tool {
   public Result execute(Arguments arguments) {
     arguments.getEnumOrThrow("target", new String[] {"intended"});
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
-    var dryRun = arguments.getBooleanOrThrow(DRY_RUN_PROPERTY);
+    boolean dryRun = arguments.getBooleanOrThrow(DRY_RUN_PROPERTY);
     var model = arguments.getStringOrThrow(MODEL_PROPERTY);
     var next = IntendedModels.parse(model);
-    var revision = IntendedModels.embeddedRevision(model);
-    var argumentMap = arguments.toMap();
-    if (argumentMap.containsKey(REVISION_PROPERTY)) {
-      if (!(argumentMap.get(REVISION_PROPERTY) instanceof String explicitRevision) || explicitRevision.isBlank()) {
-        throw new IllegalArgumentException("revision must be a nonblank string. Nothing was changed.");
-      }
-      if (revision != null && !revision.equals(explicitRevision)) {
-        throw new IllegalArgumentException("The explicit revision differs from the model response revision. Nothing was changed.");
-      }
-      revision = explicitRevision;
-    }
+    var revision = revision(arguments, model);
     var invalidReason = IntendedModels.invalidReason(next);
     if (invalidReason != null) {
       throw new IllegalArgumentException(invalidReason);
@@ -87,7 +77,8 @@ public class ArchitectureSetTool extends Tool {
       api.checkWritableModels(stored, next);
     }
     var warnings = revision == null
-      ? List.of(ArchitectureApi.EXPORT_WARNING, "No revision was supplied; changes since the original export cannot be detected. Use the whole architecture_get response or supply revision.")
+      ? List.of(ArchitectureApi.EXPORT_WARNING, "No revision was supplied; changes since the original export cannot be detected. "
+        + "Use the whole architecture_get response or supply revision.")
       : List.of(ArchitectureApi.EXPORT_WARNING);
     if (dryRun) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));
@@ -101,6 +92,22 @@ public class ArchitectureSetTool extends Tool {
       return Result.failure(failure.callerMessage());
     }
     return Result.success(new ArchitectureSetToolResponse(projectKey, current.isEmpty() ? "created" : "replaced", diff, warnings));
+  }
+
+  @Nullable
+  private static String revision(Arguments arguments, String model) {
+    var revision = IntendedModels.embeddedRevision(model);
+    var argumentMap = arguments.toMap();
+    if (argumentMap.containsKey(REVISION_PROPERTY)) {
+      if (!(argumentMap.get(REVISION_PROPERTY) instanceof String explicitRevision) || explicitRevision.isBlank()) {
+        throw new IllegalArgumentException("revision must be a nonblank string. Nothing was changed.");
+      }
+      if (revision != null && !revision.equals(explicitRevision)) {
+        throw new IllegalArgumentException("The explicit revision differs from the model response revision. Nothing was changed.");
+      }
+      revision = explicitRevision;
+    }
+    return revision;
   }
 
 }

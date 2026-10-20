@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
-import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;

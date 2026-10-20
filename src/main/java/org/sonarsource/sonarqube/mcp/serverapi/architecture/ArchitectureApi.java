@@ -45,6 +45,7 @@ public class ArchitectureApi {
 
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
+  private static final String INTENDED_ARCHITECTURE_PATH = "/architecture/intended-architectures/%s";
   public static final String SERVER_API_PREFIX = "/api/v2";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
@@ -54,7 +55,8 @@ public class ArchitectureApi {
   public static final String EXPORT_WARNING = "The public API cannot identify imported organization patterns or preserve import links and metadata such as descriptions. "
     + "Replacing or restoring an exported model turns imported patterns into copies and may lose metadata.";
 
-  private static final String READ_HINT = "Check project permissions, feature availability and the public API gateway routing; HTTP 403 alone does not establish which check failed";
+  private static final String READ_HINT = "Check project permissions, feature availability and the public API gateway routing; "
+    + "HTTP 403 alone does not establish which check failed";
   private static final String PLAN_HINT = "Architecture is available on SonarQube Cloud Team and Enterprise plans, "
     + "and on SonarQube Server editions that include it";
 
@@ -126,7 +128,8 @@ public class ArchitectureApi {
         throw manualRecovery(previous, "DELETE completed but its resulting state could not be read. No POST or further DELETE was attempted", failure);
       }
       if (!remaining.isEmpty()) {
-        throw manualRecovery(previous, "Another intended architecture remains or changed after DELETE. No further DELETE or POST was attempted; reconcile the surviving data manually", null);
+        throw manualRecovery(previous, "Another intended architecture remains or changed after DELETE. "
+          + "No further DELETE or POST was attempted; reconcile the surviving data manually", null);
       }
     }
     try {
@@ -138,7 +141,8 @@ public class ArchitectureApi {
 
   public void checkWritableModels(List<IntendedArchitecture> previous, List<IntendedArchitecture> next) {
     if (previous.size() > 1 || next.size() > 1) {
-      throw new IllegalArgumentException("The public API can create only one intended architecture perspective. Replacing a multi-perspective model cannot preserve all languages or restore the backup. Nothing was changed.");
+      throw new IllegalArgumentException("The public API can create only one intended architecture perspective. "
+        + "Replacing a multi-perspective model cannot preserve all languages or restore the backup. Nothing was changed.");
     }
   }
 
@@ -157,7 +161,7 @@ public class ArchitectureApi {
 
   private void deleteIntended(String projectKey, String id) {
     write(projectKey, () -> {
-      var path = INTENDED_ARCHITECTURES_PATH + "/" + id;
+      var path = INTENDED_ARCHITECTURE_PATH.formatted(id);
       try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path)
         : helper.delete(SERVER_API_PREFIX + path)) {
         return null;
@@ -165,7 +169,7 @@ public class ArchitectureApi {
     });
   }
 
-  private void validateResourceIds(List<IntendedArchitecture> models) {
+  private static void validateResourceIds(List<IntendedArchitecture> models) {
     var ids = new java.util.HashSet<String>();
     for (var model : models) {
       try {
@@ -208,13 +212,14 @@ public class ArchitectureApi {
         return manualRecovery(previous, "The write failed; the previous exported model was recreated and verified", failure);
       }
     } catch (RuntimeException restoreFailure) {
-      return manualRecovery(previous, "The write failed and restoration could not be verified (" + restoreFailure.getMessage() + "). Read the current state before any retry", failure);
+      return manualRecovery(previous, "The write failed and restoration could not be verified (" + restoreFailure.getMessage()
+        + "). Read the current state before any retry", failure);
     }
     return manualRecovery(previous, "The write failed and restoration did not reproduce the previous exported model. Read the current state before any retry", failure);
   }
 
   private IntendedRecoveryException manualRecovery(List<IntendedArchitecture> previous, String message, @Nullable RuntimeException cause) {
-    return new IntendedRecoveryException(message + (cause == null ? "" : ". Failure: " + cause.getMessage()) + ". " + EXPORT_WARNING,
+    return new IntendedRecoveryException(message + (cause == null ? "" : (". Failure: " + cause.getMessage())) + ". " + EXPORT_WARNING,
       gson.toJson(new PreviousModels(previous)));
   }
 
@@ -242,8 +247,11 @@ public class ArchitectureApi {
       .sorted().toList();
   }
 
-  private List<IntendedArchitecture.Group> normalizedGroups(@Nullable List<IntendedArchitecture.Group> groups) {
-    return groups == null ? List.of() : groups.stream().map(group -> new IntendedArchitecture.Group(group.label(),
+  private static List<IntendedArchitecture.Group> normalizedGroups(@Nullable List<IntendedArchitecture.Group> groups) {
+    if (groups == null) {
+      return List.of();
+    }
+    return groups.stream().map(group -> new IntendedArchitecture.Group(group.label(),
       group.patterns() == null ? List.of() : group.patterns().stream().sorted().toList(), normalizedGroups(group.groups()),
       Boolean.TRUE.equals(group.isInterface()), Boolean.TRUE.equals(group.interfaceAccess()))).toList();
   }
@@ -252,7 +260,7 @@ public class ArchitectureApi {
     return new UrlBuilder(INTENDED_ARCHITECTURES_PATH).addParam("projectId", projectId(projectKey)).build();
   }
 
-  private <T> T write(String projectKey, Supplier<T> request) {
+  private static <T> T write(String projectKey, Supplier<T> request) {
     try {
       return request.get();
     } catch (ForbiddenException e) {
@@ -275,7 +283,7 @@ public class ArchitectureApi {
   private record PreviousModels(List<IntendedArchitecture> models) {
   }
 
-  private <T> T read(String projectKey, Supplier<T> request) {
+  private static <T> T read(String projectKey, Supplier<T> request) {
     try {
       return request.get();
     } catch (ForbiddenException e) {

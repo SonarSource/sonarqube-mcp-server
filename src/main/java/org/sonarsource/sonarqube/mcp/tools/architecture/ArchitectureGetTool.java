@@ -91,7 +91,7 @@ public class ArchitectureGetTool extends Tool {
       .toList();
     if (graphs.isEmpty()) {
       return Result.success(new ArchitectureGetCurrentToolResponse(projectKey, component, depth, false, List.of(), List.of(),
-        "No current architecture for project '" + projectKey + "'" + (language == null ? "" : " in " + language)
+        "No current architecture for project '" + projectKey + "'" + (language == null ? "" : (" in " + language))
           + " yet. Run an analysis of a supported language (Java, C#, JavaScript, TypeScript, Python) first."));
     }
     return Result.success(GraphSlicer.slice(projectKey, graphs, component, depth));
@@ -105,7 +105,7 @@ public class ArchitectureGetTool extends Tool {
       .toList();
     if (models.isEmpty()) {
       return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, List.of(),
-        "No intended architecture is defined for project '" + projectKey + "'" + (language == null ? "" : " in " + language) + "."));
+        "No intended architecture is defined for project '" + projectKey + "'" + (language == null ? "" : (" in " + language)) + "."));
     }
 
     var views = models.stream()

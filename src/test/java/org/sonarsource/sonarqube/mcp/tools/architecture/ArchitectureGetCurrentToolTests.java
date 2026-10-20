@@ -51,7 +51,7 @@ class ArchitectureGetCurrentToolTests {
     assertThat(tool.annotations().readOnlyHint()).isTrue();
     assertThat(tool.annotations().openWorldHint()).isTrue();
     assertThat(tool.outputSchema()).isNull();
-    assertThat(tool.inputSchema().get("required")).isEqualTo(List.of("target", "projectKey"));
+    assertThat(tool.inputSchema()).containsEntry("required", List.of("target", "projectKey"));
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) tool.inputSchema().get("properties");
     assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language");

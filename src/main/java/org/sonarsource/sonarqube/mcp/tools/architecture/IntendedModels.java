@@ -42,6 +42,10 @@ import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureSetToolRespo
  */
 final class IntendedModels {
 
+  private static final String MODELS_PROPERTY = "models";
+  private static final String GROUPS_PROPERTY = "groups";
+  private static final String DUPLICATE_SUFFIX = " appears more than once.";
+  private static final String GROUP_DESCRIPTION = " group ";
   private static final int MAX_REPORTED_PROBLEMS = 10;
   private static final int MAX_DEPTH = 64;
   private static final int MAX_GROUPS = 50_000;
@@ -54,7 +58,7 @@ final class IntendedModels {
   static List<IntendedArchitecture> parse(String json) {
     try {
       var element = JsonParser.parseString(json);
-      var models = element.isJsonObject() && element.getAsJsonObject().has("models") ? element.getAsJsonObject().get("models") : element;
+      var models = element.isJsonObject() && element.getAsJsonObject().has(MODELS_PROPERTY) ? element.getAsJsonObject().get(MODELS_PROPERTY) : element;
       if (!models.isJsonArray()) {
         throw new JsonParseException("expected an array");
       }
@@ -90,7 +94,7 @@ final class IntendedModels {
     } else if (element.isJsonObject()) {
       var object = element.getAsJsonObject();
       for (var property : List.of("component", "depth", "language")) {
-        if (object.has("models") && object.has(property) && !object.get(property).isJsonNull()) {
+        if (object.has(MODELS_PROPERTY) && object.has(property) && !object.get(property).isJsonNull()) {
           throw new JsonParseException("partial architecture view; read the whole model without component, depth or language first");
         }
       }
@@ -110,7 +114,7 @@ final class IntendedModels {
       requireObject(model);
       requireString(model, "type");
       requireString(model, "language");
-      var groups = requireArray(model, "groups", true);
+      var groups = requireArray(model, GROUPS_PROPERTY, true);
       validateGroups(groups, 1, count);
       for (var constraint : requireArray(model, "constraints", true).getAsJsonArray()) {
         requireObject(constraint);
@@ -125,27 +129,32 @@ final class IntendedModels {
       throw new JsonParseException("groups exceed the client depth limit of " + MAX_DEPTH);
     }
     for (var group : groups.getAsJsonArray()) {
-      if (++count[0] > MAX_GROUPS) {
+      count[0]++;
+      if (count[0] > MAX_GROUPS) {
         throw new JsonParseException("groups exceed the client count limit of " + MAX_GROUPS);
       }
-      requireObject(group);
-      requireString(group, "label");
-      var object = group.getAsJsonObject();
-      if (object.has("patterns")) {
-        for (var pattern : requireArray(group, "patterns", false).getAsJsonArray()) {
-          if (!pattern.isJsonPrimitive() || !pattern.getAsJsonPrimitive().isString()) {
-            throw new JsonParseException("patterns must contain strings");
-          }
+      validateGroup(group, depth, count);
+    }
+  }
+
+  private static void validateGroup(JsonElement group, int depth, int[] count) {
+    requireObject(group);
+    requireString(group, "label");
+    var object = group.getAsJsonObject();
+    if (object.has("patterns")) {
+      for (var pattern : requireArray(group, "patterns", false).getAsJsonArray()) {
+        if (!pattern.isJsonPrimitive() || !pattern.getAsJsonPrimitive().isString()) {
+          throw new JsonParseException("patterns must contain strings");
         }
       }
-      for (var property : List.of("interface", "interfaceAccess")) {
-        if (object.has(property) && (!object.get(property).isJsonPrimitive() || !object.get(property).getAsJsonPrimitive().isBoolean())) {
-          throw new JsonParseException(property + " must be a boolean");
-        }
+    }
+    for (var property : List.of("interface", "interfaceAccess")) {
+      if (object.has(property) && (!object.get(property).isJsonPrimitive() || !object.get(property).getAsJsonPrimitive().isBoolean())) {
+        throw new JsonParseException(property + " must be a boolean");
       }
-      if (object.has("groups")) {
-        validateGroups(requireArray(group, "groups", false), depth + 1, count);
-      }
+    }
+    if (object.has(GROUPS_PROPERTY)) {
+      validateGroups(requireArray(group, GROUPS_PROPERTY, false), depth + 1, count);
     }
   }
 
@@ -202,7 +211,7 @@ final class IntendedModels {
         continue;
       }
       if (!languages.add(language)) {
-        problems.add("Language " + language + " appears more than once.");
+        problems.add("Language " + language + DUPLICATE_SUFFIX);
       }
       if (model.type() == null || !TYPES.contains(model.type())) {
         problems.add("Type '" + model.type() + "' of " + language + " is not file or namespace.");
@@ -226,12 +235,12 @@ final class IntendedModels {
     for (var group : groups) {
       groupCount[0]++;
       if (group == null || group.label() == null || group.label().isBlank()) {
-        problems.add("A group of " + language + (parentKey == null ? "" : " under '" + parentKey + "'") + " has no label.");
+        problems.add("A group of " + language + (parentKey == null ? "" : (" under '" + parentKey + "'")) + " has no label.");
         continue;
       }
       var key = keyOf(parentKey, group.label());
       if (!keys.add(key)) {
-        problems.add("Group '" + key + "' of " + language + " appears more than once.");
+        problems.add("Group '" + key + "' of " + language + DUPLICATE_SUFFIX);
       }
       checkGroups(language, nullToEmpty(group.groups()), key, depth + 1, keys, groupCount, problems);
     }
@@ -245,7 +254,7 @@ final class IntendedModels {
       } else if (constraint.from() == null || constraint.to() == null) {
         problems.add("Constraint endpoints of " + language + " must be strings.");
       } else if (!seen.add(constraint)) {
-        problems.add("Constraint " + describe(constraint) + " of " + language + " appears more than once.");
+        problems.add("Constraint " + describe(constraint) + " of " + language + DUPLICATE_SUFFIX);
       }
     }
   }
@@ -259,45 +268,51 @@ final class IntendedModels {
     var removed = new ArrayList<String>();
     var added = new ArrayList<String>();
     var changed = new ArrayList<String>();
-    before.forEach((language, model) -> {
-      var other = after.get(language);
-      if (other == null) {
-        removed.add(language + " language");
-      }
-      model.groups().keySet().stream().filter(key -> other == null || !other.groups().containsKey(key))
-        .forEach(key -> removed.add(language + " group " + key));
-      model.constraints().stream().filter(constraint -> other == null || !other.constraints().contains(constraint))
-        .forEach(constraint -> removed.add(language + " constraint " + describe(constraint)));
-    });
-    after.forEach((language, model) -> {
-      var other = before.get(language);
-      if (other == null) {
-        added.add(language + " language");
-      } else if (!other.groups().keySet().stream().filter(model.groups()::containsKey).toList()
-        .equals(model.groups().keySet().stream().filter(other.groups()::containsKey).toList())) {
-        changed.add(language + " group order");
-      }
-      if (other != null && !Objects.equals(other.type(), model.type())) {
-        changed.add(language + " type " + other.type() + " -> " + model.type());
-      }
-      model.groups().forEach((key, group) -> {
-        var previous = other == null ? null : other.groups().get(key);
-        if (previous == null) {
-          added.add(language + " group " + key);
-        } else {
-          if (!previous.path().equals(group.path())) {
-            changed.add(language + " group " + key + " hierarchy " + previous.path() + " -> " + group.path());
-          }
-          if (!previous.patterns().equals(group.patterns()) || previous.isInterface() != group.isInterface()
-            || previous.interfaceAccess() != group.interfaceAccess()) {
-            changed.add(language + " group " + key + " " + previous + " -> " + group);
-          }
-        }
-      });
-      model.constraints().stream().filter(constraint -> other == null || !other.constraints().contains(constraint))
-        .forEach(constraint -> added.add(language + " constraint " + describe(constraint)));
-    });
+    before.forEach((language, model) -> collectRemoved(language, model, after.get(language), removed));
+    after.forEach((language, model) -> collectAddedAndChanged(language, model, before.get(language), added, changed));
     return new Diff(removed, added, changed);
+  }
+
+  private static void collectRemoved(String language, IndexedModel model, @Nullable IndexedModel other, List<String> removed) {
+    if (other == null) {
+      removed.add(language + " language");
+    }
+    model.groups().keySet().stream().filter(key -> other == null || !other.groups().containsKey(key))
+      .forEach(key -> removed.add(language + GROUP_DESCRIPTION + key));
+    model.constraints().stream().filter(constraint -> other == null || !other.constraints().contains(constraint))
+      .forEach(constraint -> removed.add(language + " constraint " + describe(constraint)));
+  }
+
+  private static void collectAddedAndChanged(String language, IndexedModel model, @Nullable IndexedModel other,
+    List<String> added, List<String> changed) {
+    if (other == null) {
+      added.add(language + " language");
+    } else if (!other.groups().keySet().stream().filter(model.groups()::containsKey).toList()
+      .equals(model.groups().keySet().stream().filter(other.groups()::containsKey).toList())) {
+      changed.add(language + " group order");
+    }
+    if (other != null && !Objects.equals(other.type(), model.type())) {
+      changed.add(language + " type " + other.type() + " -> " + model.type());
+    }
+    model.groups().forEach((key, group) -> collectGroupChanges(language, key, group,
+      other == null ? null : other.groups().get(key), added, changed));
+    model.constraints().stream().filter(constraint -> other == null || !other.constraints().contains(constraint))
+      .forEach(constraint -> added.add(language + " constraint " + describe(constraint)));
+  }
+
+  private static void collectGroupChanges(String language, String key, GroupSettings group, @Nullable GroupSettings previous,
+    List<String> added, List<String> changed) {
+    if (previous == null) {
+      added.add(language + GROUP_DESCRIPTION + key);
+      return;
+    }
+    if (!previous.path().equals(group.path())) {
+      changed.add(language + GROUP_DESCRIPTION + key + " hierarchy " + previous.path() + " -> " + group.path());
+    }
+    if (!previous.patterns().equals(group.patterns()) || previous.isInterface() != group.isInterface()
+      || previous.interfaceAccess() != group.interfaceAccess()) {
+      changed.add(language + GROUP_DESCRIPTION + key + " " + previous + " -> " + group);
+    }
   }
 
   private record IndexedModel(@Nullable String type, Map<String, GroupSettings> groups, Set<IntendedArchitecture.Constraint> constraints) {
