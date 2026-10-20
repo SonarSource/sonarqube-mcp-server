@@ -46,6 +46,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -113,7 +114,7 @@ class ArchitecturePatchRecoveryTest {
     verify(client, never()).postAsync(anyString(), anyString(), anyString());
     var order = inOrder(client);
     order.verify(client).getAsync(BRANCH_URL);
-    order.verify(client, org.mockito.Mockito.times(2)).getAsync(MODELS_URL);
+    order.verify(client, times(2)).getAsync(MODELS_URL);
     order.verify(client).patchAsync(eq(PATCH_URL), eq(HttpClient.MERGE_PATCH_CONTENT_TYPE), anyString());
     order.verify(client).getAsync(MODELS_URL);
     order.verifyNoMoreInteractions();

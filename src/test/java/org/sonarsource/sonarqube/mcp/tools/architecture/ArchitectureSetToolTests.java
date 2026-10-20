@@ -476,7 +476,8 @@ class ArchitectureSetToolTests {
       var json = JsonParser.parseString(textOf(read)).getAsJsonObject();
       assertThat(json.get("partial").getAsBoolean()).isTrue();
       assertThat(json.getAsJsonArray("models")).hasSize(language.equals("java") ? 1 : 0);
-      assertThatThrownBy(() -> IntendedModels.parse(textOf(read)))
+      var exportedModel = textOf(read);
+      assertThatThrownBy(() -> IntendedModels.parse(exportedModel))
         .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("partial");
       assertThat(textOf(set(harness, textOf(read), false, null))).contains("partial");
     }
