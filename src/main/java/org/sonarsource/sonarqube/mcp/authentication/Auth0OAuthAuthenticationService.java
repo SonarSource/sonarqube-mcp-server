@@ -89,12 +89,12 @@ public final class Auth0OAuthAuthenticationService {
    * Requires explicit delegation from a short-lived GitHub user token with no organization binding or prior actors.
    */
   private Set<String> validateSource(DecodedJWT source) {
-    var scopes = cloudScopes(source);
     if (!validLifetime(source) || source.getAudience().contains(configuration.cloudAudience()) || blank(source.getSubject())
       || !source.getSubject().matches("oauth2\\|github\\|github\\|\\d+") || blank(source.getClaim("azp").asString())
       || !source.getClaim("org_id").isMissing() || !source.getClaim("act").isMissing()) {
       throw OAuthAuthenticationException.unauthorized();
     }
+    var scopes = cloudScopes(source);
     if (scopes.isEmpty()) {
       throw OAuthAuthenticationException.insufficientScope();
     }
