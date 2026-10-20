@@ -53,7 +53,7 @@ class OAuthConfigurationTest {
   void it_should_preserve_the_exact_issuer_in_the_validated_uri(String issuer) {
     var configuration = new OAuthConfiguration(issuer, RESOURCE, AUDIENCE, "backend", "secret");
 
-    assertThat(configuration.issuer().toString()).isEqualTo(issuer);
+    assertThat(configuration.issuer()).hasToString(issuer);
   }
 
   @ParameterizedTest
