@@ -22,6 +22,7 @@ import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
@@ -169,6 +170,13 @@ public class ServerApi {
 
   public OrganizationsApi organizationsApi() {
     return new OrganizationsApi(helper);
+  }
+
+  public ArchitectureApi architectureApi() {
+    return new ArchitectureApi(helper, () -> {
+      var organization = getOrganization();
+      return organization == null || organization.isBlank() ? null : resolveOrganizationUuid(ResolvedOrganization.fromKey(organization));
+    });
   }
 
   public OrgFeatureEntitlements orgFeatureEntitlements() {
