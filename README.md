@@ -622,6 +622,7 @@ By default, only important toolsets are enabled. Enable additional toolsets only
 | **Vortex Context**    | `cag`               | Vortex context tools — stdio only. **Deprecated** in favor of `vortex` (old name: Context Augmentation/CAG)                                                 |
 | **Vortex**            | `vortex`            | Unified, **recommended** toolset surfacing both Vortex context and Vortex analysis tools under one name (stdio only; Cloud needs combined org entitlement; Server needs both hubs entitled) |
 | **Agentic Readiness** | `agentic-readiness` | Agentic Readiness Assessment tools (SonarQube Cloud, requires org entitlement)                                                                              |
+| **Architecture**      | `architecture`      | Read current and intended architecture, replace intended models (not enabled by default)                                                        |
 
 #### Examples
 
@@ -1445,6 +1446,30 @@ Then, mount the project workspace to give the Context Augmentation server direct
   - `branch` - Filter assessments by branch name. Omit to list assessments for all branches - _String_
   - `pageIndex` - 1-based page index (default: 1) - _Number_
   - `pageSize` - Number of items per page, max 100 (default: 50) - _Number_
+
+### Architecture
+
+**Note: Architecture tools are not enabled by default. Add `architecture` to `SONARQUBE_TOOLSETS` to use them. They work in stdio and HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server supports current architecture on editions that include it; intended architecture awaits public project UUID resolution.**
+
+These tools read the architecture SonarQube computes during analysis, through the SonarQube API. They are different from the Vortex context tools `get_current_architecture` and `get_intended_architecture`, which need a Vortex entitlement and run only in stdio mode.
+
+They use only the public architecture API (`/architecture/current-architectures`, `/architecture/intended-architectures`) and need no extra configuration.
+
+- **architecture_get** - Read the architecture of a project. `target` picks what to read:
+  - `current` - the architecture from the last analysis, as nodes and dependency edges, capped at 150 nodes. Start at the top level, then drill down with `component`. Edges are rolled up to the nodes shown, `feedbackPairs` gives the number of shown node pairs that depend on each other both ways and the five heaviest, `outsideViewWeight` is the weight of dependencies to nodes that are not shown, and `drillDown` lists the largest nodes whose children are not shown.
+  - `intended` - the groups of code (by pattern) and the dependencies allowed between them, per language. Group keys are labels joined by `/`.
+
+  Parameters:
+  - `target` - `current` or `intended` - _Required Enum_
+  - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
+  - `organization` - SonarQube Cloud only. Organization key when none is fixed by `SONARQUBE_ORG`; call `list_organizations` if ambiguous. Needed for `current` - _Optional String_
+  - `component` - Node key (`current`) or group key (`intended`) to start from. Top level when omitted - _String_
+  - `depth` - Levels below the start to return (default: 1 for `current`, all for `intended`) - _Number_
+  - `language` - `java`, `cs`, `js`, `ts` or `py`. All languages when omitted - _String_
+
+- **architecture_set** - Replace the whole intended model through the public API. `target` is `intended`. The tool is hidden when `SONARQUBE_READ_ONLY=true` (including HTTP). Use `model` as JSON from an unfiltered `architecture_get` response or its `models` array, and `dryRun: true` to review the diff before writing. The revision embedded in a whole response is honored automatically; an explicit `revision` must match it. A stale revision prevents applying changes to a different exported model. A bare `models` array without `revision` warns that changes since the original export cannot be detected. Cloud accepts the same optional `organization` selection as `architecture_get`.
+
+  When no model exists, the tool sends POST `/architecture/intended-architectures` with `projectId` and the full `intendedArchitectures` array in the body. Existing models are updated with PATCH `/architecture/intended-architectures/{id}` and `application/merge-patch+json`, replacing all perspectives in one request while keeping their shared model ID. Both responses contain an `intendedArchitectures` envelope, and a public GET verifies the saved model. A failed or timed-out write is followed by a public read: if the desired model is present, the tool reports success; otherwise it returns the previous export for manual recovery. It never automatically rolls back or deletes a model. Revision and resource-ID checks detect changes observed before writing, but the API has no conditional write, so concurrent edits can still race those checks. Imported organization patterns are flattened, and metadata such as descriptions is omitted by the public API; writing an exported model cannot preserve those links or metadata. Every filtered intended response carries `partial: true`, even when no models match; partial views and an empty overall `models` array are rejected for writes. SonarQube Server intended writes await public project UUID resolution.
 
 ## Example Prompts
 
