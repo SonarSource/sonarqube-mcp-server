@@ -149,12 +149,14 @@ class OAuthScopeHttpTest {
         assertThat(entitlementChecks.get()).isEqualTo(1);
       } else {
         var required = switch (name) {
-          case "read_tool" -> Set.of("read:all");
-          case "write_tool" -> Set.of("write:all");
-          default -> Set.of("read:all", "write:all");
+          case "read_tool" -> "mcp:tools:read";
+          case "write_tool" -> "mcp:tools:write";
+          default -> "mcp:tools:read mcp:tools:write";
         };
         assertThat(response.statusCode()).isEqualTo(403);
-        assertThat(response.headers().firstValue("WWW-Authenticate")).contains(metadata.challenge(required) + ", error=\"insufficient_scope\"");
+        assertThat(response.headers().firstValue("WWW-Authenticate"))
+          .contains("Bearer resource_metadata=\"https://api.example.com/.well-known/oauth-protected-resource/mcp\", "
+            + "scope=\"" + required + "\", error=\"insufficient_scope\"");
         assertThat(response.headers().firstValue("Cache-Control")).contains("no-store");
         assertThat(response.body()).contains("Insufficient OAuth scope");
         assertThat(entitlementChecks.get()).isZero();
@@ -224,7 +226,7 @@ class OAuthScopeHttpTest {
       Map.of("Accept", "text/event-stream, application/json"));
 
     assertThat(response.statusCode()).isEqualTo(403);
-    assertThat(response.headers().firstValue("WWW-Authenticate")).contains(metadata.challenge(Set.of("read:all")) + ", error=\"insufficient_scope\"");
+    assertThat(response.headers().firstValue("WWW-Authenticate")).contains(metadata.challenge(Set.of("mcp:tools:read")) + ", error=\"insufficient_scope\"");
   }
 
   @Test
