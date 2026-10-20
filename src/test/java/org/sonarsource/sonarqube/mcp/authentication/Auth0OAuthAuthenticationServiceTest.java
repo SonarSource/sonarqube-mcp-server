@@ -124,14 +124,17 @@ class Auth0OAuthAuthenticationServiceTest {
 
   static Stream<Arguments> scopeCases() {
     return Stream.of(Arguments.of("mcp:tools:read", Set.of("read:all")), Arguments.of("mcp:tools:write", Set.of("write:all")),
-      Arguments.of("mcp:tools:read mcp:tools:write", Set.of("read:all", "write:all")));
+      Arguments.of("mcp:tools:read mcp:tools:write", Set.of("read:all", "write:all")),
+      Arguments.of("mcp:tools:read offline_access", Set.of("read:all")),
+      Arguments.of("mcp:tools:write openid profile", Set.of("write:all")),
+      Arguments.of("mcp:tools:read mcp:tools:write offline_access other:permission", Set.of("read:all", "write:all")),
+      Arguments.of("mcp:tools:read read:all write:all", Set.of("read:all")),
+      Arguments.of("mcp:tools:write read:all write:all", Set.of("write:all")));
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"", " ", "read:all", "write:all", "read:all write:all", "openid offline_access", "other:permission",
-    "mcp:tools:read read:all", "mcp:tools:write write:all", "mcp:tools:read openid", "mcp:tools:write offline_access",
-    "mcp:tools:read mcp:tools:write other:permission"})
-  void it_should_reject_any_unsupported_source_scope_without_exchange(String scope) {
+  @ValueSource(strings = {"", " ", "read:all", "write:all", "read:all write:all", "offline_access", "openid offline_access", "other:permission"})
+  void it_should_reject_source_without_recognized_delegation_scopes_before_exchange(String scope) {
     assertStatus(source().withClaim("scope", scope).sign(algorithm), 403);
     verify(exchange, times(0)).exchange(anyString(), any());
   }
@@ -217,7 +220,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
   static Stream<Arguments> invalidExchanges() {
     return Stream.of(Arguments.of("scope", "write:all"), Arguments.of("scope", "read:all write:all"),
-      Arguments.of("scope", "read:all other:permission"), Arguments.of("scope", "mcp:tools:read"),
+      Arguments.of("scope", "read:all other:permission"), Arguments.of("scope", "read:all offline_access"), Arguments.of("scope", "mcp:tools:read"),
       Arguments.of("scope", "read:all mcp:tools:read"), Arguments.of("scope", ""), Arguments.of("azp", "different-backend"),
       Arguments.of("actor", "different-backend"), Arguments.of("initiator", "different-client"), Arguments.of("sub", USER + "2"),
       Arguments.of("aud", RESOURCE), Arguments.of("iss", "https://other-tenant.auth0.com/"), Arguments.of("org_id", "org_sso"));
@@ -396,9 +399,10 @@ class Auth0OAuthAuthenticationServiceTest {
     verify(exchange, times(2)).exchange(source, Set.of("read:all"));
   }
 
-  @Test
-  void it_should_return_only_the_scopes_actually_granted_in_the_cloud_token() {
-    var source = source().withClaim("scope", "mcp:tools:read mcp:tools:write").sign(algorithm);
+  @ParameterizedTest
+  @ValueSource(strings = {"mcp:tools:read mcp:tools:write", "mcp:tools:read mcp:tools:write offline_access openid profile"})
+  void it_should_return_only_the_scopes_actually_granted_in_the_cloud_token(String scope) {
+    var source = source().withClaim("scope", scope).sign(algorithm);
     var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all", "write:all"))).thenReturn(cloud);
 
