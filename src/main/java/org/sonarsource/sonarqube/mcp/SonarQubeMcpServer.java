@@ -44,6 +44,7 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsClient;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
+import org.sonarsource.sonarqube.mcp.authentication.Auth0OAuthAuthenticationService;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
@@ -104,6 +105,7 @@ import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadines
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
 import org.sonarsource.sonarqube.mcp.transport.StdioInitializeErrorReporter;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
@@ -172,7 +174,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private final McpServerTransportProvider transportProvider;
   private final List<Tool> supportedTools = new ArrayList<>();
   private final McpServerLaunchConfiguration mcpConfiguration;
-  private HttpClientProvider httpClientProvider;
+  private final HttpClientProvider httpClientProvider;
   private String composedInstructions;
   @Nullable
   private AnalyticsService analyticsService;
@@ -224,26 +226,13 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   public SonarQubeMcpServer(Map<String, String> environment) {
     this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
+    this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     var authConfig = mcpConfiguration.getAuthMode();
 
     if (mcpConfiguration.isHttpEnabled() && authConfig != null) {
-      this.httpServerManager = new HttpServerTransportProvider(
-        mcpConfiguration.getHttpPort(),
-        mcpConfiguration.getHttpHost(),
-        authConfig,
-        mcpConfiguration.isSonarQubeCloud(),
-        mcpConfiguration.getSonarqubeOrg(),
-        mcpConfiguration.isHttpsEnabled(),
-        mcpConfiguration.getHttpsKeystorePath(),
-        mcpConfiguration.getHttpsKeystorePassword(),
-        mcpConfiguration.getHttpsKeystoreType(),
-        mcpConfiguration.getHttpsTruststorePath(),
-        mcpConfiguration.getHttpsTruststorePassword(),
-        mcpConfiguration.getHttpsTruststoreType(),
-        mcpConfiguration.getHttpAllowedOrigins(),
-        mcpConfiguration.getAppVersion(),
-        mcpConfiguration.isRunningInContainer()
-      );
+      var oauthConfiguration = mcpConfiguration.getOAuthConfiguration();
+      this.httpServerManager = new HttpServerTransportProvider(HttpTransportSettings.from(mcpConfiguration), mcpConfiguration.getOAuthMetadata(),
+        oauthConfiguration != null ? new Auth0OAuthAuthenticationService(oauthConfiguration, httpClientProvider.getAnonymousHttpClient())::authenticate : null);
       this.transportProvider = null;
     } else {
       this.httpServerManager = null;
@@ -289,7 +278,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   private void initializeBasicServicesAndTools() {
     this.backendService = new BackendService(mcpConfiguration);
-    this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
 
     if (mcpConfiguration.isTelemetryEnabled()) {
       var analyticsHttpClient = httpClientProvider.getHttpClientForAnalytics(AnalyticsClient.resolveApiKey());
@@ -835,9 +823,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   private void shutdownHttpClient() {
-    if (httpClientProvider == null) {
-      return;
-    }
     try {
       httpClientProvider.shutdown();
     } catch (Exception e) {
@@ -870,6 +855,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   public SonarQubeMcpServer(McpServerTransportProvider transportProvider, @Nullable HttpServerTransportProvider httpServerManager, Map<String,
     String> environment) {
     this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
+    this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     this.transportProvider = transportProvider;
     this.httpServerManager = httpServerManager;
     initializeBasicServicesAndTools();
