@@ -40,6 +40,7 @@ class ToolCategoryTest {
     assertThat(ToolCategory.DEPENDENCY_RISKS.getKey()).isEqualTo("dependency-risks");
     assertThat(ToolCategory.CAG.getKey()).isEqualTo("cag");
     assertThat(ToolCategory.VORTEX.getKey()).isEqualTo("vortex");
+    assertThat(ToolCategory.ARCHITECTURE.getKey()).isEqualTo("architecture");
   }
 
   @Test
@@ -156,13 +157,14 @@ class ToolCategoryTest {
       ToolCategory.SECURITY_HOTSPOTS,
       ToolCategory.CAG,
       ToolCategory.AGENTIC_READINESS,
-      ToolCategory.VORTEX
+      ToolCategory.VORTEX,
+      ToolCategory.ARCHITECTURE
     );
   }
 
   @Test
-  void should_have_exactly_19_categories() {
-    assertThat(ToolCategory.values()).hasSize(19);
+  void should_have_exactly_20_categories() {
+    assertThat(ToolCategory.values()).hasSize(20);
   }
 }
 
