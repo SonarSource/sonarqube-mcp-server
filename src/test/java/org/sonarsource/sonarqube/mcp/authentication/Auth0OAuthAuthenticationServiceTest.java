@@ -16,9 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import ch.qos.logback.classic.Level;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.google.gson.Gson;
 import java.security.interfaces.RSAPrivateKey;
@@ -36,6 +38,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +47,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.LogCapture;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.MutableClock;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
@@ -114,7 +118,8 @@ class Auth0OAuthAuthenticationServiceTest {
     var cloud = downstream().withClaim("scope", String.join(" ", expected)).sign(algorithm);
     when(exchange.exchange(source, expected)).thenReturn(cloud);
 
-    var authenticated = service.authenticate(source);
+    Function<String, OAuthRequestAuthentication> authenticate = service::authenticate;
+    var authenticated = authenticate.apply(source);
 
     assertThat(authenticated.cloudToken()).isEqualTo(cloud).isNotEqualTo(source);
     assertThat(authenticated.scopes()).isEqualTo(expected);
@@ -152,6 +157,30 @@ class Auth0OAuthAuthenticationServiceTest {
 
   static Stream<Object> malformedSourceScopes() {
     return Stream.of(true, 123, List.of("mcp:tools:read"), Map.of("scope", "mcp:tools:read"));
+  }
+
+  @Test
+  void it_should_log_scope_decode_failures_without_claim_contents() {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var decoded = spy(JWT.decode(source));
+    when(verifier.verifyMcp(source)).thenReturn(decoded);
+    doThrow(new JWTDecodeException("private-scope-data")).when(decoded).getClaim("scope");
+
+    try (var logs = new LogCapture()) {
+      assertStatus(source, 403);
+      logs.assertLogged(Level.DEBUG, "OAuth source scope decoding failed (JWTDecodeException)");
+    }
+  }
+
+  @Test
+  void it_should_log_unexpected_cache_load_failures_without_the_cause_message() {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenThrow(new IllegalStateException("private-token-or-secret"));
+
+    try (var logs = new LogCapture()) {
+      assertStatus(source, 503);
+      logs.assertLogged(Level.WARN, "OAuth exchange cache load failed (IllegalStateException)");
+    }
   }
 
   @Test
@@ -440,6 +469,21 @@ class Auth0OAuthAuthenticationServiceTest {
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
 
     assertStatus(source, 502);
+  }
+
+  @Test
+  void it_should_log_downstream_decode_failures_without_claim_contents() {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+    var decoded = spy(JWT.decode(cloud));
+    when(verifier.verifyCloud(cloud)).thenReturn(decoded);
+    doThrow(new JWTDecodeException("private-actor-data")).when(decoded).getClaim("act");
+
+    try (var logs = new LogCapture()) {
+      assertStatus(source, 502);
+      logs.assertLogged(Level.WARN, "OAuth Cloud token claim decoding failed (JWTDecodeException)");
+    }
   }
 
   static Stream<Object> malformedActors() {

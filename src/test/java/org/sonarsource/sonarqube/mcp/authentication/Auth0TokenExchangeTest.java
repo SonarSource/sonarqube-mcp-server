@@ -16,16 +16,24 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import ch.qos.logback.classic.Level;
+import com.auth0.exception.Auth0Exception;
+import com.auth0.net.TokenRequest;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.http.Fault;
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.LogCapture;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -36,6 +44,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.when;
 
 class Auth0TokenExchangeTest {
   private WireMockServer auth0;
@@ -82,12 +93,19 @@ class Auth0TokenExchangeTest {
   void it_should_distinguish_invalid_authorization_from_exchange_outage_without_leaking_details(int status, String error, int expected) {
     auth0.stubFor(post("/oauth/token").willReturn(aResponse().withStatus(status)
       .withBody("{\"error\":\"" + error + "\",\"error_description\":\"private-token-or-secret\"}")));
-    assertThatThrownBy(() -> exchange.exchange("token-a", Set.of("read:all")))
-      .isInstanceOfSatisfying(OAuthAuthenticationException.class, failure -> {
-        assertThat(failure.status()).isEqualTo(expected);
-        assertThat(failure.toString()).doesNotContain("private-token-or-secret", "token-a");
-        assertThat(failure).hasNoCause();
-      });
+    try (var logs = new LogCapture()) {
+      assertThatThrownBy(() -> exchange.exchange("token-a", Set.of("read:all")))
+        .isInstanceOfSatisfying(OAuthAuthenticationException.class, failure -> {
+          assertThat(failure.status()).isEqualTo(expected);
+          assertThat(failure.toString()).doesNotContain("private-token-or-secret", "token-a");
+          assertThat(failure).hasNoCause();
+        });
+      if (expected == 401) {
+        logs.assertLogged(Level.DEBUG, "Auth0 rejected the source token (HTTP " + status + ", " + error + ")");
+      } else {
+        logs.assertLogged(Level.WARN, "Auth0 token exchange failed (HTTP " + status + ")");
+      }
+    }
   }
 
   @Test
@@ -98,6 +116,33 @@ class Auth0TokenExchangeTest {
       assertThatThrownBy(() -> exchange.exchange("token-a", Set.of("read:all")))
         .isInstanceOfSatisfying(OAuthAuthenticationException.class, failure -> assertThat(failure.status()).isEqualTo(502));
     }
+  }
+
+  @ParameterizedTest
+  @MethodSource("exchangeFailures")
+  void it_should_log_sdk_failures_without_their_messages_or_causes(Exception cause, int status, String diagnostic) {
+    var scopes = Set.of("read:all");
+    try (var logs = new LogCapture(); var requests = mockConstruction(TokenRequest.class, (request, context) -> {
+      when(request.setAudience(anyString())).thenReturn(request);
+      when(request.setScope(anyString())).thenReturn(request);
+      when(request.execute()).thenThrow(cause);
+    })) {
+      assertThatThrownBy(() -> exchange.exchange("private-token", scopes))
+        .isInstanceOfSatisfying(OAuthAuthenticationException.class, failure -> {
+          assertThat(failure.status()).isEqualTo(status);
+          assertThat(failure).hasNoCause().hasMessageNotContaining("private");
+        });
+      assertThat(requests.constructed()).hasSize(1);
+      logs.assertLogged(Level.WARN, diagnostic);
+    }
+  }
+
+  static Stream<Arguments> exchangeFailures() {
+    return Stream.of(
+      Arguments.of(new Auth0Exception("private-response", new SocketTimeoutException("private-cause")), 503,
+        "Auth0 token exchange unavailable (SocketTimeoutException)"),
+      Arguments.of(new Auth0Exception("private-response"), 503, "Auth0 token exchange unavailable (Auth0Exception)"),
+      Arguments.of(new IllegalStateException("private-response"), 502, "Auth0 token exchange failed (IllegalStateException)"));
   }
 
   @ParameterizedTest
