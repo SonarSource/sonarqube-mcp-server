@@ -341,7 +341,7 @@ class OAuthHttpTransportTest {
     oauth = configuration.getOAuthConfiguration();
     var keys = new Auth0JwkProvider(auth0.baseUrl() + "/", httpClients.getAnonymousHttpClient(), clock);
     var service = new Auth0OAuthAuthenticationService(oauth, new Auth0TokenVerifier(oauth, keys, clock), new Auth0TokenExchange(oauth, auth0.baseUrl()), clock);
-    var transport = new HttpServerTransportProvider(HttpTransportSettings.from(configuration), configuration.getOAuthMetadata(), service);
+    var transport = new HttpServerTransportProvider(HttpTransportSettings.from(configuration), configuration.getOAuthMetadata(), service::authenticate);
     endpoint = transport.getServerUrl();
     server = new SonarQubeMcpServer(null, transport, environment);
     server.start();
