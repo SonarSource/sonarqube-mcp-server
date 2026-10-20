@@ -24,7 +24,7 @@ public final class OAuthConfiguration {
   public static final Duration DEFAULT_CACHE_TTL = Duration.ofSeconds(60);
   public static final int DEFAULT_CACHE_SIZE = 256;
 
-  private final String issuer;
+  private final URI issuer;
   private final String resource;
   private final String cloudAudience;
   private final String clientId;
@@ -37,7 +37,8 @@ public final class OAuthConfiguration {
   }
 
   public OAuthConfiguration(String issuer, String resource, String cloudAudience, String clientId, String clientSecret, @Nullable Duration cacheTtl, int cacheSize) {
-    var resourceUri = validatedResourceUri(resource, issuer);
+    var issuerUri = validatedHttpsUri(issuer);
+    var resourceUri = validatedResourceUri(resource, issuerUri);
     var cloudUri = validatedHttpsUri(required(cloudAudience));
     if (!resourceUri.resolve("/").equals(cloudUri)) {
       throw new IllegalArgumentException("OAuth MCP resource and Cloud audience must share the same API origin");
@@ -45,7 +46,7 @@ public final class OAuthConfiguration {
     if (cacheTtl == null || cacheTtl.isNegative() || cacheTtl.compareTo(DEFAULT_CACHE_TTL) > 0 || cacheSize < 1 || cacheSize > 5000) {
       throw new IllegalArgumentException("OAuth exchange cache requires a TTL between zero and 60 seconds and a size between one and 5000");
     }
-    this.issuer = issuer;
+    this.issuer = issuerUri;
     this.resource = resource;
     this.cloudAudience = cloudAudience;
     this.clientId = required(clientId);
@@ -54,10 +55,9 @@ public final class OAuthConfiguration {
     this.cacheSize = cacheSize;
   }
 
-  static URI validatedResourceUri(String resource, String issuer) {
+  static URI validatedResourceUri(String resource, URI issuer) {
     var resourceUri = validatedHttpsUri(resource);
-    var issuerUri = validatedHttpsUri(issuer);
-    if (!"/mcp".equals(resourceUri.getRawPath()) || !"/".equals(issuerUri.getRawPath())) {
+    if (!"/mcp".equals(resourceUri.getRawPath()) || !"/".equals(issuer.getRawPath())) {
       throw new IllegalArgumentException("OAuth requires an HTTPS MCP resource ending in /mcp and an Auth0 issuer ending in /");
     }
     return resourceUri;
@@ -81,7 +81,7 @@ public final class OAuthConfiguration {
     return value;
   }
 
-  public String issuer() {
+  public URI issuer() {
     return issuer;
   }
 

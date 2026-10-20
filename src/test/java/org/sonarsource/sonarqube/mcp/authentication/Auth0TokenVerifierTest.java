@@ -53,7 +53,7 @@ import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.sign
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.token;
 
 class Auth0TokenVerifierTest {
-  private static final String JWKS_URL = CONFIGURATION.issuer() + ".well-known/jwks.json";
+  private static final String JWKS_URL = CONFIGURATION.issuer().resolve(".well-known/jwks.json").toString();
   private final MutableClock clock = new MutableClock();
   private final HttpClient client = mock(HttpClient.class);
   private Auth0TokenVerifier verifier;
@@ -102,6 +102,13 @@ class Auth0TokenVerifierTest {
 
     assertFailure(() -> verifier.verifyMcp(wrongSignature), 401);
     assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withIssuer("https://untrusted.example/"))), 401);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"https://TENANT.auth0.com/", "https://tenant.auth0.com:443/", "https://tenant.auth0.com", "https://tenant.auth0.com/./"})
+  void it_should_require_an_exact_issuer_match_without_uri_normalization(String issuer) {
+    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withIssuer(issuer))), 401);
+    assertFailure(() -> verifier.verifyCloud(sign(token(CONFIGURATION.cloudAudience()).withIssuer(issuer))), 502);
   }
 
   @Test

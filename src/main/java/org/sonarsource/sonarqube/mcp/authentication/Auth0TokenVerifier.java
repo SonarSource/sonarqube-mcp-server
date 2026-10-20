@@ -34,8 +34,9 @@ final class Auth0TokenVerifier {
 
   Auth0TokenVerifier(OAuthConfiguration configuration, RSAKeyProvider provider, Clock clock) {
     var algorithm = Algorithm.RSA256(provider);
-    this.mcpVerifier = verifier(algorithm, configuration.issuer(), configuration.resource(), clock);
-    this.cloudVerifier = verifier(algorithm, configuration.issuer(), configuration.cloudAudience(), clock);
+    var issuer = configuration.issuer().toString();
+    this.mcpVerifier = verifier(algorithm, issuer, configuration.resource(), clock);
+    this.cloudVerifier = verifier(algorithm, issuer, configuration.cloudAudience(), clock);
   }
 
   private static JWTVerifier verifier(Algorithm algorithm, String issuer, String audience, Clock clock) {

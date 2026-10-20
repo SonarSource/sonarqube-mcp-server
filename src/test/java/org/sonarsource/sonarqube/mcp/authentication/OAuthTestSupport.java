@@ -46,7 +46,7 @@ final class OAuthTestSupport {
   }
 
   static JWTCreator.Builder token(String audience) {
-    return JWT.create().withKeyId("key").withIssuer(CONFIGURATION.issuer()).withAudience(audience)
+    return JWT.create().withKeyId("key").withIssuer(CONFIGURATION.issuer().toString()).withAudience(audience)
       .withSubject("oauth2|github|github|123").withClaim("azp", "client").withIssuedAt(NOW.minusSeconds(1)).withExpiresAt(NOW.plusSeconds(299));
   }
 

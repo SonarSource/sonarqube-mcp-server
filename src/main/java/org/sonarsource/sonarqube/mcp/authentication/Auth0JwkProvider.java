@@ -48,7 +48,7 @@ final class Auth0JwkProvider implements RSAKeyProvider {
   private final ArrayDeque<Instant> refreshAttempts = new ArrayDeque<>();
   private final AtomicReference<Refresh> refresh = new AtomicReference<>(new Refresh(new Snapshot(Map.of(), Set.of(), Instant.MIN), null));
 
-  Auth0JwkProvider(String issuer, HttpClient client, Clock clock) {
+  Auth0JwkProvider(URI issuer, HttpClient client, Clock clock) {
     this.provider = urlProvider(issuer, client);
     this.clock = clock;
   }
@@ -119,9 +119,9 @@ final class Auth0JwkProvider implements RSAKeyProvider {
     }
   }
 
-  private static UrlJwkProvider urlProvider(String issuer, HttpClient client) {
+  private static UrlJwkProvider urlProvider(URI issuer, HttpClient client) {
     try {
-      return new UrlJwkProvider(URI.create(issuer).resolve(".well-known/jwks.json").toURL(), new JwksHttpClientAdapter(client));
+      return new UrlJwkProvider(issuer.resolve(".well-known/jwks.json").toURL(), new JwksHttpClientAdapter(client));
     } catch (MalformedURLException e) {
       throw new IllegalArgumentException("Invalid OAuth issuer URL");
     }

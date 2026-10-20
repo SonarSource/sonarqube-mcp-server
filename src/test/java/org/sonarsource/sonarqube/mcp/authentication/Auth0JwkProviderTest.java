@@ -20,6 +20,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.google.gson.Gson;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Paths;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -66,7 +67,7 @@ import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.toke
 
 class Auth0JwkProviderTest {
   private static final String JWKS_PATH = "/.well-known/jwks.json";
-  private static final String JWKS_URL = CONFIGURATION.issuer() + ".well-known/jwks.json";
+  private static final String JWKS_URL = CONFIGURATION.issuer().resolve(".well-known/jwks.json").toString();
   private final MutableClock clock = new MutableClock();
   private WireMockServer server;
   private HttpClientProvider httpClients;
@@ -77,7 +78,7 @@ class Auth0JwkProviderTest {
     server = new WireMockServer(wireMockConfig().dynamicPort());
     server.start();
     httpClients = new HttpClientProvider("OAuth key tests");
-    provider = new Auth0JwkProvider(server.baseUrl() + "/", httpClients.getHttpClient("private-sonar-token"), clock);
+    provider = new Auth0JwkProvider(URI.create(server.baseUrl() + "/"), httpClients.getHttpClient("private-sonar-token"), clock);
     serveKeys(List.of(keyValues("key", KEY)));
   }
 
@@ -139,7 +140,7 @@ class Auth0JwkProviderTest {
       https.stubFor(get(JWKS_PATH).willReturn(aResponse().withBody(new Gson().toJson(Map.of("keys", List.of(keyValues("key", KEY)))))));
       var issuer = https.baseUrl() + "/";
       var configuration = new OAuthConfiguration(issuer, CONFIGURATION.resource(), CONFIGURATION.cloudAudience(), "backend", "secret");
-      var trustedKeys = new Auth0JwkProvider(issuer, trustedClient.getAnonymousHttpClient(), clock);
+      var trustedKeys = new Auth0JwkProvider(configuration.issuer(), trustedClient.getAnonymousHttpClient(), clock);
       var verifier = new Auth0TokenVerifier(configuration, trustedKeys, clock);
 
       assertThat(verifier.verifyMcp(sign(token(configuration.resource()).withIssuer(issuer))).getSubject()).isNotBlank();
