@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.harness.SslTestUtils;
@@ -224,11 +225,45 @@ class OAuthHttpTransportTest {
     auth0.verify(1, postRequestedFor(urlEqualTo("/oauth/token")));
   }
 
-  @Test
-  void it_should_reject_unsupported_mcp_scopes_before_exchange_over_http() throws Exception {
+  @ParameterizedTest
+  @CsvSource({
+    "mcp:tools:read offline_access openid profile write:all other:permission, read:all",
+    "mcp:tools:write offline_access openid profile read:all other:permission, write:all",
+    "mcp:tools:read mcp:tools:write offline_access, read:all write:all"
+  })
+  void it_should_ignore_extra_source_scopes_without_widening_tool_access_over_http(String sourceScopes, String cloudScopes) throws Exception {
     startWithRealAuthentication();
-    for (var scope : List.of("read:all", "write:all", "read:all write:all", "other:permission", "mcp:tools:read read:all",
-      "mcp:tools:write write:all", "mcp:tools:read openid", "mcp:tools:write offline_access", "mcp:tools:read other:permission")) {
+    var grant = grant("123", "extra-scopes", sourceScopes, cloudScopes, cloudScopes);
+    stubOrganization(grant, "my-org");
+    stubWrite(grant);
+
+    assertSuccess(send(request(grant.source(), "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+      "clientInfo", Map.of("name", "oauth-test", "version", "1.0"))).build()), "serverInfo");
+    var tools = send(request(grant.source(), "tools/list", Map.of()).build());
+    assertThat(tools.statusCode()).isEqualTo(200);
+    if (cloudScopes.contains("read:all")) {
+      assertThat(tools.body()).contains("list_organizations");
+      assertSuccess(send(call(grant, "list_organizations", Map.of())), "my-org");
+    } else {
+      assertThat(tools.body()).doesNotContain("list_organizations");
+      assertScopeDenied(send(call(grant, "list_organizations", Map.of())), "mcp:tools:read");
+      cloud.verify(0, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)));
+    }
+    if (cloudScopes.contains("write:all")) {
+      assertThat(tools.body()).contains("change_sonar_issue_status");
+      assertSuccess(send(call(grant, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "successfully changed");
+    } else {
+      assertThat(tools.body()).doesNotContain("change_sonar_issue_status");
+      assertScopeDenied(send(call(grant, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "mcp:tools:write");
+      cloud.verify(0, postRequestedFor(urlPathEqualTo(IssuesApi.DO_TRANSITION_PATH)));
+    }
+    auth0.verify(1, postRequestedFor(urlEqualTo("/oauth/token")).withRequestBody(matchingJsonPath("$.scope", equalTo(cloudScopes))));
+  }
+
+  @Test
+  void it_should_reject_source_tokens_without_mcp_scopes_before_exchange_over_http() throws Exception {
+    startWithRealAuthentication();
+    for (var scope : List.of("", "read:all", "write:all", "read:all write:all", "other:permission", "offline_access", "openid profile offline_access")) {
       var source = sign(token(oauth.resource()).withClaim("scope", scope));
 
       var response = send(request(source, "tools/call", Map.of("name", "list_organizations", "arguments", Map.of())).build());
@@ -242,10 +277,11 @@ class OAuthHttpTransportTest {
     assertThat(cloud.getAllServeEvents()).isEmpty();
   }
 
-  @Test
-  void it_should_reject_mcp_scopes_on_the_exchanged_cloud_token_over_http() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"mcp:tools:read", "read:all offline_access", "read:all write:all"})
+  void it_should_reject_unrequested_scopes_on_the_exchanged_cloud_token_over_http(String cloudScopes) throws Exception {
     startWithRealAuthentication();
-    var grant = grant("123", "wrong-cloud-scopes", "mcp:tools:read", "read:all", "mcp:tools:read");
+    var grant = grant("123", "wrong-cloud-scopes", "mcp:tools:read offline_access write:all", "read:all", cloudScopes);
 
     var response = send(call(grant, "list_organizations", Map.of()));
 

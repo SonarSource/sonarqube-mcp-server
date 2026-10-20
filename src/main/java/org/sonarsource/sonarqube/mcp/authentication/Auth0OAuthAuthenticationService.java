@@ -185,8 +185,8 @@ public final class Auth0OAuthAuthenticationService implements Function<String, O
       return Arrays.stream(value.split(" ")).map(scope -> switch (scope) {
         case "mcp:tools:read" -> "read:all";
         case "mcp:tools:write" -> "write:all";
-        default -> throw OAuthAuthenticationException.insufficientScope();
-      }).collect(Collectors.toUnmodifiableSet());
+        default -> null;
+      }).filter(Objects::nonNull).collect(Collectors.toUnmodifiableSet());
     } catch (JWTDecodeException e) {
       throw OAuthAuthenticationException.insufficientScope();
     }
