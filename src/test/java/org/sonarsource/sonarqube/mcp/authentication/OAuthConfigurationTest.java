@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -38,13 +39,30 @@ class OAuthConfigurationTest {
   void it_should_default_to_a_60_second_cache_with_256_entries() {
     var configuration = new OAuthConfiguration(ISSUER, RESOURCE, AUDIENCE, "backend", "secret");
 
-    assertThat(configuration.issuer()).isEqualTo(ISSUER);
+    assertThat(configuration.issuer()).isEqualTo(URI.create(ISSUER));
     assertThat(configuration.resource()).isEqualTo(RESOURCE);
     assertThat(configuration.cloudAudience()).isEqualTo(AUDIENCE);
     assertThat(configuration.clientId()).isEqualTo("backend");
     assertThat(configuration.clientSecret()).isEqualTo("secret");
     assertThat(configuration.cacheTtl()).isEqualTo(Duration.ofSeconds(60));
     assertThat(configuration.cacheSize()).isEqualTo(256);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"https://tenant.auth0.com/", "https://TENANT.auth0.com/", "https://Tenant.auth0.com:443/"})
+  void it_should_preserve_the_exact_issuer_in_the_validated_uri(String issuer) {
+    var configuration = new OAuthConfiguration(issuer, RESOURCE, AUDIENCE, "backend", "secret");
+
+    assertThat(configuration.issuer().toString()).isEqualTo(issuer);
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {" ", "http://tenant.auth0.com/", "https://tenant.auth0.com", "https://tenant.auth0.com/path/",
+    "https://tenant.auth0.com/%2f", "https://user:secret@tenant.auth0.com/", "https://tenant.auth0.com/?query=other",
+    "https://tenant.auth0.com/#fragment", "/tenant.auth0.com/"})
+  void it_should_reject_invalid_issuers(String issuer) {
+    assertThatIllegalArgumentException().isThrownBy(() -> new OAuthConfiguration(issuer, RESOURCE, AUDIENCE, "backend", "secret"));
   }
 
   @ParameterizedTest
