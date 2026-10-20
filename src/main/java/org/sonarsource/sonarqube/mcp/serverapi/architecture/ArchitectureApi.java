@@ -49,11 +49,12 @@ public class ArchitectureApi {
   public static final String SERVER_API_PREFIX = "/api/v2";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
+  public static final int MAX_PERSPECTIVES = 50;
   public static final List<String> LANGUAGES = List.of("java", "cs", "js", "ts", "py");
 
   /** Public exports flatten organization pattern imports and omit metadata. */
   public static final String EXPORT_WARNING = "The public API cannot identify imported organization patterns or preserve import links and metadata such as descriptions. "
-    + "Replacing or restoring an exported model turns imported patterns into copies and may lose metadata.";
+    + "Writing an exported model turns imported patterns into copies and may lose metadata.";
 
   private static final String READ_HINT = "Check project permissions, feature availability and the public API gateway routing; "
     + "HTTP 403 alone does not establish which check failed";
@@ -107,77 +108,65 @@ public class ArchitectureApi {
     return response.intendedArchitectures();
   }
 
-  /** Replaces only the resource ids read in the backup; never deletes project-wide or newly discovered data. */
+  /** Replaces all perspectives of the backed-up model; the public API provides no conditional write. */
   public void replaceIntended(String projectKey, List<IntendedArchitecture> previous, List<IntendedArchitecture> next) {
     checkWritableModels(previous, next);
-    validateResourceIds(previous);
     var actual = getIntended(projectKey);
     if (!sameResources(previous, actual)) {
-      throw new IllegalStateException("The intended architecture changed before replacement. Nothing was changed; read it again and repeat the dry run.");
-    }
-    if (!previous.isEmpty()) {
-      try {
-        deleteIntended(projectKey, previous.getFirst().id());
-      } catch (RuntimeException failure) {
-        throw recoveryFailure(projectKey, previous, next, failure);
-      }
-      final List<IntendedArchitecture> remaining;
-      try {
-        remaining = getIntended(projectKey);
-      } catch (RuntimeException failure) {
-        throw manualRecovery(previous, "DELETE completed but its resulting state could not be read. No POST or further DELETE was attempted", failure);
-      }
-      if (!remaining.isEmpty()) {
-        throw manualRecovery(previous, "Another intended architecture remains or changed after DELETE. "
-          + "No further DELETE or POST was attempted; reconcile the surviving data manually", null);
-      }
+      throw new IllegalStateException("The intended architecture changed before replacement. "
+        + "Nothing was changed; read it again and repeat the dry run.");
     }
     try {
-      createIntended(projectKey, next);
+      var written = previous.isEmpty() ? createIntended(projectKey, next) : patchIntended(projectKey, previous.getFirst().id(), next);
+      validateResourceIds(written);
+      if (!sameModels(next, written) || (!previous.isEmpty() && !previous.getFirst().id().equals(written.getFirst().id()))) {
+        throw new IllegalStateException("The public API write response did not identify the requested model. "
+          + "Read the current state before retrying.");
+      }
+      if (!sameResources(written, getIntended(projectKey))) {
+        throw new IllegalStateException("The intended architecture after the write differs from its response.");
+      }
     } catch (RuntimeException failure) {
-      throw recoveryFailure(projectKey, previous, next, failure);
+      reconcileFailure(projectKey, previous, next, failure);
     }
   }
 
   public void checkWritableModels(List<IntendedArchitecture> previous, List<IntendedArchitecture> next) {
-    if (previous.size() > 1 || next.size() > 1) {
-      throw new IllegalArgumentException("The public API can create only one intended architecture perspective. "
-        + "Replacing a multi-perspective model cannot preserve all languages or restore the backup. Nothing was changed.");
+    if (next.isEmpty() || next.size() > MAX_PERSPECTIVES) {
+      throw new IllegalArgumentException("Give between 1 and " + MAX_PERSPECTIVES
+        + " intended architecture perspectives. Nothing was changed.");
     }
+    validateResourceIds(previous);
   }
 
-  private void createIntended(String projectKey, List<IntendedArchitecture> models) {
-    var createdIds = new java.util.HashSet<String>();
-    for (var model : models) {
-      var request = new PublicIntendedModel(model.type(), model.language(),
-        model.groups() == null ? List.of() : model.groups(), model.constraints() == null ? List.of() : model.constraints());
-      var created = write(projectKey, () -> post(intendedArchitecturesPath(projectKey), gson.toJson(request)));
-      validateResourceIds(java.util.Collections.singletonList(created));
-      if (!createdIds.add(created.id()) || !sameModels(List.of(model), List.of(created))) {
-        throw new IllegalStateException("The public API create response did not identify the requested model uniquely. Read the current state before retrying.");
-      }
-    }
+  private List<IntendedArchitecture> createIntended(String projectKey, List<IntendedArchitecture> models) {
+    var body = gson.toJson(new CreateModels(projectId(projectKey), publicModels(models)));
+    return write(projectKey, () -> writeModels(INTENDED_ARCHITECTURES_PATH, body, false));
   }
 
-  private void deleteIntended(String projectKey, String id) {
-    write(projectKey, () -> {
-      var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
-      try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path)
-        : helper.delete(SERVER_API_PREFIX + path)) {
-        return null;
-      }
-    });
+  private List<IntendedArchitecture> patchIntended(String projectKey, String id, List<IntendedArchitecture> models) {
+    var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
+    var body = gson.toJson(new PatchModels(publicModels(models)));
+    return write(projectKey, () -> writeModels(path, body, true));
+  }
+
+  private static List<PublicIntendedModel> publicModels(List<IntendedArchitecture> models) {
+    return models.stream().map(model -> new PublicIntendedModel(model.type(), model.language(),
+      model.groups() == null ? List.of() : model.groups(), model.constraints() == null ? List.of() : model.constraints())).toList();
   }
 
   private static void validateResourceIds(List<IntendedArchitecture> models) {
-    var ids = new java.util.HashSet<String>();
+    String modelId = null;
     for (var model : models) {
       try {
-        if (model == null || model.id() == null || !UUID.fromString(model.id()).toString().equalsIgnoreCase(model.id()) || !ids.add(model.id())) {
+        if (model == null || model.id() == null || !UUID.fromString(model.id()).toString().equalsIgnoreCase(model.id())
+          || (modelId != null && !modelId.equals(model.id()))) {
           throw new IllegalArgumentException();
         }
+        modelId = model.id();
       } catch (IllegalArgumentException invalid) {
-        throw new IllegalStateException("The public intended architecture response has missing, invalid or duplicate resource ids. No unknown resource will be deleted.");
+        throw new IllegalStateException("The public intended architecture response has missing, invalid or inconsistent model ids. "
+          + "No unknown resource will be changed.");
       }
     }
   }
@@ -187,39 +176,24 @@ public class ArchitectureApi {
       .equals(right.stream().map(IntendedArchitecture::id).sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList());
   }
 
-  private IntendedRecoveryException recoveryFailure(String projectKey, List<IntendedArchitecture> previous, List<IntendedArchitecture> next, RuntimeException failure) {
+  private void reconcileFailure(String projectKey, List<IntendedArchitecture> previous, List<IntendedArchitecture> next,
+    RuntimeException failure) {
     final List<IntendedArchitecture> actual;
     try {
       actual = getIntended(projectKey);
+      validateResourceIds(actual);
     } catch (RuntimeException readFailure) {
-      return manualRecovery(previous, "The write failed and its resulting state could not be read. No automatic restoration was attempted", failure);
+      throw manualRecovery(previous, "The write failed and its resulting state could not be read. No automatic rollback was attempted", failure);
     }
-    if (!previous.isEmpty() && sameModels(previous, actual)) {
-      return manualRecovery(previous, "The write failed; the previous exported model is still present. No restoration was needed", failure);
+    if (sameModels(next, actual) && (previous.isEmpty() || previous.getFirst().id().equals(actual.getFirst().id()))) {
+      return;
     }
-    if (sameModels(next, actual)) {
-      return manualRecovery(previous, "The write response failed, but the requested exported model is present. No restoration was attempted", failure);
-    }
-    if (!actual.isEmpty()) {
-      return manualRecovery(previous, "The write failed and other intended architecture data is present. No restoration was attempted beside surviving data", failure);
-    }
-    if (previous.isEmpty()) {
-      return manualRecovery(previous, "The write failed and the intended architecture is empty. No previous exported model exists to restore", failure);
-    }
-    try {
-      createIntended(projectKey, previous);
-      if (sameModels(previous, getIntended(projectKey))) {
-        return manualRecovery(previous, "The write failed; the previous exported model was recreated and verified", failure);
-      }
-    } catch (RuntimeException restoreFailure) {
-      return manualRecovery(previous, "The write failed and restoration could not be verified (" + restoreFailure.getMessage()
-        + "). Read the current state before any retry", failure);
-    }
-    return manualRecovery(previous, "The write failed and restoration did not reproduce the previous exported model. Read the current state before any retry", failure);
+    throw manualRecovery(previous, "The write failed and the requested model could not be verified. "
+      + "No automatic rollback was attempted; read the current state before retrying", failure);
   }
 
-  private IntendedRecoveryException manualRecovery(List<IntendedArchitecture> previous, String message, @Nullable RuntimeException cause) {
-    return new IntendedRecoveryException(message + (cause == null ? "" : (". Failure: " + cause.getMessage())) + ". " + EXPORT_WARNING,
+  private IntendedRecoveryException manualRecovery(List<IntendedArchitecture> previous, String message, RuntimeException cause) {
+    return new IntendedRecoveryException(message + ". Failure: " + cause.getMessage() + ". " + EXPORT_WARNING,
       gson.toJson(new PreviousModels(previous)));
   }
 
@@ -256,10 +230,6 @@ public class ArchitectureApi {
       Boolean.TRUE.equals(group.isInterface()), Boolean.TRUE.equals(group.interfaceAccess()))).toList();
   }
 
-  private String intendedArchitecturesPath(String projectKey) {
-    return new UrlBuilder(INTENDED_ARCHITECTURES_PATH).addParam("projectId", projectId(projectKey)).build();
-  }
-
   private static <T> T write(String projectKey, Supplier<T> request) {
     try {
       return request.get();
@@ -269,11 +239,29 @@ public class ArchitectureApi {
     }
   }
 
-  private IntendedArchitecture post(String path, String body) {
-    try (var response = helper.isSonarQubeCloud() ? helper.postApiSubdomain(path, HttpClient.JSON_CONTENT_TYPE, body)
-      : helper.post(SERVER_API_PREFIX + path, HttpClient.JSON_CONTENT_TYPE, body)) {
-      return gson.fromJson(response.bodyAsString(), IntendedArchitecture.class);
+  private List<IntendedArchitecture> writeModels(String path, String body, boolean patch) {
+    try (var response = request(path, body, patch)) {
+      var result = gson.fromJson(response.bodyAsString(), IntendedArchitectures.class);
+      if (result == null || result.intendedArchitectures() == null || result.intendedArchitectures().isEmpty()) {
+        throw new IllegalStateException("The public architecture API did not return the written intendedArchitectures.");
+      }
+      return result.intendedArchitectures();
     }
+  }
+
+  private HttpClient.Response request(String path, String body, boolean patch) {
+    if (patch) {
+      return helper.isSonarQubeCloud() ? helper.patchApiSubdomain(path, HttpClient.MERGE_PATCH_CONTENT_TYPE, body)
+        : helper.patch(SERVER_API_PREFIX + path, HttpClient.MERGE_PATCH_CONTENT_TYPE, body);
+    }
+    return helper.isSonarQubeCloud() ? helper.postApiSubdomain(path, HttpClient.JSON_CONTENT_TYPE, body)
+      : helper.post(SERVER_API_PREFIX + path, HttpClient.JSON_CONTENT_TYPE, body);
+  }
+
+  private record CreateModels(String projectId, List<PublicIntendedModel> intendedArchitectures) {
+  }
+
+  private record PatchModels(List<PublicIntendedModel> intendedArchitectures) {
   }
 
   private record PublicIntendedModel(@Nullable String type, @Nullable String language, List<IntendedArchitecture.Group> groups,

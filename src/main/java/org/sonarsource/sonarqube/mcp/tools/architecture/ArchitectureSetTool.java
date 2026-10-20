@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import jakarta.annotation.Nullable;
-import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -76,10 +75,13 @@ public class ArchitectureSetTool extends Tool {
     if (!diff.isEmpty()) {
       api.checkWritableModels(stored, next);
     }
-    var warnings = revision == null
-      ? List.of(ArchitectureApi.EXPORT_WARNING, "No revision was supplied; changes since the original export cannot be detected. "
-        + "Use the whole architecture_get response or supply revision.")
-      : List.of(ArchitectureApi.EXPORT_WARNING);
+    var warnings = new java.util.ArrayList<String>();
+    warnings.add(ArchitectureApi.EXPORT_WARNING);
+    warnings.add("The public API has no conditional write; concurrent edits can race the revision check.");
+    if (revision == null) {
+      warnings.add("No revision was supplied; changes since the original export cannot be detected. "
+        + "Use the whole architecture_get response or supply revision.");
+    }
     if (dryRun) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));
     }

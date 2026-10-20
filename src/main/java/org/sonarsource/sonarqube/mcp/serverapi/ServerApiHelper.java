@@ -82,8 +82,8 @@ public class ServerApiHelper {
     return response;
   }
 
-  public HttpClient.Response delete(String path) {
-    var response = client.deleteAsync(buildEndpointUrl(path)).join();
+  public HttpClient.Response patch(String path, String contentType, String body) {
+    var response = client.patchAsync(buildEndpointUrl(path), contentType, body).join();
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
@@ -142,10 +142,10 @@ public class ServerApiHelper {
   }
 
   /**
-   * Execute DELETE using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
+   * Execute PATCH using the API subdomain (api.sonarcloud.io / api.sonarqube.us).
    */
-  public HttpClient.Response deleteApiSubdomain(String path) {
-    var response = client.deleteAsync(buildApiSubdomainUrl(path)).join();
+  public HttpClient.Response patchApiSubdomain(String path, String contentType, String body) {
+    var response = client.patchAsync(buildApiSubdomainUrl(path), contentType, body).join();
     if (!response.isSuccessful()) {
       throw handleError(response);
     }

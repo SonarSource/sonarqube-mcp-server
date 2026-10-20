@@ -54,4 +54,14 @@ class IntendedRevisionTest {
     assertThat(IntendedRevision.of(List.of(TS, swapped))).isNotEqualTo(IntendedRevision.of(List.of(TS, JAVA)));
   }
 
+  @Test
+  void it_should_sort_perspectives_with_the_same_language_by_qualifier() {
+    var namespace = new IntendedArchitecture("namespace", "java", List.of(), List.of());
+    var file = new IntendedArchitecture("file", "java", List.of(), List.of());
+    var expected = "c4674bae74ea8f6687b40418c8b3ffc770e3ad1bed780b71084eb44f274d1543";
+
+    assertThat(IntendedRevision.of(List.of(namespace, file))).isEqualTo(expected);
+    assertThat(IntendedRevision.of(List.of(file, namespace))).isEqualTo(expected);
+  }
+
 }

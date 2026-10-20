@@ -100,23 +100,24 @@ public class ArchitectureGetTool extends Tool {
   private static Result intended(ArchitectureApi api, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
     var stored = api.getIntended(projectKey);
     var revision = IntendedRevision.of(stored);
+    var partial = component != null || depth != null || language != null;
     var models = stored.stream()
       .filter(model -> language == null || language.equals(model.language()))
       .toList();
     if (models.isEmpty()) {
-      return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, List.of(),
+      return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, List.of(), partial ? true : null,
         "No intended architecture is defined for project '" + projectKey + "'" + (language == null ? "" : (" in " + language)) + "."));
     }
 
     var views = models.stream()
-      .map(model -> toView(model, component, depth, component != null || depth != null || language != null))
+      .map(model -> toView(model, component, depth, partial))
       .filter(Objects::nonNull)
       .toList();
     if (views.isEmpty()) {
       throw new IllegalArgumentException("No group '" + component + "' in the intended architecture. Call " + TOOL_NAME
         + " with target intended and without component to list the group keys.");
     }
-    return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, views, null));
+    return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, views, partial ? true : null, null));
   }
 
   /**

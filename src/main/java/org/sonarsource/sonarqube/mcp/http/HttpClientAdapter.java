@@ -80,8 +80,9 @@ class HttpClientAdapter implements HttpClient {
   }
 
   @Override
-  public CompletableFuture<Response> deleteAsync(String url) {
-    var requestBuilder = SimpleRequestBuilder.delete(url);
+  public CompletableFuture<Response> patchAsync(String url, String contentType, String body) {
+    var requestBuilder = SimpleRequestBuilder.patch(url)
+      .setBody(body, ContentType.parse(contentType));
 
     if (isBridgeClient) {
       requestBuilder

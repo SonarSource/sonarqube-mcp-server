@@ -25,8 +25,7 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.containing;
-import static com.github.tomakehurst.wiremock.client.WireMock.delete;
+import static com.github.tomakehurst.wiremock.client.WireMock.patch;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -78,18 +77,15 @@ class ArchitectureSetToolTests {
     assertThat(textOf(preview)).contains("dry-run").doesNotContain("unchanged");
     assertWrites(harness, 0, 0);
 
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("constraint-edit").whenScenarioStateIs("Started")
-      .willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("constraint-edit").whenScenarioStateIs("deleted")
-      .willReturn(okJson(intendedArchitectures("[]"))));
-    harness.getMockSonarQubeServer().stubFor(post(PATH).willReturn(aResponse().withStatus(201).withBody(created(next))));
+    stubPatch(harness, next);
 
     var applied = set(harness, next, false, revision);
     assertThat(applied.isError()).withFailMessage(textOf(applied)).isFalse();
     assertThat(textOf(applied)).contains("replaced").doesNotContain("unchanged");
-    assertWrites(harness, 1, 1);
-    var body = JsonParser.parseString(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH).getFirst()).getAsJsonObject();
-    assertThat(body.getAsJsonArray("constraints")).isEqualTo(JsonParser.parseString(next).getAsJsonArray().get(0).getAsJsonObject().get("constraints"));
+    assertWrites(harness, 1, 0);
+    var body = JsonParser.parseString(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", MODEL_PATH).getFirst()).getAsJsonObject();
+    var expected = JsonParser.parseString(next).getAsJsonArray().get(0).getAsJsonObject().get("constraints");
+    assertThat(body.getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject().getAsJsonArray("constraints")).isEqualTo(expected);
   }
 
   @Test
@@ -146,7 +142,7 @@ class ArchitectureSetToolTests {
   }
 
   private static final String PATH = ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "?projectId=" + MAIN_BRANCH_ID;
-  private static final String DELETE_PATH = ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "/11111111-1111-4111-8111-111111111111";
+  private static final String MODEL_PATH = ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "/11111111-1111-4111-8111-111111111111";
   private static final String NEXT = INTENDED_JAVA_MODEL.replace("domain", "infra");
 
   @SonarQubeMcpServerTest
@@ -302,63 +298,49 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_replace_using_only_public_delete_and_post(SonarQubeMcpServerTestHarness harness) {
+  void it_should_replace_using_only_the_public_patch_payload(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL);
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("replace").whenScenarioStateIs("Started").willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("replace").whenScenarioStateIs("deleted").willReturn(okJson(intendedArchitectures("[]"))));
-    harness.getMockSonarQubeServer().stubFor(post(PATH).willReturn(aResponse().withStatus(201).withBody(created(NEXT))));
+    stubPatch(harness, NEXT);
     var result = set(harness, NEXT, false, revision());
-    assertThat(result.isError()).isFalse();
+    assertThat(result.isError()).as(textOf(result)).isFalse();
     assertThat(textOf(result)).contains("replaced", "import links");
-    assertWrites(harness, 1, 1);
-    var body = harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH).getFirst();
-    var request = JsonParser.parseString(body).getAsJsonObject();
-    assertThat(request.has("groups")).isTrue();
-    assertThat(request.has("constraints")).isTrue();
-    assertThat(request.has("id")).isFalse();
-    assertThat(request.has("intendedArchitectures")).isFalse();
-    assertThat(body).contains("infra").doesNotContain("perspectives", "projectId");
+    assertWrites(harness, 1, 0);
+    var body = patchBody(harness);
+    assertThat(body.keySet()).containsExactly("intendedArchitectures");
+    assertThat(body.getAsJsonArray("intendedArchitectures")).hasSize(1);
+    var perspective = body.getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject();
+    assertThat(perspective.keySet()).containsExactlyInAnyOrder("type", "language", "groups", "constraints");
+    assertThat(perspective.toString()).contains("infra").doesNotContain("id", "projectId");
     assertNoPrivateRequests(harness);
   }
 
-  @SonarQubeMcpServerTest
-  void it_should_abort_after_one_delete_if_another_model_becomes_visible(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, INTENDED_JAVA_MODEL);
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("replace").whenScenarioStateIs("Started").willSetStateTo("survivor").willReturn(aResponse().withStatus(204)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("replace").whenScenarioStateIs("survivor").willReturn(okJson(intendedArchitectures(NEXT))));
-    var result = set(harness, NEXT, false, revision());
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("surviving data", "Previous exported model", "domain");
-    assertWrites(harness, 1, 0);
-  }
 
-  @SonarQubeMcpServerTest
-  void it_should_not_duplicate_a_model_when_delete_reports_success_without_removing_it(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, INTENDED_JAVA_MODEL);
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).willReturn(aResponse().withStatus(204)));
-    var result = set(harness, NEXT, false, revision());
-    assertThat(result.isError()).isTrue();
-    assertWrites(harness, 1, 0);
-  }
 
   @SonarQubeMcpServerTest
   void it_should_create_directly_when_the_export_is_empty(SonarQubeMcpServerTestHarness harness) {
     stored(harness, "[]");
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).willReturn(aResponse().withStatus(404)));
-    harness.getMockSonarQubeServer().stubFor(post(PATH).willReturn(aResponse().withStatus(201).withBody(created(NEXT))));
-    var result = set(harness, NEXT, false, IntendedRevision.of(List.of()));
-    assertThat(result.isError()).isFalse();
+    var multiple = multiple(NEXT, "ts");
+    stubPost(harness, multiple);
+    var result = set(harness, multiple, false, IntendedRevision.of(List.of()));
+    assertThat(result.isError()).as(textOf(result)).isFalse();
     assertThat(textOf(result)).contains("created");
     assertWrites(harness, 0, 1);
+    var body = JsonParser.parseString(harness.getMockSonarQubeServer()
+      .getReceivedBodies("POST", ArchitectureApi.INTENDED_ARCHITECTURES_PATH).getFirst()).getAsJsonObject();
+    assertThat(body.keySet()).containsExactlyInAnyOrder("projectId", "intendedArchitectures");
+    assertThat(body.get("projectId").getAsString()).isEqualTo(MAIN_BRANCH_ID);
+    assertThat(body.getAsJsonArray("intendedArchitectures")).hasSize(2);
+    body.getAsJsonArray("intendedArchitectures").forEach(item -> assertThat(item.getAsJsonObject().has("id")).isFalse());
   }
 
   @SonarQubeMcpServerTest
   void it_should_preserve_an_existing_container_hidden_by_an_empty_public_export(SonarQubeMcpServerTestHarness harness) {
     stored(harness, "[]");
-    harness.getMockSonarQubeServer().stubFor(post(PATH).willReturn(aResponse().withStatus(400).withBody("{\"message\":\"A model already exists\"}")));
+    harness.getMockSonarQubeServer().stubFor(post(ArchitectureApi.INTENDED_ARCHITECTURES_PATH)
+      .willReturn(aResponse().withStatus(400).withBody("{\"message\":\"A model already exists\"}")));
     var result = set(harness, NEXT, false, IntendedRevision.of(List.of()));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("No previous exported model exists", "A model already exists");
+    assertThat(textOf(result)).contains("No automatic rollback", "A model already exists");
     assertWrites(harness, 0, 1);
   }
 
@@ -402,20 +384,16 @@ class ArchitectureSetToolTests {
 
   private static void assertHierarchyReplacement(SonarQubeMcpServerTestHarness harness, String before, String after) {
     stored(harness, before);
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("hierarchy").whenScenarioStateIs("Started")
-      .willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("hierarchy").whenScenarioStateIs("deleted")
-      .willReturn(okJson(intendedArchitectures("[]"))));
-    harness.getMockSonarQubeServer().stubFor(post(PATH).willReturn(aResponse().withStatus(201).withBody(created(after))));
+    stubPatch(harness, after);
 
     var result = set(harness, after, false, IntendedRevision.of(IntendedModels.parse(before)));
 
     assertThat(result.isError()).as(textOf(result)).isFalse();
     assertThat(textOf(result)).contains("replaced", "java group UI/API hierarchy").doesNotContain("unchanged");
-    assertWrites(harness, 1, 1);
+    assertWrites(harness, 1, 0);
     var expected = JsonParser.parseString(created(after)).getAsJsonObject();
     expected.remove("id");
-    assertThat(JsonParser.parseString(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH).getFirst())).isEqualTo(expected);
+    assertThat(patchBody(harness).getAsJsonArray("intendedArchitectures").get(0)).isEqualTo(expected);
   }
 
   @SonarQubeMcpServerTest
@@ -425,43 +403,20 @@ class ArchitectureSetToolTests {
     assertWrites(harness, 0, 0);
   }
 
-  @SonarQubeMcpServerTest
-  void it_should_restore_only_after_verifying_empty_and_verify_the_export(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, INTENDED_JAVA_MODEL);
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("replace").whenScenarioStateIs("Started").willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("replace").whenScenarioStateIs("deleted").willReturn(okJson(intendedArchitectures("[]"))));
-    harness.getMockSonarQubeServer().stubFor(post(PATH).withRequestBody(containing("infra")).willReturn(aResponse().withStatus(400)));
-    harness.getMockSonarQubeServer().stubFor(post(PATH).withRequestBody(containing("domain")).inScenario("replace").whenScenarioStateIs("deleted")
-      .willSetStateTo("restored").willReturn(aResponse().withStatus(201).withBody(created(INTENDED_JAVA_MODEL))));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("replace").whenScenarioStateIs("restored").willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
-    var result = set(harness, NEXT, false, revision());
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("recreated and verified", "import links");
-    assertWrites(harness, 1, 2);
-  }
 
   @SonarQubeMcpServerTest
-  void it_should_not_restore_beside_a_committed_new_model_after_a_failed_response(SonarQubeMcpServerTestHarness harness) {
+  void it_should_verify_a_committed_patch_after_a_failed_response(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL);
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("replace").whenScenarioStateIs("Started").willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("replace").whenScenarioStateIs("deleted").willReturn(okJson(intendedArchitectures("[]"))));
-    harness.getMockSonarQubeServer().stubFor(post(PATH).inScenario("replace").whenScenarioStateIs("deleted").willSetStateTo("committed").willReturn(aResponse().withStatus(500)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("replace").whenScenarioStateIs("committed").willReturn(okJson(intendedArchitectures(NEXT))));
+    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).inScenario("committed").whenScenarioStateIs("Started")
+      .willSetStateTo("saved").willReturn(aResponse().withStatus(500)));
+    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("committed").whenScenarioStateIs("saved")
+      .willReturn(okJson(intendedArchitectures(NEXT))));
     var result = set(harness, NEXT, false, revision());
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("requested exported model is present", "No restoration");
-    assertWrites(harness, 1, 1);
-  }
-
-  @SonarQubeMcpServerTest
-  void it_should_not_restore_when_delete_state_cannot_be_read(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, INTENDED_JAVA_MODEL);
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("replace").whenScenarioStateIs("Started").willSetStateTo("unknown").willReturn(aResponse().withStatus(500)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("replace").whenScenarioStateIs("unknown").willReturn(aResponse().withStatus(500)));
-    var result = set(harness, NEXT, false, revision());
-    assertThat(textOf(result)).contains("could not be read", "No automatic restoration", "Previous exported model");
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    assertThat(textOf(result)).contains("replaced");
     assertWrites(harness, 1, 0);
   }
+
 
   @SonarQubeMcpServerTest
   void it_should_reject_invalid_or_partial_models_before_network(SonarQubeMcpServerTestHarness harness) {
@@ -502,7 +457,9 @@ class ArchitectureSetToolTests {
       var args = new java.util.HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project"));
       args.putAll(filter);
       var read = client.callTool(ArchitectureGetTool.TOOL_NAME, args);
-      var models = JsonParser.parseString(textOf(read)).getAsJsonObject().getAsJsonArray("models");
+      var envelope = JsonParser.parseString(textOf(read)).getAsJsonObject();
+      assertThat(envelope.get("partial").getAsBoolean()).isTrue();
+      var models = envelope.getAsJsonArray("models");
       assertThat(models.get(0).getAsJsonObject().get("partial").getAsBoolean()).isTrue();
       assertThat(textOf(set(harness, models.toString(), false, revision()))).contains("partial");
     }
@@ -510,36 +467,60 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_reconcile_an_initial_create_committed_before_a_failed_response(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, "[]");
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).willReturn(aResponse().withStatus(404)));
-    harness.getMockSonarQubeServer().stubFor(post(PATH).inScenario("create").whenScenarioStateIs("Started").willSetStateTo("committed").willReturn(aResponse().withStatus(500)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("create").whenScenarioStateIs("committed").willReturn(okJson(intendedArchitectures(NEXT))));
-    var result = set(harness, NEXT, false, IntendedRevision.of(List.of()));
-    assertThat(textOf(result)).contains("requested exported model is present", "No restoration");
-    assertWrites(harness, 0, 1);
+  void it_should_mark_whole_filtered_envelopes_partial_even_when_no_language_matches(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, multiple(INTENDED_JAVA_MODEL, "ts"));
+    var client = harness.newClient(CLOUD_ENV);
+    for (var language : List.of("java", "cs")) {
+      var read = client.callTool(ArchitectureGetTool.TOOL_NAME,
+        Map.of("target", "intended", "projectKey", "my_project", "language", language));
+      var json = JsonParser.parseString(textOf(read)).getAsJsonObject();
+      assertThat(json.get("partial").getAsBoolean()).isTrue();
+      assertThat(json.getAsJsonArray("models")).hasSize(language.equals("java") ? 1 : 0);
+      assertThatThrownBy(() -> IntendedModels.parse(textOf(read)))
+        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("partial");
+      assertThat(textOf(set(harness, textOf(read), false, null))).contains("partial");
+    }
+    assertWrites(harness, 0, 0);
   }
 
   @SonarQubeMcpServerTest
-  void it_should_report_restore_failure_with_backup_without_claiming_success(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, INTENDED_JAVA_MODEL);
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("replace").whenScenarioStateIs("Started").willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
-    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("replace").whenScenarioStateIs("deleted").willReturn(okJson(intendedArchitectures("[]"))));
-    harness.getMockSonarQubeServer().stubFor(post(PATH).willReturn(aResponse().withStatus(500)));
-    var result = set(harness, NEXT, false, revision());
-    assertThat(textOf(result)).contains("restoration could not be verified", "Previous exported model", "domain").doesNotContain("recreated and verified");
-    assertWrites(harness, 1, 2);
+  void it_should_round_trip_an_unfiltered_multi_perspective_envelope(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, multiple(INTENDED_JAVA_MODEL, "ts"));
+    var read = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project"));
+    var json = JsonParser.parseString(textOf(read)).getAsJsonObject();
+
+    assertThat(json.has("partial")).isFalse();
+    assertThat(IntendedModels.parse(textOf(read))).hasSize(2);
+    var result = set(harness, textOf(read), false, null);
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    assertThat(textOf(result)).contains("unchanged");
+    assertWrites(harness, 0, 0);
   }
+
+  @SonarQubeMcpServerTest
+  void it_should_reconcile_an_initial_create_committed_before_a_failed_response(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, "[]");
+    harness.getMockSonarQubeServer().stubFor(post(ArchitectureApi.INTENDED_ARCHITECTURES_PATH)
+      .inScenario("create").whenScenarioStateIs("Started").willSetStateTo("committed").willReturn(aResponse().withStatus(500)));
+    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("create").whenScenarioStateIs("committed")
+      .willReturn(okJson(intendedArchitectures(NEXT))));
+    var result = set(harness, NEXT, false, IntendedRevision.of(List.of()));
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    assertThat(textOf(result)).contains("created");
+    assertWrites(harness, 0, 1);
+  }
+
 
   @SonarQubeMcpServerTest
   void it_should_return_recovery_data_to_the_caller_without_logging_it(SonarQubeMcpServerTestHarness harness) {
     var sentinel = "private-recovery-pattern-sentinel";
     var previous = INTENDED_JAVA_MODEL.replace("app:com.acme.domain.**", sentinel);
     stored(harness, previous);
-    harness.getMockSonarQubeServer().stubFor(delete(DELETE_PATH).inScenario("privacy").whenScenarioStateIs("Started")
-      .willSetStateTo("survivor").willReturn(aResponse().withStatus(204)));
+    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).inScenario("privacy").whenScenarioStateIs("Started")
+      .willSetStateTo("survivor").willReturn(aResponse().withStatus(500)));
     harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("privacy").whenScenarioStateIs("survivor")
-      .willReturn(okJson(intendedArchitectures(NEXT))));
+      .willReturn(okJson(intendedArchitectures(NEXT.replace("infra", "concurrent-edit")))));
     var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(org.sonarsource.sonarqube.mcp.log.McpLogger.class);
     var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
     appender.start();
@@ -564,36 +545,45 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_refuse_multi_perspective_changes_before_dry_run_or_deletion(SonarQubeMcpServerTestHarness harness) {
-    var multiple = "[" + created(INTENDED_JAVA_MODEL) + "," + created(INTENDED_JAVA_MODEL).replace("java", "ts") + "]";
-    stored(harness, multiple);
-    assertThat(textOf(set(harness, NEXT, true, null))).contains("only one intended architecture perspective");
-    assertThat(textOf(set(harness, NEXT, false, null))).contains("Nothing was changed");
+  void it_should_replace_all_perspectives_with_their_shared_model_id(SonarQubeMcpServerTestHarness harness) {
+    var before = multiple(INTENDED_JAVA_MODEL, "ts");
+    var after = multiple(NEXT, "ts");
+    stored(harness, before);
+    assertThat(textOf(set(harness, after, true, null))).contains("dry-run", "java group", "ts group");
     assertWrites(harness, 0, 0);
+    stubPatch(harness, after);
+    var result = set(harness, after, false, IntendedRevision.of(IntendedModels.parse(before)));
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    assertWrites(harness, 1, 0);
+    assertThat(patchBody(harness).getAsJsonArray("intendedArchitectures")).hasSize(2);
   }
 
   @SonarQubeMcpServerTest
-  void it_should_refuse_missing_or_invalid_server_id_before_deletion(SonarQubeMcpServerTestHarness harness) {
+  void it_should_refuse_missing_or_invalid_server_id_before_patch(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL.replace("11111111-1111-4111-8111-111111111111", "unknown/id"));
-    assertThat(textOf(set(harness, NEXT, false, null))).contains("No unknown resource will be deleted");
+    assertThat(textOf(set(harness, NEXT, false, null))).contains("No unknown resource will be changed");
     assertWrites(harness, 0, 0);
   }
 
   @SonarQubeMcpServerTest
   void it_should_not_claim_success_for_a_malformed_created_resource(SonarQubeMcpServerTestHarness harness) {
     stored(harness, "[]");
-    harness.getMockSonarQubeServer().stubFor(post(PATH).willReturn(aResponse().withStatus(201).withBody("{}")));
+    harness.getMockSonarQubeServer().stubFor(post(ArchitectureApi.INTENDED_ARCHITECTURES_PATH)
+      .willReturn(aResponse().withStatus(201).withBody("{}")));
     var result = set(harness, NEXT, false, null);
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("No unknown resource will be deleted");
+    assertThat(textOf(result)).contains("No automatic rollback", "Previous exported model");
     assertWrites(harness, 0, 1);
   }
 
   @SonarQubeMcpServerTest
-  void it_should_refuse_creating_multiple_perspectives_without_mutation(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, "[]");
-    var multiple = "[" + created(NEXT) + "," + created(NEXT).replace("java", "ts") + "]";
-    assertThat(textOf(set(harness, multiple, true, null))).contains("only one intended architecture perspective");
+  void it_should_refuse_perspectives_from_different_model_ids(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, INTENDED_JAVA_MODEL);
+    var before = multiple(INTENDED_JAVA_MODEL, "ts");
+    var mixed = JsonParser.parseString(before).getAsJsonArray();
+    mixed.get(1).getAsJsonObject().addProperty("id", "22222222-2222-4222-8222-222222222222");
+    stored(harness, mixed.toString());
+    assertThat(textOf(set(harness, NEXT, false, null))).contains("inconsistent model ids");
     assertWrites(harness, 0, 0);
   }
 
@@ -606,6 +596,105 @@ class ArchitectureSetToolTests {
       .willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL.replace("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222")))));
     assertThat(textOf(set(harness, NEXT, false, null))).contains("changed before replacement");
     assertWrites(harness, 0, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_verify_readback_after_a_successful_patch_response(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, INTENDED_JAVA_MODEL);
+    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).willReturn(okJson(intendedArchitectures(NEXT))));
+
+    var result = set(harness, NEXT, false, revision());
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("No automatic rollback", "Previous exported model", "domain");
+    assertWrites(harness, 1, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_refuse_an_unsupported_patch_without_a_delete_or_post_fallback(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, INTENDED_JAVA_MODEL);
+    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).willReturn(aResponse().withStatus(405)));
+
+    var result = set(harness, NEXT, false, revision());
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("No automatic rollback", "Previous exported model");
+    assertWrites(harness, 1, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_not_clobber_a_recreated_model_after_a_failed_patch(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, INTENDED_JAVA_MODEL);
+    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).inScenario("recreated").whenScenarioStateIs("Started")
+      .willSetStateTo("new-id").willReturn(aResponse().withStatus(500)));
+    var recreated = NEXT.replace("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("recreated").whenScenarioStateIs("new-id")
+      .willReturn(okJson(intendedArchitectures(recreated))));
+
+    var result = set(harness, NEXT, false, revision());
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("No automatic rollback", "Previous exported model");
+    assertWrites(harness, 1, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_refuse_a_partial_response_after_a_multi_perspective_patch(SonarQubeMcpServerTestHarness harness) {
+    var before = multiple(INTENDED_JAVA_MODEL, "ts");
+    var after = multiple(NEXT, "ts");
+    stored(harness, before);
+    stubPatch(harness, NEXT);
+
+    var result = set(harness, after, false, IntendedRevision.of(IntendedModels.parse(before)));
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("No automatic rollback", "Previous exported model", "ts");
+    assertWrites(harness, 1, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_not_repeat_a_write_when_the_resulting_state_is_unknown(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, INTENDED_JAVA_MODEL);
+    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).inScenario("unknown").whenScenarioStateIs("Started")
+      .willSetStateTo("unreadable").willReturn(aResponse().withStatus(500)));
+    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("unknown").whenScenarioStateIs("unreadable")
+      .willReturn(aResponse().withStatus(503)));
+
+    var result = set(harness, NEXT, false, revision());
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("resulting state could not be read", "No automatic rollback", "Previous exported model");
+    assertWrites(harness, 1, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_verify_created_models_in_a_public_read(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, "[]");
+    harness.getMockSonarQubeServer().stubFor(post(ArchitectureApi.INTENDED_ARCHITECTURES_PATH)
+      .willReturn(aResponse().withStatus(201).withBody(intendedArchitectures(NEXT))));
+
+    var result = set(harness, NEXT, false, IntendedRevision.of(List.of()));
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("No automatic rollback", "Previous exported model");
+    assertWrites(harness, 0, 1);
+  }
+
+  @Test
+  void it_should_distinguish_qualifiers_with_the_same_language() {
+    var before = multiple(INTENDED_JAVA_MODEL, "java");
+    var models = JsonParser.parseString(before).getAsJsonArray();
+    models.get(1).getAsJsonObject().addProperty("type", "file");
+    var parsed = IntendedModels.parse(models.toString());
+    assertThat(IntendedModels.invalidReason(parsed)).isNull();
+    models.get(1).getAsJsonObject().getAsJsonArray("groups").get(0).getAsJsonObject().addProperty("label", "changed");
+
+    var diff = IntendedModels.diff(parsed, IntendedModels.parse(models.toString()));
+
+    assertThat(diff.removed()).allMatch(value -> value.startsWith("java/file"));
+    assertThat(diff.added()).anyMatch(value -> value.startsWith("java/file"));
+    assertThat(diff.isEmpty()).isFalse();
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(before))).contains("Perspective java/namespace appears more than once");
   }
 
   private static String created(String models) {
@@ -629,9 +718,33 @@ class ArchitectureSetToolTests {
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson(intendedArchitectures(models))));
   }
 
-  private static void assertWrites(SonarQubeMcpServerTestHarness harness, int deletes, int posts) {
-    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", DELETE_PATH)).hasSize(deletes);
-    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).hasSize(posts);
+  private static void assertWrites(SonarQubeMcpServerTestHarness harness, int patches, int posts) {
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", "/architecture/")).isEmpty();
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", ArchitectureApi.INTENDED_ARCHITECTURES_PATH)).hasSize(patches);
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", ArchitectureApi.INTENDED_ARCHITECTURES_PATH)).hasSize(posts);
+  }
+
+  private static void stubPatch(SonarQubeMcpServerTestHarness harness, String models) {
+    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).inScenario("write").whenScenarioStateIs("Started")
+      .willSetStateTo("saved").willReturn(okJson(intendedArchitectures(models))));
+    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("write").whenScenarioStateIs("saved")
+      .willReturn(okJson(intendedArchitectures(models))));
+  }
+
+  private static void stubPost(SonarQubeMcpServerTestHarness harness, String models) {
+    harness.getMockSonarQubeServer().stubFor(post(ArchitectureApi.INTENDED_ARCHITECTURES_PATH)
+      .inScenario("write").whenScenarioStateIs("Started").willSetStateTo("saved")
+      .willReturn(aResponse().withStatus(201).withBody(intendedArchitectures(models))));
+    harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("write").whenScenarioStateIs("saved")
+      .willReturn(okJson(intendedArchitectures(models))));
+  }
+
+  private static com.google.gson.JsonObject patchBody(SonarQubeMcpServerTestHarness harness) {
+    return JsonParser.parseString(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", MODEL_PATH).getFirst()).getAsJsonObject();
+  }
+
+  private static String multiple(String models, String otherLanguage) {
+    return "[" + created(models) + "," + created(models).replace("java", otherLanguage) + "]";
   }
 
   private static void assertNoPrivateRequests(SonarQubeMcpServerTestHarness harness) {

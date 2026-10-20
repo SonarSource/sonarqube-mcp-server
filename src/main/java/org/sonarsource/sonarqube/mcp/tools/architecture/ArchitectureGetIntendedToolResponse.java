@@ -25,7 +25,7 @@ import java.util.List;
  * revision of the whole stored model, whatever component, depth or language were asked for.
  */
 public record ArchitectureGetIntendedToolResponse(String projectKey, String revision, @Nullable String component, @Nullable Integer depth, List<Model> models,
-  @Nullable String message) {
+  @Nullable Boolean partial, @Nullable String message) {
 
   public record Model(@Nullable String language, @Nullable String type, List<Group> groups, List<Constraint> constraints, @Nullable Boolean partial) {
   }

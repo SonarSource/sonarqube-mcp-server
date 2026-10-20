@@ -202,7 +202,7 @@ final class IntendedModels {
     if (models.isEmpty()) {
       problems.add("The model has no language. Give at least one.");
     }
-    var languages = new HashSet<String>();
+    var perspectives = new HashSet<List<String>>();
     var groupCount = new int[] {0};
     for (var model : models) {
       var language = model.language();
@@ -210,15 +210,18 @@ final class IntendedModels {
         problems.add("Language '" + language + "' is not one of " + String.join(", ", ArchitectureApi.LANGUAGES) + ".");
         continue;
       }
-      if (!languages.add(language)) {
-        problems.add("Language " + language + DUPLICATE_SUFFIX);
-      }
       if (model.type() == null || !TYPES.contains(model.type())) {
         problems.add("Type '" + model.type() + "' of " + language + " is not file or namespace.");
+      }
+      if (!perspectives.add(Arrays.asList(language, model.type()))) {
+        problems.add("Perspective " + language + "/" + model.type() + DUPLICATE_SUFFIX);
       }
       var groupKeys = new HashSet<String>();
       checkGroups(language, nullToEmpty(model.groups()), null, 1, groupKeys, groupCount, problems);
       checkConstraints(language, nullToEmpty(model.constraints()), problems);
+    }
+    if (models.size() > ArchitectureApi.MAX_PERSPECTIVES) {
+      problems.add("The model has more than " + ArchitectureApi.MAX_PERSPECTIVES + " perspectives.");
     }
     if (groupCount[0] > MAX_GROUPS) {
       problems.add("The model has more than " + MAX_GROUPS + " groups.");
@@ -268,9 +271,17 @@ final class IntendedModels {
     var removed = new ArrayList<String>();
     var added = new ArrayList<String>();
     var changed = new ArrayList<String>();
-    before.forEach((language, model) -> collectRemoved(language, model, after.get(language), removed));
-    after.forEach((language, model) -> collectAddedAndChanged(language, model, before.get(language), added, changed));
+    before.forEach((language, model) -> collectRemoved(perspectiveLabel(language, before, after), model, after.get(language), removed));
+    after.forEach((language, model) ->
+      collectAddedAndChanged(perspectiveLabel(language, before, after), model, before.get(language), added, changed));
     return new Diff(removed, added, changed);
+  }
+
+  private static String perspectiveLabel(List<String> perspective, Map<List<String>, IndexedModel> before,
+    Map<List<String>, IndexedModel> after) {
+    var qualifiers = java.util.stream.Stream.concat(before.keySet().stream(), after.keySet().stream())
+      .filter(key -> key.getFirst().equals(perspective.getFirst())).map(key -> key.get(1)).distinct().count();
+    return qualifiers > 1 ? String.join("/", perspective) : perspective.getFirst();
   }
 
   private static void collectRemoved(String language, IndexedModel model, @Nullable IndexedModel other, List<String> removed) {
@@ -328,13 +339,13 @@ final class IntendedModels {
     }
   }
 
-  private static Map<String, IndexedModel> index(List<IntendedArchitecture> models) {
-    var indexed = new LinkedHashMap<String, IndexedModel>();
+  private static Map<List<String>, IndexedModel> index(List<IntendedArchitecture> models) {
+    var indexed = new LinkedHashMap<List<String>, IndexedModel>();
     for (var model : models) {
       var groups = new LinkedHashMap<String, GroupSettings>();
       indexGroups(nullToEmpty(model.groups()), List.of(), groups);
       var constraints = new LinkedHashSet<>(nullToEmpty(model.constraints()));
-      indexed.put(model.language(), new IndexedModel(model.type(), groups, constraints));
+      indexed.put(Arrays.asList(model.language(), model.type()), new IndexedModel(model.type(), groups, constraints));
     }
     return indexed;
   }

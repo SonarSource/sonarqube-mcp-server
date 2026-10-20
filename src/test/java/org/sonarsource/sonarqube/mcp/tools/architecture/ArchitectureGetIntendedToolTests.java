@@ -104,6 +104,7 @@ class ArchitectureGetIntendedToolTests {
       {
         "projectKey" : "my_project",
         "depth" : 1,
+        "partial" : true,
         "models" : [ {
           "language" : "java",
           "type" : "namespace",
@@ -125,6 +126,7 @@ class ArchitectureGetIntendedToolTests {
       {
         "projectKey" : "my_project",
         "component" : "app",
+        "partial" : true,
         "models" : [ {
           "language" : "java",
           "type" : "namespace",
@@ -162,6 +164,7 @@ class ArchitectureGetIntendedToolTests {
     assertViewEquals(result, """
       {
         "projectKey" : "my_project",
+        "partial" : true,
         "models" : [ ],
         "message" : "No intended architecture is defined for project 'my_project' in cs."
       }""");

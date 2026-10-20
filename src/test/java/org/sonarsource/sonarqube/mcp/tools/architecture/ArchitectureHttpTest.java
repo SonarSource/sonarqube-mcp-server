@@ -34,7 +34,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.delete;
+import static com.github.tomakehurst.wiremock.client.WireMock.patch;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
@@ -54,8 +54,8 @@ class ArchitectureHttpTest {
     var path = ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "?projectId=" + ArchitectureFixtures.MAIN_BRANCH_ID;
     harness.getMockSonarQubeServer().stubFor(get(path)
       .willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL.replace("app:com.acme.domain.**", sentinel)))));
-    harness.getMockSonarQubeServer().stubFor(delete(ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "/11111111-1111-4111-8111-111111111111")
-      .willReturn(aResponse().withStatus(204)));
+    harness.getMockSonarQubeServer().stubFor(patch(ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "/11111111-1111-4111-8111-111111111111")
+      .willReturn(aResponse().withStatus(500)));
     var port = port();
     var server = new SonarQubeMcpServer(environment(harness, storage, port));
     var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(org.sonarsource.sonarqube.mcp.log.McpLogger.class);
@@ -118,6 +118,7 @@ class ArchitectureHttpTest {
       assertThat(rejected).doesNotContain("Nothing was changed");
       assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", "/architecture/")).isEmpty();
       assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", "/architecture/")).isEmpty();
+      assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", "/architecture/")).isEmpty();
     } finally {
       server.shutdown();
     }
