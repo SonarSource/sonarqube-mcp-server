@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.apache.commons.lang3.Strings;
+import org.apache.hc.core5.net.URIBuilder;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
@@ -45,7 +46,6 @@ public class ArchitectureApi {
 
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
-  private static final String INTENDED_ARCHITECTURE_PATH = "/architecture/intended-architectures/%s";
   public static final String SERVER_API_PREFIX = "/api/v2";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
@@ -161,7 +161,7 @@ public class ArchitectureApi {
 
   private void deleteIntended(String projectKey, String id) {
     write(projectKey, () -> {
-      var path = INTENDED_ARCHITECTURE_PATH.formatted(id);
+      var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
       try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path)
         : helper.delete(SERVER_API_PREFIX + path)) {
         return null;
