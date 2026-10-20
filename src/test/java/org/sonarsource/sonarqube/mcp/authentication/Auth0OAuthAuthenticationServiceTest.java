@@ -175,6 +175,26 @@ class Auth0OAuthAuthenticationServiceTest {
     }
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"lifetime", "aud", "sub", "azp", "org_id", "act"})
+  void it_should_reject_untrusted_source_before_decoding_scopes(String field) {
+    var token = source().withClaim("scope", "mcp:tools:read");
+    switch (field) {
+      case "lifetime" -> token.withExpiresAt(clock.instant().plusSeconds(301));
+      case "aud" -> token.withAudience(RESOURCE, CLOUD);
+      case "sub" -> token.withSubject("backend@clients");
+      case "azp" -> token.withClaim("azp", "");
+      default -> token.withNullClaim(field);
+    }
+    var source = token.sign(algorithm);
+    var decoded = spy(JWT.decode(source));
+    when(verifier.verifyMcp(source)).thenReturn(decoded);
+    doThrow(new JWTDecodeException("malformed scope")).when(decoded).getClaim("scope");
+
+    assertStatus(source, 401);
+    verify(exchange, times(0)).exchange(anyString(), any());
+  }
+
   @Test
   void it_should_log_unexpected_cache_load_failures_without_the_cause_message() {
     var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
