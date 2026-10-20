@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import ch.qos.logback.classic.Level;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.google.gson.Gson;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.LogCapture;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.MutableClock;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
@@ -244,8 +246,11 @@ class Auth0TokenVerifierTest {
   void it_should_not_include_token_contents_in_authentication_errors() {
     var credential = JWT.create().withSubject("private-user-secret").sign(Algorithm.none());
 
-    assertThatThrownBy(() -> verifier.verifyMcp(credential)).isInstanceOf(OAuthAuthenticationException.class)
-      .hasMessage("A valid MCP OAuth access token is required").hasNoCause();
+    try (var logs = new LogCapture()) {
+      assertThatThrownBy(() -> verifier.verifyMcp(credential)).isInstanceOf(OAuthAuthenticationException.class)
+        .hasMessage("A valid MCP OAuth access token is required").hasNoCause();
+      logs.assertLogged(Level.DEBUG, "OAuth JWT verification failed (AlgorithmMismatchException)");
+    }
   }
 
   private void serveKeys(List<Map<String, Object>> keys) {
