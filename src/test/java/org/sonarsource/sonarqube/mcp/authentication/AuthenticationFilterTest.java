@@ -328,7 +328,7 @@ class AuthenticationFilterTest {
     ((HttpServletResponse) dispatchedResponses.getAllValues().getLast()).setStatus(HttpServletResponse.SC_OK);
 
     verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
-    verify(response).setHeader("WWW-Authenticate", OAUTH_METADATA.challenge(Set.of("write:all")) + ", error=\"insufficient_scope\"");
+    verify(response).setHeader("WWW-Authenticate", OAUTH_METADATA.challenge(Set.of("mcp:tools:write")) + ", error=\"insufficient_scope\"");
     verify(response, atLeastOnce()).setHeader("Cache-Control", "no-store");
     verify(secondResponse).setStatus(HttpServletResponse.SC_OK);
     verify(secondResponse, never()).setHeader(eq("WWW-Authenticate"), anyString());
