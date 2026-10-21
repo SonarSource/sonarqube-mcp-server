@@ -71,7 +71,7 @@ public class SearchFilesByCoverageTool extends Tool {
   public Tool.Result execute(Tool.Arguments arguments) {
     var projectKey = arguments.getProjectKeyWithFallback(PROJECT_KEY_PROPERTY, configuredProjectKey);
     var branchPullRequest = BranchPullRequestContext.from(arguments);
-    var maxCoverage = arguments.getOptionalInteger(MAX_COVERAGE_PROPERTY);
+    var maxCoverage = arguments.getOptionalDouble(MAX_COVERAGE_PROPERTY);
     var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
     var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
 
@@ -123,7 +123,7 @@ public class SearchFilesByCoverageTool extends Tool {
   }
 
   private static SearchFilesByCoverageToolResponse buildStructuredContent(String projectKey, ComponentTreeResponse treeResponse, ComponentMeasuresResponse projectMetrics,
-    Integer maxCoverage, int pageIndex, int pageSize) {
+    Double maxCoverage, int pageIndex, int pageSize) {
     // Build project summary from project metrics
     SearchFilesByCoverageToolResponse.ProjectSummary projectSummary = null;
     if (projectMetrics != null && projectMetrics.component() != null && projectMetrics.component().measures() != null) {

@@ -67,7 +67,7 @@ class SearchFilesByCoverageToolTests {
 
       var result = mcpClient.callTool(
         SearchFilesByCoverageTool.TOOL_NAME,
-        Map.of("projectKey", "my_project", "maxCoverage", 150));
+        Map.of("projectKey", "my_project", "maxCoverage", 150.5));
 
       assertThat(result).isEqualTo(McpSchema.CallToolResult.builder()
         .isError(true)
@@ -206,10 +206,17 @@ class SearchFilesByCoverageToolTests {
                 "name": "Bar.java",
                 "qualifier": "FIL",
                 "path": "src/Bar.java",
-                "measures": [{"metric": "coverage", "value": "78.5"}]
+                "measures": [{"metric": "coverage", "value": "80.5"}]
+              },
+              {
+                "key": "my_project:src/Baz.java",
+                "name": "Baz.java",
+                "qualifier": "FIL",
+                "path": "src/Baz.java",
+                "measures": [{"metric": "coverage", "value": "80.6"}]
               }
             ],
-            "paging": {"pageIndex": 1, "pageSize": 100, "total": 2}
+            "paging": {"pageIndex": 1, "pageSize": 100, "total": 3}
           }
           """)));
 
@@ -217,14 +224,36 @@ class SearchFilesByCoverageToolTests {
 
       var result = mcpClient.callTool(
         SearchFilesByCoverageTool.TOOL_NAME,
-        Map.of("projectKey", "my_project", "maxCoverage", 50));
+        Map.of("projectKey", "my_project", "maxCoverage", 80.5));
 
-      // Only Foo.java should be returned (coverage <= 50, which is 45.5%)
       assertThat(result.isError()).isFalse();
       var json = compactJson(result);
-      assertThat(json).contains("\"filesReturned\":1");
+      assertThat(json).contains("\"filesReturned\":2");
       assertThat(json).contains("my_project:src/Foo.java");
-      assertThat(json).doesNotContain("my_project:src/Bar.java");
+      assertThat(json).contains("my_project:src/Bar.java");
+      assertThat(json).doesNotContain("my_project:src/Baz.java");
+    }
+
+    @SonarQubeMcpServerTest
+    void it_should_request_page_two_for_an_integral_decimal_index(SonarQubeMcpServerTestHarness harness) {
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_PATH + "?component=my_project&metricKeys=coverage" +
+        ",lines_to_cover,uncovered_lines&additionalFields=metrics")
+        .willReturn(aResponse().withBody("""
+          {"component":{"key":"my_project","measures":[]}}
+          """)));
+      harness.getMockSonarQubeServer().stubFor(get(MeasuresApi.COMPONENT_TREE_PATH + "?component=my_project&metricKeys=coverage" +
+        ",line_coverage,branch_coverage,lines_to_cover,uncovered_lines,conditions_to_cover,uncovered_conditions&qualifiers" +
+        "=FIL&ps=100&p=2&strategy=all&s=metric&metricSort=coverage&asc=true")
+        .willReturn(aResponse().withBody("""
+          {"components":[],"paging":{"pageIndex":2,"pageSize":100,"total":0}}
+          """)));
+
+      var result = harness.newClient(Map.of("SONARQUBE_ORG", "org")).callTool(
+        SearchFilesByCoverageTool.TOOL_NAME,
+        Map.of("projectKey", "my_project", "pageIndex", 2.0));
+
+      assertThat(result.isError()).isFalse();
+      assertThat(compactJson(result)).contains("\"pageIndex\":2");
     }
   }
 }
