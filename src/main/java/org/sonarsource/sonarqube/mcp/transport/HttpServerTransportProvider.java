@@ -91,34 +91,6 @@ public class HttpServerTransportProvider {
   private final HttpServletStatelessServerTransport mcpTransportProvider;
   private Server httpServer;
 
-  /**
-   * Create HTTP transport provider with custom host binding and authentication.
-   *
-   * @param port HTTP port (e.g., 8080 for HTTP, 8443 for HTTPS)
-   * @param host Host to bind to (127.0.0.1 for localhost, 0.0.0.0 for all interfaces)
-   * @param isSonarQubeCloud Whether this server connects to SonarQube Cloud
-   * @param serverOrg Deprecated fixed Cloud organization for all requests
-   * @param httpsEnabled Whether to enable HTTPS/TLS
-   * @param httpsKeystorePath Path to keystore file (contains server certificate and private key)
-   * @param httpsKeystorePassword Keystore password
-   * @param httpsKeystoreType Keystore type (e.g., PKCS12, JKS)
-   * @param httpsTruststorePath Path to truststore file (optional, contains trusted CA certificates)
-   * @param httpsTruststorePassword Truststore password (optional)
-   * @param httpsTruststoreType Truststore type (optional)
-   * @param allowedOrigins Additional allowed origins beyond localhost defaults (e.g. for reverse-proxy deployments)
-   * @param appVersion The version of the MCP server
-   * @param isRunningInContainer Whether the server is running inside a container (suppresses the 0.0.0.0 security warning)
-   */
-  public HttpServerTransportProvider(int port, String host, boolean isSonarQubeCloud, @Nullable String serverOrg,
-    boolean httpsEnabled, Path httpsKeystorePath, String httpsKeystorePassword, String httpsKeystoreType,
-    Path httpsTruststorePath, String httpsTruststorePassword, String httpsTruststoreType,
-    List<String> allowedOrigins, String appVersion, boolean isRunningInContainer) {
-    this(new HttpTransportSettings(port, host, false, isSonarQubeCloud, serverOrg,
-      new HttpTransportSettings.TlsSettings(httpsEnabled, httpsKeystorePath, httpsKeystorePassword, httpsKeystoreType,
-        httpsTruststorePath, httpsTruststorePassword, httpsTruststoreType),
-      new HttpTransportSettings.RequestSettings(allowedOrigins, appVersion, isRunningInContainer)), null, null);
-  }
-
   public HttpServerTransportProvider(HttpTransportSettings settings, @Nullable OAuthProtectedResourceMetadata oauthMetadata,
     @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
     this.port = settings.port();
@@ -193,14 +165,14 @@ public class HttpServerTransportProvider {
   }
 
   private Map<String, Object> createAuthenticationContext(HttpServletRequest request) {
-    if (!(request.getAttribute(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE) instanceof HttpRequestAuthentication authentication)
-      || (!oauthEnabled && authentication.scopes() != null)) {
+    if (!(request.getAttribute(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE) instanceof HttpRequestAuthentication(var token, var scopes))
+      || (!oauthEnabled && scopes != null)) {
       throw OAuthAuthenticationException.unauthorized();
     }
     var contextBuilder = new HashMap<String, Object>();
-    contextBuilder.put(CONTEXT_TOKEN_KEY, authentication.token());
-    if (authentication.scopes() != null) {
-      contextBuilder.put(OAuthScopeContext.CONTEXT_KEY, authentication.scopes());
+    contextBuilder.put(CONTEXT_TOKEN_KEY, token);
+    if (scopes != null) {
+      contextBuilder.put(OAuthScopeContext.CONTEXT_KEY, scopes);
     }
     return contextBuilder;
   }

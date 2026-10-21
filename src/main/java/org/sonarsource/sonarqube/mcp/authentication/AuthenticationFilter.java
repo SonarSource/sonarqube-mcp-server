@@ -147,7 +147,7 @@ public class AuthenticationFilter implements Filter {
   }
 
   @Nullable
-  private String selectToken(HttpServletRequest request) {
+  private static String selectToken(HttpServletRequest request) {
     var authorization = request.getHeader(AUTHORIZATION_HEADER);
     if (authorization != null) {
       var token = bearerToken(authorization);
