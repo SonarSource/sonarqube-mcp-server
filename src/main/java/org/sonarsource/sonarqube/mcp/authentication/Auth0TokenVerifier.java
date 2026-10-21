@@ -65,17 +65,27 @@ final class Auth0TokenVerifier {
 
   private static DecodedJWT verify(JWTVerifier verifier, @Nullable String token) {
     if (token == null || token.isBlank() || token.length() > 16384) {
+      LOG.warn("OAuth token rejected (invalid_token_input)");
       throw OAuthAuthenticationException.unauthorized();
     }
     try {
-      var verified = verifier.verify(token);
+      DecodedJWT verified;
+      try {
+        verified = verifier.verify(token);
+      } catch (OAuthAuthenticationException e) {
+        if (e.status() == 401) {
+          LOG.warn("OAuth token rejected (signing_key_rejected)");
+        }
+        throw e;
+      }
       if (verified.getExpiresAtAsInstant() == null || verified.getIssuedAtAsInstant() == null
         || verified.getClaim("sub").asString() == null || verified.getClaim("azp").asString() == null) {
+        LOG.warn("OAuth token rejected (invalid_required_claim)");
         throw OAuthAuthenticationException.unauthorized();
       }
       return verified;
     } catch (JWTVerificationException | DateTimeException e) {
-      LOG.debug("OAuth JWT verification failed ({})", e.getClass().getSimpleName());
+      LOG.warn("OAuth JWT verification failed (" + e.getClass().getSimpleName() + ")");
       throw OAuthAuthenticationException.unauthorized();
     }
   }

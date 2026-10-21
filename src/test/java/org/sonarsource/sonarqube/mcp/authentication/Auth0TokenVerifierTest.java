@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.authentication;
 import ch.qos.logback.classic.Level;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -157,7 +158,11 @@ class Auth0TokenVerifierTest {
   @NullAndEmptySource
   @ValueSource(strings = {" ", "not-a-jwt"})
   void it_should_reject_missing_or_malformed_tokens(String value) {
-    assertFailure(() -> verifier.verifyMcp(value), 401);
+    try (var logs = new LogCapture(false)) {
+      assertFailure(() -> verifier.verifyMcp(value), 401);
+      logs.assertLogged(Level.WARN, "not-a-jwt".equals(value)
+        ? "OAuth JWT verification failed (JWTDecodeException)" : "OAuth token rejected (invalid_token_input)");
+    }
     assertFailure(() -> verifier.verifyCloud(value), 502);
     verifyNoInteractions(client);
   }
@@ -178,7 +183,11 @@ class Auth0TokenVerifierTest {
 
   @Test
   void it_should_reject_oversized_tokens_before_fetching_a_key() {
-    assertFailure(() -> verifier.verifyMcp("x".repeat(16385)), 401);
+    var oversized = "private-token-data".repeat(1000);
+    try (var logs = new LogCapture(false)) {
+      assertFailure(() -> verifier.verifyMcp(oversized), 401);
+      logs.assertLogged(Level.WARN, "OAuth token rejected (invalid_token_input)");
+    }
     verifyNoInteractions(client);
   }
 
@@ -186,14 +195,57 @@ class Auth0TokenVerifierTest {
   @NullAndEmptySource
   @ValueSource(strings = {" "})
   void it_should_reject_missing_or_blank_key_ids(String keyId) {
-    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withKeyId(keyId))), 401);
+    var credential = sign(token(CONFIGURATION.resource()).withKeyId(keyId));
+    try (var logs = new LogCapture(false)) {
+      assertFailure(() -> verifier.verifyMcp(credential), 401);
+      logs.assertLogged(Level.WARN, "OAuth token rejected (signing_key_rejected)");
+    }
     verifyNoInteractions(client);
   }
 
   @Test
   void it_should_reject_oversized_key_ids_before_fetching_a_key() {
-    assertFailure(() -> verifier.verifyMcp(sign(token(CONFIGURATION.resource()).withKeyId("k".repeat(257)))), 401);
+    var credential = sign(token(CONFIGURATION.resource()).withKeyId("private-key-data".repeat(20)));
+    try (var logs = new LogCapture(false)) {
+      assertFailure(() -> verifier.verifyMcp(credential), 401);
+      logs.assertLogged(Level.WARN, "OAuth token rejected (signing_key_rejected)");
+    }
     verifyNoInteractions(client);
+  }
+
+  @Test
+  void it_should_log_unknown_signing_key_rejections_without_key_contents() {
+    var credential = sign(token(CONFIGURATION.resource()).withKeyId("private-unknown-key"));
+
+    try (var logs = new LogCapture(false)) {
+      assertFailure(() -> verifier.verifyMcp(credential), 401);
+      logs.assertLogged(Level.WARN, "OAuth token rejected (signing_key_rejected)");
+    }
+  }
+
+  @Test
+  void it_should_preserve_signing_key_rejections() {
+    var provider = mock(RSAKeyProvider.class);
+    var rejection = OAuthAuthenticationException.unauthorized();
+    when(provider.getPublicKeyById("key")).thenThrow(rejection);
+    var tokenVerifier = new Auth0TokenVerifier(CONFIGURATION, provider, clock);
+    var credential = sign(token(CONFIGURATION.resource()));
+
+    try (var logs = new LogCapture(false)) {
+      assertThatThrownBy(() -> tokenVerifier.verifyMcp(credential)).isSameAs(rejection);
+      logs.assertLogged(Level.WARN, "OAuth token rejected (signing_key_rejected)");
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"exp", "iat", "sub", "azp"})
+  void it_should_log_invalid_required_claims_without_claim_contents(String claim) {
+    var credential = sign(token(CONFIGURATION.resource()).withSubject("private-user-data").withNullClaim(claim));
+
+    try (var logs = new LogCapture(false)) {
+      assertFailure(() -> verifier.verifyMcp(credential), 401);
+      logs.assertLogged(Level.WARN, "OAuth token rejected (invalid_required_claim)");
+    }
   }
 
   @Test
@@ -246,10 +298,10 @@ class Auth0TokenVerifierTest {
   void it_should_not_include_token_contents_in_authentication_errors() {
     var credential = JWT.create().withSubject("private-user-secret").sign(Algorithm.none());
 
-    try (var logs = new LogCapture()) {
+    try (var logs = new LogCapture(false)) {
       assertThatThrownBy(() -> verifier.verifyMcp(credential)).isInstanceOf(OAuthAuthenticationException.class)
         .hasMessage("A valid MCP OAuth access token is required").hasNoCause();
-      logs.assertLogged(Level.DEBUG, "OAuth JWT verification failed (AlgorithmMismatchException)");
+      logs.assertLogged(Level.WARN, "OAuth JWT verification failed (AlgorithmMismatchException)");
     }
   }
 
