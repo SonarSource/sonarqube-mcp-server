@@ -45,6 +45,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.LogCapture;
@@ -101,7 +102,7 @@ class Auth0OAuthAuthenticationServiceTest {
     when(client.getAsyncAnonymousWithoutRedirects(ISSUER + ".well-known/jwks.json"))
       .thenReturn(CompletableFuture.completedFuture(response));
     var authentication = new Auth0OAuthAuthenticationService(configuration, client);
-    var source = source().withSubject("invalid-source").withIssuedAt(Instant.now().minusSeconds(1))
+    var source = source().withSubject(" ").withIssuedAt(Instant.now().minusSeconds(1))
       .withExpiresAt(Instant.now().plusSeconds(299)).sign(algorithm);
 
     assertThatThrownBy(() -> authentication.authenticate(source))
@@ -140,7 +141,10 @@ class Auth0OAuthAuthenticationServiceTest {
   @ParameterizedTest
   @ValueSource(strings = {"", " ", "read:all", "write:all", "read:all write:all", "offline_access", "openid offline_access", "other:permission"})
   void it_should_reject_source_without_recognized_delegation_scopes_before_exchange(String scope) {
-    assertStatus(source().withClaim("scope", scope).sign(algorithm), 403);
+    try (var logs = new LogCapture(false)) {
+      assertStatus(source().withClaim("scope", scope).sign(algorithm), 403);
+      logs.assertLogged(Level.WARN, "OAuth source token rejected (missing_mcp_scope)");
+    }
     verify(exchange, times(0)).exchange(anyString(), any());
   }
 
@@ -169,21 +173,24 @@ class Auth0OAuthAuthenticationServiceTest {
     when(verifier.verifyMcp(source)).thenReturn(decoded);
     doThrow(new JWTDecodeException("private-scope-data")).when(decoded).getClaim("scope");
 
-    try (var logs = new LogCapture()) {
+    try (var logs = new LogCapture(false)) {
       assertStatus(source, 403);
-      logs.assertLogged(Level.DEBUG, "OAuth source scope decoding failed (JWTDecodeException)");
+      logs.assertLogged(Level.WARN, "OAuth source scope decoding failed (JWTDecodeException)");
     }
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"lifetime", "aud", "sub", "azp", "org_id", "act"})
-  void it_should_reject_untrusted_source_before_decoding_scopes(String field) {
+  @CsvSource({"lifetime,invalid_lifetime", "aud,unexpected_cloud_audience", "sub,missing_subject", "azp,missing_authorized_party",
+    "org_id,organization_binding", "bound_org,organization_binding", "act,unexpected_actor", "existing_actor,unexpected_actor"})
+  void it_should_reject_untrusted_source_before_decoding_scopes(String field, String reason) {
     var token = source().withClaim("scope", "mcp:tools:read");
     switch (field) {
       case "lifetime" -> token.withExpiresAt(clock.instant().plusSeconds(301));
       case "aud" -> token.withAudience(RESOURCE, CLOUD);
-      case "sub" -> token.withSubject("backend@clients");
+      case "sub" -> token.withSubject(" ");
       case "azp" -> token.withClaim("azp", "");
+      case "bound_org" -> token.withClaim("org_id", "private-organization-data");
+      case "existing_actor" -> token.withClaim("act", Map.of("sub", "private-actor-data"));
       default -> token.withNullClaim(field);
     }
     var source = token.sign(algorithm);
@@ -191,7 +198,10 @@ class Auth0OAuthAuthenticationServiceTest {
     when(verifier.verifyMcp(source)).thenReturn(decoded);
     doThrow(new JWTDecodeException("malformed scope")).when(decoded).getClaim("scope");
 
-    assertStatus(source, 401);
+    try (var logs = new LogCapture(false)) {
+      assertStatus(source, 401);
+      logs.assertLogged(Level.WARN, "OAuth source token rejected (" + reason + ")");
+    }
     verify(exchange, times(0)).exchange(anyString(), any());
   }
 
@@ -230,7 +240,6 @@ class Auth0OAuthAuthenticationServiceTest {
 
   static Stream<Arguments> invalidSources() {
     return Stream.of(Arguments.of("iss", "https://other-tenant.auth0.com/"), Arguments.of("aud", CLOUD),
-      Arguments.of("sub", "backend@clients"), Arguments.of("sub", "samlp|connection|id"),
       Arguments.of("azp", ""), Arguments.of("org_id", "org_sso"));
   }
 
@@ -275,12 +284,15 @@ class Auth0OAuthAuthenticationServiceTest {
       Arguments.of("aud", RESOURCE), Arguments.of("iss", "https://other-tenant.auth0.com/"), Arguments.of("org_id", "org_sso"));
   }
 
-  @Test
-  void it_should_reuse_only_the_same_authorization_and_reverify_every_request() {
-    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
-    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+  @ParameterizedTest
+  @ValueSource(strings = {USER, "samlp|enterprise-connection|user-id", "opaque-enterprise-user"})
+  void it_should_exchange_matching_subjects_reuse_authorization_and_reverify_every_request(String subject) {
+    var source = source().withSubject(subject).withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withSubject(subject).withClaim("scope", "read:all").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
-    service.authenticate(source);
+    var authentication = service.authenticate(source);
+    assertThat(authentication.cloudToken()).isEqualTo(cloud);
+    assertThat(authentication.scopes()).containsExactly("read:all");
     service.authenticate(source);
     verify(exchange).exchange(source, Set.of("read:all"));
     verify(verifier, times(2)).verifyMcp(source);
@@ -293,6 +305,16 @@ class Auth0OAuthAuthenticationServiceTest {
     clock.advance(Duration.ofSeconds(1));
     service.authenticate(source);
     verify(exchange, times(2)).exchange(source, Set.of("read:all"));
+  }
+
+  @Test
+  void it_should_reject_mismatched_enterprise_subjects() {
+    var source = source().withSubject("samlp|enterprise-connection|first-user").withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withSubject("samlp|enterprise-connection|second-user").withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+
+    assertStatus(source, 502);
+    verify(exchange).exchange(source, Set.of("read:all"));
   }
 
   @Test

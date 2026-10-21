@@ -22,12 +22,12 @@ import java.util.List;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 
-public record HttpTransportSettings(int port, String host, AuthMode authMode, boolean isSonarQubeCloud, @Nullable String serverOrg,
+public record HttpTransportSettings(int port, String host, AuthMode authMode, boolean oauthEnabled, boolean isSonarQubeCloud, @Nullable String serverOrg,
   TlsSettings tls, RequestSettings requests) {
 
   public static HttpTransportSettings from(McpServerLaunchConfiguration configuration) {
     return new HttpTransportSettings(configuration.getHttpPort(), configuration.getHttpHost(), configuration.getAuthMode(),
-      configuration.isSonarQubeCloud(), configuration.getSonarqubeOrg(),
+      configuration.getOAuthConfiguration() != null, configuration.isSonarQubeCloud(), configuration.getSonarqubeOrg(),
       new TlsSettings(configuration.isHttpsEnabled(), configuration.getHttpsKeystorePath(), configuration.getHttpsKeystorePassword(),
         configuration.getHttpsKeystoreType(), configuration.getHttpsTruststorePath(), configuration.getHttpsTruststorePassword(), configuration.getHttpsTruststoreType()),
       new RequestSettings(configuration.getHttpAllowedOrigins(), configuration.getAppVersion(), configuration.isRunningInContainer()));
