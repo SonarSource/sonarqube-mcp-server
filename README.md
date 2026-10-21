@@ -829,7 +829,7 @@ OAuth support targets Sonar's hosted SonarQube Cloud MCP service. Use an OAuth-c
 
 The `mcp:tools:read` and `mcp:tools:write` scopes independently control access to read and write tools, subject to your Cloud permissions. Use `list_organizations` and tool `organization` arguments to select an organization.
 
-Self-hosted deployments continue to use SonarQube tokens; OAuth for SonarQube Server is not supported yet. Sonar deployment configuration and implementation details are in the [HTTP authentication architecture](docs/http-authentication-architecture.md#discovery-and-trust-configuration).
+Self-hosted deployments continue to use SonarQube tokens; OAuth for SonarQube Server is not supported yet.
 
 #### Service Endpoints
 
