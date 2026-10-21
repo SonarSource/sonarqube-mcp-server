@@ -29,6 +29,9 @@ import java.util.Set;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.WRITE;
+
 public abstract class Tool {
   private final McpSchema.Tool definition;
   private final Set<ToolCategory> categories;
@@ -53,6 +56,11 @@ public abstract class Tool {
    */
   public boolean isEnabledFor(McpTransportContext ctx) {
     return true;
+  }
+
+  /** Override when the complete workflow requires access beyond the annotation's default. */
+  public ToolAccessMode requiredAccessMode() {
+    return definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint()) ? READ : WRITE;
   }
 
   public abstract Result execute(Arguments arguments);
