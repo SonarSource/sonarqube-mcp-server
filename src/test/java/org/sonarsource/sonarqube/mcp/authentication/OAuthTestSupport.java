@@ -101,6 +101,10 @@ final class OAuthTestSupport {
       System.setProperty(DEBUG_PROPERTY, Boolean.toString(debugEnabled));
     }
 
+    void assertEmpty() {
+      assertThat(appender.list).isEmpty();
+    }
+
     void assertLogged(Level level, String message) {
       assertThat(appender.list).singleElement().satisfies(event -> {
         assertThat(event.getLevel()).isEqualTo(level);
