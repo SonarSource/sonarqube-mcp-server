@@ -60,9 +60,11 @@ import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetada
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import reactor.core.publisher.Mono;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool.TOOL_NAME;
 
 class OAuthScopeHttpTest {
   private final AtomicInteger executions = new AtomicInteger();
@@ -75,7 +77,7 @@ class OAuthScopeHttpTest {
 
   @BeforeEach
   void start() throws Exception {
-    var tools = List.of(tool("read_tool", true, false), tool("write_tool", false, false), tool("both_tool", false, true));
+    var tools = List.of(tool("read_tool", true), tool("write_tool", false), assessmentTool());
     var transport = HttpServletStatelessServerTransport.builder().messageEndpoint("/mcp").jsonMapper(McpJsonMappers.DEFAULT)
       .contextExtractor(request -> (McpTransportContext) request.getAttribute("test-context")).build();
     var filtering = new McpStatelessServerTransport() {
@@ -140,9 +142,10 @@ class OAuthScopeHttpTest {
     assertThat(listed.body()).doesNotContain("requiredOAuthScopes", "oauth-scopes");
     assertThat(entitlementChecks.get()).isEqualTo(visible.size());
 
-    for (var name : List.of("read_tool", "write_tool", "both_tool")) {
+    for (var name : List.of("read_tool", "write_tool", TOOL_NAME)) {
       entitlementChecks.set(0);
-      var response = send(grant, "tools/call", Map.of("name", name, "arguments", Map.of()), Map.of());
+      var arguments = TOOL_NAME.equals(name) ? Map.of("projectKey", "project") : Map.of();
+      var response = send(grant, "tools/call", Map.of("name", name, "arguments", arguments), Map.of());
       if (visible.contains(name)) {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.headers().firstValue("WWW-Authenticate")).isEmpty();
@@ -167,7 +170,7 @@ class OAuthScopeHttpTest {
 
   static Stream<Arguments> scopeCases() {
     return Stream.of(Arguments.of("read", Set.of("read_tool")), Arguments.of("write", Set.of("write_tool")),
-      Arguments.of("both", Set.of("read_tool", "write_tool", "both_tool")), Arguments.of("none", Set.of()));
+      Arguments.of("both", Set.of("read_tool", "write_tool", TOOL_NAME)), Arguments.of("none", Set.of()));
   }
 
   @Test
@@ -188,7 +191,7 @@ class OAuthScopeHttpTest {
   @Test
   void it_should_apply_read_only_preference_independently_of_oauth_grants() throws Exception {
     var readOnly = send("both", "tools/list", Map.of(), Map.of("SONARQUBE_READ_ONLY", "true"));
-    assertThat(readOnly.body()).contains("read_tool").doesNotContain("write_tool", "both_tool");
+    assertThat(readOnly.body()).contains("read_tool").doesNotContain("write_tool", TOOL_NAME);
 
     var denial = send("read", "tools/call", Map.of("name", "write_tool", "arguments", Map.of()), Map.of("SONARQUBE_READ_ONLY", "false"));
     assertThat(denial.statusCode()).isEqualTo(403);
@@ -244,17 +247,30 @@ class OAuthScopeHttpTest {
     assertThat(allowed.headers().firstValue("WWW-Authenticate")).isEmpty();
   }
 
-  private Tool tool(String name, boolean readOnly, boolean requiresBothScopes) {
+  private Tool tool(String name, boolean readOnly) {
     var definition = ToolDefinitionBuilder.builder().setName(name).setDescription(name);
     if (readOnly) {
       definition.setReadOnlyHint();
     }
     return new Tool(definition.build(), ToolCategory.ISSUES) {
       @Override
-      public Set<String> requiredOAuthScopes() {
-        return requiresBothScopes ? Set.of("read:all", "write:all") : super.requiredOAuthScopes();
+      public boolean isEnabledFor(McpTransportContext context) {
+        entitlementChecks.incrementAndGet();
+        return true;
       }
 
+      @Override
+      public Result execute(Arguments arguments) {
+        executions.incrementAndGet();
+        return new Result(McpSchema.CallToolResult.builder().addTextContent("executed").isError(false).build());
+      }
+    };
+  }
+
+  private Tool assessmentTool() {
+    return new StartAgenticReadinessAssessmentTool(() -> {
+      throw new AssertionError("The scope tests must not contact Cloud APIs");
+    }, null) {
       @Override
       public boolean isEnabledFor(McpTransportContext context) {
         entitlementChecks.incrementAndGet();

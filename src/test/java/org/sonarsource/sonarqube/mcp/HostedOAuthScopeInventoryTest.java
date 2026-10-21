@@ -58,9 +58,10 @@ class HostedOAuthScopeInventoryTest {
         "search_dependency_risks", "get_agentic_readiness_assessment", "list_agentic_readiness_assessments")) {
         expected.put(name, Set.of("read:all"));
       }
-      for (var name : List.of("change_sonar_issue_status", "change_security_hotspot_status", "create_webhook", "start_agentic_readiness_assessment")) {
+      for (var name : List.of("change_sonar_issue_status", "change_security_hotspot_status", "create_webhook")) {
         expected.put(name, Set.of("write:all"));
       }
+      expected.put("start_agentic_readiness_assessment", Set.of("read:all", "write:all"));
 
       var actual = server.getSupportedTools().stream().collect(Collectors.toMap(tool -> tool.definition().name(), Tool::requiredOAuthScopes));
       assertThat(actual).containsExactlyInAnyOrderEntriesOf(expected);
