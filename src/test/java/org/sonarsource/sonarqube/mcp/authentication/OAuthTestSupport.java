@@ -91,10 +91,18 @@ final class OAuthTestSupport {
     private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
 
     LogCapture() {
+      this(true);
+    }
+
+    LogCapture(boolean debugEnabled) {
       appender.start();
       logger.addAppender(appender);
-      logger.setLevel(Level.DEBUG);
-      System.setProperty(DEBUG_PROPERTY, "true");
+      logger.setLevel(debugEnabled ? Level.DEBUG : Level.INFO);
+      System.setProperty(DEBUG_PROPERTY, Boolean.toString(debugEnabled));
+    }
+
+    void assertEmpty() {
+      assertThat(appender.list).isEmpty();
     }
 
     void assertLogged(Level level, String message) {
