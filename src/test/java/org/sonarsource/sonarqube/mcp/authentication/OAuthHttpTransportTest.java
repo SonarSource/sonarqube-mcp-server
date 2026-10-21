@@ -412,12 +412,12 @@ class OAuthHttpTransportTest {
   @Test
   void it_should_keep_legacy_and_bearer_tokens_working_when_auth0_is_unavailable() throws Exception {
     startWithRealAuthentication();
-    var oauth = grant("123", "outage", "mcp:tools:read", "read:all", "read:all");
+    var oauthGrant = grant("123", "outage", "mcp:tools:read", "read:all", "read:all");
     var legacy = new Grant("squ_existing", "squ_existing");
     stubOrganization(legacy, "existing-org");
     auth0.stubFor(post("/oauth/token").atPriority(1).willReturn(aResponse().withStatus(503)));
 
-    assertThat(send(call(oauth, "list_organizations", Map.of())).statusCode()).isEqualTo(503);
+    assertThat(send(call(oauthGrant, "list_organizations", Map.of())).statusCode()).isEqualTo(503);
     assertSuccess(send(call(legacy, "list_organizations", Map.of())), "existing-org");
     assertSuccess(send(request(null, "tools/call", Map.of("name", "list_organizations", "arguments", Map.of()))
       .header("SONARQUBE_TOKEN", legacy.source()).build()), "existing-org");

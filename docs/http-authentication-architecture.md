@@ -186,7 +186,7 @@ Opaque token requests retain their existing validation path and continue to work
 
 #### OAuth requests
 
-Auth0 handles user sign-in and authorization with Proof Key for Code Exchange (PKCE). The MCP server acts as the protected resource and exchanges tokens on the user's behalf (OBO). See the [README configuration](../README.md#hosted-sonarqube-cloud-oauth) for the environment variables. Subject identifiers are not restricted to a login provider; Auth0 organization-bound tokens remain unsupported.
+Auth0 handles user sign-in and authorization with Proof Key for Code Exchange (PKCE). The MCP server acts as the protected resource and exchanges tokens on the user's behalf (OBO). See [Discovery and trust configuration](#discovery-and-trust-configuration) for the Sonar deployment settings. Subject identifiers are not restricted to a login provider; Auth0 organization-bound tokens remain unsupported.
 
 1. A request without credentials receives HTTP 401 and a `WWW-Authenticate` challenge pointing to protected-resource metadata. The document identifies the exact MCP resource, trusted Auth0 issuer, and supported `mcp:tools:read` and `mcp:tools:write` scopes.
 2. The client obtains an MCP access token (**Token A**) from Auth0 and sends it as `Authorization: Bearer <token>` on every MCP request.
@@ -199,6 +199,23 @@ Auth0 handles user sign-in and authorization with Proof Key for Code Exchange (P
 OAuth rejects the `SONARQUBE_ORG` header. Organization-aware tools use `organization` arguments, and `list_organizations` provides discovery with `mcp:tools:read`, exchanged for `read:all` on B. No organization is stored between requests. SonarQube token requests retain its optional fixed-organization header.
 
 ##### Discovery and trust configuration
+
+These server environment variables configure Sonar's hosted Cloud deployment; they are not client settings. Supplying any supported `SONARQUBE_OAUTH_*` setting requires complete configuration. Partial or effectively blank settings fail startup. Supply credentials through deployment secret management; never commit them or place them in client configuration.
+
+| Environment variable | Description | Default |
+|----------------------|-------------|---------|
+| `SONARQUBE_URL` | Explicit HTTPS SonarQube Cloud URL for the deployment. | Required for OAuth |
+| `SONARQUBE_CLOUD_API_URL` | Explicit Cloud API root; must match the Cloud audience below, allowing an omitted trailing slash here. | Required for OAuth |
+| `SONARQUBE_OAUTH_ISSUER` | Trusted Auth0 issuer, with path `/` and a trailing slash. | Required |
+| `SONARQUBE_OAUTH_RESOURCE` | Public MCP resource and Token A audience, with path `/mcp`. | Required |
+| `SONARQUBE_OAUTH_CLOUD_AUDIENCE` | Cloud API audience for Token B, with path `/` and a trailing slash. Must share the resource's scheme, host, and port. | Required |
+| `SONARQUBE_OAUTH_CLIENT_ID` | Auth0 backend application's client ID for token exchange. | Required |
+| `SONARQUBE_OAUTH_CLIENT_SECRET` | Auth0 backend application's client secret. Credential diagnostics are redacted. | Required |
+| `SONARQUBE_OAUTH_METADATA_URL` | External HTTPS protected-resource metadata document. When set, the local metadata endpoint is not registered. | Local metadata |
+| `SONARQUBE_OAUTH_CACHE_TTL_SECONDS` | Maximum exchange reuse, from `0` to `60` seconds. `0` disables reuse; token expiry can shorten it. | `60` |
+| `SONARQUBE_OAUTH_CACHE_SIZE` | Maximum cached exchanges, from `1` to `5000`. | `256` |
+
+For non-standard Cloud hostnames, also set `SONARQUBE_IS_CLOUD=true`. Do not configure a server-level `SONARQUBE_ORG`. This configuration does not enable dynamic client registration (DCR).
 
 OAuth requires explicit HTTPS SonarQube Cloud and API URLs. The configured Cloud audience must match the API root. The MCP resource uses path `/mcp` on that same API origin; the Cloud audience and Auth0 issuer use path `/`. Trust URLs cannot contain credentials, query parameters, or fragments. Exchange client credentials are explicit and redacted from configuration diagnostics.
 

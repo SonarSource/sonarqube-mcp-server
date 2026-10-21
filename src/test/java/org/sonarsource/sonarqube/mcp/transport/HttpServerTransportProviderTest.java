@@ -41,6 +41,8 @@ import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.authentication.HttpRequestAuthentication;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthAuthenticationException;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings.RequestSettings;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings.TlsSettings;
 
 class HttpServerTransportProviderTest {
 
@@ -64,8 +66,9 @@ class HttpServerTransportProviderTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void should_warn_once_only_when_legacy_cloud_organization_is_configured(boolean configured) {
-    new HttpServerTransportProvider(8080, "127.0.0.1", true, configured ? "my-org" : null, true,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+    new HttpServerTransportProvider(new HttpTransportSettings(8080, "127.0.0.1", false, true, configured ? "my-org" : null,
+      new TlsSettings(true, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new RequestSettings(List.of(), "1.0.0", true)), null, null);
 
     var warnings = logAppender.list.stream().filter(event -> event.getLevel() == Level.WARN)
       .map(ILoggingEvent::getFormattedMessage).filter(message -> message.contains("SONARQUBE_ORG")).toList();
@@ -78,8 +81,9 @@ class HttpServerTransportProviderTest {
 
   @Test
   void should_not_warn_about_all_interfaces_when_running_in_container() {
-    new HttpServerTransportProvider(8080, "0.0.0.0", false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+    new HttpServerTransportProvider(new HttpTransportSettings(8080, "0.0.0.0", false, false, null,
+      new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new RequestSettings(List.of(), "1.0.0", true)), null, null);
 
     assertThat(logAppender.list)
       .filteredOn(event -> event.getLevel() == Level.WARN)
@@ -89,8 +93,9 @@ class HttpServerTransportProviderTest {
 
   @Test
   void should_warn_about_all_interfaces_when_not_running_in_container() {
-    new HttpServerTransportProvider(8080, "0.0.0.0", false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
+    new HttpServerTransportProvider(new HttpTransportSettings(8080, "0.0.0.0", false, false, null,
+      new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new RequestSettings(List.of(), "1.0.0", false)), null, null);
 
     assertThat(logAppender.list)
       .filteredOn(event -> event.getLevel() == Level.WARN)
@@ -127,8 +132,9 @@ class HttpServerTransportProviderTest {
   }
 
   private static HttpServerTransportProvider provider() {
-    return new HttpServerTransportProvider(8080, "127.0.0.1", true, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+    return new HttpServerTransportProvider(new HttpTransportSettings(8080, "127.0.0.1", false, true, null,
+      new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new RequestSettings(List.of(), "1.0.0", true)), null, null);
   }
 
 }

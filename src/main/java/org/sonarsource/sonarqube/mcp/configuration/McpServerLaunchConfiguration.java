@@ -38,8 +38,10 @@ import static org.apache.commons.lang3.StringUtils.stripEnd;
 
 public final class McpServerLaunchConfiguration {
 
+  private static final String SONARQUBE_OAUTH_RESOURCE = "SONARQUBE_OAUTH_RESOURCE";
+  private static final String SONARQUBE_OAUTH_ISSUER = "SONARQUBE_OAUTH_ISSUER";
   private static final List<String> OAUTH_SETTINGS = List.of(
-    "SONARQUBE_OAUTH_ISSUER", "SONARQUBE_OAUTH_RESOURCE", "SONARQUBE_OAUTH_CLOUD_AUDIENCE", "SONARQUBE_OAUTH_CLIENT_ID",
+    SONARQUBE_OAUTH_ISSUER, SONARQUBE_OAUTH_RESOURCE, "SONARQUBE_OAUTH_CLOUD_AUDIENCE", "SONARQUBE_OAUTH_CLIENT_ID",
     "SONARQUBE_OAUTH_CLIENT_SECRET", "SONARQUBE_OAUTH_METADATA_URL", "SONARQUBE_OAUTH_CACHE_TTL_SECONDS", "SONARQUBE_OAUTH_CACHE_SIZE");
 
   private static final String APP_NAME = "SonarQube MCP Server";
@@ -216,12 +218,12 @@ public final class McpServerLaunchConfiguration {
       throw new IllegalArgumentException("OAuth is supported only for SonarQube Cloud");
     }
     this.oauthMetadata = oauthEnabled ? new OAuthProtectedResourceMetadata(
-      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_RESOURCE", null),
-      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_ISSUER", null),
+      getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_OAUTH_RESOURCE, null),
+      getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_OAUTH_ISSUER, null),
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_METADATA_URL", null)) : null;
     this.oauthConfiguration = oauthEnabled ? new OAuthConfiguration(
-      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_ISSUER", null),
-      getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_RESOURCE", null),
+      getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_OAUTH_ISSUER, null),
+      getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_OAUTH_RESOURCE, null),
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CLOUD_AUDIENCE", null),
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CLIENT_ID", null),
       getValueViaEnvOrPropertyOrDefault(environment, "SONARQUBE_OAUTH_CLIENT_SECRET", null),

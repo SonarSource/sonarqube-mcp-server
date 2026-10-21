@@ -29,6 +29,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.harness.SslTestUtils;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings.RequestSettings;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings.TlsSettings;
 
 class HttpsServerTransportIntegrationTest {
 
@@ -46,22 +48,9 @@ class HttpsServerTransportIntegrationTest {
     var testKeystorePath = Paths.get(keystoreResource.toURI());
     testPort = findAvailablePort();
     
-    httpsServer = new HttpServerTransportProvider(
-      testPort,
-      "127.0.0.1",
-      false,
-      null,
-      true,
-      testKeystorePath,
-      "test123",
-      "PKCS12",
-      Path.of(""),
-      "",
-      "",
-      List.of(),
-      "1.0.0",
-      false
-    );
+    httpsServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, false, null,
+      new TlsSettings(true, testKeystorePath, "test123", "PKCS12", Path.of(""), "", ""),
+      new RequestSettings(List.of(), "1.0.0", false)), null, null);
   }
 
   @AfterEach
@@ -128,22 +117,9 @@ class HttpsServerTransportIntegrationTest {
   void should_start_with_non_existent_keystore() throws Exception {
     // Create server with non-existent keystore path
     var nonExistentKeystore = Paths.get("/tmp/non-existent-keystore.p12");
-    var serverWithMissingKeystore = new HttpServerTransportProvider(
-      findAvailablePort(),
-      "127.0.0.1",
-      false,
-      null,
-      true,
-      nonExistentKeystore,
-      "test123",
-      "PKCS12",
-      Path.of(""),
-      "",
-      "",
-      List.of(),
-      "1.0.0",
-      false
-    );
+    var serverWithMissingKeystore = new HttpServerTransportProvider(new HttpTransportSettings(findAvailablePort(), "127.0.0.1", false, false, null,
+      new TlsSettings(true, nonExistentKeystore, "test123", "PKCS12", Path.of(""), "", ""),
+      new RequestSettings(List.of(), "1.0.0", false)), null, null);
 
     try {
       // Should start without crashing

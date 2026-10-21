@@ -728,7 +728,8 @@ Unencrypted Streamable HTTP transport. Use HTTPS instead for multi-user deployme
 | `SONARQUBE_HTTP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed for CORS (e.g. `https://my-app.example.com`) | Not set |
 | `SONARQUBE_MCP_IN_CONTAINER` | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false` |
 
-**Note:** HTTP/HTTPS accepts the user's SonarQube token through `Authorization: Bearer <token>`. Without OAuth configuration, existing token authentication behaves as before. With complete [OAuth configuration](#hosted-sonarqube-cloud-oauth), the same endpoint also accepts OAuth clients automatically. For SonarQube Cloud, the organization is resolved as follows:
+**Note:** HTTP/HTTPS accepts the user's SonarQube token through `Authorization: Bearer <token>`. Sonar's hosted Cloud service also supports [OAuth](#hosted-sonarqube-cloud-oauth). For SonarQube Cloud token requests, the organization is resolved as follows:
+
 - `SONARQUBE_ORG` is an optional request header that fixes the organization for that request. Deprecated server-level configuration fixes it for all requests and rejects client organization headers and tool organization arguments.
 - Organization-aware tools accept an optional `organization` argument when neither server configuration nor the request header fixes the organization. Supplying the argument when the organization is fixed is rejected.
 - Without a default, agents can call `list_organizations` using only their token, then pass the chosen key to subsequent tools.
@@ -736,7 +737,7 @@ Unencrypted Streamable HTTP transport. Use HTTPS instead for multi-user deployme
 Clients can also narrow the visible tools per-request by supplying `SONARQUBE_TOOLSETS` and/or `SONARQUBE_READ_ONLY` headers; these apply additional filtering on top of the server-level configuration — they can only reduce the scope, never expand it.
 No session state is maintained between requests.
 
-> **Deprecated:** For SonarQube tokens, the `SONARQUBE_TOKEN` request header is still accepted for backward compatibility but will be removed in a future version. Migrate to `Authorization: Bearer <token>`. Hosted Cloud deployments can opt into [OAuth](#hosted-sonarqube-cloud-oauth).
+> **Deprecated:** For SonarQube tokens, the `SONARQUBE_TOKEN` request header is still accepted for backward compatibility but will be removed in a future version. Migrate to `Authorization: Bearer <token>`.
 
 #### 3. **HTTPS (Streamable HTTP over TLS)** (Recommended for Multi-User Production Deployments)
 Secure Streamable HTTP transport with TLS encryption. Requires SSL certificates.
@@ -824,34 +825,11 @@ For SonarQube token requests, optionally set `SONARQUBE_ORG` in client headers t
 
 #### Hosted SonarQube Cloud OAuth
 
-HTTP/HTTPS accepts both SonarQube tokens and OAuth when OAuth is fully configured for SonarQube Cloud. Existing Bearer and `SONARQUBE_TOKEN` clients keep working. Without OAuth settings, existing token authentication is preserved. SonarQube Server supports header tokens only; OAuth configuration targeting Server is rejected at startup. Stdio uses its existing token configuration. The public MCP endpoint must use HTTPS, including when a trusted reverse proxy terminates TLS in front of the HTTP transport.
+OAuth support targets Sonar's hosted SonarQube Cloud MCP service. Use an OAuth-capable MCP client and sign in when prompted; no OAuth server settings are needed in your client configuration. Existing SonarQube token clients remain supported.
 
-Configure the following server environment variables to enable OAuth alongside tokens. Supplying any supported `SONARQUBE_OAUTH_*` setting requires complete configuration; partial or effectively blank settings fail startup. Supply credentials through deployment secret management; never commit them or place them in client configuration.
+The `mcp:tools:read` and `mcp:tools:write` scopes independently control access to read and write tools, subject to your Cloud permissions. Use `list_organizations` and tool `organization` arguments to select an organization.
 
-| Environment variable | Description | Default |
-|----------------------|-------------|---------|
-| `SONARQUBE_URL` | Explicit HTTPS SonarQube Cloud URL for the deployment. | Required for OAuth |
-| `SONARQUBE_CLOUD_API_URL` | Explicit Cloud API root; must match the Cloud audience below, allowing an omitted trailing slash here. | Required for OAuth |
-| `SONARQUBE_OAUTH_ISSUER` | Trusted Auth0 issuer, with path `/` and a trailing slash. | Required |
-| `SONARQUBE_OAUTH_RESOURCE` | Public MCP resource and Token A audience, with path `/mcp`. | Required |
-| `SONARQUBE_OAUTH_CLOUD_AUDIENCE` | Cloud API audience for Token B, with path `/` and a trailing slash. Must share the resource's scheme, host, and port. | Required |
-| `SONARQUBE_OAUTH_CLIENT_ID` | Auth0 backend application's client ID for token exchange. | Required |
-| `SONARQUBE_OAUTH_CLIENT_SECRET` | Auth0 backend application's client secret. Credential diagnostics are redacted. | Required |
-| `SONARQUBE_OAUTH_METADATA_URL` | External HTTPS protected-resource metadata document. When set, the local metadata endpoint is not registered. | Local metadata |
-| `SONARQUBE_OAUTH_CACHE_TTL_SECONDS` | Maximum exchange reuse, from `0` to `60` seconds. `0` disables reuse; token expiry can shorten it. | `60` |
-| `SONARQUBE_OAUTH_CACHE_SIZE` | Maximum cached exchanges, from `1` to `5000`. | `256` |
-
-All OAuth trust URLs must use HTTPS and contain no credentials, query, or fragment. For non-standard Cloud hostnames, also set `SONARQUBE_IS_CLOUD=true`. Do not configure a server-level `SONARQUBE_ORG`.
-
-When OAuth is enabled, a single valid Authorization header takes precedence over the legacy header. Malformed or duplicate selected headers are rejected without fallback. Tokens containing `.` or starting with `eyJ` use OAuth verification; these tokens must use Authorization. Failed OAuth verification never falls back to SonarQube token authentication. Opaque SonarQube tokens use their existing validation path, independently of Auth0 availability. This does not enable dynamic client registration (DCR).
-
-An OAuth-capable MCP client follows the `WWW-Authenticate` discovery challenge, signs the user in through Auth0, and sends an MCP access token (**Token A**) on every request. The server verifies A, exchanges it with Auth0, validates the Cloud access token (**Token B**), and sends only B to Cloud APIs. Verified nonblank user subjects are supported, including enterprise SSO. Auth0 organization-bound tokens remain unsupported.
-
-Token A must contain at least one of `mcp:tools:read` or `mcp:tools:write`. The server maps only these scopes to `read:all` and `write:all` respectively for the Cloud token exchange. Other Token A scopes, such as `offline_access`, `openid`, `profile`, or Cloud scope names, are ignored: they grant no tool access and are never requested in the exchange. Read and write are independent: a write-only token cannot use read tools. Both tool listing and direct calls enforce Token B's actual granted scopes, alongside server and request tool restrictions. Calling a tool without its required scopes returns HTTP 403 with the corresponding `mcp:tools:*` scopes in `WWW-Authenticate`. `SONARQUBE_READ_ONLY` remains a preference that can only restrict access.
-
-OAuth clients select organizations through tool `organization` arguments; the `SONARQUBE_ORG` header is rejected. `list_organizations` requires `mcp:tools:read`, exchanged for `read:all` on Token B. The deprecated `SONARQUBE_TOKEN` header cannot authenticate OAuth requests.
-
-Without an external metadata URL, `GET /.well-known/oauth-protected-resource/mcp` publicly advertises the resource, issuer, and supported scopes. With an external URL, its operator must serve the matching document. See the [HTTP authentication architecture](docs/http-authentication-architecture.md#oauth-requests) for the token checks, scope requirements, and production-readiness validation.
+Self-hosted deployments continue to use SonarQube tokens; OAuth for SonarQube Server is not supported yet. Sonar deployment configuration and implementation details are in the [HTTP authentication architecture](docs/http-authentication-architecture.md#discovery-and-trust-configuration).
 
 #### Service Endpoints
 
