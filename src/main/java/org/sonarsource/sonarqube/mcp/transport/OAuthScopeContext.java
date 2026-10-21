@@ -18,27 +18,28 @@ package org.sonarsource.sonarqube.mcp.transport;
 
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 
 /** Verified grants and a denial marker owned by one HTTP request, never by the token cache. */
 public final class OAuthScopeContext {
   public static final String CONTEXT_KEY = "oauth-scopes";
 
   private final Set<String> grantedScopes;
-  private final AtomicReference<Set<String>> requiredScopes = new AtomicReference<>(Set.of());
+  private final AtomicReference<Set<OAuthScope>> requiredScopes = new AtomicReference<>(Set.of());
 
   public OAuthScopeContext(Set<String> grantedScopes) {
     this.grantedScopes = Set.copyOf(grantedScopes);
   }
 
-  public boolean permits(Set<String> scopes) {
-    return grantedScopes.containsAll(scopes);
+  public boolean permits(ToolAccessMode accessMode) {
+    return OAuthScope.requiredBy(accessMode).stream().allMatch(scope -> grantedScopes.contains(scope.getCloudScope()));
   }
 
-  public void deny(Set<String> scopes) {
-    requiredScopes.set(Set.copyOf(scopes));
+  public void deny(ToolAccessMode accessMode) {
+    requiredScopes.set(OAuthScope.requiredBy(accessMode));
   }
 
-  public Set<String> requiredScopes() {
+  public Set<OAuthScope> requiredScopes() {
     return requiredScopes.get();
   }
 }

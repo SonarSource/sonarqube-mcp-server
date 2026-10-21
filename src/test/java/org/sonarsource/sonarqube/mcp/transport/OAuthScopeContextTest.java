@@ -19,9 +19,15 @@ package org.sonarsource.sonarqube.mcp.transport;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ_WRITE;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.WRITE;
 
 class OAuthScopeContextTest {
   @Test
@@ -29,27 +35,46 @@ class OAuthScopeContextTest {
     var grants = new HashSet<>(Set.of("read:all"));
     var context = new OAuthScopeContext(grants);
     grants.add("write:all");
-    context.deny(Set.of("write:all"));
+    context.deny(WRITE);
 
-    assertThat(context.permits(Set.of("read:all"))).isTrue();
-    assertThat(context.permits(Set.of("write:all"))).isFalse();
-    assertThat(context.permits(Set.of("read:all", "write:all"))).isFalse();
+    assertThat(context.permits(READ)).isTrue();
+    assertThat(context.permits(WRITE)).isFalse();
+    assertThat(context.permits(READ_WRITE)).isFalse();
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "read:all, READ, true",
+    "read:all, WRITE, false",
+    "read:all, READ_WRITE, false",
+    "write:all, READ, false",
+    "write:all, WRITE, true",
+    "write:all, READ_WRITE, false",
+    "read:all write:all, READ, true",
+    "read:all write:all, WRITE, true",
+    "read:all write:all, READ_WRITE, true",
+    "'', READ, false",
+    "'', WRITE, false",
+    "'', READ_WRITE, false"
+  })
+  void it_should_require_the_cloud_scopes_for_each_access_mode(String granted, ToolAccessMode accessMode, boolean permitted) {
+    var context = new OAuthScopeContext(granted.isEmpty() ? Set.of() : Set.of(granted.split(" ")));
+
+    assertThat(context.permits(accessMode)).isEqualTo(permitted);
   }
 
   @Test
   void it_should_publish_immutable_snapshots_of_required_scopes() {
     var context = new OAuthScopeContext(Set.of());
-    var required = new HashSet<>(Set.of("read:all"));
     assertThat(context.requiredScopes()).isEmpty();
 
-    context.deny(required);
+    context.deny(READ);
     var snapshot = context.requiredScopes();
-    required.add("write:all");
-    assertThat(context.requiredScopes()).containsExactly("read:all");
+    assertThat(context.requiredScopes()).containsExactly(OAuthScope.READ);
 
-    context.deny(Set.of("write:all"));
-    assertThat(context.requiredScopes()).containsExactly("write:all");
-    assertThat(snapshot).containsExactly("read:all");
-    assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> snapshot.add("write:all"));
+    context.deny(WRITE);
+    assertThat(context.requiredScopes()).containsExactly(OAuthScope.WRITE);
+    assertThat(snapshot).containsExactly(OAuthScope.READ);
+    assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> snapshot.add(OAuthScope.WRITE));
   }
 }

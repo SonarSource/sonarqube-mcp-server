@@ -24,13 +24,15 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.WRITE;
 
-class ToolOAuthScopeTest {
+class ToolAccessModeTest {
 
   @ParameterizedTest
-  @MethodSource("scopeRequirements")
-  void it_should_derive_default_scopes_from_the_read_only_hint(McpSchema.ToolAnnotations annotations, String expectedScope) {
-    var definition = McpSchema.Tool.builder("scope_test", Map.of("type", "object")).annotations(annotations).build();
+  @MethodSource("accessModes")
+  void it_should_derive_default_access_from_the_read_only_hint(McpSchema.ToolAnnotations annotations, ToolAccessMode expectedAccess) {
+    var definition = McpSchema.Tool.builder("access_test", Map.of("type", "object")).annotations(annotations).build();
     var tool = new Tool(definition, ToolCategory.ISSUES) {
       @Override
       public Result execute(Tool.Arguments arguments) {
@@ -38,14 +40,14 @@ class ToolOAuthScopeTest {
       }
     };
 
-    assertThat(tool.requiredOAuthScopes()).containsExactly(expectedScope);
+    assertThat(tool.requiredAccessMode()).isEqualTo(expectedAccess);
   }
 
-  private static Stream<Arguments> scopeRequirements() {
+  private static Stream<Arguments> accessModes() {
     return Stream.of(
-      Arguments.of(null, "write:all"),
-      Arguments.of(new McpSchema.ToolAnnotations(null, null, null, null, null, null), "write:all"),
-      Arguments.of(new McpSchema.ToolAnnotations(null, false, null, null, null, null), "write:all"),
-      Arguments.of(new McpSchema.ToolAnnotations(null, true, null, null, null, null), "read:all"));
+      Arguments.of(null, WRITE),
+      Arguments.of(new McpSchema.ToolAnnotations(null, null, null, null, null, null), WRITE),
+      Arguments.of(new McpSchema.ToolAnnotations(null, false, null, null, null, null), WRITE),
+      Arguments.of(new McpSchema.ToolAnnotations(null, true, null, null, null, null), READ));
   }
 }

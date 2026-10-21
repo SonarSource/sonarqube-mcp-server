@@ -16,15 +16,17 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
-import java.util.Set;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
+
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ_WRITE;
 
 public class StartAgenticReadinessAssessmentTool extends Tool {
 
@@ -53,9 +55,9 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
   }
 
   @Override
-  public Set<String> requiredOAuthScopes() {
+  public ToolAccessMode requiredAccessMode() {
     // Resolve the project ID with a GET before creating the assessment.
-    return Set.of("read:all", "write:all");
+    return READ_WRITE;
   }
 
   @Override

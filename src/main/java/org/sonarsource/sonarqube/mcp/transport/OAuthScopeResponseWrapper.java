@@ -36,11 +36,7 @@ public final class OAuthScopeResponseWrapper extends HttpServletResponseWrapper 
   public void setStatus(int status) {
     var required = authorization.requiredScopes();
     if (status == SC_OK && !required.isEmpty()) {
-      var mcpScopes = required.stream().map(scope -> switch (scope) {
-        case "read:all" -> "mcp:tools:read";
-        case "write:all" -> "mcp:tools:write";
-        default -> throw new IllegalArgumentException("Unsupported Cloud delegation scope");
-      }).collect(Collectors.toUnmodifiableSet());
+      var mcpScopes = required.stream().map(OAuthScope::getMcpScope).collect(Collectors.toUnmodifiableSet());
       setHeader("WWW-Authenticate", metadata.challenge(mcpScopes) + ", error=\"insufficient_scope\"");
       setHeader("Cache-Control", "no-store");
       super.setStatus(SC_FORBIDDEN);

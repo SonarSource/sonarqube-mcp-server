@@ -139,7 +139,7 @@ class OAuthScopeHttpTest {
     var names = document.getAsJsonObject("result").getAsJsonArray("tools").asList().stream()
       .map(JsonElement::getAsJsonObject).map(tool -> tool.get("name").getAsString()).toList();
     assertThat(names).containsExactlyInAnyOrderElementsOf(visible);
-    assertThat(listed.body()).doesNotContain("requiredOAuthScopes", "oauth-scopes");
+    assertThat(listed.body()).doesNotContain("requiredAccessMode", "oauth-scopes");
     assertThat(entitlementChecks.get()).isEqualTo(visible.size());
 
     for (var name : List.of("read_tool", "write_tool", TOOL_NAME)) {

@@ -113,12 +113,12 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
       return delegate.handleRequest(transportContext, request);
     }
     var tool = allTools.stream().filter(candidate -> toolName.equals(candidate.definition().name())).findFirst().orElse(null);
-    if (tool == null || !isOrdinarilyAllowed(tool, transportContext)) {
+    if (tool == null || !matchesRequestFilters(tool, transportContext)) {
       return toolNotFound(request, toolName);
     }
     var authorization = (OAuthScopeContext) transportContext.get(OAuthScopeContext.CONTEXT_KEY);
-    if (authorization != null && !authorization.permits(tool.requiredOAuthScopes())) {
-      authorization.deny(tool.requiredOAuthScopes());
+    if (authorization != null && !authorization.permits(tool.requiredAccessMode())) {
+      authorization.deny(tool.requiredAccessMode());
       var error = new McpSchema.JSONRPCResponse.JSONRPCError(-32001, "Insufficient OAuth scope", null);
       return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
     }
@@ -134,15 +134,15 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
     var organizationFixed = organization instanceof String key && !key.isBlank();
 
     return allTools.stream()
-      .filter(tool -> isOrdinarilyAllowed(tool, ctx))
-      .filter(tool -> authorization == null || authorization.permits(tool.requiredOAuthScopes()))
+      .filter(tool -> matchesRequestFilters(tool, ctx))
+      .filter(tool -> authorization == null || authorization.permits(tool.requiredAccessMode()))
       .filter(tool -> tool.isEnabledFor(ctx))
       .map(Tool::definition)
       .map(definition -> organizationFixed ? ToolDefinitionBuilder.withoutOrganization(definition) : definition)
       .toList();
   }
 
-  private static boolean isOrdinarilyAllowed(Tool tool, McpTransportContext ctx) {
+  private static boolean matchesRequestFilters(Tool tool, McpTransportContext ctx) {
     @SuppressWarnings("unchecked")
     var allowedCategories = (Set<ToolCategory>) ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
     var readOnly = Boolean.TRUE.equals(ctx.get(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY));

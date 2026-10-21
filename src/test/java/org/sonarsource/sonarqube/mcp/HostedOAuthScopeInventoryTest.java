@@ -20,7 +20,6 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.io.TempDir;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -32,6 +31,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.hotspots.HotspotsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -40,6 +40,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ_WRITE;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.WRITE;
 
 class HostedOAuthScopeInventoryTest {
 
@@ -50,20 +53,20 @@ class HostedOAuthScopeInventoryTest {
       "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl(), "TELEMETRY_DISABLED", "true",
       "SONARQUBE_TOOLSETS", ToolCategory.all().stream().map(ToolCategory::getKey).collect(Collectors.joining(","))));
     try {
-      var expected = new HashMap<String, Set<String>>();
+      var expected = new HashMap<String, ToolAccessMode>();
       for (var name : List.of("list_enterprises", "list_organizations", "search_my_sonarqube_projects", "search_sonar_issues_in_projects",
         "search_security_hotspots", "show_security_hotspot", "get_project_quality_gate_status", "show_rule", "list_quality_gates",
         "list_languages", "get_component_measures", "search_files_by_coverage", "get_file_coverage_details", "search_metrics", "get_scm_info",
         "get_raw_source", "list_webhooks", "get_duplications", "search_duplicated_files", "list_portfolios", "list_pull_requests", "list_branches",
         "search_dependency_risks", "get_agentic_readiness_assessment", "list_agentic_readiness_assessments")) {
-        expected.put(name, Set.of("read:all"));
+        expected.put(name, READ);
       }
       for (var name : List.of("change_sonar_issue_status", "change_security_hotspot_status", "create_webhook")) {
-        expected.put(name, Set.of("write:all"));
+        expected.put(name, WRITE);
       }
-      expected.put("start_agentic_readiness_assessment", Set.of("read:all", "write:all"));
+      expected.put("start_agentic_readiness_assessment", READ_WRITE);
 
-      var actual = server.getSupportedTools().stream().collect(Collectors.toMap(tool -> tool.definition().name(), Tool::requiredOAuthScopes));
+      var actual = server.getSupportedTools().stream().collect(Collectors.toMap(tool -> tool.definition().name(), Tool::requiredAccessMode));
       assertThat(actual).containsExactlyInAnyOrderEntriesOf(expected);
     } finally {
       server.shutdown();
