@@ -598,7 +598,7 @@ class Auth0OAuthAuthenticationServiceTest {
     var grantedScopes = authentication.scopes();
     assertThat(grantedScopes).containsExactly("read:all");
     assertThatThrownBy(() -> grantedScopes.add("write:all")).isInstanceOf(UnsupportedOperationException.class);
-    assertThat(authentication.toString()).doesNotContain("private-cloud-token");
+    assertThat(authentication.toString()).isEqualTo("OAuthRequestAuthentication[cloudToken=redacted, scopes=[read:all]]");
   }
 
   private OAuthConfiguration config(Duration ttl, int size) {

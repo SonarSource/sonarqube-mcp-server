@@ -21,21 +21,9 @@ import java.util.Set;
 /**
  * Immutable Cloud credential and granted scopes for an authenticated request; the string representation redacts the credential.
  */
-public final class OAuthRequestAuthentication {
-  private final String cloudToken;
-  private final Set<String> scopes;
-
-  OAuthRequestAuthentication(String cloudToken, Set<String> scopes) {
-    this.cloudToken = cloudToken;
-    this.scopes = Set.copyOf(scopes);
-  }
-
-  public String cloudToken() {
-    return cloudToken;
-  }
-
-  public Set<String> scopes() {
-    return scopes;
+public record OAuthRequestAuthentication(String cloudToken, Set<String> scopes) {
+  public OAuthRequestAuthentication {
+    scopes = Set.copyOf(scopes);
   }
 
   @Override
