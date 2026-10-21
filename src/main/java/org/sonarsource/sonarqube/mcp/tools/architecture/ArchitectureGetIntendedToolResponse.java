@@ -27,7 +27,8 @@ import java.util.List;
 public record ArchitectureGetIntendedToolResponse(String projectKey, String revision, @Nullable String component, @Nullable Integer depth, List<Model> models,
   @Nullable Boolean partial, @Nullable String message) {
 
-  public record Model(@Nullable String language, @Nullable String type, List<Group> groups, List<Constraint> constraints, @Nullable Boolean partial, @Nullable String label, @Nullable String description) {
+  public record Model(@Nullable String language, @Nullable String type, List<Group> groups, List<Constraint> constraints,
+    @Nullable Boolean partial, @Nullable String label, @Nullable String description) {
   }
 
   /**

@@ -44,6 +44,8 @@ final class IntendedModels {
 
   private static final String MODELS_PROPERTY = "models";
   private static final String GROUPS_PROPERTY = "groups";
+  private static final String PATTERNS_PROPERTY = "patterns";
+  private static final String PATTERN_ID_PROPERTY = "patternId";
   private static final String DUPLICATE_SUFFIX = " appears more than once.";
   private static final String GROUP_DESCRIPTION = " group ";
   private static final int MAX_REPORTED_PROBLEMS = 10;
@@ -95,14 +97,16 @@ final class IntendedModels {
       var object = element.getAsJsonObject();
       for (var property : List.of("component", "depth", "language")) {
         if (object.has(MODELS_PROPERTY) && object.has(property) && !object.get(property).isJsonNull()) {
-          throw new IllegalArgumentException("This is a partial architecture view. Read the complete model without component, depth or language before editing it. Nothing was changed.");
+          throw new IllegalArgumentException("This is a partial architecture view. "
+            + "Read the complete model without component, depth or language before editing it. Nothing was changed.");
         }
       }
       var partial = object.get("partial");
       if ((partial != null && !partial.isJsonNull()
         && (!partial.isJsonPrimitive() || !partial.getAsJsonPrimitive().isBoolean() || partial.getAsBoolean()))
         || (object.has("hiddenSubgroups") && !object.get("hiddenSubgroups").isJsonNull())) {
-        throw new IllegalArgumentException("This is a partial architecture view. Read the complete model without component, depth or language before editing it. Nothing was changed.");
+        throw new IllegalArgumentException("This is a partial architecture view. "
+            + "Read the complete model without component, depth or language before editing it. Nothing was changed.");
       }
       object.entrySet().forEach(entry -> rejectPartialView(entry.getValue()));
     }
@@ -144,27 +148,39 @@ final class IntendedModels {
     requireString(group, "label");
     var object = group.getAsJsonObject();
     optionalString(object, "description");
-    optionalString(object, "patternId");
-    if (object.has("patternId") && !object.get("patternId").isJsonNull()) {
-      var id = object.get("patternId").getAsString();
+    validatePatternId(object);
+    validatePatterns(group, object);
+    validateInterfaceFlags(object);
+    if (object.has(GROUPS_PROPERTY) && !object.get(GROUPS_PROPERTY).isJsonNull()) {
+      validateGroups(requireArray(group, GROUPS_PROPERTY, false), depth + 1, count);
+    }
+  }
+
+  private static void validatePatternId(com.google.gson.JsonObject object) {
+    optionalString(object, PATTERN_ID_PROPERTY);
+    if (object.has(PATTERN_ID_PROPERTY) && !object.get(PATTERN_ID_PROPERTY).isJsonNull()) {
+      var id = object.get(PATTERN_ID_PROPERTY).getAsString();
       if (!java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
         throw new JsonParseException("patternId must be a UUID");
       }
     }
-    if (object.has("patterns") && !object.get("patterns").isJsonNull()) {
-      for (var pattern : requireArray(group, "patterns", false).getAsJsonArray()) {
+  }
+
+  private static void validatePatterns(JsonElement group, com.google.gson.JsonObject object) {
+    if (object.has(PATTERNS_PROPERTY) && !object.get(PATTERNS_PROPERTY).isJsonNull()) {
+      for (var pattern : requireArray(group, PATTERNS_PROPERTY, false).getAsJsonArray()) {
         if (!pattern.isJsonPrimitive() || !pattern.getAsJsonPrimitive().isString()) {
           throw new JsonParseException("patterns must contain strings");
         }
       }
     }
+  }
+
+  private static void validateInterfaceFlags(com.google.gson.JsonObject object) {
     for (var property : List.of("interface", "interfaceAccess")) {
       if (object.has(property) && !object.get(property).isJsonNull() && (!object.get(property).isJsonPrimitive() || !object.get(property).getAsJsonPrimitive().isBoolean())) {
         throw new JsonParseException(property + " must be a boolean");
       }
-    }
-    if (object.has(GROUPS_PROPERTY) && !object.get(GROUPS_PROPERTY).isJsonNull()) {
-      validateGroups(requireArray(group, GROUPS_PROPERTY, false), depth + 1, count);
     }
   }
 
@@ -345,7 +361,8 @@ final class IntendedModels {
     }
   }
 
-  private record IndexedModel(@Nullable String type, Map<List<String>, GroupSettings> groups, Set<IntendedArchitecture.Constraint> constraints, @Nullable String label, @Nullable String description) {
+  private record IndexedModel(@Nullable String type, Map<List<String>, GroupSettings> groups, Set<IntendedArchitecture.Constraint> constraints,
+    @Nullable String label, @Nullable String description) {
   }
 
   /**
@@ -354,7 +371,8 @@ final class IntendedModels {
   private record GroupSettings(Set<String> patterns, boolean isInterface, boolean interfaceAccess, @Nullable String description, @Nullable String patternId) {
     @Override
     public String toString() {
-      return "patterns " + patterns + (isInterface ? ", interface" : "") + (interfaceAccess ? ", interfaceAccess" : "") + (description == null ? "" : ", description " + description) + (patternId == null ? "" : ", patternId " + patternId);
+      return "patterns " + patterns + (isInterface ? ", interface" : "") + (interfaceAccess ? ", interfaceAccess" : "")
+        + (description == null ? "" : (", description " + description)) + (patternId == null ? "" : (", patternId " + patternId));
     }
   }
 

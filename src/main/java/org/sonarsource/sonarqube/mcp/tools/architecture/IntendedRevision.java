@@ -65,7 +65,8 @@ final class IntendedRevision {
     var patterns = nullToEmpty(group.patterns()).stream().sorted().map(IntendedRevision::string).toList();
     var groups = nullToEmpty(group.groups()).stream().map(IntendedRevision::canonicalGroup).toList();
     return array(List.of(string(group.label()), array(patterns), String.valueOf(Boolean.TRUE.equals(group.isInterface())),
-      String.valueOf(Boolean.TRUE.equals(group.interfaceAccess())), array(groups), string(group.description()), string(group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT))));
+      String.valueOf(Boolean.TRUE.equals(group.interfaceAccess())), array(groups), string(group.description()),
+      string(group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT))));
   }
 
   private static String array(List<String> jsonValues) {

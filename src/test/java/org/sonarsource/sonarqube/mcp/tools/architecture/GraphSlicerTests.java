@@ -69,7 +69,7 @@ class GraphSlicerTests {
   void it_should_share_the_node_budget_evenly_between_large_languages() {
     var response = GraphSlicer.slice("project", List.of(graph("java", roots(200)), graph("ts", roots(200))), null, 1);
 
-    assertThat(response.graphs()).allSatisfy(value -> {
+    assertThat(response.graphs()).isNotEmpty().allSatisfy(value -> {
       assertThat(value.nodes()).hasSize(75);
       assertThat(value.capped()).isTrue();
       assertThat(value.omittedNodes()).isEqualTo(125);

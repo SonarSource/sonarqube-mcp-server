@@ -43,7 +43,7 @@ public class ArchitectureGetTool extends Tool {
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED};
   private static final String[] SERVER_TARGETS = {CURRENT};
-  private final String[] targets;
+  private final String[] availableTargets;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
@@ -65,14 +65,14 @@ public class ArchitectureGetTool extends Tool {
       .setReadOnlyHint()
       .build(),
       ToolCategory.ARCHITECTURE);
-    this.targets = isSonarQubeCloud ? TARGETS : SERVER_TARGETS;
+    this.availableTargets = isSonarQubeCloud ? TARGETS : SERVER_TARGETS;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
   public Result execute(Arguments arguments) {
-    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, targets);
+    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, availableTargets);
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     var component = arguments.getOptionalString(COMPONENT_PROPERTY);
     var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);

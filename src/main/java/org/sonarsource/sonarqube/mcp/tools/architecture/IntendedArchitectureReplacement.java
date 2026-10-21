@@ -121,8 +121,9 @@ final class IntendedArchitectureReplacement {
     }
   }
 
-  private boolean sameResources(List<IntendedArchitecture> left, List<IntendedArchitecture> right) {
-    return IntendedRevision.of(left).equals(IntendedRevision.of(right)) && left.stream().map(IntendedArchitecture::id).sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList()
+  private static boolean sameResources(List<IntendedArchitecture> left, List<IntendedArchitecture> right) {
+    return IntendedRevision.of(left).equals(IntendedRevision.of(right))
+      && left.stream().map(IntendedArchitecture::id).sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList()
       .equals(right.stream().map(IntendedArchitecture::id).sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList());
   }
 
@@ -184,7 +185,8 @@ final class IntendedArchitectureReplacement {
     }
     return groups.stream().map(group -> new IntendedArchitecture.Group(group.label(),
       group.patterns() == null ? List.of() : group.patterns().stream().sorted().toList(), normalizedGroups(group.patternId() == null ? group.groups() : null),
-      Boolean.TRUE.equals(group.isInterface()), Boolean.TRUE.equals(group.interfaceAccess()), group.description(), group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT))).toList();
+      Boolean.TRUE.equals(group.isInterface()), Boolean.TRUE.equals(group.interfaceAccess()), group.description(),
+      group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT))).toList();
   }
 
   private record PreviousModels(List<IntendedArchitecture> models) {

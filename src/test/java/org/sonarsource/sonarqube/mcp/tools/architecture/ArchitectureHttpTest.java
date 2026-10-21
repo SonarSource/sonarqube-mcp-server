@@ -152,8 +152,8 @@ class ArchitectureHttpTest {
       var tools = com.google.gson.JsonParser.parseString(response).getAsJsonObject().getAsJsonObject("result").getAsJsonArray("tools");
       var read = tools.asList().stream().map(com.google.gson.JsonElement::getAsJsonObject)
         .filter(tool -> tool.get("name").getAsString().equals("architecture_get")).findFirst().orElseThrow();
-      assertThat(read.getAsJsonObject("inputSchema").getAsJsonObject("properties").getAsJsonObject("target").getAsJsonArray("enum").toString())
-        .isEqualTo("[\"current\"]");
+      assertThat(read.getAsJsonObject("inputSchema").getAsJsonObject("properties").getAsJsonObject("target").getAsJsonArray("enum"))
+        .hasToString("[\"current\"]");
     } finally {
       server.shutdown();
     }
