@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.harness.SslTestUtils;
 
 class HttpsServerTransportIntegrationTest {
@@ -50,7 +49,6 @@ class HttpsServerTransportIntegrationTest {
     httpsServer = new HttpServerTransportProvider(
       testPort,
       "127.0.0.1",
-      AuthMode.TOKEN,
       false,
       null,
       true,
@@ -133,7 +131,6 @@ class HttpsServerTransportIntegrationTest {
     var serverWithMissingKeystore = new HttpServerTransportProvider(
       findAvailablePort(),
       "127.0.0.1",
-      AuthMode.TOKEN,
       false,
       null,
       true,

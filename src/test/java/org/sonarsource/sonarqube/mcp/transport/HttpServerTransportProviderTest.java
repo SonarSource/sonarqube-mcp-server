@@ -17,20 +17,29 @@
 package org.sonarsource.sonarqube.mcp.transport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
-import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
+import org.sonarsource.sonarqube.mcp.authentication.HttpRequestAuthentication;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthAuthenticationException;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 class HttpServerTransportProviderTest {
@@ -55,7 +64,7 @@ class HttpServerTransportProviderTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void should_warn_once_only_when_legacy_cloud_organization_is_configured(boolean configured) {
-    new HttpServerTransportProvider(8080, "127.0.0.1", AuthMode.TOKEN, true, configured ? "my-org" : null, true,
+    new HttpServerTransportProvider(8080, "127.0.0.1", true, configured ? "my-org" : null, true,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
 
     var warnings = logAppender.list.stream().filter(event -> event.getLevel() == Level.WARN)
@@ -69,7 +78,7 @@ class HttpServerTransportProviderTest {
 
   @Test
   void should_not_warn_about_all_interfaces_when_running_in_container() {
-    new HttpServerTransportProvider(8080, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+    new HttpServerTransportProvider(8080, "0.0.0.0", false, null, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
 
     assertThat(logAppender.list)
@@ -80,7 +89,7 @@ class HttpServerTransportProviderTest {
 
   @Test
   void should_warn_about_all_interfaces_when_not_running_in_container() {
-    new HttpServerTransportProvider(8080, "0.0.0.0", AuthMode.TOKEN, false, null, false,
+    new HttpServerTransportProvider(8080, "0.0.0.0", false, null, false,
       Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
 
     assertThat(logAppender.list)
@@ -88,4 +97,38 @@ class HttpServerTransportProviderTest {
       .extracting(ILoggingEvent::getFormattedMessage)
       .anyMatch(msg -> msg.contains("all network interfaces"));
   }
+
+  @Test
+  void it_should_require_a_trusted_authentication_result_without_reading_raw_credentials() throws Exception {
+    var provider = provider();
+    var request = mock(HttpServletRequest.class);
+    var extract = HttpServerTransportProvider.class.getDeclaredMethod("extractTransportContext", HttpServletRequest.class);
+    extract.setAccessible(true);
+
+    assertThatThrownBy(() -> extract.invoke(provider, request)).hasCauseInstanceOf(OAuthAuthenticationException.class);
+
+    verify(request, never()).getHeader("Authorization");
+    verify(request, never()).getHeader("SONARQUBE_TOKEN");
+  }
+
+  @Test
+  void it_should_reject_trusted_authentication_inconsistent_with_the_configured_capability() throws Exception {
+    var provider = provider();
+    var request = mock(HttpServletRequest.class);
+    var result = new HttpRequestAuthentication("downstream", new OAuthScopeContext(Set.of("read:all")));
+    when(request.getAttribute(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE)).thenReturn(result);
+    var extract = HttpServerTransportProvider.class.getDeclaredMethod("extractTransportContext", HttpServletRequest.class);
+    extract.setAccessible(true);
+
+    assertThatThrownBy(() -> extract.invoke(provider, request)).hasCauseInstanceOf(OAuthAuthenticationException.class);
+
+    verify(request, never()).getHeader("Authorization");
+    verify(request, never()).getHeader("SONARQUBE_TOKEN");
+  }
+
+  private static HttpServerTransportProvider provider() {
+    return new HttpServerTransportProvider(8080, "127.0.0.1", true, null, false,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+  }
+
 }

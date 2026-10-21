@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,8 +50,8 @@ class HttpTransportSettingsTest {
 
     assertThat(settings.port()).isEqualTo(8443);
     assertThat(settings.host()).isEqualTo("0.0.0.0");
-    assertThat(settings.authMode()).isEqualTo(AuthMode.TOKEN);
     assertThat(settings.isSonarQubeCloud()).isTrue();
+    assertThat(settings.oauthEnabled()).isFalse();
     assertThat(settings.serverOrg()).isEqualTo("server-org");
     assertThat(settings.tls().enabled()).isTrue();
     assertThat(settings.tls().keystorePath()).isEqualTo(storage.resolve("keystore.p12"));
@@ -76,9 +75,9 @@ class HttpTransportSettingsTest {
     var settings = HttpTransportSettings.from(configuration);
 
     assertThat(settings.isSonarQubeCloud()).isFalse();
+    assertThat(settings.oauthEnabled()).isFalse();
     assertThat(settings.serverOrg()).isNull();
     assertThat(settings.tls().enabled()).isFalse();
-    assertThat(settings.authMode()).isEqualTo(AuthMode.TOKEN);
     assertThat(settings.requests().allowedOrigins()).isEmpty();
     assertThat(settings.requests().isRunningInContainer()).isFalse();
   }
