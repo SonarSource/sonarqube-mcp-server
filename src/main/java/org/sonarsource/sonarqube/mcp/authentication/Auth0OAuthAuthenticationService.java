@@ -26,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HexFormat;
@@ -86,7 +85,7 @@ public final class Auth0OAuthAuthenticationService {
   }
 
   /**
-   * Requires explicit delegation from a short-lived user token with no organization binding or prior actors.
+   * Requires explicit delegation from a user token with no organization binding or prior actors.
    */
   private Set<String> validateSource(DecodedJWT source) {
     if (!validLifetime(source)) {
@@ -215,8 +214,7 @@ public final class Auth0OAuthAuthenticationService {
   private static boolean validLifetime(DecodedJWT token) {
     var issuedAt = token.getIssuedAtAsInstant();
     var expiresAt = token.getExpiresAtAsInstant();
-    return issuedAt != null && expiresAt != null && expiresAt.isAfter(issuedAt)
-      && Duration.between(issuedAt, expiresAt).compareTo(Duration.ofSeconds(300)) <= 0;
+    return issuedAt != null && expiresAt != null && expiresAt.isAfter(issuedAt);
   }
 
   private static boolean blank(@Nullable String value) {

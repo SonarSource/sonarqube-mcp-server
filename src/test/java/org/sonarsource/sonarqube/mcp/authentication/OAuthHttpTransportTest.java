@@ -202,6 +202,66 @@ class OAuthHttpTransportTest {
     auth0.verify(4, postRequestedFor(urlEqualTo("/oauth/token")));
   }
 
+  @Test
+  void it_should_authenticate_one_hour_tokens_reexchange_after_cache_expiry_and_reject_expired_source_over_http() throws Exception {
+    startWithRealAuthentication();
+    var issuedAt = clock.instant().minusSeconds(1);
+    var sourceExpiresAt = issuedAt.plusSeconds(3600);
+    var source = sign(token(oauth.resource()).withIssuedAt(issuedAt).withExpiresAt(sourceExpiresAt).withClaim("scope", "mcp:tools:read"));
+    var firstCloud = sign(token(oauth.cloudAudience()).withIssuedAt(issuedAt).withExpiresAt(issuedAt.plusSeconds(3600))
+      .withClaim("azp", oauth.clientId()).withClaim("scope", "read:all")
+      .withClaim("act", Map.of("sub", oauth.clientId(), "act", Map.of("sub", "client"))));
+    var first = new Grant(source, firstCloud);
+    auth0.stubFor(post("/oauth/token").withRequestBody(matchingJsonPath("$.subject_token", equalTo(source)))
+      .withRequestBody(matchingJsonPath("$.scope", equalTo("read:all")))
+      .withRequestBody(matchingJsonPath("$.audience", equalTo(oauth.cloudAudience())))
+      .willReturn(okJson(GSON.toJson(Map.of("access_token", firstCloud, "token_type", "Bearer")))));
+    stubOrganization(first, "my-org");
+
+    assertSuccess(send(call(first, "list_organizations", Map.of())), "my-org");
+    auth0.verify(1, postRequestedFor(urlEqualTo("/oauth/token")));
+    clock.advance(Duration.ofSeconds(30));
+    assertSuccess(send(call(first, "list_organizations", Map.of())), "my-org");
+    auth0.verify(1, postRequestedFor(urlEqualTo("/oauth/token")));
+    cloud.verify(2, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .withHeader("Authorization", equalTo("Bearer " + firstCloud)));
+
+    clock.advance(Duration.ofSeconds(271));
+    var refreshedIssuedAt = clock.instant().minusSeconds(1);
+    var refreshedExpiresAt = refreshedIssuedAt.plusSeconds(3600);
+    var refreshedCloud = sign(token(oauth.cloudAudience()).withIssuedAt(refreshedIssuedAt).withExpiresAt(refreshedExpiresAt)
+      .withClaim("azp", oauth.clientId()).withClaim("scope", "read:all")
+      .withClaim("act", Map.of("sub", oauth.clientId(), "act", Map.of("sub", "client"))));
+    assertThat(refreshedCloud).isNotEqualTo(firstCloud);
+    var refreshed = new Grant(source, refreshedCloud);
+    auth0.stubFor(post("/oauth/token").withRequestBody(matchingJsonPath("$.subject_token", equalTo(source)))
+      .withRequestBody(matchingJsonPath("$.scope", equalTo("read:all")))
+      .withRequestBody(matchingJsonPath("$.audience", equalTo(oauth.cloudAudience())))
+      .willReturn(okJson(GSON.toJson(Map.of("access_token", refreshedCloud, "token_type", "Bearer")))));
+    stubOrganization(refreshed, "my-org");
+
+    assertSuccess(send(call(refreshed, "list_organizations", Map.of())), "my-org");
+    auth0.verify(2, postRequestedFor(urlEqualTo("/oauth/token")));
+    cloud.verify(1, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .withHeader("Authorization", equalTo("Bearer " + refreshedCloud)));
+    assertThat(cloud.getAllServeEvents()).allSatisfy(event -> {
+      assertThat(event.getWasMatched()).isTrue();
+      assertThat(event.getRequest().getHeader("Authorization")).isIn("Bearer " + firstCloud, "Bearer " + refreshedCloud)
+        .isNotEqualTo("Bearer " + source);
+    });
+    var auth0Requests = auth0.getAllServeEvents().size();
+    var cloudRequests = cloud.getAllServeEvents().size();
+
+    clock.advance(Duration.between(clock.instant(), sourceExpiresAt));
+    assertThat(refreshedExpiresAt).isAfter(clock.instant());
+    var expired = send(call(refreshed, "list_organizations", Map.of()));
+    assertThat(expired.statusCode()).isEqualTo(401);
+    assertThat(expired.headers().firstValue("WWW-Authenticate"))
+      .hasValueSatisfying(value -> assertThat(value).contains("error=\"invalid_token\""));
+    assertThat(auth0.getAllServeEvents()).hasSize(auth0Requests);
+    assertThat(cloud.getAllServeEvents()).hasSize(cloudRequests);
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"oauth2|github|github|123", "samlp|enterprise-connection|user-id", "opaque-enterprise-user"})
   void it_should_authenticate_social_and_enterprise_subjects_over_http(String subject) throws Exception {
