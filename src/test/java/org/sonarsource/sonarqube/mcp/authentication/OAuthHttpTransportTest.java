@@ -200,6 +200,21 @@ class OAuthHttpTransportTest {
     auth0.verify(4, postRequestedFor(urlEqualTo("/oauth/token")));
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"oauth2|github|github|123", "samlp|enterprise-connection|user-id", "opaque-enterprise-user"})
+  void it_should_authenticate_social_and_enterprise_subjects_over_http(String subject) throws Exception {
+    startWithRealAuthentication();
+    var grant = grantForSubject(subject, "subject", "mcp:tools:read", "read:all", "read:all");
+    stubOrganization(grant, "my-org");
+
+    assertSuccess(send(call(grant, "list_organizations", Map.of())), "my-org");
+    assertSuccess(send(call(grant, "list_organizations", Map.of())), "my-org");
+
+    auth0.verify(1, postRequestedFor(urlEqualTo("/oauth/token")));
+    cloud.verify(2, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .withHeader("Authorization", equalTo("Bearer " + grant.cloud())));
+  }
+
   @Test
   void it_should_reject_malformed_credentials_and_organization_headers_before_exchange() throws Exception {
     startWithRealAuthentication();
@@ -348,8 +363,12 @@ class OAuthHttpTransportTest {
   }
 
   private Grant grant(String user, String id, String sourceScopes, String requestedScopes, String cloudScopes) {
-    var source = sign(token(oauth.resource()).withSubject("oauth2|github|github|" + user).withJWTId(id).withClaim("scope", sourceScopes));
-    var downstream = sign(token(oauth.cloudAudience()).withSubject("oauth2|github|github|" + user).withJWTId(id + "-cloud")
+    return grantForSubject("oauth2|github|github|" + user, id, sourceScopes, requestedScopes, cloudScopes);
+  }
+
+  private Grant grantForSubject(String subject, String id, String sourceScopes, String requestedScopes, String cloudScopes) {
+    var source = sign(token(oauth.resource()).withSubject(subject).withJWTId(id).withClaim("scope", sourceScopes));
+    var downstream = sign(token(oauth.cloudAudience()).withSubject(subject).withJWTId(id + "-cloud")
       .withClaim("azp", oauth.clientId()).withClaim("scope", cloudScopes)
       .withClaim("act", Map.of("sub", oauth.clientId(), "act", Map.of("sub", "client"))));
     auth0.stubFor(post("/oauth/token").withRequestBody(matchingJsonPath("$.subject_token", equalTo(source)))
