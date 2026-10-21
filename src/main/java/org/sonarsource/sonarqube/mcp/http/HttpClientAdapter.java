@@ -17,8 +17,12 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import java.net.URISyntaxException;
+import java.net.http.HttpTimeoutException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import jakarta.annotation.Nullable;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
@@ -27,9 +31,11 @@ import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.util.Timeout;
 
 class HttpClientAdapter implements HttpClient {
 
+  private static final ScheduledThreadPoolExecutor DEADLINES = createDeadlineScheduler();
   private static final String ORIGIN_HEADER = "Origin";
   private static final String HOST_HEADER = "Host";
   private static final String AUTHORIZATION_HEADER = "Authorization";
@@ -39,22 +45,46 @@ class HttpClientAdapter implements HttpClient {
   private final CloseableHttpAsyncClient apacheClient;
   private final String token;
   private final boolean isBridgeClient;
+  private final Duration operationTimeout;
   @Nullable
   private final String apiKey;
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient) {
-    this(apacheClient, sonarqubeCloudToken, isBridgeClient, null);
+  static ScheduledThreadPoolExecutor createDeadlineScheduler() {
+    var scheduler = new ScheduledThreadPoolExecutor(1, runnable -> {
+      var thread = new Thread(runnable, "sonarqube-mcp-http-deadlines");
+      thread.setDaemon(true);
+      return thread;
+    });
+    scheduler.setRemoveOnCancelPolicy(true);
+    return scheduler;
   }
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, @Nullable String apiKey) {
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, Duration operationTimeout) {
+    this(apacheClient, sonarqubeCloudToken, isBridgeClient, operationTimeout, null);
+  }
+
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, Duration operationTimeout, @Nullable String apiKey) {
     this.apacheClient = apacheClient;
     this.token = sonarqubeCloudToken;
     this.isBridgeClient = isBridgeClient;
+    this.operationTimeout = operationTimeout;
     this.apiKey = apiKey;
   }
 
   @Override
   public CompletableFuture<Response> postAsync(String url, String contentType, String body) {
+    return executeAsync(buildPostRequest(url, contentType, body), token, operationTimeout);
+  }
+
+  @Override
+  public CompletableFuture<Response> postAsync(String url, String contentType, String body, Duration timeout) {
+    var request = buildPostRequest(url, contentType, body);
+    // Long-running operations also need a response timeout beyond the client's default.
+    request.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.of(timeout)).build());
+    return executeAsync(request, token, timeout);
+  }
+
+  private SimpleHttpRequest buildPostRequest(String url, String contentType, String body) {
     var requestBuilder = SimpleRequestBuilder.post(url)
       .setBody(body, ContentType.parse(contentType));
 
@@ -64,12 +94,17 @@ class HttpClientAdapter implements HttpClient {
         .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
     }
     
-    return executeAsync(requestBuilder.build(), token);
+    return requestBuilder.build();
   }
 
   @Override
   public CompletableFuture<Response> getAsync(String url) {
-    return executeAsync(buildGetRequest(url), token);
+    return getAsync(url, operationTimeout);
+  }
+
+  @Override
+  public CompletableFuture<Response> getAsync(String url, Duration timeout) {
+    return executeAsync(buildGetRequest(url), token, timeout);
   }
 
   @Override
@@ -83,19 +118,24 @@ class HttpClientAdapter implements HttpClient {
         .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
     }
 
-    return executeAsync(requestBuilder.build(), token);
+    return executeAsync(requestBuilder.build(), token, operationTimeout);
   }
 
   @Override
   public CompletableFuture<Response> getAsyncAnonymous(String url) {
-    return executeAsync(buildGetRequest(url), null);
+    return getAsyncAnonymous(url, operationTimeout);
   }
 
   @Override
   public CompletableFuture<Response> getAsyncAnonymousWithoutRedirects(String url) {
     var request = buildGetRequest(url);
     request.setConfig(RequestConfig.custom().setRedirectsEnabled(false).build());
-    return executeAsync(request, null);
+    return executeAsync(request, null, operationTimeout);
+  }
+
+  @Override
+  public CompletableFuture<Response> getAsyncAnonymous(String url, Duration timeout) {
+    return executeAsync(buildGetRequest(url), null, timeout);
   }
 
   private SimpleHttpRequest buildGetRequest(String url) {
@@ -111,45 +151,61 @@ class HttpClientAdapter implements HttpClient {
 
   private class CompletableFutureWrappingFuture extends CompletableFuture<Response> {
 
+    private final CompletableFuture<Response> outcome = new CompletableFuture<>();
     private final Future<SimpleHttpResponse> wrapped;
 
-    private CompletableFutureWrappingFuture(SimpleHttpRequest httpRequest) {
+    private CompletableFutureWrappingFuture(SimpleHttpRequest httpRequest, Duration timeout) {
       this.wrapped = apacheClient.execute(httpRequest, new FutureCallback<>() {
         @Override
         public void completed(SimpleHttpResponse result) {
           try {
             var uri = httpRequest.getUri().toString();
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
-              new HttpResponse(uri, result));
+            outcome.complete(new HttpResponse(uri, result));
           } catch (URISyntaxException e) {
-            HttpClientAdapter.CompletableFutureWrappingFuture.this.completeAsync(() ->
-              new HttpResponse(httpRequest.getRequestUri(), result));
+            outcome.complete(new HttpResponse(httpRequest.getRequestUri(), result));
           }
         }
 
         @Override
         public void failed(Exception ex) {
-          HttpClientAdapter.CompletableFutureWrappingFuture.this.completeExceptionally(ex);
+          outcome.completeExceptionally(ex);
         }
 
         @Override
         public void cancelled() {
-          HttpClientAdapter.CompletableFutureWrappingFuture.this.cancel();
+          outcome.cancel(true);
+        }
+      });
+      var deadline = DEADLINES.schedule(() -> {
+        if (outcome.completeExceptionally(new HttpTimeoutException("HTTP request exceeded its operation deadline"))) {
+          wrapped.cancel(true);
+        }
+      }, timeout.toMillis(), TimeUnit.MILLISECONDS);
+      outcome.whenComplete((response, error) -> deadline.cancel(false));
+      // Caller callbacks must not block the deadline scheduler or Apache's I/O threads.
+      outcome.whenCompleteAsync((response, error) -> {
+        if (outcome.isCancelled()) {
+          super.cancel(true);
+        } else if (error != null) {
+          completeExceptionally(error);
+        } else {
+          complete(response);
         }
       });
     }
 
-    private void cancel() {
-      super.cancel(true);
-    }
-
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-      return wrapped.cancel(mayInterruptIfRunning);
+      if (!outcome.cancel(mayInterruptIfRunning)) {
+        return false;
+      }
+      wrapped.cancel(mayInterruptIfRunning);
+      super.cancel(mayInterruptIfRunning);
+      return true;
     }
   }
 
-  private CompletableFuture<Response> executeAsync(SimpleHttpRequest httpRequest, @Nullable String tokenToUse) {
+  private CompletableFuture<Response> executeAsync(SimpleHttpRequest httpRequest, @Nullable String tokenToUse, Duration timeout) {
     try {
       if (tokenToUse != null) {
         httpRequest.setHeader(AUTHORIZATION_HEADER, bearer(tokenToUse));
@@ -157,7 +213,7 @@ class HttpClientAdapter implements HttpClient {
       if (apiKey != null) {
         httpRequest.setHeader(X_API_KEY_HEADER, apiKey);
       }
-      return new CompletableFutureWrappingFuture(httpRequest);
+      return new CompletableFutureWrappingFuture(httpRequest, timeout);
     } catch (Exception e) {
       throw new IllegalStateException("Unable to execute request: " + e.getMessage(), e);
     }
