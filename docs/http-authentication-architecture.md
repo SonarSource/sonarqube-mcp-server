@@ -21,7 +21,7 @@ The SonarQube MCP Server supports three transport modes:
 - **HTTP Transport** (Not recommended): Unencrypted network communication
 - **HTTPS Transport** (Recommended for production): Secure network-based communication with TLS encryption
 
-This document focuses on the **HTTP/HTTPS Transport**. `SONARQUBE_HTTP_AUTH_MODE` selects `TOKEN` (default) or opt-in `OAUTH` for SonarQube Cloud. OAuth requires a public HTTPS endpoint; HTTP can be used behind a trusted TLS-terminating proxy.
+This document focuses on the **HTTP/HTTPS Transport**. `SONARQUBE_HTTP_AUTH_MODE` selects `AUTO` (default), `TOKEN`, or `OAUTH`. AUTO accepts existing tokens and enables OAuth when complete OAuth settings are supplied for SonarQube Cloud. OAuth requires a public HTTPS endpoint; HTTP can be used behind a trusted TLS-terminating proxy.
 
 ---
 
@@ -38,8 +38,8 @@ This document focuses on the **HTTP/HTTPS Transport**. `SONARQUBE_HTTP_AUTH_MODE
                  │ HTTP GET     (optional SSE stream attempt per Streamable HTTP spec)
                  │ HTTP OPTIONS (CORS preflight)
                  │ Headers: Authorization: Bearer <token> (required, preferred)
-                 │          SONARQUBE_TOKEN (deprecated, TOKEN mode only)
-                 │          SONARQUBE_ORG (optional, Cloud TOKEN mode only)
+                 │          SONARQUBE_TOKEN (deprecated, token requests)
+                 │          SONARQUBE_ORG (optional, Cloud token requests)
                  │          SONARQUBE_TOOLSETS (optional, per-request override)
                  │          SONARQUBE_READ_ONLY (optional, per-request override)
                  ▼
@@ -79,11 +79,11 @@ This document focuses on the **HTTP/HTTPS Transport**. `SONARQUBE_HTTP_AUTH_MODE
 
 #### `HttpServerTransportProvider`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider`
-- **Purpose**: Bootstraps Jetty and extracts a fresh `McpTransportContext` per request. TOKEN mode reads the token and optional organization header. OAuth mode requires the authentication filter's trusted result and extracts only the exchanged Cloud token and its scopes. Both modes retain request tool preferences.
+- **Purpose**: Bootstraps Jetty and extracts a fresh `McpTransportContext` per request. Every request requires the authentication filter's trusted result. Token requests use the selected token and optional organization header; OAuth requests use only the exchanged Cloud token and fresh scope context. The transport never reselects credentials from raw headers. Both paths retain request tool preferences.
 
 #### `AuthenticationFilter`
 - **Location**: `org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter`
-- **Purpose**: Checks TOKEN credentials or authenticates OAuth requests through `Auth0OAuthAuthenticationService`. OAuth accepts a single `Authorization: Bearer` header and never falls back to the deprecated token header. Runs **after** `McpSecurityFilter`, which handles CORS preflight and Origin validation. Local OAuth metadata is public only when configured for local serving; MCP requests remain subject to authentication.
+- **Purpose**: Selects token authentication or authenticates OAuth requests through `Auth0OAuthAuthenticationService`. OAuth accepts a single `Authorization: Bearer` header and never falls back to the deprecated token header. Runs **after** `McpSecurityFilter`, which handles CORS preflight and Origin validation. Local OAuth metadata is public only when configured for local serving; MCP requests remain subject to authentication.
 
 #### `McpSecurityFilter`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.McpSecurityFilter`
@@ -142,12 +142,11 @@ In TOKEN mode, clients configure the HTTP endpoint using the preferred `Authoriz
    ├─> Reject with 401 if no valid token found
    ├─> Reject SONARQUBE_ORG headers when a deprecated server organization is configured
    ├─> Validate SONARQUBE_READ_ONLY header (must be 'true' or 'false' if present)
-   └─> Pass to servlet if all checks pass
+   └─> Store one trusted HttpRequestAuthentication and pass to servlet if all checks pass
 
 4. HttpServletStatelessServerTransport processes request
-   ├─> contextExtractor runs: extracts token from Authorization: Bearer
-   │   (or deprecated SONARQUBE_TOKEN), plus SONARQUBE_ORG,
-   │   SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
+   ├─> contextExtractor reads the selected token from the trusted authentication result,
+   │   plus SONARQUBE_ORG, SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
    ├─> Apply the configured server organization, otherwise the optional request header
    ├─> Creates McpTransportContext with all extracted values
    ├─> Parse JSON-RPC message
@@ -168,7 +167,15 @@ In TOKEN mode, clients configure the HTTP endpoint using the preferred `Authoriz
 
 ### 3. Authentication Modes
 
-#### `TOKEN` Mode (Default)
+#### `AUTO` Mode (Default)
+
+Without supported OAuth settings, AUTO preserves existing token authentication for SonarQube Cloud and Server. With complete OAuth configuration, the same endpoint accepts token and OAuth clients. Any supplied supported OAuth key, including metadata/cache settings and blank environment/JVM-property values, triggers complete configuration validation. Effectively blank or partial configuration fails startup. Explicit TOKEN ignores OAuth settings; stdio is unchanged.
+
+When OAuth is enabled, one valid Authorization header is authoritative, including when a legacy header is also supplied. Malformed or duplicate selected credentials are rejected without fallback. Tokens containing `.` or starting with `eyJ` are OAuth candidates and must pass full OAuth verification. The candidate rule only selects verification; no claim is trusted before signature verification. Legacy opaque tokens remain accepted when Authorization is absent, but OAuth candidates cannot use the legacy header. Failed OAuth credentials, including Cloud-audience Token B, never fall back to token authentication. Missing runtime OAuth services fail closed.
+
+Opaque token requests retain their existing validation path and continue to work through Auth0 outages. Hosted ingress must preserve its existing token authorizer, cache, and IP allowlist checks while passing OAuth candidates and discovery requests to MCP. Cookies must not rescue an invalid token, and anonymous authorizer results must not authorize the token path. OAuth discovery and challenges are enabled by configured OAuth capability, including AUTO, rather than the mode name alone.
+
+#### `TOKEN` Mode
 - Clients provide their own SonarQube token on **every request** (fully stateless)
 - Token validated by SonarQube API (not the MCP server itself)
 - Headers:
@@ -188,7 +195,7 @@ Auth0 handles user sign-in and authorization with Proof Key for Code Exchange (P
 3. `Auth0TokenVerifier` validates A's RS256 signature, issuer, MCP audience, required claims, and expiry. `Auth0OAuthAuthenticationService` requires a supported GitHub user subject, an originating client, and a lifetime of at most 300 seconds. A must have no Cloud audience, actor chain (`act`), or organization claim (`org_id`), and must grant at least one of `mcp:tools:read` or `mcp:tools:write`. All other scope values, including `offline_access`, OIDC scopes, and Cloud scope names, are ignored when deriving delegation. A token with no recognized MCP scope receives HTTP 403 before exchange.
 4. `Auth0TokenExchange` authenticates the backend application to Auth0 and requests a Cloud token using native token exchange. It sends explicit subject/requested access-token types, the Cloud audience, and exactly the Cloud scopes mapped from A's recognized MCP scopes: `mcp:tools:read` becomes `read:all`, and `mcp:tools:write` becomes `write:all`. No other Token A scope is requested in the exchange. Redirects and retries are disabled, with a 5-second connection timeout and 10-second total call timeout.
 5. The server validates the returned Cloud token (**Token B**): signature and time claims, the same user, backend client, exact Cloud audience, no organization claim, and a two-level actor chain identifying the backend followed by A's originating client. B must have a lifetime of at most 300 seconds and a nonempty scope set contained in A's mapped Cloud delegation. Unlike Token A, any extra scope on B, including `offline_access`, invalidates the exchange.
-6. `AuthenticationFilter` stores B and **B's actual scopes** in trusted request attributes, creates a fresh `OAuthScopeContext`, and wraps the response before dispatch. The transport extracts B and that same scope context for the request. Missing trusted authentication fails closed. A never enters the downstream Cloud API context.
+6. `AuthenticationFilter` stores B and **B's actual scopes** in one trusted `HttpRequestAuthentication`, creates a fresh `OAuthScopeContext`, and wraps the response before dispatch. The transport extracts B and that same scope context for the request. Missing trusted authentication fails closed. A never enters the downstream Cloud API context.
 7. Tool listing and execution enforce the verified grants. A permitted tool uses B and the call's selected organization to access Cloud APIs, which still enforce user permissions.
 
 OAuth rejects the `SONARQUBE_ORG` header. Organization-aware tools use `organization` arguments, and `list_organizations` provides discovery with `mcp:tools:read`, exchanged for `read:all` on B. No organization is stored between requests. TOKEN mode retains its optional fixed-organization header.
@@ -211,15 +218,15 @@ The exchange cache is isolated by A's authorization fingerprint, issuer, user, c
 
 ### Design: Stateless Per-Request Token Extraction
 
-The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function populates a fresh `McpTransportContext`. TOKEN mode extracts request headers as shown below. OAuth mode extracts the validated Cloud token and scopes from the trusted authentication result, never the incoming bearer token.
+The transport uses `HttpServletStatelessServerTransport` from the MCP Java SDK. For every incoming POST request, a `contextExtractor` function populates a fresh `McpTransportContext`. Both paths extract the downstream credential from the single trusted authentication result. OAuth requests additionally carry their fresh scope context. Missing or inconsistent trusted results fail closed without reading raw credentials.
 
 The SDK passes the context to the tool handler. `SonarQubeMcpServer.toStatelessSpec()` sets the server's own `ThreadLocal<McpTransportContext>` for tool execution and removes it in `finally`, so `ServerApiProvider.get()` can access the token and org without any session lookup:
 
 ```
 1. HTTP Request arrives
-   └─> contextExtractor extracts token from Authorization: Bearer header
-       (falls back to deprecated SONARQUBE_TOKEN for backward compat)
-       plus SONARQUBE_ORG, SONARQUBE_TOOLSETS, and SONARQUBE_READ_ONLY headers
+   └─> AuthenticationFilter selects the credential and stores its trusted result
+   └─> contextExtractor reads that result and request preferences
+       plus SONARQUBE_ORG for token requests
    └─> SDK receives the request-specific McpTransportContext
 
 2. PerRequestToolFilteringHandler
@@ -229,7 +236,7 @@ The SDK passes the context to the tool handler. `SonarQubeMcpServer.toStatelessS
 3. SonarQubeMcpServer tool wrapper (tools/call)
    └─> Sets its ThreadLocal for tool execution and cleans it up in finally
    └─> ServerApiProvider.get() reads McpTransportContext from that ThreadLocal
-   └─> TOKEN mode extracts the effective org: configured SONARQUBE_ORG is fixed (request header rejected);
+   └─> Token requests extract the effective org: configured SONARQUBE_ORG is fixed (request header rejected);
        otherwise the optional header fixes the request organization
    └─> Creates a fresh ServerApi for this request
 ```
@@ -278,7 +285,7 @@ An otherwise eligible call lacking scopes executes no tool or entitlement check.
 
 ### Example Client Configuration
 
-When no server organization is configured, this TOKEN-mode example fixes the request organization. Omit the header to select organizations through tool arguments. OAuth always uses tool arguments and rejects this header.
+When no server organization is configured, this token-authentication example fixes the request organization. Omit the header to select organizations through tool arguments. OAuth always uses tool arguments and rejects this header.
 
 ```json
 {
@@ -349,4 +356,4 @@ The automated tests use controlled signing keys and simulated Auth0/Cloud respon
 
 ---
 
-Organization-aware tool calls capture one immutable `ServerApi`. In TOKEN mode, a configured server organization or optional organization header fixes the organization and rejects tool arguments; without either, tools select the organization through their argument. Nested requests reuse the selected API. Discovery is organization-free, and per-call selections are never persisted between requests. Analytics captures the selected API on the request thread before asynchronous dispatch. OAuth always selects organizations through tool arguments.
+Organization-aware tool calls capture one immutable `ServerApi`. For token requests, a configured server organization or optional organization header fixes the organization and rejects tool arguments; without either, tools select the organization through their argument. Nested requests reuse the selected API. Discovery is organization-free, and per-call selections are never persisted between requests. Analytics captures the selected API on the request thread before asynchronous dispatch. OAuth always selects organizations through tool arguments.

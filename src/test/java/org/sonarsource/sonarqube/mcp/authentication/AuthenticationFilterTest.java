@@ -32,11 +32,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.sonarsource.sonarqube.mcp.transport.OAuthScopeContext;
 import org.sonarsource.sonarqube.mcp.transport.OAuthScopeResponseWrapper;
 
 import static java.util.Collections.enumeration;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -288,15 +288,13 @@ class AuthenticationFilterTest {
     filter.doFilter(request, response, filterChain);
 
     assertThat(receivedTokens).containsExactly("mcp-token-a");
-    var trustedAuthentication = ArgumentCaptor.forClass(OAuthRequestAuthentication.class);
-    verify(request).setAttribute(eq(AuthenticationFilter.OAUTH_AUTHENTICATION_ATTRIBUTE), trustedAuthentication.capture());
-    assertThat(trustedAuthentication.getValue().cloudToken()).isEqualTo("cloud-token-b");
-    assertThat(trustedAuthentication.getValue().scopes()).containsExactly("write:all");
-    var scopes = ArgumentCaptor.forClass(OAuthScopeContext.class);
-    verify(request).setAttribute(eq(AuthenticationFilter.OAUTH_SCOPE_ATTRIBUTE), scopes.capture());
-    assertThat(scopes.getValue().permits(Set.of("write:all"))).isTrue();
-    assertThat(scopes.getValue().permits(Set.of("read:all"))).isFalse();
-    verify(request, times(2)).setAttribute(anyString(), any());
+    var trustedAuthentication = ArgumentCaptor.forClass(HttpRequestAuthentication.class);
+    verify(request).setAttribute(eq(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE), trustedAuthentication.capture());
+    assertThat(trustedAuthentication.getValue().token()).isEqualTo("cloud-token-b");
+    assertThat(trustedAuthentication.getValue().toString()).doesNotContain("cloud-token-b");
+    assertThat(trustedAuthentication.getValue().scopes().permits(Set.of("write:all"))).isTrue();
+    assertThat(trustedAuthentication.getValue().scopes().permits(Set.of("read:all"))).isFalse();
+    verify(request).setAttribute(anyString(), any());
     var dispatchedResponse = ArgumentCaptor.forClass(ServletResponse.class);
     verify(filterChain).doFilter(eq(request), dispatchedResponse.capture());
     assertThat(dispatchedResponse.getValue()).isInstanceOf(OAuthScopeResponseWrapper.class);
@@ -313,10 +311,10 @@ class AuthenticationFilterTest {
     filter.doFilter(request, response, filterChain);
     filter.doFilter(request, secondResponse, filterChain);
 
-    var scopes = ArgumentCaptor.forClass(OAuthScopeContext.class);
-    verify(request, times(2)).setAttribute(eq(AuthenticationFilter.OAUTH_SCOPE_ATTRIBUTE), scopes.capture());
-    var firstScope = scopes.getAllValues().getFirst();
-    var secondScope = scopes.getAllValues().getLast();
+    var authentications = ArgumentCaptor.forClass(HttpRequestAuthentication.class);
+    verify(request, times(2)).setAttribute(eq(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE), authentications.capture());
+    var firstScope = authentications.getAllValues().getFirst().scopes();
+    var secondScope = authentications.getAllValues().getLast().scopes();
     assertThat(secondScope).isNotSameAs(firstScope);
     firstScope.deny(Set.of("write:all"));
     assertThat(secondScope.requiredScopes()).isEmpty();
@@ -499,6 +497,132 @@ class AuthenticationFilterTest {
 
     verify(filterChain).doFilter(request, response);
     verifyNoInteractions(response);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"squ_token", "sqco_organization_token", "0123456789012345678901234567890123456789"})
+  void it_should_accept_bearer_and_legacy_tokens_in_auto_mode_without_using_oauth(String token) throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.AUTO, null, OAUTH_METADATA, value -> {
+      throw new AssertionError("Opaque tokens must not use OAuth");
+    });
+    oauthHeaders("Bearer " + token);
+    when(request.getHeader("SONARQUBE_ORG")).thenReturn("legacy-org");
+    filter.doFilter(request, response, filterChain);
+
+    oauthHeaders();
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn(token);
+    filter.doFilter(request, response, filterChain);
+
+    var authentications = ArgumentCaptor.forClass(HttpRequestAuthentication.class);
+    verify(request, times(2)).setAttribute(eq(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE), authentications.capture());
+    assertThat(authentications.getAllValues()).allSatisfy(authentication -> {
+      assertThat(authentication.token()).isEqualTo(token);
+      assertThat(authentication.scopes()).isNull();
+      assertThat(authentication.toString()).doesNotContain(token);
+    });
+    verify(filterChain, times(2)).doFilter(request, response);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"eyJ", "eyJmalformed", "a.b", "a.b.c"})
+  void it_should_never_fall_back_to_a_legacy_token_when_oauth_fails(String token) throws Exception {
+    var receivedTokens = new ArrayList<String>();
+    var filter = new AuthenticationFilter(AuthMode.AUTO, null, OAUTH_METADATA, value -> {
+      receivedTokens.add(value);
+      throw OAuthAuthenticationException.unauthorized();
+    });
+    oauthHeaders("Bearer " + token);
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("valid-pat");
+
+    filter.doFilter(request, response, filterChain);
+
+    assertThat(receivedTokens).containsExactly(token);
+    assertOAuthFailure(HttpServletResponse.SC_UNAUTHORIZED);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "Basic credentials", "Bearer", "Bearer ", "Bearer  token", " Bearer token", "Bearer token token", "Bearer token,other"})
+  void it_should_not_fall_back_from_malformed_authorization_in_auto_mode(String authorization) throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.AUTO, null, OAUTH_METADATA, value -> {
+      throw new AssertionError("Invalid credentials must not use OAuth");
+    });
+    oauthHeaders(authorization);
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("valid-pat");
+
+    filter.doFilter(request, response, filterChain);
+
+    assertOAuthFailure(HttpServletResponse.SC_UNAUTHORIZED);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", " ", "one two", "one,two", "a.b.c", "eyJ"})
+  void it_should_reject_invalid_or_oauth_legacy_credentials_in_auto_mode(String token) throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.AUTO, null, OAUTH_METADATA, value -> {
+      throw new AssertionError("Legacy credentials must not use OAuth");
+    });
+    oauthHeaders();
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn(token);
+
+    filter.doFilter(request, response, filterChain);
+
+    assertOAuthFailure(HttpServletResponse.SC_UNAUTHORIZED);
+  }
+
+  @Test
+  void it_should_prefer_a_single_bearer_over_any_legacy_credential_in_auto_mode() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.AUTO, null, OAUTH_METADATA, value -> {
+      throw new AssertionError("Opaque tokens must not use OAuth");
+    });
+    oauthHeaders("bEaReR valid-pat");
+    when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("eyJ.other.token");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(request).setAttribute(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE, new HttpRequestAuthentication("valid-pat", null));
+    verify(filterChain).doFilter(request, response);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"Authorization", "SONARQUBE_TOKEN"})
+  void it_should_reject_duplicate_selected_headers_in_auto_mode(String header) throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.AUTO, null, OAUTH_METADATA, value -> {
+      throw new AssertionError("Duplicate credentials must not use OAuth");
+    });
+    oauthHeaders();
+    when(request.getHeader(header)).thenReturn(header.equals("Authorization") ? "Bearer valid-pat" : "valid-pat");
+    when(request.getHeaders(header)).thenAnswer(invocation -> enumeration(List.of("valid-pat", "other-pat")));
+
+    filter.doFilter(request, response, filterChain);
+
+    assertOAuthFailure(HttpServletResponse.SC_UNAUTHORIZED);
+  }
+
+  @Test
+  void it_should_fail_closed_for_explicit_oauth_capability_with_missing_runtime_services() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.AUTO, null, true, null, null);
+    oauthHeaders("Bearer valid-pat");
+
+    filter.doFilter(request, response, filterChain);
+
+    assertOAuthFailure(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+  }
+
+  @Test
+  void it_should_preserve_token_handling_without_oauth_configuration() throws Exception {
+    var filter = new AuthenticationFilter(AuthMode.AUTO, "fixed-org");
+    oauthHeaders("Bearer existing.server.token");
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(request).setAttribute(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE, new HttpRequestAuthentication("existing.server.token", null));
+    verify(filterChain).doFilter(request, response);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "  "})
+  void it_should_not_create_a_trusted_result_without_a_downstream_credential(String token) {
+    assertThatThrownBy(() -> new HttpRequestAuthentication(token, null)).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new HttpRequestAuthentication(null, null)).isInstanceOf(IllegalArgumentException.class);
   }
 
   private void oauthHeaders(String... values) {

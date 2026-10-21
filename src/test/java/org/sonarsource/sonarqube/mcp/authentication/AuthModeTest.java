@@ -31,6 +31,13 @@ class AuthModeTest {
   }
 
   @Test
+  void should_parse_auto_mode() {
+    assertThat(AuthMode.fromString("auto")).isEqualTo(AuthMode.AUTO);
+    assertThat(AuthMode.fromString("AUTO")).isEqualTo(AuthMode.AUTO);
+    assertThat(AuthMode.fromString("Auto")).isEqualTo(AuthMode.AUTO);
+  }
+
+  @Test
   void should_parse_oauth_mode() {
     assertThat(AuthMode.fromString("oauth")).isEqualTo(AuthMode.OAUTH);
     assertThat(AuthMode.fromString("OAUTH")).isEqualTo(AuthMode.OAUTH);
@@ -38,10 +45,10 @@ class AuthModeTest {
   }
 
   @Test
-  void should_default_to_token_for_null_or_blank() {
-    assertThat(AuthMode.fromString(null)).isEqualTo(AuthMode.TOKEN);
-    assertThat(AuthMode.fromString("")).isEqualTo(AuthMode.TOKEN);
-    assertThat(AuthMode.fromString("  ")).isEqualTo(AuthMode.TOKEN);
+  void should_default_to_auto_for_null_or_blank() {
+    assertThat(AuthMode.fromString(null)).isEqualTo(AuthMode.AUTO);
+    assertThat(AuthMode.fromString("")).isEqualTo(AuthMode.AUTO);
+    assertThat(AuthMode.fromString("  ")).isEqualTo(AuthMode.AUTO);
   }
 
   @Test
