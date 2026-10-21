@@ -514,7 +514,7 @@ class AuthenticationFilterTest {
     return new AuthenticationFilter(AuthMode.OAUTH, null, OAUTH_METADATA, token -> new OAuthRequestAuthentication("cloud-token-b", Set.of("read:all")));
   }
 
-  private void assertOAuthFailure(int status) throws Exception {
+  private void assertOAuthFailure(int status) {
     verify(response).setStatus(status);
     verify(response).setContentType("application/json");
     verify(response, atLeastOnce()).setHeader("Cache-Control", "no-store");

@@ -29,6 +29,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import javax.net.ssl.SSLContext;
@@ -172,18 +173,7 @@ public class HttpServerTransportProvider {
     try {
       var toolsets = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_TOOLSETS);
       var readOnly = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_READ_ONLY);
-      var contextBuilder = new HashMap<String, Object>();
-      if (authMode == AuthMode.OAUTH) {
-        if (!(request.getAttribute(AuthenticationFilter.OAUTH_AUTHENTICATION_ATTRIBUTE) instanceof OAuthRequestAuthentication authentication)
-          || !(request.getAttribute(AuthenticationFilter.OAUTH_SCOPE_ATTRIBUTE) instanceof OAuthScopeContext scopes)) {
-          throw OAuthAuthenticationException.unauthorized();
-        }
-        contextBuilder.put(CONTEXT_TOKEN_KEY, authentication.cloudToken());
-        contextBuilder.put(OAuthScopeContext.CONTEXT_KEY, scopes);
-      } else {
-        var token = AuthenticationFilter.extractToken(request);
-        contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
-      }
+      var contextBuilder = createAuthenticationContext(request);
       if (isSonarQubeCloud && authMode == AuthMode.TOKEN) {
         var org = serverOrg != null ? serverOrg : request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
         if (org != null && !org.isBlank()) {
@@ -201,6 +191,22 @@ public class HttpServerTransportProvider {
       LOG.error("Failed to extract MCP transport context from request for URI '" + request.getRequestURI() + "'", e);
       throw e;
     }
+  }
+
+  private Map<String, Object> createAuthenticationContext(HttpServletRequest request) {
+    var contextBuilder = new HashMap<String, Object>();
+    if (authMode == AuthMode.OAUTH) {
+      if (!(request.getAttribute(AuthenticationFilter.OAUTH_AUTHENTICATION_ATTRIBUTE) instanceof OAuthRequestAuthentication authentication)
+        || !(request.getAttribute(AuthenticationFilter.OAUTH_SCOPE_ATTRIBUTE) instanceof OAuthScopeContext scopes)) {
+        throw OAuthAuthenticationException.unauthorized();
+      }
+      contextBuilder.put(CONTEXT_TOKEN_KEY, authentication.cloudToken());
+      contextBuilder.put(OAuthScopeContext.CONTEXT_KEY, scopes);
+    } else {
+      var token = AuthenticationFilter.extractToken(request);
+      contextBuilder.put(CONTEXT_TOKEN_KEY, token != null ? token : "");
+    }
+    return contextBuilder;
   }
 
   /**

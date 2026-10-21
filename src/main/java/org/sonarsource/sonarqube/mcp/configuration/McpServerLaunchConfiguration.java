@@ -40,6 +40,7 @@ import static org.apache.commons.lang3.StringUtils.stripEnd;
 public final class McpServerLaunchConfiguration {
 
   private static final String APP_NAME = "SonarQube MCP Server";
+  private static final String HTTPS = "https";
 
   public static final String SONARCLOUD_IO_URL = "https://sonarcloud.io";
   public static final String SONARQUBE_US_URL = "https://sonarqube.us";
@@ -160,7 +161,7 @@ public final class McpServerLaunchConfiguration {
     this.hostMachineAddress = resolveHostMachineAddress();
 
     this.isHttpEnabled = isHttpTransport(environment);
-    this.isHttpsEnabled = "https".equals(transportMode(environment));
+    this.isHttpsEnabled = HTTPS.equals(transportMode(environment));
 
     // Read configuration values.
     // SONARQUBE_TOKEN, SONARQUBE_ORG, and SONARQUBE_URL may be forwarded as literal "${VAR}" strings by MCP clients
@@ -251,7 +252,7 @@ public final class McpServerLaunchConfiguration {
     }
     if (oauthConfiguration != null) {
       var cloudUrl = URI.create(sonarqubeUrl);
-      if (!"https".equals(cloudUrl.getScheme()) || cloudUrl.getHost() == null || cloudUrl.getUserInfo() != null
+      if (!HTTPS.equals(cloudUrl.getScheme()) || cloudUrl.getHost() == null || cloudUrl.getUserInfo() != null
         || cloudUrl.getQuery() != null || cloudUrl.getFragment() != null) {
         throw new IllegalArgumentException("OAuth requires an HTTPS SonarQube Cloud URL without credentials, query, or fragment");
       }
@@ -337,7 +338,7 @@ public final class McpServerLaunchConfiguration {
    */
   public static boolean isHttpTransport(Map<String, String> environment) {
     var mode = transportMode(environment);
-    return "http".equals(mode) || "https".equals(mode);
+    return "http".equals(mode) || HTTPS.equals(mode);
   }
 
   private static String transportMode(Map<String, String> environment) {

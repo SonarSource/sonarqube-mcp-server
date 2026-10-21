@@ -55,6 +55,7 @@ import org.sonarsource.sonarqube.mcp.transport.OAuthScopeResponseWrapper;
 public class AuthenticationFilter implements Filter {
 
   private static final McpLogger LOG = McpLogger.getInstance();
+  private static final String APPLICATION_JSON = "application/json";
   static final String AUTHORIZATION_HEADER = "Authorization";
   static final String BEARER_PREFIX = "Bearer ";
   private static final String SONARQUBE_TOKEN_HEADER = McpServerLaunchConfiguration.SONARQUBE_TOKEN;
@@ -177,7 +178,7 @@ public class AuthenticationFilter implements Filter {
 
   private void sendOAuthError(HttpServletResponse response, OAuthAuthenticationException error, boolean tokenProvided) throws IOException {
     response.setStatus(error.status());
-    response.setContentType("application/json");
+    response.setContentType(APPLICATION_JSON);
     response.setHeader("Cache-Control", "no-store");
     if (oauthMetadata != null && (error.status() == 401 || error.status() == 403)) {
       var challenge = oauthMetadata.challenge();
@@ -247,14 +248,14 @@ public class AuthenticationFilter implements Filter {
 
   private static void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-    response.setContentType("application/json");
+    response.setContentType(APPLICATION_JSON);
     response.setHeader("WWW-Authenticate", "Bearer realm=\"MCP Server\"");
     response.getWriter().write(jsonRpcError(message));
   }
 
   private static void sendBadRequestResponse(HttpServletResponse response, String message) throws IOException {
     response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    response.setContentType("application/json");
+    response.setContentType(APPLICATION_JSON);
     response.getWriter().write(jsonRpcError(message));
   }
 
