@@ -44,12 +44,13 @@ import org.sonarsource.sonarqube.mcp.transport.OAuthScopeResponseWrapper;
  * <p>
  * Authentication modes:
  * <ul>
- *   <li>TOKEN (default) - Client must provide a SonarQube token via {@code Authorization: Bearer <token>}
+ *   <li>AUTO (default) - SonarQube tokens and OAuth when configured</li>
+ *   <li>TOKEN - Client must provide a SonarQube token via {@code Authorization: Bearer <token>}
  *       (or the deprecated {@code SONARQUBE_TOKEN} header) on every request</li>
  *   <li>OAUTH - Verified MCP access tokens exchanged for scoped Cloud credentials</li>
  * </ul>
  * <p>
- * In TOKEN mode, the optional SONARQUBE_ORG header selects a fixed request organization when no server organization is configured.
+ * For SonarQube token requests, the optional SONARQUBE_ORG header selects a fixed request organization when no server organization is configured.
  * A configured server organization rejects client organization headers.
  */
 public class AuthenticationFilter implements Filter {
@@ -60,10 +61,10 @@ public class AuthenticationFilter implements Filter {
   private static final String SONARQUBE_TOKEN_HEADER = McpServerLaunchConfiguration.SONARQUBE_TOKEN;
   private static final String SONARQUBE_READ_ONLY_HEADER = McpServerLaunchConfiguration.SONARQUBE_READ_ONLY;
 
-  public static final String OAUTH_AUTHENTICATION_ATTRIBUTE = AuthenticationFilter.class.getName() + ".oauth";
-  public static final String OAUTH_SCOPE_ATTRIBUTE = AuthenticationFilter.class.getName() + ".scopes";
+  public static final String AUTHENTICATION_ATTRIBUTE = AuthenticationFilter.class.getName() + ".authentication";
 
   private final AuthMode authMode;
+  private final boolean oauthEnabled;
   @Nullable
   private final String serverOrg;
   @Nullable
@@ -77,7 +78,14 @@ public class AuthenticationFilter implements Filter {
 
   public AuthenticationFilter(AuthMode authMode, @Nullable String serverOrg, @Nullable OAuthProtectedResourceMetadata oauthMetadata,
     @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
+    this(authMode, serverOrg, authMode == AuthMode.OAUTH || (authMode == AuthMode.AUTO && (oauthMetadata != null || oauthAuthenticator != null)),
+      oauthMetadata, oauthAuthenticator);
+  }
+
+  public AuthenticationFilter(AuthMode authMode, @Nullable String serverOrg, boolean oauthEnabled,
+    @Nullable OAuthProtectedResourceMetadata oauthMetadata, @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
     this.authMode = authMode;
+    this.oauthEnabled = oauthEnabled;
     this.serverOrg = serverOrg;
     this.oauthMetadata = oauthMetadata;
     this.oauthAuthenticator = oauthAuthenticator;
@@ -100,58 +108,107 @@ public class AuthenticationFilter implements Filter {
       return;
     }
 
-    if (authMode == AuthMode.TOKEN) {
-      var token = extractToken(httpRequest);
-      if (token == null || token.isBlank()) {
-        LOG.warn("Missing or empty SonarQube token for URI '" + httpRequest.getRequestURI() + "'");
-        sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via Authorization: Bearer <token> header.");
+    if (oauthEnabled) {
+      httpResponse.setHeader("Cache-Control", "no-store");
+      if (oauthMetadata == null || oauthAuthenticator == null) {
+        sendOAuthError(httpResponse, OAuthAuthenticationException.unavailable(), false);
         return;
       }
-      var org = httpRequest.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
-      if (serverOrg != null && org != null && !org.isBlank()) {
-        sendBadRequestResponse(httpResponse, "The SONARQUBE_ORG header is not allowed: this server is already configured with an organization. "
-          + "Remove the SONARQUBE_ORG header from your request.");
+      String token;
+      try {
+        token = selectToken(httpRequest);
+      } catch (OAuthAuthenticationException e) {
+        sendOAuthError(httpResponse, e, true);
         return;
       }
-      if (!validateReadOnly(httpRequest, httpResponse)) {
-        return;
+      if (token == null) {
+        sendOAuthError(httpResponse, OAuthAuthenticationException.unauthorized(), false);
+      } else if (authMode == AuthMode.OAUTH || isOAuthCandidate(token)) {
+        authenticateOAuth(httpRequest, httpResponse, filterChain, token);
+      } else {
+        authenticateToken(httpRequest, httpResponse, filterChain, token);
       }
-      filterChain.doFilter(req, resp);
       return;
     }
 
     if (authMode == AuthMode.OAUTH) {
-      authenticateOAuth(httpRequest, httpResponse, filterChain);
+      sendOAuthError(httpResponse, OAuthAuthenticationException.unavailable(), false);
       return;
     }
+    var token = extractToken(httpRequest);
+    if (token == null || token.isBlank()) {
+      LOG.warn("Missing or empty SonarQube token for URI '" + httpRequest.getRequestURI() + "'");
+      sendUnauthorizedResponse(httpResponse, "SonarQube token required. Provide via Authorization: Bearer <token> header.");
+      return;
+    }
+    authenticateToken(httpRequest, httpResponse, filterChain, token);
+  }
 
-    LOG.warn("Unsupported authentication mode: " + authMode);
-    sendUnauthorizedResponse(httpResponse, "Unsupported authentication mode");
+  private void authenticateToken(HttpServletRequest request, HttpServletResponse response, FilterChain chain, String token)
+    throws IOException, ServletException {
+    var org = request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG);
+    if (serverOrg != null && org != null && !org.isBlank()) {
+      sendBadRequestResponse(response, "The SONARQUBE_ORG header is not allowed: this server is already configured with an organization. "
+        + "Remove the SONARQUBE_ORG header from your request.");
+      return;
+    }
+    if (!validateReadOnly(request, response)) {
+      return;
+    }
+    request.setAttribute(AUTHENTICATION_ATTRIBUTE, new HttpRequestAuthentication(token, null));
+    chain.doFilter(request, response);
+  }
+
+  @Nullable
+  private String selectToken(HttpServletRequest request) {
+    var authorization = request.getHeader(AUTHORIZATION_HEADER);
+    if (authorization != null) {
+      var token = bearerToken(authorization);
+      if (hasMultipleHeaders(request, AUTHORIZATION_HEADER) || !isTokenSyntaxValid(token)) {
+        throw OAuthAuthenticationException.unauthorized();
+      }
+      return token;
+    }
+    if (authMode == AuthMode.OAUTH) {
+      return null;
+    }
+    var legacyToken = request.getHeader(SONARQUBE_TOKEN_HEADER);
+    if (legacyToken == null) {
+      return null;
+    }
+    if (hasMultipleHeaders(request, SONARQUBE_TOKEN_HEADER) || !isTokenSyntaxValid(legacyToken) || isOAuthCandidate(legacyToken)) {
+      throw OAuthAuthenticationException.unauthorized();
+    }
+    LOG.warn("Deprecated header SONARQUBE_TOKEN used from " + request.getRemoteAddr() +
+      ". Please migrate to: Authorization: Bearer <token>");
+    return legacyToken;
+  }
+
+  private static boolean hasMultipleHeaders(HttpServletRequest request, String name) {
+    var headers = request.getHeaders(name);
+    if (headers == null || !headers.hasMoreElements()) {
+      return false;
+    }
+    headers.nextElement();
+    return headers.hasMoreElements();
+  }
+
+  private static boolean isTokenSyntaxValid(@Nullable String token) {
+    return token != null && token.matches("[A-Za-z0-9._~+/-]+=*");
+  }
+
+  private static boolean isOAuthCandidate(String token) {
+    return token.contains(".") || token.startsWith("eyJ");
   }
 
   private boolean isLocalMetadataRequest(HttpServletRequest request) {
-    return authMode == AuthMode.OAUTH && oauthMetadata != null && oauthMetadata.isSelfHosted()
+    return oauthEnabled && oauthMetadata != null && oauthMetadata.isSelfHosted()
       && OAuthProtectedResourceMetadata.PATH.equals(request.getRequestURI())
       && ("GET".equals(request.getMethod()) || "HEAD".equals(request.getMethod()));
   }
 
-  private void authenticateOAuth(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-    response.setHeader("Cache-Control", "no-store");
-    if (oauthMetadata == null || oauthAuthenticator == null) {
-      sendOAuthError(response, OAuthAuthenticationException.unavailable(), false);
-      return;
-    }
-    var headers = request.getHeaders(AUTHORIZATION_HEADER);
-    if (headers == null || !headers.hasMoreElements()) {
-      sendOAuthError(response, OAuthAuthenticationException.unauthorized(), false);
-      return;
-    }
-    var header = headers.nextElement();
-    var token = bearerToken(header);
-    if (headers.hasMoreElements() || token == null || !token.matches("[A-Za-z0-9._~+/-]+=*")) {
-      sendOAuthError(response, OAuthAuthenticationException.unauthorized(), true);
-      return;
-    }
+  private void authenticateOAuth(HttpServletRequest request, HttpServletResponse response, FilterChain chain, String token)
+    throws IOException, ServletException {
     if (request.getHeader(McpServerLaunchConfiguration.SONARQUBE_ORG) != null) {
       sendBadRequestResponse(response, "SONARQUBE_ORG is not supported in OAuth mode. Use the tool organization argument.");
       return;
@@ -170,8 +227,7 @@ public class AuthenticationFilter implements Filter {
       return;
     }
     var scopes = new OAuthScopeContext(authentication.scopes());
-    request.setAttribute(OAUTH_AUTHENTICATION_ATTRIBUTE, authentication);
-    request.setAttribute(OAUTH_SCOPE_ATTRIBUTE, scopes);
+    request.setAttribute(AUTHENTICATION_ATTRIBUTE, new HttpRequestAuthentication(authentication.cloudToken(), scopes));
     chain.doFilter(request, new OAuthScopeResponseWrapper(response, scopes, oauthMetadata));
   }
 

@@ -25,11 +25,13 @@ import jakarta.annotation.Nullable;
  */
 public enum AuthMode {
 
+  /** Automatically accept SonarQube tokens and configured OAuth authentication. */
+  AUTO,
+
   /**
    * Bearer token authentication.
    * Client must provide a valid SonarQube token via the standard {@code Authorization: Bearer <token>} header.
    * These tokens are the client's SonarQube tokens and are passed through to SonarQube API.
-   * This is the default mode.
    */
   TOKEN,
 
@@ -37,17 +39,17 @@ public enum AuthMode {
   
   /**
    * Parse authentication mode from string (case-insensitive).
-   * Defaults to TOKEN if value is null or blank.
+   * Defaults to AUTO if value is null or blank.
    */
   public static AuthMode fromString(@Nullable String value) {
     if (value == null || value.isBlank()) {
-      return TOKEN;
+      return AUTO;
     }
     try {
       return AuthMode.valueOf(value.toUpperCase(Locale.getDefault()));
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(
-        "Invalid authentication mode: " + value + ". Valid values are: TOKEN, OAUTH"
+        "Invalid authentication mode: " + value + ". Valid values are: AUTO, TOKEN, OAUTH"
       );
     }
   }

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 
@@ -190,6 +191,83 @@ class McpServerLaunchConfigurationOAuthTest {
     assertThat(configuration.getAuthMode()).isNull();
     assertThat(configuration.getOAuthConfiguration()).isNull();
     assertThat(configuration.getOAuthMetadata()).isNull();
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {"  ", "AUTO", "auto"})
+  void it_should_enable_oauth_automatically_when_fully_configured(String mode) {
+    var environment = oauthEnvironment();
+    if (mode == null) {
+      environment.remove("SONARQUBE_HTTP_AUTH_MODE");
+    } else {
+      environment.put("SONARQUBE_HTTP_AUTH_MODE", mode);
+    }
+
+    var configuration = new McpServerLaunchConfiguration(environment);
+
+    assertThat(configuration.getAuthMode()).isEqualTo(AuthMode.AUTO);
+    assertThat(configuration.getOAuthConfiguration()).isNotNull();
+    assertThat(configuration.getOAuthMetadata()).isNotNull();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"SONARQUBE_OAUTH_ISSUER", "SONARQUBE_OAUTH_RESOURCE", "SONARQUBE_OAUTH_CLOUD_AUDIENCE",
+    "SONARQUBE_OAUTH_CLIENT_ID", "SONARQUBE_OAUTH_CLIENT_SECRET", "SONARQUBE_OAUTH_METADATA_URL",
+    "SONARQUBE_OAUTH_CACHE_TTL_SECONDS", "SONARQUBE_OAUTH_CACHE_SIZE"})
+  void it_should_detect_every_supplied_oauth_setting_before_applying_defaults(String setting) {
+    var environment = new HashMap<>(Map.of("STORAGE_PATH", storage.toString(), "SONARQUBE_TRANSPORT", "http", "SONARQUBE_IS_CLOUD", "true"));
+    for (var value : new String[] {"", "  ", "invalid"}) {
+      environment.put(setting, value);
+      assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment)).isInstanceOf(IllegalArgumentException.class);
+    }
+    environment.remove(setting);
+    var original = System.getProperty(setting);
+    try {
+      for (var value : new String[] {"", "  ", "invalid"}) {
+        System.setProperty(setting, value);
+        assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment)).isInstanceOf(IllegalArgumentException.class);
+      }
+    } finally {
+      if (original == null) {
+        System.clearProperty(setting);
+      } else {
+        System.setProperty(setting, original);
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"SONARQUBE_OAUTH_ISSUER", "SONARQUBE_OAUTH_RESOURCE", "SONARQUBE_OAUTH_CLOUD_AUDIENCE",
+    "SONARQUBE_OAUTH_CLIENT_ID", "SONARQUBE_OAUTH_CLIENT_SECRET", "SONARQUBE_OAUTH_METADATA_URL",
+    "SONARQUBE_OAUTH_CACHE_TTL_SECONDS", "SONARQUBE_OAUTH_CACHE_SIZE"})
+  void it_should_reject_effectively_blank_oauth_settings_in_auto_mode(String setting) {
+    var environment = oauthEnvironment();
+    environment.remove("SONARQUBE_HTTP_AUTH_MODE");
+    environment.put(setting, "  ");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
+      .isInstanceOf(IllegalArgumentException.class).hasMessageContaining(setting);
+  }
+
+  @Test
+  void it_should_resolve_oauth_properties_with_existing_environment_precedence() {
+    var environment = oauthEnvironment();
+    environment.remove("SONARQUBE_HTTP_AUTH_MODE");
+    var setting = "SONARQUBE_OAUTH_CLIENT_ID";
+    var original = System.getProperty(setting);
+    try {
+      System.setProperty(setting, "property-client");
+      assertThat(new McpServerLaunchConfiguration(environment).getOAuthConfiguration().clientId()).isEqualTo("mcp-backend");
+      environment.put(setting, "  ");
+      assertThat(new McpServerLaunchConfiguration(environment).getOAuthConfiguration().clientId()).isEqualTo("property-client");
+    } finally {
+      if (original == null) {
+        System.clearProperty(setting);
+      } else {
+        System.setProperty(setting, original);
+      }
+    }
   }
 
   private Map<String, String> oauthEnvironment() {

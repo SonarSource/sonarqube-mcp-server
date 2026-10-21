@@ -17,20 +17,31 @@
 package org.sonarsource.sonarqube.mcp.transport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
+import org.sonarsource.sonarqube.mcp.authentication.HttpRequestAuthentication;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthAuthenticationException;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 class HttpServerTransportProviderTest {
@@ -88,4 +99,39 @@ class HttpServerTransportProviderTest {
       .extracting(ILoggingEvent::getFormattedMessage)
       .anyMatch(msg -> msg.contains("all network interfaces"));
   }
+  @ParameterizedTest
+  @EnumSource(AuthMode.class)
+  void it_should_require_a_trusted_authentication_result_without_reading_raw_credentials(AuthMode mode) throws Exception {
+    var provider = provider(mode);
+    var request = mock(HttpServletRequest.class);
+    var extract = HttpServerTransportProvider.class.getDeclaredMethod("extractTransportContext", HttpServletRequest.class);
+    extract.setAccessible(true);
+
+    assertThatThrownBy(() -> extract.invoke(provider, request)).hasCauseInstanceOf(OAuthAuthenticationException.class);
+
+    verify(request, never()).getHeader("Authorization");
+    verify(request, never()).getHeader("SONARQUBE_TOKEN");
+  }
+
+  @ParameterizedTest
+  @EnumSource(AuthMode.class)
+  void it_should_reject_trusted_authentication_inconsistent_with_the_configured_capability(AuthMode mode) throws Exception {
+    var provider = provider(mode);
+    var request = mock(HttpServletRequest.class);
+    var result = new HttpRequestAuthentication("downstream", mode == AuthMode.OAUTH ? null : new OAuthScopeContext(Set.of("read:all")));
+    when(request.getAttribute(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE)).thenReturn(result);
+    var extract = HttpServerTransportProvider.class.getDeclaredMethod("extractTransportContext", HttpServletRequest.class);
+    extract.setAccessible(true);
+
+    assertThatThrownBy(() -> extract.invoke(provider, request)).hasCauseInstanceOf(OAuthAuthenticationException.class);
+
+    verify(request, never()).getHeader("Authorization");
+    verify(request, never()).getHeader("SONARQUBE_TOKEN");
+  }
+
+  private static HttpServerTransportProvider provider(AuthMode mode) {
+    return new HttpServerTransportProvider(8080, "127.0.0.1", mode, true, null, false,
+      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+  }
+
 }
