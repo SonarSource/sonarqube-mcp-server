@@ -16,6 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -34,6 +38,10 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.LoggerFactory;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 final class OAuthTestSupport {
   static final OAuthConfiguration CONFIGURATION = new OAuthConfiguration("https://tenant.auth0.com/", "https://api.example.com/mcp",
@@ -72,6 +80,41 @@ final class OAuthTestSupport {
       return generator.generateKeyPair();
     } catch (GeneralSecurityException e) {
       throw new IllegalStateException(e);
+    }
+  }
+
+  static final class LogCapture implements AutoCloseable {
+    private static final String DEBUG_PROPERTY = "SONARQUBE_DEBUG_ENABLED";
+    private final Logger logger = (Logger) LoggerFactory.getLogger(McpLogger.class);
+    private final Level previousLevel = logger.getLevel();
+    private final String previousDebug = System.getProperty(DEBUG_PROPERTY);
+    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+
+    LogCapture() {
+      appender.start();
+      logger.addAppender(appender);
+      logger.setLevel(Level.DEBUG);
+      System.setProperty(DEBUG_PROPERTY, "true");
+    }
+
+    void assertLogged(Level level, String message) {
+      assertThat(appender.list).singleElement().satisfies(event -> {
+        assertThat(event.getLevel()).isEqualTo(level);
+        assertThat(event.getFormattedMessage()).isEqualTo(message);
+        assertThat(event.getThrowableProxy()).isNull();
+      });
+    }
+
+    @Override
+    public void close() {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
+      if (previousDebug == null) {
+        System.clearProperty(DEBUG_PROPERTY);
+      } else {
+        System.setProperty(DEBUG_PROPERTY, previousDebug);
+      }
     }
   }
 
