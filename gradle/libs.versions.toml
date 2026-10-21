@@ -24,7 +24,7 @@ wiremock = "3.13.2"
 
 testcontainers = "2.0.5"
 
-auth0-jwt = "4.6.1"
+auth0-jwt = "4.6.2"
 auth0-jwks = "0.24.1"
 
 [libraries]
