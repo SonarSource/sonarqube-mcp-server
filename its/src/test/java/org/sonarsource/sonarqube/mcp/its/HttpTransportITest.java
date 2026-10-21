@@ -16,7 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.its;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -55,6 +61,24 @@ class HttpTransportITest {
     assertThat(logs)
       .contains("SECURITY WARNING: MCP HTTP server is configured to bind to all network interfaces")
       .contains("SECURITY WARNING: MCP server is using HTTP without SSL/TLS encryption");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"Authorization", "SONARQUBE_TOKEN"})
+  void it_should_preserve_existing_header_token_clients_with_automatic_authentication(String header) throws Exception {
+    var endpoint = URI.create("http://" + httpServerContainer.getHost() + ":" + httpServerContainer.getMappedPort(MCP_HTTP_PORT) + "/mcp");
+    var credential = header.equals("Authorization") ? "Bearer existing-token" : "existing-token";
+    var request = HttpRequest.newBuilder(endpoint).header(header, credential)
+      .header("SONARQUBE_ORG", "existing-org").header("SONARQUBE_READ_ONLY", "true").header("SONARQUBE_TOOLSETS", "projects")
+      .header("Content-Type", "application/json").header("Accept", "application/json, text/event-stream")
+      .POST(HttpRequest.BodyPublishers.ofString("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}")).build();
+
+    try (var client = HttpClient.newHttpClient()) {
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      assertThat(response.statusCode()).isEqualTo(200);
+      assertThat(response.body()).contains("\"result\":{}");
+    }
   }
 
   private static GenericContainer<?> createHttpServerContainer() {

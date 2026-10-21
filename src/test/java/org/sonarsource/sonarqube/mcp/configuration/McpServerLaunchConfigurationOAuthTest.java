@@ -24,8 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,7 +43,6 @@ class McpServerLaunchConfigurationOAuthTest {
 
     var configuration = new McpServerLaunchConfiguration(environment);
 
-    assertThat(configuration.getAuthMode()).isEqualTo(AuthMode.OAUTH);
     assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarqubeOrg()).isNull();
     assertThat(configuration.getSonarQubeToken()).isNull();
@@ -170,33 +169,123 @@ class McpServerLaunchConfigurationOAuthTest {
   }
 
   @Test
-  void it_should_ignore_oauth_settings_for_token_authentication() {
-    var environment = new HashMap<>(Map.of("STORAGE_PATH", storage.toString(), "SONARQUBE_TRANSPORT", "http",
-      "SONARQUBE_HTTP_AUTH_MODE", "TOKEN", "SONARQUBE_OAUTH_RESOURCE", "invalid"));
-
-    var configuration = new McpServerLaunchConfiguration(environment);
-
-    assertThat(configuration.getAuthMode()).isEqualTo(AuthMode.TOKEN);
-    assertThat(configuration.getOAuthConfiguration()).isNull();
-    assertThat(configuration.getOAuthMetadata()).isNull();
-  }
-
-  @Test
   void it_should_ignore_http_oauth_settings_in_stdio_mode() {
     var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", storage.toString(), "SONARQUBE_TOKEN", "token",
       "SONARQUBE_HTTP_AUTH_MODE", "OAUTH", "SONARQUBE_OAUTH_RESOURCE", "invalid"));
 
     assertThat(configuration.isHttpEnabled()).isFalse();
-    assertThat(configuration.getAuthMode()).isNull();
     assertThat(configuration.getOAuthConfiguration()).isNull();
     assertThat(configuration.getOAuthMetadata()).isNull();
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {"  ", "AUTO", "TOKEN", "OAUTH", "invalid"})
+  void it_should_enable_oauth_regardless_of_the_retired_mode_setting(String mode) {
+    var environment = oauthEnvironment();
+    if (mode == null) {
+      environment.remove("SONARQUBE_HTTP_AUTH_MODE");
+    } else {
+      environment.put("SONARQUBE_HTTP_AUTH_MODE", mode);
+    }
+
+    var configuration = new McpServerLaunchConfiguration(environment);
+
+    assertThat(configuration.getOAuthConfiguration()).isNotNull();
+    assertThat(configuration.getOAuthMetadata()).isNotNull();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"TOKEN", "OAUTH", "AUTO", "invalid"})
+  void it_should_ignore_the_retired_mode_property_without_oauth_settings(String mode) {
+    var setting = "SONARQUBE_HTTP_AUTH_MODE";
+    var original = System.getProperty(setting);
+    try {
+      System.setProperty(setting, mode);
+      var environment = Map.of("STORAGE_PATH", storage.toString(), "SONARQUBE_TRANSPORT", "http", setting, mode);
+      var configuration = new McpServerLaunchConfiguration(environment);
+      assertThat(configuration.isHttpEnabled()).isTrue();
+      assertThat(configuration.getOAuthConfiguration()).isNull();
+      assertThat(configuration.getOAuthMetadata()).isNull();
+    } finally {
+      if (original == null) {
+        System.clearProperty(setting);
+      } else {
+        System.setProperty(setting, original);
+      }
+    }
+  }
+
+  @Test
+  void it_should_not_allow_the_retired_token_mode_to_bypass_oauth_validation() {
+    var environment = oauthEnvironment();
+    environment.put("SONARQUBE_HTTP_AUTH_MODE", "TOKEN");
+    environment.remove("SONARQUBE_OAUTH_CLIENT_SECRET");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"SONARQUBE_OAUTH_ISSUER", "SONARQUBE_OAUTH_RESOURCE", "SONARQUBE_OAUTH_CLOUD_AUDIENCE",
+    "SONARQUBE_OAUTH_CLIENT_ID", "SONARQUBE_OAUTH_CLIENT_SECRET", "SONARQUBE_OAUTH_METADATA_URL",
+    "SONARQUBE_OAUTH_CACHE_TTL_SECONDS", "SONARQUBE_OAUTH_CACHE_SIZE"})
+  void it_should_detect_every_supplied_oauth_setting_before_applying_defaults(String setting) {
+    var environment = new HashMap<>(Map.of("STORAGE_PATH", storage.toString(), "SONARQUBE_TRANSPORT", "http", "SONARQUBE_IS_CLOUD", "true"));
+    for (var value : new String[] {"", "  ", "invalid"}) {
+      environment.put(setting, value);
+      assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment)).isInstanceOf(IllegalArgumentException.class);
+    }
+    environment.remove(setting);
+    var original = System.getProperty(setting);
+    try {
+      for (var value : new String[] {"", "  ", "invalid"}) {
+        System.setProperty(setting, value);
+        assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment)).isInstanceOf(IllegalArgumentException.class);
+      }
+    } finally {
+      if (original == null) {
+        System.clearProperty(setting);
+      } else {
+        System.setProperty(setting, original);
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"SONARQUBE_OAUTH_ISSUER", "SONARQUBE_OAUTH_RESOURCE", "SONARQUBE_OAUTH_CLOUD_AUDIENCE",
+    "SONARQUBE_OAUTH_CLIENT_ID", "SONARQUBE_OAUTH_CLIENT_SECRET", "SONARQUBE_OAUTH_METADATA_URL",
+    "SONARQUBE_OAUTH_CACHE_TTL_SECONDS", "SONARQUBE_OAUTH_CACHE_SIZE"})
+  void it_should_reject_effectively_blank_oauth_settings(String setting) {
+    var environment = oauthEnvironment();
+    environment.put(setting, "  ");
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
+      .isInstanceOf(IllegalArgumentException.class).hasMessageContaining(setting);
+  }
+
+  @Test
+  void it_should_resolve_oauth_properties_with_existing_environment_precedence() {
+    var environment = oauthEnvironment();
+    var setting = "SONARQUBE_OAUTH_CLIENT_ID";
+    var original = System.getProperty(setting);
+    try {
+      System.setProperty(setting, "property-client");
+      assertThat(new McpServerLaunchConfiguration(environment).getOAuthConfiguration().clientId()).isEqualTo("mcp-backend");
+      environment.put(setting, "  ");
+      assertThat(new McpServerLaunchConfiguration(environment).getOAuthConfiguration().clientId()).isEqualTo("property-client");
+    } finally {
+      if (original == null) {
+        System.clearProperty(setting);
+      } else {
+        System.setProperty(setting, original);
+      }
+    }
   }
 
   private Map<String, String> oauthEnvironment() {
     var environment = new HashMap<String, String>();
     environment.put("STORAGE_PATH", storage.toString());
     environment.put("SONARQUBE_TRANSPORT", "http");
-    environment.put("SONARQUBE_HTTP_AUTH_MODE", "OAUTH");
     environment.put("SONARQUBE_IS_CLOUD", "true");
     environment.put("SONARQUBE_URL", "https://cloud.example.com");
     environment.put("SONARQUBE_CLOUD_API_URL", "https://api.example.com/");

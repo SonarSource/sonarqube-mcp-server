@@ -47,9 +47,11 @@ import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.IssuesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -109,7 +111,6 @@ class OAuthHttpTransportTest {
     environment.put("STORAGE_PATH", storage.toString());
     environment.put("SONARQUBE_TRANSPORT", "http");
     environment.put("SONARQUBE_HTTP_PORT", Integer.toString(availablePort()));
-    environment.put("SONARQUBE_HTTP_AUTH_MODE", "OAUTH");
     environment.put("SONARQUBE_HTTP_ALLOWED_ORIGINS", CLIENT_ORIGIN);
     environment.put("SONARQUBE_IS_CLOUD", "true");
     environment.put("SONARQUBE_URL", cloud.baseUrl());
@@ -204,9 +205,12 @@ class OAuthHttpTransportTest {
   void it_should_reject_malformed_credentials_and_organization_headers_before_exchange() throws Exception {
     startWithRealAuthentication();
     var grant = grant("123", "valid", "mcp:tools:read", "read:all", "read:all");
-    var missing = send(request(null, "ping", Map.of()).header("SONARQUBE_TOKEN", grant.source()).build());
+    var missing = send(request(null, "ping", Map.of()).build());
     assertThat(missing.statusCode()).isEqualTo(401);
     assertThat(missing.headers().firstValue("WWW-Authenticate")).hasValueSatisfying(value -> assertThat(value).contains("resource_metadata=").doesNotContain("invalid_token"));
+    var legacyOAuth = send(request(null, "ping", Map.of()).header("SONARQUBE_TOKEN", grant.source()).build());
+    assertThat(legacyOAuth.statusCode()).isEqualTo(401);
+    assertThat(legacyOAuth.headers().firstValue("WWW-Authenticate")).hasValueSatisfying(value -> assertThat(value).contains("invalid_token"));
     for (var authorization : List.of("Basic " + grant.source(), "Bearer", "Bearer ", "Bearer  " + grant.source(), "Bearer a b", "Bearer a,b")) {
       var response = send(request(null, "ping", Map.of()).header("Authorization", authorization).build());
       assertThat(response.statusCode()).isEqualTo(401);
@@ -332,8 +336,130 @@ class OAuthHttpTransportTest {
     }
     assertThat(send(HttpRequest.newBuilder(metadataUri).POST(HttpRequest.BodyPublishers.noBody()).build()).statusCode()).isEqualTo(401);
     assertThat(send(HttpRequest.newBuilder(URI.create(endpoint).resolve(OAuthProtectedResourceMetadata.PATH + "/other")).GET().build()).statusCode()).isEqualTo(401);
-    assertThat(send(request("not-a-jwt", "ping", Map.of()).build()).statusCode()).isEqualTo(401);
+    assertThat(send(request("eyJmalformed", "ping", Map.of()).build()).statusCode()).isEqualTo(401);
     assertThat(cloud.getAllServeEvents()).isEmpty();
+  }
+
+  @Test
+  void it_should_isolate_oauth_and_both_existing_token_headers_on_the_same_endpoint() throws Exception {
+    startWithRealAuthentication();
+    var reader = grant("123", "reader", "mcp:tools:read", "read:all", "read:all");
+    var writer = grant("456", "writer", "mcp:tools:write", "write:all", "write:all");
+    var bearer = new Grant("squ_existing_user", "squ_existing_user");
+    var legacy = new Grant("sqco_existing_organization", "sqco_existing_organization");
+    stubOrganization(reader, "oauth-org");
+    stubOrganization(bearer, "bearer-org");
+    stubOrganization(legacy, "legacy-org");
+    stubWrite(writer);
+    stubWrite(bearer);
+    stubWrite(legacy);
+    assertScopeDenied(send(call(reader, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "mcp:tools:write");
+    var pending = new ArrayList<CompletableFuture<Void>>();
+    for (var index = 0; index < 24; index++) {
+      var current = switch (index % 4) {
+        case 0 -> request(reader.source(), "tools/call", Map.of("name", "search_my_sonarqube_projects", "arguments", Map.of("organization", "oauth-org"))).build();
+        case 1 -> request(bearer.source(), "tools/call", Map.of("name", "search_my_sonarqube_projects", "arguments", Map.of()))
+          .header("SONARQUBE_ORG", "bearer-org").build();
+        case 2 -> request(null, "tools/call", Map.of("name", "search_my_sonarqube_projects", "arguments", Map.of()))
+          .header("SONARQUBE_TOKEN", legacy.source()).header("SONARQUBE_ORG", "legacy-org").build();
+        default -> call(writer, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"));
+      };
+      var expected = switch (index % 4) {
+        case 0 -> "oauth-org-project";
+        case 1 -> "bearer-org-project";
+        case 2 -> "legacy-org-project";
+        default -> "successfully changed";
+      };
+      pending.add(client.sendAsync(current, HttpResponse.BodyHandlers.ofString()).thenAccept(response -> assertSuccess(response, expected)));
+    }
+    CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new)).join();
+    assertSuccess(send(call(bearer, "change_sonar_issue_status", Map.of("key", "issue", "status", "accept"))), "successfully changed");
+    assertSuccess(send(request(null, "tools/call", Map.of("name", "change_sonar_issue_status", "arguments", Map.of("key", "issue", "status", "accept")))
+      .header("SONARQUBE_TOKEN", legacy.source()).build()), "successfully changed");
+    assertThat(send(request(bearer.source(), "tools/list", Map.of()).header("SONARQUBE_READ_ONLY", "true").build()).body())
+      .contains("list_organizations").doesNotContain("change_sonar_issue_status");
+    assertThat(send(request(null, "tools/list", Map.of()).header("SONARQUBE_TOKEN", legacy.source()).header("SONARQUBE_TOOLSETS", "projects").build()).body())
+      .contains("list_organizations").doesNotContain("change_sonar_issue_status");
+    assertScopeDenied(send(call(writer, "list_organizations", Map.of())), "mcp:tools:read");
+    for (var invalid : List.of(reader.cloud(), "eyJmalformed", "invalid.oauth.token")) {
+      assertThat(send(request(invalid, "ping", Map.of()).header("SONARQUBE_TOKEN", bearer.source()).build()).statusCode()).isEqualTo(401);
+    }
+    assertThat(send(request(null, "ping", Map.of()).header("SONARQUBE_TOKEN", reader.source()).build()).statusCode()).isEqualTo(401);
+    assertThat(send(request(reader.source(), "ping", Map.of()).header("SONARQUBE_ORG", "legacy-org").build()).statusCode()).isEqualTo(400);
+    auth0.verify(2, postRequestedFor(urlEqualTo("/oauth/token")));
+    assertThat(cloud.getAllServeEvents()).allSatisfy(event -> {
+      assertThat(event.getWasMatched()).isTrue();
+      assertThat(event.getRequest().getHeader("Authorization")).isIn("Bearer " + reader.cloud(), "Bearer " + writer.cloud(),
+        "Bearer " + bearer.cloud(), "Bearer " + legacy.cloud());
+    });
+  }
+
+  @Test
+  void it_should_keep_legacy_and_bearer_tokens_working_when_auth0_is_unavailable() throws Exception {
+    startWithRealAuthentication();
+    var oauth = grant("123", "outage", "mcp:tools:read", "read:all", "read:all");
+    var legacy = new Grant("squ_existing", "squ_existing");
+    stubOrganization(legacy, "existing-org");
+    auth0.stubFor(post("/oauth/token").atPriority(1).willReturn(aResponse().withStatus(503)));
+
+    assertThat(send(call(oauth, "list_organizations", Map.of())).statusCode()).isEqualTo(503);
+    assertSuccess(send(call(legacy, "list_organizations", Map.of())), "existing-org");
+    assertSuccess(send(request(null, "tools/call", Map.of("name", "list_organizations", "arguments", Map.of()))
+      .header("SONARQUBE_TOKEN", legacy.source()).build()), "existing-org");
+    auth0.verify(1, postRequestedFor(urlEqualTo("/oauth/token")));
+    cloud.verify(2, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)).withHeader("Authorization", equalTo("Bearer " + legacy.cloud())));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_preserve_default_token_configuration_and_organization_headers_without_oauth(boolean legacyHeader) throws Exception {
+    environment.keySet().removeIf(key -> key.startsWith("SONARQUBE_OAUTH_"));
+    endpoint = "http://localhost:" + environment.get("SONARQUBE_HTTP_PORT") + "/mcp";
+    server = new SonarQubeMcpServer(environment);
+    server.start();
+    var credential = new Grant("existing.server.token", "existing.server.token");
+    stubOrganization(credential, "existing-org");
+    var request = request(legacyHeader ? null : credential.source(), "tools/call", Map.of("name", "search_my_sonarqube_projects", "arguments", Map.of()))
+      .header("SONARQUBE_ORG", "existing-org");
+    if (legacyHeader) {
+      request.header("SONARQUBE_TOKEN", credential.source());
+    }
+
+    assertSuccess(send(request.build()), "existing-org-project");
+    var challenge = send(request(null, "ping", Map.of()).build());
+    assertThat(challenge.statusCode()).isEqualTo(401);
+    assertThat(challenge.headers().firstValue("WWW-Authenticate")).hasValue("Bearer realm=\"MCP Server\"");
+    assertThat(auth0.getAllServeEvents()).isEmpty();
+  }
+
+  @ParameterizedTest
+  @CsvSource({"false,squ_token", "true,squ_token", "false,existing.server.token", "true,existing.server.token",
+    "false,eyJexistingServerToken", "true,eyJexistingServerToken"})
+  void it_should_keep_sonarqube_server_token_only_regardless_of_credential_format(boolean legacyHeader, String token) throws Exception {
+    environment.keySet().removeIf(key -> key.startsWith("SONARQUBE_OAUTH_"));
+    environment.remove("SONARQUBE_IS_CLOUD");
+    environment.remove("SONARQUBE_CLOUD_API_URL");
+    cloud.stubFor(get(SystemApi.STATUS_PATH).willReturn(okJson("{\"version\":\"2026.1.0\",\"status\":\"UP\"}")));
+    endpoint = "http://localhost:" + environment.get("SONARQUBE_HTTP_PORT") + "/mcp";
+    cloud.stubFor(get(urlPathEqualTo(ComponentsApi.COMPONENTS_SEARCH_PATH)).withHeader("Authorization", equalTo("Bearer " + token))
+      .willReturn(okJson("{\"components\":[{\"key\":\"server-project\",\"name\":\"Project\"}],"
+        + "\"paging\":{\"pageIndex\":1,\"pageSize\":500,\"total\":1}}")));
+    server = new SonarQubeMcpServer(environment);
+    server.start();
+    var request = request(legacyHeader ? null : token, "tools/call", Map.of("name", "search_my_sonarqube_projects", "arguments", Map.of()));
+    if (legacyHeader) {
+      request.header("SONARQUBE_TOKEN", token);
+    }
+
+    assertSuccess(send(request.build()), "server-project");
+    cloud.verify(getRequestedFor(urlPathEqualTo(ComponentsApi.COMPONENTS_SEARCH_PATH)).withHeader("Authorization", equalTo("Bearer " + token)));
+    var challenge = send(request(null, "ping", Map.of()).build());
+    assertThat(challenge.statusCode()).isEqualTo(401);
+    assertThat(challenge.headers().firstValue("WWW-Authenticate")).hasValue("Bearer realm=\"MCP Server\"");
+    var metadata = send(HttpRequest.newBuilder(URI.create(endpoint).resolve(OAuthProtectedResourceMetadata.PATH)).GET().build());
+    assertThat(metadata.statusCode()).isEqualTo(401);
+    assertThat(metadata.body()).doesNotContain("authorization_servers", "scopes_supported");
+    assertThat(auth0.getAllServeEvents()).isEmpty();
   }
 
   private void startWithRealAuthentication() {
