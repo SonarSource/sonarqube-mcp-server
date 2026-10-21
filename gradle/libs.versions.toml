@@ -24,7 +24,7 @@ wiremock = "3.13.2"
 
 testcontainers = "2.0.5"
 
-guava = "33.7.1-jre"
+guava = "33.7.2-jre"
 auth0-sdk = "5.4.0"
 auth0-jwt = "4.6.2"
 auth0-jwks = "0.24.1"
