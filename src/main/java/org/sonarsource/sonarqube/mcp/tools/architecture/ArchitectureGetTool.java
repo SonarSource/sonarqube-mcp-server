@@ -42,6 +42,8 @@ public class ArchitectureGetTool extends Tool {
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED};
+  private static final String[] SERVER_TARGETS = {CURRENT};
+  private final String[] targets;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
@@ -51,22 +53,26 @@ public class ArchitectureGetTool extends Tool {
     super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
-      .setDescription("Read current dependency graphs or intended architecture through the public API.")
-      .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS, "current: analyzed dependencies; intended: desired groups and constraints.")
+      .setDescription(isSonarQubeCloud ? "Read current dependency graphs or intended architecture." : "Read current dependency graphs.")
+      .addRequiredEnumProperty(TARGET_PROPERTY, isSonarQubeCloud ? TARGETS : SERVER_TARGETS,
+        isSonarQubeCloud ? "current: analyzed dependencies; intended: desired groups and constraints." : "current: analyzed dependencies.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
-      .addStringProperty(COMPONENT_PROPERTY, "Start below a current node key or intended group key (labels joined by /). Top level when omitted.")
-      .addNumberProperty(DEPTH_PROPERTY, "Levels below the start to return. Default 1 for current, all for intended.")
+      .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
+        + (isSonarQubeCloud ? "Intended: group labels joined by /. " : "") + "Top level when omitted.")
+      .addNumberProperty(DEPTH_PROPERTY, isSonarQubeCloud ? "Levels below the start to return. Default 1 for current, all for intended."
+        : "Levels below the start to return. Default 1.")
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint()
       .build(),
       ToolCategory.ARCHITECTURE);
+    this.targets = isSonarQubeCloud ? TARGETS : SERVER_TARGETS;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }
 
   @Override
   public Result execute(Arguments arguments) {
-    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, TARGETS);
+    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, targets);
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     var component = arguments.getOptionalString(COMPONENT_PROPERTY);
     var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);
@@ -91,9 +97,9 @@ public class ArchitectureGetTool extends Tool {
       .filter(languageGraph -> languageGraph.graph().nodes() != null && !languageGraph.graph().nodes().isEmpty())
       .toList();
     if (graphs.isEmpty()) {
-      return Result.success(new ArchitectureGetCurrentToolResponse(projectKey, component, depth, false, List.of(), List.of(),
-        "No current architecture for project '" + projectKey + "'" + (language == null ? "" : (" in " + language))
-          + " yet. Run an analysis of a supported language (Java, C#, JavaScript, TypeScript, Python) first."));
+      return Result.success(new ArchitectureGetCurrentToolResponse(projectKey, component, 0, depth, false, List.of(), List.of(),
+        "No current architecture is visible for project '" + projectKey + "'" + (language == null ? "" : (" in " + language))
+          + ". Check project access, organization, selected language and latest analysis."));
     }
     return Result.success(GraphSlicer.slice(projectKey, graphs, component, depth));
   }
@@ -107,7 +113,8 @@ public class ArchitectureGetTool extends Tool {
       .toList();
     if (models.isEmpty()) {
       return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, List.of(), partial ? true : null,
-        "No intended architecture is defined for project '" + projectKey + "'" + (language == null ? "" : (" in " + language)) + "."));
+        "No intended architecture is visible for project '" + projectKey + "'" + (language == null ? "" : (" in " + language))
+          + ". It may be undefined, inaccessible or in another organization."));
     }
 
     var views = models.stream()
@@ -141,24 +148,29 @@ public class ArchitectureGetTool extends Tool {
         .toList();
     }
     return new Model(model.language(), model.type(), toGroups(groups, depth == null ? Integer.MAX_VALUE : depth),
-      constraints.stream().map(constraint -> new Constraint(constraint.from(), constraint.to())).toList(), partial ? true : null);
+      constraints.stream().map(constraint -> new Constraint(constraint.from(), constraint.to())).toList(), partial ? true : null, model.label(), model.description());
   }
 
   @Nullable
   private static IntendedArchitecture.Group findGroup(List<IntendedArchitecture.Group> groups, String key, @Nullable String parentKey) {
+    IntendedArchitecture.Group found = null;
     for (var group : groups) {
       var groupKey = parentKey == null ? group.label() : (parentKey + "/" + group.label());
+      IntendedArchitecture.Group match = null;
       if (key.equals(groupKey)) {
-        return group;
+        match = group;
+      } else if (key.startsWith(groupKey + "/")) {
+        match = findGroup(nullToEmpty(group.groups()), key, groupKey);
       }
-      if (key.startsWith(groupKey + "/")) {
-        var found = findGroup(nullToEmpty(group.groups()), key, groupKey);
+      if (match != null) {
         if (found != null) {
-          return found;
+          throw new IllegalArgumentException("Group key '" + key + "' matches multiple groups because labels contain '/'. "
+            + "Read the complete intended model without component to inspect their hierarchy.");
         }
+        found = match;
       }
     }
-    return null;
+    return found;
   }
 
   private static List<Group> toGroups(List<IntendedArchitecture.Group> groups, int levels) {
@@ -167,7 +179,7 @@ public class ArchitectureGetTool extends Tool {
       var shown = levels > 1 || subgroups.isEmpty();
       return new Group(group.label(), group.patterns(), group.isInterface(), group.interfaceAccess(),
         shown && !subgroups.isEmpty() ? toGroups(subgroups, levels - 1) : null,
-        shown ? null : countGroups(subgroups));
+        shown ? null : countGroups(subgroups), group.description(), group.patternId());
     }).toList();
   }
 

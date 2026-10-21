@@ -41,9 +41,8 @@ public class ArchitectureApi {
   public static final int MAX_PERSPECTIVES = 50;
   public static final List<String> LANGUAGES = List.of("java", "cs", "js", "ts", "py");
 
-  /** Public exports are insufficient for lossless replacement or recovery. */
-  public static final String EXPORT_WARNING = "Public exports do not identify imported organization patterns or include all model metadata. "
-    + "Replacing or restoring an export may remove import links and metadata. "
+  /** Imported group contents depend on organization feature availability. */
+  public static final String EXPORT_WARNING = "Imported organization patterns remain linked by patternId. "
     + "If organization features are disabled, imported groups may be exported without their contents. The export cannot recover omitted data.";
 
   private static final String READ_HINT = "Check project permissions, feature availability and the public API gateway routing; "
@@ -65,7 +64,7 @@ public class ArchitectureApi {
     var path = new UrlBuilder(CURRENT_ARCHITECTURES_PATH)
       .addParam("organizationId", organizationId)
       .addParam("branchId", branchId)
-      .addParam("ecosystem", language)
+      .addParam("language", language)
       .build();
     var response = read(projectKey, () -> fromJson(get(path), CurrentArchitectures.class));
     if (response == null || response.currentArchitectures() == null) {
@@ -75,7 +74,7 @@ public class ArchitectureApi {
   }
 
   /**
-   * Returns one entry per language that has an intended architecture, or an empty list when none is defined.
+   * Returns all publicly exported intended perspectives, or an empty list when none is visible.
    */
   public List<IntendedArchitecture> getIntended(String projectKey, String projectId) {
     var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH)
@@ -85,7 +84,7 @@ public class ArchitectureApi {
     if (response == null || response.intendedArchitectures() == null) {
       throw new IllegalStateException("The public architecture API did not return intendedArchitectures. No complete model was read.");
     }
-    return validateModels(response.intendedArchitectures());
+    return exportedModels(response);
   }
 
   public List<IntendedArchitecture> createIntended(String projectKey, String projectId, List<IntendedArchitecture> models) {
@@ -100,7 +99,7 @@ public class ArchitectureApi {
   }
 
   private static List<PublicIntendedModel> publicModels(List<IntendedArchitecture> models) {
-    return models.stream().map(model -> new PublicIntendedModel(model.type(), model.language(),
+    return models.stream().map(model -> new PublicIntendedModel(model.type(), model.language(), model.label(), model.description(),
       model.groups() == null ? List.of() : model.groups(), model.constraints() == null ? List.of() : model.constraints())).toList();
   }
 
@@ -119,7 +118,7 @@ public class ArchitectureApi {
       if (result == null || result.intendedArchitectures() == null || result.intendedArchitectures().isEmpty()) {
         throw new IllegalStateException("The public architecture API did not return the written intendedArchitectures.");
       }
-      return validateModels(result.intendedArchitectures());
+      return exportedModels(result);
     }
   }
 
@@ -168,7 +167,7 @@ public class ArchitectureApi {
   private record PatchModels(List<PublicIntendedModel> intendedArchitectures) {
   }
 
-  private record PublicIntendedModel(String type, String language, List<IntendedArchitecture.Group> groups,
+  private record PublicIntendedModel(String qualifiers, String language, @Nullable String label, @Nullable String description, List<IntendedArchitecture.Group> groups,
     List<IntendedArchitecture.Constraint> constraints) {
   }
 
@@ -198,7 +197,30 @@ public class ArchitectureApi {
   private record CurrentArchitectures(@Nullable List<StructureGraph> currentArchitectures) {
   }
 
-  private record IntendedArchitectures(@Nullable List<IntendedArchitecture> intendedArchitectures) {
+  private static List<IntendedArchitecture> exportedModels(IntendedArchitectures response) {
+    if (!response.intendedArchitectures().isEmpty()) {
+      try {
+        if (response.id() == null || !java.util.UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())) {
+          throw incompleteModel();
+        }
+      } catch (IllegalArgumentException e) {
+        throw incompleteModel();
+      }
+    }
+    return validateModels(response.intendedArchitectures().stream().map(model -> {
+      if (model == null) {
+        throw incompleteModel();
+      }
+      return new IntendedArchitecture(response.id(), model.qualifiers(), model.language(),
+      model.groups(), model.constraints(), model.label(), model.description());
+    }).toList());
+  }
+
+  private record PublicIntendedExport(String qualifiers, String language, List<IntendedArchitecture.Group> groups,
+    List<IntendedArchitecture.Constraint> constraints, @Nullable String label, @Nullable String description) {
+  }
+
+  private record IntendedArchitectures(@Nullable String id, @Nullable List<PublicIntendedExport> intendedArchitectures) {
   }
 
 }

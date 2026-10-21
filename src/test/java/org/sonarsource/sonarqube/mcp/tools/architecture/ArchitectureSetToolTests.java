@@ -178,7 +178,7 @@ class ArchitectureSetToolTests {
     stored(harness, INTENDED_JAVA_MODEL);
     var result = set(harness, NEXT, true, null);
     assertThat(result.isError()).isFalse();
-    assertThat(textOf(result)).contains("dry-run", "java group app/domain", "java group app/infra", "import links", "metadata",
+    assertThat(textOf(result)).contains("dry-run", "java group app/domain", "java group app/infra", "patternId",
       "organization features are disabled", "The export cannot recover omitted data");
     assertWrites(harness, 0, 0);
   }
@@ -304,13 +304,13 @@ class ArchitectureSetToolTests {
     stubPatch(harness, NEXT);
     var result = set(harness, NEXT, false, revision());
     assertThat(result.isError()).as(textOf(result)).isFalse();
-    assertThat(textOf(result)).contains("replaced", "import links");
+    assertThat(textOf(result)).contains("replaced", "patternId");
     assertWrites(harness, 1, 0);
     var body = patchBody(harness);
     assertThat(body.keySet()).containsExactly("intendedArchitectures");
     assertThat(body.getAsJsonArray("intendedArchitectures")).hasSize(1);
     var perspective = body.getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject();
-    assertThat(perspective.keySet()).containsExactlyInAnyOrder("type", "language", "groups", "constraints");
+    assertThat(perspective.keySet()).containsExactlyInAnyOrder("qualifiers", "language", "groups", "constraints");
     assertThat(perspective.toString()).contains("infra").doesNotContain("id", "projectId");
     assertNoPrivateRequests(harness);
   }
@@ -341,7 +341,7 @@ class ArchitectureSetToolTests {
       .willReturn(aResponse().withStatus(400).withBody("{\"message\":\"A model already exists\"}")));
     var result = set(harness, NEXT, false, IntendedRevision.of(List.of()));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("No automatic rollback", "A model already exists");
+    assertThat(textOf(result)).contains("Error 400", "A model already exists").doesNotContain("Previous exported model", "No automatic rollback");
     assertWrites(harness, 0, 1);
   }
 
@@ -368,7 +368,10 @@ class ArchitectureSetToolTests {
     var result = set(harness, next, true, IntendedRevision.of(IntendedModels.parse(FLAT_SLASH_MODEL)));
 
     assertThat(result.isError()).as(textOf(result)).isFalse();
-    assertThat(textOf(result)).contains("dry-run", "java group UI/API hierarchy", "patterns [app:**] -> patterns [api:**], interface, interfaceAccess");
+    assertThat(textOf(result)).contains("dry-run");
+    var diff = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("diff");
+    assertThat(diff.getAsJsonArray("removed").toString()).contains("java group UI/API");
+    assertThat(diff.getAsJsonArray("added").toString()).contains("java group UI/API");
     assertWrites(harness, 0, 0);
   }
 
@@ -390,11 +393,118 @@ class ArchitectureSetToolTests {
     var result = set(harness, after, false, IntendedRevision.of(IntendedModels.parse(before)));
 
     assertThat(result.isError()).as(textOf(result)).isFalse();
-    assertThat(textOf(result)).contains("replaced", "java group UI/API hierarchy").doesNotContain("unchanged");
+    assertThat(textOf(result)).contains("replaced", "java group UI/API").doesNotContain("unchanged");
+    var diff = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("diff");
+    assertThat(diff.getAsJsonArray("removed").toString()).contains("java group UI/API");
+    assertThat(diff.getAsJsonArray("added").toString()).contains("java group UI/API");
     assertWrites(harness, 1, 0);
     var expected = JsonParser.parseString(created(after)).getAsJsonObject();
     expected.remove("id");
+    expected.add("qualifiers", expected.remove("type"));
     assertThat(patchBody(harness).getAsJsonArray("intendedArchitectures").get(0)).isEqualTo(expected);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_accept_nullable_public_fields_and_an_unchanged_linked_leaf_in_a_complete_export(SonarQubeMcpServerTestHarness harness) {
+    var before = """
+      [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","label":null,"description":null,
+      "groups":[{"label":"Imported","groups":[],"description":null,"patterns":null,"interface":null,"interfaceAccess":false,
+      "patternId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}],"constraints":[]}]
+      """;
+    stored(harness, before);
+    var client = harness.newClient(CLOUD_ENV);
+    var read = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
+    assertThat(read.isError()).isFalse();
+    var exported = JsonParser.parseString(textOf(read)).getAsJsonObject();
+    var group = exported.getAsJsonArray("models").get(0).getAsJsonObject().getAsJsonArray("groups").get(0).getAsJsonObject();
+    group.addProperty("patternId", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA");
+    exported.getAsJsonArray("models").get(0).getAsJsonObject().getAsJsonArray("groups")
+      .add(JsonParser.parseString("{\"label\":\"Storage\"}"));
+    var preview = set(harness, exported.toString(), true, null);
+    assertThat(preview.isError()).as(textOf(preview)).isFalse();
+    assertThat(textOf(preview)).contains("dry-run", "Storage");
+    group.add("groups", JsonParser.parseString("[{\"label\":\"Ignored child edit\"}]"));
+    var refused = set(harness, exported.toString(), true, null);
+    assertThat(refused.isError()).isTrue();
+    assertThat(textOf(refused)).contains("Imported pattern contents cannot be edited");
+    assertWrites(harness, 0, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_refuse_edits_to_an_imported_expansion_without_writing(SonarQubeMcpServerTestHarness harness) {
+    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    stored(harness, before);
+    var next = before.replace("app:com.acme.domain.**", "ignored:**");
+    var result = set(harness, next, false, null);
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Imported pattern contents cannot be edited", "Nothing was changed");
+    assertWrites(harness, 0, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_verify_a_changed_import_link_using_its_writable_fields(SonarQubeMcpServerTestHarness harness) {
+    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var next = before.replace("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444");
+    var resolved = next.replace("app:com.acme.domain.**", "resolved:new.**");
+    stored(harness, before);
+    stubPatch(harness, resolved);
+    var result = set(harness, next, false, IntendedRevision.of(IntendedModels.parse(before)));
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    assertThat(textOf(result)).contains("replaced");
+    assertWrites(harness, 1, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_preserve_public_metadata_and_apply_metadata_only_changes(SonarQubeMcpServerTestHarness harness) {
+    var before = INTENDED_JAVA_MODEL.replace("\"type\": \"namespace\"", "\"label\":\"Perspective\",\"description\":\"Before\",\"type\": \"namespace\"")
+      .replace("\"label\": \"app\"", "\"description\":\"Group description\",\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var next = before.replace("Before", "After");
+    stored(harness, before);
+    stubPatch(harness, next);
+    assertThat(IntendedRevision.of(IntendedModels.parse(next))).isNotEqualTo(IntendedRevision.of(IntendedModels.parse(before)));
+    var result = set(harness, next, false, IntendedRevision.of(IntendedModels.parse(before)));
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    assertThat(textOf(result)).contains("replaced", "perspective metadata");
+    var body = patchBody(harness).getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject();
+    assertThat(body.get("label").getAsString()).isEqualTo("Perspective");
+    assertThat(body.get("description").getAsString()).isEqualTo("After");
+    var group = body.getAsJsonArray("groups").get(0).getAsJsonObject();
+    assertThat(group.get("description").getAsString()).isEqualTo("Group description");
+    assertThat(group.get("patternId").getAsString()).isEqualTo("33333333-3333-4333-8333-333333333333");
+    assertWrites(harness, 1, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_keep_literal_slash_and_nested_group_identities_distinct(SonarQubeMcpServerTestHarness harness) {
+    var before = """
+      [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[
+        {"label":"UI","groups":[{"label":"API","patterns":["nested:**"]}]},
+        {"label":"UI/API","patterns":["literal:**"]}],"constraints":[]}]
+      """;
+    var next = before.replace("nested:**", "changed:**");
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(before))).isNull();
+    stored(harness, before);
+    stubPatch(harness, next);
+
+    var result = set(harness, next, false, IntendedRevision.of(IntendedModels.parse(before)));
+
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    assertThat(textOf(result)).contains("replaced", "patterns [nested:**] -> patterns [changed:**]");
+    assertWrites(harness, 1, 0);
+    var expected = JsonParser.parseString(next).getAsJsonArray().get(0).getAsJsonObject();
+    expected.remove("id");
+    expected.add("qualifiers", expected.remove("type"));
+    assertThat(patchBody(harness).getAsJsonArray("intendedArchitectures").get(0)).isEqualTo(expected);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_lead_with_the_partial_view_reason(SonarQubeMcpServerTestHarness harness) {
+    var result = set(harness, "{\"partial\":true,\"models\":" + NEXT + "}", true, null);
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("This is a partial architecture view", "Read the complete model")
+      .doesNotContain("model must be a JSON array");
+    assertWrites(harness, 0, 0);
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
   }
 
   @SonarQubeMcpServerTest
@@ -444,8 +554,10 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_reject_server_intended_writes_before_private_id_discovery(SonarQubeMcpServerTestHarness harness) {
-    var result = harness.newClient().callTool(ArchitectureSetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project", "model", NEXT, "dryRun", true));
-    assertThat(textOf(result)).contains("no supported public API resolves it");
+    var client = harness.newClient();
+    assertThatThrownBy(() -> client.callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model", NEXT, "dryRun", true)))
+      .isInstanceOf(io.modelcontextprotocol.spec.McpError.class).hasMessage("Unknown tool: invalid_tool_name");
     assertNoPrivateRequests(harness);
     assertWrites(harness, 0, 0);
   }
@@ -563,7 +675,7 @@ class ArchitectureSetToolTests {
   @SonarQubeMcpServerTest
   void it_should_refuse_missing_or_invalid_server_id_before_patch(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL.replace("11111111-1111-4111-8111-111111111111", "unknown/id"));
-    assertThat(textOf(set(harness, NEXT, false, null))).contains("No unknown resource will be changed");
+    assertThat(textOf(set(harness, NEXT, false, null))).contains("incomplete intended architecture");
     assertWrites(harness, 0, 0);
   }
 
@@ -579,13 +691,12 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_refuse_perspectives_from_different_model_ids(SonarQubeMcpServerTestHarness harness) {
+  void it_should_refuse_a_public_model_without_a_resource_id(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL);
-    var before = multiple(INTENDED_JAVA_MODEL, "ts");
-    var mixed = JsonParser.parseString(before).getAsJsonArray();
-    mixed.get(1).getAsJsonObject().addProperty("id", "22222222-2222-4222-8222-222222222222");
-    stored(harness, mixed.toString());
-    assertThat(textOf(set(harness, NEXT, false, null))).contains("inconsistent model ids");
+    var response = JsonParser.parseString(intendedArchitectures(INTENDED_JAVA_MODEL)).getAsJsonObject();
+    response.remove("id");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson(response.toString())));
+    assertThat(textOf(set(harness, NEXT, false, null))).contains("incomplete intended architecture");
     assertWrites(harness, 0, 0);
   }
 
@@ -620,7 +731,7 @@ class ArchitectureSetToolTests {
     var result = set(harness, NEXT, false, revision());
 
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("No automatic rollback", "Previous exported model");
+    assertThat(textOf(result)).contains("Error 405").doesNotContain("Previous exported model", "No automatic rollback");
     assertWrites(harness, 1, 0);
   }
 

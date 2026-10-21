@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
@@ -435,6 +436,50 @@ class HttpClientProviderTests {
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/analyze"))
       .withHeader("Host", equalTo("localhost"))
       .withHeader("Origin", equalTo("http://localhost")));
+  }
+
+  @ParameterizedTest
+  @CsvSource({"POST,429", "PATCH,429", "POST,503", "PATCH,503"})
+  void it_should_not_replay_non_idempotent_writes_after_retryable_responses(String method, int status) {
+    var path = "/write-once";
+    if (method.equals("POST")) {
+      sonarqubeMock.stubFor(post(path).willReturn(aResponse().withStatus(status)));
+    } else {
+      sonarqubeMock.stubFor(patch(path).willReturn(aResponse().withStatus(status)));
+    }
+    var provider = new HttpClientProvider(USER_AGENT);
+    try {
+      var client = provider.getHttpClient("token");
+      var future = method.equals("POST")
+        ? client.postAsync(sonarqubeMock.url(path), HttpClient.JSON_CONTENT_TYPE, "{}")
+        : client.patchAsync(sonarqubeMock.url(path), HttpClient.MERGE_PATCH_CONTENT_TYPE, "{}");
+      try (var response = future.join()) {
+        assertThat(response.code()).isEqualTo(status);
+      }
+      sonarqubeMock.verify(1, method.equals("POST") ? postRequestedFor(urlEqualTo(path)) : patchRequestedFor(urlEqualTo(path)));
+    } finally {
+      provider.shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {429, 503})
+  void it_should_preserve_default_get_response_retries(int status) {
+    var path = "/retry-read";
+    sonarqubeMock.stubFor(get(path).inScenario("retry-read").whenScenarioStateIs("Started")
+      .willSetStateTo("ready").willReturn(aResponse().withStatus(status)));
+    sonarqubeMock.stubFor(get(path).inScenario("retry-read").whenScenarioStateIs("ready")
+      .willReturn(aResponse().withBody("ready")));
+    var provider = new HttpClientProvider(USER_AGENT);
+    try {
+      try (var response = provider.getHttpClient("token").getAsync(sonarqubeMock.url(path)).join()) {
+        assertThat(response.code()).isEqualTo(200);
+        assertThat(response.bodyAsString()).isEqualTo("ready");
+      }
+      sonarqubeMock.verify(2, getRequestedFor(urlEqualTo(path)));
+    } finally {
+      provider.shutdown();
+    }
   }
 
   @Test

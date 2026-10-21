@@ -70,7 +70,7 @@ class ArchitecturePatchRecoveryTest {
     var stored = new AtomicReference<>(PREVIOUS);
     var requestBody = new AtomicReference<String>();
     when(client.getAsync(BRANCH_URL)).thenAnswer(invocation -> response("{\"branches\":[{\"isMain\":true,\"branchId\":\"main-branch\"}]}"));
-    when(client.getAsync(MODELS_URL)).thenAnswer(invocation -> response("{\"intendedArchitectures\":[" + stored.get() + "]}"));
+    when(client.getAsync(MODELS_URL)).thenAnswer(invocation -> response("{\"id\":\"11111111-1111-4111-8111-111111111111\",\"intendedArchitectures\":[" + stored.get().replace("\"type\"", "\"qualifiers\"") + "]}"));
     when(client.patchAsync(eq(PATCH_URL), eq(HttpClient.MERGE_PATCH_CONTENT_TYPE), anyString())).thenAnswer(invocation -> {
       requestBody.set(invocation.getArgument(2));
       if (committed) {
@@ -123,6 +123,7 @@ class ArchitecturePatchRecoveryTest {
   private static void assertPatchRequest(String body) {
     var expected = JsonParser.parseString(NEXT).getAsJsonObject();
     expected.remove("id");
+    expected.add("qualifiers", expected.remove("type"));
     var request = JsonParser.parseString(body).getAsJsonObject();
     assertThat(request.keySet()).containsExactly("intendedArchitectures");
     assertThat(request.getAsJsonArray("intendedArchitectures")).hasSize(1);

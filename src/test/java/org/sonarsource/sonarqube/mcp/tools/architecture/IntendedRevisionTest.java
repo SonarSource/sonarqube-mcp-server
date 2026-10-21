@@ -42,7 +42,7 @@ class IntendedRevisionTest {
   @Test
   void it_should_be_the_revision_the_sonarqube_cli_computes_for_the_same_models() {
     // Same models and hash as the revisionOf test in sonarqube-cli (tests/unit/core/architecture/intended-model.test.ts): keep both in sync.
-    assertThat(IntendedRevision.of(List.of(TS, JAVA))).isEqualTo("3152b86662ac658fb72940b33750e23eba7dd2c7c83491c57474485e512515eb");
+    assertThat(IntendedRevision.of(List.of(TS, JAVA))).isEqualTo("4f1baa7d43ee72995a008af71ce75927b7c3cfc36e9fc7a6b2c94be212284935");
   }
 
   @Test
@@ -58,7 +58,7 @@ class IntendedRevisionTest {
   void it_should_sort_perspectives_with_the_same_language_by_qualifier() {
     var namespace = new IntendedArchitecture("namespace", "java", List.of(), List.of());
     var file = new IntendedArchitecture("file", "java", List.of(), List.of());
-    var expected = "c4674bae74ea8f6687b40418c8b3ffc770e3ad1bed780b71084eb44f274d1543";
+    var expected = "4db11f0eaccbd703960dc6141001dce437cebcd9ab08edf8ca7827da52bdd1c5";
 
     assertThat(IntendedRevision.of(List.of(namespace, file))).isEqualTo(expected);
     assertThat(IntendedRevision.of(List.of(file, namespace))).isEqualTo(expected);

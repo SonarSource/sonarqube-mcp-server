@@ -39,7 +39,7 @@ import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetCurrentTo
 final class GraphSlicer {
 
   static final int MAX_NODES = 150;
-  static final int MAX_EDGES = 300;
+  static final int MAX_EDGES = 20;
   static final int MAX_DRILL_DOWN = 5;
   static final int MAX_FEEDBACK_PAIRS = 5;
 
@@ -61,32 +61,110 @@ final class GraphSlicer {
         + " with target current and without component to list the top-level node keys.");
     }
 
-    var budget = MAX_NODES;
-    var shown = 0;
-    var inScope = 0;
-    var slices = new ArrayList<Graph>();
+    var scopes = selected.stream().map(graph -> graph.scope(component, depth)).toList();
+    var budgets = nodeBudgets(scopes);
+    var views = new ArrayList<Graph>();
     var drillDowns = new ArrayList<DrillDown>();
-    for (var graph : selected) {
-      var scope = graph.scope(component, depth);
-      var kept = scope.subList(0, Math.min(budget, scope.size()));
-      budget -= kept.size();
-      shown += kept.size();
-      inScope += scope.size();
-      slices.add(graph.toResponse(scope.size(), kept));
-      drillDowns.addAll(graph.drillDowns(kept));
+    for (var i = 0; i < selected.size(); i++) {
+      var selection = select(scopes.get(i), budgets[i]);
+      views.add(selected.get(i).toResponse(scopes.get(i).size(), selection));
+      drillDowns.addAll(selected.get(i).drillDowns(selection.nodes()));
     }
 
-    var capped = shown < inScope;
+    var slices = limitEdges(views);
+    var effectiveDepth = slices.stream().filter(graph -> graph.nodesInScope() > 0).mapToInt(Graph::depth).min().orElse(0);
+    var capped = slices.stream().anyMatch(Graph::capped);
     var biggestDrillDowns = drillDowns.stream()
-      .sorted(Comparator.comparingInt(DrillDown::descendants).reversed().thenComparing(DrillDown::component))
+      .sorted(Comparator.comparingInt(DrillDown::descendants).reversed().thenComparing(DrillDown::language).thenComparing(DrillDown::component))
       .limit(MAX_DRILL_DOWN)
       .toList();
-    var message = capped
-      ? ("Showing " + shown + " of " + inScope + " nodes. Call " + ArchitectureGetTool.TOOL_NAME
-        + " with target current and a component from drillDown, or with a language, to narrow the view. "
-        + "Omitted siblings have no continuation token and may remain undiscoverable; this is not a complete graph export.")
-      : null;
-    return new ArchitectureGetCurrentToolResponse(projectKey, component, depth, capped, slices, biggestDrillDowns, message);
+    return new ArchitectureGetCurrentToolResponse(projectKey, component, effectiveDepth, depth, capped, slices, biggestDrillDowns,
+      capped ? limitMessage(slices) : null);
+  }
+
+  private record Scope(List<List<Integer>> levels, int size) {
+  }
+
+  private record Selection(List<Integer> nodes, int depth, @Nullable Integer partialLevel) {
+  }
+
+  private record RankedEdge(int graph, Edge edge) {
+  }
+
+  /** Allocate one node per nonempty graph in turn, so a large language cannot consume the entire budget. */
+  private static int[] nodeBudgets(List<Scope> scopes) {
+    var budgets = new int[scopes.size()];
+    var remaining = MAX_NODES;
+    var allocated = true;
+    while (remaining > 0 && allocated) {
+      allocated = false;
+      for (var i = 0; i < scopes.size() && remaining > 0; i++) {
+        if (budgets[i] < scopes.get(i).size()) {
+          budgets[i]++;
+          remaining--;
+          allocated = true;
+        }
+      }
+    }
+    return budgets;
+  }
+
+  private static Selection select(Scope scope, int budget) {
+    var kept = new ArrayList<Integer>();
+    var depth = 0;
+    for (var level : scope.levels()) {
+      if (kept.size() + level.size() > budget) {
+        if (kept.isEmpty() && budget > 0) {
+          kept.addAll(level.subList(0, budget));
+          return new Selection(kept, 0, 1);
+        }
+        break;
+      }
+      kept.addAll(level);
+      depth++;
+    }
+    return new Selection(kept, depth, null);
+  }
+
+  private static List<Graph> limitEdges(List<Graph> views) {
+    var edges = heaviest(views, false, MAX_EDGES);
+    var pairs = heaviest(views, true, MAX_FEEDBACK_PAIRS);
+    var result = new ArrayList<Graph>();
+    for (var i = 0; i < views.size(); i++) {
+      var graph = views.get(i);
+      var graphIndex = i;
+      var keptEdges = edges.stream().filter(edge -> edge.graph() == graphIndex).map(RankedEdge::edge).toList();
+      var keptPairs = pairs.stream().filter(edge -> edge.graph() == graphIndex).map(RankedEdge::edge).toList();
+      var omittedEdges = graph.edgesInScope() - keptEdges.size();
+      var capped = graph.omittedNodes() > 0 || omittedEdges > 0 || keptPairs.size() < graph.feedbackPairs().total();
+      result.add(new Graph(graph.language(), graph.totalNodes(), graph.totalEdges(), graph.nodesInScope(), graph.edgesInScope(),
+        graph.nodes(), keptEdges, new FeedbackPairs(graph.feedbackPairs().total(), keptPairs), graph.outsideViewWeight(),
+        graph.depth(), graph.partialLevel(), capped, graph.omittedNodes(), omittedEdges));
+    }
+    return result;
+  }
+
+  private static List<RankedEdge> heaviest(List<Graph> graphs, boolean feedback, int limit) {
+    var candidates = new ArrayList<RankedEdge>();
+    for (var i = 0; i < graphs.size(); i++) {
+      var graph = graphs.get(i);
+      for (var edge : feedback ? graph.feedbackPairs().heaviest() : graph.edges()) {
+        candidates.add(new RankedEdge(i, edge));
+      }
+    }
+    return candidates.stream().sorted(Comparator.comparing(RankedEdge::edge, HEAVIEST_FIRST).thenComparingInt(RankedEdge::graph))
+      .limit(limit).toList();
+  }
+
+  private static String limitMessage(List<Graph> graphs) {
+    var shown = graphs.stream().mapToInt(graph -> graph.nodes().size()).sum();
+    var inScope = graphs.stream().mapToInt(Graph::nodesInScope).sum();
+    var edgesShown = graphs.stream().mapToInt(graph -> graph.edges().size()).sum();
+    var edgesInScope = graphs.stream().mapToInt(Graph::edgesInScope).sum();
+    return "Showing " + shown + " of " + inScope + " nodes in the requested scope and " + edgesShown + " of " + edgesInScope
+      + " dependencies between shown nodes. Call " + ArchitectureGetTool.TOOL_NAME
+      + " with target current and a component from drillDown, or with a language, to narrow the view. "
+      + "Omitted siblings have no continuation token and may remain undiscoverable; this is not a complete graph export.";
   }
 
   private static final class IndexedGraph {
@@ -151,17 +229,20 @@ final class GraphSlicer {
     /**
      * Node ids below the component (or the top level), level by level up to {@code depth}.
      */
-    private List<Integer> scope(@Nullable String component, int depth) {
+    private Scope scope(@Nullable String component, int depth) {
       var level = component == null ? rootIds : childrenById.get(idByKey.get(component));
-      var scope = new ArrayList<Integer>();
+      var levels = new ArrayList<List<Integer>>();
+      var size = 0;
       for (var currentDepth = 1; currentDepth <= depth && !level.isEmpty(); currentDepth++) {
-        scope.addAll(level);
+        levels.add(level);
+        size += level.size();
         level = level.stream().flatMap(id -> childrenById.get(id).stream()).toList();
       }
-      return scope;
+      return new Scope(levels, size);
     }
 
-    private Graph toResponse(int nodesInScope, List<Integer> kept) {
+    private Graph toResponse(int nodesInScope, Selection selection) {
+      var kept = selection.nodes();
       var keptIds = Set.copyOf(kept);
       var nodes = kept.stream().map(id -> new Node(keyById.get(id), kindById.get(id), childrenById.get(id).size())).toList();
       var weightByEdge = new LinkedHashMap<List<Integer>, Integer>();
@@ -182,7 +263,8 @@ final class GraphSlicer {
         .limit(MAX_EDGES)
         .toList();
       return new Graph(language, keyById.size(), rawEdges.size(), nodesInScope, weightByEdge.size(), nodes, edges,
-        feedbackPairs(weightByEdge), outsideViewWeight);
+        feedbackPairs(weightByEdge), outsideViewWeight, selection.depth(), selection.partialLevel(), kept.size() < nodesInScope,
+        nodesInScope - kept.size(), weightByEdge.size() - edges.size());
     }
 
     /**

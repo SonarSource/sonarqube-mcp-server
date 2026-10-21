@@ -70,7 +70,7 @@ final class IntendedModels {
       }
       return List.copyOf(parsed);
     } catch (JsonParseException e) {
-      throw new IllegalArgumentException("model must be a JSON array with one intended architecture per language, as architecture_get with target intended returns it "
+      throw new IllegalArgumentException("model must be a JSON array of intended architecture perspectives, as architecture_get with target intended returns them "
         + "(" + e.getMessage() + "). Nothing was changed.");
     }
   }
@@ -95,14 +95,14 @@ final class IntendedModels {
       var object = element.getAsJsonObject();
       for (var property : List.of("component", "depth", "language")) {
         if (object.has(MODELS_PROPERTY) && object.has(property) && !object.get(property).isJsonNull()) {
-          throw new JsonParseException("partial architecture view; read the whole model without component, depth or language first");
+          throw new IllegalArgumentException("This is a partial architecture view. Read the complete model without component, depth or language before editing it. Nothing was changed.");
         }
       }
       var partial = object.get("partial");
       if ((partial != null && !partial.isJsonNull()
         && (!partial.isJsonPrimitive() || !partial.getAsJsonPrimitive().isBoolean() || partial.getAsBoolean()))
         || (object.has("hiddenSubgroups") && !object.get("hiddenSubgroups").isJsonNull())) {
-        throw new JsonParseException("partial architecture view; read the whole model without component, depth or language first");
+        throw new IllegalArgumentException("This is a partial architecture view. Read the complete model without component, depth or language before editing it. Nothing was changed.");
       }
       object.entrySet().forEach(entry -> rejectPartialView(entry.getValue()));
     }
@@ -114,6 +114,8 @@ final class IntendedModels {
       requireObject(model);
       requireString(model, "type");
       requireString(model, "language");
+      optionalString(model.getAsJsonObject(), "label");
+      optionalString(model.getAsJsonObject(), "description");
       var groups = requireArray(model, GROUPS_PROPERTY, true);
       validateGroups(groups, 1, count);
       for (var constraint : requireArray(model, "constraints", true).getAsJsonArray()) {
@@ -141,7 +143,15 @@ final class IntendedModels {
     requireObject(group);
     requireString(group, "label");
     var object = group.getAsJsonObject();
-    if (object.has("patterns")) {
+    optionalString(object, "description");
+    optionalString(object, "patternId");
+    if (object.has("patternId") && !object.get("patternId").isJsonNull()) {
+      var id = object.get("patternId").getAsString();
+      if (!java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+        throw new JsonParseException("patternId must be a UUID");
+      }
+    }
+    if (object.has("patterns") && !object.get("patterns").isJsonNull()) {
       for (var pattern : requireArray(group, "patterns", false).getAsJsonArray()) {
         if (!pattern.isJsonPrimitive() || !pattern.getAsJsonPrimitive().isString()) {
           throw new JsonParseException("patterns must contain strings");
@@ -149,12 +159,19 @@ final class IntendedModels {
       }
     }
     for (var property : List.of("interface", "interfaceAccess")) {
-      if (object.has(property) && (!object.get(property).isJsonPrimitive() || !object.get(property).getAsJsonPrimitive().isBoolean())) {
+      if (object.has(property) && !object.get(property).isJsonNull() && (!object.get(property).isJsonPrimitive() || !object.get(property).getAsJsonPrimitive().isBoolean())) {
         throw new JsonParseException(property + " must be a boolean");
       }
     }
-    if (object.has(GROUPS_PROPERTY)) {
+    if (object.has(GROUPS_PROPERTY) && !object.get(GROUPS_PROPERTY).isJsonNull()) {
       validateGroups(requireArray(group, GROUPS_PROPERTY, false), depth + 1, count);
+    }
+  }
+
+  private static void optionalString(com.google.gson.JsonObject object, String property) {
+    var value = object.get(property);
+    if (value != null && !value.isJsonNull() && (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString())) {
+      throw new JsonParseException(property + " must be a string");
     }
   }
 
@@ -216,8 +233,8 @@ final class IntendedModels {
       if (!perspectives.add(Arrays.asList(language, model.type()))) {
         problems.add("Perspective " + language + "/" + model.type() + DUPLICATE_SUFFIX);
       }
-      var groupKeys = new HashSet<String>();
-      checkGroups(language, nullToEmpty(model.groups()), null, 1, groupKeys, groupCount, problems);
+      var groupKeys = new HashSet<List<String>>();
+      checkGroups(language, nullToEmpty(model.groups()), List.of(), 1, groupKeys, groupCount, problems);
       checkConstraints(language, nullToEmpty(model.constraints()), problems);
     }
     if (models.size() > ArchitectureApi.MAX_PERSPECTIVES) {
@@ -229,7 +246,7 @@ final class IntendedModels {
     return problems;
   }
 
-  private static void checkGroups(String language, List<IntendedArchitecture.Group> groups, @Nullable String parentKey, int depth, Set<String> keys,
+  private static void checkGroups(String language, List<IntendedArchitecture.Group> groups, List<String> parentPath, int depth, Set<List<String>> keys,
     int[] groupCount, List<String> problems) {
     if (depth > MAX_DEPTH) {
       problems.add("Groups of " + language + " are nested more than " + MAX_DEPTH + " levels deep.");
@@ -238,10 +255,11 @@ final class IntendedModels {
     for (var group : groups) {
       groupCount[0]++;
       if (group == null || group.label() == null || group.label().isBlank()) {
-        problems.add("A group of " + language + (parentKey == null ? "" : (" under '" + parentKey + "'")) + " has no label.");
+        problems.add("A group of " + language + (parentPath.isEmpty() ? "" : (" under '" + String.join("/", parentPath) + "'")) + " has no label.");
         continue;
       }
-      var key = keyOf(parentKey, group.label());
+      var key = new ArrayList<>(parentPath);
+      key.add(group.label());
       if (!keys.add(key)) {
         problems.add("Group '" + key + "' of " + language + DUPLICATE_SUFFIX);
       }
@@ -289,7 +307,7 @@ final class IntendedModels {
       removed.add(language + " language");
     }
     model.groups().keySet().stream().filter(key -> other == null || !other.groups().containsKey(key))
-      .forEach(key -> removed.add(language + GROUP_DESCRIPTION + key));
+      .forEach(key -> removed.add(language + GROUP_DESCRIPTION + String.join("/", key)));
     model.constraints().stream().filter(constraint -> other == null || !other.constraints().contains(constraint))
       .forEach(constraint -> removed.add(language + " constraint " + describe(constraint)));
   }
@@ -305,64 +323,60 @@ final class IntendedModels {
     if (other != null && !Objects.equals(other.type(), model.type())) {
       changed.add(language + " type " + other.type() + " -> " + model.type());
     }
+    if (other != null && (!Objects.equals(other.label(), model.label()) || !Objects.equals(other.description(), model.description()))) {
+      changed.add(language + " perspective metadata");
+    }
     model.groups().forEach((key, group) -> collectGroupChanges(language, key, group,
       other == null ? null : other.groups().get(key), added, changed));
     model.constraints().stream().filter(constraint -> other == null || !other.constraints().contains(constraint))
       .forEach(constraint -> added.add(language + " constraint " + describe(constraint)));
   }
 
-  private static void collectGroupChanges(String language, String key, GroupSettings group, @Nullable GroupSettings previous,
+  private static void collectGroupChanges(String language, List<String> key, GroupSettings group, @Nullable GroupSettings previous,
     List<String> added, List<String> changed) {
     if (previous == null) {
-      added.add(language + GROUP_DESCRIPTION + key);
+      added.add(language + GROUP_DESCRIPTION + String.join("/", key));
       return;
     }
-    if (!previous.path().equals(group.path())) {
-      changed.add(language + GROUP_DESCRIPTION + key + " hierarchy " + previous.path() + " -> " + group.path());
-    }
     if (!previous.patterns().equals(group.patterns()) || previous.isInterface() != group.isInterface()
-      || previous.interfaceAccess() != group.interfaceAccess()) {
-      changed.add(language + GROUP_DESCRIPTION + key + " " + previous + " -> " + group);
+      || previous.interfaceAccess() != group.interfaceAccess() || !Objects.equals(previous.description(), group.description())
+      || !Objects.equals(previous.patternId(), group.patternId())) {
+      changed.add(language + GROUP_DESCRIPTION + String.join("/", key) + " " + previous + " -> " + group);
     }
   }
 
-  private record IndexedModel(@Nullable String type, Map<String, GroupSettings> groups, Set<IntendedArchitecture.Constraint> constraints) {
+  private record IndexedModel(@Nullable String type, Map<List<String>, GroupSettings> groups, Set<IntendedArchitecture.Constraint> constraints, @Nullable String label, @Nullable String description) {
   }
 
   /**
    * Keeps label segments distinct from path separators, with absent flags read as false and patterns as an unordered set.
    */
-  private record GroupSettings(List<String> path, Set<String> patterns, boolean isInterface, boolean interfaceAccess) {
+  private record GroupSettings(Set<String> patterns, boolean isInterface, boolean interfaceAccess, @Nullable String description, @Nullable String patternId) {
     @Override
     public String toString() {
-      return "patterns " + patterns + (isInterface ? ", interface" : "") + (interfaceAccess ? ", interfaceAccess" : "");
+      return "patterns " + patterns + (isInterface ? ", interface" : "") + (interfaceAccess ? ", interfaceAccess" : "") + (description == null ? "" : ", description " + description) + (patternId == null ? "" : ", patternId " + patternId);
     }
   }
 
   private static Map<List<String>, IndexedModel> index(List<IntendedArchitecture> models) {
     var indexed = new LinkedHashMap<List<String>, IndexedModel>();
     for (var model : models) {
-      var groups = new LinkedHashMap<String, GroupSettings>();
+      var groups = new LinkedHashMap<List<String>, GroupSettings>();
       indexGroups(nullToEmpty(model.groups()), List.of(), groups);
       var constraints = new LinkedHashSet<>(nullToEmpty(model.constraints()));
-      indexed.put(Arrays.asList(model.language(), model.type()), new IndexedModel(model.type(), groups, constraints));
+      indexed.put(Arrays.asList(model.language(), model.type()), new IndexedModel(model.type(), groups, constraints, model.label(), model.description()));
     }
     return indexed;
   }
 
-  private static void indexGroups(List<IntendedArchitecture.Group> groups, List<String> parentPath, Map<String, GroupSettings> index) {
+  private static void indexGroups(List<IntendedArchitecture.Group> groups, List<String> parentPath, Map<List<String>, GroupSettings> index) {
     for (var group : groups) {
       var path = new ArrayList<>(parentPath);
       path.add(group.label());
-      var key = String.join("/", path);
-      index.put(key, new GroupSettings(List.copyOf(path), new TreeSet<>(nullToEmpty(group.patterns())), Boolean.TRUE.equals(group.isInterface()),
-        Boolean.TRUE.equals(group.interfaceAccess())));
+      index.put(List.copyOf(path), new GroupSettings(new TreeSet<>(nullToEmpty(group.patterns())), Boolean.TRUE.equals(group.isInterface()),
+        Boolean.TRUE.equals(group.interfaceAccess()), group.description(), group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT)));
       indexGroups(nullToEmpty(group.groups()), path, index);
     }
-  }
-
-  private static String keyOf(@Nullable String parentKey, String label) {
-    return parentKey == null ? label : (parentKey + "/" + label);
   }
 
   private static String describe(IntendedArchitecture.Constraint constraint) {

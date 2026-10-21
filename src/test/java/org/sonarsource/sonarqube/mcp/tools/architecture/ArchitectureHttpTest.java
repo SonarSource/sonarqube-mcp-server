@@ -93,7 +93,7 @@ class ArchitectureHttpTest {
       harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project")
         .withHeader("Authorization", equalTo("Bearer token-" + suffix))
         .willReturn(okJson("{\"branches\":[{\"isMain\":true,\"branchId\":\"branch-" + suffix + "\"}]}")));
-      harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.CURRENT_ARCHITECTURES_PATH + "?organizationId=uuid-" + suffix + "&branchId=branch-" + suffix + "&ecosystem=java")
+      harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.CURRENT_ARCHITECTURES_PATH + "?organizationId=uuid-" + suffix + "&branchId=branch-" + suffix + "&language=java")
         .withHeader("Authorization", equalTo("Bearer token-" + suffix)).willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH.replace("app", "app-" + suffix)))));
       harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "?projectId=branch-" + suffix)
         .withHeader("Authorization", equalTo("Bearer token-" + suffix)).willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
@@ -110,7 +110,7 @@ class ArchitectureHttpTest {
         assertThat(graph).contains("app-" + suffix).doesNotContain("isError\":true");
         var preview = send(client, port, suffix, false, "tools/call", Map.of("name", "architecture_set", "arguments",
           Map.of("target", "intended", "projectKey", "my_project", "model", INTENDED_JAVA_MODEL, "dryRun", true, "organization", "org-" + suffix)));
-        assertThat(preview).contains("dry-run", "import links").doesNotContain("isError\":true");
+        assertThat(preview).contains("dry-run", "patternId").doesNotContain("isError\":true");
       }
       assertThat(send(client, port, "a", true, "tools/list", Map.of())).contains("architecture_get").doesNotContain("architecture_set");
       var rejected = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_set", "arguments",
@@ -133,6 +133,27 @@ class ArchitectureHttpTest {
     try (var client = HttpClient.newHttpClient()) {
       server.start();
       assertThat(send(client, port, "a", false, "tools/list", Map.of())).contains("architecture_get").doesNotContain("architecture_set");
+    } finally {
+      server.shutdown();
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_advertise_only_current_architecture_over_server_http(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
+    var port = port();
+    var env = environment(harness, storage, port);
+    env.put("SONARQUBE_IS_CLOUD", "false");
+    harness.prepareMockWebServer(env);
+    var server = new SonarQubeMcpServer(env);
+    try (var client = HttpClient.newHttpClient()) {
+      server.start();
+      var response = send(client, port, "a", false, "tools/list", Map.of());
+      assertThat(response).contains("architecture_get").doesNotContain("architecture_set");
+      var tools = com.google.gson.JsonParser.parseString(response).getAsJsonObject().getAsJsonObject("result").getAsJsonArray("tools");
+      var read = tools.asList().stream().map(com.google.gson.JsonElement::getAsJsonObject)
+        .filter(tool -> tool.get("name").getAsString().equals("architecture_get")).findFirst().orElseThrow();
+      assertThat(read.getAsJsonObject("inputSchema").getAsJsonObject("properties").getAsJsonObject("target").getAsJsonArray("enum").toString())
+        .isEqualTo("[\"current\"]");
     } finally {
       server.shutdown();
     }

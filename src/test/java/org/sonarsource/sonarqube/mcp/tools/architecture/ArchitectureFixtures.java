@@ -70,7 +70,20 @@ final class ArchitectureFixtures {
 
   /** Wraps models the way {@code GET /architecture/intended-architectures} returns them. */
   static String intendedArchitectures(String models) {
-    return "{ \"intendedArchitectures\": " + models + " }";
+    var array = com.google.gson.JsonParser.parseString(models).getAsJsonArray().deepCopy();
+    var response = new com.google.gson.JsonObject();
+    for (var element : array) {
+      var model = element.getAsJsonObject();
+      if (model.has("id")) {
+        response.add("id", model.remove("id"));
+      }
+      model.add("qualifiers", model.remove("type"));
+    }
+    if (!array.isEmpty() && !response.has("id")) {
+      response.addProperty("id", "11111111-1111-4111-8111-111111111111");
+    }
+    response.add("intendedArchitectures", array);
+    return response.toString();
   }
 
   /**

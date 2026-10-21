@@ -46,7 +46,7 @@ class ArchitectureOrganizationTest {
     stubTwoOrganizations(harness);
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.CURRENT_ARCHITECTURES_PATH + "?organizationId=selected-uuid&branchId=" + MAIN_BRANCH_ID
-      + "&ecosystem=java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
+      + "&language=java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
     var client = harness.newClient(CLOUD_WITHOUT_ORG);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
@@ -92,7 +92,7 @@ class ArchitectureOrganizationTest {
     stubMainBranch(harness);
     for (var organization : new String[] {"other", "selected"}) {
       harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.CURRENT_ARCHITECTURES_PATH + "?organizationId=" + organization
-        + "-uuid&branchId=" + MAIN_BRANCH_ID + "&ecosystem=java")
+        + "-uuid&branchId=" + MAIN_BRANCH_ID + "&language=java")
         .willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH.replace("app", organization)))));
     }
     var client = harness.newClient(CLOUD_WITHOUT_ORG);

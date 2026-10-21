@@ -21,20 +21,20 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 
 /**
- * Without component, depth and language, {@code models} is the complete intended architecture and can be passed back as is. {@code revision} is the
+ * Without component, depth and language, {@code models} contains all publicly exported perspectives; the export may omit metadata. {@code revision} is the
  * revision of the whole stored model, whatever component, depth or language were asked for.
  */
 public record ArchitectureGetIntendedToolResponse(String projectKey, String revision, @Nullable String component, @Nullable Integer depth, List<Model> models,
   @Nullable Boolean partial, @Nullable String message) {
 
-  public record Model(@Nullable String language, @Nullable String type, List<Group> groups, List<Constraint> constraints, @Nullable Boolean partial) {
+  public record Model(@Nullable String language, @Nullable String type, List<Group> groups, List<Constraint> constraints, @Nullable Boolean partial, @Nullable String label, @Nullable String description) {
   }
 
   /**
    * {@code hiddenSubgroups} counts the subgroups left out by {@code depth}.
    */
   public record Group(@Nullable String label, @Nullable List<String> patterns, @JsonProperty("interface") @Nullable Boolean isInterface,
-    @Nullable Boolean interfaceAccess, @Nullable List<Group> groups, @Nullable Integer hiddenSubgroups) {
+    @Nullable Boolean interfaceAccess, @Nullable List<Group> groups, @Nullable Integer hiddenSubgroups, @Nullable String description, @Nullable String patternId) {
   }
 
   public record Constraint(@Nullable String from, @Nullable String to) {

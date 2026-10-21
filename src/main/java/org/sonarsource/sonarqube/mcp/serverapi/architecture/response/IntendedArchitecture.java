@@ -24,14 +24,23 @@ import java.util.List;
  * Intended architecture of one language. Group keys are labels joined by {@code /}; constraints reference those keys.
  * The resource id is absent for unsaved input. Nested group collections and interface flags are optional in the public API.
  */
-public record IntendedArchitecture(@Nullable String id, String type, String language, List<Group> groups, List<Constraint> constraints) {
+public record IntendedArchitecture(@Nullable String id, String type, String language, List<Group> groups, List<Constraint> constraints,
+  @Nullable String label, @Nullable String description) {
 
   public IntendedArchitecture(String type, String language, List<Group> groups, List<Constraint> constraints) {
-    this(null, type, language, groups, constraints);
+    this(null, type, language, groups, constraints, null, null);
+  }
+
+  public IntendedArchitecture(@Nullable String id, String type, String language, List<Group> groups, List<Constraint> constraints) {
+    this(id, type, language, groups, constraints, null, null);
   }
 
   public record Group(String label, @Nullable List<String> patterns, @Nullable List<Group> groups,
-    @SerializedName("interface") @Nullable Boolean isInterface, @Nullable Boolean interfaceAccess) {
+    @SerializedName("interface") @Nullable Boolean isInterface, @Nullable Boolean interfaceAccess, @Nullable String description, @Nullable String patternId) {
+    public Group(String label, @Nullable List<String> patterns, @Nullable List<Group> groups,
+      @Nullable Boolean isInterface, @Nullable Boolean interfaceAccess) {
+      this(label, patterns, groups, isInterface, interfaceAccess, null, null);
+    }
   }
 
   public record Constraint(String from, String to) {

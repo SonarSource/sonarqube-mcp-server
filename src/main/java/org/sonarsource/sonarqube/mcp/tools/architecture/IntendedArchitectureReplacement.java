@@ -23,6 +23,10 @@ import java.util.List;
 import java.util.UUID;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 
 /** Checks for concurrent changes and reconciles uncertain writes without automatic rollback. */
 final class IntendedArchitectureReplacement {
@@ -41,8 +45,17 @@ final class IntendedArchitectureReplacement {
       throw new IllegalStateException("The intended architecture changed before replacement. "
         + "Nothing was changed; read it again and repeat the dry run.");
     }
+    final List<IntendedArchitecture> written;
     try {
-      var written = previous.isEmpty() ? api.createIntended(projectKey, projectId, next) : api.patchIntended(projectKey, previous.getFirst().id(), next);
+      written = previous.isEmpty() ? api.createIntended(projectKey, projectId, next) : api.patchIntended(projectKey, previous.getFirst().id(), next);
+    } catch (RuntimeException failure) {
+      if (isDefiniteRejection(failure)) {
+        throw failure;
+      }
+      reconcileFailure(projectKey, projectId, previous, next, failure);
+      return;
+    }
+    try {
       validateResourceIds(written);
       if (!sameModels(next, written) || (!previous.isEmpty() && !previous.getFirst().id().equals(written.getFirst().id()))) {
         throw new IllegalStateException("The public API write response did not identify the requested model. "
@@ -56,12 +69,40 @@ final class IntendedArchitectureReplacement {
     }
   }
 
+  private static boolean isDefiniteRejection(RuntimeException failure) {
+    return (failure instanceof ClientErrorException clientError && clientError.status() != java.net.HttpURLConnection.HTTP_CLIENT_TIMEOUT)
+      || failure instanceof ForbiddenException || failure instanceof NotFoundException || failure instanceof UnauthorizedException;
+  }
+
   static void checkWritableModels(List<IntendedArchitecture> previous, List<IntendedArchitecture> next) {
     if (next.isEmpty() || next.size() > ArchitectureApi.MAX_PERSPECTIVES) {
       throw new IllegalArgumentException("Give between 1 and " + ArchitectureApi.MAX_PERSPECTIVES
         + " intended architecture perspectives. Nothing was changed.");
     }
     validateResourceIds(previous);
+    for (var model : next) {
+      var before = previous.stream().filter(candidate -> candidate.language().equals(model.language()) && candidate.type().equals(model.type()))
+        .findFirst().orElse(null);
+      checkImportedGroups(before == null ? List.of() : before.groups(), model.groups());
+    }
+  }
+
+  private static void checkImportedGroups(List<IntendedArchitecture.Group> previous, List<IntendedArchitecture.Group> next) {
+    for (var group : next) {
+      var before = previous.stream().filter(candidate -> candidate.label().equals(group.label())).findFirst().orElse(null);
+      if (before != null && group.patternId() != null && group.patternId().equalsIgnoreCase(before.patternId())
+        && !sameExpansion(before.groups(), group.groups())) {
+        throw new IllegalArgumentException("Imported pattern contents cannot be edited here. Keep the exported groups unchanged or change patternId. Nothing was changed.");
+      }
+      if (group.patternId() == null) {
+        checkImportedGroups(before == null || before.groups() == null ? List.of() : before.groups(), group.groups() == null ? List.of() : group.groups());
+      }
+    }
+  }
+
+  private static boolean sameExpansion(@Nullable List<IntendedArchitecture.Group> left, @Nullable List<IntendedArchitecture.Group> right) {
+    return IntendedRevision.of(List.of(new IntendedArchitecture("namespace", "java", left == null ? List.of() : left, List.of())))
+      .equals(IntendedRevision.of(List.of(new IntendedArchitecture("namespace", "java", right == null ? List.of() : right, List.of()))));
   }
 
   private static void validateResourceIds(List<IntendedArchitecture> models) {
@@ -81,7 +122,7 @@ final class IntendedArchitectureReplacement {
   }
 
   private boolean sameResources(List<IntendedArchitecture> left, List<IntendedArchitecture> right) {
-    return sameModels(left, right) && left.stream().map(IntendedArchitecture::id).sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList()
+    return IntendedRevision.of(left).equals(IntendedRevision.of(right)) && left.stream().map(IntendedArchitecture::id).sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList()
       .equals(right.stream().map(IntendedArchitecture::id).sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList());
   }
 
@@ -92,12 +133,12 @@ final class IntendedArchitectureReplacement {
       actual = api.getIntended(projectKey, projectId);
       validateResourceIds(actual);
     } catch (RuntimeException readFailure) {
-      throw manualRecovery(previous, "The write failed and its resulting state could not be read. No automatic rollback was attempted", failure);
+      throw manualRecovery(previous, "The write could not be confirmed and its resulting state could not be read. No automatic rollback was attempted", failure);
     }
     if (sameModels(next, actual) && (previous.isEmpty() || previous.getFirst().id().equals(actual.getFirst().id()))) {
       return;
     }
-    throw manualRecovery(previous, "The write failed and the requested model could not be verified. "
+    throw manualRecovery(previous, "The write could not be confirmed and the requested model could not be verified. "
       + "No automatic rollback was attempted; read the current state before retrying", failure);
   }
 
@@ -125,8 +166,8 @@ final class IntendedArchitectureReplacement {
   }
 
   private List<String> normalizedModels(List<IntendedArchitecture> models) {
-    return models.stream().map(model -> gson.toJson(new IntendedArchitecture(model.type(), model.language(), normalizedGroups(model.groups()),
-      model.constraints() == null ? List.of() : model.constraints().stream().sorted(Comparator.comparing(gson::toJson)).toList())))
+    return models.stream().map(model -> gson.toJson(new IntendedArchitecture(null, model.type(), model.language(), normalizedGroups(model.groups()),
+      model.constraints() == null ? List.of() : model.constraints().stream().sorted(Comparator.comparing(gson::toJson)).toList(), model.label(), model.description())))
       .sorted().toList();
   }
 
@@ -135,8 +176,8 @@ final class IntendedArchitectureReplacement {
       return List.of();
     }
     return groups.stream().map(group -> new IntendedArchitecture.Group(group.label(),
-      group.patterns() == null ? List.of() : group.patterns().stream().sorted().toList(), normalizedGroups(group.groups()),
-      Boolean.TRUE.equals(group.isInterface()), Boolean.TRUE.equals(group.interfaceAccess()))).toList();
+      group.patterns() == null ? List.of() : group.patterns().stream().sorted().toList(), normalizedGroups(group.patternId() == null ? group.groups() : null),
+      Boolean.TRUE.equals(group.isInterface()), Boolean.TRUE.equals(group.interfaceAccess()), group.description(), group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT))).toList();
   }
 
   private record PreviousModels(List<IntendedArchitecture> models) {

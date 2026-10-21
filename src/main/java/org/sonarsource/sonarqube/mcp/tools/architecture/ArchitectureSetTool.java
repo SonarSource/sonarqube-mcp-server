@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
@@ -40,7 +41,7 @@ public class ArchitectureSetTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Set Architecture")
       .setDestructiveHint()
-      .setDescription("Replace intended architecture through the public API; exports may omit imported content, links and metadata.")
+      .setDescription("Replace the complete intended model; omitted content and metadata are removed.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addRequiredEnumProperty("target", new String[] {"intended"}, "intended: replace the model.")
       .addRequiredStringProperty(MODEL_PROPERTY, "Whole JSON response or models array from unfiltered architecture_get target intended; partial views are rejected.")
@@ -50,6 +51,11 @@ public class ArchitectureSetTool extends Tool {
       ToolCategory.ARCHITECTURE);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
+  }
+
+  @Override
+  public ToolAccessMode requiredAccessMode() {
+    return ToolAccessMode.READ_WRITE;
   }
 
   @Override

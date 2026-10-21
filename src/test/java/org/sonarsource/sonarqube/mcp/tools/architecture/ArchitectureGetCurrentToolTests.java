@@ -42,7 +42,7 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 class ArchitectureGetCurrentToolTests {
 
   private static final String SERVER_CURRENT = "/api/v2" + ArchitectureApi.CURRENT_ARCHITECTURES_PATH + "?organizationId=" + ArchitectureApi.SERVER_ORGANIZATION_ID
-    + "&branchId=" + MAIN_BRANCH_ID + "&ecosystem=";
+    + "&branchId=" + MAIN_BRANCH_ID + "&language=";
 
   @SonarQubeMcpServerTest
   void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
@@ -55,7 +55,7 @@ class ArchitectureGetCurrentToolTests {
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) tool.inputSchema().get("properties");
     assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language");
-    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended"));
+    assertThat(properties.get("target")).containsEntry("enum", List.of("current"));
     assertThat(properties.get("language")).containsEntry("enum", List.of("java", "cs", "js", "ts", "py"));
   }
 
@@ -72,6 +72,7 @@ class ArchitectureGetCurrentToolTests {
       {
         "projectKey" : "my_project",
         "depth" : 2,
+        "requestedDepth" : 2,
         "capped" : false,
         "graphs" : [ {
           "language" : "java",
@@ -86,7 +87,11 @@ class ArchitectureGetCurrentToolTests {
           ],
           "edges" : [ { "from" : "app:com.acme.web", "to" : "app:com.acme.domain", "weight" : 4 } ],
           "feedbackPairs" : { "total" : 0, "heaviest" : [ ] },
-          "outsideViewWeight" : 0
+          "outsideViewWeight" : 0,
+          "depth" : 2,
+          "capped" : false,
+          "omittedNodes" : 0,
+          "omittedEdges" : 0
         } ],
         "drillDown" : [
           { "language" : "java", "component" : "app:com.acme.domain", "descendants" : 2 },
@@ -110,6 +115,7 @@ class ArchitectureGetCurrentToolTests {
         "projectKey" : "my_project",
         "component" : "app:com.acme.domain",
         "depth" : 1,
+        "requestedDepth" : 1,
         "capped" : false,
         "graphs" : [ {
           "language" : "java",
@@ -123,7 +129,11 @@ class ArchitectureGetCurrentToolTests {
           ],
           "edges" : [ { "from" : "app:com.acme.domain.Service", "to" : "app:com.acme.domain.Repository", "weight" : 2 } ],
           "feedbackPairs" : { "total" : 0, "heaviest" : [ ] },
-          "outsideViewWeight" : 4
+          "outsideViewWeight" : 4,
+          "depth" : 1,
+          "capped" : false,
+          "omittedNodes" : 0,
+          "omittedEdges" : 0
         } ],
         "drillDown" : [ ]
       }""");
@@ -150,6 +160,7 @@ class ArchitectureGetCurrentToolTests {
         "projectKey" : "my_project",
         "component" : "app",
         "depth" : 1,
+        "requestedDepth" : 1,
         "capped" : false,
         "graphs" : [ {
           "language" : "java",
@@ -166,7 +177,11 @@ class ArchitectureGetCurrentToolTests {
             { "from" : "app:domain", "to" : "app:web", "weight" : 1 }
           ],
           "feedbackPairs" : { "total" : 1, "heaviest" : [ { "from" : "app:web", "to" : "app:domain", "weight" : 4 } ] },
-          "outsideViewWeight" : 5
+          "outsideViewWeight" : 5,
+          "depth" : 1,
+          "capped" : false,
+          "omittedNodes" : 0,
+          "omittedEdges" : 0
         } ],
         "drillDown" : [ ]
       }""");
@@ -238,13 +253,17 @@ class ArchitectureGetCurrentToolTests {
     var graph = response.getAsJsonArray("graphs").get(0).getAsJsonObject();
     assertThat(result.isError()).isFalse();
     assertThat(response.get("capped").getAsBoolean()).isTrue();
-    assertThat(graph.getAsJsonArray("nodes")).hasSize(GraphSlicer.MAX_NODES);
+    assertThat(graph.getAsJsonArray("nodes")).hasSize(1);
+    assertThat(graph.get("depth").getAsInt()).isEqualTo(1);
+    assertThat(graph.get("omittedNodes").getAsInt()).isEqualTo(1000);
+    assertThat(response.get("depth").getAsInt()).isEqualTo(1);
+    assertThat(response.get("requestedDepth").getAsInt()).isEqualTo(2);
     assertThat(graph.get("nodesInScope").getAsInt()).isEqualTo(1001);
     assertThat(graph.get("totalNodes").getAsInt()).isEqualTo(2001);
-    assertThat(response.getAsJsonArray("drillDown")).hasSize(GraphSlicer.MAX_DRILL_DOWN);
+    assertThat(response.getAsJsonArray("drillDown")).hasSize(1);
     assertThat(response.getAsJsonArray("drillDown").get(0).getAsJsonObject().get("component").getAsString()).isEqualTo("big");
     assertThat(response.get("message").getAsString())
-      .isEqualTo("Showing 150 of 1001 nodes. Call architecture_get with target current and a component from drillDown, or with a language, to narrow the view. "
+      .isEqualTo("Showing 1 of 1001 nodes in the requested scope and 0 of 0 dependencies between shown nodes. Call architecture_get with target current and a component from drillDown, or with a language, to narrow the view. "
         + "Omitted siblings have no continuation token and may remain undiscoverable; this is not a complete graph export.");
     assertThat(text.length()).isLessThan(largeGraph.length() / 4);
   }
@@ -264,6 +283,11 @@ class ArchitectureGetCurrentToolTests {
     var response = JsonParser.parseString(textOf(result)).getAsJsonObject();
     assertThat(result.isError()).isFalse();
     assertThat(response.getAsJsonArray("graphs").get(0).getAsJsonObject().getAsJsonArray("nodes")).hasSize(GraphSlicer.MAX_NODES);
+    assertThat(response.get("depth").getAsInt()).isZero();
+    var cappedGraph = response.getAsJsonArray("graphs").get(0).getAsJsonObject();
+    assertThat(cappedGraph.get("depth").getAsInt()).isZero();
+    assertThat(cappedGraph.get("partialLevel").getAsInt()).isEqualTo(1);
+    assertThat(cappedGraph.get("omittedNodes").getAsInt()).isEqualTo(1);
     assertThat(response.getAsJsonArray("drillDown")).isEmpty();
     assertThat(response.get("message").getAsString()).contains("Showing 150 of 151", "Omitted siblings", "may remain undiscoverable");
   }
@@ -283,7 +307,7 @@ class ArchitectureGetCurrentToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_explain_when_the_project_has_no_analysis(SonarQubeMcpServerTestHarness harness) {
+  void it_should_explain_an_empty_response_without_assuming_the_cause(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     stubEmptyCurrent(harness);
     var client = harness.newClient();
@@ -293,11 +317,12 @@ class ArchitectureGetCurrentToolTests {
     assertResultEquals(result, """
       {
         "projectKey" : "my_project",
-        "depth" : 1,
+        "depth" : 0,
+        "requestedDepth" : 1,
         "capped" : false,
         "graphs" : [ ],
         "drillDown" : [ ],
-        "message" : "No current architecture for project 'my_project' yet. Run an analysis of a supported language (Java, C#, JavaScript, TypeScript, Python) first."
+        "message" : "No current architecture is visible for project 'my_project'. Check project access, organization, selected language and latest analysis."
       }""");
   }
 
@@ -346,7 +371,7 @@ class ArchitectureGetCurrentToolTests {
   void it_should_use_the_api_host_and_organization_id_on_sonarqube_cloud(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.CURRENT_ARCHITECTURES_PATH + "?organizationId=" + CLOUD_ORGANIZATION_ID
-      + "&branchId=" + MAIN_BRANCH_ID + "&ecosystem=java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
+      + "&branchId=" + MAIN_BRANCH_ID + "&language=java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
     var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "language", "java"));

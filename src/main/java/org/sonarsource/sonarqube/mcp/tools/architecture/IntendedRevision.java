@@ -27,8 +27,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 
 /**
  * The revision of an intended architecture: the SHA-256 of a canonical JSON form in which pattern and constraint order does not matter
- * and group order does: models sorted by language then type, each as {@code [language, type, groups, sorted constraints]}, each group as
- * {@code [label, sorted patterns, interface, interfaceAccess, groups]}, each constraint as the JSON text of {@code [from, to]}, strings
+ * and group order does: models sorted by language then type, each as {@code [language, type, groups, sorted constraints, label, description]}, each group as
+ * {@code [label, sorted patterns, interface, interfaceAccess, groups, description, patternId]}, each constraint as the JSON text of {@code [from, to]}, strings
  * sorted by UTF-16 code unit and written as JavaScript's {@code JSON.stringify} writes them.
  */
 final class IntendedRevision {
@@ -58,14 +58,14 @@ final class IntendedRevision {
       .map(IntendedRevision::string)
       .toList();
     var groups = nullToEmpty(model.groups()).stream().map(IntendedRevision::canonicalGroup).toList();
-    return array(List.of(string(model.language()), string(model.type()), array(groups), array(constraints)));
+    return array(List.of(string(model.language()), string(model.type()), array(groups), array(constraints), string(model.label()), string(model.description())));
   }
 
   private static String canonicalGroup(IntendedArchitecture.Group group) {
     var patterns = nullToEmpty(group.patterns()).stream().sorted().map(IntendedRevision::string).toList();
     var groups = nullToEmpty(group.groups()).stream().map(IntendedRevision::canonicalGroup).toList();
     return array(List.of(string(group.label()), array(patterns), String.valueOf(Boolean.TRUE.equals(group.isInterface())),
-      String.valueOf(Boolean.TRUE.equals(group.interfaceAccess())), array(groups)));
+      String.valueOf(Boolean.TRUE.equals(group.interfaceAccess())), array(groups), string(group.description()), string(group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT))));
   }
 
   private static String array(List<String> jsonValues) {

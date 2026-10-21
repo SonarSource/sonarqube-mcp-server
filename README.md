@@ -1449,21 +1449,21 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 ### Architecture
 
-**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server supports current architecture where available; intended architecture requires public project UUID resolution.**
+**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended reads and writes are Cloud-only until public project UUID resolution is available.**
 
 - **architecture_get** - Read current dependencies or intended groups and constraints. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
   Parameters:
-  - `target` - `current` or `intended` - _Required Enum_
+  - `target` - `current` or `intended` on Cloud; `current` on Server - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current` - _Optional String_
-  - `component` - Current node key or intended group key (labels joined by `/`); top level when omitted - _String_
+  - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; all when omitted - _String_
 
-- **architecture_set** - Replace the whole intended model. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden when `SONARQUBE_READ_ONLY=true`.
+- **architecture_set** - Replace the whole intended model on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
-  **Data-loss limitations:** Omitted perspectives and groups are removed. Replacing or restoring an export may lose imported organization pattern links and metadata. With organization features disabled, imported groups may be exported without their contents; the export cannot recover omitted data. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Failed writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
+  **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. With organization features disabled, imported groups may be exported without their contents; the export cannot recover omitted data. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
 
   Parameters:
   - `target` - `intended` - _Required Enum_

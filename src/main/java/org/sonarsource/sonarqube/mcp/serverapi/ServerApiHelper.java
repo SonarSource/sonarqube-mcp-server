@@ -29,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
@@ -232,7 +233,9 @@ public class ServerApiHelper {
       }
 
       var errorMsg = tryParseAsJsonError(responseBody);
-
+      if (failedResponse.code() >= HttpURLConnection.HTTP_BAD_REQUEST) {
+        return new ClientErrorException(failedResponse.code(), formatHttpFailedResponse(failedResponse, errorMsg));
+      }
       return new IllegalStateException(formatHttpFailedResponse(failedResponse, errorMsg));
     }
   }

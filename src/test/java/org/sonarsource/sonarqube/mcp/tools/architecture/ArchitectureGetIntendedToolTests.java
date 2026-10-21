@@ -53,7 +53,7 @@ class ArchitectureGetIntendedToolTests {
       "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[],\"constraints\":[{\"from\":\"A\"}]}"
     }) {
       harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED)
-        .willReturn(okJson("{\"intendedArchitectures\":[" + model + "]}")));
+        .willReturn(okJson("{\"id\":\"11111111-1111-4111-8111-111111111111\",\"intendedArchitectures\":[" + model.replace("\"type\"", "\"qualifiers\"") + "]}")));
 
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
 
@@ -189,16 +189,16 @@ class ArchitectureGetIntendedToolTests {
         "projectKey" : "my_project",
         "partial" : true,
         "models" : [ ],
-        "message" : "No intended architecture is defined for project 'my_project' in cs."
+        "message" : "No intended architecture is visible for project 'my_project' in cs. It may be undefined, inaccessible or in another organization."
       }""");
   }
 
   @SonarQubeMcpServerTest
-  void it_should_explain_the_public_project_id_gap_on_sonarqube_server(SonarQubeMcpServerTestHarness harness) {
+  void it_should_reject_unavailable_server_intended_target_before_network(SonarQubeMcpServerTestHarness harness) {
     var client = harness.newClient();
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("no supported public API resolves it", "Nothing was read or changed");
+    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("current").doesNotContain("No intended architecture is visible");
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/components/")).isFalse();
   }
@@ -236,6 +236,43 @@ class ArchitectureGetIntendedToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
     assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("No complete model was read");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_treat_component_as_an_exact_key_not_a_wildcard(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED).willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "component", "app/*"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("No group 'app/*'");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_refuse_ambiguous_component_keys_without_losing_groups_in_the_full_read(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var models = JsonParser.parseString("""
+      [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[
+        {"label":"UI","groups":[{"label":"API","patterns":["nested:**"]}]},
+        {"label":"UI/API","patterns":["literal:**"]}],"constraints":[]}]
+      """).getAsJsonArray();
+    var groups = models.get(0).getAsJsonObject().getAsJsonArray("groups");
+    var client = harness.newClient(CLOUD_ENV);
+    for (var order = 0; order < 2; order++) {
+      harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED).willReturn(okJson(intendedArchitectures(models.toString()))));
+      var full = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
+      assertThat(full.isError()).isFalse();
+      assertThat(JsonParser.parseString(textOf(full)).getAsJsonObject().getAsJsonArray("models").get(0).getAsJsonObject().getAsJsonArray("groups"))
+        .isEqualTo(groups);
+      var partial = client.callTool(ArchitectureGetTool.TOOL_NAME,
+        Map.of("target", "intended", "projectKey", "my_project", "component", "UI/API"));
+      assertThat(partial.isError()).isTrue();
+      assertThat(textOf(partial)).contains("matches multiple groups", "Read the complete intended model without component");
+      groups.add(groups.remove(0));
+    }
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", "/architecture/")).isEmpty();
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", "/architecture/")).isEmpty();
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", "/architecture/")).isEmpty();
   }
 
   private static void assertViewEquals(McpSchema.CallToolResult result, String expected) {
