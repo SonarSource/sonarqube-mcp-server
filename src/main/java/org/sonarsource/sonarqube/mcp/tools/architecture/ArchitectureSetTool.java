@@ -78,11 +78,9 @@ public class ArchitectureSetTool extends Tool {
       throw new IllegalStateException("The intended architecture of '" + projectKey + "' changed since revision " + revision + " was read, so nothing was changed. "
         + "Call " + ArchitectureGetTool.TOOL_NAME + " with target intended again, reapply the edits to that model and run a dry run again.");
     }
+    IntendedArchitectureReplacement.checkWritableModels(stored, next);
     var current = stored;
     var diff = IntendedModels.diff(current, next);
-    if (!diff.isEmpty()) {
-      IntendedArchitectureReplacement.checkWritableModels(stored, next);
-    }
     var warnings = new java.util.ArrayList<String>();
     warnings.add(ArchitectureApi.EXPORT_WARNING);
     warnings.add("The public API has no conditional write; concurrent edits can race the revision check.");

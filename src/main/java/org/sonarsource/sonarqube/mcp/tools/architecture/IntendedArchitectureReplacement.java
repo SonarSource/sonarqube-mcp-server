@@ -91,7 +91,7 @@ final class IntendedArchitectureReplacement {
     for (var group : next) {
       var before = previous.stream().filter(candidate -> candidate.label().equals(group.label())).findFirst().orElse(null);
       if (before != null && group.patternId() != null && group.patternId().equalsIgnoreCase(before.patternId())
-        && !sameExpansion(before.groups(), group.groups())) {
+        && group.groups() != null && !sameExpansion(before.groups(), group.groups())) {
         throw new IllegalArgumentException("Imported pattern contents cannot be edited here. Keep the exported groups unchanged or change patternId. Nothing was changed.");
       }
       if (group.patternId() == null) {
@@ -144,7 +144,14 @@ final class IntendedArchitectureReplacement {
 
   private IntendedRecoveryException manualRecovery(List<IntendedArchitecture> previous, String message, RuntimeException cause) {
     return new IntendedRecoveryException(message + ". Failure: " + cause.getMessage() + ". " + ArchitectureApi.EXPORT_WARNING,
-      gson.toJson(new PreviousModels(previous)));
+      gson.toJson(new PreviousModels(previous.stream().map(model -> new IntendedArchitecture(model.id(), model.type(), model.language(),
+        recoveryGroups(model.groups()), model.constraints(), model.label(), model.description())).toList())));
+  }
+
+  private static List<IntendedArchitecture.Group> recoveryGroups(List<IntendedArchitecture.Group> groups) {
+    return groups.stream().map(group -> new IntendedArchitecture.Group(group.label(), group.patterns(),
+      group.patternId() != null || group.groups() == null ? null : recoveryGroups(group.groups()),
+      group.isInterface(), group.interfaceAccess(), group.description(), group.patternId())).toList();
   }
 
   /** Keeps project exports out of exception messages, stack traces and server logs. */

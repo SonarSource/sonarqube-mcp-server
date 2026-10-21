@@ -375,7 +375,9 @@ final class IntendedModels {
       path.add(group.label());
       index.put(List.copyOf(path), new GroupSettings(new TreeSet<>(nullToEmpty(group.patterns())), Boolean.TRUE.equals(group.isInterface()),
         Boolean.TRUE.equals(group.interfaceAccess()), group.description(), group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT)));
-      indexGroups(nullToEmpty(group.groups()), path, index);
+      if (group.patternId() == null) {
+        indexGroups(nullToEmpty(group.groups()), path, index);
+      }
     }
   }
 

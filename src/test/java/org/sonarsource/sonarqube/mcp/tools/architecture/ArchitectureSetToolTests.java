@@ -405,6 +405,38 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_report_stale_revisions_before_imported_content_edits(SonarQubeMcpServerTestHarness harness) {
+    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    stored(harness, before);
+    var result = set(harness, before.replace("app:com.acme.domain.**", "ignored:**"), true, "stale");
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("changed since revision stale").doesNotContain("Imported pattern contents cannot be edited");
+    assertWrites(harness, 0, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_restore_writable_recovery_fields_after_an_imported_pattern_changes(SonarQubeMcpServerTestHarness harness) {
+    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    stored(harness, before);
+    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).willReturn(aResponse().withStatus(500)));
+    var failure = set(harness, before.replace("app:**", "proposed:**"), false, null);
+    assertThat(failure.isError()).isTrue();
+    var message = textOf(failure);
+    var recovery = message.substring(message.indexOf("Previous exported model for manual recovery: ") + "Previous exported model for manual recovery: ".length());
+    var backupGroup = JsonParser.parseString(recovery).getAsJsonObject().getAsJsonArray("models").get(0).getAsJsonObject().getAsJsonArray("groups").get(0).getAsJsonObject();
+    assertThat(backupGroup.has("groups")).isFalse();
+    assertThat(backupGroup.get("patternId").getAsString()).isEqualTo("33333333-3333-4333-8333-333333333333");
+    var changedExpansion = before.replace("app:com.acme.domain.**", "organization:new.**");
+    stored(harness, changedExpansion.replace("app:**", "partial:**"));
+    stubPatch(harness, changedExpansion);
+    var restored = set(harness, recovery, false, null);
+    assertThat(restored.isError()).as(textOf(restored)).isFalse();
+    assertThat(textOf(restored)).contains("replaced");
+    assertThat(JsonParser.parseString(textOf(restored)).getAsJsonObject().getAsJsonObject("diff").getAsJsonArray("removed")).isEmpty();
+    assertWrites(harness, 2, 0);
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_accept_nullable_public_fields_and_an_unchanged_linked_leaf_in_a_complete_export(SonarQubeMcpServerTestHarness harness) {
     var before = """
       [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","label":null,"description":null,
