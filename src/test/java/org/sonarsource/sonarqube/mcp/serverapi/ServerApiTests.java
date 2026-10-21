@@ -35,6 +35,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
@@ -164,6 +165,15 @@ class ServerApiTests {
 
     var exception = assertThrows(ForbiddenException.class, () -> serverApiHelper.get("/test"));
     assertThat(exception).hasMessage("SonarQube answered with No access");
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {400, 405, 409, 412, 422, 429})
+  void it_should_retain_definite_client_error_status(int status) {
+    sonarqubeMock.stubFor(get("/test").willReturn(jsonResponse("{\"message\":\"Rejected\"}", status)));
+    var failure = assertThrows(ClientErrorException.class, () -> serverApiHelper.get("/test"));
+    assertThat(failure.status()).isEqualTo(status);
+    assertThat(failure.getMessage()).contains("Error " + status, "Rejected");
   }
 
   @ParameterizedTest
