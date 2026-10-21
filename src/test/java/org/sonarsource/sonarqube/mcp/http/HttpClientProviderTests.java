@@ -49,6 +49,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.patch;
+import static com.github.tomakehurst.wiremock.client.WireMock.patchRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -81,6 +83,29 @@ class HttpClientProviderTests {
 
     sonarqubeMock.verify(getRequestedFor(urlEqualTo("/test"))
       .withHeader("User-Agent", equalTo(USER_AGENT)));
+  }
+
+  @Test
+  void it_should_identify_mcp_on_architecture_writes() {
+    var path = "/api/v2/architecture/intended-architectures";
+    sonarqubeMock.stubFor(post(path).willReturn(aResponse().withStatus(201)));
+    sonarqubeMock.stubFor(patch(path + "/model-id").willReturn(aResponse().withStatus(200)));
+    var client = new HttpClientProvider(USER_AGENT).getHttpClient("token");
+
+    try (var response = client.postAsync(sonarqubeMock.url(path), "application/json", "{}").join()) {
+      assertThat(response.code()).isEqualTo(201);
+    }
+    try (var response = client.patchAsync(sonarqubeMock.url(path + "/model-id"), HttpClient.MERGE_PATCH_CONTENT_TYPE, "{}").join()) {
+      assertThat(response.code()).isEqualTo(200);
+    }
+
+    sonarqubeMock.verify(postRequestedFor(urlEqualTo(path))
+      .withHeader("User-Agent", equalTo(USER_AGENT)));
+    sonarqubeMock.verify(patchRequestedFor(urlEqualTo(path + "/model-id"))
+      .withHeader("User-Agent", equalTo(USER_AGENT))
+      .withHeader("Authorization", equalTo("Bearer token"))
+      .withHeader("Content-Type", equalTo(HttpClient.MERGE_PATCH_CONTENT_TYPE))
+      .withRequestBody(equalTo("{}")));
   }
 
   @Test
@@ -178,8 +203,8 @@ class HttpClientProviderTests {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void it_should_cancel_a_request_with_a_stalled_response_body(boolean customPostTimeout) throws Exception {
+  @ValueSource(strings = {"GET", "POST", "PATCH"})
+  void it_should_cancel_a_request_with_a_stalled_response_body(String method) throws Exception {
     try (var worker = Executors.newSingleThreadExecutor(); var server = new ServerSocket(0)) {
       server.setSoTimeout(3000);
       var connectionClosed = worker.submit(() -> {
@@ -203,9 +228,11 @@ class HttpClientProviderTests {
       try {
         var client = underTest.getHttpClient("token");
         var url = "http://localhost:" + server.getLocalPort() + "/body";
-        var future = customPostTimeout
-          ? client.postAsync(url, "text/plain", "", Duration.ofMillis(250))
-          : client.getAsync(url);
+        var future = switch (method) {
+          case "POST" -> client.postAsync(url, "text/plain", "", Duration.ofMillis(250));
+          case "PATCH" -> client.patchAsync(url, HttpClient.MERGE_PATCH_CONTENT_TYPE, "");
+          default -> client.getAsync(url);
+        };
         var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
         assertThat(error.getCause()).isInstanceOfAny(HttpTimeoutException.class, SocketTimeoutException.class);
         assertThat(connectionClosed.get(2, TimeUnit.SECONDS)).isTrue();
@@ -406,6 +433,21 @@ class HttpClientProviderTests {
     }
 
     sonarqubeMock.verify(postRequestedFor(urlEqualTo("/analyze"))
+      .withHeader("Host", equalTo("localhost"))
+      .withHeader("Origin", equalTo("http://localhost")));
+  }
+
+  @Test
+  void bridge_client_should_add_host_and_origin_headers_on_patch() {
+    sonarqubeMock.stubFor(patch("/test-patch").willReturn(aResponse().withStatus(200)));
+    var underTest = new HttpClientProvider(USER_AGENT);
+
+    try (var response = underTest.getHttpClientForBridge()
+      .patchAsync(sonarqubeMock.url("/test-patch"), HttpClient.MERGE_PATCH_CONTENT_TYPE, "{}").join()) {
+      assertThat(response.code()).isEqualTo(200);
+    }
+
+    sonarqubeMock.verify(patchRequestedFor(urlEqualTo("/test-patch"))
       .withHeader("Host", equalTo("localhost"))
       .withHeader("Origin", equalTo("http://localhost")));
   }
