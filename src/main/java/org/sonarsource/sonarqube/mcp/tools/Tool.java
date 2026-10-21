@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools;
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -28,6 +29,9 @@ import java.util.Objects;
 import java.util.Set;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
+
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ;
+import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.WRITE;
 
 public abstract class Tool {
   private final McpSchema.Tool definition;
@@ -53,6 +57,11 @@ public abstract class Tool {
    */
   public boolean isEnabledFor(McpTransportContext ctx) {
     return true;
+  }
+
+  /** Override when the complete workflow requires access beyond the annotation's default. */
+  public ToolAccessMode requiredAccessMode() {
+    return definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint()) ? READ : WRITE;
   }
 
   public abstract Result execute(Arguments arguments);
@@ -119,8 +128,29 @@ public abstract class Tool {
       return switch (arg) {
         case Integer integer -> integer;
         case String string when !string.isBlank() -> Integer.parseInt(string);
+        case Number number -> {
+          try {
+            yield new BigDecimal(number.toString()).intValueExact();
+          } catch (NumberFormatException | ArithmeticException e) {
+            throw new IllegalArgumentException(argumentName + " must be a 32-bit integer", e);
+          }
+        }
         case null, default -> null;
       };
+    }
+
+    @Nullable
+    public Double getOptionalDouble(String argumentName) {
+      var arg = argumentsMap.get(argumentName);
+      Double value = switch (arg) {
+        case Number number -> number.doubleValue();
+        case String string when !string.isBlank() -> Double.parseDouble(string);
+        case null, default -> null;
+      };
+      if (value != null && !Double.isFinite(value)) {
+        throw new IllegalArgumentException(argumentName + " must be a finite number");
+      }
+      return value;
     }
 
     @Nullable

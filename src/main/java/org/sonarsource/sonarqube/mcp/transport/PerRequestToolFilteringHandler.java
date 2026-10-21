@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono;
 /**
  * Wraps the SDK-provided {@link McpStatelessServerHandler} to intercept {@code tools/list}
  * and {@code tools/call} requests and apply per-request narrowing based on the
- * {@code SONARQUBE_TOOLSETS} and {@code SONARQUBE_READ_ONLY} HTTP headers.
+ * {@code SONARQUBE_TOOLSETS}, {@code SONARQUBE_READ_ONLY}, and verified OAuth scopes.
  *
  * <p>The handler receives {@code allTools} — the set already filtered by the server-level
  * {@code SONARQUBE_TOOLSETS} and {@code SONARQUBE_READ_ONLY} environment variables at startup.
@@ -52,7 +52,8 @@ import reactor.core.publisher.Mono;
  *
  * <p>For {@code tools/call}, if a per-request filter is active and the requested tool is not in
  * the allowed set, a {@code METHOD_NOT_FOUND} error is returned immediately without delegating
- * to the SDK handler.
+ * to the SDK handler. An otherwise eligible tool with insufficient OAuth scopes instead marks
+ * the request for an HTTP 403 challenge before any entitlement check or dispatch.
  *
  * <p>Each tool can further gate its own visibility per-request by overriding
  * {@link Tool#isEnabledFor(McpTransportContext)}.
@@ -90,11 +91,7 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
       return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), result, null));
     }
     if (McpSchema.METHOD_TOOLS_CALL.equals(request.method())) {
-      var toolName = extractToolName(request);
-      if (toolName != null && !isToolAllowed(toolName, transportContext)) {
-        var error = new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.METHOD_NOT_FOUND, "Tool not found: " + toolName, null);
-        return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
-      }
+      return handleToolCall(transportContext, request);
     }
     // https://github.com/modelcontextprotocol/java-sdk/issues/784
     if (!SUPPORTED_REQUEST_METHODS.contains(request.method())) {
@@ -110,24 +107,52 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
     return delegate.handleNotification(transportContext, notification);
   }
 
+  private Mono<McpSchema.JSONRPCResponse> handleToolCall(McpTransportContext transportContext, McpSchema.JSONRPCRequest request) {
+    var toolName = extractToolName(request);
+    if (toolName == null) {
+      return delegate.handleRequest(transportContext, request);
+    }
+    var tool = allTools.stream().filter(candidate -> toolName.equals(candidate.definition().name())).findFirst().orElse(null);
+    if (tool == null || !matchesRequestFilters(tool, transportContext)) {
+      return toolNotFound(request, toolName);
+    }
+    var authorization = (OAuthScopeContext) transportContext.get(OAuthScopeContext.CONTEXT_KEY);
+    if (authorization != null && !authorization.permits(tool.requiredAccessMode())) {
+      authorization.deny(tool.requiredAccessMode());
+      var error = new McpSchema.JSONRPCResponse.JSONRPCError(-32001, "Insufficient OAuth scope", null);
+      return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
+    }
+    if (!tool.isEnabledFor(transportContext)) {
+      return toolNotFound(request, toolName);
+    }
+    return delegate.handleRequest(transportContext, request);
+  }
+
   private List<McpSchema.Tool> filterTools(McpTransportContext ctx) {
-    @SuppressWarnings("unchecked")
-    var allowedCategories = (Set<ToolCategory>) ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
-    var readOnly = Boolean.TRUE.equals(ctx.get(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY));
+    var authorization = (OAuthScopeContext) ctx.get(OAuthScopeContext.CONTEXT_KEY);
     var organization = ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
     var organizationFixed = organization instanceof String key && !key.isBlank();
 
     return allTools.stream()
-      .filter(tool -> isCategoryAllowed(tool, allowedCategories))
+      .filter(tool -> matchesRequestFilters(tool, ctx))
+      .filter(tool -> authorization == null || authorization.permits(tool.requiredAccessMode()))
       .filter(tool -> tool.isEnabledFor(ctx))
       .map(Tool::definition)
       .map(definition -> organizationFixed ? ToolDefinitionBuilder.withoutOrganization(definition) : definition)
-      .filter(definition -> !readOnly || (definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint())))
       .toList();
   }
 
-  private boolean isToolAllowed(String toolName, McpTransportContext ctx) {
-    return filterTools(ctx).stream().anyMatch(tool -> toolName.equals(tool.name()));
+  private static boolean matchesRequestFilters(Tool tool, McpTransportContext ctx) {
+    @SuppressWarnings("unchecked")
+    var allowedCategories = (Set<ToolCategory>) ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
+    var readOnly = Boolean.TRUE.equals(ctx.get(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY));
+    var annotations = tool.definition().annotations();
+    return isCategoryAllowed(tool, allowedCategories) && (!readOnly || (annotations != null && Boolean.TRUE.equals(annotations.readOnlyHint())));
+  }
+
+  private static Mono<McpSchema.JSONRPCResponse> toolNotFound(McpSchema.JSONRPCRequest request, String name) {
+    var error = new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.METHOD_NOT_FOUND, "Tool not found: " + name, null);
+    return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
   }
 
   @Nullable
