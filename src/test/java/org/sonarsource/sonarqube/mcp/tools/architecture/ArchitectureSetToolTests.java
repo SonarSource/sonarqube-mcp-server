@@ -174,11 +174,12 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_warn_about_flattening_in_a_dry_run_without_writes(SonarQubeMcpServerTestHarness harness) {
+  void it_should_warn_about_incomplete_exports_in_a_dry_run_without_writes(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL);
     var result = set(harness, NEXT, true, null);
     assertThat(result.isError()).isFalse();
-    assertThat(textOf(result)).contains("dry-run", "java group app/domain", "java group app/infra", "import links", "descriptions");
+    assertThat(textOf(result)).contains("dry-run", "java group app/domain", "java group app/infra", "import links", "metadata",
+      "organization features are disabled", "The export cannot recover omitted data");
     assertWrites(harness, 0, 0);
   }
 

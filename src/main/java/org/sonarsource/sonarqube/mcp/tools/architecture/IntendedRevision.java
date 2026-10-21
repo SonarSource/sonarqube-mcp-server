@@ -27,8 +27,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 
 /**
  * The revision of an intended architecture: the SHA-256 of a canonical JSON form in which pattern and constraint order does not matter
- * and group order does. It is the same value the sonarqube-cli prints as {@code revision} for the same models, so the two must change
- * together: models sorted by language then type, each as {@code [language, type, groups, sorted constraints]}, each group as
+ * and group order does: models sorted by language then type, each as {@code [language, type, groups, sorted constraints]}, each group as
  * {@code [label, sorted patterns, interface, interfaceAccess, groups]}, each constraint as the JSON text of {@code [from, to]}, strings
  * sorted by UTF-16 code unit and written as JavaScript's {@code JSON.stringify} writes them.
  */

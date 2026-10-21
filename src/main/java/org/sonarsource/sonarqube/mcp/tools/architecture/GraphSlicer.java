@@ -83,7 +83,8 @@ final class GraphSlicer {
       .toList();
     var message = capped
       ? ("Showing " + shown + " of " + inScope + " nodes. Call " + ArchitectureGetTool.TOOL_NAME
-        + " with target current and a component from drillDown, or with a language, to see the rest.")
+        + " with target current and a component from drillDown, or with a language, to narrow the view. "
+        + "Omitted siblings have no continuation token and may remain undiscoverable; this is not a complete graph export.")
       : null;
     return new ArchitectureGetCurrentToolResponse(projectKey, component, depth, capped, slices, biggestDrillDowns, message);
   }

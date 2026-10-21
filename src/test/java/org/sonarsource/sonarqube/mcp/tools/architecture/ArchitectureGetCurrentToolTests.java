@@ -244,8 +244,28 @@ class ArchitectureGetCurrentToolTests {
     assertThat(response.getAsJsonArray("drillDown")).hasSize(GraphSlicer.MAX_DRILL_DOWN);
     assertThat(response.getAsJsonArray("drillDown").get(0).getAsJsonObject().get("component").getAsString()).isEqualTo("big");
     assertThat(response.get("message").getAsString())
-      .isEqualTo("Showing 150 of 1001 nodes. Call architecture_get with target current and a component from drillDown, or with a language, to see the rest.");
+      .isEqualTo("Showing 150 of 1001 nodes. Call architecture_get with target current and a component from drillDown, or with a language, to narrow the view. "
+        + "Omitted siblings have no continuation token and may remain undiscoverable; this is not a complete graph export.");
     assertThat(text.length()).isLessThan(largeGraph.length() / 4);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_report_undiscoverable_omitted_siblings_in_a_flat_capped_view(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var nodes = java.util.stream.IntStream.range(0, GraphSlicer.MAX_NODES + 1)
+      .mapToObj(id -> "{\"id\":" + id + ",\"name\":\"root" + id + "\",\"kind\":\"module\"}")
+      .collect(java.util.stream.Collectors.joining(","));
+    var graph = "[{\"nodeCount\":151,\"edgeCount\":0,\"nodes\":[" + nodes + "]}]";
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(graph))));
+
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "current", "projectKey", "my_project", "language", "java"));
+
+    var response = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(result.isError()).isFalse();
+    assertThat(response.getAsJsonArray("graphs").get(0).getAsJsonObject().getAsJsonArray("nodes")).hasSize(GraphSlicer.MAX_NODES);
+    assertThat(response.getAsJsonArray("drillDown")).isEmpty();
+    assertThat(response.get("message").getAsString()).contains("Showing 150 of 151", "Omitted siblings", "may remain undiscoverable");
   }
 
   @SonarQubeMcpServerTest

@@ -40,6 +40,29 @@ class ArchitectureGetIntendedToolTests {
   private static final String CLOUD_INTENDED = ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "?projectId=" + MAIN_BRANCH_ID;
 
   @SonarQubeMcpServerTest
+  void it_should_reject_incomplete_public_models_instead_of_exporting_partial_data(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var client = harness.newClient(CLOUD_ENV);
+    for (var model : new String[] {
+      "null",
+      "{\"language\":\"java\",\"groups\":[],\"constraints\":[]}",
+      "{\"type\":\"namespace\",\"groups\":[],\"constraints\":[]}",
+      "{\"type\":\"namespace\",\"language\":\"java\",\"constraints\":[]}",
+      "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[]}",
+      "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{}],\"constraints\":[]}",
+      "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[],\"constraints\":[{\"from\":\"A\"}]}"
+    }) {
+      harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED)
+        .willReturn(okJson("{\"intendedArchitectures\":[" + model + "]}")));
+
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
+
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains("incomplete intended architecture", "No complete model was read");
+    }
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_keep_constraints_touching_selected_branch_and_leaf_roots(SonarQubeMcpServerTestHarness harness) {
     var model = """
       [{"type":"namespace","language":"java","groups":[{"label":"Domain","groups":[{"label":"Billing"}]},{"label":"Web"},{"label":"DomainExtra"}],

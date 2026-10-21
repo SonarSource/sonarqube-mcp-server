@@ -78,15 +78,16 @@ public class ArchitectureGetTool extends Tool {
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     if (CURRENT.equals(target)) {
       serverApi.requireOrganization();
-      return current(serverApi.architectureApi(), projectKey, component, depth == null ? 1 : depth, language);
+      return current(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.organizationId(serverApi),
+        ArchitectureProjectContext.mainBranchId(serverApi, projectKey), component, depth == null ? 1 : depth, language);
     }
-    return intended(serverApi.architectureApi(), projectKey, component, depth, language);
+    return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.intendedProjectId(serverApi, projectKey), component, depth, language);
   }
 
-  private static Result current(ArchitectureApi api, String projectKey, @Nullable String component, int depth, @Nullable String language) {
+  private static Result current(ArchitectureApi api, String projectKey, String organizationId, String branchId, @Nullable String component, int depth, @Nullable String language) {
     var languages = language == null ? ArchitectureApi.LANGUAGES : List.of(language);
     var graphs = languages.stream()
-      .flatMap(lang -> api.getStructure(projectKey, lang).stream().map(graph -> new GraphSlicer.LanguageGraph(lang, graph)))
+      .flatMap(lang -> api.getStructure(projectKey, organizationId, branchId, lang).stream().map(graph -> new GraphSlicer.LanguageGraph(lang, graph)))
       .filter(languageGraph -> languageGraph.graph().nodes() != null && !languageGraph.graph().nodes().isEmpty())
       .toList();
     if (graphs.isEmpty()) {
@@ -97,8 +98,8 @@ public class ArchitectureGetTool extends Tool {
     return Result.success(GraphSlicer.slice(projectKey, graphs, component, depth));
   }
 
-  private static Result intended(ArchitectureApi api, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
-    var stored = api.getIntended(projectKey);
+  private static Result intended(ArchitectureApi api, String projectKey, String projectId, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
+    var stored = api.getIntended(projectKey, projectId);
     var revision = IntendedRevision.of(stored);
     var partial = component != null || depth != null || language != null;
     var models = stored.stream()

@@ -40,7 +40,7 @@ public class ArchitectureSetTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Set Architecture")
       .setDestructiveHint()
-      .setDescription("Replace intended architecture through the public API; imported patterns and metadata cannot be preserved.")
+      .setDescription("Replace intended architecture through the public API; exports may omit imported content, links and metadata.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addRequiredEnumProperty("target", new String[] {"intended"}, "intended: replace the model.")
       .addRequiredStringProperty(MODEL_PROPERTY, "Whole JSON response or models array from unfiltered architecture_get target intended; partial views are rejected.")
@@ -64,8 +64,10 @@ public class ArchitectureSetTool extends Tool {
     if (invalidReason != null) {
       throw new IllegalArgumentException(invalidReason);
     }
-    var api = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION)).architectureApi();
-    var stored = api.getIntended(projectKey);
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    var projectId = ArchitectureProjectContext.intendedProjectId(serverApi, projectKey);
+    var api = serverApi.architectureApi();
+    var stored = api.getIntended(projectKey, projectId);
     if (revision != null && !revision.equals(IntendedRevision.of(stored))) {
       throw new IllegalStateException("The intended architecture of '" + projectKey + "' changed since revision " + revision + " was read, so nothing was changed. "
         + "Call " + ArchitectureGetTool.TOOL_NAME + " with target intended again, reapply the edits to that model and run a dry run again.");
@@ -73,7 +75,7 @@ public class ArchitectureSetTool extends Tool {
     var current = stored;
     var diff = IntendedModels.diff(current, next);
     if (!diff.isEmpty()) {
-      api.checkWritableModels(stored, next);
+      IntendedArchitectureReplacement.checkWritableModels(stored, next);
     }
     var warnings = new java.util.ArrayList<String>();
     warnings.add(ArchitectureApi.EXPORT_WARNING);
@@ -89,8 +91,8 @@ public class ArchitectureSetTool extends Tool {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "unchanged", diff, warnings));
     }
     try {
-      api.replaceIntended(projectKey, stored, next);
-    } catch (ArchitectureApi.IntendedRecoveryException failure) {
+      new IntendedArchitectureReplacement(api).replace(projectKey, projectId, stored, next);
+    } catch (IntendedArchitectureReplacement.IntendedRecoveryException failure) {
       return Result.failure(failure.callerMessage());
     }
     return Result.success(new ArchitectureSetToolResponse(projectKey, current.isEmpty() ? "created" : "replaced", diff, warnings));

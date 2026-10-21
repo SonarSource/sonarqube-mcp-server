@@ -173,10 +173,7 @@ public class ServerApi {
   }
 
   public ArchitectureApi architectureApi() {
-    return new ArchitectureApi(helper, () -> {
-      var organization = getOrganization();
-      return organization == null || organization.isBlank() ? null : resolveOrganizationUuid(ResolvedOrganization.fromKey(organization));
-    });
+    return new ArchitectureApi(helper);
   }
 
   public OrgFeatureEntitlements orgFeatureEntitlements() {
