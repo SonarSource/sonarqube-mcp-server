@@ -37,8 +37,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 final class Auth0JwkProvider implements RSAKeyProvider {
+  private static final McpLogger LOG = McpLogger.getInstance();
   private static final Duration SNAPSHOT_TTL = Duration.ofHours(1);
   private static final Duration REFRESH_WINDOW = Duration.ofMinutes(1);
   private static final int MAX_REFRESH_ATTEMPTS = 10;
@@ -114,6 +116,7 @@ final class Auth0JwkProvider implements RSAKeyProvider {
       }
       return new Refresh(new Snapshot(Map.copyOf(keys), Set.copyOf(fetched.keySet()), clock.instant().plus(SNAPSHOT_TTL)), null);
     } catch (JwkException | RuntimeException e) {
+      LOG.warn("OAuth signing-key refresh failed (" + e.getClass().getSimpleName() + ")");
       // Retain a still-fresh snapshot, but never extend its lifetime after a failed fetch.
       return new Refresh(previous, OAuthAuthenticationException.unavailable());
     }
@@ -123,7 +126,7 @@ final class Auth0JwkProvider implements RSAKeyProvider {
     try {
       return new UrlJwkProvider(issuer.resolve(".well-known/jwks.json").toURL(), new JwksHttpClientAdapter(client));
     } catch (MalformedURLException e) {
-      throw new IllegalArgumentException("Invalid OAuth issuer URL");
+      throw new IllegalArgumentException("Invalid OAuth issuer URL", e);
     }
   }
 
