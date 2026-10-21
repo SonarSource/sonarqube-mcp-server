@@ -23,12 +23,17 @@ import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.hc.client5.http.config.TlsConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.DefaultHttpRequestRetryStrategy;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.client5.http.impl.auth.SystemDefaultCredentialsProvider;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
+import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.Method;
+import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.http.protocol.HttpCoreContext;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.reactor.IOReactorConfig;
@@ -90,6 +95,13 @@ public class HttpClientProvider {
       .setConnectionManager(asyncConnectionManager)
       .addResponseInterceptorFirst(new RedirectInterceptor())
       .setUserAgent(userAgent)
+      .setRetryStrategy(new DefaultHttpRequestRetryStrategy() {
+        @Override
+        public boolean retryRequest(HttpResponse response, int execCount, HttpContext context) {
+          var request = HttpCoreContext.castOrCreate(context).getRequest();
+          return request != null && Method.isIdempotent(request.getMethod()) && super.retryRequest(response, execCount, context);
+        }
+      })
       .setDefaultRequestConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(30)).build())
       .setIOReactorConfig(buildReactorConfig())
       .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
