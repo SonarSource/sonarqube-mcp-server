@@ -241,13 +241,38 @@ class Auth0TokenVerifierTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"exp,TokenExpiredException", "iss,IncorrectClaimException", "azp,MissingClaimException"})
+  @ValueSource(booleans = {true, false})
+  void it_should_log_expired_mcp_tokens_only_when_debug_is_enabled(boolean debugEnabled) {
+    var expired = sign(token(CONFIGURATION.resource()).withSubject("private-user-data").withExpiresAt(NOW));
+
+    try (var logs = new LogCapture(debugEnabled)) {
+      assertFailure(() -> verifier.verifyMcp(expired), 401);
+      if (debugEnabled) {
+        logs.assertLogged(Level.DEBUG, "OAuth mcp token rejected (TokenExpiredException)");
+      } else {
+        logs.assertEmpty();
+      }
+    }
+  }
+
+  @Test
+  void it_should_warn_for_expired_cloud_tokens() {
+    var expired = sign(token(CONFIGURATION.cloudAudience()).withSubject("private-user-data").withExpiresAt(NOW));
+
+    try (var logs = new LogCapture(false)) {
+      assertFailure(() -> verifier.verifyCloud(expired), 502);
+      logs.assertLogged(Level.WARN, "OAuth cloud token rejected (TokenExpiredException)");
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"iss,IncorrectClaimException", "aud,IncorrectClaimException", "azp,MissingClaimException"})
   void it_should_warn_for_signed_claim_rejections_for_both_token_kinds(String claim, String reason) {
     for (var audience : List.of(CONFIGURATION.resource(), CONFIGURATION.cloudAudience())) {
       var builder = token(audience);
       switch (claim) {
-        case "exp" -> builder.withExpiresAt(NOW);
         case "iss" -> builder.withIssuer("https://private-issuer.example/");
+        case "aud" -> builder.withAudience("https://private-audience.example/");
         default -> builder = JWT.create().withKeyId("key").withIssuer(CONFIGURATION.issuer().toString()).withAudience(audience)
           .withSubject("private-user-data").withIssuedAt(NOW.minusSeconds(1)).withExpiresAt(NOW.plusSeconds(299));
       }

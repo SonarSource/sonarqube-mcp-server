@@ -21,7 +21,6 @@ import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.InvalidClaimException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
 import jakarta.annotation.Nullable;
@@ -71,15 +70,7 @@ final class Auth0TokenVerifier {
       throw OAuthAuthenticationException.unauthorized();
     }
     try {
-      DecodedJWT verified;
-      try {
-        verified = verifier.verify(token);
-      } catch (OAuthAuthenticationException e) {
-        if (e.status() == 401) {
-          logRejection(kind, "signing_key_rejected", false);
-        }
-        throw e;
-      }
+      var verified = verifyJwt(verifier, token, kind);
       if (verified.getExpiresAtAsInstant() == null || verified.getIssuedAtAsInstant() == null
         || verified.getClaim("sub").asString() == null || verified.getClaim("azp").asString() == null) {
         logRejection(kind, "invalid_required_claim", true);
@@ -87,15 +78,26 @@ final class Auth0TokenVerifier {
       }
       return verified;
     } catch (JWTVerificationException | DateTimeException e) {
-      // Auth0 validates these claims only after verifying the signature.
-      logRejection(kind, e.getClass().getSimpleName(), e instanceof InvalidClaimException || e instanceof TokenExpiredException);
+      // Auth0 validates claim mismatches after the signature; MCP token expiry is routine.
+      logRejection(kind, e.getClass().getSimpleName(), e instanceof InvalidClaimException);
       throw OAuthAuthenticationException.unauthorized();
     }
   }
 
-  private static void logRejection(String kind, String reason, boolean signatureVerified) {
+  private static DecodedJWT verifyJwt(JWTVerifier verifier, String token, String kind) {
+    try {
+      return verifier.verify(token);
+    } catch (OAuthAuthenticationException e) {
+      if (e.status() == 401) {
+        logRejection(kind, "signing_key_rejected", false);
+      }
+      throw e;
+    }
+  }
+
+  private static void logRejection(String kind, String reason, boolean invalidClaim) {
     var message = "OAuth " + kind + " token rejected (" + reason + ")";
-    if (signatureVerified || "cloud".equals(kind)) {
+    if (invalidClaim || "cloud".equals(kind)) {
       LOG.warn(message);
     } else {
       LOG.debug(message);
