@@ -70,6 +70,17 @@ public class MockWebServer {
       .count();
   }
 
+  /**
+   * Bodies of the requests received with the HTTP method on a URL containing the substring, oldest first.
+   */
+  public List<String> getReceivedBodies(String method, String urlSubstring) {
+    return mockServer.getServeEvents().getRequests().reversed()
+      .stream()
+      .filter(event -> event.getRequest().getMethod().getName().equals(method) && event.getRequest().getUrl().contains(urlSubstring))
+      .map(event -> event.getRequest().getBodyAsString())
+      .toList();
+  }
+
   public StubMapping stubFor(MappingBuilder mappingBuilder) {
     return mockServer.stubFor(mappingBuilder);
   }
