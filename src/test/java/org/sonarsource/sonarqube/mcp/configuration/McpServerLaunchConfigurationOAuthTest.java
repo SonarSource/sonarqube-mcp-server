@@ -55,10 +55,7 @@ class McpServerLaunchConfigurationOAuthTest {
     assertThat(oauth.cacheTtl()).isEqualTo(Duration.ofSeconds(60));
     assertThat(oauth.cacheSize()).isEqualTo(256);
     assertThat(oauth.toString()).doesNotContain("client-secret");
-    assertThat(configuration.getOAuthMetadata()).isNotNull();
-    assertThat(configuration.getOAuthMetadata().isSelfHosted()).isTrue();
-    assertThat(configuration.getOAuthMetadata().challenge())
-      .contains("https://api.example.com/.well-known/oauth-protected-resource/mcp");
+    assertThat(configuration.getOAuthMetadataUrl()).isNull();
   }
 
   @Test
@@ -68,8 +65,16 @@ class McpServerLaunchConfigurationOAuthTest {
 
     var configuration = new McpServerLaunchConfiguration(environment);
 
-    assertThat(configuration.getOAuthMetadata().isSelfHosted()).isFalse();
-    assertThat(configuration.getOAuthMetadata().challenge()).contains("https://discovery.example.com/mcp");
+    assertThat(configuration.getOAuthMetadataUrl()).isEqualTo("https://discovery.example.com/mcp");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"http://discovery.example.com/mcp", "https://user:password@discovery.example.com/mcp", "https://discovery.example.com/mcp?query"})
+  void it_should_reject_unsafe_external_metadata_urls(String url) {
+    var environment = oauthEnvironment();
+    environment.put("SONARQUBE_OAUTH_METADATA_URL", url);
+
+    assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment)).isInstanceOf(IllegalArgumentException.class);
   }
 
   @ParameterizedTest
@@ -175,7 +180,7 @@ class McpServerLaunchConfigurationOAuthTest {
 
     assertThat(configuration.isHttpEnabled()).isFalse();
     assertThat(configuration.getOAuthConfiguration()).isNull();
-    assertThat(configuration.getOAuthMetadata()).isNull();
+    assertThat(configuration.getOAuthMetadataUrl()).isNull();
   }
 
   @ParameterizedTest
@@ -192,7 +197,6 @@ class McpServerLaunchConfigurationOAuthTest {
     var configuration = new McpServerLaunchConfiguration(environment);
 
     assertThat(configuration.getOAuthConfiguration()).isNotNull();
-    assertThat(configuration.getOAuthMetadata()).isNotNull();
   }
 
   @ParameterizedTest
@@ -206,7 +210,7 @@ class McpServerLaunchConfigurationOAuthTest {
       var configuration = new McpServerLaunchConfiguration(environment);
       assertThat(configuration.isHttpEnabled()).isTrue();
       assertThat(configuration.getOAuthConfiguration()).isNull();
-      assertThat(configuration.getOAuthMetadata()).isNull();
+      assertThat(configuration.getOAuthMetadataUrl()).isNull();
     } finally {
       if (original == null) {
         System.clearProperty(setting);

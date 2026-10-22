@@ -45,6 +45,8 @@ import org.sonarsource.sonarqube.mcp.analytics.AnalyticsClient;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
 import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.authentication.Auth0OAuthAuthenticationService;
+import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter.OAuthSupport;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
@@ -230,8 +232,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     if (mcpConfiguration.isHttpEnabled()) {
       var oauthConfiguration = mcpConfiguration.getOAuthConfiguration();
-      this.httpServerManager = new HttpServerTransportProvider(HttpTransportSettings.from(mcpConfiguration), mcpConfiguration.getOAuthMetadata(),
-        oauthConfiguration != null ? new Auth0OAuthAuthenticationService(oauthConfiguration, httpClientProvider.getAnonymousHttpClient())::authenticate : null);
+      this.httpServerManager = new HttpServerTransportProvider(HttpTransportSettings.from(mcpConfiguration), oauthConfiguration == null ? null : new OAuthSupport(
+        new OAuthProtectedResourceMetadata(oauthConfiguration.resource(), oauthConfiguration.issuer().toString(), mcpConfiguration.getOAuthMetadataUrl()),
+        new Auth0OAuthAuthenticationService(oauthConfiguration, httpClientProvider.getAnonymousHttpClient())::authenticate));
       this.transportProvider = null;
     } else {
       this.httpServerManager = null;

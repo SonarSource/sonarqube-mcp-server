@@ -48,9 +48,9 @@ class HttpsServerTransportIntegrationTest {
     var testKeystorePath = Paths.get(keystoreResource.toURI());
     testPort = findAvailablePort();
     
-    httpsServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, false, null,
+    httpsServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, null,
       new TlsSettings(true, testKeystorePath, "test123", "PKCS12", Path.of(""), "", ""),
-      new RequestSettings(List.of(), "1.0.0", false)), null, null);
+      new RequestSettings(List.of(), "1.0.0", false)), null);
   }
 
   @AfterEach
@@ -117,9 +117,9 @@ class HttpsServerTransportIntegrationTest {
   void should_start_with_non_existent_keystore() throws Exception {
     // Create server with non-existent keystore path
     var nonExistentKeystore = Paths.get("/tmp/non-existent-keystore.p12");
-    var serverWithMissingKeystore = new HttpServerTransportProvider(new HttpTransportSettings(findAvailablePort(), "127.0.0.1", false, false, null,
+    var serverWithMissingKeystore = new HttpServerTransportProvider(new HttpTransportSettings(findAvailablePort(), "127.0.0.1", false, null,
       new TlsSettings(true, nonExistentKeystore, "test123", "PKCS12", Path.of(""), "", ""),
-      new RequestSettings(List.of(), "1.0.0", false)), null, null);
+      new RequestSettings(List.of(), "1.0.0", false)), null);
 
     try {
       // Should start without crashing

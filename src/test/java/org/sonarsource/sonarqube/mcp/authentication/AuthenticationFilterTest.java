@@ -34,6 +34,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter.OAuthSupport;
 import org.sonarsource.sonarqube.mcp.transport.OAuthScopeResponseWrapper;
 
 import static java.util.Collections.enumeration;
@@ -195,17 +196,6 @@ class AuthenticationFilterTest {
       .contains("\"error\":{")
       .contains("\"code\":-32000")
       .contains("\"message\":");
-  }
-
-  @Test
-  void it_should_fail_closed_when_oauth_services_are_not_configured() throws Exception {
-    var filter = new AuthenticationFilter(null, true, null, null);
-    when(request.getMethod()).thenReturn("POST");
-
-    filter.doFilter(request, response, filterChain);
-
-    assertOAuthFailure(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-    assertThat(responseWriter.toString()).contains("temporarily unavailable");
   }
 
   @ParameterizedTest(name = "[{index}] org={0}")
@@ -432,27 +422,6 @@ class AuthenticationFilterTest {
     assertOAuthFailure(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
   }
 
-  @Test
-  void it_should_fail_closed_when_the_authenticator_is_missing() throws Exception {
-    var filter = oauthFilter(OAUTH_METADATA, null);
-    oauthHeaders("Bearer mcp.token.a");
-
-    filter.doFilter(request, response, filterChain);
-
-    assertOAuthFailure(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-  }
-
-  @Test
-  void it_should_fail_closed_without_metadata_even_on_its_public_path() throws Exception {
-    var filter = oauthFilter(null, token -> new OAuthRequestAuthentication("cloud-token", Set.of("read:all")));
-    when(request.getMethod()).thenReturn("GET");
-    when(request.getRequestURI()).thenReturn(OAuthProtectedResourceMetadata.PATH);
-
-    filter.doFilter(request, response, filterChain);
-
-    assertOAuthFailure(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-  }
-
   @ParameterizedTest
   @ValueSource(strings = {"GET", "HEAD"})
   void it_should_allow_unauthenticated_local_metadata_discovery(String method) throws Exception {
@@ -494,7 +463,9 @@ class AuthenticationFilterTest {
 
   @Test
   void it_should_allow_options_without_authenticating_for_oauth_requests() throws Exception {
-    var filter = new AuthenticationFilter(null, true, null, null);
+    var filter = oauthFilter(OAUTH_METADATA, token -> {
+      throw new AssertionError("OPTIONS must not authenticate");
+    });
     when(request.getMethod()).thenReturn("OPTIONS");
 
     filter.doFilter(request, response, filterChain);
@@ -601,16 +572,6 @@ class AuthenticationFilterTest {
     assertOAuthFailure(HttpServletResponse.SC_UNAUTHORIZED);
   }
 
-  @Test
-  void it_should_fail_closed_for_explicit_oauth_capability_with_missing_runtime_services() throws Exception {
-    var filter = new AuthenticationFilter(null, true, null, null);
-    oauthHeaders("Bearer valid-pat");
-
-    filter.doFilter(request, response, filterChain);
-
-    assertOAuthFailure(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-  }
-
   @ParameterizedTest
   @ValueSource(strings = {"existing.server.token", "eyJexistingServerToken", "squ_token"})
   void it_should_preserve_both_token_headers_without_oauth_configuration(String token) throws Exception {
@@ -634,6 +595,13 @@ class AuthenticationFilterTest {
     assertThatThrownBy(() -> new HttpRequestAuthentication(null, null)).isInstanceOf(IllegalArgumentException.class);
   }
 
+  @Test
+  void it_should_reject_incomplete_oauth_support_at_construction() {
+    assertThatThrownBy(() -> new OAuthSupport(null, token -> new OAuthRequestAuthentication("cloud-token", Set.of("read:all"))))
+      .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new OAuthSupport(OAUTH_METADATA, null)).isInstanceOf(NullPointerException.class);
+  }
+
   private void oauthHeaders(String... values) {
     when(request.getMethod()).thenReturn("POST");
     when(request.getRequestURI()).thenReturn("/mcp");
@@ -642,12 +610,12 @@ class AuthenticationFilterTest {
   }
 
   private static AuthenticationFilter tokenFilter(@Nullable String serverOrg) {
-    return new AuthenticationFilter(serverOrg, false, null, null);
+    return new AuthenticationFilter(serverOrg, null);
   }
 
-  private static AuthenticationFilter oauthFilter(@Nullable OAuthProtectedResourceMetadata metadata,
-    @Nullable Function<String, OAuthRequestAuthentication> authenticator) {
-    return new AuthenticationFilter(null, true, metadata, authenticator);
+  private static AuthenticationFilter oauthFilter(OAuthProtectedResourceMetadata metadata,
+    Function<String, OAuthRequestAuthentication> authenticator) {
+    return new AuthenticationFilter(null, new OAuthSupport(metadata, authenticator));
   }
 
   private static AuthenticationFilter successfulOAuthFilter() {

@@ -51,7 +51,6 @@ class HttpTransportSettingsTest {
     assertThat(settings.port()).isEqualTo(8443);
     assertThat(settings.host()).isEqualTo("0.0.0.0");
     assertThat(settings.isSonarQubeCloud()).isTrue();
-    assertThat(settings.oauthEnabled()).isFalse();
     assertThat(settings.serverOrg()).isEqualTo("server-org");
     assertThat(settings.tls().enabled()).isTrue();
     assertThat(settings.tls().keystorePath()).isEqualTo(storage.resolve("keystore.p12"));
@@ -75,7 +74,6 @@ class HttpTransportSettingsTest {
     var settings = HttpTransportSettings.from(configuration);
 
     assertThat(settings.isSonarQubeCloud()).isFalse();
-    assertThat(settings.oauthEnabled()).isFalse();
     assertThat(settings.serverOrg()).isNull();
     assertThat(settings.tls().enabled()).isFalse();
     assertThat(settings.requests().allowedOrigins()).isEmpty();

@@ -32,6 +32,8 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.transport.OAuthScopeContext;
 import org.sonarsource.sonarqube.mcp.transport.OAuthScopeResponseWrapper;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Authentication filter for the stateless MCP HTTP transport.
  * Validates that each request carries a token, accepting two header formats:
@@ -58,20 +60,21 @@ public class AuthenticationFilter implements Filter {
 
   public static final String AUTHENTICATION_ATTRIBUTE = AuthenticationFilter.class.getName() + ".authentication";
 
-  private final boolean oauthEnabled;
   @Nullable
   private final String serverOrg;
   @Nullable
-  private final OAuthProtectedResourceMetadata oauthMetadata;
-  @Nullable
-  private final Function<String, OAuthRequestAuthentication> oauthAuthenticator;
+  private final OAuthSupport oauth;
 
-  public AuthenticationFilter(@Nullable String serverOrg, boolean oauthEnabled,
-    @Nullable OAuthProtectedResourceMetadata oauthMetadata, @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
-    this.oauthEnabled = oauthEnabled;
+  public AuthenticationFilter(@Nullable String serverOrg, @Nullable OAuthSupport oauth) {
     this.serverOrg = serverOrg;
-    this.oauthMetadata = oauthMetadata;
-    this.oauthAuthenticator = oauthAuthenticator;
+    this.oauth = oauth;
+  }
+
+  public record OAuthSupport(OAuthProtectedResourceMetadata metadata, Function<String, OAuthRequestAuthentication> authenticator) {
+    public OAuthSupport {
+      requireNonNull(metadata);
+      requireNonNull(authenticator);
+    }
   }
 
   @Override
@@ -90,12 +93,8 @@ public class AuthenticationFilter implements Filter {
       return;
     }
 
-    if (oauthEnabled) {
+    if (oauth != null) {
       httpResponse.setHeader("Cache-Control", "no-store");
-      if (oauthMetadata == null || oauthAuthenticator == null) {
-        sendOAuthError(httpResponse, OAuthAuthenticationException.unavailable(), false);
-        return;
-      }
       String token;
       try {
         token = selectToken(httpRequest);
@@ -177,7 +176,7 @@ public class AuthenticationFilter implements Filter {
   }
 
   private boolean isLocalMetadataRequest(HttpServletRequest request) {
-    return oauthEnabled && oauthMetadata != null && oauthMetadata.isSelfHosted()
+    return oauth != null && oauth.metadata().isSelfHosted()
       && OAuthProtectedResourceMetadata.PATH.equals(request.getRequestURI())
       && ("GET".equals(request.getMethod()) || "HEAD".equals(request.getMethod()));
   }
@@ -193,7 +192,7 @@ public class AuthenticationFilter implements Filter {
     }
     OAuthRequestAuthentication authentication;
     try {
-      authentication = oauthAuthenticator.apply(token);
+      authentication = oauth.authenticator().apply(token);
       if (authentication == null) {
         throw OAuthAuthenticationException.unavailable();
       }
@@ -203,15 +202,15 @@ public class AuthenticationFilter implements Filter {
     }
     var scopes = new OAuthScopeContext(authentication.scopes());
     request.setAttribute(AUTHENTICATION_ATTRIBUTE, new HttpRequestAuthentication(authentication.cloudToken(), scopes));
-    chain.doFilter(request, new OAuthScopeResponseWrapper(response, scopes, oauthMetadata));
+    chain.doFilter(request, new OAuthScopeResponseWrapper(response, scopes, oauth.metadata()));
   }
 
   private void sendOAuthError(HttpServletResponse response, OAuthAuthenticationException error, boolean tokenProvided) throws IOException {
     response.setStatus(error.status());
     response.setContentType(APPLICATION_JSON);
     response.setHeader("Cache-Control", "no-store");
-    if (oauthMetadata != null && (error.status() == 401 || error.status() == 403)) {
-      var challenge = oauthMetadata.challenge();
+    if (error.status() == 401 || error.status() == 403) {
+      var challenge = oauth.metadata().challenge();
       if (error.status() == 403) {
         challenge += ", error=\"insufficient_scope\"";
       } else if (tokenProvided) {

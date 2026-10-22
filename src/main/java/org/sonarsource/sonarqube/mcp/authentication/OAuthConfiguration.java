@@ -63,7 +63,7 @@ public final class OAuthConfiguration {
     return resourceUri;
   }
 
-  static URI validatedHttpsUri(@Nullable String value) {
+  public static URI validatedHttpsUri(@Nullable String value) {
     if (value == null || value.isBlank()) {
       throw new IllegalArgumentException("OAuth URL settings must be explicitly configured");
     }

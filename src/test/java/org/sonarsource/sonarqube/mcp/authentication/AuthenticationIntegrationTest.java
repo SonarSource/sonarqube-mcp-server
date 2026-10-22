@@ -51,9 +51,9 @@ class AuthenticationIntegrationTest {
   @Test
   void should_allow_request_with_authorization_bearer_header() throws Exception {
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, false, null,
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, null,
       new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
-      new RequestSettings(List.of(), "1.0.0", false)), null, null);
+      new RequestSettings(List.of(), "1.0.0", false)), null);
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
@@ -74,9 +74,9 @@ class AuthenticationIntegrationTest {
   @Test
   void should_reject_request_without_token_header() throws Exception {
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, false, null,
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, null,
       new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
-      new RequestSettings(List.of(), "1.0.0", false)), null, null);
+      new RequestSettings(List.of(), "1.0.0", false)), null);
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
@@ -107,9 +107,9 @@ class AuthenticationIntegrationTest {
   @Test
   void should_always_allow_options_requests_regardless_of_auth() throws Exception {
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, false, null,
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, null,
       new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
-      new RequestSettings(List.of(), "1.0.0", false)), null, null);
+      new RequestSettings(List.of(), "1.0.0", false)), null);
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
@@ -129,9 +129,9 @@ class AuthenticationIntegrationTest {
   @Test
   void should_allow_request_with_deprecated_sonarqube_token_header() throws Exception {
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, false, null,
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, null,
       new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
-      new RequestSettings(List.of(), "1.0.0", false)), null, null);
+      new RequestSettings(List.of(), "1.0.0", false)), null);
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);
 
@@ -152,9 +152,9 @@ class AuthenticationIntegrationTest {
   @Test
   void should_reject_requests_without_bearer_prefix() throws Exception {
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, false, null,
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, null,
       new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
-      new RequestSettings(List.of(), "1.0.0", false)), null, null);
+      new RequestSettings(List.of(), "1.0.0", false)), null);
 
     httpServer.startServer().join();
     await().atMost(5, TimeUnit.SECONDS).until(this::isServerRunning);

@@ -132,7 +132,7 @@ class McpServerLaunchConfigurationHttpTest {
     assertThat(config.getHttpPort()).isEqualTo(8080);
     assertThat(config.getHttpHost()).isEqualTo(host);
     assertThat(config.getOAuthConfiguration()).isNull();
-    assertThat(config.getOAuthMetadata()).isNull();
+    assertThat(config.getOAuthMetadataUrl()).isNull();
   }
 
   @Test

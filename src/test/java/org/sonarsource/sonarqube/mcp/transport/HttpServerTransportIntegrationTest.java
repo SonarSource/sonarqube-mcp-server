@@ -43,9 +43,9 @@ class HttpServerTransportIntegrationTest {
   @BeforeEach
   void setUp() {
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, false, null,
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, null,
       new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
-      new RequestSettings(List.of(), "1.0.0", false)), null, null);
+      new RequestSettings(List.of(), "1.0.0", false)), null);
   }
 
   @AfterEach
@@ -165,9 +165,9 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_allow_authenticated_mcp_with_external_origin_on_container_binding() throws Exception {
     var containerPort = findAvailablePort();
-    var containerServer = new HttpServerTransportProvider(new HttpTransportSettings(containerPort, "0.0.0.0", false, false, null,
+    var containerServer = new HttpServerTransportProvider(new HttpTransportSettings(containerPort, "0.0.0.0", false, null,
       new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
-      new RequestSettings(List.of(), "1.0.0", true)), null, null);
+      new RequestSettings(List.of(), "1.0.0", true)), null);
 
     try {
       containerServer.startServer().join();
@@ -195,9 +195,9 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_reject_unauthenticated_external_origin_on_non_mcp_path() throws Exception {
     var containerPort = findAvailablePort();
-    var containerServer = new HttpServerTransportProvider(new HttpTransportSettings(containerPort, "0.0.0.0", false, false, null,
+    var containerServer = new HttpServerTransportProvider(new HttpTransportSettings(containerPort, "0.0.0.0", false, null,
       new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
-      new RequestSettings(List.of(), "1.0.0", true)), null, null);
+      new RequestSettings(List.of(), "1.0.0", true)), null);
 
     try {
       containerServer.startServer().join();
@@ -246,9 +246,9 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_use_custom_host_and_port() {
     var customPort = findAvailablePort();
-    var customServer = new HttpServerTransportProvider(new HttpTransportSettings(customPort, "127.0.0.1", false, false, null,
+    var customServer = new HttpServerTransportProvider(new HttpTransportSettings(customPort, "127.0.0.1", false, null,
       new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
-      new RequestSettings(List.of(), "1.0.0", false)), null, null);
+      new RequestSettings(List.of(), "1.0.0", false)), null);
 
     try {
       customServer.startServer().join();
