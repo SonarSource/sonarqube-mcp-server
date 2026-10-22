@@ -120,6 +120,16 @@ class McpServerLaunchConfigurationHttpTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"http", "https"})
+  void should_accept_an_os_assigned_http_port(String transport) {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", transport);
+    environment.put("SONARQUBE_HTTP_PORT", "0");
+
+    assertThat(new McpServerLaunchConfiguration(environment).getHttpPort()).isZero();
+  }
+
+  @ParameterizedTest
   @ValueSource(strings = {"0.0.0.0", "127.0.0.1"})
   void should_allow_token_authentication_for_http_bindings(String host) {
     var environment = createMinimalTestEnvironment();
@@ -182,14 +192,15 @@ class McpServerLaunchConfigurationHttpTest {
     assertThat(config.getHttpPort()).isEqualTo(8080);
   }
 
-  @Test
-  void should_reject_privileged_ports() {
+  @ParameterizedTest
+  @ValueSource(ints = {-1, 1, 80, 1023, 65536})
+  void should_reject_invalid_http_ports(int port) {
     var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_HTTP_PORT", "80");
-    
+    environment.put("SONARQUBE_HTTP_PORT", Integer.toString(port));
+
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("SONARQUBE_HTTP_PORT value must be between 1024 and 65535 (unprivileged ports only), got: 80");
+        .hasMessage("SONARQUBE_HTTP_PORT value must be 0 (automatic) or between 1024 and 65535 (unprivileged ports only), got: " + port);
   }
 
   @Test

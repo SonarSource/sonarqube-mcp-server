@@ -105,6 +105,12 @@ final class OAuthTestSupport {
       assertThat(appender.list).isEmpty();
     }
 
+    void assertContains(String message) {
+      synchronized (appender) {
+        assertThat(appender.list).extracting(ILoggingEvent::getFormattedMessage).contains(message);
+      }
+    }
+
     void assertLogged(Level level, String message) {
       assertThat(appender.list).singleElement().satisfies(event -> {
         assertThat(event.getLevel()).isEqualTo(level);

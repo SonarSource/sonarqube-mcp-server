@@ -32,6 +32,9 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.harness.SslTestUtils;
 import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings.RequestSettings;
 import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings.TlsSettings;
 
@@ -52,6 +55,27 @@ class HttpServerTransportIntegrationTest {
   void tearDown() {
     if (httpServer != null) {
       httpServer.stopServer().join();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void should_report_a_reachable_os_assigned_port(boolean httpsEnabled) throws Exception {
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(0, "localhost", false, null,
+      new TlsSettings(httpsEnabled, Paths.get("src/test/resources/ssl/test-keystore.p12"), "test123", "PKCS12",
+        Paths.get("build/missing-test-truststore.p12"), null, "PKCS12"),
+      new RequestSettings(List.of(), "1.0.0", false)), null);
+    var protocol = httpsEnabled ? "https" : "http";
+    assertThat(httpServer.getServerUrl()).isEqualTo(protocol + "://localhost:0/mcp");
+
+    httpServer.startServer().join();
+
+    var endpoint = URI.create(httpServer.getServerUrl());
+    assertThat(endpoint.getScheme()).isEqualTo(protocol);
+    assertThat(endpoint.getPort()).isBetween(1024, 65535);
+    try (var client = HttpClient.newBuilder().sslContext(SslTestUtils.trustAllSslContext()).connectTimeout(Duration.ofSeconds(5)).build()) {
+      var request = HttpRequest.newBuilder(endpoint.resolve(McpSecurityFilter.HEALTH_ENDPOINT)).GET().build();
+      assertThat(client.send(request, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(200);
     }
   }
 

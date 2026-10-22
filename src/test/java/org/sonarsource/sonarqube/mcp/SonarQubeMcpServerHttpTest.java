@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.ServerSocket;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -36,6 +36,7 @@ class SonarQubeMcpServerHttpTest {
     var server = new SonarQubeMcpServer(environment);
 
     assertThat(server.getMcpConfiguration().isHttpEnabled()).isFalse();
+    assertThat(server.getHttpServerUrl()).isNull();
   }
 
   @SonarQubeMcpServerTest
@@ -82,9 +83,7 @@ class SonarQubeMcpServerHttpTest {
         null,
         environment);
     environment.put("SONARQUBE_TRANSPORT", "http");
-    try (var socket = new ServerSocket(0)) {
-      environment.put("SONARQUBE_HTTP_PORT", Integer.toString(socket.getLocalPort()));
-    }
+    environment.put("SONARQUBE_HTTP_PORT", "0");
     var httpServer = new SonarQubeMcpServer(environment);
     try {
       stdioServer.start();
@@ -96,6 +95,7 @@ class SonarQubeMcpServerHttpTest {
 
       httpServer.start();
       httpServer.waitForInitialization();
+      assertThat(URI.create(httpServer.getHttpServerUrl()).getPort()).isBetween(1024, 65535);
       var httpTools = httpServer.getSupportedTools().stream()
         .map(tool -> tool.definition().name())
         .sorted()
