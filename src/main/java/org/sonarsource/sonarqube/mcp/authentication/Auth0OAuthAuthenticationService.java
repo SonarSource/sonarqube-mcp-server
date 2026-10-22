@@ -86,19 +86,38 @@ public final class Auth0OAuthAuthenticationService {
   }
 
   /**
-   * Requires explicit delegation from a short-lived GitHub user token with no organization binding or prior actors.
+   * Requires explicit delegation from a short-lived user token with no organization binding or prior actors.
    */
   private Set<String> validateSource(DecodedJWT source) {
-    if (!validLifetime(source) || source.getAudience().contains(configuration.cloudAudience()) || blank(source.getSubject())
-      || !source.getSubject().matches("oauth2\\|github\\|github\\|\\d+") || blank(source.getClaim("azp").asString())
-      || !source.getClaim("org_id").isMissing() || !source.getClaim("act").isMissing()) {
-      throw OAuthAuthenticationException.unauthorized();
+    if (!validLifetime(source)) {
+      throw sourceRejected("invalid_lifetime");
+    }
+    if (source.getAudience().contains(configuration.cloudAudience())) {
+      throw sourceRejected("unexpected_cloud_audience");
+    }
+    if (blank(source.getSubject())) {
+      throw sourceRejected("missing_subject");
+    }
+    if (blank(source.getClaim("azp").asString())) {
+      throw sourceRejected("missing_authorized_party");
+    }
+    if (!source.getClaim("org_id").isMissing()) {
+      throw sourceRejected("organization_binding");
+    }
+    if (!source.getClaim("act").isMissing()) {
+      throw sourceRejected("unexpected_actor");
     }
     var scopes = cloudScopes(source);
     if (scopes.isEmpty()) {
+      LOG.warn("OAuth source token rejected (missing_mcp_scope)");
       throw OAuthAuthenticationException.insufficientScope();
     }
     return scopes;
+  }
+
+  private static OAuthAuthenticationException sourceRejected(String reason) {
+    LOG.warn("OAuth source token rejected (" + reason + ")");
+    return OAuthAuthenticationException.unauthorized();
   }
 
   /**
@@ -188,7 +207,7 @@ public final class Auth0OAuthAuthenticationService {
         default -> null;
       }).filter(Objects::nonNull).collect(Collectors.toUnmodifiableSet());
     } catch (JWTDecodeException e) {
-      LOG.debug("OAuth source scope decoding failed ({})", e.getClass().getSimpleName());
+      LOG.warn("OAuth source scope decoding failed (" + e.getClass().getSimpleName() + ")");
       throw OAuthAuthenticationException.insufficientScope();
     }
   }
