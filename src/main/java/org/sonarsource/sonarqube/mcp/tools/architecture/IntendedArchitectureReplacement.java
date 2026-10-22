@@ -81,28 +81,20 @@ final class IntendedArchitectureReplacement {
     }
     validateResourceIds(previous);
     for (var model : next) {
-      var before = previous.stream().filter(candidate -> candidate.language().equals(model.language()) && candidate.type().equals(model.type()))
-        .findFirst().orElse(null);
-      checkImportedGroups(before == null ? List.of() : before.groups(), model.groups());
+      checkImportedGroups(model.groups());
     }
   }
 
-  private static void checkImportedGroups(List<IntendedArchitecture.Group> previous, List<IntendedArchitecture.Group> next) {
-    for (var group : next) {
-      var before = previous.stream().filter(candidate -> candidate.label().equals(group.label())).findFirst().orElse(null);
-      if (before != null && group.patternId() != null && group.patternId().equalsIgnoreCase(before.patternId())
-        && group.groups() != null && !sameExpansion(before.groups(), group.groups())) {
-        throw new IllegalArgumentException("Imported pattern contents cannot be edited here. Keep the exported groups unchanged or change patternId. Nothing was changed.");
+  private static void checkImportedGroups(List<IntendedArchitecture.Group> groups) {
+    for (var group : groups) {
+      if (group.patternId() != null && group.groups() != null && !group.groups().isEmpty()) {
+        throw new IllegalArgumentException("Group '" + group.label() + "' imports a pattern and cannot declare child groups. "
+          + "Remove its child groups and keep patternId. Nothing was changed.");
       }
-      if (group.patternId() == null) {
-        checkImportedGroups(before == null || before.groups() == null ? List.of() : before.groups(), group.groups() == null ? List.of() : group.groups());
+      if (group.groups() != null) {
+        checkImportedGroups(group.groups());
       }
     }
-  }
-
-  private static boolean sameExpansion(@Nullable List<IntendedArchitecture.Group> left, @Nullable List<IntendedArchitecture.Group> right) {
-    return IntendedRevision.of(List.of(new IntendedArchitecture("namespace", "java", left == null ? List.of() : left, List.of())))
-      .equals(IntendedRevision.of(List.of(new IntendedArchitecture("namespace", "java", right == null ? List.of() : right, List.of()))));
   }
 
   private static void validateResourceIds(List<IntendedArchitecture> models) {

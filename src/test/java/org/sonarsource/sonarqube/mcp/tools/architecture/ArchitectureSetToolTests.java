@@ -179,7 +179,7 @@ class ArchitectureSetToolTests {
     var result = set(harness, NEXT, true, null);
     assertThat(result.isError()).isFalse();
     assertThat(textOf(result)).contains("dry-run", "java group app/domain", "java group app/infra", "patternId",
-      "organization features are disabled", "The export cannot recover omitted data");
+      "does not expand their groups or constraints", "Keep patternId");
     assertWrites(harness, 0, 0);
   }
 
@@ -410,7 +410,7 @@ class ArchitectureSetToolTests {
     stored(harness, before);
     var result = set(harness, before.replace("app:com.acme.domain.**", "ignored:**"), true, "stale");
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("changed since revision stale").doesNotContain("Imported pattern contents cannot be edited");
+    assertThat(textOf(result)).contains("changed since revision stale").doesNotContain("imports a pattern and cannot declare child groups");
     assertWrites(harness, 0, 0);
   }
 
@@ -419,7 +419,7 @@ class ArchitectureSetToolTests {
     var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     stored(harness, before);
     harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).willReturn(aResponse().withStatus(500)));
-    var failure = set(harness, before.replace("app:**", "proposed:**"), false, null);
+    var failure = set(harness, withoutImportedChildren(before).replace("app:**", "proposed:**"), false, null);
     assertThat(failure.isError()).isTrue();
     var message = textOf(failure);
     var recovery = message.substring(message.indexOf("Previous exported model for manual recovery: ") + "Previous exported model for manual recovery: ".length());
@@ -458,7 +458,7 @@ class ArchitectureSetToolTests {
     group.add("groups", JsonParser.parseString("[{\"label\":\"Ignored child edit\"}]"));
     var refused = set(harness, exported.toString(), true, null);
     assertThat(refused.isError()).isTrue();
-    assertThat(textOf(refused)).contains("Imported pattern contents cannot be edited");
+    assertThat(textOf(refused)).contains("imports a pattern and cannot declare child groups");
     assertWrites(harness, 0, 0);
   }
 
@@ -469,15 +469,43 @@ class ArchitectureSetToolTests {
     var next = before.replace("app:com.acme.domain.**", "ignored:**");
     var result = set(harness, next, false, null);
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("Imported pattern contents cannot be edited", "Nothing was changed");
+    assertThat(textOf(result)).contains("imports a pattern and cannot declare child groups", "Nothing was changed");
     assertWrites(harness, 0, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_reject_children_on_new_pattern_links_in_preview_and_write(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, INTENDED_JAVA_MODEL);
+    for (var nested : List.of(false, true)) {
+      var next = JsonParser.parseString(INTENDED_JAVA_MODEL).getAsJsonArray();
+      var groups = next.get(0).getAsJsonObject().getAsJsonArray("groups");
+      if (nested) {
+        groups = groups.get(0).getAsJsonObject().getAsJsonArray("groups");
+      }
+      groups.add(JsonParser.parseString("""
+        {"label":"New import","patternId":"33333333-3333-4333-8333-333333333333","groups":[{"label":"Child"}]}
+        """));
+      for (var dryRun : List.of(true, false)) {
+        var result = set(harness, next.toString(), dryRun, null);
+        assertThat(result.isError()).isTrue();
+        assertThat(textOf(result)).contains("Group 'New import' imports a pattern and cannot declare child groups", "Nothing was changed");
+      }
+    }
+    assertWrites(harness, 0, 0);
+  }
+
+  private static String withoutImportedChildren(String model) {
+    var models = JsonParser.parseString(model).getAsJsonArray();
+    models.get(0).getAsJsonObject().getAsJsonArray("groups").get(0).getAsJsonObject().remove("groups");
+    return models.toString();
   }
 
   @SonarQubeMcpServerTest
   void it_should_verify_a_changed_import_link_using_its_writable_fields(SonarQubeMcpServerTestHarness harness) {
     var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
-    var next = before.replace("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444");
-    var resolved = next.replace("app:com.acme.domain.**", "resolved:new.**");
+    var next = withoutImportedChildren(before).replace("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444");
+    var resolved = before.replace("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444")
+      .replace("app:com.acme.domain.**", "resolved:new.**");
     stored(harness, before);
     stubPatch(harness, resolved);
     var result = set(harness, next, false, IntendedRevision.of(IntendedModels.parse(before)));
@@ -490,7 +518,7 @@ class ArchitectureSetToolTests {
   void it_should_preserve_public_metadata_and_apply_metadata_only_changes(SonarQubeMcpServerTestHarness harness) {
     var before = INTENDED_JAVA_MODEL.replace("\"type\": \"namespace\"", "\"label\":\"Perspective\",\"description\":\"Before\",\"type\": \"namespace\"")
       .replace("\"label\": \"app\"", "\"description\":\"Group description\",\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
-    var next = before.replace("Before", "After");
+    var next = withoutImportedChildren(before).replace("Before", "After");
     stored(harness, before);
     stubPatch(harness, next);
     assertThat(IntendedRevision.of(IntendedModels.parse(next))).isNotEqualTo(IntendedRevision.of(IntendedModels.parse(before)));

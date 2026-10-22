@@ -66,7 +66,7 @@ class ArchitectureReadConcurrencyTest {
   }
 
   @Test
-  void it_should_refuse_excess_reads_before_fetching_and_leave_intended_reads_available() throws Exception {
+  void it_should_time_out_excess_reads_before_fetching_and_leave_intended_reads_available() throws Exception {
     var entered = new CountDownLatch(2);
     var release = new CountDownLatch(1);
     when(architecture.getStructure(anyString(), anyString(), anyString(), anyString())).thenAnswer(invocation -> {
@@ -93,6 +93,86 @@ class ArchitectureReadConcurrencyTest {
       assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
       assertThat(tool.execute(currentArguments()).isError()).isFalse();
       verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
+    }
+  }
+
+  @Test
+  void it_should_queue_a_third_read_until_capacity_is_available() throws Exception {
+    var entered = new CountDownLatch(2);
+    var release = new CountDownLatch(1);
+    var active = new java.util.concurrent.atomic.AtomicInteger();
+    var maximum = new java.util.concurrent.atomic.AtomicInteger();
+    when(architecture.getStructure(anyString(), anyString(), anyString(), anyString())).thenAnswer(invocation -> {
+      maximum.accumulateAndGet(active.incrementAndGet(), Math::max);
+      entered.countDown();
+      try {
+        if (!release.await(10, TimeUnit.SECONDS)) {
+          throw new IllegalStateException("Test did not release the backend");
+        }
+        return List.of();
+      } finally {
+        active.decrementAndGet();
+      }
+    });
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var first = executor.submit(() -> tool.execute(currentArguments()));
+      var second = executor.submit(() -> tool.execute(currentArguments()));
+      try {
+        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+        var queued = executor.submit(() -> tool.execute(currentArguments()));
+        assertThatThrownBy(() -> queued.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+        verify(architecture, times(2)).getStructure(anyString(), anyString(), anyString(), anyString());
+        release.countDown();
+        assertThat(queued.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      } finally {
+        release.countDown();
+      }
+      assertThat(first.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(maximum.get()).isEqualTo(2);
+      verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
+    }
+  }
+
+  @Test
+  void it_should_preserve_interruption_without_releasing_an_unacquired_slot() throws Exception {
+    var entered = new CountDownLatch(2);
+    var release = new CountDownLatch(1);
+    when(architecture.getStructure(anyString(), anyString(), anyString(), anyString())).thenAnswer(invocation -> {
+      entered.countDown();
+      if (!release.await(15, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("Test did not release the backend");
+      }
+      return List.of();
+    });
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var first = executor.submit(() -> tool.execute(currentArguments()));
+      var second = executor.submit(() -> tool.execute(currentArguments()));
+      try {
+        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+        var interrupted = executor.submit(() -> {
+          var arguments = currentArguments();
+          Thread.currentThread().interrupt();
+          try {
+            assertThatThrownBy(() -> tool.execute(arguments)).isInstanceOf(IllegalStateException.class)
+              .hasMessage("Architecture read interrupted while waiting for capacity.")
+              .hasCauseInstanceOf(InterruptedException.class);
+            return Thread.currentThread().isInterrupted();
+          } finally {
+            Thread.interrupted();
+          }
+        });
+        assertThat(interrupted.get(5, TimeUnit.SECONDS)).isTrue();
+        var arguments = currentArguments();
+        assertThatThrownBy(() -> tool.execute(arguments)).isInstanceOf(IllegalStateException.class)
+          .hasMessage("Architecture reads are busy. Try again shortly.");
+        verify(architecture, times(2)).getStructure(anyString(), anyString(), anyString(), anyString());
+      } finally {
+        release.countDown();
+      }
+      assertThat(first.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(tool.execute(currentArguments()).isError()).isFalse();
     }
   }
 

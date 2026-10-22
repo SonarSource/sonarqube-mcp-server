@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
@@ -93,8 +94,13 @@ public class ArchitectureGetTool extends Tool {
   }
 
   private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
-    if (!currentReads.tryAcquire()) {
-      throw new IllegalStateException("Architecture reads are busy. Try again shortly.");
+    try {
+      if (!currentReads.tryAcquire(5, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("Architecture reads are busy. Try again shortly.");
+      }
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Architecture read interrupted while waiting for capacity.", interrupted);
     }
     try {
       serverApi.requireOrganization();

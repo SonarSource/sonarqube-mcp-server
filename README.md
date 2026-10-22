@@ -1453,7 +1453,7 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 - **architecture_get** - Read current dependencies or intended groups and constraints. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
-  Current graph reads are limited to two concurrent calls per tool instance. Additional calls return a busy error immediately; retry later. Each accepted call still downloads and processes the full selected graph.
+  Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
   - `target` - `current` or `intended` on Cloud; `current` on Server - _Required Enum_
@@ -1465,7 +1465,7 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 - **architecture_set** - Replace the whole intended model on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
-  **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. With organization features disabled, imported groups may be exported without their contents; the export cannot recover omitted data. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
+  **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: the public export does not expand their groups or constraints, and imported contents cannot be edited here. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
 
   Parameters:
   - `target` - `intended` - _Required Enum_
