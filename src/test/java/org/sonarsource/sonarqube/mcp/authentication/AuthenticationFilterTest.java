@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import jakarta.annotation.Nullable;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +26,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -71,7 +73,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_always_allow_options_requests() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("OPTIONS");
 
     filter.doFilter(request, response, filterChain);
@@ -82,7 +84,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_allow_request_with_authorization_bearer_header() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Bearer squ_my_custom_token");
 
@@ -94,7 +96,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_allow_request_with_deprecated_sonarqube_token_header() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn(null);
     when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_legacy_token");
@@ -107,7 +109,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_prefer_authorization_bearer_over_deprecated_sonarqube_token_header() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Bearer squ_new_token");
     when(request.getHeader("SONARQUBE_TOKEN")).thenReturn("squ_legacy_token");
@@ -120,7 +122,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_reject_request_without_authorization_header() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn(null);
     when(request.getRemoteAddr()).thenReturn("192.168.1.100");
@@ -140,7 +142,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_reject_request_with_non_bearer_authorization_header() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Basic dXNlcjpwYXNz");
     when(request.getRemoteAddr()).thenReturn("192.168.1.100");
@@ -153,7 +155,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_reject_request_with_empty_bearer_token() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Bearer ");
     when(request.getRemoteAddr()).thenReturn("192.168.1.100");
@@ -166,7 +168,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_include_www_authenticate_header_in_401_response() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn(null);
     when(request.getRemoteAddr()).thenReturn("10.0.0.1");
@@ -179,7 +181,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_return_jsonrpc_error_response_body() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn(null);
     when(request.getRemoteAddr()).thenReturn("10.0.0.1");
@@ -209,7 +211,7 @@ class AuthenticationFilterTest {
   @ParameterizedTest(name = "[{index}] org={0}")
   @MethodSource("organizationHeaders")
   void should_allow_requests_with_optional_organization_header(String orgHeader) throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_ORG")).thenReturn(orgHeader);
@@ -223,7 +225,7 @@ class AuthenticationFilterTest {
   @ParameterizedTest(name = "[{index}] fixed-org header={0}")
   @MethodSource("organizationHeaders")
   void should_preserve_fixed_server_organization_header_rejection(String orgHeader) throws Exception {
-    var filter = new AuthenticationFilter("my-org");
+    var filter = tokenFilter("my-org");
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_ORG")).thenReturn(orgHeader);
@@ -251,7 +253,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_allow_request_with_valid_read_only_header() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_READ_ONLY")).thenReturn("true");
@@ -264,7 +266,7 @@ class AuthenticationFilterTest {
 
   @Test
   void should_reject_request_with_invalid_read_only_header() throws Exception {
-    var filter = new AuthenticationFilter(null);
+    var filter = tokenFilter(null);
     when(request.getMethod()).thenReturn("POST");
     when(request.getHeader("Authorization")).thenReturn("Bearer squ_token");
     when(request.getHeader("SONARQUBE_READ_ONLY")).thenReturn("yes");
@@ -281,7 +283,7 @@ class AuthenticationFilterTest {
   void it_should_dispatch_only_verified_cloud_credentials_and_scopes(String scheme) throws Exception {
     var authentication = new OAuthRequestAuthentication("cloud-token-b", Set.of("write:all"));
     var receivedTokens = new ArrayList<String>();
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, token -> {
+    var filter = oauthFilter(OAUTH_METADATA, token -> {
       receivedTokens.add(token);
       return authentication;
     });
@@ -306,7 +308,7 @@ class AuthenticationFilterTest {
   @Test
   void it_should_keep_scope_denials_local_when_authentication_is_cached() throws Exception {
     var cachedAuthentication = new OAuthRequestAuthentication("cloud-token-b", Set.of("read:all"));
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, token -> cachedAuthentication);
+    var filter = oauthFilter(OAUTH_METADATA, token -> cachedAuthentication);
     oauthHeaders("Bearer mcp.token.a");
     var secondResponse = mock(HttpServletResponse.class);
 
@@ -397,7 +399,7 @@ class AuthenticationFilterTest {
   @ParameterizedTest
   @MethodSource("oauthFailures")
   void it_should_return_sanitized_service_errors(OAuthAuthenticationException error) throws Exception {
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, token -> {
+    var filter = oauthFilter(OAUTH_METADATA, token -> {
       throw error;
     });
     oauthHeaders("Bearer private.mcp.token");
@@ -422,7 +424,7 @@ class AuthenticationFilterTest {
 
   @Test
   void it_should_fail_closed_when_the_authenticator_returns_null() throws Exception {
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, token -> null);
+    var filter = oauthFilter(OAUTH_METADATA, token -> null);
     oauthHeaders("Bearer mcp.token.a");
 
     filter.doFilter(request, response, filterChain);
@@ -432,7 +434,7 @@ class AuthenticationFilterTest {
 
   @Test
   void it_should_fail_closed_when_the_authenticator_is_missing() throws Exception {
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, null);
+    var filter = oauthFilter(OAUTH_METADATA, null);
     oauthHeaders("Bearer mcp.token.a");
 
     filter.doFilter(request, response, filterChain);
@@ -442,7 +444,7 @@ class AuthenticationFilterTest {
 
   @Test
   void it_should_fail_closed_without_metadata_even_on_its_public_path() throws Exception {
-    var filter = new AuthenticationFilter(null, null, token -> new OAuthRequestAuthentication("cloud-token", Set.of("read:all")));
+    var filter = oauthFilter(null, token -> new OAuthRequestAuthentication("cloud-token", Set.of("read:all")));
     when(request.getMethod()).thenReturn("GET");
     when(request.getRequestURI()).thenReturn(OAuthProtectedResourceMetadata.PATH);
 
@@ -480,7 +482,7 @@ class AuthenticationFilterTest {
   void it_should_not_expose_a_local_metadata_path_for_external_discovery() throws Exception {
     var metadata = new OAuthProtectedResourceMetadata("https://api.example.com/mcp", "https://login.example.com/",
       "https://discovery.example.com/mcp");
-    var filter = new AuthenticationFilter(null, metadata, token -> new OAuthRequestAuthentication("cloud-token", Set.of("read:all")));
+    var filter = oauthFilter(metadata, token -> new OAuthRequestAuthentication("cloud-token", Set.of("read:all")));
     when(request.getMethod()).thenReturn("GET");
     when(request.getRequestURI()).thenReturn(OAuthProtectedResourceMetadata.PATH);
 
@@ -504,7 +506,7 @@ class AuthenticationFilterTest {
   @ParameterizedTest
   @ValueSource(strings = {"squ_token", "sqco_organization_token", "0123456789012345678901234567890123456789"})
   void it_should_accept_bearer_and_legacy_tokens_with_oauth_configured_without_using_oauth(String token) throws Exception {
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, value -> {
+    var filter = oauthFilter(OAUTH_METADATA, value -> {
       throw new AssertionError("Opaque tokens must not use OAuth");
     });
     oauthHeaders("Bearer " + token);
@@ -529,7 +531,7 @@ class AuthenticationFilterTest {
   @ValueSource(strings = {"eyJ", "eyJmalformed", "a.b", "a.b.c"})
   void it_should_never_fall_back_to_a_legacy_token_when_oauth_fails(String token) throws Exception {
     var receivedTokens = new ArrayList<String>();
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, value -> {
+    var filter = oauthFilter(OAUTH_METADATA, value -> {
       receivedTokens.add(value);
       throw OAuthAuthenticationException.unauthorized();
     });
@@ -545,7 +547,7 @@ class AuthenticationFilterTest {
   @ParameterizedTest
   @ValueSource(strings = {"", "Basic credentials", "Bearer", "Bearer ", "Bearer  token", " Bearer token", "Bearer token token", "Bearer token,other"})
   void it_should_not_fall_back_from_malformed_authorization_with_oauth_configured(String authorization) throws Exception {
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, value -> {
+    var filter = oauthFilter(OAUTH_METADATA, value -> {
       throw new AssertionError("Invalid credentials must not use OAuth");
     });
     oauthHeaders(authorization);
@@ -559,7 +561,7 @@ class AuthenticationFilterTest {
   @ParameterizedTest
   @ValueSource(strings = {"", " ", "one two", "one,two", "a.b.c", "eyJ"})
   void it_should_reject_invalid_or_oauth_legacy_credentials_with_oauth_configured(String token) throws Exception {
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, value -> {
+    var filter = oauthFilter(OAUTH_METADATA, value -> {
       throw new AssertionError("Legacy credentials must not use OAuth");
     });
     oauthHeaders();
@@ -572,7 +574,7 @@ class AuthenticationFilterTest {
 
   @Test
   void it_should_prefer_a_single_bearer_over_any_legacy_credential_with_oauth_configured() throws Exception {
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, value -> {
+    var filter = oauthFilter(OAUTH_METADATA, value -> {
       throw new AssertionError("Opaque tokens must not use OAuth");
     });
     oauthHeaders("bEaReR valid-pat");
@@ -587,7 +589,7 @@ class AuthenticationFilterTest {
   @ParameterizedTest
   @ValueSource(strings = {"Authorization", "SONARQUBE_TOKEN"})
   void it_should_reject_duplicate_selected_headers_with_oauth_configured(String header) throws Exception {
-    var filter = new AuthenticationFilter(null, OAUTH_METADATA, value -> {
+    var filter = oauthFilter(OAUTH_METADATA, value -> {
       throw new AssertionError("Duplicate credentials must not use OAuth");
     });
     oauthHeaders();
@@ -612,7 +614,7 @@ class AuthenticationFilterTest {
   @ParameterizedTest
   @ValueSource(strings = {"existing.server.token", "eyJexistingServerToken", "squ_token"})
   void it_should_preserve_both_token_headers_without_oauth_configuration(String token) throws Exception {
-    var filter = new AuthenticationFilter("fixed-org");
+    var filter = tokenFilter("fixed-org");
     oauthHeaders("Bearer " + token);
 
     filter.doFilter(request, response, filterChain);
@@ -639,8 +641,17 @@ class AuthenticationFilterTest {
     when(request.getHeader("Authorization")).thenReturn(values.length == 0 ? null : values[0]);
   }
 
+  private static AuthenticationFilter tokenFilter(@Nullable String serverOrg) {
+    return new AuthenticationFilter(serverOrg, false, null, null);
+  }
+
+  private static AuthenticationFilter oauthFilter(@Nullable OAuthProtectedResourceMetadata metadata,
+    @Nullable Function<String, OAuthRequestAuthentication> authenticator) {
+    return new AuthenticationFilter(null, true, metadata, authenticator);
+  }
+
   private static AuthenticationFilter successfulOAuthFilter() {
-    return new AuthenticationFilter(null, OAUTH_METADATA, token -> new OAuthRequestAuthentication("cloud-token-b", Set.of("read:all")));
+    return oauthFilter(OAUTH_METADATA, token -> new OAuthRequestAuthentication("cloud-token-b", Set.of("read:all")));
   }
 
   private void assertOAuthFailure(int status) {

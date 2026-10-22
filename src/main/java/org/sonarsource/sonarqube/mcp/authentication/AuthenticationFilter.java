@@ -66,15 +66,6 @@ public class AuthenticationFilter implements Filter {
   @Nullable
   private final Function<String, OAuthRequestAuthentication> oauthAuthenticator;
 
-  public AuthenticationFilter(@Nullable String serverOrg) {
-    this(serverOrg, false, null, null);
-  }
-
-  public AuthenticationFilter(@Nullable String serverOrg, @Nullable OAuthProtectedResourceMetadata oauthMetadata,
-    @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
-    this(serverOrg, oauthMetadata != null || oauthAuthenticator != null, oauthMetadata, oauthAuthenticator);
-  }
-
   public AuthenticationFilter(@Nullable String serverOrg, boolean oauthEnabled,
     @Nullable OAuthProtectedResourceMetadata oauthMetadata, @Nullable Function<String, OAuthRequestAuthentication> oauthAuthenticator) {
     this.oauthEnabled = oauthEnabled;
