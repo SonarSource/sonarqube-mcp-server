@@ -41,6 +41,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter.OAuthSupport;
+import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.LogCapture;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.harness.SslTestUtils;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
@@ -380,7 +381,11 @@ class OAuthHttpTransportTest {
     if (external) {
       environment.put("SONARQUBE_OAUTH_METADATA_URL", EXTERNAL_METADATA);
     }
-    startProductionServer();
+    try (var logs = new LogCapture(false)) {
+      startProductionServer();
+      server.waitForInitialization();
+      logs.assertContains("Transport: HTTP (" + endpoint + ")");
+    }
     var expectedMetadata = external ? EXTERNAL_METADATA : cloud.baseUrl() + OAuthProtectedResourceMetadata.PATH;
     var bootstrap = send(request(null, "ping", Map.of()).header("Origin", CLIENT_ORIGIN).build());
     assertThat(bootstrap.statusCode()).isEqualTo(401);
