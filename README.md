@@ -723,7 +723,7 @@ Unencrypted Streamable HTTP transport. Use HTTPS instead for multi-user deployme
 | Environment variable | Description                                                      | Default         |
 |----------------------|------------------------------------------------------------------|-----------------|
 | `SONARQUBE_TRANSPORT`| Set to `http` to enable Streamable HTTP transport                  | Not set (stdio) |
-| `SONARQUBE_HTTP_PORT`| Port number (1024-65535)                                         | `8080`          |
+| `SONARQUBE_HTTP_PORT`| Port number (1024-65535), or `0` for an OS-assigned port                                         | `8080`          |
 | `SONARQUBE_HTTP_HOST`| Host to bind (defaults to localhost for security)                | `127.0.0.1`     |
 | `SONARQUBE_HTTP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed for CORS (e.g. `https://my-app.example.com`) | Not set |
 | `SONARQUBE_MCP_IN_CONTAINER` | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false` |
@@ -747,7 +747,7 @@ Secure Streamable HTTP transport with TLS encryption. Requires SSL certificates.
 | Environment variable             | Description                                                                                                                                                                        | Default         |
 |----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|
 | `SONARQUBE_TRANSPORT`            | Set to `https` to enable Streamable HTTP transport over TLS       | Not set (stdio) |
-| `SONARQUBE_HTTP_PORT`            | Port number (typically 8443 for HTTPS)                                                                                                                                             | `8080`          |
+| `SONARQUBE_HTTP_PORT`            | Port number (typically 8443 for HTTPS), or `0` for an OS-assigned port                                                                                                                                             | `8080`          |
 | `SONARQUBE_HTTP_HOST`            | Host to bind (defaults to localhost for security)                                                                                                                                  | `127.0.0.1`     |
 | `SONARQUBE_HTTP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed for CORS (e.g. `https://my-app.example.com`)                                                                                               | Not set         |
 | `SONARQUBE_MCP_IN_CONTAINER`     | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false`         |

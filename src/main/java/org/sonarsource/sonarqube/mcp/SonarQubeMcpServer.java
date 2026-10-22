@@ -634,7 +634,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.info("========================================");
     LOG.info("SonarQube MCP Server Started:");
     LOG.info("Transport: " + transportType +
-      (mcpConfiguration.isHttpEnabled() ? (" (" + mcpConfiguration.getHttpHost() + ":" + mcpConfiguration.getHttpPort() + ")") : ""));
+      (httpServerManager != null ? (" (" + httpServerManager.getServerUrl() + ")") : ""));
     LOG.info("Instance: " + sonarQubeType);
     LOG.info("URL: " + mcpConfiguration.getSonarQubeUrl());
     if (mcpConfiguration.isSonarQubeCloud() && resolvedOrganization != null) {
@@ -866,6 +866,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   // Package-private getters for testing
   McpServerLaunchConfiguration getMcpConfiguration() {
     return mcpConfiguration;
+  }
+
+  @VisibleForTesting
+  @Nullable
+  public String getHttpServerUrl() {
+    return httpServerManager == null ? null : httpServerManager.getServerUrl();
   }
 
   public List<Tool> getSupportedTools() {

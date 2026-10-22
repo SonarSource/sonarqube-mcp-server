@@ -139,6 +139,47 @@ class Auth0OAuthAuthenticationServiceTest {
   }
 
   @ParameterizedTest
+  @CsvSource({"301,300", "300,301", "3600,3600", "7200,3600", "3600,7200"})
+  void it_should_accept_auth0_defined_token_lifetimes(long sourceLifetime, long cloudLifetime) {
+    var issuedAt = clock.instant().minusSeconds(1);
+    var source = source().withIssuedAt(issuedAt).withExpiresAt(issuedAt.plusSeconds(sourceLifetime))
+      .withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withIssuedAt(issuedAt).withExpiresAt(issuedAt.plusSeconds(cloudLifetime))
+      .withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+
+    var authenticated = service.authenticate(source);
+
+    assertThat(authenticated.cloudToken()).isEqualTo(cloud).isNotEqualTo(source);
+    assertThat(authenticated.scopes()).containsExactly("read:all");
+    verify(exchange).exchange(source, Set.of("read:all"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {30, 29})
+  void it_should_reject_source_expiration_at_or_before_issuance(int expirationSeconds) {
+    var source = source().withIssuedAt(clock.instant().plusSeconds(30)).withExpiresAt(clock.instant().plusSeconds(expirationSeconds))
+      .withClaim("scope", "mcp:tools:read").sign(algorithm);
+
+    assertStatus(source, 401);
+
+    verify(exchange, times(0)).exchange(anyString(), any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {30, 29})
+  void it_should_reject_cloud_expiration_at_or_before_issuance(int expirationSeconds) {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withIssuedAt(clock.instant().plusSeconds(30)).withExpiresAt(clock.instant().plusSeconds(expirationSeconds))
+      .withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+
+    assertStatus(source, 502);
+
+    verify(exchange).exchange(source, Set.of("read:all"));
+  }
+
+  @ParameterizedTest
   @ValueSource(strings = {"", " ", "read:all", "write:all", "read:all write:all", "offline_access", "openid offline_access", "other:permission"})
   void it_should_reject_source_without_recognized_delegation_scopes_before_exchange(String scope) {
     try (var logs = new LogCapture(false)) {
@@ -185,7 +226,7 @@ class Auth0OAuthAuthenticationServiceTest {
   void it_should_reject_untrusted_source_before_decoding_scopes(String field, String reason) {
     var token = source().withClaim("scope", "mcp:tools:read");
     switch (field) {
-      case "lifetime" -> token.withExpiresAt(clock.instant().plusSeconds(301));
+      case "lifetime" -> token.withIssuedAt(clock.instant().plusSeconds(30)).withExpiresAt(clock.instant().plusSeconds(29));
       case "aud" -> token.withAudience(RESOURCE, CLOUD);
       case "sub" -> token.withSubject(" ");
       case "azp" -> token.withClaim("azp", "");
@@ -251,8 +292,7 @@ class Auth0OAuthAuthenticationServiceTest {
   }
 
   @Test
-  void it_should_reject_overlong_lifetimes_and_wrong_actor_chain_depth() {
-    assertStatus(source().withExpiresAt(clock.instant().plusSeconds(600)).withClaim("scope", "mcp:tools:read").sign(algorithm), 401);
+  void it_should_reject_wrong_actor_chain_depth() {
     var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(downstream().withClaim("scope", "read:all")
       .withClaim("act", Map.of("sub", BACKEND, "act", Map.of("sub", CLIENT, "act", Map.of("sub", "unexpected")))).sign(algorithm));
@@ -554,13 +594,11 @@ class Auth0OAuthAuthenticationServiceTest {
   }
 
   @Test
-  void it_should_reject_extra_downstream_audiences_and_overlong_lifetimes() {
+  void it_should_reject_extra_downstream_audiences() {
     var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
     when(exchange.exchange(source, Set.of("read:all")))
-      .thenReturn(downstream().withAudience(CLOUD, RESOURCE).withClaim("scope", "read:all").sign(algorithm))
-      .thenReturn(downstream().withExpiresAt(clock.instant().plusSeconds(300)).withClaim("scope", "read:all").sign(algorithm));
+      .thenReturn(downstream().withAudience(CLOUD, RESOURCE).withClaim("scope", "read:all").sign(algorithm));
 
-    assertStatus(source, 502);
     assertStatus(source, 502);
   }
 
