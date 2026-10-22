@@ -24,6 +24,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.HexFormat;
 import java.util.Set;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509ExtendedTrustManager;
 import nl.altindag.ssl.SSLFactory;
@@ -56,7 +57,7 @@ public final class BlockedCertificateTrustManager extends X509ExtendedTrustManag
     return builder.build();
   }
 
-  private void checkBlockedKeys(X509Certificate[] chain) throws CertificateException {
+  private void checkBlockedKeys(@Nullable X509Certificate[] chain) throws CertificateException {
     if (chain == null || chain.length == 0) {
       throw new CertificateException("Certificate chain is empty");
     }
