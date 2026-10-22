@@ -1453,6 +1453,8 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 - **architecture_get** - Read current dependencies or intended groups and constraints. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
+  Current graph reads are limited to two concurrent calls per tool instance. Additional calls return a busy error immediately; retry later. Each accepted call still downloads and processes the full selected graph.
+
   Parameters:
   - `target` - `current` or `intended` on Cloud; `current` on Server - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_

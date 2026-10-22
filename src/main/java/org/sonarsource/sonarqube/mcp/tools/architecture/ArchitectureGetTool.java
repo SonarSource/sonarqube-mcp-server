@@ -19,6 +19,8 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Semaphore;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
@@ -43,7 +45,9 @@ public class ArchitectureGetTool extends Tool {
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED};
   private static final String[] SERVER_TARGETS = {CURRENT};
+  private static final int MAX_CONCURRENT_CURRENT_READS = 2;
   private final String[] availableTargets;
+  private final Semaphore currentReads = new Semaphore(MAX_CONCURRENT_CURRENT_READS);
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
@@ -83,11 +87,22 @@ public class ArchitectureGetTool extends Tool {
 
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     if (CURRENT.equals(target)) {
+      return readCurrent(serverApi, projectKey, component, depth, language);
+    }
+    return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.intendedProjectId(serverApi, projectKey), component, depth, language);
+  }
+
+  private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
+    if (!currentReads.tryAcquire()) {
+      throw new IllegalStateException("Architecture reads are busy. Try again shortly.");
+    }
+    try {
       serverApi.requireOrganization();
       return current(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.organizationId(serverApi),
         ArchitectureProjectContext.mainBranchId(serverApi, projectKey), component, depth == null ? 1 : depth, language);
+    } finally {
+      currentReads.release();
     }
-    return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.intendedProjectId(serverApi, projectKey), component, depth, language);
   }
 
   private static Result current(ArchitectureApi api, String projectKey, String organizationId, String branchId, @Nullable String component, int depth, @Nullable String language) {
