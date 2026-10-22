@@ -43,7 +43,6 @@ import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.sonarsource.sonarqube.mcp.http.BlockedCertificateTrustManager;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter.OAuthSupport;
 import org.sonarsource.sonarqube.mcp.authentication.HttpRequestAuthentication;
@@ -348,7 +347,7 @@ public class HttpServerTransportProvider {
       sslFactoryBuilder.withInflatableTrustMaterial(truststorePath, truststorePassword.toCharArray(), truststoreType, null);
     }
 
-    return BlockedCertificateTrustManager.protect(sslFactoryBuilder.build()).getSslContext();
+    return sslFactoryBuilder.build().getSslContext();
   }
 
 }
