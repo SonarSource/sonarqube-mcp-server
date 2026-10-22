@@ -32,7 +32,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings.RequestSettings;
+import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings.TlsSettings;
 
 class HttpServerTransportIntegrationTest {
 
@@ -42,8 +43,9 @@ class HttpServerTransportIntegrationTest {
   @BeforeEach
   void setUp() {
     testPort = findAvailablePort();
-    httpServer = new HttpServerTransportProvider(testPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
+    httpServer = new HttpServerTransportProvider(new HttpTransportSettings(testPort, "127.0.0.1", false, false, null,
+      new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new RequestSettings(List.of(), "1.0.0", false)), null, null);
   }
 
   @AfterEach
@@ -163,8 +165,9 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_allow_authenticated_mcp_with_external_origin_on_container_binding() throws Exception {
     var containerPort = findAvailablePort();
-    var containerServer = new HttpServerTransportProvider(containerPort, "0.0.0.0", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+    var containerServer = new HttpServerTransportProvider(new HttpTransportSettings(containerPort, "0.0.0.0", false, false, null,
+      new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new RequestSettings(List.of(), "1.0.0", true)), null, null);
 
     try {
       containerServer.startServer().join();
@@ -192,8 +195,9 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_reject_unauthenticated_external_origin_on_non_mcp_path() throws Exception {
     var containerPort = findAvailablePort();
-    var containerServer = new HttpServerTransportProvider(containerPort, "0.0.0.0", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", true);
+    var containerServer = new HttpServerTransportProvider(new HttpTransportSettings(containerPort, "0.0.0.0", false, false, null,
+      new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new RequestSettings(List.of(), "1.0.0", true)), null, null);
 
     try {
       containerServer.startServer().join();
@@ -242,8 +246,9 @@ class HttpServerTransportIntegrationTest {
   @Test
   void should_use_custom_host_and_port() {
     var customPort = findAvailablePort();
-    var customServer = new HttpServerTransportProvider(customPort, "127.0.0.1", AuthMode.TOKEN, false, null, false,
-      Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null, List.of(), "1.0.0", false);
+    var customServer = new HttpServerTransportProvider(new HttpTransportSettings(customPort, "127.0.0.1", false, false, null,
+      new TlsSettings(false, Paths.get("keystore.p12"), "sonarlint", "PKCS12", null, null, null),
+      new RequestSettings(List.of(), "1.0.0", false)), null, null);
 
     try {
       customServer.startServer().join();

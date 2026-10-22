@@ -681,7 +681,7 @@ In stdio, setting `SONARQUBE_ORG` fixes the Cloud organization. Tool `organizati
 
 With `SONARQUBE_ORG` unset, agents can call `list_organizations` to discover organization keys, names, IDs, and UUIDs accessible to your user account, then pass a key as the optional `organization` argument on organization-aware tools. Stdio retains a uniquely detected organization as its default; zero or multiple organizations leave it unresolved. A tool argument applies only to that call and never changes the detected default. Snippet profile and rule lookups use the organization selected for that call.
 
-In HTTP/HTTPS, server-level `SONARQUBE_ORG` remains supported for compatibility but is deprecated and logs a startup warning. It fixes the organization for every request and rejects client organization headers and tool `organization` arguments. When no server organization is configured, an optional client `SONARQUBE_ORG` header fixes the organization for that request and disallows tool `organization` arguments. Without the header, use the tool argument. Tools that require an organization report discovery guidance when all are missing. Organization discovery and tools whose APIs consume only resource identifiers do not require an organization argument. Organization-aware issue search and dependency-risk entitlement checks use the selected organization.
+For HTTP/HTTPS token requests, server-level `SONARQUBE_ORG` remains supported for compatibility but is deprecated and logs a startup warning. It fixes the organization for every request and rejects client organization headers and tool `organization` arguments. When no server organization is configured, an optional client `SONARQUBE_ORG` header fixes the organization for that request and disallows tool `organization` arguments. Without the header, use the tool argument. Tools that require an organization report discovery guidance when all are missing. Organization discovery and tools whose APIs consume only resource identifiers do not require an organization argument. Organization-aware issue search and dependency-risk entitlement checks use the selected organization. When OAuth is configured, server-level `SONARQUBE_ORG` is rejected. OAuth requests also reject organization headers; select organizations through tool arguments.
 
 Vortex context tools use the configured or uniquely detected startup organization. Runtime organization arguments do not reconfigure the proxied context engine; unresolved startup organizations skip that proxy. The built-in `run_advanced_code_analysis` tool checks combined Vortex entitlement for the organization selected on each invocation.
 
@@ -728,7 +728,8 @@ Unencrypted Streamable HTTP transport. Use HTTPS instead for multi-user deployme
 | `SONARQUBE_HTTP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed for CORS (e.g. `https://my-app.example.com`) | Not set |
 | `SONARQUBE_MCP_IN_CONTAINER` | Set to `true` when running inside a container. The official Docker image sets this automatically; set it yourself when using other OCI runtimes (Podman, Kubernetes, Nomad, etc.). | `false` |
 
-**Note:** In Streamable HTTP mode (HTTP or HTTPS), the server is stateless — each client request must include an `Authorization: Bearer <token>` header carrying the user's own SonarQube token. For SonarQube Cloud, the organization is resolved as follows:
+**Note:** HTTP/HTTPS accepts the user's SonarQube token through `Authorization: Bearer <token>`. Sonar's hosted Cloud service also supports [OAuth](#hosted-sonarqube-cloud-oauth). For SonarQube Cloud token requests, the organization is resolved as follows:
+
 - `SONARQUBE_ORG` is an optional request header that fixes the organization for that request. Deprecated server-level configuration fixes it for all requests and rejects client organization headers and tool organization arguments.
 - Organization-aware tools accept an optional `organization` argument when neither server configuration nor the request header fixes the organization. Supplying the argument when the organization is fixed is rejected.
 - Without a default, agents can call `list_organizations` using only their token, then pass the chosen key to subsequent tools.
@@ -736,7 +737,7 @@ Unencrypted Streamable HTTP transport. Use HTTPS instead for multi-user deployme
 Clients can also narrow the visible tools per-request by supplying `SONARQUBE_TOOLSETS` and/or `SONARQUBE_READ_ONLY` headers; these apply additional filtering on top of the server-level configuration — they can only reduce the scope, never expand it.
 No session state is maintained between requests.
 
-> **Deprecated:** The `SONARQUBE_TOKEN` request header is still accepted for backward compatibility but will be removed in a future version. Migrate to `Authorization: Bearer <token>`.
+> **Deprecated:** For SonarQube tokens, the `SONARQUBE_TOKEN` request header is still accepted for backward compatibility but will be removed in a future version. Migrate to `Authorization: Bearer <token>`.
 
 #### 3. **HTTPS (Streamable HTTP over TLS)** (Recommended for Multi-User Production Deployments)
 Secure Streamable HTTP transport with TLS encryption. Requires SSL certificates.
@@ -785,7 +786,7 @@ docker run --init --pull=always -p 8443:8443 \
 
 **Client Configuration (SonarQube Cloud):**
 
-Optionally set `SONARQUBE_ORG` in client headers to fix the request organization, or omit it to select organizations through tool arguments.
+For SonarQube token requests, optionally set `SONARQUBE_ORG` in client headers to fix the request organization, or omit it to select organizations through tool arguments.
 
 ```json
 {
@@ -821,6 +822,14 @@ Optionally set `SONARQUBE_ORG` in client headers to fix the request organization
 > **Note:** `SONARQUBE_TOOLSETS` and `SONARQUBE_READ_ONLY` are optional per-request headers that narrow the server-level tool set for that specific request. They can only reduce scope — they cannot enable toolsets or lift restrictions beyond what the server was launched with.
 
 **Note:** For local development, use Stdio transport instead (the default). HTTPS Streamable HTTP is intended for multi-user production deployments with proper SSL certificates.
+
+#### Hosted SonarQube Cloud OAuth
+
+OAuth support targets Sonar's hosted SonarQube Cloud MCP service. Use an OAuth-capable MCP client and sign in when prompted; no OAuth server settings are needed in your client configuration. Existing SonarQube token clients remain supported.
+
+The `mcp:tools:read` and `mcp:tools:write` scopes independently control access to read and write tools, subject to your Cloud permissions. Use `list_organizations` and tool `organization` arguments to select an organization.
+
+Self-hosted deployments continue to use SonarQube tokens; OAuth for SonarQube Server is not supported yet.
 
 #### Service Endpoints
 
