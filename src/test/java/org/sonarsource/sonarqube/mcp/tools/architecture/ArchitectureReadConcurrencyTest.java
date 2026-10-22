@@ -81,7 +81,8 @@ class ArchitectureReadConcurrencyTest {
       var second = executor.submit(() -> tool.execute(currentArguments()));
       try {
         assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
-        assertThatThrownBy(() -> tool.execute(currentArguments())).isInstanceOf(IllegalStateException.class)
+        var excessRead = currentArguments();
+        assertThatThrownBy(() -> tool.execute(excessRead)).isInstanceOf(IllegalStateException.class)
           .hasMessage("Architecture reads are busy. Try again shortly.");
         verify(architecture, times(2)).getStructure(anyString(), anyString(), anyString(), anyString());
         assertThat(tool.execute(new Tool.Arguments(Map.of("target", "intended", "projectKey", "project"), Map.of())).isError()).isFalse();
@@ -100,8 +101,9 @@ class ArchitectureReadConcurrencyTest {
   void it_should_release_slots_after_permission_errors_and_timeouts(boolean timeout) {
     RuntimeException failure = timeout ? new CompletionException(new TimeoutException("Read timed out")) : new ForbiddenException("Access denied");
     when(architecture.getStructure(anyString(), anyString(), anyString(), anyString())).thenThrow(failure);
+    var arguments = currentArguments();
     for (var attempt = 0; attempt < 3; attempt++) {
-      assertThatThrownBy(() -> tool.execute(currentArguments())).isSameAs(failure);
+      assertThatThrownBy(() -> tool.execute(arguments)).isSameAs(failure);
     }
     doReturn(List.of()).when(architecture).getStructure(anyString(), anyString(), anyString(), anyString());
     assertThat(tool.execute(currentArguments()).isError()).isFalse();
