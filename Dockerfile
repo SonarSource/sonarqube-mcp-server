@@ -34,8 +34,6 @@ COPY --from=builder /optimized-jdk-21 $JAVA_HOME
 COPY scripts/security/blocked.certs /tmp/blocked.certs
 RUN cat /tmp/blocked.certs >> "$JAVA_HOME/lib/security/blocked.certs" && rm /tmp/blocked.certs
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
-# Include custom CAs installed by install-certificates.sh before Node starts.
-ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
