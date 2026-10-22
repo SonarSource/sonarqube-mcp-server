@@ -119,44 +119,20 @@ class McpServerLaunchConfigurationHttpTest {
     assertThat(config.getHttpHost()).isEqualTo("127.0.0.1");
   }
 
-  @Test
-  void should_parse_custom_http_host() {
+  @ParameterizedTest
+  @ValueSource(strings = {"0.0.0.0", "127.0.0.1"})
+  void should_allow_token_authentication_for_http_bindings(String host) {
     var environment = createMinimalTestEnvironment();
     environment.put("SONARQUBE_TRANSPORT", "http");
-    environment.put("SONARQUBE_HTTP_HOST", "0.0.0.0");
-    // Authentication is optional (will show warning)
-    
+    environment.put("SONARQUBE_HTTP_HOST", host);
+
     var config = new McpServerLaunchConfiguration(environment);
-    
+
     assertThat(config.isHttpEnabled()).isTrue();
     assertThat(config.getHttpPort()).isEqualTo(8080);
-    assertThat(config.getHttpHost()).isEqualTo("0.0.0.0");
-  }
-
-  @Test
-  void should_default_to_token_auth_for_non_localhost_binding() {
-    var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_TRANSPORT", "http");
-    environment.put("SONARQUBE_HTTP_HOST", "0.0.0.0");
-    // No authentication configured - should default to TOKEN
-    
-    var config = new McpServerLaunchConfiguration(environment);
-    
-    assertThat(config.getHttpHost()).isEqualTo("0.0.0.0");
-    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.TOKEN);
-  }
-
-  @Test
-  void should_default_to_token_auth_for_localhost_binding() {
-    var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_TRANSPORT", "http");
-    environment.put("SONARQUBE_HTTP_HOST", "127.0.0.1");
-    // No authentication configured - should default to TOKEN
-    
-    var config = new McpServerLaunchConfiguration(environment);
-    
-    assertThat(config.getHttpHost()).isEqualTo("127.0.0.1");
-    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.TOKEN);
+    assertThat(config.getHttpHost()).isEqualTo(host);
+    assertThat(config.getOAuthConfiguration()).isNull();
+    assertThat(config.getOAuthMetadataUrl()).isNull();
   }
 
   @Test
