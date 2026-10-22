@@ -26,7 +26,9 @@ import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.Set;
 import java.util.stream.Collectors;
+import nl.altindag.ssl.SSLFactory;
 import okhttp3.OkHttpClient;
+import org.sonarsource.sonarqube.mcp.http.BlockedCertificateTrustManager;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 /**
@@ -45,7 +47,9 @@ final class Auth0TokenExchange {
 
   Auth0TokenExchange(OAuthConfiguration configuration, String issuer) {
     this.configuration = configuration;
+    var sslFactory = BlockedCertificateTrustManager.protect(SSLFactory.builder().withDefaultTrustMaterial().build());
     var transport = new OkHttpClient.Builder()
+      .sslSocketFactory(sslFactory.getSslSocketFactory(), sslFactory.getTrustManager().orElseThrow())
       .connectTimeout(Duration.ofSeconds(5))
       .callTimeout(Duration.ofSeconds(10))
       .followRedirects(false)
