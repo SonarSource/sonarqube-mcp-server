@@ -29,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
@@ -77,6 +78,14 @@ public class ServerApiHelper {
 
   public HttpClient.Response post(String path, String contentType, String body) {
     var response = rawPost(buildEndpointUrl(path), contentType, body);
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
+  public HttpClient.Response patch(String path, String contentType, String body) {
+    var response = client.patchAsync(buildEndpointUrl(path), contentType, body).join();
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
@@ -150,6 +159,17 @@ public class ServerApiHelper {
     return client.postAsync(buildApiSubdomainUrl(relativePath), contentType, body).join();
   }
 
+  /**
+   * Execute PATCH using the API subdomain (api.sonarcloud.io / api.sonarqube.us).
+   */
+  public HttpClient.Response patchApiSubdomain(String path, String contentType, String body) {
+    var response = client.patchAsync(buildApiSubdomainUrl(path), contentType, body).join();
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
   private String buildEndpointUrl(String relativePath) {
     return concat(endpointParams.baseUrl(), relativePath);
   }
@@ -213,7 +233,9 @@ public class ServerApiHelper {
       }
 
       var errorMsg = tryParseAsJsonError(responseBody);
-
+      if (failedResponse.code() >= HttpURLConnection.HTTP_BAD_REQUEST) {
+        return new ClientErrorException(failedResponse.code(), formatHttpFailedResponse(failedResponse, errorMsg));
+      }
       return new IllegalStateException(formatHttpFailedResponse(failedResponse, errorMsg));
     }
   }
