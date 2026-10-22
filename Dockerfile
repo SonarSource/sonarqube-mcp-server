@@ -1,3 +1,5 @@
+FROM node:24.22.1-alpine3.24 AS node-runtime
+
 FROM eclipse-temurin:21-jdk-alpine AS builder
 
 RUN apk update &&  \
@@ -29,11 +31,14 @@ ENV JAVA_HOME=/opt/jdk/jdk-21
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 COPY --from=builder /optimized-jdk-21 $JAVA_HOME
+COPY scripts/security/blocked.certs /tmp/blocked.certs
+RUN cat /tmp/blocked.certs >> "$JAVA_HOME/lib/security/blocked.certs" && rm /tmp/blocked.certs
+COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
         ca-certificates \
-        nodejs=~24 \
+        libstdc++ \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
         mkdir -p /app/storage && \
