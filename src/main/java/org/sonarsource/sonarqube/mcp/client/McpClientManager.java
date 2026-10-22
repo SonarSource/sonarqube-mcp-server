@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.ToolNameValidator;
@@ -48,6 +49,8 @@ public final class McpClientManager {
   
   private final List<ProxiedMcpServerConfig> serverConfigs;
   private final String mcpServerId;
+  private final Duration initializationTimeout;
+  private final BiFunction<String, ServerParameters, ManagedStdioClientTransport> transportFactory;
   private final Map<String, McpSyncClient> clients = new ConcurrentHashMap<>();
   private final Map<String, List<McpSchema.Tool>> serverTools = new ConcurrentHashMap<>();
   private final Map<String, String> serverErrors = new ConcurrentHashMap<>();
@@ -55,8 +58,17 @@ public final class McpClientManager {
   private volatile boolean initialized = false;
 
   public McpClientManager(List<ProxiedMcpServerConfig> serverConfigs, String mcpServerId) {
+    this(serverConfigs, mcpServerId, INITIALIZATION_TIMEOUT,
+      (name, params) -> new ManagedStdioClientTransport(name, params, McpJsonMappers.DEFAULT));
+  }
+
+  @VisibleForTesting
+  McpClientManager(List<ProxiedMcpServerConfig> serverConfigs, String mcpServerId, Duration initializationTimeout,
+    BiFunction<String, ServerParameters, ManagedStdioClientTransport> transportFactory) {
     this.serverConfigs = List.copyOf(serverConfigs);
     this.mcpServerId = mcpServerId;
+    this.initializationTimeout = initializationTimeout;
+    this.transportFactory = transportFactory;
   }
 
   public void initialize() {
@@ -92,6 +104,8 @@ public final class McpClientManager {
 
   private void initializeClient(ProxiedMcpServerConfig config) {
     var serverName = config.name();
+    ManagedStdioClientTransport stdioTransport = null;
+    McpSyncClient client = null;
     try {
       LOG.info("Connecting to '" + config.name() + "'");
       
@@ -109,13 +123,13 @@ public final class McpClientManager {
       serverParamsBuilder.env(filteredEnv);
 
       var serverParams = serverParamsBuilder.build();
-      var stdioTransport = new ManagedStdioClientTransport(config.name(), serverParams, McpJsonMappers.DEFAULT);
+      stdioTransport = transportFactory.apply(config.name(), serverParams);
       stdioTransport.setStdErrorHandler(line -> LOG.debug("[" + config.name() + "] stderr: " + line));
       var transport = wrapWithInitializeMeta(stdioTransport);
 
-      var client = McpClient.sync(transport)
+      client = McpClient.sync(transport)
         .requestTimeout(DEFAULT_REQUEST_TIMEOUT)
-        .initializationTimeout(INITIALIZATION_TIMEOUT)
+        .initializationTimeout(initializationTimeout)
         .capabilities(McpSchema.ClientCapabilities.builder()
           .roots(false)
           .build())
@@ -136,8 +150,27 @@ public final class McpClientManager {
       }
       tools.forEach(tool -> LOG.debug(" - " + tool.name()));
     } catch (Exception e) {
+      closeFailedClient(serverName, client, stdioTransport);
       LOG.error("Failed to initialize '" + config.name() + "': " + e.getMessage(), e);
       serverErrors.put(serverName, e.getMessage());
+    }
+  }
+
+  private static void closeFailedClient(String serverName, @Nullable McpSyncClient client,
+    @Nullable ManagedStdioClientTransport transport) {
+    if (client != null) {
+      try {
+        client.closeGracefully();
+      } catch (Exception e) {
+        LOG.error("Error closing failed client for " + serverName + ": " + e.getMessage(), e);
+      }
+    }
+    if (transport != null) {
+      try {
+        transport.closeGracefully().block(Duration.ofSeconds(10));
+      } catch (Exception e) {
+        LOG.error("Error closing failed transport for " + serverName + ": " + e.getMessage(), e);
+      }
     }
   }
 

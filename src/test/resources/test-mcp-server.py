@@ -27,6 +27,7 @@ import sys
 import os
 
 INSTRUCTIONS = None
+FAILURE_MODE = None
 
 def send_message(message):
     """Send a JSON-RPC message to stdout"""
@@ -80,6 +81,13 @@ def handle_initialize(request):
 
 def handle_list_tools(request):
     """Handle the tools/list request"""
+    if FAILURE_MODE == "tools-list-error":
+        send_message({
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "error": {"code": -32603, "message": "Test tools/list failure"}
+        })
+        return
     # Read environment variable to test environment inheritance
     test_env_var = os.environ.get("TEST_ENV_VAR", "not_set")
     
@@ -182,7 +190,8 @@ def main():
         method = message.get("method")
         
         if method == "initialize":
-            handle_initialize(message)
+            if FAILURE_MODE != "initialize-timeout":
+                handle_initialize(message)
         elif method == "tools/list":
             handle_list_tools(message)
         elif method == "tools/call":
@@ -205,6 +214,8 @@ def main():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--instructions", help="Instructions to include in initialize response", default=None)
+    parser.add_argument("--failure-mode", choices=["initialize-timeout", "tools-list-error"])
     args = parser.parse_args()
     INSTRUCTIONS = args.instructions
+    FAILURE_MODE = args.failure_mode
     main()
