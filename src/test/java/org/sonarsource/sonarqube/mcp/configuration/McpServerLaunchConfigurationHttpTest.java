@@ -119,44 +119,30 @@ class McpServerLaunchConfigurationHttpTest {
     assertThat(config.getHttpHost()).isEqualTo("127.0.0.1");
   }
 
-  @Test
-  void should_parse_custom_http_host() {
+  @ParameterizedTest
+  @ValueSource(strings = {"http", "https"})
+  void should_accept_an_os_assigned_http_port(String transport) {
+    var environment = createMinimalTestEnvironment();
+    environment.put("SONARQUBE_TRANSPORT", transport);
+    environment.put("SONARQUBE_HTTP_PORT", "0");
+
+    assertThat(new McpServerLaunchConfiguration(environment).getHttpPort()).isZero();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0.0.0.0", "127.0.0.1"})
+  void should_allow_token_authentication_for_http_bindings(String host) {
     var environment = createMinimalTestEnvironment();
     environment.put("SONARQUBE_TRANSPORT", "http");
-    environment.put("SONARQUBE_HTTP_HOST", "0.0.0.0");
-    // Authentication is optional (will show warning)
-    
+    environment.put("SONARQUBE_HTTP_HOST", host);
+
     var config = new McpServerLaunchConfiguration(environment);
-    
+
     assertThat(config.isHttpEnabled()).isTrue();
     assertThat(config.getHttpPort()).isEqualTo(8080);
-    assertThat(config.getHttpHost()).isEqualTo("0.0.0.0");
-  }
-
-  @Test
-  void should_default_to_token_auth_for_non_localhost_binding() {
-    var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_TRANSPORT", "http");
-    environment.put("SONARQUBE_HTTP_HOST", "0.0.0.0");
-    // No authentication configured - should default to TOKEN
-    
-    var config = new McpServerLaunchConfiguration(environment);
-    
-    assertThat(config.getHttpHost()).isEqualTo("0.0.0.0");
-    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.TOKEN);
-  }
-
-  @Test
-  void should_default_to_token_auth_for_localhost_binding() {
-    var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_TRANSPORT", "http");
-    environment.put("SONARQUBE_HTTP_HOST", "127.0.0.1");
-    // No authentication configured - should default to TOKEN
-    
-    var config = new McpServerLaunchConfiguration(environment);
-    
-    assertThat(config.getHttpHost()).isEqualTo("127.0.0.1");
-    assertThat(config.getAuthMode()).isEqualTo(org.sonarsource.sonarqube.mcp.authentication.AuthMode.TOKEN);
+    assertThat(config.getHttpHost()).isEqualTo(host);
+    assertThat(config.getOAuthConfiguration()).isNull();
+    assertThat(config.getOAuthMetadataUrl()).isNull();
   }
 
   @Test
@@ -206,14 +192,15 @@ class McpServerLaunchConfigurationHttpTest {
     assertThat(config.getHttpPort()).isEqualTo(8080);
   }
 
-  @Test
-  void should_reject_privileged_ports() {
+  @ParameterizedTest
+  @ValueSource(ints = {-1, 1, 80, 1023, 65536})
+  void should_reject_invalid_http_ports(int port) {
     var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_HTTP_PORT", "80");
-    
+    environment.put("SONARQUBE_HTTP_PORT", Integer.toString(port));
+
     assertThatThrownBy(() -> new McpServerLaunchConfiguration(environment))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("SONARQUBE_HTTP_PORT value must be between 1024 and 65535 (unprivileged ports only), got: 80");
+        .hasMessage("SONARQUBE_HTTP_PORT value must be 0 (automatic) or between 1024 and 65535 (unprivileged ports only), got: " + port);
   }
 
   @Test
