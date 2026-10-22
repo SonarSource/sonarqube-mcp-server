@@ -252,7 +252,7 @@ public class HttpServerTransportProvider {
       try {
         httpServer.start();
         var protocol = httpsEnabled ? "https" : "http";
-        LOG.info("MCP " + protocol.toUpperCase(Locale.getDefault()) + " server started successfully on " + protocol + "://" + host + ":" + port + MCP_ENDPOINT);
+        LOG.info("MCP " + protocol.toUpperCase(Locale.getDefault()) + " server started successfully on " + getServerUrl());
         startupFuture.complete(null);
         httpServer.join();
       } catch (InterruptedException e) {
@@ -293,7 +293,9 @@ public class HttpServerTransportProvider {
 
   public String getServerUrl() {
     var protocol = httpsEnabled ? "https" : "http";
-    return protocol + "://" + host + ":" + port + MCP_ENDPOINT;
+    var server = httpServer;
+    var boundPort = server != null && server.isStarted() ? ((ServerConnector) server.getConnectors()[0]).getLocalPort() : port;
+    return protocol + "://" + host + ":" + boundPort + MCP_ENDPOINT;
   }
 
   /**

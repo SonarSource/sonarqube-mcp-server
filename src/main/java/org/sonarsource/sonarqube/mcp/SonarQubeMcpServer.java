@@ -868,6 +868,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     return mcpConfiguration;
   }
 
+  @VisibleForTesting
+  @Nullable
+  public String getHttpServerUrl() {
+    return httpServerManager == null ? null : httpServerManager.getServerUrl();
+  }
+
   public List<Tool> getSupportedTools() {
     return List.copyOf(supportedTools);
   }

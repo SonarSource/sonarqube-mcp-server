@@ -21,7 +21,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -94,7 +93,7 @@ class OAuthHttpTransportTest {
   private String originalTrustStorePassword;
 
   @BeforeEach
-  void setUp() throws IOException {
+  void setUp() {
     originalTrustStore = System.getProperty(TRUST_STORE);
     originalTrustStorePassword = System.getProperty(TRUST_STORE_PASSWORD);
     System.setProperty(TRUST_STORE, KEYSTORE.toString());
@@ -111,7 +110,8 @@ class OAuthHttpTransportTest {
     environment = new HashMap<>();
     environment.put("STORAGE_PATH", storage.toString());
     environment.put("SONARQUBE_TRANSPORT", "http");
-    environment.put("SONARQUBE_HTTP_PORT", Integer.toString(availablePort()));
+    environment.put("SONARQUBE_HTTP_HOST", "localhost");
+    environment.put("SONARQUBE_HTTP_PORT", "0");
     environment.put("SONARQUBE_HTTP_ALLOWED_ORIGINS", CLIENT_ORIGIN);
     environment.put("SONARQUBE_IS_CLOUD", "true");
     environment.put("SONARQUBE_URL", cloud.baseUrl());
@@ -380,9 +380,7 @@ class OAuthHttpTransportTest {
     if (external) {
       environment.put("SONARQUBE_OAUTH_METADATA_URL", EXTERNAL_METADATA);
     }
-    endpoint = transport + "://localhost:" + environment.get("SONARQUBE_HTTP_PORT") + "/mcp";
-    server = new SonarQubeMcpServer(environment);
-    server.start();
+    startProductionServer();
     var expectedMetadata = external ? EXTERNAL_METADATA : cloud.baseUrl() + OAuthProtectedResourceMetadata.PATH;
     var bootstrap = send(request(null, "ping", Map.of()).header("Origin", CLIENT_ORIGIN).build());
     assertThat(bootstrap.statusCode()).isEqualTo(401);
@@ -490,9 +488,7 @@ class OAuthHttpTransportTest {
   @ValueSource(booleans = {false, true})
   void it_should_preserve_default_token_configuration_and_organization_headers_without_oauth(boolean legacyHeader) throws Exception {
     environment.keySet().removeIf(key -> key.startsWith("SONARQUBE_OAUTH_"));
-    endpoint = "http://localhost:" + environment.get("SONARQUBE_HTTP_PORT") + "/mcp";
-    server = new SonarQubeMcpServer(environment);
-    server.start();
+    startProductionServer();
     var credential = new Grant("existing.server.token", "existing.server.token");
     stubOrganization(credential, "existing-org");
     var request = request(legacyHeader ? null : credential.source(), "tools/call", Map.of("name", "search_my_sonarqube_projects", "arguments", Map.of()))
@@ -516,12 +512,10 @@ class OAuthHttpTransportTest {
     environment.remove("SONARQUBE_IS_CLOUD");
     environment.remove("SONARQUBE_CLOUD_API_URL");
     cloud.stubFor(get(SystemApi.STATUS_PATH).willReturn(okJson("{\"version\":\"2026.1.0\",\"status\":\"UP\"}")));
-    endpoint = "http://localhost:" + environment.get("SONARQUBE_HTTP_PORT") + "/mcp";
     cloud.stubFor(get(urlPathEqualTo(ComponentsApi.COMPONENTS_SEARCH_PATH)).withHeader("Authorization", equalTo("Bearer " + token))
       .willReturn(okJson("{\"components\":[{\"key\":\"server-project\",\"name\":\"Project\"}],"
         + "\"paging\":{\"pageIndex\":1,\"pageSize\":500,\"total\":1}}")));
-    server = new SonarQubeMcpServer(environment);
-    server.start();
+    startProductionServer();
     var request = request(legacyHeader ? null : token, "tools/call", Map.of("name", "search_my_sonarqube_projects", "arguments", Map.of()));
     if (legacyHeader) {
       request.header("SONARQUBE_TOKEN", token);
@@ -538,6 +532,12 @@ class OAuthHttpTransportTest {
     assertThat(auth0.getAllServeEvents()).isEmpty();
   }
 
+  private void startProductionServer() {
+    server = new SonarQubeMcpServer(environment);
+    server.start();
+    endpoint = server.getHttpServerUrl();
+  }
+
   private void startWithRealAuthentication() {
     var configuration = new McpServerLaunchConfiguration(environment);
     oauth = configuration.getOAuthConfiguration();
@@ -545,9 +545,9 @@ class OAuthHttpTransportTest {
     var service = new Auth0OAuthAuthenticationService(oauth, new Auth0TokenVerifier(oauth, keys, clock), new Auth0TokenExchange(oauth, auth0.baseUrl()), clock);
     var transport = new HttpServerTransportProvider(HttpTransportSettings.from(configuration), new OAuthSupport(
       new OAuthProtectedResourceMetadata(oauth.resource(), oauth.issuer().toString(), configuration.getOAuthMetadataUrl()), service::authenticate));
-    endpoint = transport.getServerUrl();
     server = new SonarQubeMcpServer(null, transport, environment);
     server.start();
+    endpoint = transport.getServerUrl();
   }
 
   private Grant grant(String user, String id, String sourceScopes, String requestedScopes, String cloudScopes) {
@@ -610,12 +610,6 @@ class OAuthHttpTransportTest {
     assertThat(response.headers().firstValue("WWW-Authenticate")).hasValueSatisfying(value ->
       assertThat(value).contains("scope=\"" + requiredScope + "\"", "error=\"insufficient_scope\""));
     assertThat(response.body()).contains("Insufficient OAuth scope");
-  }
-
-  private static int availablePort() throws IOException {
-    try (var socket = new ServerSocket(0)) {
-      return socket.getLocalPort();
-    }
   }
 
   private static void restoreProperty(String name, String value) {
