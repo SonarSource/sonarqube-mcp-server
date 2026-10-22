@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -37,11 +38,13 @@ import static org.mockito.Mockito.when;
 
 class BlockedCertificateTrustManagerTests {
   private final X509ExtendedTrustManager delegate = mock(X509ExtendedTrustManager.class);
-  private final BlockedCertificateTrustManager underTest = new BlockedCertificateTrustManager(delegate);
+  private BlockedCertificateTrustManager underTest;
 
   @BeforeEach
   void prepareDelegate() {
     when(delegate.getAcceptedIssuers()).thenReturn(new X509Certificate[0]);
+    underTest = new BlockedCertificateTrustManager(delegate);
+    clearInvocations(delegate);
   }
 
   @Test
@@ -108,6 +111,7 @@ class BlockedCertificateTrustManagerTests {
   @Test
   void it_should_wrap_the_composite_including_permissive_custom_trust() throws Exception {
     var factory = BlockedCertificateTrustManager.protect(SSLFactory.builder().withTrustMaterial(delegate).build());
+    clearInvocations(delegate);
     try (var input = getClass().getResourceAsStream("/ssl/blocked-intermediates.pem")) {
       var certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(input);
       assertThatThrownBy(() -> factory.getTrustManager().orElseThrow().checkServerTrusted(new X509Certificate[] {certificate}, "EC"))
@@ -124,6 +128,8 @@ class BlockedCertificateTrustManagerTests {
       when(leaf.getPublicKey()).thenReturn(trustedCertificate().getPublicKey());
       when(leaf.getIssuerX500Principal()).thenReturn(issuer.getSubjectX500Principal());
       when(delegate.getAcceptedIssuers()).thenReturn(new X509Certificate[] {issuer});
+      underTest = new BlockedCertificateTrustManager(delegate);
+      clearInvocations(delegate);
       assertThatThrownBy(() -> underTest.checkServerTrusted(new X509Certificate[] {leaf}, "EC"))
         .isInstanceOf(CertificateException.class).hasMessageContaining("blocked public key");
       verify(leaf).verify(issuer.getPublicKey());

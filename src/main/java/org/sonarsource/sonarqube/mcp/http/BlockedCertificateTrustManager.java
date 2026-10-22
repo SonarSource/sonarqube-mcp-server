@@ -22,7 +22,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
@@ -45,9 +47,13 @@ public final class BlockedCertificateTrustManager extends X509ExtendedTrustManag
     "ec4ffa1ad0ac88081314b7aaffef6a91f97cd57291bb5ba686c5415f5eb4f6b6");
 
   private final X509ExtendedTrustManager delegate;
+  private final List<X509Certificate> blockedIssuers;
 
   public BlockedCertificateTrustManager(X509ExtendedTrustManager delegate) {
     this.delegate = delegate;
+    this.blockedIssuers = Arrays.stream(delegate.getAcceptedIssuers())
+      .filter(issuer -> BLOCKED_KEYS.contains(publicKeyFingerprint(issuer)))
+      .toList();
   }
 
   public static SSLFactory protect(SSLFactory factory) {
@@ -70,12 +76,18 @@ public final class BlockedCertificateTrustManager extends X509ExtendedTrustManag
         }
       }
       // A locally trusted issuer may be omitted from the peer's chain.
-      for (var issuer : delegate.getAcceptedIssuers()) {
-        var fingerprint = HexFormat.of().formatHex(digest.digest(issuer.getPublicKey().getEncoded()));
-        if (BLOCKED_KEYS.contains(fingerprint)) {
-          rejectCertificatesSignedBy(chain, issuer);
-        }
+      for (var issuer : blockedIssuers) {
+        rejectCertificatesSignedBy(chain, issuer);
       }
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 is required for certificate validation", e);
+    }
+  }
+
+  private static String publicKeyFingerprint(X509Certificate certificate) {
+    try {
+      var digest = MessageDigest.getInstance("SHA-256");
+      return HexFormat.of().formatHex(digest.digest(certificate.getPublicKey().getEncoded()));
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 is required for certificate validation", e);
     }
