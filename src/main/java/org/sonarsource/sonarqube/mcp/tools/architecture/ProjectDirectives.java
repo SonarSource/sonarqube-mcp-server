@@ -245,7 +245,7 @@ final class ProjectDirectives {
       + result.created().stream().map(ProjectDirective::id).toList() + ". Updated ids: " + result.updated().stream().map(ProjectDirective::id).toList()
       + ". Deleted ids: " + result.deleted()
       + (isDefiniteRejection(failure) ? ". The server rejected the next directive. " : ". The attempted change may already have been applied. ")
-      + (job.directive().id() == null ? "Inspect the current list before retrying. " : "Inspect directive " + job.directive().id() + " before retrying. ")
+      + (job.directive().id() == null ? "Inspect the current list before retrying. " : ("Inspect directive " + job.directive().id() + " before retrying. "))
       + failure.getMessage(), failure);
   }
 
