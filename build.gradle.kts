@@ -131,6 +131,7 @@ dependencies {
 	implementation(libs.jsonschema.generator)
 	implementation(libs.jsonschema.module.jackson)
 	compileOnly(libs.jsr305)
+	compileOnly(libs.jetbrains.annotations)
 	runtimeOnly(libs.logback.classic)
 	testImplementation(libs.logback.classic)
 	testImplementation(platform(libs.junit.bom))

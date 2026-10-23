@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.client.ConnectionNotFoundException;
 import org.sonarsource.sonarlint.core.rpc.client.SonarLintCancelChecker;
 import org.sonarsource.sonarlint.core.rpc.client.SonarLintRpcClientDelegate;
