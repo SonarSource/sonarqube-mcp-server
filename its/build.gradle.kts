@@ -52,21 +52,28 @@ repositories {
     }
 }
 
+val jettyVersion = libs.versions.jetty.get()
+
 configurations.all {
     resolutionStrategy.eachDependency {
+        // Pulled in by wiremock-jetty12
+        if (requested.group.startsWith("org.eclipse.jetty")) {
+            useVersion(jettyVersion)
+            because("Align transitive Jetty artifacts with the declared Jetty version")
+        }
         // Pulled in transitively by testcontainers:1.21.x
         if (requested.group == "org.apache.commons" && requested.name == "commons-compress") {
             useVersion("1.28.0")
             because("CVE-2024-25710 + CVE-2024-26308")
         }
         if (requested.group.startsWith("tools.jackson")) {
-            useVersion("3.2.3")
-            because("CVE-2026-29062 + GHSA-72hv-8253-57qq + CVE-2026-68494 + CVE-2026-77310 + CVE-2026-83557 + CVE-2026-89407 + CVE-2026-91776 + CVE-2026-91777")
+            useVersion("3.2.4")
+            because("CVE-2026-29062 + GHSA-72hv-8253-57qq + CVE-2026-68494 + CVE-2026-77310 + CVE-2026-83557 + CVE-2026-89407 + CVE-2026-91776 + CVE-2026-91777 + CVE-2026-110729")
         }
         // Pulled in transitively by sonarlint-core
         if (requested.group == "com.fasterxml.jackson.core" && requested.name in listOf("jackson-core", "jackson-databind")) {
-            useVersion("2.22.3")
-            because("CVE-2026-83557")
+            useVersion("2.22.4")
+            because("CVE-2026-83557 + CVE-2026-89407 + CVE-2026-89425")
         }
     }
 }
