@@ -52,15 +52,8 @@ repositories {
     }
 }
 
-val jettyVersion = libs.versions.jetty.get()
-
 configurations.all {
     resolutionStrategy.eachDependency {
-        // Keep any Jetty artifacts aligned with the root project's declared Jetty version
-        if (requested.group.startsWith("org.eclipse.jetty")) {
-            useVersion(jettyVersion)
-            because("Align transitive Jetty artifacts with the declared Jetty version")
-        }
         // Pulled in transitively by testcontainers:1.21.x
         if (requested.group == "org.apache.commons" && requested.name == "commons-compress") {
             useVersion("1.28.0")
