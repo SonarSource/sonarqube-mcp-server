@@ -411,8 +411,8 @@ class ToolExecutorTest {
     verify(api.organizationsApi(), times(2)).getOrganizationUuidV4("org");
     verify(api.usersApi()).getCurrentUserId();
     var events = ArgumentCaptor.forClass(ToolInvocationResult.class);
-    verify(analyticsService, times(2)).notifyToolInvoked(events.capture());
-    assertThat(events.getAllValues()).extracting(ToolInvocationResult::organizationUuidV4).containsOnly("org-uuid");
+    verify(analyticsService, times(3)).notifyToolInvoked(events.capture());
+    assertThat(events.getAllValues()).extracting(ToolInvocationResult::organizationUuidV4).containsExactly(null, "org-uuid", "org-uuid");
   }
 
   @Test
@@ -501,18 +501,21 @@ class ToolExecutorTest {
   }
 
   @Test
-  void it_should_skip_analytics_in_http_mode_when_supplier_throws() {
+  void it_should_keep_tool_outcome_when_http_api_supplier_throws() {
     var analyticsService = syncAnalyticsService();
     var executor = new ToolExecutor(mockBackendService, analyticsService, null,
       () -> { throw new RuntimeException("no transport context"); }, null, ToolCategory::all);
 
     executeDummyTool(executor);
 
-    verify(analyticsService, never()).notifyToolInvoked(any(ToolInvocationResult.class));
+    var event = ArgumentCaptor.forClass(ToolInvocationResult.class);
+    verify(analyticsService).notifyToolInvoked(event.capture());
+    assertThat(event.getValue().isSuccessful()).isTrue();
+    assertThat(event.getValue().userUuid()).isNull();
   }
 
   @Test
-  void it_should_skip_analytics_in_http_mode_when_resolve_from_throws() {
+  void it_should_keep_tool_outcome_when_http_identity_enrichment_fails() {
     var analyticsService = syncAnalyticsService();
     var mockServerApi = mock(ServerApi.class, RETURNS_DEEP_STUBS);
     doThrow(new RuntimeException("API unavailable")).when(mockServerApi).isSonarQubeCloud();
@@ -520,7 +523,34 @@ class ToolExecutorTest {
 
     executeDummyTool(executor);
 
-    verify(analyticsService, never()).notifyToolInvoked(any(ToolInvocationResult.class));
+    var event = ArgumentCaptor.forClass(ToolInvocationResult.class);
+    verify(analyticsService).notifyToolInvoked(event.capture());
+    assertThat(event.getValue().isSuccessful()).isTrue();
+    assertThat(event.getValue().userUuid()).isNull();
+  }
+
+  @Test
+  void it_should_keep_known_stdio_identity_and_agent_when_organization_enrichment_fails() {
+    var service = syncAnalyticsService();
+    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    when(api.isSonarQubeCloud()).thenReturn(true);
+    when(api.usersApi().getCurrentUserId()).thenReturn("known-user");
+    var context = ConnectionContext.empty();
+    context.resolveFrom(api);
+    context.captureCallingAgent("Custom Client ", "1.0+preview");
+    when(api.getOrganization()).thenReturn("selected-org");
+    when(api.resolveOrganizationUuid(any())).thenThrow(new IllegalStateException("API unavailable"));
+    var executor = new ToolExecutor(mockBackendService, service, context, () -> api, null, ToolCategory::all);
+
+    executeDummyTool(executor);
+
+    var event = ArgumentCaptor.forClass(ToolInvocationResult.class);
+    verify(service).notifyToolInvoked(event.capture());
+    assertThat(event.getValue().isSuccessful()).isTrue();
+    assertThat(event.getValue().organizationUuidV4()).isNull();
+    assertThat(event.getValue().userUuid()).isEqualTo("known-user");
+    assertThat(event.getValue().callingAgentName()).isEqualTo("Custom Client ");
+    assertThat(event.getValue().callingAgentVersion()).isEqualTo("1.0+preview");
   }
 
   @Test
@@ -583,6 +613,14 @@ class ToolExecutorTest {
       .containsEntry("client_meta", "client_value")
       .containsEntry("invocation_id", capturedMeta.get("invocation_id"))
       .containsEntry("mcp_server_id", mcpServerId);
+  }
+
+  @Test
+  void it_should_not_change_tool_result_when_analytics_submission_fails() {
+    var analytics = mock(AnalyticsService.class);
+    doThrow(new IllegalStateException("stopped")).when(analytics).submit(any());
+    var executor = new ToolExecutor(mockBackendService, analytics, ConnectionContext.empty(), null, null, ToolCategory::all);
+    assertThat(executeDummyTool(executor).isError()).isFalse();
   }
 
   private static ServerApi cloudApi(String organization, String uuid) {
