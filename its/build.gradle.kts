@@ -56,7 +56,7 @@ val jettyVersion = libs.versions.jetty.get()
 
 configurations.all {
     resolutionStrategy.eachDependency {
-        // Pulled in by wiremock-jetty12
+        // Keep any Jetty artifacts aligned with the root project's declared Jetty version
         if (requested.group.startsWith("org.eclipse.jetty")) {
             useVersion(jettyVersion)
             because("Align transitive Jetty artifacts with the declared Jetty version")
