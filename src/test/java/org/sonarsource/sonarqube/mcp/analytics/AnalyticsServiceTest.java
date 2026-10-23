@@ -18,14 +18,25 @@ package org.sonarsource.sonarqube.mcp.analytics;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class AnalyticsServiceTest {
 
@@ -143,6 +154,130 @@ class AnalyticsServiceTest {
     var captor = ArgumentCaptor.forClass(McpToolInvokedEvent.class);
     verify(mockClient).postEvent(captor.capture());
     assertThat(captor.getValue().transportMode()).isEqualTo("http");
+  }
+
+  @Test
+  void it_should_send_initialization_with_identity_and_authentication_without_identity() {
+    var service = new AnalyticsService(mockClient, "server", "1", true, false, true);
+    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    when(api.usersApi().getCurrentUserId()).thenReturn("user");
+    service.notifyClientInitialized(new HttpAnalyticsContext("oauth", "key"), " Custom Client ", "1.2+dev", 123, () -> api);
+    service.notifyOAuthAuthenticationCompleted(new OAuthAuthenticationResult(124, 20, "rejected", "delegation_validation", "insufficient_scope", "key"));
+    service.shutdown();
+    var events = ArgumentCaptor.forClass(AnalyticsEvent.class);
+    verify(mockClient, times(2)).postEvent(events.capture());
+    assertThat(events.getAllValues().getFirst()).isInstanceOfSatisfying(McpClientInitializedEvent.class, event -> {
+      assertThat(event.callingAgentName()).isEqualTo(" Custom Client ");
+      assertThat(event.callingAgentVersion()).isEqualTo("1.2+dev");
+      assertThat(event.oauthClientKey()).isEqualTo("key");
+      assertThat(event.authenticationMethod()).isEqualTo("oauth");
+      assertThat(event.initializationTimestamp()).isEqualTo(123);
+      assertThat(event.userUuid()).isEqualTo("user");
+      assertThat(event.sqsInstallationId()).isNull();
+      assertThat(event.connectionType()).isEqualTo("SQC");
+    });
+    assertThat(events.getAllValues().getLast()).isInstanceOfSatisfying(McpOAuthAuthenticationCompletedEvent.class, event -> {
+      assertThat(event.failureStage()).isEqualTo("delegation_validation");
+      assertThat(event.authenticationDurationMs()).isEqualTo(20);
+      assertThat(event.outcome()).isEqualTo("rejected");
+      assertThat(event.failureCategory()).isEqualTo("insufficient_scope");
+      assertThat(event.authenticationTimestamp()).isEqualTo(124);
+    });
+    verify(api.usersApi()).getCurrentUserId();
+    verify(api, never()).systemApi();
+    verify(api, never()).organizationsApi();
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+  void it_should_enrich_server_identifiers_independently(boolean userAvailable, boolean installationAvailable) {
+    var service = new AnalyticsService(mockClient, "server", "1", true, false, false);
+    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    if (userAvailable) {
+      when(api.usersApi().getCurrentUserId()).thenReturn("user");
+    } else {
+      when(api.usersApi().getCurrentUserId()).thenThrow(new IllegalStateException("private"));
+    }
+    if (installationAvailable) {
+      when(api.systemApi().getStatus().id()).thenReturn("installation");
+    } else {
+      when(api.systemApi().getStatus()).thenThrow(new IllegalStateException("private"));
+    }
+    service.notifyClientInitialized(new HttpAnalyticsContext("token", null), "client", "1", 123, () -> api);
+    service.shutdown();
+    var event = ArgumentCaptor.forClass(McpClientInitializedEvent.class);
+    verify(mockClient).postEvent(event.capture());
+    assertThat(event.getValue().userUuid()).isEqualTo(userAvailable ? "user" : null);
+    assertThat(event.getValue().sqsInstallationId()).isEqualTo(installationAvailable ? "installation" : null);
+    verify(api, never()).organizationsApi();
+  }
+
+  @Test
+  void it_should_keep_initialization_when_its_api_factory_fails() {
+    var service = new AnalyticsService(mockClient, "server", "1", true, false, true);
+    service.notifyClientInitialized(new HttpAnalyticsContext("oauth", "key"), "client", "1", 123,
+      () -> { throw new IllegalStateException("private"); });
+    service.shutdown();
+    var event = ArgumentCaptor.forClass(McpClientInitializedEvent.class);
+    verify(mockClient).postEvent(event.capture());
+    assertThat(event.getValue().userUuid()).isNull();
+    assertThat(event.getValue().oauthClientKey()).isEqualTo("key");
+  }
+
+  @Test
+  void it_should_run_initialization_identity_lookup_off_the_request_thread() throws Exception {
+    var service = new AnalyticsService(mockClient, "server", "1", true, false, true);
+    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    var started = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    var requestThread = Thread.currentThread();
+    when(api.usersApi().getCurrentUserId()).thenAnswer(invocation -> {
+      assertThat(Thread.currentThread()).isNotSameAs(requestThread);
+      started.countDown();
+      assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+      return "user";
+    });
+    try {
+      service.notifyClientInitialized(new HttpAnalyticsContext("oauth", "key"), "client", "1", 123, () -> api);
+      assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+      verifyNoInteractions(mockClient);
+    } finally {
+      release.countDown();
+      service.shutdown();
+    }
+    var event = ArgumentCaptor.forClass(McpClientInitializedEvent.class);
+    verify(mockClient).postEvent(event.capture());
+    assertThat(event.getValue().userUuid()).isEqualTo("user");
+  }
+
+  @Test
+  void it_should_drop_excess_work_without_blocking_or_failing_the_caller() throws Exception {
+    var service = new AnalyticsService(mockClient, "server", "1", true, false, true);
+    var started = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    var completed = new AtomicInteger();
+    service.submit(() -> {
+      started.countDown();
+      try {
+        release.await();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    });
+    try {
+      assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThatCode(() -> {
+        for (var i = 0; i < 1002; i++) {
+          service.submit(completed::incrementAndGet);
+        }
+      }).doesNotThrowAnyException();
+    } finally {
+      release.countDown();
+      service.shutdown();
+    }
+    assertThat(completed.get()).isEqualTo(1000);
+    assertThatCode(() -> service.notifyOAuthAuthenticationCompleted(new OAuthAuthenticationResult(1, 1, "success", null, null, null)))
+      .doesNotThrowAnyException();
   }
 
   @Test

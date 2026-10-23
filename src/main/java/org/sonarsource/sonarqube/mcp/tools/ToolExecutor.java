@@ -128,6 +128,14 @@ public class ToolExecutor {
     if (service == null) {
       return;
     }
+    try {
+      submitAnalytics(service, toolName, metrics, arguments);
+    } catch (RuntimeException e) {
+      LOG.debug("Unable to schedule tool analytics (" + e.getClass().getSimpleName() + ")");
+    }
+  }
+
+  private void submitAnalytics(AnalyticsService service, String toolName, InvocationMetrics metrics, Tool.Arguments arguments) {
     var organization = arguments.getOptionalString(ToolParameters.ORGANIZATION);
     var context = stdioContext;
     var captured = context != null ? context.snapshot() : null;
@@ -138,28 +146,53 @@ public class ToolExecutor {
         var api = apiSupplier.get();
         serverApi = organization == null ? api : api.withOrganization(organization);
       } catch (Exception e) {
-        LOG.debug("Failed to obtain ServerApi for analytics context, skipping event for tool " + toolName + ": " + e.getMessage());
+        LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
+        service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> fallbackSnapshot(captured), metrics));
         return;
       }
       // Capture the invocation API and calling agent before leaving the request thread; keep lookups asynchronous.
       service.submit(() -> dispatchAnalyticsEvent(service, toolName,
-        () -> context != null ? context.snapshotFor(serverApi, captured) : resolveInvocationSnapshot(serverApi), metrics));
+        () -> context != null ? resolveStdioSnapshot(context, serverApi, captured) : resolveInvocationSnapshot(serverApi), metrics));
     } else if (captured != null) {
       service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> captured, metrics));
+    }
+  }
+
+  private static ConnectionContext.Snapshot fallbackSnapshot(@Nullable ConnectionContext.Snapshot captured) {
+    return captured == null ? ConnectionContext.empty().snapshot()
+      : new ConnectionContext.Snapshot(null, captured.sqsInstallationId(), captured.userUuid(), captured.callingAgentName(), captured.callingAgentVersion());
+  }
+
+  private static ConnectionContext.Snapshot resolveStdioSnapshot(ConnectionContext context, ServerApi serverApi, ConnectionContext.Snapshot captured) {
+    try {
+      return context.snapshotFor(serverApi, captured);
+    } catch (RuntimeException e) {
+      LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
+      return fallbackSnapshot(captured);
     }
   }
 
   private static ConnectionContext.Snapshot resolveInvocationSnapshot(@Nullable ServerApi serverApi) {
     var ctx = ConnectionContext.empty();
     if (serverApi != null) {
-      ctx.resolveFrom(serverApi);
+      try {
+        ctx.resolveFrom(serverApi);
+      } catch (RuntimeException e) {
+        LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
+      }
     }
     return ctx.snapshot();
   }
 
   private static void dispatchAnalyticsEvent(AnalyticsService service, String toolName, Supplier<ConnectionContext.Snapshot> ctxSupplier, InvocationMetrics metrics) {
     try {
-      var ctx = ctxSupplier.get();
+      ConnectionContext.Snapshot ctx;
+      try {
+        ctx = ctxSupplier.get();
+      } catch (RuntimeException e) {
+        ctx = ConnectionContext.empty().snapshot();
+        LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
+      }
       service.notifyToolInvoked(new ToolInvocationResult(
         metrics.invocationId(), toolName,
         ctx.organizationUuidV4(), ctx.sqsInstallationId(), ctx.userUuid(),
@@ -168,7 +201,7 @@ public class ToolExecutor {
         metrics.responseSizeBytes(), metrics.invocationTimestamp(), metrics.matchingToolsets()
       ));
     } catch (Exception e) {
-      LOG.debug("Failed to send analytics event for tool " + toolName + ": " + e.getMessage());
+      LOG.debug("Unable to send tool analytics (" + e.getClass().getSimpleName() + ")");
     }
   }
 
