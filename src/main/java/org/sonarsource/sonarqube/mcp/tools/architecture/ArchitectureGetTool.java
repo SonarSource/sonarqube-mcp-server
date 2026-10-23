@@ -45,6 +45,9 @@ public class ArchitectureGetTool extends Tool {
   public static final String CURRENT = "current";
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
+  private static final String DIRECTIVE_ID_PROPERTY = "directiveId";
+  private static final String PAGE_INDEX_PROPERTY = "pageIndex";
+  private static final String PAGE_SIZE_PROPERTY = "pageSize";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
@@ -79,9 +82,9 @@ public class ArchitectureGetTool extends Tool {
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
     if (isSonarQubeCloud) {
-      builder.addStringProperty("directiveId", "Directives only: read one UUID instead of a page.")
-        .addNumberProperty("pageIndex", "Directives only: page number, default 1.")
-        .addNumberProperty("pageSize", "Directives only: items per page, default 50, maximum 1000.");
+      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Directives only: read one UUID instead of a page.")
+        .addNumberProperty(PAGE_INDEX_PROPERTY, "Directives only: page number, default 1.")
+        .addNumberProperty(PAGE_SIZE_PROPERTY, "Directives only: items per page, default 50, maximum 1000.");
     }
     return builder.build();
   }
@@ -98,7 +101,8 @@ public class ArchitectureGetTool extends Tool {
     }
 
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-    if (!DIRECTIVES.equals(target) && (arguments.toMap().get("pageIndex") != null || arguments.toMap().get("pageSize") != null || arguments.toMap().get("directiveId") != null)) {
+    if (!DIRECTIVES.equals(target) && (arguments.toMap().get(PAGE_INDEX_PROPERTY) != null
+      || arguments.toMap().get(PAGE_SIZE_PROPERTY) != null || arguments.toMap().get(DIRECTIVE_ID_PROPERTY) != null)) {
       throw new IllegalArgumentException("Pagination parameters are only used for directives.");
     }
     if (DIRECTIVES.equals(target)) {
@@ -115,13 +119,11 @@ public class ArchitectureGetTool extends Tool {
     if (component != null || depth != null || language != null) {
       throw new IllegalArgumentException("Directives reads do not accept component, depth or language filters.");
     }
-    var pageIndex = arguments.getOptionalInteger("pageIndex");
-    var pageSize = arguments.getOptionalInteger("pageSize");
-    if ((pageIndex != null && pageIndex < 1) || (pageSize != null && (pageSize < 1 || pageSize > 1000))) {
-      throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
-    }
+    var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
+    var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
+    validateDirectivePage(pageIndex, pageSize);
     var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
-    var id = arguments.toMap().containsKey("directiveId") ? arguments.getStringOrThrow("directiveId") : null;
+    var id = arguments.toMap().containsKey(DIRECTIVE_ID_PROPERTY) ? arguments.getStringOrThrow(DIRECTIVE_ID_PROPERTY) : null;
     if (id != null) {
       if (pageIndex != null || pageSize != null) {
         throw new IllegalArgumentException("Use either directiveId or pagination parameters.");
@@ -131,6 +133,12 @@ public class ArchitectureGetTool extends Tool {
     var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, pageIndex == null ? 1 : pageIndex, pageSize == null ? 50 : pageSize);
     return Result.success(new DirectivesView(projectKey, page.projectDirectives(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
+  }
+
+  private static void validateDirectivePage(@Nullable Integer pageIndex, @Nullable Integer pageSize) {
+    if ((pageIndex != null && pageIndex < 1) || (pageSize != null && (pageSize < 1 || pageSize > 1000))) {
+      throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
+    }
   }
 
   private record DirectiveView(String projectKey, ProjectDirective directive) {

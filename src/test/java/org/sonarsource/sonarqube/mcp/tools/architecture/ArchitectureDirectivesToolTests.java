@@ -423,6 +423,57 @@ class ArchitectureDirectivesToolTests {
     assertThat(backend.getReceivedBodies("POST",PATH)).hasSize(1);assertThat(backend.getReceivedBodies("PATCH",PATH+"/"+id)).hasSize(1);assertThat(backend.getReceivedBodies("DELETE",PATH+"/"+id)).isEmpty();
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"existing", "batch", "pending-delete", "later-page"})
+  void it_should_refuse_update_identity_collisions_before_any_write(String kind) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    var first = "00000000-0000-4000-8000-000000000001";
+    var second = "00000000-0000-4000-8000-000000000002";
+    backend.stubFor(get(PATH + "/" + first).willReturn(okJson(saved(1, "app:a"))));
+    backend.stubFor(get(PATH + "/" + second).willReturn(okJson(saved(2, "app:other"))));
+    if ("later-page".equals(kind)) {
+      var filler = IntStream.rangeClosed(3, 101).mapToObj(i -> saved(i, "app:" + i))
+        .collect(java.util.stream.Collectors.joining(","));
+      stubPage(1, saved(1, "app:a") + "," + filler, 101);
+      stubPage(2, saved(2, "app:other"), 101);
+    } else {
+      stubPage(1, saved(1, "app:a") + "," + saved(2, "app:other"), 2);
+    }
+    var updates = "batch".equals(kind)
+      ? "[{\"id\":\"" + first + "\",\"fromNodeKey\":\"app:new\"},{\"id\":\"" + second + "\",\"fromNodeKey\":\"app:new\"}]"
+      : "[{\"id\":\"" + first + "\",\"fromNodeKey\":\"app:other\"}]";
+    var client = harness.newClient(CLOUD_ENV);
+    for (var creates : List.of("[]", "[" + INPUT.replace("app:a", "new:source") + "]")) {
+      var model = "{\"create\":" + creates + ",\"update\":" + updates
+        + ("pending-delete".equals(kind) ? ",\"delete\":[{\"id\":\"" + second + "\"}]" : "") + "}";
+      for (var dryRun : List.of(true, false)) {
+        var result = client.callTool(ArchitectureSetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", dryRun));
+        assertThat(result.isError()).isTrue();
+        assertThat(textOf(result)).contains("An update would duplicate another directive");
+      }
+    }
+    assertThat(backend.getReceivedBodies("POST", PATH)).isEmpty();
+    assertThat(backend.getReceivedBodies("PATCH", PATH + "/" + first)).isEmpty();
+    assertThat(backend.getReceivedBodies("PATCH", PATH + "/" + second)).isEmpty();
+    assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + second)).isEmpty();
+  }
+
+  @Test
+  void it_should_allow_an_update_to_a_new_directive_identity() {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    var id = "00000000-0000-4000-8000-000000000001";
+    backend.stubFor(get(PATH + "/" + id).willReturn(okJson(saved(1, "app:a"))));
+    stubPage(1, saved(1, "app:a"), 1);
+    backend.stubFor(patch(PATH + "/" + id).willReturn(okJson(saved(1, "app:new"))));
+    var model = "{\"update\":[{\"id\":\"" + id + "\",\"fromNodeKey\":\"app:new\"}]}";
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", false));
+    assertThat(result.isError()).isFalse();
+    assertThat(backend.getReceivedBodies("PATCH", PATH + "/" + id)).hasSize(1);
+  }
+
   private static String changeFile(String operation, String rows) {
     var value = JsonParser.parseString(rows);
     var result = new com.google.gson.JsonObject();

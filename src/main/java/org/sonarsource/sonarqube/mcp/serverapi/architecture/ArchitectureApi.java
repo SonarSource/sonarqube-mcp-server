@@ -202,7 +202,7 @@ public class ArchitectureApi {
       || response.page().pageIndex() == null || response.page().pageIndex() != pageIndex
       || response.page().pageSize() == null || response.page().pageSize() != pageSize
       || response.page().total() == null || response.page().total() < 0
-      || response.projectDirectives().size() != Math.min(pageSize, Math.max(0L, response.page().total() - ((long) pageIndex - 1) * pageSize))) {
+      || response.projectDirectives().size() != Math.clamp(response.page().total() - ((long) pageIndex - 1) * pageSize, 0, pageSize)) {
       throw new IllegalStateException("Invalid public directives page; no complete page was read.");
     }
     var ids = new java.util.HashSet<String>();
@@ -210,7 +210,7 @@ public class ArchitectureApi {
       if (directive == null) {
         throw new IllegalStateException("The public directives response contains an incomplete directive.");
       }
-      directive.validate(true);
+      directive.validateStored();
       if (!ids.add(directive.id().toLowerCase(java.util.Locale.ROOT))) {
         throw new IllegalStateException("The public directives page returned duplicate ids.");
       }
@@ -222,14 +222,14 @@ public class ArchitectureApi {
   }
 
   public ProjectDirective createDirective(String projectKey, String projectId, ProjectDirective directive) {
-    directive.validate(false);
+    directive.validate();
     return write(projectKey, () -> {
       var body = gson.toJson(directive.forProject(projectId));
       var response = fromJson(request(PROJECT_DIRECTIVES_PATH, body, false), ProjectDirective.class);
       if (response == null) {
         throw new IllegalStateException("The directive write returned no directive. Inspect the current list before retrying.");
       }
-      response.validate(true);
+      response.validateStored();
       if (!projectId.equals(response.projectId())) {
         throw new IllegalStateException("The directive write returned a different project. Inspect the current list before retrying.");
       }
@@ -250,7 +250,7 @@ public class ArchitectureApi {
   }
 
   public ProjectDirective updateDirective(String projectKey, String projectId, String id, ProjectDirective directive) {
-    directive.validate(false);
+    directive.validate();
     return write(projectKey, () -> {
       var updated = fromJson(request(directivePath(id), gson.toJson(directive.withoutIdentity()), true), ProjectDirective.class);
       validateDirectiveResource(updated, projectId, id);
@@ -283,7 +283,7 @@ public class ArchitectureApi {
     if (directive == null) {
       throw new IllegalStateException("The public directive response is empty.");
     }
-    directive.validate(true);
+    directive.validateStored();
     if (!projectId.equals(directive.projectId()) || !id.equalsIgnoreCase(directive.id())) {
       throw new IllegalStateException("The public directive response returned a different id or project.");
     }

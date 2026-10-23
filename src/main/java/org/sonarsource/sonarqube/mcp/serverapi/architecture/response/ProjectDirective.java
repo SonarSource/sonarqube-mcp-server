@@ -37,7 +37,7 @@ public record ProjectDirective(@Nullable String id, @Nullable String projectId, 
     return new ProjectDirective(null, project, type, ecosystem, graphType, fromNodeKey, toNodeKey, graphPerspective, description, null);
   }
 
-  public void validate(boolean stored) {
+  public void validate() {
     if (!java.util.Set.of("REMOVE_EDGE", "RENAME_NODE", "MOVE_NODE").contains(type == null ? "" : type)
       || !ArchitectureApi.LANGUAGES.contains(ecosystem == null ? "" : ecosystem)
       || !java.util.Set.of("file_graph", "namespace_graph").contains(graphType == null ? "" : graphType)) {
@@ -48,11 +48,13 @@ public record ProjectDirective(@Nullable String id, @Nullable String projectId, 
     optional(graphPerspective, "graphPerspective", 255);
     optional(description, "description", 10000);
     optional(origin, "origin", 255);
-    if (stored) {
-      required(projectId, "projectId", 1000);
-      if (id == null || !java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
-        throw new IllegalArgumentException("The public directive response has an invalid id.");
-      }
+  }
+
+  public void validateStored() {
+    validate();
+    required(projectId, "projectId", 1000);
+    if (id == null || !java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+      throw new IllegalArgumentException("The public directive response has an invalid id.");
     }
   }
 
