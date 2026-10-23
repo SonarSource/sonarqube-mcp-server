@@ -79,6 +79,7 @@ license {
 }
 
 val mockitoAgent = configurations.create("mockitoAgent")
+val jettyVersion = libs.versions.jetty.get()
 
 configurations {
 	val sqplugins = create("sqplugins") { isTransitive = false }
@@ -88,6 +89,11 @@ configurations {
 	}
 	all {
 		resolutionStrategy.eachDependency {
+			// Pulled in by wiremock-jetty12
+			if (requested.group.startsWith("org.eclipse.jetty")) {
+				useVersion(jettyVersion)
+				because("Align transitive Jetty artifacts with the declared Jetty version")
+			}
 			// Pulled in by mcp-json-jackson3
 			if (requested.group.startsWith("tools.jackson")) {
 				useVersion("3.2.4")
