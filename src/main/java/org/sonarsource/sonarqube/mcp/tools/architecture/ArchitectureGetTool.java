@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
@@ -25,6 +26,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -42,9 +44,13 @@ public class ArchitectureGetTool extends Tool {
   public static final String LANGUAGE_PROPERTY = "language";
   public static final String CURRENT = "current";
   public static final String INTENDED = "intended";
+  public static final String DIRECTIVES = "directives";
+  private static final String DIRECTIVE_ID_PROPERTY = "directiveId";
+  private static final String PAGE_INDEX_PROPERTY = "pageIndex";
+  private static final String PAGE_SIZE_PROPERTY = "pageSize";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
-  private static final String[] TARGETS = {CURRENT, INTENDED};
+  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
   private static final String[] SERVER_TARGETS = {CURRENT};
   private static final int MAX_CONCURRENT_CURRENT_READS = 2;
   private final String[] availableTargets;
@@ -55,24 +61,32 @@ public class ArchitectureGetTool extends Tool {
   private final String configuredProjectKey;
 
   public ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
-    super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
+    super(definition(isSonarQubeCloud, configuredProjectKey), ToolCategory.ARCHITECTURE);
+    this.availableTargets = isSonarQubeCloud ? TARGETS : SERVER_TARGETS;
+    this.serverApiProvider = serverApiProvider;
+    this.configuredProjectKey = configuredProjectKey;
+  }
+
+  private static McpSchema.Tool definition(boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
+    var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
-      .setDescription(isSonarQubeCloud ? "Read current dependency graphs or intended architecture." : "Read current dependency graphs.")
+      .setDescription(isSonarQubeCloud ? "Read current graphs, intended architecture or project directives." : "Read current dependency graphs.")
       .addRequiredEnumProperty(TARGET_PROPERTY, isSonarQubeCloud ? TARGETS : SERVER_TARGETS,
-        isSonarQubeCloud ? "current: analyzed dependencies; intended: desired groups and constraints." : "current: analyzed dependencies.")
+        isSonarQubeCloud ? "current: dependencies; intended: model; directives: project directives." : "current: analyzed dependencies.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
         + (isSonarQubeCloud ? "Intended: group labels joined by /. " : "") + "Top level when omitted.")
       .addNumberProperty(DEPTH_PROPERTY, isSonarQubeCloud ? "Levels below the start to return. Default 1 for current, all for intended."
         : "Levels below the start to return. Default 1.")
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
-      .setReadOnlyHint()
-      .build(),
-      ToolCategory.ARCHITECTURE);
-    this.availableTargets = isSonarQubeCloud ? TARGETS : SERVER_TARGETS;
-    this.serverApiProvider = serverApiProvider;
-    this.configuredProjectKey = configuredProjectKey;
+      .setReadOnlyHint();
+    if (isSonarQubeCloud) {
+      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Directives only: read one UUID instead of a page.")
+        .addNumberProperty(PAGE_INDEX_PROPERTY, "Directives only: page number, default 1.")
+        .addNumberProperty(PAGE_SIZE_PROPERTY, "Directives only: items per page, default 50, maximum 1000.");
+    }
+    return builder.build();
   }
 
   @Override
@@ -87,10 +101,50 @@ public class ArchitectureGetTool extends Tool {
     }
 
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    if (!DIRECTIVES.equals(target) && (arguments.toMap().get(PAGE_INDEX_PROPERTY) != null
+      || arguments.toMap().get(PAGE_SIZE_PROPERTY) != null || arguments.toMap().get(DIRECTIVE_ID_PROPERTY) != null)) {
+      throw new IllegalArgumentException("Pagination parameters are only used for directives.");
+    }
+    if (DIRECTIVES.equals(target)) {
+      return directives(serverApi, projectKey, arguments, component, depth, language);
+    }
     if (CURRENT.equals(target)) {
       return readCurrent(serverApi, projectKey, component, depth, language);
     }
-    return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.intendedProjectId(serverApi, projectKey), component, depth, language);
+    return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.projectId(serverApi, projectKey, "Intended architecture"), component, depth, language);
+  }
+
+  private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
+    @Nullable String language) {
+    if (component != null || depth != null || language != null) {
+      throw new IllegalArgumentException("Directives reads do not accept component, depth or language filters.");
+    }
+    var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
+    var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
+    validateDirectivePage(pageIndex, pageSize);
+    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
+    var id = arguments.toMap().containsKey(DIRECTIVE_ID_PROPERTY) ? arguments.getStringOrThrow(DIRECTIVE_ID_PROPERTY) : null;
+    if (id != null) {
+      if (pageIndex != null || pageSize != null) {
+        throw new IllegalArgumentException("Use either directiveId or pagination parameters.");
+      }
+      return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
+    }
+    var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, pageIndex == null ? 1 : pageIndex, pageSize == null ? 50 : pageSize);
+    return Result.success(new DirectivesView(projectKey, page.projectDirectives(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
+      ? "No directives are visible. Check project access and whether any directives are defined." : null));
+  }
+
+  private static void validateDirectivePage(@Nullable Integer pageIndex, @Nullable Integer pageSize) {
+    if ((pageIndex != null && pageIndex < 1) || (pageSize != null && (pageSize < 1 || pageSize > 1000))) {
+      throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
+    }
+  }
+
+  private record DirectiveView(String projectKey, ProjectDirective directive) {
+  }
+
+  private record DirectivesView(String projectKey, List<ProjectDirective> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
   private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
