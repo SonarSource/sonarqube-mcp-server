@@ -230,11 +230,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
 
+    initializeAnalytics();
+
     if (mcpConfiguration.isHttpEnabled()) {
       var oauthConfiguration = mcpConfiguration.getOAuthConfiguration();
       this.httpServerManager = new HttpServerTransportProvider(HttpTransportSettings.from(mcpConfiguration), oauthConfiguration == null ? null : new OAuthSupport(
         new OAuthProtectedResourceMetadata(oauthConfiguration.resource(), oauthConfiguration.issuer().toString(), mcpConfiguration.getOAuthMetadataUrl()),
-        new Auth0OAuthAuthenticationService(oauthConfiguration, httpClientProvider.getAnonymousHttpClient())::authenticate));
+        new Auth0OAuthAuthenticationService(oauthConfiguration, httpClientProvider.getAnonymousHttpClient(), result -> {
+          if (analyticsService != null) {
+            analyticsService.notifyOAuthAuthenticationCompleted(result);
+          }
+        })::authenticate));
       this.transportProvider = null;
     } else {
       this.httpServerManager = null;
@@ -248,7 +254,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (httpServerManager != null) {
       httpServerManager.startServer().join();
       var enabledTools = filterForEnabledTools(supportedTools);
-      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools))
+      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools, analyticsService,
+        context -> createServerApiWithTokenAndOrg((String) context.get(HttpServerTransportProvider.CONTEXT_TOKEN_KEY), null)))
         .serverInfo(McpSchema.Implementation.builder(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()).build())
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
@@ -273,6 +280,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       });
   }
 
+  private void initializeAnalytics() {
+    if (mcpConfiguration.isTelemetryEnabled()) {
+      var analyticsHttpClient = httpClientProvider.getHttpClientForAnalytics(AnalyticsClient.resolveApiKey());
+      var analyticsClient = new AnalyticsClient(analyticsHttpClient);
+      this.analyticsService = new AnalyticsService(analyticsClient, mcpConfiguration.getMcpServerId(),
+        mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarQubeCloud());
+    }
+  }
+
   /**
    * Initializes all services and loads all tools synchronously.
    * The backend is initialized immediately (without analyzers) so that tools can be registered.
@@ -280,13 +296,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   private void initializeBasicServicesAndTools() {
     this.backendService = new BackendService(mcpConfiguration);
-
-    if (mcpConfiguration.isTelemetryEnabled()) {
-      var analyticsHttpClient = httpClientProvider.getHttpClientForAnalytics(AnalyticsClient.resolveApiKey());
-      var analyticsClient = new AnalyticsClient(analyticsHttpClient);
-      this.analyticsService = new AnalyticsService(analyticsClient, mcpConfiguration.getMcpServerId(),
-        mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarQubeCloud());
-    }
 
     // Capture the invocation API for analytics; stdio reuses session identity, HTTP resolves identity per call.
     this.toolExecutor = new ToolExecutor(backendService, analyticsService,
@@ -860,6 +869,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     this.transportProvider = transportProvider;
     this.httpServerManager = httpServerManager;
+    initializeAnalytics();
     initializeBasicServicesAndTools();
   }
 
