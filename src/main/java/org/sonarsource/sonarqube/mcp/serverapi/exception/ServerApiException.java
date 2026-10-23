@@ -18,8 +18,10 @@ package org.sonarsource.sonarqube.mcp.serverapi.exception;
 
 public class ServerApiException extends SonarMcpException {
 
+  public static final String MESSAGE_PREFIX = "SonarQube answered with ";
+
   public ServerApiException(String message) {
-    super("SonarQube answered with " + message);
+    super(MESSAGE_PREFIX + message);
   }
 
 }

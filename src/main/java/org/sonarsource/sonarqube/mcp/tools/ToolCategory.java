@@ -46,7 +46,8 @@ public enum ToolCategory {
   SECURITY_HOTSPOTS("security-hotspots"),
   CAG("cag"),
   AGENTIC_READINESS("agentic-readiness"),
-  VORTEX("vortex");
+  VORTEX("vortex"),
+  ARCHITECTURE("architecture");
 
   private final String key;
 
