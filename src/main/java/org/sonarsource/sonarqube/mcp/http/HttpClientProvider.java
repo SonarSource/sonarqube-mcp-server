@@ -57,7 +57,7 @@ public class HttpClientProvider {
       applySslMaterial("Could not load the configured trust store, falling back to defaults",
         sslFactoryBuilder::withSystemPropertyDerivedTrustMaterial);
     }
-    var sslFactory = sslFactoryBuilder.build();
+    var sslFactory = BlockedCertificateTrustManager.protect(sslFactoryBuilder.build());
     var sslContext = sslFactory.getSslContext();
     this.sslProtocol = sslContext.getProtocol();
     this.trustedCertificates = sslFactory.getTrustedCertificates().size();

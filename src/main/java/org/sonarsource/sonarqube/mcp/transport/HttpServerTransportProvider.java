@@ -43,6 +43,7 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.authentication.AuthMode;
+import org.sonarsource.sonarqube.mcp.http.BlockedCertificateTrustManager;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -342,7 +343,7 @@ public class HttpServerTransportProvider {
       sslFactoryBuilder.withInflatableTrustMaterial(truststorePath, truststorePassword.toCharArray(), truststoreType, null);
     }
 
-    return sslFactoryBuilder.build().getSslContext();
+    return BlockedCertificateTrustManager.protect(sslFactoryBuilder.build()).getSslContext();
   }
 
 }
