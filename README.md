@@ -1036,6 +1036,8 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
 
 ## Tools
 
+**Organization selection (SonarQube Cloud):** Tools that list `organization` accept an optional organization key. Use `list_organizations` to discover keys; stdio uses a uniquely detected organization as its default. When `SONARQUBE_ORG` is set in server configuration or an HTTP request header, the organization is fixed and tool `organization` arguments are rejected. See [SonarQube Cloud configuration](#sonarqube-cloud) for details.
+
 ### Analysis
 
 - **analyze_code_snippet** - Analyze file content with SonarQube analyzers to identify code quality and security issues. Always analyzes the complete file content for accuracy. Optionally filter results to a specific code snippet.
@@ -1048,6 +1050,7 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
   - Add optional `codeSnippet` to filter results - only issues within the snippet will be reported (snippet location auto-detected)
   
   Parameters:
+  - `organization` - SonarQube Cloud organization key - _Optional String, Cloud only_
   - `projectKey` - The SonarQube project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). Used when the workspace is mounted at `/app/mcp-workspace` - _String_
   - `fileContent` - Complete file content as a string. Required when workspace is not mounted - _String_
@@ -1071,8 +1074,8 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 > Requires having the workspace mounted at `/app/mcp-workspace`
 
-- **run_advanced_code_analysis** - Run Vortex analysis on a single file. On Cloud, use the optional `organization` argument when no organization is fixed by `SONARQUBE_ORG`; use `list_organizations` if ambiguous. SonarQube Server uses the nil UUID placeholder.
-    - `organization` - Cloud organization key; defaults to the configured or uniquely detected startup organization - _Optional String_
+- **run_advanced_code_analysis** - Run Vortex analysis on a single file. SonarQube Server uses the nil UUID placeholder.
+    - `organization` - SonarQube Cloud organization key - _Optional String, Cloud only_
     - `projectKey` - The key of the project - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
     - `branch` - Branch name used to retrieve the latest analysis context - _Required String_
     - `filePath` - Project-relative path of the file to analyze (e.g., `src/main/java/MyClass.java`). - _Required String_
@@ -1098,9 +1101,10 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 ### Dependency Risks
 
-**Note: Dependency risks are only available when connecting to SonarQube Server 2025.4 Enterprise or higher with SonarQube Advanced Security enabled.**
+**Note: Dependency risks require SonarQube Advanced Security. On SonarQube Server, version 2025.4 Enterprise or higher is required.**
 
 - **search_dependency_risks** - Search for software composition analysis issues (dependency risks) of a SonarQube project, paired with releases that appear in the analyzed project, application, or portfolio.
+  - `organization` - SonarQube Cloud organization key - _Optional String, Cloud only_
   - `projectKey` - Project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
@@ -1123,6 +1127,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 
 - **search_sonar_issues_in_projects** - Search for SonarQube issues in my organization's projects.
+  - `organization` - SonarQube Cloud organization key - _Optional String, Cloud only_
   - `projectKeys` - Optional list of SonarQube project keys - _String[]_
   - `branch` - Optional branch name for branch-based analysis. Use `list_branches` to discover valid names - _String_
   - `pullRequest` - Optional pull request key/ID. Use `list_pull_requests` to discover valid keys - _String_
@@ -1203,6 +1208,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 - **list_organizations** - List SonarQube Cloud organizations that a user is a member of, including keys, names, IDs, and UUIDs. Use a returned key as `organization` on subsequent tools.
 
 - **search_my_sonarqube_projects** - Find SonarQube projects. The response is paginated.
+  - `organization` - SonarQube Cloud organization key - _Optional String, Cloud only_
   - `pageIndex` - Optional 1-based page index (default: 1) - _Integer_
   - `pageSize` - Optional page size. Must be greater than 0 and less than or equal to 500 (default: 500) - _Integer_
   - `q` - Optional search query to filter projects by name (partial match) or key (exact match) - _String_
@@ -1230,10 +1236,12 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 
 - **list_quality_gates** - List all quality gates in my SonarQube.
+  - `organization` - SonarQube Cloud organization key - _Optional String, Cloud only_
 
 ### Rules
 
 - **show_rule** - Shows detailed information about a SonarQube rule.
+  - `organization` - SonarQube Cloud organization key - _Optional String, Cloud only_
   - `key` - Rule key - _Required String_
 
 ### Duplications
@@ -1287,6 +1295,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 ### Webhooks
 
 - **create_webhook** - Create a new webhook for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.
+  - `organization` - SonarQube Cloud organization key - _Optional String, Cloud only_
   - `name` - Webhook name - _Required String_
   - `url` - Webhook URL - _Required String_
   - `projectKey` - Optional project key for project-specific webhook - _String_
@@ -1294,6 +1303,7 @@ On SonarQube Server, stdio lists Vortex context tools and `run_advanced_code_ana
 
 
 - **list_webhooks** - List all webhooks for the SonarQube organization or project. Requires 'Administer' permission on the specified project, or global 'Administer' permission.
+  - `organization` - SonarQube Cloud organization key - _Optional String, Cloud only_
   - `projectKey` - Optional project key to list project-specific webhooks - _String_
 
 ### Context Augmentation
