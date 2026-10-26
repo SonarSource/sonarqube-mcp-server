@@ -71,7 +71,7 @@ public class ArchitectureGetTool extends Tool {
       .setTitle("Get Architecture")
       .setDescription(isSonarQubeCloud ? "Read current graphs, intended architecture or project directives." : "Read current dependency graphs.")
       .addRequiredEnumProperty(TARGET_PROPERTY, isSonarQubeCloud ? TARGETS : SERVER_TARGETS,
-        isSonarQubeCloud ? "current: dependencies; intended: model; directives: project directives." : "current: analyzed dependencies.")
+        isSonarQubeCloud ? "current: dependencies; intended: model; directives: project directives (directiveId/pageIndex/pageSize apply only to directives)." : "current: analyzed dependencies.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
         + (isSonarQubeCloud ? "Intended: group labels joined by /. " : "") + "Top level when omitted. Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective.")
