@@ -1,3 +1,5 @@
+FROM node:24.22.1-alpine3.24 AS node-runtime
+
 FROM eclipse-temurin:21-jdk-alpine AS builder
 
 RUN apk update &&  \
@@ -5,7 +7,7 @@ RUN apk update &&  \
 
 WORKDIR /app
 
-ARG MCP_SERVER_VERSION=1.29.0.4488
+ARG MCP_SERVER_VERSION=1.30.0.4763
 ADD https://binaries.sonarsource.com/Distribution/sonarqube-mcp-server/sonarqube-mcp-server-${MCP_SERVER_VERSION}.jar ./sonarqube-mcp-server.jar
 
 RUN jdeps --ignore-missing-deps -q  \
@@ -29,11 +31,14 @@ ENV JAVA_HOME=/opt/jdk/jdk-21
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 COPY --from=builder /optimized-jdk-21 $JAVA_HOME
+COPY scripts/security/blocked.certs /tmp/blocked.certs
+RUN cat /tmp/blocked.certs >> "$JAVA_HOME/lib/security/blocked.certs" && rm /tmp/blocked.certs
+COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
         ca-certificates \
-        nodejs=~24 \
+        libstdc++ \
         sudo && \
         addgroup -S appgroup && adduser -S appuser -G appgroup && \
         mkdir -p /app/storage && \
@@ -43,7 +48,7 @@ RUN apk upgrade --no-cache && \
 
 ARG TARGETARCH
 # Keep in sync with sonarContextAugmentationVersion in gradle.properties
-ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.23.0.5451
+ARG SONAR_CONTEXT_AUGMENTATION_VERSION=0.24.0.6501
 
 RUN case "$TARGETARCH" in \
         amd64) ARCH="x64" ;; \
