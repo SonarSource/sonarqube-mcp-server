@@ -175,24 +175,28 @@ final class ProjectDirectives {
         throw new IllegalArgumentException("An update would duplicate another directive. Nothing was changed.");
       }
     }
-    var noVisibleDirectives = known.isEmpty();
+    var noVisibleDirectives = !input.create().isEmpty() && known.isEmpty();
     var creations = planCreates(input.create(), changes, toDelete, known);
     if (existing.values().stream().mapToInt(List::size).sum() + creations.items().size() > MAX_DIRECTIVES_PER_PROJECT) {
       throw new IllegalArgumentException("The batch would exceed the 1000 directives per project limit. Nothing was changed.");
     }
     var skippedIds = input.create().stream().flatMap(item -> existing.getOrDefault(item.identity(), List.of()).stream()).distinct().toList();
-    var warnings = new ArrayList<String>();
-    warnings.add("Concurrent edits can race the reads; the public API has no conditional writes. Changes are applied individually without automatic retry or rollback.");
-    if (!input.create().isEmpty() && noVisibleDirectives) {
-      warnings.add("No directives are visible. Check project access: duplicate checks cannot identify directives hidden by permissions.");
-    }
     var result = new Applied(projectKey, dryRun ? "dry-run" : "applied", creations.items(), List.copyOf(changes), List.copyOf(toDelete), skipped + creations.skipped(), skippedIds,
       new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
-      List.copyOf(warnings));
+      warnings(noVisibleDirectives));
     if (!dryRun) {
       writeChanges(api, projectKey, projectId, result);
     }
     return result;
+  }
+
+  private static List<String> warnings(boolean noVisibleDirectives) {
+    var warnings = new ArrayList<String>();
+    warnings.add("Concurrent edits can race the reads; the public API has no conditional writes. Changes are applied individually without automatic retry or rollback.");
+    if (noVisibleDirectives) {
+      warnings.add("No directives are visible. Check project access: duplicate checks cannot identify directives hidden by permissions.");
+    }
+    return List.copyOf(warnings);
   }
 
   private static CreatePlan planCreates(List<ProjectDirective> input, List<Change> changes, List<ProjectDirective> toDelete,
@@ -285,6 +289,13 @@ final class ProjectDirectives {
       return new Change(id, before, before.withoutIdentity());
     }
     var merged = gson.toJsonTree(before.withoutIdentity()).getAsJsonObject();
+    mergeUpdateFields(object, merged);
+    var after = gson.fromJson(merged, ProjectDirective.class);
+    after.validate();
+    return new Change(id, before, after);
+  }
+
+  private static void mergeUpdateFields(JsonObject object, JsonObject merged) {
     for (var field : object.entrySet()) {
       if (Set.of("id", "projectId", "origin").contains(field.getKey())) {
         continue;
@@ -297,9 +308,6 @@ final class ProjectDirectives {
       }
       merged.add(field.getKey(), field.getValue());
     }
-    var after = gson.fromJson(merged, ProjectDirective.class);
-    after.validate();
-    return new Change(id, before, after);
   }
 
   private static boolean isDefiniteRejection(RuntimeException failure) {
