@@ -108,6 +108,20 @@ class HttpClientAdapter implements HttpClient {
   }
 
   @Override
+  public CompletableFuture<Response> patchAsync(String url, String contentType, String body) {
+    var requestBuilder = SimpleRequestBuilder.patch(url)
+      .setBody(body, ContentType.parse(contentType));
+
+    if (isBridgeClient) {
+      requestBuilder
+        .addHeader(HOST_HEADER, LOCALHOST)
+        .addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
+    }
+
+    return executeAsync(requestBuilder.build(), token, operationTimeout);
+  }
+
+  @Override
   public CompletableFuture<Response> getAsyncAnonymous(String url) {
     return getAsyncAnonymous(url, operationTimeout);
   }
