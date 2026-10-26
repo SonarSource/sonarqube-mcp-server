@@ -77,6 +77,77 @@ class ArchitectureDirectivesToolTests {
   }
 
   @Test
+  void it_should_refuse_short_pages_even_when_later_pages_make_the_total_match() {
+    stubMainBranch(harness);
+    var first = IntStream.rangeClosed(1, 99).mapToObj(id -> saved(id, "app:" + id))
+      .collect(java.util.stream.Collectors.joining(","));
+    stubPage(1, first, 101);
+    stubPage(2, saved(100, "app:100") + "," + saved(101, "app:101"), 101);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model", changeFile("create", "[" + INPUT + "]"), "dryRun", false));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("public directives list changed");
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
+  }
+
+  @Test
+  void it_should_refuse_creation_above_the_project_limit_even_with_duplicate_stored_identities() {
+    stubMainBranch(harness);
+    for (var page = 1; page <= 10; page++) {
+      var firstId = (page - 1) * 100 + 1;
+      var rows = IntStream.range(firstId, firstId + 100).mapToObj(id -> saved(id, "same:node"))
+        .collect(java.util.stream.Collectors.joining(","));
+      stubPage(page, rows, 1000);
+    }
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model", changeFile("create", "[" + INPUT + "]"), "dryRun", false));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("1000 directives per project");
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
+  }
+
+  @Test
+  void it_should_refuse_pages_larger_than_the_requested_size() {
+    stubMainBranch(harness);
+    var rows = IntStream.rangeClosed(1, 101).mapToObj(id -> saved(id, "app:" + id))
+      .collect(java.util.stream.Collectors.joining(","));
+    stubPage(1, rows, 101);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Invalid public directives page");
+  }
+
+  @Test
+  void it_should_default_perspective_and_report_existing_duplicate_ids() {
+    stubMainBranch(harness);
+    stubPage(1, saved(1, "app:a").replace("\"graphPerspective\":null", "\"graphPerspective\":\"default_perspective\""), 1);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model", changeFile("create", "[" + INPUT + "]"), "dryRun", true));
+    assertThat(result.isError()).isFalse();
+    var value = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(value.get("skipped").getAsInt()).isEqualTo(1);
+    assertThat(value.getAsJsonArray("skippedIds").get(0).getAsString()).endsWith("000000000001");
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
+  }
+
+  @Test
+  void it_should_read_and_delete_long_stored_values_without_applying_input_limits() {
+    stubMainBranch(harness);
+    var id = "00000000-0000-4000-8000-000000000001";
+    var path = PATH + "/" + id;
+    var row = saved(1, "x".repeat(1100)).replace("\"description\":null", "\"description\":\"" + "d".repeat(10001) + "\"");
+    harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson(row)));
+    harness.getMockSonarQubeServer().stubFor(delete(path).willReturn(aResponse().withStatus(204)));
+    var client = harness.newClient(CLOUD_ENV);
+    assertThat(client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "directiveId", id)).isError()).isFalse();
+    var result = client.callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model", changeFile("delete", "[{\"id\":\"" + id + "\"}]"), "dryRun", false));
+    assertThat(result.isError()).isFalse();
+  }
+
+  @Test
   void it_should_preview_then_create_only_missing_directives() {
     stubMainBranch(harness);
     stubPage(1, "", 0);
@@ -111,21 +182,18 @@ class ArchitectureDirectivesToolTests {
     stubPage(1, "", 1);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "model", changeFile("create", "[" + INPUT + "]"), "dryRun", false));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("Invalid public directives page");
+    assertThat(textOf(result)).contains("public directives list changed");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
   }
 
   @ParameterizedTest
-  @CsvSource({"1,0,1", "2,1,1", "1,3,1", "1,2,2"})
-  void it_should_reject_inconsistent_pages_on_direct_reads(int pageIndex, int total, int copies) {
+  @CsvSource({"1,0", "2,1", "1,3"})
+  void it_should_allow_count_drift_on_single_page_reads(int pageIndex, int total) {
     stubMainBranch(harness);
-    var rows = IntStream.range(0, copies).mapToObj(ignored -> saved(1, "app:a"))
-      .collect(java.util.stream.Collectors.joining(","));
-    stubPage(pageIndex, rows, total);
+    stubPage(pageIndex, saved(1, "app:a"), total);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 100));
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("public directives page");
+    assertThat(result.isError()).isFalse();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
   }
 
@@ -218,7 +286,7 @@ class ArchitectureDirectivesToolTests {
   }
 
   @Test
-  void it_should_not_send_exported_ids_or_origin_in_create_requests() {
+  void it_should_replace_exported_identity_with_the_mcp_creation_origin() {
     stubMainBranch(harness);
     stubPage(1, "", 0);
     var backend = harness.getMockSonarQubeServer();
@@ -230,7 +298,8 @@ class ArchitectureDirectivesToolTests {
     assertThat(result.isError()).isFalse();
     var request = JsonParser.parseString(backend.getReceivedBodies("POST", PATH).getFirst()).getAsJsonObject();
     assertThat(request.has("id")).isFalse();
-    assertThat(request.has("origin")).isFalse();
+    assertThat(request.get("origin").getAsString()).isEqualTo("sonarqube-mcp-server");
+    assertThat(request.get("graphPerspective").getAsString()).isEqualTo("default_perspective");
     assertThat(request.get("projectId").getAsString()).isEqualTo(MAIN_BRANCH_ID);
   }
 
@@ -273,7 +342,7 @@ class ArchitectureDirectivesToolTests {
     var read = client.callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "directiveId", id));
     assertThat(read.isError()).isFalse();
-    assertThat(textOf(read)).contains(id);
+    assertThat(textOf(read)).contains(id, "existing-client");
     var model = "[{\"id\":\"" + id + "\",\"description\":\"updated\"}]";
     var preview = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "model", changeFile("update", model), "dryRun", true));
@@ -287,7 +356,7 @@ class ArchitectureDirectivesToolTests {
     var body = JsonParser.parseString(backend.getReceivedBodies("PATCH", path).getFirst()).getAsJsonObject();
     assertThat(body.get("fromNodeKey").getAsString()).isEqualTo("app:a");
     assertThat(body.get("description").getAsString()).isEqualTo("updated");
-    assertThat(body.has("origin")).isFalse();
+    assertThat(body.get("origin").getAsString()).isEqualTo("existing-client");
     assertThat(body.has("projectId")).isFalse();
     model = "[{\"id\":\"" + id + "\"}]";
     var deletionPreview = client.callTool(ArchitectureSetTool.TOOL_NAME,
@@ -492,6 +561,6 @@ class ArchitectureDirectivesToolTests {
 
   private static String saved(int id, String from) {
     return INPUT.substring(0, INPUT.length() - 1).replace("app:a", from) + ",\"id\":\"00000000-0000-4000-8000-" + String.format("%012d", id)
-      + "\",\"projectId\":\"" + MAIN_BRANCH_ID + "\",\"graphPerspective\":null,\"description\":null,\"origin\":null}";
+      + "\",\"projectId\":\"" + MAIN_BRANCH_ID + "\",\"graphPerspective\":null,\"description\":null,\"origin\":\"existing-client\"}";
   }
 }

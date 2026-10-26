@@ -22,27 +22,31 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 public record ProjectDirective(@Nullable String id, @Nullable String projectId, String type, String ecosystem, String graphType,
   String fromNodeKey, String toNodeKey, @Nullable String graphPerspective, @Nullable String description, @Nullable String origin) {
 
+  public static final String CREATION_ORIGIN = "sonarqube-mcp-server";
+  public static final String DEFAULT_PERSPECTIVE = "default_perspective";
+
+  public ProjectDirective forCreation() {
+    return new ProjectDirective(null, null, type, ecosystem, graphType, fromNodeKey, toNodeKey,
+      graphPerspective == null ? DEFAULT_PERSPECTIVE : graphPerspective, description, CREATION_ORIGIN);
+  }
+
   public Identity identity() {
-    return new Identity(type, ecosystem, graphType, fromNodeKey, toNodeKey, graphPerspective == null ? "" : graphPerspective);
+    return new Identity(type, ecosystem, graphType, fromNodeKey, toNodeKey, graphPerspective == null ? DEFAULT_PERSPECTIVE : graphPerspective);
   }
 
   public record Identity(String type, String ecosystem, String graphType, String fromNodeKey, String toNodeKey, String perspective) {
   }
 
   public ProjectDirective withoutIdentity() {
-    return new ProjectDirective(null, null, type, ecosystem, graphType, fromNodeKey, toNodeKey, graphPerspective, description, null);
+    return new ProjectDirective(null, null, type, ecosystem, graphType, fromNodeKey, toNodeKey, graphPerspective, description, origin);
   }
 
   public ProjectDirective forProject(String project) {
-    return new ProjectDirective(null, project, type, ecosystem, graphType, fromNodeKey, toNodeKey, graphPerspective, description, null);
+    return new ProjectDirective(null, project, type, ecosystem, graphType, fromNodeKey, toNodeKey, graphPerspective, description, origin);
   }
 
   public void validate() {
-    if (!java.util.Set.of("REMOVE_EDGE", "RENAME_NODE", "MOVE_NODE").contains(type == null ? "" : type)
-      || !ArchitectureApi.LANGUAGES.contains(ecosystem == null ? "" : ecosystem)
-      || !java.util.Set.of("file_graph", "namespace_graph").contains(graphType == null ? "" : graphType)) {
-      throw new IllegalArgumentException("A directive requires a supported type, ecosystem and graphType.");
-    }
+    validateEnums();
     required(fromNodeKey, "fromNodeKey", 1000);
     required(toNodeKey, "toNodeKey", 1000);
     optional(graphPerspective, "graphPerspective", 255);
@@ -50,9 +54,19 @@ public record ProjectDirective(@Nullable String id, @Nullable String projectId, 
     optional(origin, "origin", 255);
   }
 
+  private void validateEnums() {
+    if (!java.util.Set.of("REMOVE_EDGE", "RENAME_NODE", "MOVE_NODE").contains(type == null ? "" : type)
+      || !ArchitectureApi.LANGUAGES.contains(ecosystem == null ? "" : ecosystem)
+      || !java.util.Set.of("file_graph", "namespace_graph").contains(graphType == null ? "" : graphType)) {
+      throw new IllegalArgumentException("A directive requires a supported type, ecosystem and graphType.");
+    }
+  }
+
   public void validateStored() {
-    validate();
-    required(projectId, "projectId", 1000);
+    validateEnums();
+    if (projectId == null || projectId.isBlank() || fromNodeKey == null || toNodeKey == null) {
+      throw new IllegalArgumentException("The public directive response is incomplete.");
+    }
     if (id == null || !java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
       throw new IllegalArgumentException("The public directive response has an invalid id.");
     }

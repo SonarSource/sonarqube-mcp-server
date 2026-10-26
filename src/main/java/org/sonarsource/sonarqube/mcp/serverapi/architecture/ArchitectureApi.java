@@ -202,7 +202,7 @@ public class ArchitectureApi {
       || response.page().pageIndex() == null || response.page().pageIndex() != pageIndex
       || response.page().pageSize() == null || response.page().pageSize() != pageSize
       || response.page().total() == null || response.page().total() < 0
-      || response.projectDirectives().size() != Math.clamp(response.page().total() - ((long) pageIndex - 1) * pageSize, 0, pageSize)) {
+      || response.projectDirectives().size() > pageSize) {
       throw new IllegalStateException("Invalid public directives page; no complete page was read.");
     }
     var ids = new java.util.HashSet<String>();

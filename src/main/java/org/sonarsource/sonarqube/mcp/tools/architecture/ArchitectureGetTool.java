@@ -46,8 +46,6 @@ public class ArchitectureGetTool extends Tool {
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
   private static final String DIRECTIVE_ID_PROPERTY = "directiveId";
-  private static final String PAGE_INDEX_PROPERTY = "pageIndex";
-  private static final String PAGE_SIZE_PROPERTY = "pageSize";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
@@ -76,15 +74,15 @@ public class ArchitectureGetTool extends Tool {
         isSonarQubeCloud ? "current: dependencies; intended: model; directives: project directives." : "current: analyzed dependencies.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
-        + (isSonarQubeCloud ? "Intended: group labels joined by /. " : "") + "Top level when omitted.")
+        + (isSonarQubeCloud ? "Intended: group labels joined by /. " : "") + "Top level when omitted. Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective.")
       .addNumberProperty(DEPTH_PROPERTY, isSonarQubeCloud ? "Levels below the start to return. Default 1 for current, all for intended."
         : "Levels below the start to return. Default 1.")
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
     if (isSonarQubeCloud) {
-      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Directives only: read one UUID instead of a page.")
-        .addNumberProperty(PAGE_INDEX_PROPERTY, "Directives only: page number, default 1.")
-        .addNumberProperty(PAGE_SIZE_PROPERTY, "Directives only: items per page, default 50, maximum 1000.");
+      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "read one UUID instead of a page.")
+        .addNumberProperty(ToolParameters.PAGE_INDEX, "page number, default 1.")
+        .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50, maximum 1000.");
     }
     return builder.build();
   }
@@ -101,8 +99,8 @@ public class ArchitectureGetTool extends Tool {
     }
 
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-    if (!DIRECTIVES.equals(target) && (arguments.toMap().get(PAGE_INDEX_PROPERTY) != null
-      || arguments.toMap().get(PAGE_SIZE_PROPERTY) != null || arguments.toMap().get(DIRECTIVE_ID_PROPERTY) != null)) {
+    if (!DIRECTIVES.equals(target) && (arguments.toMap().get(ToolParameters.PAGE_INDEX) != null
+      || arguments.toMap().get(ToolParameters.PAGE_SIZE) != null || arguments.toMap().get(DIRECTIVE_ID_PROPERTY) != null)) {
       throw new IllegalArgumentException("Pagination parameters are only used for directives.");
     }
     if (DIRECTIVES.equals(target)) {
@@ -119,8 +117,8 @@ public class ArchitectureGetTool extends Tool {
     if (component != null || depth != null || language != null) {
       throw new IllegalArgumentException("Directives reads do not accept component, depth or language filters.");
     }
-    var pageIndex = arguments.getOptionalInteger(PAGE_INDEX_PROPERTY);
-    var pageSize = arguments.getOptionalInteger(PAGE_SIZE_PROPERTY);
+    var pageIndex = arguments.getOptionalPageIndex();
+    var pageSize = arguments.getOptionalPageSize();
     validateDirectivePage(pageIndex, pageSize);
     var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
     var id = arguments.toMap().containsKey(DIRECTIVE_ID_PROPERTY) ? arguments.getStringOrThrow(DIRECTIVE_ID_PROPERTY) : null;
@@ -130,7 +128,7 @@ public class ArchitectureGetTool extends Tool {
       }
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
-    var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, pageIndex == null ? 1 : pageIndex, pageSize == null ? 50 : pageSize);
+    var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(50));
     return Result.success(new DirectivesView(projectKey, page.projectDirectives(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
