@@ -1036,8 +1036,6 @@ Omit `-Djavax.net.ssl.keyStorePassword` if the keystore has no passphrase.
 
 ## Tools
 
-**Organization selection (SonarQube Cloud):** Tools that list `organization` accept an optional organization key. Use `list_organizations` to discover keys; stdio uses a uniquely detected organization as its default. When `SONARQUBE_ORG` is set in server configuration or an HTTP request header, the organization is fixed and tool `organization` arguments are rejected. See [SonarQube Cloud configuration](#sonarqube-cloud) for details.
-
 ### Analysis
 
 - **analyze_code_snippet** - Analyze file content with SonarQube analyzers to identify code quality and security issues. Always analyzes the complete file content for accuracy. Optionally filter results to a specific code snippet.
