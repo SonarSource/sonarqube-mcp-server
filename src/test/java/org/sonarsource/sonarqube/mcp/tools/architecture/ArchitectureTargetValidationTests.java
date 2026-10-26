@@ -30,7 +30,7 @@ class ArchitectureTargetValidationTests {
   void it_should_reject_unknown_read_targets_before_network(SonarQubeMcpServerTestHarness harness) {
     var client = harness.newClient(ArchitectureFixtures.CLOUD_ENV);
 
-    for (var target : List.of("directives", "unsupported")) {
+    for (var target : List.of("patterns", "unsupported")) {
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", target, "projectKey", "my_project"));
 
       assertThat(result.isError()).isTrue();
