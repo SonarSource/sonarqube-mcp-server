@@ -40,7 +40,9 @@ class HttpTransportITest {
   @Test
   void should_start_server_with_http_transport() {
     assertThat(httpServerContainer.isRunning()).isTrue();
-    assertThat(httpServerContainer.getEnvMap().get("TELEMETRY_DISABLED")).isEqualTo("true");
+    assertThat(httpServerContainer.getEnvMap())
+      .withFailMessage("Telemetry must be disabled in integration tests")
+      .containsEntry("TELEMETRY_DISABLED", "true");
 
     assertThat(httpServerContainer.getLogs()).contains("Created HTTP transport provider");
   }
@@ -87,8 +89,6 @@ class HttpTransportITest {
       .withExposedPort(MCP_HTTP_PORT)
       .withEnv("SONARQUBE_TRANSPORT", "http")
       .withEnv("SONARQUBE_ORG", "")
-      .withEnv("SONARQUBE_URL", "http://127.0.0.1:1")
-      .withEnv("SONARQUBE_CLOUD_API_URL", "http://127.0.0.1:1")
       .withEnv("SONARQUBE_HTTP_PORT", String.valueOf(MCP_HTTP_PORT))
       .withEnv("SONARQUBE_HTTP_HOST", "0.0.0.0")
       .withAdditionalApkPackages("wget", "nodejs")
