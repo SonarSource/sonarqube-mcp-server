@@ -32,8 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - Has correct permissions
  * - Can execute in the target environment (Alpine Linux)
  * - Is gracefully skipped when missing (no hang, clear error log)
- * - Discovers tools from the staging SonarCloud org (A3S is expected to be pre-enabled on
- *   the {@code sonarlint-it} org in the staging environment)
+ * - Discovers tools from staging org {@code sonarlint-it}, which must have
+ *   Vortex (CAG and A3S) enabled
  * <p>
  * The sonar-context-augmentation binary is downloaded automatically by the
  * {@code downloadCagBinary} Gradle task before tests run.

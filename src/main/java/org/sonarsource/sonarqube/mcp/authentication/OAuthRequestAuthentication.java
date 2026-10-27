@@ -16,14 +16,19 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import jakarta.annotation.Nullable;
 import java.util.Set;
 
 /**
  * Immutable Cloud credential and granted scopes for an authenticated request; the string representation redacts the credential.
  */
-public record OAuthRequestAuthentication(String cloudToken, Set<String> scopes) {
+public record OAuthRequestAuthentication(String cloudToken, Set<String> scopes, @Nullable String oauthClientKey) {
   public OAuthRequestAuthentication {
     scopes = Set.copyOf(scopes);
+  }
+
+  public OAuthRequestAuthentication(String cloudToken, Set<String> scopes) {
+    this(cloudToken, scopes, null);
   }
 
   @Override

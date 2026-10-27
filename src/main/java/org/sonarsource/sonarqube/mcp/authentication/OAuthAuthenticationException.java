@@ -16,12 +16,21 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import jakarta.annotation.Nullable;
+
 public final class OAuthAuthenticationException extends RuntimeException {
   private final int status;
+  @Nullable
+  private final String stage;
 
   private OAuthAuthenticationException(int status, String message) {
+    this(status, message, null);
+  }
+
+  private OAuthAuthenticationException(int status, String message, @Nullable String stage) {
     super(message);
     this.status = status;
+    this.stage = stage;
   }
 
   public static OAuthAuthenticationException unauthorized() {
@@ -38,6 +47,15 @@ public final class OAuthAuthenticationException extends RuntimeException {
 
   public static OAuthAuthenticationException invalidExchange() {
     return new OAuthAuthenticationException(502, "OAuth exchange did not return an acceptable Cloud access token");
+  }
+
+  OAuthAuthenticationException atStage(String failedStage) {
+    return stage == null ? new OAuthAuthenticationException(status, getMessage(), failedStage) : this;
+  }
+
+  @Nullable
+  String stage() {
+    return stage;
   }
 
   public int status() {
