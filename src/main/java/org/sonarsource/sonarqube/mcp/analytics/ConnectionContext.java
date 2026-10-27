@@ -17,7 +17,9 @@
 package org.sonarsource.sonarqube.mcp.analytics;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import jakarta.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 
@@ -34,6 +36,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganizatio
  * </ul>
  */
 public class ConnectionContext {
+  private static final McpLogger LOG = McpLogger.getInstance();
 
   public record Snapshot(@Nullable String organizationUuidV4, @Nullable String sqsInstallationId, @Nullable String userUuid,
     @Nullable String callingAgentName, @Nullable String callingAgentVersion) {
@@ -68,12 +71,13 @@ public class ConnectionContext {
     resolveIdentityFrom(serverApi);
   }
 
-  private synchronized void resolveIdentityFrom(ServerApi serverApi) {
+  /** Resolves identity fields independently without looking up an organization. */
+  public synchronized void resolveIdentityFrom(ServerApi serverApi) {
     if (!serverApi.isSonarQubeCloud() && sqsInstallationId == null) {
-      this.sqsInstallationId = serverApi.systemApi().getStatus().id();
+      this.sqsInstallationId = resolve(() -> serverApi.systemApi().getStatus().id());
     }
     if (userUuid == null) {
-      this.userUuid = serverApi.usersApi().getCurrentUserId();
+      this.userUuid = resolve(() -> serverApi.usersApi().getCurrentUserId());
     }
   }
 
@@ -87,9 +91,11 @@ public class ConnectionContext {
    * Reuses resolved stdio identity and captured agent information, retrying unresolved identity asynchronously.
    * Creating an invocation snapshot never changes the default organization identifiers.
    */
-  public Snapshot snapshotFor(ServerApi serverApi, Snapshot captured) {
-    var selectedOrgUuid = serverApi.isSonarQubeCloud() ? resolveOrganizationUuid(serverApi) : null;
-    resolveIdentityFrom(serverApi);
+  public Snapshot snapshotFor(@Nullable ServerApi serverApi, Snapshot captured) {
+    var selectedOrgUuid = serverApi != null && serverApi.isSonarQubeCloud() ? resolveOrganizationUuid(serverApi) : null;
+    if (serverApi != null) {
+      resolveIdentityFrom(serverApi);
+    }
     return new Snapshot(selectedOrgUuid, sqsInstallationId, userUuid, captured.callingAgentName(), captured.callingAgentVersion());
   }
 
@@ -99,7 +105,17 @@ public class ConnectionContext {
     if (orgKey == null || orgKey.isBlank()) {
       return null;
     }
-    return serverApi.resolveOrganizationUuid(ResolvedOrganization.fromKey(orgKey));
+    return resolve(() -> serverApi.resolveOrganizationUuid(ResolvedOrganization.fromKey(orgKey)));
+  }
+
+  @Nullable
+  private static String resolve(Supplier<String> lookup) {
+    try {
+      return lookup.get();
+    } catch (RuntimeException e) {
+      LOG.debug("Unable to enrich analytics identity (" + e.getClass().getSimpleName() + ")");
+      return null;
+    }
   }
 
   /**
