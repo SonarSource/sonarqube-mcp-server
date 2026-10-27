@@ -80,6 +80,16 @@ class HttpServerTransportIntegrationTest {
   }
 
   @Test
+  void should_serve_requests_after_the_startup_thread_exits() {
+    httpServer.startServer().join();
+
+    await().atMost(5, TimeUnit.SECONDS).until(() -> Thread.getAllStackTraces().keySet().stream()
+      .noneMatch(thread -> HttpServerTransportProvider.SERVER_THREAD_NAME.equals(thread.getName())));
+
+    assertThat(isServerRunning(httpServer.getServerUrl())).isTrue();
+  }
+
+  @Test
   void should_start_and_stop_http_server() {
     var startFuture = httpServer.startServer();
 
