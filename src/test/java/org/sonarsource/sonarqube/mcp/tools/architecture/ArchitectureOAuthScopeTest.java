@@ -37,6 +37,7 @@ import reactor.core.publisher.Mono;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.patch;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -48,7 +49,6 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 
 class ArchitectureOAuthScopeTest {
   @SonarQubeMcpServerTest
-  @SuppressWarnings("unchecked")
   void it_should_check_scopes_before_project_lookup_and_preserve_preview_and_apply(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     var backend = harness.getMockSonarQubeServer();
@@ -62,18 +62,7 @@ class ArchitectureOAuthScopeTest {
     var clients = new HttpClientProvider("architecture-scope-test");
     var baseUrl = backend.baseUrl();
     var api = new ServerApi(new ServerApiHelper(new EndpointParams(baseUrl, "org", baseUrl, true), clients.getHttpClient("token")), true);
-    var getTool = new ArchitectureGetTool(() -> api, true, null);
-    var setTool = new ArchitectureSetTool(() -> api, true, null);
-    var tools = List.<Tool>of(getTool, setTool);
-    var delegate = mock(McpStatelessServerHandler.class);
-    when(delegate.handleRequest(any(), any())).thenAnswer(invocation -> {
-      var request = invocation.getArgument(1, McpSchema.JSONRPCRequest.class);
-      var params = (Map<String, Object>) request.params();
-      var tool = tools.stream().filter(candidate -> candidate.definition().name().equals(params.get("name"))).findFirst().orElseThrow();
-      var result = tool.execute(new Tool.Arguments((Map<String, Object>) params.get("arguments"), null));
-      return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), result.toCallToolResult(), null));
-    });
-    var handler = new PerRequestToolFilteringHandler(delegate, tools);
+    var handler = handler(api);
     var apply = Map.<String, Object>of("target", "intended", "projectKey", "my_project", "model", next, "dryRun", false);
     try {
       var before = backend.getReceivedRequests().size();
@@ -100,6 +89,69 @@ class ArchitectureOAuthScopeTest {
     } finally {
       clients.shutdown();
     }
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_require_read_write_scopes_for_directive_preview_and_create_before_backend_calls(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    var path = ArchitectureApi.PROJECT_DIRECTIVES_PATH;
+    var input = """
+      {"type":"REMOVE_EDGE","ecosystem":"java","graphType":"namespace_graph","fromNodeKey":"app:a","toNodeKey":"app:b"}
+      """.trim();
+    var id = "00000000-0000-4000-8000-000000000001";
+    var saved = input.substring(0, input.length() - 1) + ",\"id\":\"" + id + "\",\"projectId\":\""
+      + MAIN_BRANCH_ID + "\",\"graphPerspective\":\"default_perspective\",\"origin\":\"sonarqube-mcp-server\"}";
+    backend.stubFor(get(path + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=100")
+      .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}")));
+    backend.stubFor(post(path).willReturn(okJson(saved)));
+    var clients = new HttpClientProvider("architecture-directive-scope-test");
+    var baseUrl = backend.baseUrl();
+    var api = new ServerApi(new ServerApiHelper(new EndpointParams(baseUrl, "org", baseUrl, true), clients.getHttpClient("token")), true);
+    var handler = handler(api);
+    try {
+      for (var dryRun : List.of(true, false)) {
+        var arguments = Map.<String, Object>of("target", "directives", "projectKey", "my_project", "model", "{\"create\":[" + input + "]}", "dryRun", dryRun);
+        for (var scopes : List.of(Set.of("read:all"), Set.of("write:all"))) {
+          var before = backend.getReceivedRequests().size();
+          var denied = handler.handleRequest(context(scopes), call("architecture_set", arguments)).block();
+          assertThat(denied.error()).isNotNull();
+          assertThat(denied.error().message()).contains("Insufficient OAuth scope");
+          assertThat(backend.getReceivedRequests()).hasSize(before);
+        }
+        var allowed = handler.handleRequest(context(Set.of("read:all", "write:all")), call("architecture_set", arguments)).block();
+        assertThat(allowed.error()).isNull();
+        var result = (McpSchema.CallToolResult) allowed.result();
+        assertThat(result.isError()).as(result.content().toString()).isFalse();
+        assertThat(result.content().toString()).contains(dryRun ? "dry-run" : "applied");
+        assertThat(backend.getReceivedBodies("POST", path)).hasSize(dryRun ? 0 : 1);
+      }
+      var arguments = Map.<String, Object>of("target", "directives", "projectKey", "my_project", "pageSize", 100);
+      var before = backend.getReceivedRequests().size();
+      assertThat(handler.handleRequest(context(Set.of("write:all")), call("architecture_get", arguments)).block().error()).isNotNull();
+      assertThat(backend.getReceivedRequests()).hasSize(before);
+      var read = handler.handleRequest(context(Set.of("read:all")), call("architecture_get", arguments)).block();
+      assertThat(read.error()).isNull();
+      assertThat(((McpSchema.CallToolResult) read.result()).isError()).isFalse();
+    } finally {
+      clients.shutdown();
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static PerRequestToolFilteringHandler handler(ServerApi api) {
+    var getTool = new ArchitectureGetTool(() -> api, true, null);
+    var setTool = new ArchitectureSetTool(() -> api, true, null);
+    var tools = List.<Tool>of(getTool, setTool);
+    var delegate = mock(McpStatelessServerHandler.class);
+    when(delegate.handleRequest(any(), any())).thenAnswer(invocation -> {
+      var request = invocation.getArgument(1, McpSchema.JSONRPCRequest.class);
+      var params = (Map<String, Object>) request.params();
+      var tool = tools.stream().filter(candidate -> candidate.definition().name().equals(params.get("name"))).findFirst().orElseThrow();
+      var result = tool.execute(new Tool.Arguments((Map<String, Object>) params.get("arguments"), null));
+      return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), result.toCallToolResult(), null));
+    });
+    return new PerRequestToolFilteringHandler(delegate, tools);
   }
 
   private static McpTransportContext context(Set<String> scopes) {
