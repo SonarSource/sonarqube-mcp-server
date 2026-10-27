@@ -137,7 +137,10 @@ tasks.test {
 tasks.register<Test>("integrationTest") {
     description = "Runs integration tests for proxied MCP servers using Testcontainers"
     group = "verification"
+    doNotTrackState("Integration tests depend on live staging services")
 
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform()
 
     val downloadedJarPath = System.getenv("DOWNLOADED_JAR_PATH")
