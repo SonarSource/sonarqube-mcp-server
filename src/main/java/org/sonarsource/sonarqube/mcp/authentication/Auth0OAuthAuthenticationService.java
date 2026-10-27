@@ -97,8 +97,8 @@ public final class Auth0OAuthAuthenticationService {
     var started = System.nanoTime();
     String clientKey = null;
     var stage = "mcp_token_verification";
-    String failureCategory = null;
-    String outcome = "success";
+    String failureCategory = "unexpected_error";
+    String outcome = "service_failure";
     try {
       var source = verifier.verifyMcp(token);
       stage = "delegation_validation";
@@ -109,6 +109,8 @@ public final class Auth0OAuthAuthenticationService {
       var authentication = cachedOrExchange(fingerprint(token), token, source, scopes).authentication();
       stage = CLOUD_TOKEN_VALIDATION;
       verifier.verifyCloud(authentication.cloudToken());
+      outcome = "success";
+      failureCategory = null;
       return authentication;
     } catch (OAuthAuthenticationException e) {
       if (e.stage() != null) {
@@ -121,10 +123,6 @@ public final class Auth0OAuthAuthenticationService {
         case 503 -> "unavailable";
         default -> "invalid_exchange";
       };
-      throw e;
-    } catch (RuntimeException e) {
-      outcome = "service_failure";
-      failureCategory = "unexpected_error";
       throw e;
     } finally {
       var observer = authenticationObserver;

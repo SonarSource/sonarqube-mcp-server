@@ -142,6 +142,9 @@ tasks.register<Test>("integrationTest") {
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform()
+    systemProperty("TELEMETRY_DISABLED", "true")
+    systemProperty("sonarqube.mcp.analytics.endpoint", "http://127.0.0.1:1/mcp")
+    systemProperty("sonarqube.mcp.analytics.api.key", "test-api-key")
 
     val downloadedJarPath = System.getenv("DOWNLOADED_JAR_PATH")
     if (downloadedJarPath.isNullOrEmpty()) {

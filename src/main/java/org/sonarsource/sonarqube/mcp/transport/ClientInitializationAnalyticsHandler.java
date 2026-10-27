@@ -47,18 +47,22 @@ final class ClientInitializationAnalyticsHandler implements McpStatelessServerHa
     }
     return response.doOnNext(result -> {
       if (result.error() == null && result.result() != null) {
-        try {
-          var attribution = (HttpAnalyticsContext) context.get(HttpAnalyticsContext.CONTEXT_KEY);
-          var client = McpJsonMappers.DEFAULT.convertValue(request.params(), McpSchema.InitializeRequest.class).clientInfo();
-          if (attribution != null) {
-            analytics.notifyClientInitialized(attribution, client == null ? null : client.name(), client == null ? null : client.version(),
-              System.currentTimeMillis(), () -> apiFactory.apply(context));
-          }
-        } catch (RuntimeException e) {
-          LOG.debug("Unable to report MCP initialization (" + e.getClass().getSimpleName() + ")");
-        }
+        reportInitialization(context, request);
       }
     });
+  }
+
+  private void reportInitialization(McpTransportContext context, McpSchema.JSONRPCRequest request) {
+    try {
+      var attribution = (HttpAnalyticsContext) context.get(HttpAnalyticsContext.CONTEXT_KEY);
+      var client = McpJsonMappers.DEFAULT.convertValue(request.params(), McpSchema.InitializeRequest.class).clientInfo();
+      if (attribution != null) {
+        analytics.notifyClientInitialized(attribution, client == null ? null : client.name(), client == null ? null : client.version(),
+          System.currentTimeMillis(), () -> apiFactory.apply(context));
+      }
+    } catch (RuntimeException e) {
+      LOG.debug("Unable to report MCP initialization (" + e.getClass().getSimpleName() + ")");
+    }
   }
 
   @Override

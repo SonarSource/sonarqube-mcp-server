@@ -595,15 +595,7 @@ class OAuthHttpTransportTest {
       assertThat(payload.has("user_uuid")).isFalse();
     });
     var key = initialized.getFirst().get("oauth_client_key").getAsString();
-    var tools = events.stream().filter(e -> e.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpToolInvoked")).toList();
-    assertThat(tools).singleElement().satisfies(event -> {
-      assertThat(event.getAsJsonObject("metadata").get("event_version").getAsString()).isEqualTo("2");
-      var payload = event.getAsJsonObject("event_payload");
-      assertThat(payload.has("oauth_client_key")).isFalse();
-      assertThat(payload.has("authentication_method")).isFalse();
-      assertThat(payload.get("is_successful").getAsBoolean()).isTrue();
-      assertThat(payload.has("user_uuid")).isFalse();
-    });
+    assertUnchangedToolEventWithoutIdentity(events);
     var authentication = events.stream().filter(e -> e.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpOAuthAuthenticationCompleted"))
       .map(e -> e.getAsJsonObject("event_payload")).toList();
     assertThat(authentication).hasSize(4);
@@ -616,6 +608,18 @@ class OAuthHttpTransportTest {
     assertThat(events).allSatisfy(event -> assertThat(event.toString()).doesNotContain(grant.source(), grant.cloud(), "test-secret", "oauth2|github"));
     assertThat(events.stream().map(e -> e.getAsJsonObject("event_payload").get("mcp_server_id").getAsString()).distinct()).hasSize(1);
     cloud.verify(1, postRequestedFor(urlEqualTo("/oauth/token")));
+  }
+
+  private static void assertUnchangedToolEventWithoutIdentity(List<JsonObject> events) {
+    var tools = events.stream().filter(e -> e.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpToolInvoked")).toList();
+    assertThat(tools).singleElement().satisfies(event -> {
+      assertThat(event.getAsJsonObject("metadata").get("event_version").getAsString()).isEqualTo("2");
+      var payload = event.getAsJsonObject("event_payload");
+      assertThat(payload.has("oauth_client_key")).isFalse();
+      assertThat(payload.has("authentication_method")).isFalse();
+      assertThat(payload.get("is_successful").getAsBoolean()).isTrue();
+      assertThat(payload.has("user_uuid")).isFalse();
+    });
   }
 
   @Test
@@ -708,6 +712,23 @@ class OAuthHttpTransportTest {
     assertThat(payload.has("oauth_client_key")).isFalse();
     cloud.verify(0, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)));
     assertThat(auth0.getAllServeEvents()).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {400, 503})
+  void it_should_preserve_http_responses_when_the_local_telemetry_collector_fails(int status) throws Exception {
+    cloud.stubFor(post("/gessie").willReturn(aResponse().withStatus(status)));
+    startWithProductionAuthentication(true);
+    var grant = productionGrant(sign(currentToken(oauth.resource()).withClaim("scope", "mcp:tools:read")));
+    stubOrganization(grant, "org");
+
+    assertSuccess(send(request(grant.source(), "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+      "clientInfo", Map.of("name", "client", "version", "1"))).build()), "serverInfo");
+    assertSuccess(send(call(grant, "list_organizations", Map.of())), "org");
+    assertThat(send(request("eyJ.invalid.token", "ping", Map.of()).build()).statusCode()).isEqualTo(401);
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents().stream()
+      .map(event -> event.getAsJsonObject("metadata").get("event_type").getAsString()).distinct())
+      .containsExactlyInAnyOrder("Analytics.Mcp.McpClientInitialized", "Analytics.Mcp.McpToolInvoked", "Analytics.Mcp.McpOAuthAuthenticationCompleted"));
   }
 
   @Test
