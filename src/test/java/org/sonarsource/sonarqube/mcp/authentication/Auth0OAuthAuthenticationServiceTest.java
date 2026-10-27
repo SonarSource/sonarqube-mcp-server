@@ -22,6 +22,7 @@ import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
+import com.google.common.util.concurrent.ExecutionError;
 import com.google.gson.Gson;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -48,6 +50,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.analytics.OAuthAuthenticationResult;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.LogCapture;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.MutableClock;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
@@ -58,12 +61,14 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.KEY;
+import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.OTHER_KEY;
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.keyValues;
 
 class Auth0OAuthAuthenticationServiceTest {
@@ -80,6 +85,7 @@ class Auth0OAuthAuthenticationServiceTest {
   private Auth0TokenExchange exchange;
   private Auth0OAuthAuthenticationService service;
   private MutableClock clock;
+  private final List<OAuthAuthenticationResult> authenticationEvents = new CopyOnWriteArrayList<>();
 
   @BeforeEach
   void setUp() {
@@ -90,7 +96,7 @@ class Auth0OAuthAuthenticationServiceTest {
     clock = new MutableClock();
     verifier = spy(new Auth0TokenVerifier(configuration, keyProvider, clock));
     exchange = mock(Auth0TokenExchange.class);
-    service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock);
+    service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock, authenticationEvents::add);
   }
 
   @Test
@@ -408,7 +414,7 @@ class Auth0OAuthAuthenticationServiceTest {
   @Test
   void it_should_bound_cache_and_allow_disabling_it() {
     configuration = config(Duration.ofSeconds(30), 1);
-    service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock);
+    service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock, authenticationEvents::add);
     when(exchange.exchange(anyString(), any())).thenReturn(downstream().withClaim("scope", "read:all").sign(algorithm));
     var first = source().withClaim("scope", "mcp:tools:read").withJWTId("first").sign(algorithm);
     var second = source().withClaim("scope", "mcp:tools:read").withJWTId("second").sign(algorithm);
@@ -495,6 +501,7 @@ class Auth0OAuthAuthenticationServiceTest {
       }
     }
     verify(exchange).exchange(source, Set.of("read:all"));
+    assertThat(authenticationEvents).hasSize(16).allSatisfy(event -> assertThat(event.outcome()).isEqualTo("success"));
   }
 
   @Test
@@ -647,6 +654,8 @@ class Auth0OAuthAuthenticationServiceTest {
 
     assertStatus(source, 502);
     verify(exchange).exchange(source, Set.of("read:all"));
+    assertThat(authenticationEvents.getLast().failureStage()).isEqualTo("cloud_token_validation");
+    assertThat(authenticationEvents.getLast().failureCategory()).isEqualTo("invalid_exchange");
   }
 
   @Test
@@ -659,6 +668,199 @@ class Auth0OAuthAuthenticationServiceTest {
     assertThat(grantedScopes).containsExactly("read:all");
     assertThatThrownBy(() -> grantedScopes.add("write:all")).isInstanceOf(UnsupportedOperationException.class);
     assertThat(authentication).hasToString("OAuthRequestAuthentication[cloudToken=redacted, scopes=[read:all]]");
+  }
+
+  @Test
+  void it_should_report_success_for_every_caller_including_cache_hits_and_token_refresh() {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var refreshed = source().withClaim("scope", "mcp:tools:read").withJWTId("refresh").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(anyString(), any())).thenReturn(cloud);
+    var key = service.authenticate(source).oauthClientKey();
+    assertThat(service.authenticate(source).oauthClientKey()).isEqualTo(key);
+    assertThat(service.authenticate(refreshed).oauthClientKey()).isEqualTo(key);
+
+    assertThat(key).isEqualTo("57f0fa332af955229dcc63705e8bee9c0e699bc3a6e53f7bee6931743480a458");
+    assertThat(authenticationEvents).hasSize(3).allSatisfy(event -> {
+      assertThat(event.outcome()).isEqualTo("success");
+      assertThat(event.failureStage()).isNull();
+      assertThat(event.failureCategory()).isNull();
+      assertThat(event.oauthClientKey()).isEqualTo(key);
+      assertThat(event.timestamp()).isEqualTo(clock.millis());
+      assertThat(event.durationMs()).isNotNegative();
+      assertThat(event.toString()).doesNotContain(source, cloud, USER, CLIENT);
+    });
+    verify(exchange, times(2)).exchange(anyString(), any());
+  }
+
+  @Test
+  void it_should_correlate_applications_across_replicas_and_users_but_separate_clients_and_issuers() {
+    var keys = mock(RSAKeyProvider.class);
+    when(keys.getPublicKeyById("test-key")).thenReturn((RSAPublicKey) KEY.getPublic());
+    var otherIssuer = "https://another-issuer.example.com/";
+    var otherConfiguration = new OAuthConfiguration(otherIssuer, RESOURCE, CLOUD, BACKEND, "test-client-secret", Duration.ofSeconds(60), 256);
+    var otherVerifier = new Auth0TokenVerifier(otherConfiguration, keys, clock);
+    var replica = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock, authenticationEvents::add);
+    var otherService = new Auth0OAuthAuthenticationService(otherConfiguration, otherVerifier, exchange, clock, authenticationEvents::add);
+    // Verified tokens without delegation are rejected before exchange but still identify the application.
+    var token = source().sign(algorithm);
+    assertStatus(token, 403);
+    assertThatThrownBy(() -> replica.authenticate(token)).isInstanceOf(OAuthAuthenticationException.class);
+    assertStatus(source().withSubject("samlp|enterprise|another-user").sign(algorithm), 403);
+    assertStatus(source().withClaim("azp", "other-client").sign(algorithm), 403);
+    var otherSource = source().withIssuer(otherIssuer).sign(algorithm);
+    assertThatThrownBy(() -> otherService.authenticate(otherSource)).isInstanceOf(OAuthAuthenticationException.class);
+
+    var clientKeys = authenticationEvents.stream().map(OAuthAuthenticationResult::oauthClientKey).toList();
+    assertThat(clientKeys.subList(0, 3)).containsOnly(clientKeys.getFirst());
+    assertThat(clientKeys.get(3)).isNotNull().isNotEqualTo(clientKeys.getFirst());
+    assertThat(clientKeys.get(4)).isNotNull().isNotEqualTo(clientKeys.getFirst()).isNotEqualTo(clientKeys.get(3));
+  }
+
+  @Test
+  void it_should_not_change_validation_order_when_analytics_cannot_read_the_client_claim() {
+    var source = source().withSubject(null).withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var decoded = spy(JWT.decode(source));
+    doReturn(decoded).when(verifier).verifyMcp(source);
+    doThrow(new JWTDecodeException("private-client-claim")).when(decoded).getClaim("azp");
+
+    assertStatus(source, 401);
+
+    assertThat(authenticationEvents).singleElement().satisfies(event -> {
+      assertThat(event.failureCategory()).isEqualTo("invalid_token");
+      assertThat(event.oauthClientKey()).isNull();
+      assertThat(event.toString()).doesNotContain("private-client-claim");
+    });
+  }
+
+  @Test
+  void it_should_not_attribute_a_forged_authorized_party_before_signature_verification() {
+    var otherAlgorithm = Algorithm.RSA256((RSAPublicKey) OTHER_KEY.getPublic(), (RSAPrivateKey) OTHER_KEY.getPrivate());
+    var token = source().withClaim("azp", "forged-client").withClaim("scope", "mcp:tools:read").sign(otherAlgorithm);
+    assertStatus(token, 401);
+    assertThat(authenticationEvents).singleElement().satisfies(event -> {
+      assertThat(event.oauthClientKey()).isNull();
+      assertThat(event.failureStage()).isEqualTo("mcp_token_verification");
+      assertThat(event.toString()).doesNotContain("forged-client", token);
+    });
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "invalid_token,mcp_token_verification,invalid_token,rejected,401,false",
+    "signing_keys_unavailable,mcp_token_verification,unavailable,service_failure,503,false",
+    "no_delegation,delegation_validation,insufficient_scope,rejected,403,true",
+    "invalid_delegation,delegation_validation,invalid_token,rejected,401,true",
+    "exchange_rejected,token_exchange,invalid_token,rejected,401,true",
+    "exchange_unavailable,token_exchange,unavailable,service_failure,503,true",
+    "exchange_invalid,token_exchange,invalid_exchange,service_failure,502,true",
+    "cloud_invalid,cloud_token_validation,invalid_exchange,service_failure,502,true",
+    "cloud_keys_unavailable,cloud_token_validation,unavailable,service_failure,503,true",
+    "unexpected,mcp_token_verification,unexpected_error,service_failure,0,false"})
+  void it_should_report_sanitized_failures_without_changing_authentication(String scenario, String stage, String category, String outcome,
+    int status, boolean trustedClient) {
+    var builder = source().withClaim("scope", "mcp:tools:read");
+    if (scenario.equals("no_delegation")) {
+      builder.withClaim("scope", "offline_access");
+    } else if (scenario.equals("invalid_delegation")) {
+      builder.withClaim("org_id", "private-org");
+    }
+    var source = scenario.equals("invalid_token") ? "not-a-token" : builder.sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(anyString(), any())).thenReturn(cloud);
+    switch (scenario) {
+      case "signing_keys_unavailable" -> doThrow(OAuthAuthenticationException.unavailable()).when(verifier).verifyMcp(source);
+      case "exchange_rejected" -> when(exchange.exchange(anyString(), any())).thenThrow(OAuthAuthenticationException.unauthorized());
+      case "exchange_unavailable" -> when(exchange.exchange(anyString(), any())).thenThrow(OAuthAuthenticationException.unavailable());
+      case "exchange_invalid" -> when(exchange.exchange(anyString(), any())).thenThrow(OAuthAuthenticationException.invalidExchange());
+      case "cloud_invalid" -> doThrow(OAuthAuthenticationException.invalidExchange()).when(verifier).verifyCloud(cloud);
+      case "cloud_keys_unavailable" -> doThrow(OAuthAuthenticationException.unavailable()).when(verifier).verifyCloud(cloud);
+      case "unexpected" -> doThrow(new IllegalStateException("private-error-body")).when(verifier).verifyMcp(source);
+      default -> {
+        // These scenarios are represented by the token claims above.
+      }
+    }
+    if (status == 0) {
+      assertThatThrownBy(() -> service.authenticate(source)).isInstanceOf(IllegalStateException.class).hasMessage("private-error-body");
+    } else {
+      assertStatus(source, status);
+    }
+    assertThat(authenticationEvents).singleElement().satisfies(event -> {
+      assertThat(event.outcome()).isEqualTo(outcome);
+      assertThat(event.failureStage()).isEqualTo(stage);
+      assertThat(event.failureCategory()).isEqualTo(category);
+      assertThat(event.oauthClientKey() != null).isEqualTo(trustedClient);
+      assertThat(event.toString()).doesNotContain("private-error-body", source, cloud, USER);
+    });
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"mcp_token_verification", "token_exchange", "cloud_token_validation"})
+  void it_should_report_service_failure_and_propagate_errors(String stage) {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    var failure = new AssertionError("private-error-body");
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+    switch (stage) {
+      case "mcp_token_verification" -> doThrow(failure).when(verifier).verifyMcp(source);
+      case "token_exchange" -> when(exchange.exchange(source, Set.of("read:all"))).thenThrow(failure);
+      case "cloud_token_validation" -> doReturn(JWT.decode(cloud)).doThrow(failure).when(verifier).verifyCloud(cloud);
+      default -> throw new IllegalArgumentException(stage);
+    }
+
+    if (stage.equals("token_exchange")) {
+      assertThatThrownBy(() -> service.authenticate(source)).isInstanceOf(ExecutionError.class).hasCause(failure);
+    } else {
+      assertThatThrownBy(() -> service.authenticate(source)).isSameAs(failure);
+    }
+    assertThat(authenticationEvents).singleElement().satisfies(event -> {
+      assertThat(event.outcome()).isEqualTo("service_failure");
+      assertThat(event.failureStage()).isEqualTo(stage);
+      assertThat(event.failureCategory()).isEqualTo("unexpected_error");
+      assertThat(event.toString()).doesNotContain("private-error-body", source, cloud, USER);
+    });
+  }
+
+  @Test
+  void it_should_not_change_authentication_when_the_observer_fails() {
+    service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock, event -> { throw new IllegalStateException("stopped"); });
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+    assertThat(service.authenticate(source).cloudToken()).isEqualTo(cloud);
+    assertStatus("invalid-token", 401);
+  }
+
+  @Test
+  void it_should_preserve_cloud_validation_stage_for_shared_failures() throws Exception {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    var entered = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    var failure = OAuthAuthenticationException.invalidExchange();
+    when(exchange.exchange(source, Set.of("read:all"))).thenAnswer(invocation -> {
+      entered.countDown();
+      assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+      return cloud;
+    });
+    doThrow(failure).when(verifier).verifyCloud(cloud);
+    try (var pool = Executors.newFixedThreadPool(4)) {
+      var calls = IntStream.range(0, 4).mapToObj(i -> pool.submit(() -> assertStatus(source, 502))).toList();
+      try {
+        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> verify(verifier, times(4)).verifyMcp(source));
+      } finally {
+        release.countDown();
+      }
+      for (var call : calls) {
+        call.get(5, TimeUnit.SECONDS);
+      }
+    }
+    assertThat(authenticationEvents).hasSize(4).allSatisfy(event -> {
+      assertThat(event.failureStage()).isEqualTo("cloud_token_validation");
+      assertThat(event.failureCategory()).isEqualTo("invalid_exchange");
+    });
+    assertThat(failure.stage()).isNull();
   }
 
   private OAuthConfiguration config(Duration ttl, int size) {

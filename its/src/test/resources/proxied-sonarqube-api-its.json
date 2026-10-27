@@ -1,0 +1,110 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/organizations/organizations"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": [
+          {
+            "id": "integration-test-org",
+            "key": "integration-test-org",
+            "uuidV4": "00000000-0000-0000-0000-000000000001"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/cag/cag-entitlement/00000000-0000-0000-0000-000000000001"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "hasEntitlement": true,
+          "allowed": true,
+          "featureKey": "contextAugmentation"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/a3s-analysis/org-config/00000000-0000-0000-0000-000000000001"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "enabled": true,
+          "eligible": true
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/api/server/version"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/plain"
+        },
+        "body": "8.0.0.12345"
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/api/components/search_projects"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "components": [],
+          "paging": {
+            "pageIndex": 1,
+            "pageSize": 100,
+            "total": 0
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/projects/search"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "projects": [],
+          "page": {
+            "pageIndex": 1,
+            "pageSize": 100,
+            "total": 0
+          }
+        }
+      }
+    }
+  ]
+}

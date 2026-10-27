@@ -39,17 +39,18 @@ class StdioTransportITest {
   }
 
   @Test
-  void should_start_server_and_skip_downloading_analyzers() {
+  void should_skip_downloading_analyzers_when_analysis_is_disabled() {
     assertThat(stdioServerContainer.isRunning()).isTrue();
 
     await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(stdioServerContainer.getLogs())
       .contains("Transport: stdio", "SonarQube MCP Server Started:")
-      .contains("Advanced analysis mode enabled")
-      .contains("Local analysis tool is not present - skipping analyzers download"));
+      .contains("Local analysis tool is not enabled - skipping analyzers download")
+      .doesNotContain("Downloading analyzers in background"));
   }
 
   private static GenericContainer<?> createStdioServerContainer() {
     return McpServerTestContainers.builder()
+      .withEnv("SONARQUBE_TOOLSETS", "projects")
       .withLogPrefix("STDIO-Container")
       .build();
   }
