@@ -58,13 +58,13 @@ class ProxiedServerITest {
       .contains("Successfully loaded 1 proxied MCP server(s)")
       .contains("Initializing 1 proxied MCP server(s)")
       .contains("Connecting to 'caas'")
-      .containsPattern("Connected to 'caas' - discovered [1-9][0-9]* tool\\(s\\)")
+      .containsPattern("Connected to 'caas' - discovered 10 tool\\(s\\)")
       .contains("MCP client manager initialization completed. 1/1 server(s) connected")
-      .containsPattern("Loaded [1-9][0-9]* proxied tool\\(s\\) from 1/1 server\\(s\\)")
+      .containsPattern("Loaded 10 proxied tool\\(s\\) from 1/1 server\\(s\\)")
       .contains("Forwarded instructions from 1 proxied server(s)")
       .contains("Proxied instructions: ")
       .contains("## Context Augmentation")
-      .containsPattern("All tools loaded: [1-9][0-9]* tools after category filtering");
+      .contains("All tools loaded: 34 tools after category filtering");
   }
 
   @Test
