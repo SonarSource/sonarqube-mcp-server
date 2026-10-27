@@ -381,7 +381,7 @@ class OAuthHttpTransportTest {
     if (external) {
       environment.put("SONARQUBE_OAUTH_METADATA_URL", EXTERNAL_METADATA);
     }
-    try (var logs = new LogCapture(false)) {
+    try (var logs = LogCapture.allThreads(false)) {
       startProductionServer();
       server.waitForInitialization();
       logs.assertContains("Transport: HTTP (" + endpoint + ")");
