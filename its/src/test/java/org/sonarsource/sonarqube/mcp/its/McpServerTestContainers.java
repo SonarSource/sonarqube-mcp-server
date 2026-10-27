@@ -30,6 +30,7 @@ class McpServerTestContainers {
 
   private static final String BASE_IMAGE = "eclipse-temurin:21-jre-alpine";
   private static final String JAR_PATH_PROPERTY = "sonarqube.mcp.jar.path";
+  private static final String TOKEN_ENV_VAR = "SONARCLOUD_IT_TOKEN";
   private static final Duration DEFAULT_STARTUP_TIMEOUT = Duration.ofMinutes(4);
 
   private McpServerTestContainers() {
@@ -48,6 +49,14 @@ class McpServerTestContainers {
     return jarPath;
   }
 
+  static String getSonarCloudToken() {
+    var token = System.getenv(TOKEN_ENV_VAR);
+    if (token == null || token.isEmpty()) {
+      throw new IllegalStateException(TOKEN_ENV_VAR + " must be set");
+    }
+    return token;
+  }
+
   static class ContainerBuilder {
     private static final String MCP_WORKSPACE_PATH = "/app/mcp-workspace";
 
@@ -63,10 +72,10 @@ class McpServerTestContainers {
 
     private ContainerBuilder() {
       envVars.put("STORAGE_PATH", "/app/storage");
-      envVars.put("SONARQUBE_TOKEN", "unused-integration-test-token");
-      envVars.put("SONARQUBE_ORG", "integration-test-org");
-      envVars.put("SONARQUBE_URL", "http://127.0.0.1:1");
-      envVars.put("SONARQUBE_CLOUD_API_URL", "http://127.0.0.1:1");
+      envVars.put("SONARQUBE_TOKEN", getSonarCloudToken());
+      envVars.put("SONARQUBE_ORG", "sonarlint-it");
+      envVars.put("SONARQUBE_URL", "https://sc-staging.io");
+      envVars.put("SONARQUBE_CLOUD_API_URL", "https://api.sc-staging.io");
       envVars.put("SONARQUBE_IS_CLOUD", "true");
       envVars.put("TELEMETRY_DISABLED", "true");
     }

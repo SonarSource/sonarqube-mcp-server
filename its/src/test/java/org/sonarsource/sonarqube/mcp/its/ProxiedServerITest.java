@@ -19,11 +19,8 @@ package org.sonarsource.sonarqube.mcp.its;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.Network;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.MountableFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -35,7 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - Has correct permissions
  * - Can execute in the target environment (Alpine Linux)
  * - Is gracefully skipped when missing (no hang, clear error log)
- * - Discovers tools against a local API fixture with Vortex entitlements enabled
+ * - Discovers tools from staging org {@code sonarlint-it}, which must have
+ *   Vortex (CAG and A3S) enabled
  * <p>
  * The sonar-context-augmentation binary is downloaded automatically by the
  * {@code downloadCagBinary} Gradle task before tests run.
@@ -44,16 +42,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProxiedServerITest {
 
   private static final String BINARY_PATH = "binaries/sonar-context-augmentation";
-
-  private static final Network network = Network.newNetwork();
-
-  @Container
-  private static final GenericContainer<?> sonarQubeContainer = new GenericContainer<>("wiremock/wiremock:3.13.2")
-    .withNetwork(network)
-    .withNetworkAliases("sonarqube", "api.sonarqube")
-    .withExposedPorts(8080)
-    .waitingFor(Wait.forHttp("/__admin/mappings").forPort(8080))
-    .withCopyFileToContainer(MountableFile.forClasspathResource("proxied-sonarqube-api-its.json"), "/home/wiremock/mappings/sonarqube.json");
 
   @Container
   private static final GenericContainer<?> stdioServerContainer = createStdioServerContainer();
@@ -74,9 +62,9 @@ class ProxiedServerITest {
       .contains("MCP client manager initialization completed. 1/1 server(s) connected")
       .containsPattern("Loaded [1-9][0-9]* proxied tool\\(s\\) from 1/1 server\\(s\\)")
       .contains("Forwarded instructions from 1 proxied server(s)")
-      .contains("Proxied instructions: ## Context Augmentation")
-      .contains("Advanced analysis tool registered")
-      .contains("Local analysis tool is not enabled - skipping analyzers download");
+      .contains("Proxied instructions: ")
+      .contains("## Context Augmentation")
+      .containsPattern("All tools loaded: [1-9][0-9]* tools after category filtering");
   }
 
   @Test
@@ -90,35 +78,22 @@ class ProxiedServerITest {
   }
 
   private static GenericContainer<?> createStdioServerContainer() {
-    return localServerBuilder()
+    return McpServerTestContainers.builder()
       .withProxiedServersConfig("proxied-mcp-servers-its.json")
       .withCopyFileToContainer(BINARY_PATH, "/app/binaries/sonar-context-augmentation", 0755)
       .withWorkspaceMount()
       .withEnv("SONARQUBE_DEBUG_ENABLED", "true")
-      .withWaitLogMessage(".*Local analysis tool is not enabled - skipping analyzers download.*")
       .withStartupTimeout(Duration.ofMinutes(3))
       .withLogPrefix("STDIO-Container")
-      .build()
-      .withNetwork(network)
-      .dependsOn(sonarQubeContainer);
+      .build();
   }
 
   private static GenericContainer<?> createMissingBinaryContainer() {
-    return localServerBuilder()
+    return McpServerTestContainers.builder()
       .withProxiedServersConfig("proxied-mcp-servers-missing-binary-its.json")
-      .withWorkspaceMount()
       .withStartupTimeout(Duration.ofMinutes(3))
       .withLogPrefix("MISSING-BINARY-Container")
-      .build()
-      .withNetwork(network)
-      .dependsOn(sonarQubeContainer);
-  }
-
-  private static McpServerTestContainers.ContainerBuilder localServerBuilder() {
-    return McpServerTestContainers.builder()
-      .withEnv("SONARQUBE_URL", "http://sonarqube:8080")
-      .withEnv("SONARQUBE_CLOUD_API_URL", "http://sonarqube:8080")
-      .withEnv("SONARQUBE_TOOLSETS", "vortex");
+      .build();
   }
 
 }
