@@ -41,6 +41,7 @@ import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentExce
 
 public class ToolExecutor {
   private static final McpLogger LOG = McpLogger.getInstance();
+  private static final String TOOL_ANALYTICS_ENRICHMENT_FAILURE = "Unable to enrich tool analytics (";
   private record InvocationMetrics(String invocationId, long durationMs, boolean successful, @Nullable String errorType, long responseSizeBytes,
     long invocationTimestamp, List<String> matchingToolsets) {}
   private final BackendService backendService;
@@ -146,7 +147,7 @@ public class ToolExecutor {
         var api = apiSupplier.get();
         serverApi = organization == null ? api : api.withOrganization(organization);
       } catch (Exception e) {
-        LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
+        LOG.debug(TOOL_ANALYTICS_ENRICHMENT_FAILURE + e.getClass().getSimpleName() + ")");
         service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> fallbackSnapshot(captured), metrics));
         return;
       }
@@ -167,7 +168,7 @@ public class ToolExecutor {
     try {
       return context.snapshotFor(serverApi, captured);
     } catch (RuntimeException e) {
-      LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
+      LOG.debug(TOOL_ANALYTICS_ENRICHMENT_FAILURE + e.getClass().getSimpleName() + ")");
       return fallbackSnapshot(captured);
     }
   }
@@ -178,7 +179,7 @@ public class ToolExecutor {
       try {
         ctx.resolveFrom(serverApi);
       } catch (RuntimeException e) {
-        LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
+        LOG.debug(TOOL_ANALYTICS_ENRICHMENT_FAILURE + e.getClass().getSimpleName() + ")");
       }
     }
     return ctx.snapshot();
@@ -186,13 +187,7 @@ public class ToolExecutor {
 
   private static void dispatchAnalyticsEvent(AnalyticsService service, String toolName, Supplier<ConnectionContext.Snapshot> ctxSupplier, InvocationMetrics metrics) {
     try {
-      ConnectionContext.Snapshot ctx;
-      try {
-        ctx = ctxSupplier.get();
-      } catch (RuntimeException e) {
-        ctx = ConnectionContext.empty().snapshot();
-        LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
-      }
+      var ctx = resolveAnalyticsSnapshot(ctxSupplier);
       service.notifyToolInvoked(new ToolInvocationResult(
         metrics.invocationId(), toolName,
         ctx.organizationUuidV4(), ctx.sqsInstallationId(), ctx.userUuid(),
@@ -202,6 +197,15 @@ public class ToolExecutor {
       ));
     } catch (Exception e) {
       LOG.debug("Unable to send tool analytics (" + e.getClass().getSimpleName() + ")");
+    }
+  }
+
+  private static ConnectionContext.Snapshot resolveAnalyticsSnapshot(Supplier<ConnectionContext.Snapshot> supplier) {
+    try {
+      return supplier.get();
+    } catch (RuntimeException e) {
+      LOG.debug(TOOL_ANALYTICS_ENRICHMENT_FAILURE + e.getClass().getSimpleName() + ")");
+      return ConnectionContext.empty().snapshot();
     }
   }
 

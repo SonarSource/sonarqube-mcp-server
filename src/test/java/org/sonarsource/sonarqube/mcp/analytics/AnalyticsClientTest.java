@@ -272,7 +272,7 @@ class AnalyticsClientTest {
   @Test
   void it_should_silently_swallow_errors_when_server_is_unreachable() {
     var httpClient = httpClientProvider.getHttpClientForAnalytics("key");
-    System.setProperty(AnalyticsClient.PROPERTY_ANALYTICS_ENDPOINT, "http://192.0.2.1:9999/mcp");
+    System.setProperty(AnalyticsClient.PROPERTY_ANALYTICS_ENDPOINT, "http://127.0.0.1:1/mcp");
     var unreachableClient = new AnalyticsClient(httpClient);
 
     var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());

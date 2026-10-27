@@ -22,6 +22,7 @@ import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
+import com.google.common.util.concurrent.ExecutionError;
 import com.google.gson.Gson;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -707,8 +708,8 @@ class Auth0OAuthAuthenticationServiceTest {
     assertThatThrownBy(() -> replica.authenticate(token)).isInstanceOf(OAuthAuthenticationException.class);
     assertStatus(source().withSubject("samlp|enterprise|another-user").sign(algorithm), 403);
     assertStatus(source().withClaim("azp", "other-client").sign(algorithm), 403);
-    assertThatThrownBy(() -> otherService.authenticate(source().withIssuer(otherIssuer).sign(algorithm)))
-      .isInstanceOf(OAuthAuthenticationException.class);
+    var otherSource = source().withIssuer(otherIssuer).sign(algorithm);
+    assertThatThrownBy(() -> otherService.authenticate(otherSource)).isInstanceOf(OAuthAuthenticationException.class);
 
     var clientKeys = authenticationEvents.stream().map(OAuthAuthenticationResult::oauthClientKey).toList();
     assertThat(clientKeys.subList(0, 3)).containsOnly(clientKeys.getFirst());
@@ -775,7 +776,9 @@ class Auth0OAuthAuthenticationServiceTest {
       case "cloud_invalid" -> doThrow(OAuthAuthenticationException.invalidExchange()).when(verifier).verifyCloud(cloud);
       case "cloud_keys_unavailable" -> doThrow(OAuthAuthenticationException.unavailable()).when(verifier).verifyCloud(cloud);
       case "unexpected" -> doThrow(new IllegalStateException("private-error-body")).when(verifier).verifyMcp(source);
-      default -> { }
+      default -> {
+        // These scenarios are represented by the token claims above.
+      }
     }
     if (status == 0) {
       assertThatThrownBy(() -> service.authenticate(source)).isInstanceOf(IllegalStateException.class).hasMessage("private-error-body");
@@ -787,6 +790,33 @@ class Auth0OAuthAuthenticationServiceTest {
       assertThat(event.failureStage()).isEqualTo(stage);
       assertThat(event.failureCategory()).isEqualTo(category);
       assertThat(event.oauthClientKey() != null).isEqualTo(trustedClient);
+      assertThat(event.toString()).doesNotContain("private-error-body", source, cloud, USER);
+    });
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"mcp_token_verification", "token_exchange", "cloud_token_validation"})
+  void it_should_report_service_failure_and_propagate_errors(String stage) {
+    var source = source().withClaim("scope", "mcp:tools:read").sign(algorithm);
+    var cloud = downstream().withClaim("scope", "read:all").sign(algorithm);
+    var failure = new AssertionError("private-error-body");
+    when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
+    switch (stage) {
+      case "mcp_token_verification" -> doThrow(failure).when(verifier).verifyMcp(source);
+      case "token_exchange" -> when(exchange.exchange(source, Set.of("read:all"))).thenThrow(failure);
+      case "cloud_token_validation" -> doReturn(JWT.decode(cloud)).doThrow(failure).when(verifier).verifyCloud(cloud);
+      default -> throw new IllegalArgumentException(stage);
+    }
+
+    if (stage.equals("token_exchange")) {
+      assertThatThrownBy(() -> service.authenticate(source)).isInstanceOf(ExecutionError.class).hasCause(failure);
+    } else {
+      assertThatThrownBy(() -> service.authenticate(source)).isSameAs(failure);
+    }
+    assertThat(authenticationEvents).singleElement().satisfies(event -> {
+      assertThat(event.outcome()).isEqualTo("service_failure");
+      assertThat(event.failureStage()).isEqualTo(stage);
+      assertThat(event.failureCategory()).isEqualTo("unexpected_error");
       assertThat(event.toString()).doesNotContain("private-error-body", source, cloud, USER);
     });
   }
