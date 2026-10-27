@@ -71,6 +71,8 @@ configurations.all {
     }
 }
 
+val hostedTest = sourceSets.create("hostedTest")
+
 dependencies {
     testImplementation(project(":"))
     testImplementation(libs.testcontainers)
@@ -78,6 +80,12 @@ dependencies {
     testImplementation(libs.assertj)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.launcher)
+
+    // Keep remote acceptance independent of the application and Testcontainers.
+    add(hostedTest.implementationConfigurationName, libs.mcp.server)
+    add(hostedTest.implementationConfigurationName, libs.assertj)
+    add(hostedTest.implementationConfigurationName, libs.junit.jupiter)
+    add(hostedTest.runtimeOnlyConfigurationName, libs.junit.launcher)
 }
 
 val cagVersion = rootProject.property("sonarContextAugmentationVersion") as String
@@ -132,6 +140,20 @@ tasks.named<ProcessResources>("processTestResources") {
 
 tasks.test {
     enabled = false
+}
+
+tasks.register<Test>("hostedAuthenticationTest") {
+    description = "Runs opt-in authentication acceptance tests against the hosted Staging MCP server"
+    group = "verification"
+    testClassesDirs = hostedTest.output.classesDirs
+    classpath = hostedTest.runtimeClasspath
+    useJUnitPlatform()
+    doNotTrackState("Hosted acceptance must check the current deployment and credentials on every run")
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = false
+    }
 }
 
 tasks.register<Test>("integrationTest") {
