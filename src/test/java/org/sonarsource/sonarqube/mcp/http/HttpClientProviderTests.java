@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.http;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.net.ServerSocket;
@@ -37,7 +38,11 @@ import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
+import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.io.CloseMode;
+import org.apache.hc.core5.reactor.IOReactorShutdownException;
+import org.apache.hc.core5.reactor.IOReactorStatus;
 import org.apache.hc.core5.reactor.IOReactorConfig;
 import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.Test;
@@ -60,9 +65,12 @@ import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class HttpClientProviderTests {
@@ -179,7 +187,9 @@ class HttpClientProviderTests {
     var firstRequest = new CompletableFuture<SimpleHttpResponse>();
     var secondRequest = new CompletableFuture<SimpleHttpResponse>();
     when(apacheClient.execute(any(SimpleHttpRequest.class), any())).thenReturn(firstRequest).thenReturn(secondRequest);
-    var client = new HttpClientAdapter(apacheClient, null, false, Duration.ofSeconds(1));
+    var provider = mock(HttpClientProvider.class);
+    when(provider.getRunningClient()).thenReturn(apacheClient);
+    var client = new HttpClientAdapter(provider, null, false, Duration.ofSeconds(1));
     var callbackStarted = new CompletableFuture<Void>();
     var releaseCallback = new CompletableFuture<Void>();
     var first = client.getAsync("http://localhost/first");
@@ -285,7 +295,9 @@ class HttpClientProviderTests {
       .setIOReactorConfig(IOReactorConfig.custom().setSoTimeout(Timeout.ofMilliseconds(200)).build())
       .build()) {
       apacheClient.start();
-      var client = new HttpClientAdapter(apacheClient, null, true, Duration.ofSeconds(5));
+      var provider = mock(HttpClientProvider.class);
+      when(provider.getRunningClient()).thenReturn(apacheClient);
+      var client = new HttpClientAdapter(provider, null, true, Duration.ofSeconds(5));
 
       try (var response = client.postAsync(sonarqubeMock.url("/slow-analysis"), "text/plain", "", Duration.ofSeconds(3))
         .get(4, TimeUnit.SECONDS)) {
@@ -413,6 +425,180 @@ class HttpClientProviderTests {
   }
 
   @Test
+  void it_should_recover_existing_clients_after_http_reactor_stops() {
+    var provider = new HttpClientProvider(USER_AGENT);
+    var authenticatedClient = provider.getHttpClient("token");
+    var anonymousClient = provider.getAnonymousHttpClient();
+    var bridgeClient = provider.getHttpClientForBridge();
+    var analyticsClient = provider.getHttpClientForAnalytics("api-key");
+    var stoppedClient = provider.getRunningClient();
+    stoppedClient.close(CloseMode.IMMEDIATE);
+
+    try {
+      authenticatedClient.getAsync(sonarqubeMock.url("/recovered")).join().close();
+      anonymousClient.postAsync(sonarqubeMock.url("/recovered-post"), "text/plain", "body").join().close();
+      bridgeClient.getAsync(sonarqubeMock.url("/recovered-bridge")).join().close();
+      analyticsClient.postAsync(sonarqubeMock.url("/recovered-analytics"), "text/plain", "body").join().close();
+
+      assertThat(provider.getRunningClient()).isNotSameAs(stoppedClient);
+      sonarqubeMock.verify(getRequestedFor(urlEqualTo("/recovered"))
+        .withHeader("Authorization", equalTo("Bearer token"))
+        .withHeader("User-Agent", equalTo(USER_AGENT)));
+      sonarqubeMock.verify(1, postRequestedFor(urlEqualTo("/recovered-post"))
+        .withoutHeader("Authorization"));
+      sonarqubeMock.verify(getRequestedFor(urlEqualTo("/recovered-bridge"))
+        .withHeader("Host", equalTo("localhost"))
+        .withHeader("Origin", equalTo("http://localhost")));
+      sonarqubeMock.verify(1, postRequestedFor(urlEqualTo("/recovered-analytics"))
+        .withHeader("x-api-key", equalTo("api-key"))
+        .withoutHeader("Authorization"));
+    } finally {
+      provider.shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"api", "anonymous", "bridge", "analytics"})
+  void it_should_preserve_operation_deadlines_after_recovery(String clientType) {
+    sonarqubeMock.stubFor(get("/stalled-after-recovery").willReturn(aResponse().withFixedDelay(2000)));
+    var provider = new HttpClientProvider(USER_AGENT, Duration.ofMillis(200), Duration.ofMillis(100));
+    var client = switch (clientType) {
+      case "anonymous" -> provider.getAnonymousHttpClient();
+      case "bridge" -> provider.getHttpClientForBridge();
+      case "analytics" -> provider.getHttpClientForAnalytics("api-key");
+      default -> provider.getHttpClient("token");
+    };
+    provider.getRunningClient().close(CloseMode.IMMEDIATE);
+
+    try {
+      var future = client.getAsync(sonarqubeMock.url("/stalled-after-recovery"));
+      var error = assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+      assertThat(error.getCause()).isInstanceOf(HttpTimeoutException.class);
+    } finally {
+      provider.shutdown();
+    }
+  }
+
+  @Test
+  void it_should_create_one_replacement_for_concurrent_requests() throws Exception {
+    var provider = new HttpClientProvider(USER_AGENT);
+    var stoppedClient = provider.getRunningClient();
+    stoppedClient.close(CloseMode.IMMEDIATE);
+
+    try (var executor = Executors.newFixedThreadPool(8)) {
+      var requests = java.util.stream.IntStream.range(0, 16)
+        .mapToObj(i -> executor.submit(provider::getRunningClient))
+        .toList();
+      var replacement = requests.getFirst().get(5, TimeUnit.SECONDS);
+      assertThat(replacement).isNotSameAs(stoppedClient);
+      for (var request : requests) {
+        assertThat(request.get(5, TimeUnit.SECONDS)).isSameAs(replacement);
+      }
+    } finally {
+      provider.shutdown();
+    }
+  }
+
+  @Test
+  void it_should_ignore_late_reactor_failures_from_a_replaced_client() {
+    var provider = new HttpClientProvider(USER_AGENT);
+    try {
+      var stoppedClient = provider.getRunningClient();
+      stoppedClient.close(CloseMode.IMMEDIATE);
+      var replacement = provider.getRunningClient();
+      provider.markClientStale(stoppedClient);
+
+      assertThat(provider.getRunningClient()).isSameAs(replacement);
+    } finally {
+      provider.shutdown();
+    }
+  }
+
+  @Test
+  void it_should_not_recreate_client_after_provider_shutdown() {
+    var provider = new HttpClientProvider(USER_AGENT);
+    var client = provider.getHttpClient("token");
+    provider.shutdown();
+    var url = sonarqubeMock.url("/test");
+
+    assertThat(assertThrows(IllegalStateException.class, () -> client.getAsync(url)))
+      .hasMessageContaining("shut down");
+  }
+
+  @Test
+  void it_should_recover_when_client_is_stale_but_reactor_status_is_active() {
+    var provider = new HttpClientProvider(USER_AGENT);
+    try (var ignored = provider.getHttpClient("token").getAsync(sonarqubeMock.url("/before-stale")).join()) {
+      // nothing
+    }
+    var staleClient = provider.getRunningClient();
+    assertThat(staleClient.getStatus()).isEqualTo(IOReactorStatus.ACTIVE);
+    provider.markClientStale(staleClient);
+
+    try (var ignored = provider.getHttpClient("token").getAsync(sonarqubeMock.url("/recovered-active")).join()) {
+      // nothing
+    }
+
+    assertThat(provider.getRunningClient()).isNotSameAs(staleClient);
+    sonarqubeMock.verify(getRequestedFor(urlEqualTo("/recovered-active")));
+    provider.shutdown();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_mark_client_stale_when_a_request_reports_reactor_shutdown(boolean wrapped) {
+    var provider = mock(HttpClientProvider.class);
+    var apacheClient = mock(CloseableHttpAsyncClient.class);
+    when(provider.getRunningClient()).thenReturn(apacheClient);
+    when(apacheClient.execute(any(SimpleHttpRequest.class), any())).thenAnswer(invocation -> {
+      FutureCallback<SimpleHttpResponse> callback = invocation.getArgument(1);
+      var failure = new IOReactorShutdownException("I/O reactor has been shut down");
+      callback.failed(wrapped ? new IOException("Request failed", failure) : failure);
+      return CompletableFuture.<SimpleHttpResponse>completedFuture(null);
+    });
+    var adapter = new HttpClientAdapter(provider, null, false, Duration.ofSeconds(1));
+    var url = sonarqubeMock.url("/test");
+
+    assertThatThrownBy(() -> adapter.getAsync(url).join())
+      .hasRootCauseInstanceOf(IOReactorShutdownException.class);
+    verify(provider).markClientStale(apacheClient);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_mark_client_stale_when_execution_throws_reactor_shutdown(boolean wrapped) {
+    var provider = mock(HttpClientProvider.class);
+    var apacheClient = mock(CloseableHttpAsyncClient.class);
+    when(provider.getRunningClient()).thenReturn(apacheClient);
+    var failure = new IOReactorShutdownException("I/O reactor has been shut down");
+    when(apacheClient.execute(any(SimpleHttpRequest.class), any()))
+      .thenThrow(wrapped ? new IllegalStateException("Request failed", failure) : failure);
+    var adapter = new HttpClientAdapter(provider, null, false, Duration.ofSeconds(1));
+
+    assertThatThrownBy(() -> adapter.postAsync(sonarqubeMock.url("/test"), "text/plain", "body"))
+      .hasRootCauseInstanceOf(IOReactorShutdownException.class);
+    verify(provider).markClientStale(apacheClient);
+    verify(apacheClient).execute(any(SimpleHttpRequest.class), any());
+  }
+
+  @Test
+  void it_should_not_replace_client_for_an_ordinary_request_failure() {
+    var provider = mock(HttpClientProvider.class);
+    var apacheClient = mock(CloseableHttpAsyncClient.class);
+    when(provider.getRunningClient()).thenReturn(apacheClient);
+    when(apacheClient.execute(any(SimpleHttpRequest.class), any())).thenAnswer(invocation -> {
+      FutureCallback<SimpleHttpResponse> callback = invocation.getArgument(1);
+      callback.failed(new IOException("Connection reset"));
+      return CompletableFuture.<SimpleHttpResponse>completedFuture(null);
+    });
+    var adapter = new HttpClientAdapter(provider, null, false, Duration.ofSeconds(1));
+
+    assertThatThrownBy(() -> adapter.getAsync(sonarqubeMock.url("/test")).join())
+      .hasCauseInstanceOf(IOException.class);
+    verify(provider, never()).markClientStale(any());
+  }
+
+  @Test
   void bridge_client_should_add_host_and_origin_headers_on_get() {
     var underTest = new HttpClientProvider(USER_AGENT);
 
@@ -439,8 +625,9 @@ class HttpClientProviderTests {
   }
 
   @ParameterizedTest
-  @CsvSource({"POST,429", "PATCH,429", "POST,503", "PATCH,503"})
-  void it_should_not_replay_non_idempotent_writes_after_retryable_responses(String method, int status) {
+  @CsvSource({"POST,429,false", "PATCH,429,false", "POST,503,false", "PATCH,503,false",
+    "POST,429,true", "PATCH,429,true", "POST,503,true", "PATCH,503,true"})
+  void it_should_not_replay_non_idempotent_writes_after_retryable_responses(String method, int status, boolean recover) {
     var path = "/write-once";
     if (method.equals("POST")) {
       sonarqubeMock.stubFor(post(path).willReturn(aResponse().withStatus(status)));
@@ -450,6 +637,9 @@ class HttpClientProviderTests {
     var provider = new HttpClientProvider(USER_AGENT);
     try {
       var client = provider.getHttpClient("token");
+      if (recover) {
+        provider.getRunningClient().close(CloseMode.IMMEDIATE);
+      }
       var future = method.equals("POST")
         ? client.postAsync(sonarqubeMock.url(path), HttpClient.JSON_CONTENT_TYPE, "{}")
         : client.patchAsync(sonarqubeMock.url(path), HttpClient.MERGE_PATCH_CONTENT_TYPE, "{}");
