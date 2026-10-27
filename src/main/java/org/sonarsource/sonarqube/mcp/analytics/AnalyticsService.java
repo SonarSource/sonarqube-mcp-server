@@ -108,43 +108,19 @@ public class AnalyticsService {
   public void notifyClientInitialized(HttpAnalyticsContext context, @Nullable String name, @Nullable String version, long timestamp,
     Supplier<ServerApi> apiSupplier) {
     submit(() -> {
-      String userUuid = null;
-      String installationId = null;
+      var identity = ConnectionContext.empty();
       try {
         var api = apiSupplier.get();
         if (api != null) {
-          userUuid = resolveUserUuid(api);
-          if (!isSonarQubeCloud) {
-            installationId = resolveInstallationId(api);
-          }
+          identity.resolveIdentityFrom(api);
         }
       } catch (RuntimeException e) {
         LOG.debug("Unable to enrich initialization analytics (" + e.getClass().getSimpleName() + ")");
       }
       client.postEvent(new McpClientInitializedEvent(mcpServerId, mcpServerVersion,
         isSonarQubeCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS, transportMode,
-        context.authenticationMethod(), name, version, timestamp, context.oauthClientKey(), userUuid, installationId));
+        context.authenticationMethod(), name, version, timestamp, context.oauthClientKey(), identity.getUserUuid(), identity.getSqsInstallationId()));
     });
-  }
-
-  @Nullable
-  private static String resolveUserUuid(ServerApi api) {
-    try {
-      return api.usersApi().getCurrentUserId();
-    } catch (RuntimeException e) {
-      LOG.debug("Unable to resolve analytics user (" + e.getClass().getSimpleName() + ")");
-      return null;
-    }
-  }
-
-  @Nullable
-  private static String resolveInstallationId(ServerApi api) {
-    try {
-      return api.systemApi().getStatus().id();
-    } catch (RuntimeException e) {
-      LOG.debug("Unable to resolve analytics installation (" + e.getClass().getSimpleName() + ")");
-      return null;
-    }
   }
 
   public void notifyOAuthAuthenticationCompleted(OAuthAuthenticationResult result) {

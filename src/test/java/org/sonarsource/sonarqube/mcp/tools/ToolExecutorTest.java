@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
@@ -529,18 +530,21 @@ class ToolExecutorTest {
     assertThat(event.getValue().userUuid()).isNull();
   }
 
-  @Test
-  void it_should_keep_known_stdio_identity_and_agent_when_organization_enrichment_fails() {
+  @ParameterizedTest
+  @CsvSource({"true,true", "true,false", "false,false"})
+  void it_should_keep_available_identity_when_organization_enrichment_fails(boolean stdio, boolean knownIdentity) {
     var service = syncAnalyticsService();
     var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
     when(api.isSonarQubeCloud()).thenReturn(true);
     when(api.usersApi().getCurrentUserId()).thenReturn("known-user");
     var context = ConnectionContext.empty();
-    context.resolveFrom(api);
+    if (knownIdentity) {
+      context.resolveFrom(api);
+    }
     context.captureCallingAgent("Custom Client ", "1.0+preview");
     when(api.getOrganization()).thenReturn("selected-org");
     when(api.resolveOrganizationUuid(any())).thenThrow(new IllegalStateException("API unavailable"));
-    var executor = new ToolExecutor(mockBackendService, service, context, () -> api, null, ToolCategory::all);
+    var executor = new ToolExecutor(mockBackendService, service, stdio ? context : null, () -> api, null, ToolCategory::all);
 
     executeDummyTool(executor);
 
@@ -549,8 +553,8 @@ class ToolExecutorTest {
     assertThat(event.getValue().isSuccessful()).isTrue();
     assertThat(event.getValue().organizationUuidV4()).isNull();
     assertThat(event.getValue().userUuid()).isEqualTo("known-user");
-    assertThat(event.getValue().callingAgentName()).isEqualTo("Custom Client ");
-    assertThat(event.getValue().callingAgentVersion()).isEqualTo("1.0+preview");
+    assertThat(event.getValue().callingAgentName()).isEqualTo(stdio ? "Custom Client " : null);
+    assertThat(event.getValue().callingAgentVersion()).isEqualTo(stdio ? "1.0+preview" : null);
   }
 
   @Test

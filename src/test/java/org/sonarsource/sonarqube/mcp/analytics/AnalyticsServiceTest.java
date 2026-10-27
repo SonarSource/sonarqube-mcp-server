@@ -160,6 +160,7 @@ class AnalyticsServiceTest {
   void it_should_send_initialization_with_identity_and_authentication_without_identity() {
     var service = new AnalyticsService(mockClient, "server", "1", true, false, true);
     var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    when(api.isSonarQubeCloud()).thenReturn(true);
     when(api.usersApi().getCurrentUserId()).thenReturn("user");
     service.notifyClientInitialized(new HttpAnalyticsContext("oauth", "key"), " Custom Client ", "1.2+dev", 123, () -> api);
     service.notifyOAuthAuthenticationCompleted(new OAuthAuthenticationResult(124, 20, "rejected", "delegation_validation", "insufficient_scope", "key"));

@@ -41,7 +41,6 @@ import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentExce
 
 public class ToolExecutor {
   private static final McpLogger LOG = McpLogger.getInstance();
-  private static final String TOOL_ANALYTICS_ENRICHMENT_FAILURE = "Unable to enrich tool analytics (";
   private record InvocationMetrics(String invocationId, long durationMs, boolean successful, @Nullable String errorType, long responseSizeBytes,
     long invocationTimestamp, List<String> matchingToolsets) {}
   private final BackendService backendService;
@@ -142,34 +141,20 @@ public class ToolExecutor {
     var captured = context != null ? context.snapshot() : null;
     var apiSupplier = invocationApiSupplier;
     if (apiSupplier != null) {
-      ServerApi serverApi;
+      ServerApi api;
       try {
-        var api = apiSupplier.get();
-        serverApi = organization == null ? api : api.withOrganization(organization);
+        var requestApi = apiSupplier.get();
+        api = organization == null ? requestApi : requestApi.withOrganization(organization);
       } catch (Exception e) {
-        LOG.debug(TOOL_ANALYTICS_ENRICHMENT_FAILURE + e.getClass().getSimpleName() + ")");
-        service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> fallbackSnapshot(captured), metrics));
-        return;
+        LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
+        api = null;
       }
       // Capture the invocation API and calling agent before leaving the request thread; keep lookups asynchronous.
+      var serverApi = api;
       service.submit(() -> dispatchAnalyticsEvent(service, toolName,
-        () -> context != null ? resolveStdioSnapshot(context, serverApi, captured) : resolveInvocationSnapshot(serverApi), metrics));
+        () -> context != null ? context.snapshotFor(serverApi, captured) : resolveInvocationSnapshot(serverApi), metrics));
     } else if (captured != null) {
       service.submit(() -> dispatchAnalyticsEvent(service, toolName, () -> captured, metrics));
-    }
-  }
-
-  private static ConnectionContext.Snapshot fallbackSnapshot(@Nullable ConnectionContext.Snapshot captured) {
-    return captured == null ? ConnectionContext.empty().snapshot()
-      : new ConnectionContext.Snapshot(null, captured.sqsInstallationId(), captured.userUuid(), captured.callingAgentName(), captured.callingAgentVersion());
-  }
-
-  private static ConnectionContext.Snapshot resolveStdioSnapshot(ConnectionContext context, ServerApi serverApi, ConnectionContext.Snapshot captured) {
-    try {
-      return context.snapshotFor(serverApi, captured);
-    } catch (RuntimeException e) {
-      LOG.debug(TOOL_ANALYTICS_ENRICHMENT_FAILURE + e.getClass().getSimpleName() + ")");
-      return fallbackSnapshot(captured);
     }
   }
 
@@ -179,7 +164,7 @@ public class ToolExecutor {
       try {
         ctx.resolveFrom(serverApi);
       } catch (RuntimeException e) {
-        LOG.debug(TOOL_ANALYTICS_ENRICHMENT_FAILURE + e.getClass().getSimpleName() + ")");
+        LOG.debug("Unable to enrich tool analytics (" + e.getClass().getSimpleName() + ")");
       }
     }
     return ctx.snapshot();
@@ -187,7 +172,7 @@ public class ToolExecutor {
 
   private static void dispatchAnalyticsEvent(AnalyticsService service, String toolName, Supplier<ConnectionContext.Snapshot> ctxSupplier, InvocationMetrics metrics) {
     try {
-      var ctx = resolveAnalyticsSnapshot(ctxSupplier);
+      var ctx = ctxSupplier.get();
       service.notifyToolInvoked(new ToolInvocationResult(
         metrics.invocationId(), toolName,
         ctx.organizationUuidV4(), ctx.sqsInstallationId(), ctx.userUuid(),
@@ -197,15 +182,6 @@ public class ToolExecutor {
       ));
     } catch (Exception e) {
       LOG.debug("Unable to send tool analytics (" + e.getClass().getSimpleName() + ")");
-    }
-  }
-
-  private static ConnectionContext.Snapshot resolveAnalyticsSnapshot(Supplier<ConnectionContext.Snapshot> supplier) {
-    try {
-      return supplier.get();
-    } catch (RuntimeException e) {
-      LOG.debug(TOOL_ANALYTICS_ENRICHMENT_FAILURE + e.getClass().getSimpleName() + ")");
-      return ConnectionContext.empty().snapshot();
     }
   }
 
