@@ -262,7 +262,7 @@ class HttpClientProviderTests {
     var firstRequest = new CompletableFuture<SimpleHttpResponse>();
     var secondRequest = new CompletableFuture<SimpleHttpResponse>();
     when(apacheClient.execute(any(SimpleHttpRequest.class), any())).thenReturn(firstRequest).thenReturn(secondRequest);
-    var client = new HttpClientAdapter(apacheClient, null, false, Duration.ofSeconds(1));
+    var client = new HttpClientAdapter(apacheClient, null, false, Duration.ofSeconds(1), RequestConfig.DEFAULT, null);
     var callbackStarted = new CompletableFuture<Void>();
     var releaseCallback = new CompletableFuture<Void>();
     var first = client.getAsync("http://localhost/first");
@@ -363,12 +363,13 @@ class HttpClientProviderTests {
   void it_should_override_the_socket_timeout_only_for_the_explicit_post() throws Exception {
     sonarqubeMock.stubFor(post("/slow-analysis").willReturn(aResponse().withBody("findings").withFixedDelay(700)));
     sonarqubeMock.stubFor(get("/stalled-api").willReturn(aResponse().withFixedDelay(2000)));
+    var requestConfig = RequestConfig.custom().setResponseTimeout(Timeout.ofMilliseconds(200)).build();
     try (var apacheClient = HttpAsyncClients.custom()
-      .setDefaultRequestConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMilliseconds(200)).build())
+      .setDefaultRequestConfig(requestConfig)
       .setIOReactorConfig(IOReactorConfig.custom().setSoTimeout(Timeout.ofMilliseconds(200)).build())
       .build()) {
       apacheClient.start();
-      var client = new HttpClientAdapter(apacheClient, null, true, Duration.ofSeconds(5));
+      var client = new HttpClientAdapter(apacheClient, null, true, Duration.ofSeconds(5), requestConfig, null);
 
       try (var response = client.postAsync(sonarqubeMock.url("/slow-analysis"), "text/plain", "", Duration.ofSeconds(3))
         .get(4, TimeUnit.SECONDS)) {

@@ -60,14 +60,6 @@ class HttpClientAdapter implements HttpClient {
     return scheduler;
   }
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, Duration operationTimeout) {
-    this(apacheClient, sonarqubeCloudToken, isBridgeClient, operationTimeout, null);
-  }
-
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, Duration operationTimeout, @Nullable String apiKey) {
-    this(apacheClient, sonarqubeCloudToken, isBridgeClient, operationTimeout, RequestConfig.DEFAULT, apiKey);
-  }
-
   HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, Duration operationTimeout,
     RequestConfig defaultRequestConfig, @Nullable String apiKey) {
     this.apacheClient = apacheClient;
