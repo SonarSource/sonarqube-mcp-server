@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
+import java.util.Objects;
+import java.util.UUID;
 import com.google.gson.Gson;
 import jakarta.annotation.Nullable;
 import java.util.List;
@@ -26,6 +28,7 @@ import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
@@ -35,6 +38,7 @@ public class ArchitectureApi {
 
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
+  public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
   public static final String SERVER_API_PREFIX = "/api/v2";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
@@ -42,7 +46,7 @@ public class ArchitectureApi {
   public static final List<String> LANGUAGES = List.of("java", "cs", "js", "ts", "py");
 
   public static final String EXPORT_WARNING = "Imported organization patterns remain linked by patternId. "
-    + "The public export does not expand their groups or constraints. "
+    + "Exported imported child groups must remain unedited or be omitted; they are excluded from writes. "
     + "Keep patternId to preserve the reference; imported contents cannot be edited here.";
 
   private static final String READ_HINT = "Check project permissions, feature availability and the public API gateway routing; "
@@ -183,6 +187,114 @@ public class ArchitectureApi {
     return Strings.CS.removeStart(e.getMessage(), ServerApiException.MESSAGE_PREFIX);
   }
 
+  public DirectivePage getDirectivePage(String projectKey, String projectId, int pageIndex, int pageSize) {
+    return read(projectKey, () -> readDirectivePage(projectId, pageIndex, pageSize));
+  }
+
+  private DirectivePage readDirectivePage(String projectId, int pageIndex, int pageSize) {
+    if (pageIndex < 1 || pageSize < 1 || pageSize > 1000) {
+      throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
+    }
+    var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam("projectId", projectId)
+      .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
+    var response = fromJson(get(path), DirectivePage.class);
+    if (response == null || response.projectDirectives() == null || response.page() == null
+      || response.page().pageIndex() == null || response.page().pageIndex() != pageIndex
+      || response.page().pageSize() == null || response.page().pageSize() != pageSize
+      || response.page().total() == null || response.page().total() < 0
+      || response.projectDirectives().size() > pageSize) {
+      throw new IllegalStateException("Invalid public directives page; no complete page was read.");
+    }
+    var ids = new java.util.HashSet<String>();
+    for (var directive : response.projectDirectives()) {
+      if (directive == null) {
+        throw new IllegalStateException("The public directives response contains an incomplete directive.");
+      }
+      directive.validateStored();
+      if (!ids.add(directive.id().toLowerCase(java.util.Locale.ROOT))) {
+        throw new IllegalStateException("The public directives page returned duplicate ids.");
+      }
+      if (!projectId.equals(directive.projectId())) {
+        throw new IllegalStateException("The public directives page returned a different project.");
+      }
+    }
+    return response;
+  }
+
+  public ProjectDirective createDirective(String projectKey, String projectId, ProjectDirective directive) {
+    directive.validate();
+    return write(projectKey, () -> {
+      var body = gson.toJson(directive.forProject(projectId));
+      var response = fromJson(request(PROJECT_DIRECTIVES_PATH, body, false), ProjectDirective.class);
+      if (response == null) {
+        throw new IllegalStateException("The directive write returned no directive. Inspect the current list before retrying.");
+      }
+      response.validateStored();
+      if (!projectId.equals(response.projectId())) {
+        throw new IllegalStateException("The directive write returned a different project. Inspect the current list before retrying.");
+      }
+      if (!response.identity().equals(directive.identity())
+        || (directive.description() != null && !directive.description().equals(response.description()))) {
+        throw new IllegalStateException("The directive write response did not confirm the requested directive. Inspect the current list before retrying.");
+      }
+      return response;
+    });
+  }
+
+  public ProjectDirective getDirective(String projectKey, String projectId, String id) {
+    return read(projectKey, () -> {
+      var directive = fromJson(get(directivePath(id)), ProjectDirective.class);
+      validateDirectiveResource(directive, projectId, id);
+      return directive;
+    });
+  }
+
+  public ProjectDirective updateDirective(String projectKey, String projectId, String id, ProjectDirective directive) {
+    directive.validate();
+    return write(projectKey, () -> {
+      var updated = fromJson(request(directivePath(id), gson.toJson(directive.withoutIdentity()), true), ProjectDirective.class);
+      validateDirectiveResource(updated, projectId, id);
+      if (!updated.identity().equals(directive.identity()) || !Objects.equals(updated.description(), directive.description())) {
+        throw new IllegalStateException("The directive update response did not confirm the requested directive. Inspect it before retrying.");
+      }
+      return updated;
+    });
+  }
+
+  public void deleteDirective(String projectKey, String id) {
+    write(projectKey, () -> {
+      try (var response = helper.deleteApiSubdomain(directivePath(id))) {
+        if (response.code() != java.net.HttpURLConnection.HTTP_NO_CONTENT) {
+          throw new IllegalStateException("The directive deletion was not confirmed. Inspect it before retrying.");
+        }
+      }
+      return null;
+    });
+  }
+
+  private static String directivePath(String id) {
+    if (!UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+      throw new IllegalArgumentException("Directive id must be a UUID.");
+    }
+    return PROJECT_DIRECTIVES_PATH + "/" + id;
+  }
+
+  private static void validateDirectiveResource(@Nullable ProjectDirective directive, String projectId, String id) {
+    if (directive == null) {
+      throw new IllegalStateException("The public directive response is empty.");
+    }
+    directive.validateStored();
+    if (!projectId.equals(directive.projectId()) || !id.equalsIgnoreCase(directive.id())) {
+      throw new IllegalStateException("The public directive response returned a different id or project.");
+    }
+  }
+
+  public record DirectivePage(List<ProjectDirective> projectDirectives, DirectivePageInfo page) {
+  }
+
+  public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
+  }
+
   private HttpClient.Response get(String path) {
     return helper.isSonarQubeCloud() ? helper.getApiSubdomain(path) : helper.get(SERVER_API_PREFIX + path);
   }
@@ -200,7 +312,7 @@ public class ArchitectureApi {
   private static List<IntendedArchitecture> exportedModels(IntendedArchitectures response) {
     if (!response.intendedArchitectures().isEmpty()) {
       try {
-        if (response.id() == null || !java.util.UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())) {
+        if (response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())) {
           throw incompleteModel();
         }
       } catch (IllegalArgumentException e) {

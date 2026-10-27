@@ -122,6 +122,15 @@ class HttpClientAdapter implements HttpClient {
   }
 
   @Override
+  public CompletableFuture<Response> deleteAsync(String url) {
+    var requestBuilder = SimpleRequestBuilder.delete(url);
+    if (isBridgeClient) {
+      requestBuilder.addHeader(HOST_HEADER, LOCALHOST).addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
+    }
+    return executeAsync(requestBuilder.build(), token, operationTimeout);
+  }
+
+  @Override
   public CompletableFuture<Response> getAsyncAnonymous(String url) {
     return getAsyncAnonymous(url, operationTimeout);
   }
