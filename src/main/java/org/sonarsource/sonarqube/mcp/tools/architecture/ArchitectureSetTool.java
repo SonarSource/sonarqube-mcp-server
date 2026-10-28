@@ -71,7 +71,7 @@ public class ArchitectureSetTool extends Tool {
       throw new IllegalArgumentException(invalidReason);
     }
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-    var projectId = ArchitectureProjectContext.intendedProjectId(serverApi, projectKey);
+    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Intended architecture");
     var api = serverApi.architectureApi();
     var stored = api.getIntended(projectKey, projectId);
     if (revision != null && !revision.equals(IntendedRevision.of(stored))) {
