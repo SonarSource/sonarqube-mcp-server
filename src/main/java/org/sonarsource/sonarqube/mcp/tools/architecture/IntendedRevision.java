@@ -51,6 +51,11 @@ final class IntendedRevision {
     }
   }
 
+  static boolean sameGroups(@Nullable List<IntendedArchitecture.Group> left, @Nullable List<IntendedArchitecture.Group> right) {
+    return nullToEmpty(left).stream().map(IntendedRevision::canonicalGroup).toList()
+      .equals(nullToEmpty(right).stream().map(IntendedRevision::canonicalGroup).toList());
+  }
+
   private static String canonicalModel(IntendedArchitecture model) {
     var constraints = nullToEmpty(model.constraints()).stream()
       .map(constraint -> array(List.of(string(constraint.from()), string(constraint.to()))))
