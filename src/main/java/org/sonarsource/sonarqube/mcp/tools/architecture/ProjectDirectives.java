@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.Locale;
+import java.util.UUID;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
@@ -39,6 +40,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 final class ProjectDirectives {
   private static final int MAX_DIRECTIVES_PER_PROJECT = 1000;
   private static final String CREATE = "create";
+  private static final String UPDATE = "update";
+  private static final String DELETE = "delete";
   private static final Set<String> FIELDS = Set.of("id", "projectId", "type", "ecosystem", "graphType", "fromNodeKey", "toNodeKey",
     "graphPerspective", "description", "origin");
 
@@ -52,8 +55,8 @@ final class ProjectDirectives {
     } catch (JsonParseException invalid) {
       throw new IllegalArgumentException("model must contain valid directives JSON. Nothing was changed.");
     }
-    if (!value.isJsonObject() || !Set.of(CREATE, "project", "projectKey").containsAll(value.getAsJsonObject().keySet())) {
-      throw new IllegalArgumentException("Provide a change file with a create array. Nothing was changed.");
+    if (!value.isJsonObject() || !Set.of(CREATE, UPDATE, DELETE, "project", "projectKey").containsAll(value.getAsJsonObject().keySet())) {
+      throw new IllegalArgumentException("Provide a change file with create, update and delete arrays. Nothing was changed.");
     }
     var object = value.getAsJsonObject();
     for (var key : List.of("project", "projectKey")) {
@@ -67,7 +70,19 @@ final class ProjectDirectives {
     for (var item : array(object, CREATE)) {
       create.add(parseDirective(item, gson));
     }
-    return new Changes(List.copyOf(create));
+    var update = array(object, UPDATE);
+    var delete = array(object, DELETE);
+    var ids = new HashSet<String>();
+    for (var item : update) {
+      addId(item, ids);
+    }
+    for (var item : delete) {
+      if (!item.isJsonObject() || !Set.of("id").containsAll(item.getAsJsonObject().keySet())) {
+        throw new IllegalArgumentException("Delete accepts only {id} records. Nothing was changed.");
+      }
+      addId(item, ids);
+    }
+    return new Changes(List.copyOf(create), update, delete);
   }
 
   private static JsonArray array(JsonObject object, String key) {
@@ -80,7 +95,16 @@ final class ProjectDirectives {
     return object.getAsJsonArray(key);
   }
 
-
+  private static void addId(JsonElement item, Set<String> ids) {
+    if (!item.isJsonObject() || !item.getAsJsonObject().has("id") || !item.getAsJsonObject().get("id").isJsonPrimitive()
+      || !item.getAsJsonObject().get("id").getAsJsonPrimitive().isString()) {
+      throw new IllegalArgumentException("Each update/delete requires an explicit id. Nothing was changed.");
+    }
+    var id = item.getAsJsonObject().get("id").getAsString();
+    if (!UUID.fromString(id).toString().equalsIgnoreCase(id) || !ids.add(id.toLowerCase(Locale.ROOT))) {
+      throw new IllegalArgumentException("Invalid, repeated or conflicting directive id. Nothing was changed.");
+    }
+  }
 
   private static ProjectDirective parseDirective(JsonElement item, Gson gson) {
     if (!item.isJsonObject() || !FIELDS.containsAll(item.getAsJsonObject().keySet())) {
@@ -126,15 +150,41 @@ final class ProjectDirectives {
   }
 
   static Applied apply(ArchitectureApi api, String projectKey, String projectId, Changes input, boolean dryRun) {
-    var existing = input.create().isEmpty() ? Map.<ProjectDirective.Identity, List<String>>of() : existingDirectiveKeys(api, projectKey, projectId);
+    var gson = new Gson();
+    var changes = new ArrayList<Change>();
+    var toDelete = new ArrayList<ProjectDirective>();
+    var unchangedIds = new ArrayList<String>();
+    for (var item : input.update()) {
+      var change = prepareChange(api, projectKey, projectId, item, UPDATE, gson);
+      if (change.before().withoutIdentity().equals(change.after())) {
+        unchangedIds.add(change.id());
+      } else {
+        changes.add(change);
+      }
+    }
+    for (var item : input.delete()) {
+      toDelete.add(prepareChange(api, projectKey, projectId, item, DELETE, gson).before());
+    }
+    var moving = changes.stream().filter(change -> !change.before().identity().equals(change.after().identity())).toList();
+    var existing = input.create().isEmpty() && moving.isEmpty() ? Map.<ProjectDirective.Identity, List<String>>of() : existingDirectiveKeys(api, projectKey, projectId);
     var known = new HashSet<>(existing.keySet());
+    var afterKeys = new HashSet<ProjectDirective.Identity>();
+    for (var change : moving) {
+      var key = change.after().identity();
+      if (known.contains(key) || !afterKeys.add(key)) {
+        throw new IllegalArgumentException("An update would duplicate another directive. Nothing was changed.");
+      }
+    }
     var noVisibleDirectives = !input.create().isEmpty() && known.isEmpty();
-    var creations = planCreates(input.create(), known);
+    var creations = planCreates(input.create(), changes, toDelete, known);
     if (existing.values().stream().mapToInt(List::size).sum() + creations.items().size() > MAX_DIRECTIVES_PER_PROJECT) {
       throw new IllegalArgumentException("The batch would exceed the 1000 directives per project limit. Nothing was changed.");
     }
-    var skippedIds = input.create().stream().flatMap(item -> existing.getOrDefault(item.identity(), List.of()).stream()).distinct().toList();
-    var result = new Applied(projectKey, dryRun ? "dry-run" : "applied", creations.items(), creations.skipped(), skippedIds, new ArrayList<>(),
+    var skippedIds = java.util.stream.Stream.concat(unchangedIds.stream(),
+      input.create().stream().flatMap(item -> existing.getOrDefault(item.identity(), List.of()).stream()))
+      .map(id -> id.toLowerCase(Locale.ROOT)).distinct().toList();
+    var result = new Applied(projectKey, dryRun ? "dry-run" : "applied", creations.items(), List.copyOf(changes), List.copyOf(toDelete), unchangedIds.size() + creations.skipped(), skippedIds,
+      new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
       warnings(noVisibleDirectives));
     if (!dryRun) {
       writeChanges(api, projectKey, projectId, result);
@@ -151,10 +201,21 @@ final class ProjectDirectives {
     return List.copyOf(warnings);
   }
 
-  private static CreatePlan planCreates(List<ProjectDirective> input, Set<ProjectDirective.Identity> known) {
+  private static CreatePlan planCreates(List<ProjectDirective> input, List<Change> changes, List<ProjectDirective> toDelete,
+    Set<ProjectDirective.Identity> known) {
     var skipped = 0;
+    var touched = new HashSet<ProjectDirective.Identity>();
+    for (var change : changes) {
+      touched.add(change.before().identity()); touched.add(change.after().identity());
+    }
+    for (var item : toDelete) {
+      touched.add(item.identity());
+    }
     var toCreate = new ArrayList<ProjectDirective>();
     for (var item : input) {
+      if (touched.contains(item.identity())) {
+        throw new IllegalArgumentException("Create conflicts with an update or deletion of the same directive operation. Nothing was changed.");
+      }
       if (known.add(item.identity())) {
         toCreate.add(item);
       } else {
@@ -165,29 +226,91 @@ final class ProjectDirectives {
   }
 
   private static void writeChanges(ArchitectureApi api, String projectKey, String projectId, Applied result) {
-    for (var directive : result.toCreate()) {
+    var jobs = new ArrayList<Write>();
+    for (var item : result.toCreate()) {
+      jobs.add(new Write(CREATE, item));
+    }
+    for (var item : result.changes()) {
+      jobs.add(new Write(UPDATE, new ProjectDirective(item.id(), null, item.after().type(), item.after().ecosystem(),
+        item.after().graphType(), item.after().fromNodeKey(), item.after().toNodeKey(), item.after().graphPerspective(), item.after().description(), item.before().origin())));
+    }
+    for (var item : result.toDelete()) {
+      jobs.add(new Write(DELETE, item));
+    }
+    for (var job : jobs) {
       try {
-        result.created().add(api.createDirective(projectKey, projectId, directive));
+        writeChange(api, projectKey, projectId, result, job);
       } catch (RuntimeException failure) {
-        var confirmed = result.created().size();
+        var confirmed = result.created().size() + result.updated().size() + result.deleted().size();
         if (confirmed == 0 && isDefiniteRejection(failure)) {
           throw failure;
         }
-        throw new IllegalStateException("Directive changes stopped after " + confirmed + " confirmed writes. Created ids: "
-          + result.created().stream().map(ProjectDirective::id).toList()
-          + (isDefiniteRejection(failure) ? ". The server rejected the next directive. " : ". The attempted change may already have been applied. ")
-          + "Inspect the current list before retrying. " + failure.getMessage(), failure);
+        throw stoppedChanges(result, job, failure, confirmed);
       }
     }
   }
 
+  private static void writeChange(ArchitectureApi api, String projectKey, String projectId, Applied result, Write job) {
+    switch (job.operation()) {
+      case CREATE -> result.created().add(api.createDirective(projectKey, projectId, job.directive()));
+      case UPDATE -> result.updated().add(api.updateDirective(projectKey, projectId, job.directive().id(), job.directive()));
+      case DELETE -> {
+        api.deleteDirective(projectKey, job.directive().id());
+        result.deleted().add(job.directive().id());
+      }
+      default -> throw new IllegalStateException("Unknown directive write.");
+    }
+  }
 
+  private static IllegalStateException stoppedChanges(Applied result, Write job, RuntimeException failure, int confirmed) {
+    return new IllegalStateException("Directive changes stopped after " + confirmed + " confirmed writes. Created ids: "
+      + result.created().stream().map(ProjectDirective::id).toList() + ". Updated ids: " + result.updated().stream().map(ProjectDirective::id).toList()
+      + ". Deleted ids: " + result.deleted()
+      + (isDefiniteRejection(failure) ? ". The server rejected the next directive. " : ". The attempted change may already have been applied. ")
+      + (job.directive().id() == null ? "Inspect the current list before retrying. " : ("Inspect directive " + job.directive().id() + " before retrying. "))
+      + failure.getMessage(), failure);
+  }
 
+  private static Change prepareChange(ArchitectureApi api, String projectKey, String projectId, JsonElement item, String operation, Gson gson) {
+    if (!item.isJsonObject() || !FIELDS.containsAll(item.getAsJsonObject().keySet())) {
+      throw new IllegalArgumentException("Each directive must be an object containing supported fields.");
+    }
+    var object = item.getAsJsonObject();
+    if (!object.has("id") || !object.get("id").isJsonPrimitive() || !object.get("id").getAsJsonPrimitive().isString()) {
+      throw new IllegalArgumentException("Each directive requires an explicit id.");
+    }
+    var id = object.get("id").getAsString();
+    if (!UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+      throw new IllegalArgumentException("Directive id must be a UUID.");
+    }
+    if (DELETE.equals(operation) && !Set.of("id").containsAll(object.keySet())) {
+      throw new IllegalArgumentException("Delete accepts only {id} records; it never deletes omitted directives.");
+    }
+    var before = api.getDirective(projectKey, projectId, id);
+    if (DELETE.equals(operation)) {
+      return new Change(id, before, before.withoutIdentity());
+    }
+    var merged = gson.toJsonTree(before.withoutIdentity()).getAsJsonObject();
+    mergeUpdateFields(object, merged);
+    var after = gson.fromJson(merged, ProjectDirective.class);
+    after.validate();
+    return new Change(id, before, after);
+  }
 
-
-
-
-
+  private static void mergeUpdateFields(JsonObject object, JsonObject merged) {
+    for (var field : object.entrySet()) {
+      if (Set.of("id", "projectId", "origin").contains(field.getKey())) {
+        continue;
+      }
+      if (field.getValue().isJsonNull()) {
+        throw new IllegalArgumentException("Directive fields cannot be cleared with null by the public API. Nothing was changed.");
+      }
+      if (!field.getValue().isJsonPrimitive() || !field.getValue().getAsJsonPrimitive().isString()) {
+        throw new IllegalArgumentException("Directive fields must be strings.");
+      }
+      merged.add(field.getKey(), field.getValue());
+    }
+  }
 
   private static boolean isDefiniteRejection(RuntimeException failure) {
     return (failure instanceof ClientErrorException clientError && clientError.status() != java.net.HttpURLConnection.HTTP_CLIENT_TIMEOUT)
@@ -197,14 +320,16 @@ final class ProjectDirectives {
   private record CreatePlan(List<ProjectDirective> items, int skipped) {
   }
 
-  record Changes(List<ProjectDirective> create) {
+  record Changes(List<ProjectDirective> create, JsonArray update, JsonArray delete) {
   }
 
+  record Change(String id, ProjectDirective before, ProjectDirective after) {
+  }
 
+  private record Write(String operation, ProjectDirective directive) {
+  }
 
-
-
-  record Applied(String projectKey, String mode, List<ProjectDirective> toCreate, int skipped, List<String> skippedIds,
-    List<ProjectDirective> created, List<String> warnings) {
+  record Applied(String projectKey, String mode, List<ProjectDirective> toCreate, List<Change> changes, List<ProjectDirective> toDelete, int skipped, List<String> skippedIds,
+    List<ProjectDirective> created, List<ProjectDirective> updated, List<String> deleted, List<String> warnings) {
   }
 }
