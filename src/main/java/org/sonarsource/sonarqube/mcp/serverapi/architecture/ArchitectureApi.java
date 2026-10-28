@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
+import java.util.Objects;
 import java.util.UUID;
 import com.google.gson.Gson;
 import jakarta.annotation.Nullable;
@@ -45,7 +46,7 @@ public class ArchitectureApi {
   public static final List<String> LANGUAGES = List.of("java", "cs", "js", "ts", "py");
 
   public static final String EXPORT_WARNING = "Imported organization patterns remain linked by patternId. "
-    + "The public export does not expand their groups or constraints. "
+    + "Exported imported child groups must remain unedited or be omitted; they are excluded from writes. "
     + "Keep patternId to preserve the reference; imported contents cannot be edited here.";
 
   private static final String READ_HINT = "Check project permissions, feature availability and the public API gateway routing; "
@@ -248,9 +249,31 @@ public class ArchitectureApi {
     });
   }
 
+  public ProjectDirective updateDirective(String projectKey, String projectId, String id, ProjectDirective directive) {
+    directive.validate();
+    return write(projectKey, () -> {
+      var updated = fromJson(request(directivePath(id), gson.toJson(directive.withoutIdentity()), true), ProjectDirective.class);
+      validateDirectiveResource(updated, projectId, id);
+      var expectedIdentity = new ProjectDirective.Identity(directive.type(), directive.ecosystem(), directive.graphType(), directive.fromNodeKey(),
+        directive.toNodeKey(), directive.graphPerspective() == null ? updated.identity().perspective() : directive.graphPerspective());
+      if (!updated.identity().equals(expectedIdentity)
+        || (directive.description() != null && !Objects.equals(updated.description(), directive.description()))) {
+        throw new IllegalStateException("The directive update response did not confirm the requested directive. Inspect it before retrying.");
+      }
+      return updated;
+    });
+  }
 
-
-
+  public void deleteDirective(String projectKey, String id) {
+    write(projectKey, () -> {
+      try (var response = helper.deleteApiSubdomain(directivePath(id))) {
+        if (response.code() != java.net.HttpURLConnection.HTTP_NO_CONTENT) {
+          throw new IllegalStateException("The directive deletion was not confirmed. Inspect it before retrying.");
+        }
+      }
+      return null;
+    });
+  }
 
   private static String directivePath(String id) {
     if (!UUID.fromString(id).toString().equalsIgnoreCase(id)) {
