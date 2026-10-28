@@ -1727,4 +1727,4 @@ Licensed under the [SONAR Source-Available License v1.0](https://www.sonarsource
 
 Your use of SonarQube via MCP is governed by the [SonarQube Cloud Terms of Service](https://www.sonarsource.com/legal/sonarcloud/terms-of-service/) or [SonarQube Server Terms and Conditions](https://www.sonarsource.com/legal/sonarqube/terms-and-conditions/), including use of the Results Data solely for your internal software development purposes.
 
-Project directives can be read with `architecture_get target=directives`, using `directiveId` or `pageIndex`/`pageSize`. Directives are Cloud-only; writes are not included in this layer.
+Project directives: use `architecture_get target=directives` to read, and `architecture_set target=directives` with `{create: [...]}` and `dryRun: true` to preview additive creation. Confirm before applying. Creation skips duplicates and reports confirmed IDs on partial failure, without replay or rollback. Updates and deletion are not included in this layer.
