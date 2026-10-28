@@ -1475,17 +1475,19 @@ Then, mount the project workspace to give the Context Augmentation server direct
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; all when omitted - _String_
 
-- **architecture_set** - Replace the whole intended model on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
+- **architecture_set** - Replace the whole intended model or create project directives on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
+
+  Project directives: use `architecture_get target=directives` to read, and `architecture_set target=directives` with `{create: [...]}` and `dryRun: true` to preview additive creation. Confirm before applying. Creation skips duplicates and reports confirmed IDs on partial failure, without replay or rollback. Updates and deletion are not included in this layer.
 
   **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: the public export does not expand their groups or constraints, and imported contents cannot be edited here. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
 
   Parameters:
-  - `target` - `intended` - _Required Enum_
+  - `target` - `intended` or `directives` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String_
-  - `model` - JSON from the whole unfiltered response or its `models` array - _Required String_
+  - `model` - Intended: whole unfiltered response or `models` array. Directives: `{create: [...]}` - _Required String_
   - `dryRun` - `true` to preview, `false` to apply - _Required Boolean_
-  - `revision` - Exported revision; defaults to the whole response's revision. Bare arrays without it cannot detect changes since export - _String_
+  - `revision` - Intended only: exported revision; defaults to the whole response's revision. Bare arrays without it cannot detect changes since export - _String_
 
 ## Example Prompts
 
