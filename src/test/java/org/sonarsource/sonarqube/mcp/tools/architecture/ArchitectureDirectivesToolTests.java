@@ -350,6 +350,88 @@ class ArchitectureDirectivesToolTests {
     return result.toString();
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "{\"type\":\"UNKNOWN\"}",
+    "{\"ecosystem\":\"unknown\"}",
+    "{\"graphType\":\"unknown\"}",
+    "{\"id\":\"invalid\"}",
+    "{\"id\":null}",
+    "{\"projectId\":null}",
+    "{\"projectId\":\"\"}",
+    "{\"fromNodeKey\":null}",
+    "{\"toNodeKey\":null}"
+  })
+  void it_should_reject_invalid_stored_directives(String invalidFields) {
+    stubMainBranch(harness);
+    var json = new com.google.gson.Gson();
+    var directive = json.fromJson(saved(1, "app:a"), com.google.gson.JsonObject.class);
+    json.fromJson(invalidFields, com.google.gson.JsonObject.class).entrySet()
+      .forEach(entry -> directive.add(entry.getKey(), entry.getValue()));
+    stubPage(1, directive.toString(), 1);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+    assertThat(result.isError()).isTrue();
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "null", "{}", "{\"projectDirectives\":[]}",
+    "{\"projectDirectives\":[],\"page\":{}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":2,\"pageSize\":100,\"total\":0}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"total\":0}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":0}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":-1}}"
+  })
+  void it_should_reject_incomplete_page_metadata(String response) {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=100")
+      .willReturn(okJson(response)));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Invalid public directives page");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"duplicate", "null", "wrong-project"})
+  void it_should_reject_invalid_page_rows(String kind) {
+    stubMainBranch(harness);
+    var row = saved(1, "app:a");
+    var rows = switch (kind) {
+      case "duplicate" -> row + "," + row;
+      case "null" -> "null";
+      default -> row.replace(MAIN_BRANCH_ID, "other-project");
+    };
+    stubPage(1, rows, 2);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains(switch (kind) {
+      case "duplicate" -> "duplicate ids";
+      case "null" -> "incomplete directive";
+      default -> "different project";
+    });
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"conflict", "invalid-id"})
+  void it_should_validate_directive_arguments_before_project_lookup(String kind) {
+    var arguments = new HashMap<String, Object>();
+    arguments.put("target", "directives");
+    arguments.put("projectKey", "my_project");
+    arguments.put("directiveId", kind.equals("conflict") ? "00000000-0000-4000-8000-000000000001" : "invalid");
+    if (kind.equals("conflict")) {
+      arguments.put("pageIndex", 1);
+    }
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains(kind.equals("conflict") ? "Use either directiveId or pagination" : "UUID");
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/api/project_branches/list")).isEmpty();
+  }
+
   private void stubPage(int index, String directives, int total) {
     harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=" + index + "&pageSize=100")
       .willReturn(okJson("{\"projectDirectives\":[" + directives + "],\"page\":{\"pageIndex\":" + index + ",\"pageSize\":100,\"total\":" + total + "}}")));

@@ -622,7 +622,7 @@ By default, only important toolsets are enabled. Enable additional toolsets only
 | **Vortex Context**    | `cag`               | Vortex context tools — stdio only. **Deprecated** in favor of `vortex` (old name: Context Augmentation/CAG)                                                 |
 | **Vortex**            | `vortex`            | Unified, **recommended** toolset surfacing both Vortex context and Vortex analysis tools under one name (stdio only; Cloud needs combined org entitlement; Server needs both hubs entitled) |
 | **Agentic Readiness** | `agentic-readiness` | Agentic Readiness Assessment tools (SonarQube Cloud, requires org entitlement)                                                                              |
-| **Architecture**      | `architecture`      | Read current and intended architecture, replace intended models (not enabled by default)                                                        |
+| **Architecture**      | `architecture`      | Read current/intended architecture and project directives, replace intended models (not enabled by default)                                                        |
 
 #### Examples
 
@@ -1460,12 +1460,15 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 **Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended reads and writes are Cloud-only until public project UUID resolution is available.**
 
-- **architecture_get** - Read current dependencies or intended groups and constraints. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
+- **architecture_get** - Read current dependencies, intended groups and constraints, or project directives. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
-  - `target` - `current` or `intended` on Cloud; `current` on Server - _Required Enum_
+  - `target` - `current`, `intended` or `directives` on Cloud; `current` on Server - _Required Enum_
+  - `directiveId` - Cloud directives only: one UUID instead of a page; cannot be combined with paging - _String_
+  - `pageIndex` - Cloud directives only: page number (default: 1) - _Number_
+  - `pageSize` - Cloud directives only: items per page (default: 50, max: 1000) - _Number_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
@@ -1473,6 +1476,8 @@ Then, mount the project workspace to give the Context Augmentation server direct
   - `language` - `java`, `cs`, `js`, `ts` or `py`; all when omitted - _String_
 
 - **architecture_set** - Replace the whole intended model on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
+
+  Project directives: use `architecture_get target=directives` to read, and `architecture_set target=directives` with `{create: [...]}` and `dryRun: true` to preview additive creation. Confirm before applying. Creation skips duplicates and reports confirmed IDs on partial failure, without replay or rollback. Updates and deletion are not included in this layer.
 
   **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: the public export does not expand their groups or constraints, and imported contents cannot be edited here. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
 
@@ -1726,5 +1731,3 @@ Copyright 2025 SonarSource.
 Licensed under the [SONAR Source-Available License v1.0](https://www.sonarsource.com/license/ssal/). Using the SonarQube MCP Server in compliance with this documentation is a Non-Competitive Purpose and so is allowed under the SSAL.
 
 Your use of SonarQube via MCP is governed by the [SonarQube Cloud Terms of Service](https://www.sonarsource.com/legal/sonarcloud/terms-of-service/) or [SonarQube Server Terms and Conditions](https://www.sonarsource.com/legal/sonarqube/terms-and-conditions/), including use of the Results Data solely for your internal software development purposes.
-
-Project directives: use `architecture_get target=directives` to read, and `architecture_set target=directives` with `{create: [...]}` and `dryRun: true` to preview additive creation. Confirm before applying. Creation skips duplicates and reports confirmed IDs on partial failure, without replay or rollback. Updates and deletion are not included in this layer.
