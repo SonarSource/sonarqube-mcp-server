@@ -254,7 +254,10 @@ public class ArchitectureApi {
     return write(projectKey, () -> {
       var updated = fromJson(request(directivePath(id), gson.toJson(directive.withoutIdentity()), true), ProjectDirective.class);
       validateDirectiveResource(updated, projectId, id);
-      if (!updated.identity().equals(directive.identity()) || !Objects.equals(updated.description(), directive.description())) {
+      var expectedIdentity = new ProjectDirective.Identity(directive.type(), directive.ecosystem(), directive.graphType(), directive.fromNodeKey(),
+        directive.toNodeKey(), directive.graphPerspective() == null ? updated.identity().perspective() : directive.graphPerspective());
+      if (!updated.identity().equals(expectedIdentity)
+        || (directive.description() != null && !Objects.equals(updated.description(), directive.description()))) {
         throw new IllegalStateException("The directive update response did not confirm the requested directive. Inspect it before retrying.");
       }
       return updated;

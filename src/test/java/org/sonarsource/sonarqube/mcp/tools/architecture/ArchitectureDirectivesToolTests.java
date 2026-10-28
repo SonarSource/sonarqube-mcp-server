@@ -660,6 +660,63 @@ class ArchitectureDirectivesToolTests {
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"none", "description", "perspective", "both"})
+  void it_should_patch_only_explicit_optional_fields(String fields) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    var id = "00000000-0000-4000-8000-000000000001";
+    var path = PATH + "/" + id;
+    var before = saved(1, "app:a").replace("\"description\":null", "\"description\":\"old description\"")
+      .replace("\"graphPerspective\":null", "\"graphPerspective\":\"old-view\"");
+    backend.stubFor(get(path).willReturn(okJson(before)));
+    stubPage(1, before, 1);
+    var description = fields.equals("description") || fields.equals("both");
+    var perspective = fields.equals("perspective") || fields.equals("both");
+    var after = before.replace("app:b", "app:new")
+      .replace("old description", description ? "requested description" : "concurrent description")
+      .replace("old-view", perspective ? "requested-view" : "concurrent-view");
+    backend.stubFor(patch(path).willReturn(okJson(after)));
+    var model = "{\"update\":[{\"id\":\"" + id + "\",\"toNodeKey\":\"app:new\""
+      + (description ? ",\"description\":\"requested description\"" : "")
+      + (perspective ? ",\"graphPerspective\":\"requested-view\"" : "") + "}]}";
+    var client = harness.newClient(CLOUD_ENV);
+    var preview = client.callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", true));
+    assertThat(preview.isError()).isFalse();
+    assertThat(textOf(preview)).contains(description ? "requested description" : "old description", perspective ? "requested-view" : "old-view");
+    assertThat(backend.getReceivedBodies("PATCH", path)).isEmpty();
+    var applied = client.callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", false));
+    assertThat(applied.isError()).isFalse();
+    assertThat(textOf(applied)).contains(description ? "requested description" : "concurrent description", perspective ? "requested-view" : "concurrent-view");
+    assertThat(backend.getReceivedBodies("PATCH", path)).hasSize(1);
+    var payload = JsonParser.parseString(backend.getReceivedBodies("PATCH", path).getFirst()).getAsJsonObject();
+    assertThat(payload.has("description")).isEqualTo(description);
+    assertThat(payload.has("graphPerspective")).isEqualTo(perspective);
+    assertThat(payload.get("toNodeKey").getAsString()).isEqualTo("app:new");
+    assertThat(payload.get("origin").getAsString()).isEqualTo("existing-client");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"description", "graphPerspective", "toNodeKey"})
+  void it_should_confirm_every_explicit_update_field(String field) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    var id = "00000000-0000-4000-8000-000000000001";
+    var path = PATH + "/" + id;
+    var before = saved(1, "app:a");
+    backend.stubFor(get(path).willReturn(okJson(before)));
+    stubPage(1, before, 1);
+    backend.stubFor(patch(path).willReturn(okJson(before)));
+    var model = "{\"update\":[{\"id\":\"" + id + "\",\"" + field + "\":\"requested-value\"}]}";
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", false));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("did not confirm the requested directive");
+    assertThat(backend.getReceivedBodies("PATCH", path)).hasSize(1);
+  }
+
   private void stubPage(int index, String directives, int total) {
     harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=" + index + "&pageSize=100")
       .willReturn(okJson("{\"projectDirectives\":[" + directives + "],\"page\":{\"pageIndex\":" + index + ",\"pageSize\":100,\"total\":" + total + "}}")));

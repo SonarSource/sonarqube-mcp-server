@@ -152,6 +152,7 @@ final class ProjectDirectives {
   static Applied apply(ArchitectureApi api, String projectKey, String projectId, Changes input, boolean dryRun) {
     var gson = new Gson();
     var changes = new ArrayList<Change>();
+    var updates = new ArrayList<Write>();
     var toDelete = new ArrayList<ProjectDirective>();
     var unchangedIds = new ArrayList<String>();
     for (var item : input.update()) {
@@ -160,6 +161,7 @@ final class ProjectDirectives {
         unchangedIds.add(change.id());
       } else {
         changes.add(change);
+        updates.add(new Write(UPDATE, updatePayload(change, item.getAsJsonObject())));
       }
     }
     for (var item : input.delete()) {
@@ -187,7 +189,7 @@ final class ProjectDirectives {
       unchangedIds.size() + creations.skipped(), skippedIds, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
       warnings(noVisibleDirectives));
     if (!dryRun) {
-      writeChanges(api, projectKey, projectId, result);
+      writeChanges(api, projectKey, projectId, result, updates);
     }
     return result;
   }
@@ -225,15 +227,18 @@ final class ProjectDirectives {
     return new CreatePlan(List.copyOf(toCreate), skipped);
   }
 
-  private static void writeChanges(ArchitectureApi api, String projectKey, String projectId, Applied result) {
+  private static ProjectDirective updatePayload(Change change, JsonObject fields) {
+    var after = change.after();
+    return new ProjectDirective(change.id(), null, after.type(), after.ecosystem(), after.graphType(), after.fromNodeKey(), after.toNodeKey(),
+      fields.has("graphPerspective") ? after.graphPerspective() : null, fields.has("description") ? after.description() : null, change.before().origin());
+  }
+
+  private static void writeChanges(ArchitectureApi api, String projectKey, String projectId, Applied result, List<Write> updates) {
     var jobs = new ArrayList<Write>();
     for (var item : result.toCreate()) {
       jobs.add(new Write(CREATE, item));
     }
-    for (var item : result.changes()) {
-      jobs.add(new Write(UPDATE, new ProjectDirective(item.id(), null, item.after().type(), item.after().ecosystem(),
-        item.after().graphType(), item.after().fromNodeKey(), item.after().toNodeKey(), item.after().graphPerspective(), item.after().description(), item.before().origin())));
-    }
+    jobs.addAll(updates);
     for (var item : result.toDelete()) {
       jobs.add(new Write(DELETE, item));
     }
