@@ -35,7 +35,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.sonarsource.sonarqube.mcp.analytics.OAuthAuthenticationResult;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
@@ -45,23 +49,36 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
  */
 public final class Auth0OAuthAuthenticationService {
   private static final McpLogger LOG = McpLogger.getInstance();
+  private static final String CLOUD_TOKEN_VALIDATION = "cloud_token_validation";
   private final OAuthConfiguration configuration;
   private final Auth0TokenVerifier verifier;
   private final Auth0TokenExchange exchange;
   private final Clock clock;
+  @Nullable
+  private final Consumer<OAuthAuthenticationResult> authenticationObserver;
   private final Cache<String, CacheEntry> cache;
   private final Semaphore exchanges = new Semaphore(16);
 
   public Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client) {
-    this(configuration, client, Clock.systemUTC());
+    this(configuration, client, Clock.systemUTC(), null);
   }
 
-  private Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client, Clock clock) {
+  public Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client, Consumer<OAuthAuthenticationResult> observer) {
+    this(configuration, client, Clock.systemUTC(), observer);
+  }
+
+  private Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client, Clock clock, @Nullable Consumer<OAuthAuthenticationResult> observer) {
     this(configuration, new Auth0TokenVerifier(configuration, new Auth0JwkProvider(configuration.issuer(), client, clock), clock),
-      new Auth0TokenExchange(configuration), clock);
+      new Auth0TokenExchange(configuration), clock, observer);
   }
 
   Auth0OAuthAuthenticationService(OAuthConfiguration configuration, Auth0TokenVerifier verifier, Auth0TokenExchange exchange, Clock clock) {
+    this(configuration, verifier, exchange, clock, null);
+  }
+
+  Auth0OAuthAuthenticationService(OAuthConfiguration configuration, Auth0TokenVerifier verifier, Auth0TokenExchange exchange, Clock clock,
+    @Nullable Consumer<OAuthAuthenticationResult> observer) {
+    this.authenticationObserver = observer;
     this.configuration = configuration;
     this.verifier = verifier;
     this.exchange = exchange;
@@ -76,12 +93,48 @@ public final class Auth0OAuthAuthenticationService {
    * Verifies both tokens on every call, including when the Cloud credential comes from the cache.
    */
   public OAuthRequestAuthentication authenticate(String token) {
-    var source = verifier.verifyMcp(token);
-    var scopes = validateSource(source);
-    // The cache belongs to this service's configuration; the fingerprint includes every source claim.
-    var authentication = cachedOrExchange(fingerprint(token), token, source, scopes).authentication();
-    verifier.verifyCloud(authentication.cloudToken());
-    return authentication;
+    var timestamp = clock.millis();
+    var started = System.nanoTime();
+    String clientKey = null;
+    var stage = "mcp_token_verification";
+    String failureCategory = "unexpected_error";
+    String outcome = "service_failure";
+    try {
+      var source = verifier.verifyMcp(token);
+      stage = "delegation_validation";
+      clientKey = oauthClientKey(source);
+      var scopes = validateSource(source);
+      stage = "token_exchange";
+      // The cache belongs to this service's configuration; the fingerprint includes every source claim.
+      var authentication = cachedOrExchange(fingerprint(token), token, source, scopes).authentication();
+      stage = CLOUD_TOKEN_VALIDATION;
+      verifier.verifyCloud(authentication.cloudToken());
+      outcome = "success";
+      failureCategory = null;
+      return authentication;
+    } catch (OAuthAuthenticationException e) {
+      if (e.stage() != null) {
+        stage = e.stage();
+      }
+      outcome = e.status() == 401 || e.status() == 403 ? "rejected" : "service_failure";
+      failureCategory = switch (e.status()) {
+        case 401 -> "invalid_token";
+        case 403 -> "insufficient_scope";
+        case 503 -> "unavailable";
+        default -> "invalid_exchange";
+      };
+      throw e;
+    } finally {
+      var observer = authenticationObserver;
+      if (observer != null) {
+        try {
+          observer.accept(new OAuthAuthenticationResult(timestamp, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started), outcome,
+            failureCategory == null ? null : stage, failureCategory, clientKey));
+        } catch (RuntimeException e) {
+          LOG.debug("Unable to report OAuth authentication (" + e.getClass().getSimpleName() + ")");
+        }
+      }
+    }
   }
 
   /**
@@ -151,10 +204,11 @@ public final class Auth0OAuthAuthenticationService {
       throw OAuthAuthenticationException.unavailable();
     }
     try {
-      var cloudToken = exchange.exchange(token, scopes);
-      var downstream = verifier.verifyCloud(cloudToken);
-      var granted = validateExchange(source, downstream, scopes);
-      var authentication = new OAuthRequestAuthentication(cloudToken, granted);
+      var cloudToken = atStage("token_exchange", () -> exchange.exchange(token, scopes));
+      var downstream = atStage(CLOUD_TOKEN_VALIDATION, () -> verifier.verifyCloud(cloudToken));
+      var granted = atStage(CLOUD_TOKEN_VALIDATION, () -> validateExchange(source, downstream, scopes));
+      var clientKey = oauthClientKey(source);
+      var authentication = new OAuthRequestAuthentication(cloudToken, granted, clientKey);
       var expiresAt = earliest(source.getExpiresAtAsInstant(), downstream.getExpiresAtAsInstant(), clock.instant().plus(configuration.cacheTtl()));
       return new CacheEntry(authentication, expiresAt);
     } finally {
@@ -225,9 +279,30 @@ public final class Auth0OAuthAuthenticationService {
     return Arrays.stream(values).min(Instant::compareTo).orElseThrow();
   }
 
-  private static String fingerprint(String token) {
+  @Nullable
+  private String oauthClientKey(DecodedJWT source) {
     try {
-      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
+      var clientId = source.getClaim("azp").asString();
+      return blank(clientId) ? null : fingerprint(configuration.issuer() + "\0" + clientId);
+    } catch (RuntimeException e) {
+      // Telemetry must not change validation order or turn a rejected credential into a server error.
+      LOG.debug("Unable to derive OAuth application analytics (" + e.getClass().getSimpleName() + ")");
+      return null;
+    }
+  }
+
+  private static <T> T atStage(String stage, Supplier<T> operation) {
+    try {
+      return operation.get();
+    } catch (OAuthAuthenticationException e) {
+      // Use an immutable copy: cache waiters may share the same failure.
+      throw e.atStage(stage);
+    }
+  }
+
+  private static String fingerprint(String value) {
+    try {
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 is unavailable", e);
     }

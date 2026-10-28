@@ -17,13 +17,18 @@
 package org.sonarsource.sonarqube.mcp.analytics;
 
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import jakarta.annotation.Nullable;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 
 public class AnalyticsService {
 
+  private static final McpLogger LOG = McpLogger.getInstance();
   private static final String CONNECTION_TYPE_SQC = "SQC";
   private static final String CONNECTION_TYPE_SQS = "SQS";
 
@@ -43,7 +48,7 @@ public class AnalyticsService {
     this.transportMode = resolveTransportMode(isHttpEnabled, isHttpsEnabled);
     this.isSonarQubeCloud = isSonarQubeCloud;
     this.containerArch = resolveContainerArch();
-    this.executor = Executors.newSingleThreadExecutor(r -> {
+    this.executor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1000), r -> {
       var thread = new Thread(r, "analytics-dispatcher");
       thread.setDaemon(true);
       return thread;
@@ -100,8 +105,37 @@ public class AnalyticsService {
     client.postEvent(event);
   }
 
+  public void notifyClientInitialized(HttpAnalyticsContext context, @Nullable String name, @Nullable String version, long timestamp,
+    Supplier<ServerApi> apiSupplier) {
+    submit(() -> {
+      var identity = ConnectionContext.empty();
+      try {
+        var api = apiSupplier.get();
+        if (api != null) {
+          identity.resolveIdentityFrom(api);
+        }
+      } catch (RuntimeException e) {
+        LOG.debug("Unable to enrich initialization analytics (" + e.getClass().getSimpleName() + ")");
+      }
+      client.postEvent(new McpClientInitializedEvent(mcpServerId, mcpServerVersion,
+        isSonarQubeCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS, transportMode,
+        context.authenticationMethod(), name, version, timestamp, context.oauthClientKey(), identity.getUserUuid(), identity.getSqsInstallationId()));
+    });
+  }
+
+  public void notifyOAuthAuthenticationCompleted(OAuthAuthenticationResult result) {
+    submit(() -> client.postEvent(new McpOAuthAuthenticationCompletedEvent(mcpServerId, mcpServerVersion,
+      isSonarQubeCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS, transportMode,
+      result.timestamp(), result.durationMs(), result.outcome(), result.failureStage(), result.failureCategory(), result.oauthClientKey())));
+  }
+
   public void submit(Runnable task) {
-    executor.submit(task);
+    try {
+      executor.submit(task);
+    } catch (RuntimeException e) {
+      // A full queue or shutdown must not change an MCP response.
+      LOG.debug("Unable to schedule analytics (" + e.getClass().getSimpleName() + ")");
+    }
   }
 
   public void shutdown() {

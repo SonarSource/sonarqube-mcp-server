@@ -201,7 +201,7 @@ public class AuthenticationFilter implements Filter {
       return;
     }
     var scopes = new OAuthScopeContext(authentication.scopes());
-    request.setAttribute(AUTHENTICATION_ATTRIBUTE, new HttpRequestAuthentication(authentication.cloudToken(), scopes));
+    request.setAttribute(AUTHENTICATION_ATTRIBUTE, new HttpRequestAuthentication(authentication.cloudToken(), scopes, authentication.oauthClientKey()));
     chain.doFilter(request, new OAuthScopeResponseWrapper(response, scopes, oauth.metadata()));
   }
 
