@@ -122,12 +122,15 @@ public class ArchitectureGetTool extends Tool {
     var pageIndex = arguments.getOptionalPageIndex();
     var pageSize = arguments.getOptionalPageSize();
     validateDirectivePage(pageIndex, pageSize);
-    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
     var id = arguments.toMap().containsKey(DIRECTIVE_ID_PROPERTY) ? arguments.getStringOrThrow(DIRECTIVE_ID_PROPERTY) : null;
+    if (id != null && (pageIndex != null || pageSize != null)) {
+      throw new IllegalArgumentException("Use either directiveId or pagination parameters.");
+    }
+    if (id != null && !java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+      throw new IllegalArgumentException("Directive id must be a UUID.");
+    }
+    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
     if (id != null) {
-      if (pageIndex != null || pageSize != null) {
-        throw new IllegalArgumentException("Use either directiveId or pagination parameters.");
-      }
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
     var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(50));
