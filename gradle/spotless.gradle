@@ -1,0 +1,33 @@
+def headerLines = rootProject.file("HEADER").text.trim().readLines()
+
+def javaLicenseHeader = new StringBuilder("/*\n")
+headerLines.each { line ->
+    if (line.isEmpty()) {
+        javaLicenseHeader.append(" *\n")
+    } else {
+        javaLicenseHeader.append(" * ").append(line).append("\n")
+    }
+}
+javaLicenseHeader.append(" */")
+
+def scriptHeader = headerLines.collect { line -> line.isEmpty() ? "#" : "# ${line}" }.join("\n")
+
+spotless {
+    java {
+        target("**/src/**/*.java")
+        targetExclude("**/src/**/package-info.java")
+        licenseHeader(javaLicenseHeader.toString(), "package ")
+    }
+    format("packageInfo") {
+        target("**/src/**/package-info.java")
+        licenseHeader(javaLicenseHeader.toString(), "(package |@|/\\*\\*)")
+    }
+    format("scripts") {
+        target("**/src/**/*.py")
+        licenseHeader("#!/usr/bin/env python3\n#\n${scriptHeader}\n#\n", "(\"\"\"|import )")
+    }
+}
+
+tasks.named("check") {
+    dependsOn(tasks.named("spotlessCheck"))
+}

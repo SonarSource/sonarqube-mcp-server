@@ -4,7 +4,7 @@ plugins {
 	`maven-publish`
 	signing
 	alias(libs.plugins.sonarqube)
-	alias(libs.plugins.license)
+	alias(libs.plugins.spotless)
 	alias(libs.plugins.artifactory)
 	alias(libs.plugins.cyclonedx)
 }
@@ -62,21 +62,7 @@ allprojects {
 	tasks.named("cyclonedxDirectBom").get()
 }
 
-license {
-	header = rootProject.file("HEADER")
-	mapping(
-		mapOf(
-			"java" to "SLASHSTAR_STYLE",
-			"kt" to "SLASHSTAR_STYLE",
-			"svg" to "XML_STYLE",
-			"form" to "XML_STYLE"
-		)
-	)
-    excludes(
-        listOf("**/*.jar", "**/*.png", "**/README", "**/logback.xml", "**/proxied-mcp-servers.json")
-    )
-    strictCheck = true
-}
+apply(from = "gradle/spotless.gradle")
 
 val mockitoAgent = configurations.create("mockitoAgent")
 val jettyVersion = libs.versions.jetty.get()
