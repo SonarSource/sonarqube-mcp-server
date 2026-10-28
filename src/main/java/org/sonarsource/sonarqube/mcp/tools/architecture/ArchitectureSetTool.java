@@ -64,7 +64,7 @@ public class ArchitectureSetTool extends Tool {
   @Override
   public Result execute(Arguments arguments) {
     if (arguments.toMap().containsKey("operation")) {
-      throw new IllegalArgumentException("operation is not supported. Put create, update and delete arrays in model.");
+      throw new IllegalArgumentException("operation is not supported. Use the model schema for the selected target.");
     }
     var target = arguments.getEnumOrThrow("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES});
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
