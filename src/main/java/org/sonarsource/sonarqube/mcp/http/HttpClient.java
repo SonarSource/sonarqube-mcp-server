@@ -63,4 +63,6 @@ public interface HttpClient {
 
   CompletableFuture<Response> patchAsync(String url, String contentType, String body);
 
+  CompletableFuture<Response> deleteAsync(String url);
+
 }
