@@ -622,7 +622,7 @@ By default, only important toolsets are enabled. Enable additional toolsets only
 | **Vortex Context**    | `cag`               | Vortex context tools — stdio only. **Deprecated** in favor of `vortex` (old name: Context Augmentation/CAG)                                                 |
 | **Vortex**            | `vortex`            | Unified, **recommended** toolset surfacing both Vortex context and Vortex analysis tools under one name (stdio only; Cloud needs combined org entitlement; Server needs both hubs entitled) |
 | **Agentic Readiness** | `agentic-readiness` | Agentic Readiness Assessment tools (SonarQube Cloud, requires org entitlement)                                                                              |
-| **Architecture**      | `architecture`      | Read current and intended architecture, replace intended models (not enabled by default)                                                        |
+| **Architecture**      | `architecture`      | Read current/intended architecture and project directives, replace intended models (not enabled by default)                                                        |
 
 #### Examples
 
@@ -1460,12 +1460,15 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 **Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended reads and writes are Cloud-only until public project UUID resolution is available.**
 
-- **architecture_get** - Read current dependencies or intended groups and constraints. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
+- **architecture_get** - Read current dependencies, intended groups and constraints, or project directives. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
-  - `target` - `current` or `intended` on Cloud; `current` on Server - _Required Enum_
+  - `target` - `current`, `intended` or `directives` on Cloud; `current` on Server - _Required Enum_
+  - `directiveId` - Cloud directives only: one UUID instead of a page; cannot be combined with paging - _String_
+  - `pageIndex` - Cloud directives only: page number (default: 1) - _Number_
+  - `pageSize` - Cloud directives only: items per page (default: 50, max: 1000) - _Number_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
