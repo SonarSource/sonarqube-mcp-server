@@ -194,11 +194,11 @@ class ArchitectureGetIntendedToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_reject_unavailable_server_intended_target_before_network(SonarQubeMcpServerTestHarness harness) {
+  void it_should_stop_before_architecture_requests_when_public_project_lookup_is_unavailable(SonarQubeMcpServerTestHarness harness) {
     var client = harness.newClient();
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("current").doesNotContain("No intended architecture is visible");
+    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("public project lookup").doesNotContain("No intended architecture is visible");
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/components/")).isFalse();
   }
