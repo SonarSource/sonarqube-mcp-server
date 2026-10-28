@@ -15,7 +15,6 @@
 # You should have received a copy of the Sonar Source-Available License
 # along with this program; if not, see https://sonarsource.com/license/ssal/
 #
-
 """
 Simple MCP Server for testing proxied MCP server integration.
 This server provides a few test tools that can be discovered and executed.
