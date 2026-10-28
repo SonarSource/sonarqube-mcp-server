@@ -125,7 +125,7 @@ class ArchitectureHttpTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_read_preview_and_create_directives_over_http_with_request_read_only_controls(SonarQubeMcpServerTestHarness harness,
+  void it_should_read_one_directive_over_http_with_request_credentials(SonarQubeMcpServerTestHarness harness,
     @TempDir Path storage) throws Exception {
     ArchitectureFixtures.stubMainBranch(harness);
     var backend = harness.getMockSonarQubeServer();
