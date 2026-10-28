@@ -17,6 +17,8 @@
 package org.sonarsource.sonarqube.mcp.http;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import com.github.tomakehurst.wiremock.http.Fault;
+import java.util.concurrent.CompletionException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -35,9 +37,12 @@ import java.util.concurrent.TimeoutException;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.DefaultHttpRequestRetryStrategy;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.NoHttpResponseException;
+import org.apache.hc.core5.http.protocol.HttpCoreContext;
 import org.apache.hc.core5.reactor.IOReactorConfig;
 import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.Test;
@@ -50,6 +55,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.delete;
+import static com.github.tomakehurst.wiremock.client.WireMock.deleteRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.patch;
 import static com.github.tomakehurst.wiremock.client.WireMock.patchRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -457,6 +464,50 @@ class HttpClientProviderTests {
         assertThat(response.code()).isEqualTo(status);
       }
       sonarqubeMock.verify(1, method.equals("POST") ? postRequestedFor(urlEqualTo(path)) : patchRequestedFor(urlEqualTo(path)));
+    } finally {
+      provider.shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {429, 503})
+  void it_should_not_retry_delete_responses(int status) {
+    var path = "/delete-once";
+    sonarqubeMock.stubFor(delete(path).willReturn(aResponse().withStatus(status)));
+    var provider = new HttpClientProvider(USER_AGENT);
+    try {
+      try (var response = provider.getHttpClient("token").deleteAsync(sonarqubeMock.url(path)).join()) {
+        assertThat(response.code()).isEqualTo(status);
+      }
+      sonarqubeMock.verify(1, deleteRequestedFor(urlEqualTo(path))
+        .withHeader("Authorization", equalTo("Bearer token"))
+        .withHeader("User-Agent", equalTo(USER_AGENT)));
+    } finally {
+      provider.shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"GET, true", "DELETE, false"})
+  void it_should_not_retry_delete_after_an_otherwise_retryable_io_failure(String method, boolean shouldRetry) {
+    var request = new SimpleHttpRequest(method, "http://localhost/retry");
+    var exception = new NoHttpResponseException("No response");
+    var context = HttpCoreContext.create();
+
+    assertThat(new DefaultHttpRequestRetryStrategy().retryRequest(request, exception, 1, context)).isTrue();
+    assertThat(HttpClientProvider.createRetryStrategy().retryRequest(request, exception, 1, context)).isEqualTo(shouldRetry);
+  }
+
+  @Test
+  void it_should_not_retry_delete_after_a_lost_response() {
+    var path = "/delete-lost-response";
+    sonarqubeMock.stubFor(delete(path)
+      .willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
+    var provider = new HttpClientProvider(USER_AGENT);
+    try {
+      var future = provider.getHttpClient("token").deleteAsync(sonarqubeMock.url(path));
+      assertThrows(CompletionException.class, future::join);
+      sonarqubeMock.verify(1, deleteRequestedFor(urlEqualTo(path)));
     } finally {
       provider.shutdown();
     }
