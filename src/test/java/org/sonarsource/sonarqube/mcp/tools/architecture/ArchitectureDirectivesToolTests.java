@@ -638,6 +638,26 @@ class ArchitectureDirectivesToolTests {
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/api/project_branches/list")).isEmpty();
   }
 
+  @ParameterizedTest
+  @CsvSource({"true,false", "false,false", "true,true", "false,true"})
+  void it_should_report_unchanged_update_ids(boolean dryRun, boolean duplicateCreate) {
+    stubMainBranch(harness);
+    var id = "00000000-0000-4000-8000-000000000001";
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "/" + id).willReturn(okJson(saved(1, "app:a"))));
+    stubPage(1, saved(1, "app:a"), 1);
+    var model = "{\"update\":[{\"id\":\"" + id + "\",\"fromNodeKey\":\"app:a\"}]"
+      + (duplicateCreate ? ",\"create\":[" + INPUT + "]" : "") + "}";
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", dryRun));
+    assertThat(result.isError()).isFalse();
+    var value = new com.google.gson.Gson().fromJson(textOf(result), com.google.gson.JsonObject.class);
+    assertThat(value.get("skipped").getAsInt()).isEqualTo(duplicateCreate ? 2 : 1);
+    assertThat(value.getAsJsonArray("skippedIds")).hasSize(1);
+    assertThat(value.getAsJsonArray("skippedIds").get(0).getAsString()).isEqualTo(id);
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", PATH)).isEmpty();
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
+  }
+
   private void stubPage(int index, String directives, int total) {
     harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=" + index + "&pageSize=100")
       .willReturn(okJson("{\"projectDirectives\":[" + directives + "],\"page\":{\"pageIndex\":" + index + ",\"pageSize\":100,\"total\":" + total + "}}")));

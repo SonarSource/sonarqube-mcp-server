@@ -153,11 +153,11 @@ final class ProjectDirectives {
     var gson = new Gson();
     var changes = new ArrayList<Change>();
     var toDelete = new ArrayList<ProjectDirective>();
-    var skipped = 0;
+    var unchangedIds = new ArrayList<String>();
     for (var item : input.update()) {
       var change = prepareChange(api, projectKey, projectId, item, UPDATE, gson);
       if (change.before().withoutIdentity().equals(change.after())) {
-        skipped++;
+        unchangedIds.add(change.id());
       } else {
         changes.add(change);
       }
@@ -180,8 +180,9 @@ final class ProjectDirectives {
     if (existing.values().stream().mapToInt(List::size).sum() + creations.items().size() > MAX_DIRECTIVES_PER_PROJECT) {
       throw new IllegalArgumentException("The batch would exceed the 1000 directives per project limit. Nothing was changed.");
     }
-    var skippedIds = input.create().stream().flatMap(item -> existing.getOrDefault(item.identity(), List.of()).stream()).distinct().toList();
-    var result = new Applied(projectKey, dryRun ? "dry-run" : "applied", creations.items(), List.copyOf(changes), List.copyOf(toDelete), skipped + creations.skipped(), skippedIds,
+    var skippedIds = java.util.stream.Stream.concat(unchangedIds.stream(),
+      input.create().stream().flatMap(item -> existing.getOrDefault(item.identity(), List.of()).stream())).distinct().toList();
+    var result = new Applied(projectKey, dryRun ? "dry-run" : "applied", creations.items(), List.copyOf(changes), List.copyOf(toDelete), unchangedIds.size() + creations.skipped(), skippedIds,
       new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
       warnings(noVisibleDirectives));
     if (!dryRun) {
