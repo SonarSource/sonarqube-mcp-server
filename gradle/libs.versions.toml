@@ -3,7 +3,7 @@ sonarlint-core = "12.2.0.87867"
 
 sonarqube = "7.5.0.8588"
 
-license-plugin = "0.16.1"
+spotless = "8.10.4"
 artifactory-plugin = "6.0.4"
 cyclonedx-plugin = "3.5.1"
 
@@ -65,7 +65,7 @@ testcontainers-jupiter = { module = "org.testcontainers:testcontainers-junit-jup
 sonar-analyzers = ["sonar-php"]
 
 [plugins]
-license = { id = "com.github.hierynomus.license", version.ref = "license-plugin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 artifactory = { id = "com.jfrog.artifactory", version.ref = "artifactory-plugin" }
 cyclonedx = { id = "org.cyclonedx.bom", version.ref = "cyclonedx-plugin" }
 sonarqube = { id = "org.sonarqube", version.ref = "sonarqube" }
