@@ -176,7 +176,7 @@ public class ArchitectureApi {
     List<IntendedArchitecture.Constraint> constraints) {
   }
 
-  private <T> T read(String projectKey, Supplier<T> request) {
+  private static <T> T read(String projectKey, Supplier<T> request) {
     try {
       return request.get();
     } catch (ForbiddenException e) {
