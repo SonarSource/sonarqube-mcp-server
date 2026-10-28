@@ -432,9 +432,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListPullRequestsTool(this, configuredProjectKey),
       new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey),
       new ArchitectureGetTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
-    if (mcpConfiguration.isSonarQubeCloud()) {
-      supportedTools.add(new ArchitectureSetTool(this, true, configuredProjectKey));
-    }
+    supportedTools.add(new ArchitectureSetTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey));
 
     if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)
       && (mcpConfiguration.isHttpEnabled() || serverApi.isSonarQubeCloud()

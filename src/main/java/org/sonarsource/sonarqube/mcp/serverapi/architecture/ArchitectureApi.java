@@ -31,6 +31,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 
 /** Public architecture HTTP requests, response validation and Cloud/Server routing. */
@@ -175,11 +176,17 @@ public class ArchitectureApi {
     List<IntendedArchitecture.Constraint> constraints) {
   }
 
-  private static <T> T read(String projectKey, Supplier<T> request) {
+  private <T> T read(String projectKey, Supplier<T> request) {
     try {
       return request.get();
     } catch (ForbiddenException e) {
       throw new ForbiddenException("a refusal to read the architecture of project '" + projectKey + "': " + reason(e) + ". " + READ_HINT + ". " + PLAN_HINT);
+    } catch (NotFoundException e) {
+      if (helper.isSonarQubeCloud()) {
+        throw e;
+      }
+      throw new NotFoundException("The requested architecture resource was not found. Check the project or directive id and Browse permission. "
+        + "On older Server versions, use a Server build that exposes the public Architecture APIs.");
     }
   }
 
@@ -266,7 +273,8 @@ public class ArchitectureApi {
 
   public void deleteDirective(String projectKey, String id) {
     write(projectKey, () -> {
-      try (var response = helper.deleteApiSubdomain(directivePath(id))) {
+      try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(directivePath(id))
+        : helper.delete(SERVER_API_PREFIX + directivePath(id))) {
         if (response.code() != java.net.HttpURLConnection.HTTP_NO_CONTENT) {
           throw new IllegalStateException("The directive deletion was not confirmed. Inspect it before retrying.");
         }
