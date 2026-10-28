@@ -642,10 +642,12 @@ class ArchitectureDirectivesToolTests {
   @CsvSource({"true,false", "false,false", "true,true", "false,true"})
   void it_should_report_unchanged_update_ids(boolean dryRun, boolean duplicateCreate) {
     stubMainBranch(harness);
-    var id = "00000000-0000-4000-8000-000000000001";
-    harness.getMockSonarQubeServer().stubFor(get(PATH + "/" + id).willReturn(okJson(saved(1, "app:a"))));
-    stubPage(1, saved(1, "app:a"), 1);
-    var model = "{\"update\":[{\"id\":\"" + id + "\",\"fromNodeKey\":\"app:a\"}]"
+    var id = "abcdefab-1234-4000-8000-000000000001";
+    var requestedId = id.toUpperCase(java.util.Locale.ROOT);
+    var stored = saved(1, "app:a").replace("00000000-0000-4000-8000-000000000001", id);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "/" + requestedId).willReturn(okJson(stored)));
+    stubPage(1, stored, 1);
+    var model = "{\"update\":[{\"id\":\"" + requestedId + "\",\"fromNodeKey\":\"app:a\"}]"
       + (duplicateCreate ? ",\"create\":[" + INPUT + "]" : "") + "}";
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", dryRun));

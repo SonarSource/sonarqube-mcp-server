@@ -181,7 +181,8 @@ final class ProjectDirectives {
       throw new IllegalArgumentException("The batch would exceed the 1000 directives per project limit. Nothing was changed.");
     }
     var skippedIds = java.util.stream.Stream.concat(unchangedIds.stream(),
-      input.create().stream().flatMap(item -> existing.getOrDefault(item.identity(), List.of()).stream())).distinct().toList();
+      input.create().stream().flatMap(item -> existing.getOrDefault(item.identity(), List.of()).stream()))
+      .map(id -> id.toLowerCase(Locale.ROOT)).distinct().toList();
     var result = new Applied(projectKey, dryRun ? "dry-run" : "applied", creations.items(), List.copyOf(changes), List.copyOf(toDelete), unchangedIds.size() + creations.skipped(), skippedIds,
       new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
       warnings(noVisibleDirectives));
