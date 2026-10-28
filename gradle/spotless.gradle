@@ -10,6 +10,8 @@ headerLines.each { line ->
 }
 javaLicenseHeader.append(" */")
 
+def scriptHeader = headerLines.collect { line -> line.isEmpty() ? "#" : "# ${line}" }.join("\n")
+
 spotless {
     java {
         target("**/src/**/*.java")
@@ -19,6 +21,10 @@ spotless {
     format("packageInfo") {
         target("**/src/**/package-info.java")
         licenseHeader(javaLicenseHeader.toString(), "(package |@|/\\*\\*)")
+    }
+    format("scripts") {
+        target("**/src/**/*.py")
+        licenseHeader("#!/usr/bin/env python3\n#\n${scriptHeader}\n#\n", "(\"\"\"|import )")
     }
 }
 
