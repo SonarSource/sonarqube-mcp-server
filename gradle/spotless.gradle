@@ -1,0 +1,27 @@
+def headerLines = rootProject.file("HEADER").text.trim().readLines()
+
+def javaLicenseHeader = new StringBuilder("/*\n")
+headerLines.each { line ->
+    if (line.isEmpty()) {
+        javaLicenseHeader.append(" *\n")
+    } else {
+        javaLicenseHeader.append(" * ").append(line).append("\n")
+    }
+}
+javaLicenseHeader.append(" */")
+
+spotless {
+    java {
+        target("**/src/**/*.java")
+        targetExclude("**/src/**/package-info.java")
+        licenseHeader(javaLicenseHeader.toString(), "package ")
+    }
+    format("packageInfo") {
+        target("**/src/**/package-info.java")
+        licenseHeader(javaLicenseHeader.toString(), "(package |@|/\\*\\*)")
+    }
+}
+
+tasks.named("check") {
+    dependsOn(tasks.named("spotlessCheck"))
+}
