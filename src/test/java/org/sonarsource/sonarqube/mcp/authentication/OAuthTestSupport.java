@@ -19,7 +19,9 @@ package org.sonarsource.sonarqube.mcp.authentication;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.filter.Filter;
 import ch.qos.logback.core.read.ListAppender;
+import ch.qos.logback.core.spi.FilterReply;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -95,6 +97,23 @@ final class OAuthTestSupport {
     }
 
     LogCapture(boolean debugEnabled) {
+      this(debugEnabled, false);
+    }
+
+    static LogCapture allThreads(boolean debugEnabled) {
+      return new LogCapture(debugEnabled, true);
+    }
+
+    private LogCapture(boolean debugEnabled, boolean allThreads) {
+      if (!allThreads) {
+        var capturingThread = Thread.currentThread();
+        appender.addFilter(new Filter<>() {
+          @Override
+          public FilterReply decide(ILoggingEvent event) {
+            return Thread.currentThread() == capturingThread ? FilterReply.NEUTRAL : FilterReply.DENY;
+          }
+        });
+      }
       appender.start();
       logger.addAppender(appender);
       logger.setLevel(debugEnabled ? Level.DEBUG : Level.INFO);
