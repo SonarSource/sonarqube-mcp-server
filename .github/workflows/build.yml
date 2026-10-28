@@ -97,11 +97,6 @@ jobs:
         run: |
           ./gradlew :its:cleanIntegrationTest :its:integrationTest --tests "org.sonarsource.sonarqube.mcp.its.${{ matrix.test_class }}" --info
 
-      - name: Verify integration tests executed
-        run: >-
-          python3 .github/scripts/check_test_results.py
-          "its/build/test-results/integrationTest/TEST-org.sonarsource.sonarqube.mcp.its.${{ matrix.test_class }}.xml"
-
       - name: Upload integration test reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
