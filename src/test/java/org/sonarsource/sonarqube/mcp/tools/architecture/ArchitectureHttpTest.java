@@ -125,6 +125,34 @@ class ArchitectureHttpTest {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_read_preview_and_create_directives_over_http_with_request_read_only_controls(SonarQubeMcpServerTestHarness harness,
+    @TempDir Path storage) throws Exception {
+    ArchitectureFixtures.stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    var path = ArchitectureApi.PROJECT_DIRECTIVES_PATH;
+    var input = """
+      {"type":"REMOVE_EDGE","ecosystem":"java","graphType":"namespace_graph","fromNodeKey":"app:a","toNodeKey":"app:b"}
+      """.trim();
+    var id = "00000000-0000-4000-8000-000000000001";
+    var saved = input.substring(0, input.length() - 1) + ",\"id\":\"" + id + "\",\"projectId\":\""
+      + ArchitectureFixtures.MAIN_BRANCH_ID + "\",\"graphPerspective\":\"default_perspective\",\"origin\":\"sonarqube-mcp-server\"}";
+    backend.stubFor(get(path + "?projectId=" + ArchitectureFixtures.MAIN_BRANCH_ID + "&pageIndex=1&pageSize=100")
+      .withHeader("Authorization", equalTo("Bearer token-a"))
+      .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}")));
+    backend.stubFor(get(path + "/" + id).withHeader("Authorization", equalTo("Bearer token-a")).willReturn(okJson(saved)));
+    var port = port();
+    var server = new SonarQubeMcpServer(environment(harness, storage, port));
+    try (var client = HttpClient.newHttpClient()) {
+      server.start();
+      var read = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "directives", "projectKey", "my_project", "directiveId", id)));
+      assertThat(read).contains(id).doesNotContain("isError\":true");
+    } finally {
+      server.shutdown();
+    }
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_hide_architecture_set_in_server_read_only_mode(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
     var port = port();
     var env = environment(harness, storage, port);
