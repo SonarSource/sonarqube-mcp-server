@@ -41,10 +41,13 @@ public class ArchitectureSetTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Set Architecture")
       .setDestructiveHint()
-      .setDescription("Replace the complete intended model; omitted content and metadata are removed.")
+      .setDescription("Replace intended architecture (omitted content is removed), or create explicit project directives.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
-      .addRequiredEnumProperty("target", new String[] {"intended"}, "intended: replace the model.")
-      .addRequiredStringProperty(MODEL_PROPERTY, "Whole JSON response or models array from unfiltered architecture_get target intended; partial views are rejected.")
+      .addRequiredEnumProperty("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES}, "intended: replace model; directives: create missing directives.")
+      .addRequiredStringProperty(MODEL_PROPERTY, "Intended: full response or models array. Directives: "
+        + "{create: [directives]}; directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
+        + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current (RENAME_NODE: new name), "
+        + "graphPerspective defaults to default_perspective, optional description.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get target intended; defaults to the model response revision. A mismatch prevents writing.")
       .build(),
@@ -60,10 +63,23 @@ public class ArchitectureSetTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
-    arguments.getEnumOrThrow("target", new String[] {"intended"});
+    if (arguments.toMap().containsKey("operation")) {
+      throw new IllegalArgumentException("operation is not supported. Put create, update and delete arrays in model.");
+    }
+    var target = arguments.getEnumOrThrow("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES});
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     boolean dryRun = arguments.getBooleanOrThrow(DRY_RUN_PROPERTY);
     var model = arguments.getStringOrThrow(MODEL_PROPERTY);
+    if (ArchitectureGetTool.DIRECTIVES.equals(target)) {
+      if (arguments.toMap().get(REVISION_PROPERTY) != null) {
+        throw new IllegalArgumentException("Revision is only used for intended architecture.");
+      }
+      var directives = ProjectDirectives.parse(model, projectKey);
+      var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+      var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
+      return Result.success(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun));
+    }
+
     var next = IntendedModels.parse(model);
     var revision = revision(arguments, model);
     var invalidReason = IntendedModels.invalidReason(next);
