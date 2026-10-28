@@ -37,9 +37,12 @@ import java.util.concurrent.TimeoutException;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.DefaultHttpRequestRetryStrategy;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.NoHttpResponseException;
+import org.apache.hc.core5.http.protocol.HttpCoreContext;
 import org.apache.hc.core5.reactor.IOReactorConfig;
 import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.Test;
@@ -482,6 +485,17 @@ class HttpClientProviderTests {
     } finally {
       provider.shutdown();
     }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"GET, true", "DELETE, false"})
+  void it_should_not_retry_delete_after_an_otherwise_retryable_io_failure(String method, boolean shouldRetry) {
+    var request = new SimpleHttpRequest(method, "http://localhost/retry");
+    var exception = new NoHttpResponseException("No response");
+    var context = HttpCoreContext.create();
+
+    assertThat(new DefaultHttpRequestRetryStrategy().retryRequest(request, exception, 1, context)).isTrue();
+    assertThat(HttpClientProvider.createRetryStrategy().retryRequest(request, exception, 1, context)).isEqualTo(shouldRetry);
   }
 
   @Test
