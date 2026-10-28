@@ -1466,24 +1466,24 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 ### Architecture
 
-**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended and directive operations are Cloud-only until public project UUID resolution is available.**
+**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server requires the Architecture feature; intended and directive operations also require the public `/api/v2/components/projects` lookup and public Architecture APIs.**
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, or project directives by page or ID. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
-  - `target` - `current`, `intended` or `directives` on Cloud; `current` on Server - _Required Enum_
+  - `target` - `current`, `intended` or `directives` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended only - _String_
-  - `directiveId` - Cloud directives only: read one UUID instead of a page; cannot be combined with paging - _String_
+  - `directiveId` - Directives only: read one UUID instead of a page; cannot be combined with paging - _String_
   - `pageIndex` - Directives page, starting at 1; default 1 - _Number_
   - `pageSize` - Directives per page; default 50, maximum 1000 - _Number_
 
-- **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
+- **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
   **Directives:** Supply a JSON object with optional `create`, `update` and `delete` arrays. Create records contain directive fields, update records contain `{id, changed fields}`, and delete records contain only `{id}`. Unspecified update fields and unmentioned directives are retained. Creation skips duplicate operations. Preview with `dryRun=true` and apply only after confirmation. The whole batch is validated before writing; conflicting IDs are rejected. Writes are individual, not atomic. A partial or uncertain failure reports confirmed IDs and stops without retry or rollback. Duplicate checks and preflight reads can race concurrent edits. Optional fields cannot be cleared with null; the API has no conditional writes.
 
