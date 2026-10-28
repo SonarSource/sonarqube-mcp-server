@@ -72,8 +72,7 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureSetTool;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
 import org.sonarsource.sonarqube.mcp.tools.hotspots.ChangeSecurityHotspotStatusTool;
@@ -430,11 +429,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new SearchDuplicatedFilesTool(this, configuredProjectKey),
       new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
       new ListPullRequestsTool(this, configuredProjectKey),
-      new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey),
-      new ArchitectureGetTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
-    if (mcpConfiguration.isSonarQubeCloud()) {
-      supportedTools.add(new ArchitectureSetTool(this, true, configuredProjectKey));
-    }
+      new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
+    supportedTools.addAll(ArchitectureTools.create(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey));
 
     if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)
       && (mcpConfiguration.isHttpEnabled() || serverApi.isSonarQubeCloud()
