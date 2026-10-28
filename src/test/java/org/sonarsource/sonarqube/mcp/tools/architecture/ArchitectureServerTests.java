@@ -18,6 +18,9 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -30,6 +33,10 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.patch;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.textOf;
 
 class ArchitectureServerTests {
@@ -50,6 +57,31 @@ class ArchitectureServerTests {
   private String saved() {
     return INPUT.substring(0, INPUT.length() - 1) + ",\"id\":\"" + ID + "\",\"projectId\":\"opaque-project-id\","
       + "\"origin\":\"sonarqube-mcp-server\",\"graphPerspective\":\"default_perspective\"}";
+  }
+
+  @Test
+  void it_should_preserve_current_not_found_errors_without_directive_or_upgrade_advice() {
+    var helper = mock(ServerApiHelper.class);
+    var missingBranch = new NotFoundException("Analyzed branch was not found");
+    when(helper.get(anyString())).thenThrow(missingBranch);
+
+    var api = new ArchitectureApi(helper);
+
+    assertThatThrownBy(() -> api.getStructure("my_project", "", "branch-id", "java"))
+      .isSameAs(missingBranch);
+  }
+
+  @Test
+  void it_should_keep_the_original_error_when_explaining_unavailable_project_routes() {
+    var helper = mock(ServerApiHelper.class);
+    when(helper.get(anyString())).thenThrow(new NotFoundException("Project model is unavailable"));
+
+    var api = new ArchitectureApi(helper);
+
+    assertThatThrownBy(() -> api.getIntended("my_project", "project-id"))
+      .isInstanceOf(NotFoundException.class)
+      .hasMessageContaining("Project model is unavailable")
+      .hasMessageContaining("public Architecture APIs");
   }
 
   @Test

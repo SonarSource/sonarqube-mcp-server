@@ -85,7 +85,7 @@ public class ArchitectureApi {
     var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH)
       .addParam("projectId", projectId)
       .build();
-    var response = read(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
+    var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
     if (response == null || response.intendedArchitectures() == null) {
       throw new IllegalStateException("The public architecture API did not return intendedArchitectures. No complete model was read.");
     }
@@ -181,21 +181,27 @@ public class ArchitectureApi {
       return request.get();
     } catch (ForbiddenException e) {
       throw new ForbiddenException("a refusal to read the architecture of project '" + projectKey + "': " + reason(e) + ". " + READ_HINT + ". " + PLAN_HINT);
+    }
+  }
+
+  private <T> T readProjectResource(String projectKey, Supplier<T> request) {
+    try {
+      return read(projectKey, request);
     } catch (NotFoundException e) {
       if (helper.isSonarQubeCloud()) {
         throw e;
       }
-      throw new NotFoundException("The requested architecture resource was not found. Check the project or directive id and Browse permission. "
+      throw new NotFoundException(reason(e) + ". Check the project or directive id and Browse permission. "
         + "On older Server versions, use a Server build that exposes the public Architecture APIs.");
     }
   }
 
-  private static String reason(ForbiddenException e) {
+  private static String reason(ServerApiException e) {
     return Strings.CS.removeStart(e.getMessage(), ServerApiException.MESSAGE_PREFIX);
   }
 
   public DirectivePage getDirectivePage(String projectKey, String projectId, int pageIndex, int pageSize) {
-    return read(projectKey, () -> readDirectivePage(projectId, pageIndex, pageSize));
+    return readProjectResource(projectKey, () -> readDirectivePage(projectId, pageIndex, pageSize));
   }
 
   private DirectivePage readDirectivePage(String projectId, int pageIndex, int pageSize) {
@@ -249,7 +255,7 @@ public class ArchitectureApi {
   }
 
   public ProjectDirective getDirective(String projectKey, String projectId, String id) {
-    return read(projectKey, () -> {
+    return readProjectResource(projectKey, () -> {
       var directive = fromJson(get(directivePath(id)), ProjectDirective.class);
       validateDirectiveResource(directive, projectId, id);
       return directive;
