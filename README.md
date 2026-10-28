@@ -622,7 +622,7 @@ By default, only important toolsets are enabled. Enable additional toolsets only
 | **Vortex Context**    | `cag`               | Vortex context tools — stdio only. **Deprecated** in favor of `vortex` (old name: Context Augmentation/CAG)                                                 |
 | **Vortex**            | `vortex`            | Unified, **recommended** toolset surfacing both Vortex context and Vortex analysis tools under one name (stdio only; Cloud needs combined org entitlement; Server needs both hubs entitled) |
 | **Agentic Readiness** | `agentic-readiness` | Agentic Readiness Assessment tools (SonarQube Cloud, requires org entitlement)                                                                              |
-| **Architecture**      | `architecture`      | Read current and intended architecture, replace intended models (not enabled by default)                                                        |
+| **Architecture**      | `architecture`      | Read current/intended architecture and project directives, replace intended models (not enabled by default)                                                        |
 
 #### Examples
 
@@ -1471,7 +1471,7 @@ Then, mount the project workspace to give the Context Augmentation server direct
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended only - _String_
-  - `directiveId` - Read one directive UUID instead of a page - _String_
+  - `directiveId` - Cloud directives only: read one UUID instead of a page; cannot be combined with paging - _String_
   - `pageIndex` - Directives page, starting at 1; default 1 - _Number_
   - `pageSize` - Directives per page; default 50, maximum 1000 - _Number_
 
