@@ -41,6 +41,9 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorExce
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.delete;
+import static com.github.tomakehurst.wiremock.client.WireMock.deleteRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -225,6 +228,28 @@ class ServerApiTests {
     try (var response = serverApiHelper.post("/test", "application/json", "{}", Duration.ofSeconds(5))) {
       assertThat(response.bodyAsString()).isEqualTo("{\"result\":\"ok\"}");
     }
+  }
+
+  @Test
+  void deleteApiSubdomain_should_return_a_successful_response_once() {
+    sonarqubeMock.stubFor(delete("/api/test").willReturn(aResponse().withStatus(HttpStatus.SC_NO_CONTENT)));
+
+    try (var response = serverApiHelper.deleteApiSubdomain("/api/test")) {
+      assertThat(response.code()).isEqualTo(HttpStatus.SC_NO_CONTENT);
+    }
+    sonarqubeMock.verify(1, deleteRequestedFor(urlEqualTo("/api/test")));
+  }
+
+  @ParameterizedTest
+  @MethodSource("postApiSubdomainErrorResponses")
+  void deleteApiSubdomain_should_reject_errors_without_replay(int statusCode, Class<? extends Exception> expectedException, String messageTemplate) {
+    sonarqubeMock.stubFor(delete("/api/test").willReturn(aResponse().withStatus(statusCode)));
+    var expectedMessage = messageTemplate.contains("%s") ? messageTemplate.formatted(sonarqubeMock.baseUrl()) : messageTemplate;
+
+    var exception = assertThrows(expectedException, () -> serverApiHelper.deleteApiSubdomain("/api/test"));
+
+    assertThat(exception).hasMessage(expectedMessage);
+    sonarqubeMock.verify(1, deleteRequestedFor(urlEqualTo("/api/test")));
   }
 
   static Stream<Arguments> buildApiSubdomainUrlCases() {
