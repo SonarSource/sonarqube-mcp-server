@@ -30,6 +30,7 @@ import java.util.UUID;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthConfiguration;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static java.util.Objects.requireNonNull;
@@ -231,7 +232,7 @@ public final class McpServerLaunchConfiguration {
 
     // Parse tool category configuration
     var toolsetsStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOOLSETS, null);
-    this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
+    this.enabledToolsets = Set.copyOf(ToolCategory.parseCategories(toolsetsStr, getTransportMode()));
 
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
 
@@ -339,6 +340,10 @@ public final class McpServerLaunchConfiguration {
 
   public boolean isHttpEnabled() {
     return isHttpEnabled;
+  }
+
+  public TransportMode getTransportMode() {
+    return isHttpEnabled ? TransportMode.HTTP : TransportMode.STDIO;
   }
 
   /**

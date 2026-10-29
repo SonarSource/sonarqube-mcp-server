@@ -22,37 +22,43 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import jakarta.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
+
+import static org.sonarsource.sonarqube.mcp.client.TransportMode.HTTP;
+import static org.sonarsource.sonarqube.mcp.client.TransportMode.STDIO;
 
 /**
  * Categories of tools that can be selectively enabled or disabled.
  * A tool may belong to one or more categories.
  */
 public enum ToolCategory {
-  ANALYSIS("analysis"),
-  IDE("ide"),
-  COVERAGE("coverage"),
-  ISSUES("issues"),
-  PROJECTS("projects"),
-  QUALITY_GATES("quality-gates"),
-  RULES("rules"),
+  ANALYSIS("analysis", STDIO, HTTP),
+  IDE("ide", STDIO, HTTP),
+  COVERAGE("coverage", STDIO, HTTP),
+  ISSUES("issues", STDIO, HTTP),
+  PROJECTS("projects", STDIO, HTTP),
+  QUALITY_GATES("quality-gates", STDIO, HTTP),
+  RULES("rules", STDIO, HTTP),
   SOURCES("sources"),
-  DUPLICATIONS("duplications"),
-  MEASURES("measures"),
+  DUPLICATIONS("duplications", STDIO, HTTP),
+  MEASURES("measures", STDIO, HTTP),
   LANGUAGES("languages"),
   PORTFOLIOS("portfolios"),
   SYSTEM("system"),
   WEBHOOKS("webhooks"),
-  DEPENDENCY_RISKS("dependency-risks"),
-  SECURITY_HOTSPOTS("security-hotspots"),
-  CAG("cag"),
-  AGENTIC_READINESS("agentic-readiness"),
+  DEPENDENCY_RISKS("dependency-risks", STDIO, HTTP),
+  SECURITY_HOTSPOTS("security-hotspots", STDIO, HTTP),
+  CAG("cag", STDIO, HTTP),
+  AGENTIC_READINESS("agentic-readiness", STDIO),
   VORTEX("vortex"),
   ARCHITECTURE("architecture");
 
   private final String key;
+  private final Set<TransportMode> defaultTransports;
 
-  ToolCategory(String key) {
+  ToolCategory(String key, TransportMode... defaultTransports) {
     this.key = key;
+    this.defaultTransports = Set.of(defaultTransports);
   }
 
   public String getKey() {
@@ -78,8 +84,12 @@ public enum ToolCategory {
    * Invalid keys are silently ignored.
    */
   public static Set<ToolCategory> parseCategories(@Nullable String categoriesStr) {
+    return parseCategories(categoriesStr, STDIO);
+  }
+
+  public static Set<ToolCategory> parseCategories(@Nullable String categoriesStr, TransportMode transport) {
     if (categoriesStr == null || categoriesStr.isBlank()) {
-      return defaultEnabled();
+      return defaultEnabled(transport);
     }
     return Arrays.stream(categoriesStr.split(","))
       .map(String::trim)
@@ -92,21 +102,13 @@ public enum ToolCategory {
    * Returns the default enabled categories when SONARQUBE_TOOLSETS is not provided.
    */
   public static Set<ToolCategory> defaultEnabled() {
-    return Set.of(
-      ANALYSIS,
-      IDE,
-      ISSUES,
-      PROJECTS,
-      QUALITY_GATES,
-      RULES,
-      DUPLICATIONS,
-      MEASURES,
-      SECURITY_HOTSPOTS,
-      DEPENDENCY_RISKS,
-      COVERAGE,
-      CAG,
-      AGENTIC_READINESS
-    );
+    return defaultEnabled(STDIO);
+  }
+
+  public static Set<ToolCategory> defaultEnabled(TransportMode transport) {
+    return Arrays.stream(values())
+      .filter(category -> category.defaultTransports.contains(transport))
+      .collect(Collectors.toUnmodifiableSet());
   }
 
   public static Set<ToolCategory> all() {

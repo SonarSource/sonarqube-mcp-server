@@ -22,6 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
@@ -56,6 +57,11 @@ public class ArchitectureSetTool extends Tool {
   @Override
   public ToolAccessMode requiredAccessMode() {
     return ToolAccessMode.READ_WRITE;
+  }
+
+  @Override
+  public ToolAvailabilityPolicy availabilityPolicy() {
+    return ToolAvailabilityPolicy.CLOUD_ONLY;
   }
 
   @Override
