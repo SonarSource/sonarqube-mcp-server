@@ -87,10 +87,11 @@ class SonarCloudCdnPluginsApiTest {
     var request = new CompletableFuture<HttpClient.Response>();
     var expectedUrl = "https://scanner.sonarcloud.io/plugins/java/versions/" + LOWERCASE_MD5 + ".jar";
     when(httpClient.getAsyncAnonymous(expectedUrl, HttpClient.DOWNLOAD_TIMEOUT)).thenReturn(request);
+    var pluginsApi = new SonarCloudCdnPluginsApi("https://sonarcloud.io", httpClient);
 
     Thread.currentThread().interrupt();
     try {
-      assertThatThrownBy(() -> new SonarCloudCdnPluginsApi("https://sonarcloud.io", httpClient).downloadPlugin("java", LOWERCASE_MD5))
+      assertThatThrownBy(() -> pluginsApi.downloadPlugin("java", LOWERCASE_MD5))
         .isInstanceOf(CancellationException.class);
       assertThat(request.isCancelled()).isTrue();
       assertThat(Thread.currentThread().isInterrupted()).isTrue();

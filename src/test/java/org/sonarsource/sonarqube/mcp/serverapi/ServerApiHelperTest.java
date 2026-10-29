@@ -39,8 +39,9 @@ class ServerApiHelperTest {
   @Test
   void it_should_preserve_request_failure() {
     var failure = new IOException("Connection closed");
+    var request = CompletableFuture.<HttpClient.Response>failedFuture(failure);
 
-    assertThatThrownBy(() -> ServerApiHelper.awaitResponse(CompletableFuture.failedFuture(failure)))
+    assertThatThrownBy(() -> ServerApiHelper.awaitResponse(request))
       .isInstanceOf(CompletionException.class)
       .hasCause(failure);
   }

@@ -37,7 +37,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
@@ -209,8 +209,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private final ThreadLocal<McpTransportContext> currentTransportContext = new ThreadLocal<>();
   private volatile boolean isShutdown = false;
   private final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
-  @Nullable
-  private volatile Thread backgroundInitializationThread;
+  private final AtomicReference<Thread> backgroundInitializationThread = new AtomicReference<>();
   private ProxiedToolsLoader proxiedToolsLoader;
 
   public static void main(String[] args) {
@@ -273,9 +272,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   private void startBackgroundInitialization() {
-    backgroundInitializationThread = new Thread(this::initializeBackgroundServices, "mcp-background-init");
-    backgroundInitializationThread.setDaemon(false);
-    backgroundInitializationThread.start();
+    var thread = new Thread(this::initializeBackgroundServices, "mcp-background-init");
+    thread.setDaemon(false);
+    backgroundInitializationThread.set(thread);
+    thread.start();
   }
 
   /**
@@ -815,7 +815,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private void stopBackgroundInitialization() {
     initializationFuture.cancel(false);
-    var thread = backgroundInitializationThread;
+    var thread = backgroundInitializationThread.get();
     if (thread == null) {
       return;
     }
