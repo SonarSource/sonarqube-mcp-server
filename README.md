@@ -1466,22 +1466,24 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 ### Architecture
 
-**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server requires the Architecture feature; intended and directive operations also require the public `/api/v2/components/projects` lookup and public Architecture APIs.**
+**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server requires the Architecture feature; intended, directive and findings operations also require the public `/api/v2/components/projects` lookup and public Architecture APIs.**
 
-- **architecture_get** - Read current dependencies, intended groups and constraints, or project directives by page or ID. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
+- **architecture_get** - Read current dependencies, intended groups and constraints, project directives, or deviations, flaws and smells by page or ID. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
-  - `target` - `current`, `intended` or `directives` - _Required Enum_
+  - `target` - `current`, `intended`, `directives` or `findings` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended only - _String_
   - `directiveId` - Directives only: read one UUID instead of a page; cannot be combined with paging - _String_
-  - `pageIndex` - Directives page, starting at 1; default 1 - _Number_
-  - `pageSize` - Directives per page; default 50, maximum 1000 - _Number_
+  - `findingId` - Findings only: read one finding with details; cannot be combined with category or paging - _String_
+  - `category` - Findings only: `DEVIATION`, `FLAW` or `SMELL` - _Enum_
+  - `pageIndex` - Directives or findings page, starting at 1; default 1 - _Number_
+  - `pageSize` - Directives or findings per page; default 50, maximum 1000 - _Number_
 
 - **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
