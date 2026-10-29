@@ -51,7 +51,8 @@ class ArchitectureDirectivesToolTests {
     stubPage(2, saved(101, "app:a"), 101);
     var client = harness.newClient(CLOUD_ENV);
     var schema = client.listTools().stream().filter(tool -> ArchitectureGetTool.TOOL_NAME.equals(tool.name())).findFirst().orElseThrow().inputSchema();
-    assertThat(schema.toString()).contains("directiveId/pageIndex/pageSize apply only to directives");
+    assertThat(schema.toString()).contains("directives: project directives (directiveId)")
+      .contains("pageIndex/pageSize apply to directives and findings");
     var read = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "pageIndex", 2, "pageSize", 100));
     assertThat(read.isError()).isFalse();
     assertThat(textOf(read)).contains("000000000101");

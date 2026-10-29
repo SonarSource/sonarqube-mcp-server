@@ -28,6 +28,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
@@ -38,6 +39,8 @@ public class ArchitectureApi {
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
+  public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
+  public static final List<String> FINDING_CATEGORIES = List.of("DEVIATION", "FLAW", "SMELL");
   public static final String SERVER_API_PREFIX = "/api/v2";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
@@ -252,6 +255,36 @@ public class ArchitectureApi {
   }
 
   public record DirectivePage(List<ProjectDirective> projectDirectives, DirectivePageInfo page) {
+  }
+
+  public FindingPage getFindingPage(String projectKey, String projectId, @Nullable String category, int pageIndex, int pageSize) {
+    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("projectId", projectId).addParam("category", category)
+      .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
+    var response = read(projectKey, () -> fromJson(get(path), FindingPage.class));
+    if (response == null || response.projectFindings() == null || response.page() == null
+      || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
+      || response.page().total() == null || response.page().total() < 0) {
+      throw new IllegalStateException("Invalid public findings page; no complete page was read.");
+    }
+    response.projectFindings().forEach(ArchitectureApi::validateFinding);
+    return response;
+  }
+
+  public ProjectFinding getFinding(String projectKey, String id) {
+    var path = new URIBuilder().setPath(PROJECT_FINDINGS_PATH).appendPathSegments(id).toString();
+    var finding = read(projectKey, () -> fromJson(get(path), ProjectFinding.class));
+    validateFinding(finding);
+    return finding;
+  }
+
+  private static void validateFinding(@Nullable ProjectFinding finding) {
+    if (finding == null) {
+      throw new IllegalStateException("The public findings response contains an empty finding.");
+    }
+    finding.validateStored();
+  }
+
+  public record FindingPage(List<ProjectFinding> projectFindings, DirectivePageInfo page) {
   }
 
   public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
