@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 import java.util.Objects;
 import java.util.UUID;
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.function.Supplier;
@@ -29,6 +30,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
@@ -40,7 +42,10 @@ public class ArchitectureApi {
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
+  public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
+  public static final List<String> FINDING_CATEGORIES = List.of("DEVIATION", "FLAW", "SMELL");
   public static final String SERVER_API_PREFIX = "/api/v2";
+  private static final String PROJECT_ID_PARAM = "projectId";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
   public static final int MAX_PERSPECTIVES = 50;
@@ -83,7 +88,7 @@ public class ArchitectureApi {
    */
   public List<IntendedArchitecture> getIntended(String projectKey, String projectId) {
     var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH)
-      .addParam("projectId", projectId)
+      .addParam(PROJECT_ID_PARAM, projectId)
       .build();
     var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
     if (response == null || response.intendedArchitectures() == null) {
@@ -208,7 +213,7 @@ public class ArchitectureApi {
     if (pageIndex < 1 || pageSize < 1 || pageSize > 1000) {
       throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
     }
-    var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam("projectId", projectId)
+    var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam(PROJECT_ID_PARAM, projectId)
       .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
     var response = fromJson(get(path), DirectivePage.class);
     if (response == null || response.projectDirectives() == null || response.page() == null
@@ -307,6 +312,68 @@ public class ArchitectureApi {
   }
 
   public record DirectivePage(List<ProjectDirective> projectDirectives, DirectivePageInfo page) {
+  }
+
+  public FindingPage getFindingPage(String projectKey, String projectId, @Nullable String category, int pageIndex, int pageSize) {
+    if (pageIndex < 1 || pageSize < 1 || pageSize > 1000) {
+      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 1 and 1000.");
+    }
+    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam(PROJECT_ID_PARAM, projectId).addParam("category", category)
+      .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
+    var response = read(projectKey, () -> findingsJson(get(path), FindingPage.class));
+    if (response == null || response.projectFindings() == null || response.page() == null
+      || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
+      || response.page().total() == null || response.page().total() < 0 || response.projectFindings().size() > pageSize) {
+      throw new IllegalStateException("Invalid public findings page; no complete page was read.");
+    }
+    var ids = new java.util.HashSet<String>();
+    for (var finding : response.projectFindings()) {
+      validateFinding(finding, projectId);
+      if (!ids.add(finding.id())) {
+        throw new IllegalStateException("The public findings page returned duplicate ids.");
+      }
+    }
+    return response;
+  }
+
+  public ProjectFinding getFinding(String projectKey, String projectId, String id) {
+    if (id.isBlank() || ".".equals(id) || "..".equals(id)) {
+      throw new IllegalArgumentException("Finding id must be a nonempty id.");
+    }
+    var path = new URIBuilder().setPath(PROJECT_FINDINGS_PATH).appendPathSegments(id).toString();
+    ProjectFinding finding;
+    try {
+      finding = read(projectKey, () -> findingsJson(get(path), ProjectFinding.class));
+    } catch (NotFoundException e) {
+      throw new NotFoundException("Finding " + id + " was not found or is not accessible in the selected project.");
+    }
+    validateFinding(finding, projectId);
+    if (!id.equals(finding.id())) {
+      throw new IllegalStateException("The public finding response returned a different id or project.");
+    }
+    return finding;
+  }
+
+  private static void validateFinding(@Nullable ProjectFinding finding, String projectId) {
+    if (finding == null) {
+      throw new IllegalStateException("The public findings response contains an empty finding.");
+    }
+    finding.validateStored();
+    if (!projectId.equals(finding.projectId())) {
+      throw new IllegalStateException("The public finding response returned a different id or project.");
+    }
+  }
+
+  @Nullable
+  private <T> T findingsJson(HttpClient.Response response, Class<T> type) {
+    try {
+      return fromJson(response, type);
+    } catch (JsonParseException e) {
+      throw new IllegalStateException("Invalid public findings response; no complete finding was read.");
+    }
+  }
+
+  public record FindingPage(List<ProjectFinding> projectFindings, DirectivePageInfo page) {
   }
 
   public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
