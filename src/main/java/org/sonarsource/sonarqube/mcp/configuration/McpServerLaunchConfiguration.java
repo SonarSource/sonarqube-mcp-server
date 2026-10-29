@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -231,7 +232,11 @@ public final class McpServerLaunchConfiguration {
 
     // Parse tool category configuration
     var toolsetsStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOOLSETS, null);
-    this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
+    var toolsets = new HashSet<>(ToolCategory.parseCategories(toolsetsStr));
+    if (isHttpEnabled && (toolsetsStr == null || toolsetsStr.isBlank())) {
+      toolsets.remove(ToolCategory.AGENTIC_READINESS);
+    }
+    this.enabledToolsets = Set.copyOf(toolsets);
 
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
 
