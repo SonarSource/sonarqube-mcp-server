@@ -545,7 +545,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     // HTTP requires explicit toolset opt-in; the backend enforces entitlement per call.
     if (mcpConfiguration.isHttpEnabled()) {
-      return true;
+      return mcpConfiguration.isToolCategoryExplicitlyEnabled(ToolCategory.AGENTIC_READINESS);
     }
     var relevantOrganizations = resolvedOrganization != null ? List.of(resolvedOrganization) : organizations;
     for (var organization : relevantOrganizations) {

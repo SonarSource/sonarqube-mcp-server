@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -138,6 +137,7 @@ public final class McpServerLaunchConfiguration {
 
   // Tool category configuration
   private final Set<ToolCategory> enabledToolsets;
+  private final boolean toolsetsExplicitlyConfigured;
   private final boolean isReadOnlyMode;
   
   // Default project key configuration
@@ -232,11 +232,8 @@ public final class McpServerLaunchConfiguration {
 
     // Parse tool category configuration
     var toolsetsStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOOLSETS, null);
-    var toolsets = new HashSet<>(ToolCategory.parseCategories(toolsetsStr));
-    if (isHttpEnabled && (toolsetsStr == null || toolsetsStr.isBlank())) {
-      toolsets.remove(ToolCategory.AGENTIC_READINESS);
-    }
-    this.enabledToolsets = Set.copyOf(toolsets);
+    this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
+    this.toolsetsExplicitlyConfigured = !isNullOrBlank(toolsetsStr);
 
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
 
@@ -561,6 +558,13 @@ public final class McpServerLaunchConfiguration {
       return true;
     }
     return enabledToolsets.contains(category);
+  }
+
+  /**
+   * Returns whether the category was explicitly selected through SONARQUBE_TOOLSETS.
+   */
+  public boolean isToolCategoryExplicitlyEnabled(ToolCategory category) {
+    return toolsetsExplicitlyConfigured && enabledToolsets.contains(category);
   }
 
   public Set<ToolCategory> getEnabledToolsets() {
