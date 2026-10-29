@@ -80,6 +80,19 @@ class HttpServerTransportIntegrationTest {
   }
 
   @Test
+  void should_serve_requests_as_soon_as_start_returns() {
+    assertThat(httpServer.startServer()).isCompleted();
+    assertThat(isServerRunning(httpServer.getServerUrl())).isTrue();
+  }
+
+  @Test
+  void should_report_startup_failure_when_the_port_is_in_use() throws IOException {
+    try (var occupiedPort = new ServerSocket(testPort)) {
+      assertThat(httpServer.startServer()).isCompletedExceptionally();
+    }
+  }
+
+  @Test
   void should_start_and_stop_http_server() {
     var startFuture = httpServer.startServer();
 
