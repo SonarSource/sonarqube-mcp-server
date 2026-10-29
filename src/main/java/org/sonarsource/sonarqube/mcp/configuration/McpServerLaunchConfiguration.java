@@ -137,6 +137,7 @@ public final class McpServerLaunchConfiguration {
 
   // Tool category configuration
   private final Set<ToolCategory> enabledToolsets;
+  private final boolean toolsetsExplicitlyConfigured;
   private final boolean isReadOnlyMode;
   
   // Default project key configuration
@@ -232,6 +233,7 @@ public final class McpServerLaunchConfiguration {
     // Parse tool category configuration
     var toolsetsStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOOLSETS, null);
     this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
+    this.toolsetsExplicitlyConfigured = !isNullOrBlank(toolsetsStr);
 
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
 
@@ -556,6 +558,13 @@ public final class McpServerLaunchConfiguration {
       return true;
     }
     return enabledToolsets.contains(category);
+  }
+
+  /**
+   * Returns whether the category was explicitly selected through SONARQUBE_TOOLSETS.
+   */
+  public boolean isToolCategoryExplicitlyEnabled(ToolCategory category) {
+    return toolsetsExplicitlyConfigured && enabledToolsets.contains(category);
   }
 
   public Set<ToolCategory> getEnabledToolsets() {

@@ -17,6 +17,8 @@
 package org.sonarsource.sonarqube.mcp.configuration;
 
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -274,7 +276,37 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.SECURITY_HOTSPOTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.CAG)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.VORTEX)).isFalse();
+    assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isFalse();
+  }
+
+  @Test
+  void it_should_not_treat_blank_toolsets_as_explicit(@TempDir Path tempDir) {
+    for (var toolsets : List.of("", " \t ")) {
+      var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token",
+        "SONARQUBE_ORG", "org", "SONARQUBE_TOOLSETS", toolsets));
+
+      assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
+      assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isFalse();
+    }
+  }
+
+  @Test
+  void it_should_respect_property_toolsets_and_environment_precedence(@TempDir Path tempDir) {
+    var environment = new HashMap<>(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org",
+      "SONARQUBE_TOOLSETS", " \t "));
+    System.setProperty("SONARQUBE_TOOLSETS", "issues");
+    try {
+      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isTrue();
+
+      environment.put("SONARQUBE_TOOLSETS", "rules");
+      var configuration = new McpServerLaunchConfiguration(environment);
+      assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isFalse();
+      assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.RULES)).isTrue();
+    } finally {
+      System.clearProperty("SONARQUBE_TOOLSETS");
+    }
   }
 
   @Test
@@ -290,6 +322,8 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.QUALITY_GATES)).isTrue();
+    assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isTrue();
+    assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.PROJECTS)).isFalse();
     // PROJECTS is always enabled as it's required to find project keys
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isFalse();

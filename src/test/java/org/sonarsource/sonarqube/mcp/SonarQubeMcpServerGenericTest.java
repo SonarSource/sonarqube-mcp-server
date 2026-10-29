@@ -29,8 +29,10 @@ import java.util.Map;
 import java.util.Set;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
@@ -40,7 +42,10 @@ import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -447,9 +452,10 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_register_sara_tools_independently_of_startup_flag(SonarQubeMcpServerTestHarness harness) {
+  void it_should_hide_sara_tools_and_instructions_when_startup_flag_is_disabled(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "agentic-readiness");
     harness.prepareMockWebServer(environment); // SARA flag disabled by default
 
     var server = new SonarQubeMcpServer(
@@ -459,11 +465,10 @@ class SonarQubeMcpServerGenericTest {
     server.start();
 
     assertThat(server.getSupportedTools())
-      .as("Backend checks readiness entitlement on each call")
-      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+      .as("SARA tools require the feature flag in STDIO")
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
-      .as("Readiness instructions are available on Cloud")
-      .contains("## Agentic Readiness Assessment");
+      .doesNotContain("## Agentic Readiness Assessment");
 
     server.shutdown();
   }
@@ -493,22 +498,70 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_register_sara_tools_in_http_mode_regardless_of_flag(SonarQubeMcpServerTestHarness harness) {
+  void it_should_enable_sara_for_the_auto_detected_organization(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
+      .willReturn(okJson("[{\"key\":\"org\",\"uuidV4\":\"00000000-0000-0000-0000-000000000001\"}]")));
+    harness.stubSaraEnabled();
+
+    var client = harness.newClient(Map.of("SONARQUBE_IS_CLOUD", "true", "SONARQUBE_TOOLSETS", "agentic-readiness"));
+
+    assertThat(client.listTools()).extracting(McpSchema.Tool::name).contains(StartAgenticReadinessAssessmentTool.TOOL_NAME);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(WasFeatureFlagsApi.FEATURE_FLAGS_PATH)).isEqualTo(1);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_enable_sara_for_an_accessible_organization_after_a_failed_check(SonarQubeMcpServerTestHarness harness) {
+    var enabledOrganizationId = "00000000-0000-0000-0000-000000000002";
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)).willReturn(okJson("""
+      [{"key":"org-one","uuidV4":"00000000-0000-0000-0000-000000000001"},
+       {"key":"org-two","uuidV4":"%s"}]
+      """.formatted(enabledOrganizationId))));
+    harness.stubSaraError();
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(WasFeatureFlagsApi.FEATURE_FLAGS_PATH))
+      .withQueryParam("organizationId", equalTo(enabledOrganizationId))
+      .willReturn(okJson("{\"" + WasFeatureFlagsApi.SARA_FEATURE_FLAG_KEY + "\":true}")));
+
+    var client = harness.newClient(Map.of("SONARQUBE_IS_CLOUD", "true", "SONARQUBE_TOOLSETS", "agentic-readiness"));
+
+    assertThat(client.listTools()).extracting(McpSchema.Tool::name).contains(StartAgenticReadinessAssessmentTool.TOOL_NAME);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(WasFeatureFlagsApi.FEATURE_FLAGS_PATH)).isEqualTo(2);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_not_register_sara_tools_in_http_mode_by_default(SonarQubeMcpServerTestHarness harness) {
     var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_IS_CLOUD", "true");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    assertThat(server.getSupportedTools()).noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+    assertThat(server.getComposedInstructions()).doesNotContain("## Agentic Readiness Assessment");
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(WasFeatureFlagsApi.FEATURE_FLAGS_PATH)).isZero();
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_register_sara_tools_in_http_mode_with_explicit_opt_in(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_IS_CLOUD", "true");
+    environment.put("SONARQUBE_TOOLSETS", "agentic-readiness");
     harness.prepareMockWebServer(environment); // SARA flag disabled by default — irrelevant in HTTP mode
 
     var server = new SonarQubeMcpServer(environment);
     server.start();
 
     // In HTTP mode the org is resolved per request, so the startup flag is not probed: the tools are
-    // always registered and the backend enforces entitlement on each call.
+    // registered after explicit opt-in and the backend enforces entitlement on each call.
     assertThat(server.getSupportedTools())
       .as("SARA tools should be loaded in HTTP mode regardless of the startup feature flag")
       .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
       .as("SARA instructions should be present in HTTP mode")
       .contains("## Agentic Readiness Assessment");
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(WasFeatureFlagsApi.FEATURE_FLAGS_PATH)).isZero();
 
     server.shutdown();
   }
@@ -617,11 +670,11 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_register_sara_tools_independently_of_startup_flag_api(SonarQubeMcpServerTestHarness harness) {
+  void it_should_hide_sara_tools_and_instructions_when_startup_flag_api_fails(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     harness.prepareMockWebServer(environment);
-    harness.stubSaraError(); // Startup feature flag failure does not hide project-scoped tools
+    harness.stubSaraError();
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -630,11 +683,10 @@ class SonarQubeMcpServerGenericTest {
     server.start();
 
     assertThat(server.getSupportedTools())
-      .as("Readiness tools are registered independently of startup feature flag failures")
-      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+      .as("SARA tools are hidden when feature availability cannot be confirmed")
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
-      .as("Readiness instructions remain available on Cloud")
-      .contains("## Agentic Readiness Assessment");
+      .doesNotContain("## Agentic Readiness Assessment");
 
     server.shutdown();
   }

@@ -341,7 +341,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
 
     // Agentic readiness tools
-    loadSaraTools();
+    loadSaraTools(organizations);
 
     loadAnalysisTools(vortexAnalysisEnabled);
 
@@ -523,8 +523,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     proxiedInstructions.forEach(s -> LOG.debug("Proxied instructions: {}", s));
   }
 
-  private void loadSaraTools() {
-    if (isEnabledAgenticReadiness()) {
+  private void loadSaraTools(List<ResolvedOrganization> organizations) {
+    if (isEnabledAgenticReadiness(organizations)) {
       var configuredProjectKey = mcpConfiguration.getProjectKey();
       supportedTools.add(new StartAgenticReadinessAssessmentTool(this, configuredProjectKey));
       supportedTools.add(new GetAgenticReadinessAssessmentTool(this));
@@ -534,7 +534,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  private boolean isEnabledAgenticReadiness() {
+  private boolean isEnabledAgenticReadiness(List<ResolvedOrganization> organizations) {
     if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)) {
       LOG.debug("Agentic readiness toolset is not enabled, skipping tools initialization");
       return false;
@@ -543,8 +543,21 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("Agentic readiness is only available on SonarQube Cloud, skipping tools initialization");
       return false;
     }
-    // These APIs are project/assessment-scoped; the backend enforces entitlement per call.
-    return true;
+    // HTTP requires explicit toolset opt-in; the backend enforces entitlement per call.
+    if (mcpConfiguration.isHttpEnabled()) {
+      return mcpConfiguration.isToolCategoryExplicitlyEnabled(ToolCategory.AGENTIC_READINESS);
+    }
+    var relevantOrganizations = resolvedOrganization != null ? List.of(resolvedOrganization) : organizations;
+    for (var organization : relevantOrganizations) {
+      try {
+        if (serverApi.orgFeatureEntitlements().isSaraEnabledForOrg(organization)) {
+          return true;
+        }
+      } catch (Exception e) {
+        LOG.warn("Could not check agentic readiness feature flag for organization '" + organization.key() + "': " + e.getMessage());
+      }
+    }
+    return false;
   }
 
   private void setBaseInstructions() {
