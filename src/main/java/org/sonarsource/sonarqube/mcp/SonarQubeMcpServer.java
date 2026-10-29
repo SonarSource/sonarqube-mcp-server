@@ -28,6 +28,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpServerTransportProvider;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -37,7 +38,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
@@ -209,6 +209,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private final ThreadLocal<McpTransportContext> currentTransportContext = new ThreadLocal<>();
   private volatile boolean isShutdown = false;
   private final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
+  @Nullable
+  private volatile Thread backgroundInitializationThread;
   private ProxiedToolsLoader proxiedToolsLoader;
 
   public static void main(String[] args) {
@@ -267,12 +269,13 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
-    // Start background initialization in a separate thread
-    CompletableFuture.runAsync(this::initializeBackgroundServices)
-      .exceptionally(ex -> {
-        LOG.error("Fatal error during background initialization", ex);
-        return null;
-      });
+    startBackgroundInitialization();
+  }
+
+  private void startBackgroundInitialization() {
+    backgroundInitializationThread = new Thread(this::initializeBackgroundServices, "mcp-background-init");
+    backgroundInitializationThread.setDaemon(false);
+    backgroundInitializationThread.start();
   }
 
   /**
@@ -374,6 +377,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.info("Downloading analyzers in background...");
       var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
+      if (isShutdown) {
+        initializationFuture.cancel(false);
+        return;
+      }
+
       // Restart backend with the downloaded analyzers
       LOG.info("Restarting backend with downloaded analyzers...");
       backendService.restartWithAnalyzers(analyzers);
@@ -381,9 +389,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       initializationFuture.complete(null);
       LOG.info("Background initialization completed successfully - analyzers are now available");
     } catch (Exception e) {
-      LOG.error("Background initialization failed", e);
-      initializationFuture.completeExceptionally(e);
-      throw e;
+      if (isShutdown) {
+        initializationFuture.cancel(false);
+      } else {
+        LOG.error("Background initialization failed", e);
+        initializationFuture.completeExceptionally(e);
+      }
     }
   }
 
@@ -781,7 +792,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     isShutdown = true;
 
-    awaitBackgroundInitialization();
+    stopBackgroundInitialization();
     shutdownProxiedServers();
     shutdownHttpServer();
     shutdownHttpClient();
@@ -802,18 +813,20 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  private void awaitBackgroundInitialization() {
-    if (initializationFuture.isDone()) {
+  private void stopBackgroundInitialization() {
+    initializationFuture.cancel(false);
+    var thread = backgroundInitializationThread;
+    if (thread == null) {
       return;
     }
-    LOG.info("Waiting for background initialization to complete before shutdown...");
+    thread.interrupt();
     try {
-      initializationFuture.get(30, TimeUnit.SECONDS);
-    } catch (TimeoutException | ExecutionException e) {
-      LOG.warn("Background initialization did not complete within 30 seconds, proceeding with shutdown");
-      initializationFuture.cancel(true);
-    } catch (Exception e) {
-      LOG.error("Background initialization failed or was interrupted", e);
+      if (!thread.join(Duration.ofSeconds(30))) {
+        LOG.warn("Background initialization did not stop within 30 seconds, proceeding with shutdown");
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.warn("Interrupted while waiting for background initialization to stop");
     }
   }
 

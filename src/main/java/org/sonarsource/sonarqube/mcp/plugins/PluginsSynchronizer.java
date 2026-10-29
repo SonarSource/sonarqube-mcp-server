@@ -19,10 +19,12 @@ package org.sonarsource.sonarqube.mcp.plugins;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
@@ -64,10 +66,15 @@ public class PluginsSynchronizer {
       throw new IllegalStateException("Unable to create plugins directory", e);
     }
     for (var serverPlugin : serverPlugins) {
+      if (Thread.currentThread().isInterrupted()) {
+        throw new CancellationException("Analyzer synchronization interrupted");
+      }
       try {
         if (shouldDownload(serverPlugin)) {
           downloadPlugin(serverPlugin.key(), resolvePluginPath(serverPlugin.filename()), serverPlugin.hash());
         }
+      } catch (CancellationException e) {
+        throw e;
       } catch (RuntimeException e) {
         LOG.error("Failed to download plugin '" + serverPlugin.key() + "'", e);
       }
@@ -94,18 +101,25 @@ public class PluginsSynchronizer {
   }
 
   private void downloadPlugin(String pluginKey, Path localPath, String expectedHash) {
+    Path temporaryPath = null;
     try (var response = getPluginDownloadResponse(pluginKey, expectedHash)) {
       if (response.isSuccessful()) {
+        temporaryPath = Files.createTempFile(pluginsPath, pluginKey + "-", ".tmp");
         try (var inputStream = response.bodyAsStream()) {
-          FileUtils.copyInputStreamToFile(inputStream, localPath.toFile());
+          FileUtils.copyInputStreamToFile(inputStream, temporaryPath.toFile());
         }
-        verifyDownloadedPluginHash(pluginKey, localPath, expectedHash);
+        verifyDownloadedPluginHash(pluginKey, temporaryPath, expectedHash);
+        Files.move(temporaryPath, localPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         LOG.info("Successfully downloaded plugin '" + pluginKey + "' to " + localPath);
       } else {
         throw new IllegalStateException("Failed to download plugin '" + pluginKey + "': HTTP status " + response.code());
       }
     } catch (IOException e) {
       throw new IllegalStateException("Error downloading plugin '" + pluginKey + "'", e);
+    } finally {
+      if (temporaryPath != null) {
+        deletePluginFileQuietly(temporaryPath);
+      }
     }
   }
 
