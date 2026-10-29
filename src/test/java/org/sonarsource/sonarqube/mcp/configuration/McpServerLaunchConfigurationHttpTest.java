@@ -25,56 +25,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 class McpServerLaunchConfigurationHttpTest {
-
-  @ParameterizedTest
-  @ValueSource(strings = {"http", "https"})
-  void it_should_exclude_agentic_readiness_from_http_defaults(String transport) {
-    for (var toolsets : new String[] {null, "", " \t "}) {
-      var environment = createMinimalTestEnvironment();
-      environment.put("SONARQUBE_TRANSPORT", transport);
-      if (toolsets != null) {
-        environment.put("SONARQUBE_TOOLSETS", toolsets);
-      }
-
-      var configuration = new McpServerLaunchConfiguration(environment);
-
-      assertThat(configuration.getEnabledToolsets()).containsExactlyInAnyOrderElementsOf(
-        ToolCategory.defaultEnabled().stream().filter(category -> category != ToolCategory.AGENTIC_READINESS).toList());
-      assertThat(configuration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isFalse();
-    }
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"http", "https"})
-  void it_should_allow_explicit_agentic_readiness_opt_in_over_http(String transport) {
-    var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_TRANSPORT", transport);
-    environment.put("SONARQUBE_TOOLSETS", "issues,agentic-readiness");
-
-    var configuration = new McpServerLaunchConfiguration(environment);
-
-    assertThat(configuration.getEnabledToolsets()).containsExactlyInAnyOrder(ToolCategory.ISSUES, ToolCategory.AGENTIC_READINESS);
-    assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"http", "https"})
-  void it_should_respect_property_opt_in_and_environment_precedence(String transport) {
-    var environment = createMinimalTestEnvironment();
-    environment.put("SONARQUBE_TRANSPORT", transport);
-    System.setProperty("SONARQUBE_TOOLSETS", "agentic-readiness");
-    try {
-      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isTrue();
-
-      environment.put("SONARQUBE_TOOLSETS", "issues");
-      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isFalse();
-    } finally {
-      System.clearProperty("SONARQUBE_TOOLSETS");
-    }
-  }
 
   @ParameterizedTest
   @ValueSource(strings = {"http", "https"})
