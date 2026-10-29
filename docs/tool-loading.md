@@ -88,6 +88,31 @@ Cloud stdio registers either Vortex analysis (when the workspace is mounted and 
 
 Cloud HTTP/HTTPS registers no analysis tools and skips analyzer downloads. SonarQube Server HTTP/HTTPS retains local analysis and analyzer downloads when a startup token is provided.
 
+### Declaring tool availability
+
+Toolset activation and tool availability are evaluated separately:
+
+- `ToolCategory` declares the transports on which a toolset is enabled by default. Categories without default transports are opt-in. An explicit `SONARQUBE_TOOLSETS` value replaces the default selection; `projects` remains enabled. HTTPS uses the HTTP defaults.
+- `Tool.availabilityPolicy()` declares supported transports, deployments, and startup requirements. The default is `ToolAvailabilityPolicy.UNRESTRICTED`. Each tool declares its immutable policy directly; `CLOUD_ONLY` and `SERVER_ONLY` provide reusable constants for simple deployment restrictions.
+- Named startup requirements are resolved through `ToolStartupRequirements`, using the existing API clients. `ToolRegistrar` caches each result, including failure, for the server lifetime. A restart is required to retry a failed requirement or pick up a changed startup feature flag.
+
+For a simple deployment restriction, declare it on the tool:
+
+```java
+@Override
+public ToolAvailabilityPolicy availabilityPolicy() {
+  return ToolAvailabilityPolicy.CLOUD_ONLY;
+}
+```
+
+For a conditional feature, declare a requirement for the relevant transport in the tool's `availabilityPolicy()`. Each of the three agentic-readiness tools declares a Cloud-only policy requiring `SARA_ENABLED` on STDIO. Requirement results are cached by requirement name, so separate policy declarations reuse the same startup lookup. HTTP has no startup feature lookup: the toolset is opt-in and the backend enforces access on each call. On STDIO, the requirement checks the configured or uniquely detected organization; otherwise it accepts any accessible organization with the flag enabled. Individual lookup failures do not stop checks for other organizations.
+
+Loaders submit tools to `ToolRegistrar`. The registrar checks category selection, read-only mode, transport/deployment support, then startup requirements. Rejected tools do not trigger requirement lookups. A group can supply instructions, which are included once if at least one tool is accepted. After loading, one immutable registered-tool list supplies both MCP transports, HTTP filtering, and the decision to download local analyzers.
+
+HTTP request authorization remains separate from startup availability. `PerRequestToolFilteringHandler` applies client toolset/read-only filters, OAuth scopes, and `Tool.isEnabledFor()` to discovery and invocation. Client headers can only narrow the registered tools. Startup eligibility does not authorize a request; backend authorization still applies on each call.
+
+Vortex entitlement orchestration, dependency-risk probing, IDE detection, and analysis fallback selection remain in their specialized loaders. Their resulting tools also pass through the registrar.
+
 ## Backend Restart
 
 The `BackendService.restartWithAnalyzers()` method handles the transition:

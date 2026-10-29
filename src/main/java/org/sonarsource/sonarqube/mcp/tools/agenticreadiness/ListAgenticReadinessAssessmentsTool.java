@@ -17,13 +17,19 @@
 package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import jakarta.annotation.Nullable;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy.Deployment;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy.StartupRequirement;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListAgenticReadinessAssessmentsTool extends Tool {
@@ -58,6 +64,12 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
       ToolCategory.AGENTIC_READINESS);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
+  }
+
+  @Override
+  public ToolAvailabilityPolicy availabilityPolicy() {
+    return new ToolAvailabilityPolicy(Set.of(TransportMode.values()), Set.of(Deployment.CLOUD),
+      Map.of(TransportMode.STDIO, Set.of(StartupRequirement.SARA_ENABLED)));
   }
 
   @Override

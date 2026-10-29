@@ -274,6 +274,7 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.SECURITY_HOTSPOTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.CAG)).isTrue();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.VORTEX)).isFalse();
   }
 
