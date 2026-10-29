@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,9 +35,9 @@ public record ToolAvailabilityPolicy(Set<TransportMode> transports, Set<Deployme
     SARA_ENABLED
   }
 
-  public static final ToolAvailabilityPolicy UNRESTRICTED = new ToolAvailabilityPolicy(Set.of(TransportMode.values()), Set.of(Deployment.values()), Map.of());
-  public static final ToolAvailabilityPolicy CLOUD_ONLY = new ToolAvailabilityPolicy(Set.of(TransportMode.values()), Set.of(Deployment.CLOUD), Map.of());
-  public static final ToolAvailabilityPolicy SERVER_ONLY = new ToolAvailabilityPolicy(Set.of(TransportMode.values()), Set.of(Deployment.SERVER), Map.of());
+  public static final ToolAvailabilityPolicy UNRESTRICTED = builder().build();
+  public static final ToolAvailabilityPolicy CLOUD_ONLY = builder().deployments(Deployment.CLOUD).build();
+  public static final ToolAvailabilityPolicy SERVER_ONLY = builder().deployments(Deployment.SERVER).build();
 
   public ToolAvailabilityPolicy {
     transports = Set.copyOf(transports);
@@ -46,5 +48,39 @@ public record ToolAvailabilityPolicy(Set<TransportMode> transports, Set<Deployme
 
   public Set<StartupRequirement> requirementsFor(TransportMode transport) {
     return startupRequirements.getOrDefault(transport, Set.of());
+  }
+
+  /** Starts with all transports and deployments supported, without startup requirements. */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static final class Builder {
+
+    private Set<TransportMode> transports = Set.of(TransportMode.values());
+    private Set<Deployment> deployments = Set.of(Deployment.values());
+    private final Map<TransportMode, Set<StartupRequirement>> startupRequirements = new EnumMap<>(TransportMode.class);
+
+    private Builder() {
+    }
+
+    public Builder transports(TransportMode... supportedTransports) {
+      transports = Set.of(supportedTransports);
+      return this;
+    }
+
+    public Builder deployments(Deployment... supportedDeployments) {
+      deployments = Set.of(supportedDeployments);
+      return this;
+    }
+
+    public Builder require(TransportMode transport, StartupRequirement requirement) {
+      startupRequirements.computeIfAbsent(transport, ignored -> EnumSet.noneOf(StartupRequirement.class)).add(requirement);
+      return this;
+    }
+
+    public ToolAvailabilityPolicy build() {
+      return new ToolAvailabilityPolicy(transports, deployments, startupRequirements);
+    }
   }
 }

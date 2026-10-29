@@ -18,7 +18,6 @@ package org.sonarsource.sonarqube.mcp.tools.agenticreadiness;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
@@ -53,8 +52,10 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
 
   @Override
   public ToolAvailabilityPolicy availabilityPolicy() {
-    return new ToolAvailabilityPolicy(Set.of(TransportMode.values()), Set.of(Deployment.CLOUD),
-      Map.of(TransportMode.STDIO, Set.of(StartupRequirement.SARA_ENABLED)));
+    return ToolAvailabilityPolicy.builder()
+      .deployments(Deployment.CLOUD)
+      .require(TransportMode.STDIO, StartupRequirement.SARA_ENABLED)
+      .build();
   }
 
   @Override

@@ -30,6 +30,75 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ToolAvailabilityPolicyTest {
 
   @Test
+  void it_should_default_to_all_transports_and_deployments_without_requirements() {
+    var policy = ToolAvailabilityPolicy.builder().build();
+
+    assertThat(policy.transports()).containsExactlyInAnyOrder(TransportMode.STDIO, TransportMode.HTTP);
+    assertThat(policy.deployments()).containsExactlyInAnyOrder(Deployment.CLOUD, Deployment.SERVER);
+    assertThat(policy.startupRequirements()).isEmpty();
+  }
+
+  @Test
+  void it_should_restrict_support_to_selected_transports_and_deployments() {
+    var policy = ToolAvailabilityPolicy.builder()
+      .transports(TransportMode.STDIO)
+      .deployments(Deployment.CLOUD)
+      .build();
+
+    assertThat(policy.transports()).containsExactly(TransportMode.STDIO);
+    assertThat(policy.deployments()).containsExactly(Deployment.CLOUD);
+    assertThat(policy.startupRequirements()).isEmpty();
+  }
+
+  @Test
+  void it_should_accumulate_requirements_per_transport_without_duplicates() {
+    var policy = ToolAvailabilityPolicy.builder()
+      .require(TransportMode.STDIO, StartupRequirement.SARA_ENABLED)
+      .require(TransportMode.HTTP, StartupRequirement.SARA_ENABLED)
+      .require(TransportMode.STDIO, StartupRequirement.SARA_ENABLED)
+      .build();
+
+    assertThat(policy.requirementsFor(TransportMode.STDIO)).containsExactly(StartupRequirement.SARA_ENABLED);
+    assertThat(policy.requirementsFor(TransportMode.HTTP)).containsExactly(StartupRequirement.SARA_ENABLED);
+  }
+
+  @Test
+  void it_should_snapshot_builder_state_on_each_build() {
+    var builder = ToolAvailabilityPolicy.builder()
+      .transports(TransportMode.STDIO)
+      .deployments(Deployment.CLOUD)
+      .require(TransportMode.STDIO, StartupRequirement.SARA_ENABLED);
+    var first = builder.build();
+
+    var second = builder.transports(TransportMode.HTTP)
+      .deployments(Deployment.SERVER)
+      .require(TransportMode.HTTP, StartupRequirement.SARA_ENABLED)
+      .build();
+
+    assertThat(first.transports()).containsExactly(TransportMode.STDIO);
+    assertThat(first.deployments()).containsExactly(Deployment.CLOUD);
+    assertThat(first.requirementsFor(TransportMode.STDIO)).containsExactly(StartupRequirement.SARA_ENABLED);
+    assertThat(first.requirementsFor(TransportMode.HTTP)).isEmpty();
+    assertThat(second.transports()).containsExactly(TransportMode.HTTP);
+    assertThat(second.deployments()).containsExactly(Deployment.SERVER);
+    assertThat(second.requirementsFor(TransportMode.HTTP)).containsExactly(StartupRequirement.SARA_ENABLED);
+  }
+
+  @Test
+  void it_should_copy_builder_input_arrays() {
+    var transports = new TransportMode[] {TransportMode.STDIO};
+    var deployments = new Deployment[] {Deployment.CLOUD};
+    var builder = ToolAvailabilityPolicy.builder().transports(transports).deployments(deployments);
+
+    transports[0] = TransportMode.HTTP;
+    deployments[0] = Deployment.SERVER;
+    var policy = builder.build();
+
+    assertThat(policy.transports()).containsExactly(TransportMode.STDIO);
+    assertThat(policy.deployments()).containsExactly(Deployment.CLOUD);
+  }
+
+  @Test
   void it_should_defensively_copy_all_policy_collections() {
     var transports = EnumSet.of(TransportMode.STDIO);
     var deployments = EnumSet.of(Deployment.CLOUD);

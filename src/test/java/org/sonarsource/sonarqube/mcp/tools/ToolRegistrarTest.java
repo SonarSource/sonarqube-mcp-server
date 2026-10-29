@@ -52,8 +52,7 @@ import static org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy.Startup
 
 class ToolRegistrarTest {
 
-  private static final ToolAvailabilityPolicy REQUIRES_SARA = new ToolAvailabilityPolicy(Set.of(TransportMode.values()), Set.of(Deployment.values()),
-    Map.of(STDIO, Set.of(SARA_ENABLED)));
+  private static final ToolAvailabilityPolicy REQUIRES_SARA = ToolAvailabilityPolicy.builder().require(STDIO, SARA_ENABLED).build();
 
   @ParameterizedTest
   @CsvSource({"STDIO,CLOUD", "HTTP,CLOUD", "STDIO,SERVER", "HTTP,SERVER"})
@@ -72,7 +71,12 @@ class ToolRegistrarTest {
   @CsvSource({"STDIO,CLOUD,true", "HTTP,CLOUD,false", "STDIO,SERVER,false", "HTTP,SERVER,false"})
   void it_should_enforce_support_before_resolving_requirements(TransportMode transport, Deployment deployment, boolean expected) {
     var calls = new AtomicInteger();
-    var policy = new ToolAvailabilityPolicy(Set.of(STDIO), Set.of(CLOUD), Map.of(STDIO, Set.of(SARA_ENABLED), HTTP, Set.of(SARA_ENABLED)));
+    var policy = ToolAvailabilityPolicy.builder()
+      .transports(STDIO)
+      .deployments(CLOUD)
+      .require(STDIO, SARA_ENABLED)
+      .require(HTTP, SARA_ENABLED)
+      .build();
     var tool = readTool("restricted", policy, ToolCategory.ISSUES);
     var registrar = new ToolRegistrar(ToolCategory.all(), false, transport, deployment, requirement -> {
       calls.incrementAndGet();
