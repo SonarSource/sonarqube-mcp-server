@@ -54,7 +54,7 @@ public class ArchitectureGetTool extends Tool {
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
-  private static final String[] SERVER_TARGETS = {CURRENT};
+  private static final String[] SERVER_TARGETS = {CURRENT, FINDINGS};
   private static final int MAX_CONCURRENT_CURRENT_READS = 2;
   private final String[] availableTargets;
   private final Semaphore currentReads = new Semaphore(MAX_CONCURRENT_CURRENT_READS);
@@ -74,11 +74,11 @@ public class ArchitectureGetTool extends Tool {
     var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
-      .setDescription(isSonarQubeCloud ? "Read current graphs, intended architecture, project directives or findings." : "Read current dependency graphs.")
+      .setDescription(isSonarQubeCloud ? "Read current graphs, intended architecture, project directives or findings." : "Read current dependency graphs or findings.")
       .addRequiredEnumProperty(TARGET_PROPERTY, isSonarQubeCloud ? TARGETS : SERVER_TARGETS,
         isSonarQubeCloud ? ("current: dependencies; intended: model; directives: project directives (directiveId); "
           + "findings: deviations, flaws and smells (findingId, category); pageIndex/pageSize apply to directives and findings.")
-          : "current: analyzed dependencies.")
+          : "current: analyzed dependencies; findings: deviations, flaws and smells (findingId, category, pageIndex, pageSize).")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
         + (isSonarQubeCloud ? "Intended: group labels joined by /. " : "")
@@ -88,12 +88,12 @@ public class ArchitectureGetTool extends Tool {
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
     if (isSonarQubeCloud) {
-      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "read one UUID instead of a page.")
-        .addStringProperty(FINDING_ID_PROPERTY, "read one finding with its details instead of a page.")
-        .addEnumProperty(CATEGORY_PROPERTY, CATEGORIES, "only findings of this category.")
-        .addNumberProperty(ToolParameters.PAGE_INDEX, "page number, default 1.")
-        .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50, maximum 1000.");
+      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "read one UUID instead of a page.");
     }
+    builder.addStringProperty(FINDING_ID_PROPERTY, "read one finding with its details instead of a page.")
+      .addEnumProperty(CATEGORY_PROPERTY, CATEGORIES, "only findings of this category.")
+      .addNumberProperty(ToolParameters.PAGE_INDEX, "page number, default 1.")
+      .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50, maximum 1000.");
     return builder.build();
   }
 
@@ -169,7 +169,7 @@ public class ArchitectureGetTool extends Tool {
     if (id != null && (pageIndex != null || pageSize != null || category != null)) {
       throw new IllegalArgumentException("Use either findingId or category and pagination parameters.");
     }
-    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Architecture findings");
+    var projectId = ArchitectureProjectContext.findingsProjectId(serverApi, projectKey);
     if (id != null) {
       return Result.success(new FindingView(projectKey, serverApi.architectureApi().getFinding(projectKey, projectId, id)));
     }

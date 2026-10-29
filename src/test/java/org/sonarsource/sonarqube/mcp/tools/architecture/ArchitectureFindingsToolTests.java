@@ -37,6 +37,9 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 
 class ArchitectureFindingsToolTests {
   private static final String PATH = ArchitectureApi.PROJECT_FINDINGS_PATH;
+  private static final String SERVER_PATH = ArchitectureApi.SERVER_API_PREFIX + PATH;
+  private static final String SERVER_LOOKUP = "/api/v2/components/projects?keys=my_project&pageSize=1";
+  private static final String SERVER_PROJECT_ID = "server-project-id";
   private static final String DEVIATION = "{\"id\":\"finding-1\",\"projectId\":\"" + MAIN_BRANCH_ID + "\",\"category\":\"DEVIATION\","
     + "\"message\":\"app:web depends on app:db\",\"components\":[\"app:web\",\"app:db\"],"
     + "\"relationships\":[{\"from\":\"app:web\",\"to\":\"app:db\"}],\"constraint\":\"web must not depend on db\",\"measures\":{\"weight\":3.0}}";
@@ -154,13 +157,54 @@ class ArchitectureFindingsToolTests {
   }
 
   @Test
-  void it_should_hide_findings_on_server_and_refuse_them_without_requests() {
-    var client = harness.newClient();
-    var schema = client.listTools().stream().filter(tool -> ArchitectureGetTool.TOOL_NAME.equals(tool.name())).findFirst().orElseThrow().inputSchema();
-    assertThat(schema.toString()).doesNotContain("findingId", "\"category\"", "findings");
-    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
+  void it_should_advertise_findings_on_server_without_cloud_only_targets() {
+    var schema = harness.newClient().listTools().stream().filter(tool -> ArchitectureGetTool.TOOL_NAME.equals(tool.name())).findFirst().orElseThrow()
+      .inputSchema().toString();
+    assertThat(schema).contains("findings", "findingId", "category=", "pageIndex", "pageSize").doesNotContain("directiveId", "intended");
+  }
+
+  @Test
+  void it_should_read_server_findings_with_the_public_project_id() {
+    stubServerProject("{\"projects\":[{\"id\":\"" + SERVER_PROJECT_ID + "\",\"key\":\"my_project\"}],\"page\":{\"total\":1}}");
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_PATH + "?projectId=" + SERVER_PROJECT_ID + "&category=FLAW&pageIndex=1&pageSize=50")
+      .willReturn(okJson(page(DEVIATION.replace(MAIN_BRANCH_ID, SERVER_PROJECT_ID).replace("DEVIATION", "FLAW"), 1, 50, 1))));
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project", "category", "FLAW"));
+    assertThat(result.isError()).isFalse();
+    assertThat(textOf(result)).contains("\"category\" : \"FLAW\"", "\"total\" : 1");
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/api/project_branches/list")).isEmpty();
+  }
+
+  @ParameterizedTest
+  @CsvSource({SERVER_PROJECT_ID + ",false", MAIN_BRANCH_ID + ",true"})
+  void it_should_read_one_server_finding_only_from_the_resolved_project(String returnedProjectId, boolean rejected) {
+    stubServerProject("{\"projects\":[{\"id\":\"" + SERVER_PROJECT_ID + "\",\"key\":\"my_project\"}],\"page\":{\"total\":1}}");
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_PATH + "/finding-1").willReturn(okJson(DEVIATION.replace(MAIN_BRANCH_ID, returnedProjectId))));
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project", "findingId", "finding-1"));
+    assertThat(result.isError()).isEqualTo(rejected);
+    assertThat(textOf(result)).contains(rejected ? "different id or project" : "\"constraint\" : \"web must not depend on db\"");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"{\"projects\":[],\"page\":{\"total\":0}}", "{\"projects\":[{\"id\":\" \",\"key\":\"my_project\"}],\"page\":{\"total\":1}}"})
+  void it_should_not_read_server_findings_when_the_project_id_is_not_resolved(String lookup) {
+    stubServerProject(lookup);
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
+    assertThat(textOf(result)).containsAnyOf("Could not resolve the project", "invalid project");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+  }
+
+  @Test
+  void it_should_explain_a_server_without_the_public_project_lookup() {
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_LOOKUP).willReturn(aResponse().withStatus(404)));
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project", "findingId", "finding-1"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("does not expose the public project lookup required for architecture findings");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+  }
+
+  private void stubServerProject(String body) {
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_LOOKUP).willReturn(okJson(body)));
   }
 
   @ParameterizedTest

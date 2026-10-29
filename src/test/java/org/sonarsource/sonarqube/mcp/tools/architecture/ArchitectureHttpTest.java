@@ -196,7 +196,7 @@ class ArchitectureHttpTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_advertise_only_current_architecture_over_server_http(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
+  void it_should_advertise_current_architecture_and_findings_over_server_http(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
     var port = port();
     var env = environment(harness, storage, port);
     env.put("SONARQUBE_IS_CLOUD", "false");
@@ -210,7 +210,7 @@ class ArchitectureHttpTest {
       var read = tools.asList().stream().map(com.google.gson.JsonElement::getAsJsonObject)
         .filter(tool -> tool.get("name").getAsString().equals("architecture_get")).findFirst().orElseThrow();
       assertThat(read.getAsJsonObject("inputSchema").getAsJsonObject("properties").getAsJsonObject("target").getAsJsonArray("enum"))
-        .hasToString("[\"current\"]");
+        .hasToString("[\"current\",\"findings\"]");
     } finally {
       server.shutdown();
     }

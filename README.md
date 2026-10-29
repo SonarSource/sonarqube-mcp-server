@@ -1466,7 +1466,7 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 ### Architecture
 
-**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended reads and writes are Cloud-only until public project UUID resolution is available.**
+**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture and findings; intended reads and writes are Cloud-only until public project UUID resolution is available.**
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, or project directives. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 

@@ -61,13 +61,13 @@ class ArchitectureToolsetTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_advertise_only_current_reads_on_server(SonarQubeMcpServerTestHarness harness) {
+  void it_should_advertise_current_and_findings_reads_on_server(SonarQubeMcpServerTestHarness harness) {
     var tools = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "architecture")).listTools();
     assertThat(tools).extracting(McpSchema.Tool::name).contains(ArchitectureGetTool.TOOL_NAME).doesNotContain(ArchitectureSetTool.TOOL_NAME);
     var read = tools.stream().filter(tool -> tool.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) read.inputSchema().get("properties");
-    assertThat(properties.get("target")).containsEntry("enum", List.of("current"));
+    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "findings"));
     assertThat(read.description()).doesNotContain("intended");
     assertThat(read.inputSchema().toString()).doesNotContain("intended");
   }
