@@ -447,7 +447,7 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_register_sara_tools_independently_of_startup_flag(SonarQubeMcpServerTestHarness harness) {
+  void it_should_hide_sara_tools_and_instructions_when_startup_flag_is_disabled(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     harness.prepareMockWebServer(environment); // SARA flag disabled by default
@@ -459,11 +459,10 @@ class SonarQubeMcpServerGenericTest {
     server.start();
 
     assertThat(server.getSupportedTools())
-      .as("Backend checks readiness entitlement on each call")
-      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+      .as("SARA tools require the feature flag in STDIO")
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
-      .as("Readiness instructions are available on Cloud")
-      .contains("## Agentic Readiness Assessment");
+      .doesNotContain("## Agentic Readiness Assessment");
 
     server.shutdown();
   }
@@ -493,16 +492,17 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_register_sara_tools_in_http_mode_regardless_of_flag(SonarQubeMcpServerTestHarness harness) {
+  void it_should_register_sara_tools_in_http_mode_with_explicit_opt_in(SonarQubeMcpServerTestHarness harness) {
     var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_IS_CLOUD", "true");
+    environment.put("SONARQUBE_TOOLSETS", "agentic-readiness");
     harness.prepareMockWebServer(environment); // SARA flag disabled by default — irrelevant in HTTP mode
 
     var server = new SonarQubeMcpServer(environment);
     server.start();
 
     // In HTTP mode the org is resolved per request, so the startup flag is not probed: the tools are
-    // always registered and the backend enforces entitlement on each call.
+    // registered after explicit opt-in and the backend enforces entitlement on each call.
     assertThat(server.getSupportedTools())
       .as("SARA tools should be loaded in HTTP mode regardless of the startup feature flag")
       .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
@@ -617,11 +617,11 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_register_sara_tools_independently_of_startup_flag_api(SonarQubeMcpServerTestHarness harness) {
+  void it_should_hide_sara_tools_and_instructions_when_startup_flag_api_fails(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     harness.prepareMockWebServer(environment);
-    harness.stubSaraError(); // Startup feature flag failure does not hide project-scoped tools
+    harness.stubSaraError();
 
     var server = new SonarQubeMcpServer(
       new StdioServerTransportProvider(null),
@@ -630,11 +630,10 @@ class SonarQubeMcpServerGenericTest {
     server.start();
 
     assertThat(server.getSupportedTools())
-      .as("Readiness tools are registered independently of startup feature flag failures")
-      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+      .as("SARA tools are hidden when feature availability cannot be confirmed")
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
-      .as("Readiness instructions remain available on Cloud")
-      .contains("## Agentic Readiness Assessment");
+      .doesNotContain("## Agentic Readiness Assessment");
 
     server.shutdown();
   }
