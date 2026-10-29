@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
 import java.util.UUID;
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.function.Supplier;
@@ -31,6 +32,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDire
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 
 /** Public architecture HTTP requests, response validation and Cloud/Server routing. */
@@ -258,30 +260,62 @@ public class ArchitectureApi {
   }
 
   public FindingPage getFindingPage(String projectKey, String projectId, @Nullable String category, int pageIndex, int pageSize) {
+    if (pageIndex < 1 || pageSize < 1 || pageSize > 1000) {
+      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 1 and 1000.");
+    }
     var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("projectId", projectId).addParam("category", category)
       .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
-    var response = read(projectKey, () -> fromJson(get(path), FindingPage.class));
+    var response = read(projectKey, () -> findingsJson(get(path), FindingPage.class));
     if (response == null || response.projectFindings() == null || response.page() == null
       || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
-      || response.page().total() == null || response.page().total() < 0) {
+      || response.page().total() == null || response.page().total() < 0 || response.projectFindings().size() > pageSize) {
       throw new IllegalStateException("Invalid public findings page; no complete page was read.");
     }
-    response.projectFindings().forEach(ArchitectureApi::validateFinding);
+    var ids = new java.util.HashSet<String>();
+    for (var finding : response.projectFindings()) {
+      validateFinding(finding, projectId);
+      if (!ids.add(finding.id())) {
+        throw new IllegalStateException("The public findings page returned duplicate ids.");
+      }
+    }
     return response;
   }
 
-  public ProjectFinding getFinding(String projectKey, String id) {
+  public ProjectFinding getFinding(String projectKey, String projectId, String id) {
+    if (id.isBlank() || ".".equals(id) || "..".equals(id)) {
+      throw new IllegalArgumentException("Finding id must be a nonempty id.");
+    }
     var path = new URIBuilder().setPath(PROJECT_FINDINGS_PATH).appendPathSegments(id).toString();
-    var finding = read(projectKey, () -> fromJson(get(path), ProjectFinding.class));
-    validateFinding(finding);
+    ProjectFinding finding;
+    try {
+      finding = read(projectKey, () -> findingsJson(get(path), ProjectFinding.class));
+    } catch (NotFoundException e) {
+      throw new NotFoundException("Finding " + id + " was not found or is not accessible in the selected project.");
+    }
+    validateFinding(finding, projectId);
+    if (!id.equals(finding.id())) {
+      throw new IllegalStateException("The public finding response returned a different id or project.");
+    }
     return finding;
   }
 
-  private static void validateFinding(@Nullable ProjectFinding finding) {
+  private static void validateFinding(@Nullable ProjectFinding finding, String projectId) {
     if (finding == null) {
       throw new IllegalStateException("The public findings response contains an empty finding.");
     }
     finding.validateStored();
+    if (!projectId.equals(finding.projectId())) {
+      throw new IllegalStateException("The public finding response returned a different id or project.");
+    }
+  }
+
+  @Nullable
+  private <T> T findingsJson(HttpClient.Response response, Class<T> type) {
+    try {
+      return fromJson(response, type);
+    } catch (JsonParseException e) {
+      throw new IllegalStateException("Invalid public findings response; no complete finding was read.");
+    }
   }
 
   public record FindingPage(List<ProjectFinding> projectFindings, DirectivePageInfo page) {

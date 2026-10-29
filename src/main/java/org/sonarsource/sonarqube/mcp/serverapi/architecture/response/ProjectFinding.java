@@ -22,7 +22,7 @@ import java.util.Map;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 
 public record ProjectFinding(String id, String projectId, String category, @Nullable String message, @Nullable List<String> components,
-  @Nullable List<Relationship> relationships, @Nullable String constraint, @Nullable Map<String, Double> measures) {
+  @Nullable List<Relationship> relationships, @Nullable String constraint, @Nullable Map<String, Number> measures) {
 
   public record Relationship(String from, String to) {
   }
@@ -33,6 +33,17 @@ public record ProjectFinding(String id, String projectId, String category, @Null
     }
     if (!ArchitectureApi.FINDING_CATEGORIES.contains(category == null ? "" : category)) {
       throw new IllegalStateException("The public finding " + id + " has an unsupported category.");
+    }
+    if (measures != null && measures.values().stream().anyMatch(ProjectFinding::isNotNumber)) {
+      throw new IllegalStateException("The public finding " + id + " has a non-numeric measure.");
+    }
+  }
+
+  private static boolean isNotNumber(@Nullable Number value) {
+    try {
+      return value == null || Double.isNaN(value.doubleValue());
+    } catch (NumberFormatException e) {
+      return true;
     }
   }
 }

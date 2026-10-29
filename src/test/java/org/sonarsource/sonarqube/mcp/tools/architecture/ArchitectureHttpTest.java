@@ -159,6 +159,10 @@ class ArchitectureHttpTest {
     harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.PROJECT_FINDINGS_PATH + "?projectId=" + ArchitectureFixtures.MAIN_BRANCH_ID
       + "&category=FLAW&pageIndex=1&pageSize=50").withHeader("Authorization", equalTo("Bearer token-a"))
       .willReturn(okJson("{\"projectFindings\":[" + finding + "],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}")));
+    harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.PROJECT_FINDINGS_PATH + "/finding-1")
+      .withHeader("Authorization", equalTo("Bearer token-a")).willReturn(okJson(finding)));
+    harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.PROJECT_FINDINGS_PATH + "/forbidden")
+      .withHeader("Authorization", equalTo("Bearer token-a")).willReturn(aResponse().withStatus(403)));
     var port = port();
     var server = new SonarQubeMcpServer(environment(harness, storage, port));
     try (var client = HttpClient.newHttpClient()) {
@@ -166,6 +170,12 @@ class ArchitectureHttpTest {
       var read = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
         Map.of("target", "findings", "projectKey", "my_project", "category", "FLAW")));
       assertThat(read).contains("finding-1").doesNotContain("isError\":true");
+      var detail = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "findings", "projectKey", "my_project", "findingId", "finding-1")));
+      assertThat(detail).contains("FLAW").doesNotContain("isError\":true");
+      var denied = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "findings", "projectKey", "my_project", "findingId", "forbidden")));
+      assertThat(denied).contains("isError\":true", "refusal to read the architecture");
     } finally {
       server.shutdown();
     }

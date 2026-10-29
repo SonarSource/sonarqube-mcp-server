@@ -80,6 +80,39 @@ class ArchitectureFindingsToolTests {
   }
 
   @Test
+  void it_should_keep_integer_measures_and_drop_unknown_fields() {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "/finding-2").willReturn(okJson(
+      "{\"id\":\"finding-2\",\"projectId\":\"" + MAIN_BRANCH_ID + "\",\"category\":\"SMELL\",\"measures\":{\"fanIn\":42},\"unexpected\":\"value\"}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "findingId", "finding-2"));
+    assertThat(result.isError()).isFalse();
+    assertThat(textOf(result)).contains("\"fanIn\" : 42").doesNotContain("42.0", "unexpected");
+  }
+
+  @ParameterizedTest
+  @CsvSource({"other-project,finding-1", MAIN_BRANCH_ID + ",finding-2"})
+  void it_should_reject_a_finding_from_another_project_or_id(String projectId, String id) {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "/finding-1").willReturn(okJson(
+      DEVIATION.replace(MAIN_BRANCH_ID, projectId).replace("finding-1", id))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "findingId", "finding-1"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("different id or project");
+  }
+
+  @Test
+  void it_should_explain_an_unknown_finding() {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "/missing").willReturn(aResponse().withStatus(404)));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "findingId", "missing"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Finding missing was not found or is not accessible in the selected project.");
+  }
+
+  @Test
   void it_should_explain_an_empty_result() {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=50")
@@ -89,15 +122,14 @@ class ArchitectureFindingsToolTests {
     assertThat(textOf(result)).contains("No findings are visible. Check project access and whether the project has been analyzed.");
   }
 
-  @ParameterizedTest
-  @CsvSource({"403,refusal to read the architecture", "404,"})
-  void it_should_report_access_and_missing_errors(int status, String message) {
+  @Test
+  void it_should_explain_a_permission_error() {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=50")
-      .willReturn(aResponse().withStatus(status)));
+      .willReturn(aResponse().withStatus(403)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains(message == null ? String.valueOf(status) : message);
+    assertThat(textOf(result)).contains("refusal to read the architecture of project 'my_project'");
   }
 
   @ParameterizedTest
@@ -105,14 +137,30 @@ class ArchitectureFindingsToolTests {
     "{\"projectFindings\":[]}",
     "{\"projectFindings\":[],\"page\":{\"pageIndex\":2,\"pageSize\":50,\"total\":0}}",
     "{\"projectFindings\":[null],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}",
-    "{\"projectFindings\":[{\"id\":\"x\",\"projectId\":\"p\",\"category\":\"COVERAGE\"}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"
+    "{\"projectFindings\":[{\"id\":\"x\",\"projectId\":\"" + MAIN_BRANCH_ID + "\",\"category\":\"COVERAGE\"}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}",
+    "{\"projectFindings\":[{\"id\":\"x\",\"projectId\":\"other\",\"category\":\"FLAW\"}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}",
+    "{\"projectFindings\":[{\"id\":\"x\",\"projectId\":\"" + MAIN_BRANCH_ID + "\",\"category\":\"FLAW\"},{\"id\":\"x\",\"projectId\":\""
+      + MAIN_BRANCH_ID + "\",\"category\":\"FLAW\"}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":2}}",
+    "{\"projectFindings\":[{\"id\":\"x\",\"projectId\":\"" + MAIN_BRANCH_ID + "\",\"category\":\"FLAW\",\"measures\":{\"m\":\"text\"}}],"
+      + "\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"
   })
   void it_should_reject_invalid_pages(String response) {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=50").willReturn(okJson(response)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).containsAnyOf("Invalid public findings page", "empty finding", "unsupported category");
+    assertThat(textOf(result)).containsAnyOf("Invalid public findings", "empty finding", "unsupported category", "different id or project",
+      "duplicate ids", "non-numeric measure");
+  }
+
+  @Test
+  void it_should_hide_findings_on_server_and_refuse_them_without_requests() {
+    var client = harness.newClient();
+    var schema = client.listTools().stream().filter(tool -> ArchitectureGetTool.TOOL_NAME.equals(tool.name())).findFirst().orElseThrow().inputSchema();
+    assertThat(schema.toString()).doesNotContain("findingId", "\"category\"", "findings");
+    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
+    assertThat(result.isError()).isTrue();
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
   }
 
   @ParameterizedTest

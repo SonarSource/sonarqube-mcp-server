@@ -171,7 +171,7 @@ public class ArchitectureGetTool extends Tool {
     }
     var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Architecture findings");
     if (id != null) {
-      return Result.success(new FindingView(projectKey, serverApi.architectureApi().getFinding(projectKey, id)));
+      return Result.success(new FindingView(projectKey, serverApi.architectureApi().getFinding(projectKey, projectId, id)));
     }
     var page = serverApi.architectureApi().getFindingPage(projectKey, projectId, category, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(50));
     return Result.success(new FindingsView(projectKey, page.projectFindings(), page.page(), page.projectFindings().isEmpty() && page.page().total() == 0
