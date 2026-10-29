@@ -64,7 +64,6 @@ public class HttpServerTransportProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String MCP_ENDPOINT = "/mcp";
-  static final String SERVER_THREAD_NAME = "mcp-http-server";
   public static final String CONTEXT_TOKEN_KEY = "sonarqube-token";
   public static final String CONTEXT_ORG_KEY = "sonarqube-org";
   public static final String CONTEXT_TOOLSETS_KEY = "sonarqube-toolsets";
@@ -208,8 +207,6 @@ public class HttpServerTransportProvider {
       return CompletableFuture.completedFuture(null);
     }
 
-    var startupFuture = new CompletableFuture<Void>();
-
     var servletContextHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
     servletContextHandler.setContextPath("/");
 
@@ -250,23 +247,14 @@ public class HttpServerTransportProvider {
     httpServer.addConnector(connector);
     httpServer.setHandler(servletContextHandler);
 
-    var server = httpServer;
-    var thread = new Thread(() -> launch(server, startupFuture), SERVER_THREAD_NAME);
-    thread.setDaemon(true);
-    thread.start();
-
-    return startupFuture;
-  }
-
-  private void launch(Server server, CompletableFuture<Void> startupFuture) {
     try {
-      server.start();
+      httpServer.start();
       var protocol = httpsEnabled ? "https" : "http";
       LOG.info("MCP " + protocol.toUpperCase(Locale.getDefault()) + " server started successfully on " + getServerUrl());
-      startupFuture.complete(null);
+      return CompletableFuture.completedFuture(null);
     } catch (Exception e) {
       LOG.error("Error starting MCP HTTP server", e);
-      startupFuture.completeExceptionally(e);
+      return CompletableFuture.failedFuture(e);
     }
   }
 

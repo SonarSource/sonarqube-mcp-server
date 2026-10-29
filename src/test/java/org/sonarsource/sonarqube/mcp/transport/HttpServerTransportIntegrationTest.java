@@ -80,13 +80,16 @@ class HttpServerTransportIntegrationTest {
   }
 
   @Test
-  void should_serve_requests_after_the_startup_thread_exits() {
-    httpServer.startServer().join();
-
-    await().atMost(5, TimeUnit.SECONDS).until(() -> Thread.getAllStackTraces().keySet().stream()
-      .noneMatch(thread -> HttpServerTransportProvider.SERVER_THREAD_NAME.equals(thread.getName())));
-
+  void should_serve_requests_as_soon_as_start_returns() {
+    assertThat(httpServer.startServer()).isCompleted();
     assertThat(isServerRunning(httpServer.getServerUrl())).isTrue();
+  }
+
+  @Test
+  void should_report_startup_failure_when_the_port_is_in_use() throws IOException {
+    try (var occupiedPort = new ServerSocket(testPort)) {
+      assertThat(httpServer.startServer()).isCompletedExceptionally();
+    }
   }
 
   @Test
