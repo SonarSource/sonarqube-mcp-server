@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.organizations;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 
 public class ListOrganizationsTool extends Tool {
@@ -34,6 +35,11 @@ public class ListOrganizationsTool extends Tool {
       .setReadOnlyHint()
       .build(), ToolCategory.PROJECTS);
     this.serverApiProvider = serverApiProvider;
+  }
+
+  @Override
+  public ToolAvailabilityPolicy availabilityPolicy() {
+    return ToolAvailabilityPolicy.CLOUD_ONLY;
   }
 
   @Override

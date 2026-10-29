@@ -20,6 +20,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy;
 
 public class SystemLogsTool extends Tool {
 
@@ -39,6 +40,11 @@ public class SystemLogsTool extends Tool {
       .build(),
       ToolCategory.SYSTEM);
     this.serverApiProvider = serverApiProvider;
+  }
+
+  @Override
+  public ToolAvailabilityPolicy availabilityPolicy() {
+    return ToolAvailabilityPolicy.SERVER_ONLY;
   }
 
   @Override

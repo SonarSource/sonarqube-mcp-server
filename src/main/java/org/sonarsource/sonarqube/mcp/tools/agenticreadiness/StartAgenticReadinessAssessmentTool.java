@@ -24,6 +24,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ_WRITE;
@@ -58,6 +59,11 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
   public ToolAccessMode requiredAccessMode() {
     // Resolve the project ID with a GET before creating the assessment.
     return READ_WRITE;
+  }
+
+  @Override
+  public ToolAvailabilityPolicy availabilityPolicy() {
+    return AgenticReadinessToolAvailability.POLICY;
   }
 
   @Override
