@@ -17,10 +17,36 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ToolCategoryTest {
+
+  @ParameterizedTest
+  @EnumSource(TransportMode.class)
+  void it_should_resolve_transport_defaults_for_unset_or_blank_selection(TransportMode transport) {
+    var defaults = ToolCategory.defaultEnabled(transport);
+    for (var selection : new String[] {null, "", " \t "}) {
+      assertThat(ToolCategory.parseCategories(selection, transport)).isEqualTo(defaults);
+    }
+    assertThat(defaults).doesNotContain(ToolCategory.ARCHITECTURE, ToolCategory.VORTEX, ToolCategory.SYSTEM);
+    if (transport == TransportMode.STDIO) {
+      assertThat(defaults).contains(ToolCategory.AGENTIC_READINESS);
+    } else {
+      assertThat(defaults).containsExactlyInAnyOrderElementsOf(
+        ToolCategory.defaultEnabled(TransportMode.STDIO).stream().filter(category -> category != ToolCategory.AGENTIC_READINESS).toList());
+    }
+  }
+
+  @ParameterizedTest
+  @EnumSource(TransportMode.class)
+  void it_should_preserve_explicit_selection_for_each_transport(TransportMode transport) {
+    assertThat(ToolCategory.parseCategories(" ISSUES,agentic-readiness,invalid,architecture ", transport))
+      .containsExactlyInAnyOrder(ToolCategory.ISSUES, ToolCategory.AGENTIC_READINESS, ToolCategory.ARCHITECTURE);
+  }
 
   @Test
   void should_have_correct_keys() {

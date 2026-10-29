@@ -22,6 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.ListResponse
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy;
 
 public class ListEnterprisesTool extends Tool {
 
@@ -44,6 +45,11 @@ public class ListEnterprisesTool extends Tool {
       .addStringProperty(ENTERPRISE_KEY_PROPERTY, "Optional enterprise key to filter results")
       .setReadOnlyHint()
       .build();
+  }
+
+  @Override
+  public ToolAvailabilityPolicy availabilityPolicy() {
+    return ToolAvailabilityPolicy.CLOUD_ONLY;
   }
 
   @Override

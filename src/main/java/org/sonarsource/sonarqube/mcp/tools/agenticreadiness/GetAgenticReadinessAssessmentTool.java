@@ -24,6 +24,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadiness
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy;
 
 public class GetAgenticReadinessAssessmentTool extends Tool {
 
@@ -44,6 +45,11 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
       .build(),
       ToolCategory.AGENTIC_READINESS);
     this.serverApiProvider = serverApiProvider;
+  }
+
+  @Override
+  public ToolAvailabilityPolicy availabilityPolicy() {
+    return AgenticReadinessToolAvailability.POLICY;
   }
 
   @Override

@@ -25,6 +25,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 class McpServerLaunchConfigurationHttpTest {
@@ -41,6 +42,7 @@ class McpServerLaunchConfigurationHttpTest {
 
       var configuration = new McpServerLaunchConfiguration(environment);
 
+      assertThat(configuration.getTransportMode()).isEqualTo(TransportMode.HTTP);
       assertThat(configuration.getEnabledToolsets()).containsExactlyInAnyOrderElementsOf(
         ToolCategory.defaultEnabled().stream().filter(category -> category != ToolCategory.AGENTIC_READINESS).toList());
       assertThat(configuration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isFalse();

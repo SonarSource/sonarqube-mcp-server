@@ -50,6 +50,10 @@ public abstract class Tool {
     return categories;
   }
 
+  public ToolAvailabilityPolicy availabilityPolicy() {
+    return ToolAvailabilityPolicy.UNRESTRICTED;
+  }
+
   /**
    * Returns whether this tool should be visible and callable for the given request context.
    * The default implementation always returns {@code true}. Tools that require per-request

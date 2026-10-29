@@ -24,6 +24,7 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailabilityPolicy;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListAgenticReadinessAssessmentsTool extends Tool {
@@ -58,6 +59,11 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
       ToolCategory.AGENTIC_READINESS);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
+  }
+
+  @Override
+  public ToolAvailabilityPolicy availabilityPolicy() {
+    return AgenticReadinessToolAvailability.POLICY;
   }
 
   @Override
