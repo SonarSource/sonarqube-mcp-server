@@ -596,9 +596,13 @@ class OAuthHttpTransportTest {
     });
     var key = initialized.getFirst().get("oauth_client_key").getAsString();
     assertUnchangedToolEventWithoutIdentity(events);
-    var authentication = events.stream().filter(e -> e.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpOAuthAuthenticationCompleted"))
+    var authentication = events.stream().filter(e -> e.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpOAuthAuthenticationFinished"))
       .map(e -> e.getAsJsonObject("event_payload")).toList();
-    assertThat(authentication).hasSize(4);
+    assertThat(authentication).hasSize(4).allSatisfy(payload -> {
+      assertThat(payload.has("user_uuid")).isFalse();
+      assertThat(payload.has("authentication_duration_ms")).isFalse();
+      assertThat(payload.has("was_cache_hit")).isFalse();
+    });
     assertThat(authentication.stream().filter(e -> e.get("outcome").getAsString().equals("success")).toList())
       .hasSize(2).allSatisfy(payload -> assertThat(payload.get("oauth_client_key").getAsString()).isEqualTo(key));
     assertThat(authentication.stream().filter(e -> e.has("failure_stage") && e.get("failure_stage").getAsString().equals("mcp_token_verification")).toList())
@@ -728,7 +732,7 @@ class OAuthHttpTransportTest {
     assertThat(send(request("eyJ.invalid.token", "ping", Map.of()).build()).statusCode()).isEqualTo(401);
     await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents().stream()
       .map(event -> event.getAsJsonObject("metadata").get("event_type").getAsString()).distinct())
-      .containsExactlyInAnyOrder("Analytics.Mcp.McpClientInitialized", "Analytics.Mcp.McpToolInvoked", "Analytics.Mcp.McpOAuthAuthenticationCompleted"));
+      .containsExactlyInAnyOrder("Analytics.Mcp.McpClientInitialized", "Analytics.Mcp.McpToolInvoked", "Analytics.Mcp.McpOAuthAuthenticationFinished"));
   }
 
   @Test
@@ -778,7 +782,7 @@ class OAuthHttpTransportTest {
     var configuration = new McpServerLaunchConfiguration(environment);
     oauth = configuration.getOAuthConfiguration();
     var keys = new Auth0JwkProvider(URI.create(auth0.baseUrl() + "/"), httpClients.getAnonymousHttpClient(), clock);
-    var service = new Auth0OAuthAuthenticationService(oauth, new Auth0TokenVerifier(oauth, keys, clock), new Auth0TokenExchange(oauth, auth0.baseUrl()), clock);
+    var service = new Auth0OAuthAuthenticationService(oauth, new Auth0TokenVerifier(oauth, keys, clock), new Auth0TokenExchange(oauth, auth0.baseUrl()), clock, null);
     var transport = new HttpServerTransportProvider(HttpTransportSettings.from(configuration), new OAuthSupport(
       new OAuthProtectedResourceMetadata(oauth.resource(), oauth.issuer().toString(), configuration.getOAuthMetadataUrl()), service::authenticate));
     server = new SonarQubeMcpServer(null, transport, environment);

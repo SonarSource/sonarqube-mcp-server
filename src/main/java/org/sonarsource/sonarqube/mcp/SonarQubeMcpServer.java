@@ -238,9 +238,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       var oauthConfiguration = mcpConfiguration.getOAuthConfiguration();
       this.httpServerManager = new HttpServerTransportProvider(HttpTransportSettings.from(mcpConfiguration), oauthConfiguration == null ? null : new OAuthSupport(
         new OAuthProtectedResourceMetadata(oauthConfiguration.resource(), oauthConfiguration.issuer().toString(), mcpConfiguration.getOAuthMetadataUrl()),
-        new Auth0OAuthAuthenticationService(oauthConfiguration, httpClientProvider.getAnonymousHttpClient(), result -> {
+        Auth0OAuthAuthenticationService.create(oauthConfiguration, httpClientProvider.getAnonymousHttpClient(), result -> {
           if (analyticsService != null) {
-            analyticsService.notifyOAuthAuthenticationCompleted(result);
+            analyticsService.notifyOAuthAuthenticationFinished(result);
           }
         })::authenticate));
       this.transportProvider = null;

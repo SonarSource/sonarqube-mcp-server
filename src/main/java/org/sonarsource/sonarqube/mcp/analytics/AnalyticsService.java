@@ -123,10 +123,10 @@ public class AnalyticsService {
     });
   }
 
-  public void notifyOAuthAuthenticationCompleted(OAuthAuthenticationResult result) {
-    submit(() -> client.postEvent(new McpOAuthAuthenticationCompletedEvent(mcpServerId, mcpServerVersion,
+  public void notifyOAuthAuthenticationFinished(OAuthAuthenticationResult result) {
+    submit(() -> client.postEvent(new McpOAuthAuthenticationFinishedEvent(mcpServerId, mcpServerVersion,
       isSonarQubeCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS, transportMode,
-      result.timestamp(), result.durationMs(), result.outcome(), result.failureStage(), result.failureCategory(), result.oauthClientKey())));
+      result.timestamp(), result.outcome(), result.failureStage(), result.failureCategory(), result.oauthClientKey())));
   }
 
   public void submit(Runnable task) {

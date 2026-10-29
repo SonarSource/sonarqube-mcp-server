@@ -35,7 +35,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -59,21 +58,10 @@ public final class Auth0OAuthAuthenticationService {
   private final Cache<String, CacheEntry> cache;
   private final Semaphore exchanges = new Semaphore(16);
 
-  public Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client) {
-    this(configuration, client, Clock.systemUTC(), null);
-  }
-
-  public Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client, Consumer<OAuthAuthenticationResult> observer) {
-    this(configuration, client, Clock.systemUTC(), observer);
-  }
-
-  private Auth0OAuthAuthenticationService(OAuthConfiguration configuration, HttpClient client, Clock clock, @Nullable Consumer<OAuthAuthenticationResult> observer) {
-    this(configuration, new Auth0TokenVerifier(configuration, new Auth0JwkProvider(configuration.issuer(), client, clock), clock),
-      new Auth0TokenExchange(configuration), clock, observer);
-  }
-
-  Auth0OAuthAuthenticationService(OAuthConfiguration configuration, Auth0TokenVerifier verifier, Auth0TokenExchange exchange, Clock clock) {
-    this(configuration, verifier, exchange, clock, null);
+  public static Auth0OAuthAuthenticationService create(OAuthConfiguration configuration, HttpClient client, @Nullable Consumer<OAuthAuthenticationResult> observer) {
+    var clock = Clock.systemUTC();
+    var verifier = new Auth0TokenVerifier(configuration, new Auth0JwkProvider(configuration.issuer(), client, clock), clock);
+    return new Auth0OAuthAuthenticationService(configuration, verifier, new Auth0TokenExchange(configuration), clock, observer);
   }
 
   Auth0OAuthAuthenticationService(OAuthConfiguration configuration, Auth0TokenVerifier verifier, Auth0TokenExchange exchange, Clock clock,
@@ -94,7 +82,6 @@ public final class Auth0OAuthAuthenticationService {
    */
   public OAuthRequestAuthentication authenticate(String token) {
     var timestamp = clock.millis();
-    var started = System.nanoTime();
     String clientKey = null;
     var stage = "mcp_token_verification";
     String failureCategory = "unexpected_error";
@@ -128,7 +115,7 @@ public final class Auth0OAuthAuthenticationService {
       var observer = authenticationObserver;
       if (observer != null) {
         try {
-          observer.accept(new OAuthAuthenticationResult(timestamp, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started), outcome,
+          observer.accept(new OAuthAuthenticationResult(timestamp, outcome,
             failureCategory == null ? null : stage, failureCategory, clientKey));
         } catch (RuntimeException e) {
           LOG.debug("Unable to report OAuth authentication (" + e.getClass().getSimpleName() + ")");

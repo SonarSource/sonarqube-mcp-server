@@ -19,6 +19,6 @@ package org.sonarsource.sonarqube.mcp.analytics;
 import jakarta.annotation.Nullable;
 
 /** One authentication caller's outcome, without credentials or user identifiers. */
-public record OAuthAuthenticationResult(long timestamp, long durationMs, String outcome,
+public record OAuthAuthenticationResult(long timestamp, String outcome,
   @Nullable String failureStage, @Nullable String failureCategory, @Nullable String oauthClientKey) {
 }

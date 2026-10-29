@@ -22,13 +22,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.annotation.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record McpOAuthAuthenticationCompletedEvent(
+public record McpOAuthAuthenticationFinishedEvent(
   @JsonProperty("mcp_server_id") String mcpServerId,
   @JsonProperty("mcp_server_version") String mcpServerVersion,
   @JsonProperty("connection_type") String connectionType,
   @JsonProperty("transport_mode") String transportMode,
   @JsonProperty("authentication_timestamp") long authenticationTimestamp,
-  @JsonProperty("authentication_duration_ms") long authenticationDurationMs,
   @JsonProperty("outcome") String outcome,
   @JsonProperty("failure_stage") @Nullable String failureStage,
   @JsonProperty("failure_category") @Nullable String failureCategory,
@@ -37,7 +36,7 @@ public record McpOAuthAuthenticationCompletedEvent(
   @Override
   @JsonIgnore
   public String eventType() {
-    return "Analytics.Mcp.McpOAuthAuthenticationCompleted";
+    return "Analytics.Mcp.McpOAuthAuthenticationFinished";
   }
 
   @Override

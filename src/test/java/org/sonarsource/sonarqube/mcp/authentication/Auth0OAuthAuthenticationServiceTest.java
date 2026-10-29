@@ -99,15 +99,16 @@ class Auth0OAuthAuthenticationServiceTest {
     service = new Auth0OAuthAuthenticationService(configuration, verifier, exchange, clock, authenticationEvents::add);
   }
 
-  @Test
-  void it_should_use_the_provided_http_client_for_signing_keys() {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_use_the_provided_http_client_for_signing_keys(boolean withObserver) {
     var client = mock(HttpClient.class);
     var response = mock(HttpClient.Response.class);
     when(response.isSuccessful()).thenReturn(true);
     when(response.bodyAsString()).thenReturn(new Gson().toJson(Map.of("keys", List.of(keyValues("test-key", KEY)))));
     when(client.getAsyncAnonymousWithoutRedirects(ISSUER + ".well-known/jwks.json"))
       .thenReturn(CompletableFuture.completedFuture(response));
-    var authentication = new Auth0OAuthAuthenticationService(configuration, client);
+    var authentication = Auth0OAuthAuthenticationService.create(configuration, client, withObserver ? authenticationEvents::add : null);
     var source = source().withSubject(" ").withIssuedAt(Instant.now().minusSeconds(1))
       .withExpiresAt(Instant.now().plusSeconds(299)).sign(algorithm);
 
@@ -116,6 +117,7 @@ class Auth0OAuthAuthenticationServiceTest {
 
     verify(client).getAsyncAnonymousWithoutRedirects(ISSUER + ".well-known/jwks.json");
     verify(response).close();
+    assertThat(authenticationEvents).hasSize(withObserver ? 1 : 0);
   }
 
   @ParameterizedTest
@@ -380,7 +382,7 @@ class Auth0OAuthAuthenticationServiceTest {
     when(exchange.exchange(source, Set.of("read:all"))).thenReturn(cloud);
     var otherConfiguration = new OAuthConfiguration(ISSUER, RESOURCE, CLOUD, "other-backend", "other-secret");
     var otherExchange = mock(Auth0TokenExchange.class);
-    var otherService = new Auth0OAuthAuthenticationService(otherConfiguration, verifier, otherExchange, clock);
+    var otherService = new Auth0OAuthAuthenticationService(otherConfiguration, verifier, otherExchange, clock, null);
     var otherCloud = downstream().withClaim("scope", "read:all").withClaim("azp", "other-backend")
       .withClaim("act", Map.of("sub", "other-backend", "act", Map.of("sub", CLIENT))).sign(algorithm);
     when(otherExchange.exchange(source, Set.of("read:all"))).thenReturn(otherCloud);
@@ -422,7 +424,7 @@ class Auth0OAuthAuthenticationServiceTest {
     service.authenticate(second);
     service.authenticate(first);
     verify(exchange, times(2)).exchange(first, Set.of("read:all"));
-    service = new Auth0OAuthAuthenticationService(config(Duration.ZERO, 1), verifier, exchange, clock);
+    service = new Auth0OAuthAuthenticationService(config(Duration.ZERO, 1), verifier, exchange, clock, null);
     service.authenticate(second);
     service.authenticate(second);
     verify(exchange, times(3)).exchange(second, Set.of("read:all"));
@@ -687,7 +689,6 @@ class Auth0OAuthAuthenticationServiceTest {
       assertThat(event.failureCategory()).isNull();
       assertThat(event.oauthClientKey()).isEqualTo(key);
       assertThat(event.timestamp()).isEqualTo(clock.millis());
-      assertThat(event.durationMs()).isNotNegative();
       assertThat(event.toString()).doesNotContain(source, cloud, USER, CLIENT);
     });
     verify(exchange, times(2)).exchange(anyString(), any());

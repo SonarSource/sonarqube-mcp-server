@@ -174,7 +174,7 @@ class AnalyticsClientTest {
   @Test
   void it_should_serialize_both_new_event_contracts_and_omit_missing_fields() throws Exception {
     analyticsClient.postEvent(new McpClientInitializedEvent("server", "1", "SQC", "http", "token", " Custom Client ", "1.0+preview", 123, null, null, null));
-    analyticsClient.postEvent(new McpOAuthAuthenticationCompletedEvent("server", "1", "SQC", "http", 124, 10, "success", null, null, "key"));
+    analyticsClient.postEvent(new McpOAuthAuthenticationFinishedEvent("server", "1", "SQC", "http", 124, "success", null, null, "key"));
     await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> wireMock.verify(2, postRequestedFor(urlPathEqualTo("/"))));
     var mapper = new ObjectMapper();
     for (var received : wireMock.getAllServeEvents()) {
@@ -188,13 +188,18 @@ class AnalyticsClientTest {
         assertThat(payload.get("initialization_timestamp").asLong()).isEqualTo(123);
         assertThat(payload.get("authentication_method").asText()).isEqualTo("token");
       } else {
-        assertThat(body.get("metadata").get("event_type").asText()).isEqualTo("Analytics.Mcp.McpOAuthAuthenticationCompleted");
-        assertThat(payload.get("oauth_client_key").asText()).isEqualTo("key");
-        assertThat(payload.get("authentication_timestamp").asLong()).isEqualTo(124);
-        assertThat(payload.get("authentication_duration_ms").asLong()).isEqualTo(10);
-        assertThat(payload.get("outcome").asText()).isEqualTo("success");
-        assertThat(payload.has("failure_stage")).isFalse();
-        assertThat(payload.has("failure_category")).isFalse();
+        assertThat(body.get("metadata").get("event_type").asText()).isEqualTo("Analytics.Mcp.McpOAuthAuthenticationFinished");
+        assertThat(payload).isEqualTo(mapper.readTree("""
+          {
+            "mcp_server_id": "server",
+            "mcp_server_version": "1",
+            "connection_type": "SQC",
+            "transport_mode": "http",
+            "authentication_timestamp": 124,
+            "outcome": "success",
+            "oauth_client_key": "key"
+          }
+          """));
       }
       assertThat(payload.has("user_uuid")).isFalse();
       assertThat(payload.has("organization_uuid_v4")).isFalse();

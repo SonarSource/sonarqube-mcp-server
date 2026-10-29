@@ -163,7 +163,7 @@ class AnalyticsServiceTest {
     when(api.isSonarQubeCloud()).thenReturn(true);
     when(api.usersApi().getCurrentUserId()).thenReturn("user");
     service.notifyClientInitialized(new HttpAnalyticsContext("oauth", "key"), " Custom Client ", "1.2+dev", 123, () -> api);
-    service.notifyOAuthAuthenticationCompleted(new OAuthAuthenticationResult(124, 20, "rejected", "delegation_validation", "insufficient_scope", "key"));
+    service.notifyOAuthAuthenticationFinished(new OAuthAuthenticationResult(124, "rejected", "delegation_validation", "insufficient_scope", "key"));
     service.shutdown();
     var events = ArgumentCaptor.forClass(AnalyticsEvent.class);
     verify(mockClient, times(2)).postEvent(events.capture());
@@ -177,9 +177,8 @@ class AnalyticsServiceTest {
       assertThat(event.sqsInstallationId()).isNull();
       assertThat(event.connectionType()).isEqualTo("SQC");
     });
-    assertThat(events.getAllValues().getLast()).isInstanceOfSatisfying(McpOAuthAuthenticationCompletedEvent.class, event -> {
+    assertThat(events.getAllValues().getLast()).isInstanceOfSatisfying(McpOAuthAuthenticationFinishedEvent.class, event -> {
       assertThat(event.failureStage()).isEqualTo("delegation_validation");
-      assertThat(event.authenticationDurationMs()).isEqualTo(20);
       assertThat(event.outcome()).isEqualTo("rejected");
       assertThat(event.failureCategory()).isEqualTo("insufficient_scope");
       assertThat(event.authenticationTimestamp()).isEqualTo(124);
@@ -277,7 +276,7 @@ class AnalyticsServiceTest {
       service.shutdown();
     }
     assertThat(completed.get()).isEqualTo(1000);
-    assertThatCode(() -> service.notifyOAuthAuthenticationCompleted(new OAuthAuthenticationResult(1, 1, "success", null, null, null)))
+    assertThatCode(() -> service.notifyOAuthAuthenticationFinished(new OAuthAuthenticationResult(1, "success", null, null, null)))
       .doesNotThrowAnyException();
   }
 
