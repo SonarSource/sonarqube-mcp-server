@@ -44,6 +44,7 @@ public class ArchitectureApi {
   public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
   public static final List<String> FINDING_CATEGORIES = List.of("DEVIATION", "FLAW", "SMELL");
   public static final String SERVER_API_PREFIX = "/api/v2";
+  private static final String PROJECT_ID_PARAM = "projectId";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
   public static final int MAX_PERSPECTIVES = 50;
@@ -86,7 +87,7 @@ public class ArchitectureApi {
    */
   public List<IntendedArchitecture> getIntended(String projectKey, String projectId) {
     var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH)
-      .addParam("projectId", projectId)
+      .addParam(PROJECT_ID_PARAM, projectId)
       .build();
     var response = read(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
     if (response == null || response.intendedArchitectures() == null) {
@@ -199,7 +200,7 @@ public class ArchitectureApi {
     if (pageIndex < 1 || pageSize < 1 || pageSize > 1000) {
       throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
     }
-    var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam("projectId", projectId)
+    var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam(PROJECT_ID_PARAM, projectId)
       .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
     var response = fromJson(get(path), DirectivePage.class);
     if (response == null || response.projectDirectives() == null || response.page() == null
@@ -263,7 +264,7 @@ public class ArchitectureApi {
     if (pageIndex < 1 || pageSize < 1 || pageSize > 1000) {
       throw new IllegalArgumentException("Page must be >= 1 and page size must be between 1 and 1000.");
     }
-    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("projectId", projectId).addParam("category", category)
+    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam(PROJECT_ID_PARAM, projectId).addParam("category", category)
       .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
     var response = read(projectKey, () -> findingsJson(get(path), FindingPage.class));
     if (response == null || response.projectFindings() == null || response.page() == null
