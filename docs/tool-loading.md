@@ -93,7 +93,7 @@ Cloud HTTP/HTTPS registers no analysis tools and skips analyzer downloads. Sonar
 Toolset activation and tool availability are evaluated separately:
 
 - `ToolCategory` declares the transports on which a toolset is enabled by default. Categories without default transports are opt-in. An explicit `SONARQUBE_TOOLSETS` value replaces the default selection; `projects` remains enabled. HTTPS uses the HTTP defaults.
-- `Tool.availabilityPolicy()` declares supported transports, deployments, and startup requirements. The default is `ToolAvailabilityPolicy.UNRESTRICTED`. Tools with the same restrictions share an immutable policy; `CLOUD_ONLY` and `SERVER_ONLY` cover simple deployment restrictions.
+- `Tool.availabilityPolicy()` declares supported transports, deployments, and startup requirements. The default is `ToolAvailabilityPolicy.UNRESTRICTED`. Each tool declares its immutable policy directly; `CLOUD_ONLY` and `SERVER_ONLY` provide reusable constants for simple deployment restrictions.
 - Named startup requirements are resolved through `ToolStartupRequirements`, using the existing API clients. `ToolRegistrar` caches each result, including failure, for the server lifetime. A restart is required to retry a failed requirement or pick up a changed startup feature flag.
 
 For a simple deployment restriction, declare it on the tool:
@@ -105,7 +105,7 @@ public ToolAvailabilityPolicy availabilityPolicy() {
 }
 ```
 
-For a conditional feature, use a shared policy with a requirement for the relevant transport. All three agentic-readiness tools share a Cloud-only policy requiring `SARA_ENABLED` on STDIO. HTTP has no startup feature lookup: the toolset is opt-in and the backend enforces access on each call. On STDIO, the requirement checks the configured or uniquely detected organization; otherwise it accepts any accessible organization with the flag enabled. Individual lookup failures do not stop checks for other organizations.
+For a conditional feature, declare a requirement for the relevant transport in the tool's `availabilityPolicy()`. Each of the three agentic-readiness tools declares a Cloud-only policy requiring `SARA_ENABLED` on STDIO. Requirement results are cached by requirement name, so separate policy declarations reuse the same startup lookup. HTTP has no startup feature lookup: the toolset is opt-in and the backend enforces access on each call. On STDIO, the requirement checks the configured or uniquely detected organization; otherwise it accepts any accessible organization with the flag enabled. Individual lookup failures do not stop checks for other organizations.
 
 Loaders submit tools to `ToolRegistrar`. The registrar checks category selection, read-only mode, transport/deployment support, then startup requirements. Rejected tools do not trigger requirement lookups. A group can supply instructions, which are included once if at least one tool is accepted. After loading, one immutable registered-tool list supplies both MCP transports, HTTP filtering, and the decision to download local analyzers.
 
