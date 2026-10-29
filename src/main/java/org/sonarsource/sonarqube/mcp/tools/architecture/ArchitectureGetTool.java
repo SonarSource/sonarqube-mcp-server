@@ -73,7 +73,8 @@ public class ArchitectureGetTool extends Tool {
       .setTitle("Get Architecture")
       .setDescription("Read current graphs, intended architecture, project directives or findings.")
       .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
-        "current: dependencies; intended: model; directives: project directives (directiveId); findings: deviations, flaws and smells (findingId, category); pageIndex/pageSize apply to directives and findings.")
+        "current: dependencies; intended: model; directives: project directives (directiveId); "
+          + "findings: deviations, flaws and smells (findingId, category); pageIndex/pageSize apply to directives and findings.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
         + "Intended: group labels joined by /. Top level when omitted. "
