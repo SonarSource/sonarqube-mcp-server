@@ -153,6 +153,35 @@ class ArchitectureHttpTest {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_read_findings_over_http_with_request_credentials(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
+    ArchitectureFixtures.stubMainBranch(harness);
+    var finding = "{\"id\":\"finding-1\",\"projectId\":\"" + ArchitectureFixtures.MAIN_BRANCH_ID + "\",\"category\":\"FLAW\"}";
+    harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.PROJECT_FINDINGS_PATH + "?projectId=" + ArchitectureFixtures.MAIN_BRANCH_ID
+      + "&category=FLAW&pageIndex=1&pageSize=50").withHeader("Authorization", equalTo("Bearer token-a"))
+      .willReturn(okJson("{\"projectFindings\":[" + finding + "],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}")));
+    harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.PROJECT_FINDINGS_PATH + "/finding-1")
+      .withHeader("Authorization", equalTo("Bearer token-a")).willReturn(okJson(finding)));
+    harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.PROJECT_FINDINGS_PATH + "/forbidden")
+      .withHeader("Authorization", equalTo("Bearer token-a")).willReturn(aResponse().withStatus(403)));
+    var port = port();
+    var server = new SonarQubeMcpServer(environment(harness, storage, port));
+    try (var client = HttpClient.newHttpClient()) {
+      server.start();
+      var read = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "findings", "projectKey", "my_project", "category", "FLAW")));
+      assertThat(read).contains("finding-1").doesNotContain("isError\":true");
+      var detail = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "findings", "projectKey", "my_project", "findingId", "finding-1")));
+      assertThat(detail).contains("FLAW").doesNotContain("isError\":true");
+      var denied = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "findings", "projectKey", "my_project", "findingId", "forbidden")));
+      assertThat(denied).contains("isError\":true", "refusal to read the architecture");
+    } finally {
+      server.shutdown();
+    }
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_hide_architecture_set_in_server_read_only_mode(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
     var port = port();
     var env = environment(harness, storage, port);
@@ -167,7 +196,7 @@ class ArchitectureHttpTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_advertise_only_current_architecture_over_server_http(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
+  void it_should_advertise_current_architecture_and_findings_over_server_http(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
     var port = port();
     var env = environment(harness, storage, port);
     env.put("SONARQUBE_IS_CLOUD", "false");
@@ -181,7 +210,7 @@ class ArchitectureHttpTest {
       var read = tools.asList().stream().map(com.google.gson.JsonElement::getAsJsonObject)
         .filter(tool -> tool.get("name").getAsString().equals("architecture_get")).findFirst().orElseThrow();
       assertThat(read.getAsJsonObject("inputSchema").getAsJsonObject("properties").getAsJsonObject("target").getAsJsonArray("enum"))
-        .hasToString("[\"current\"]");
+        .hasToString("[\"current\",\"findings\"]");
     } finally {
       server.shutdown();
     }

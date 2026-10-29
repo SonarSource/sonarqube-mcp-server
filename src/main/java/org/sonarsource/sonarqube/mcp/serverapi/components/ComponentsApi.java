@@ -18,9 +18,11 @@ package org.sonarsource.sonarqube.mcp.serverapi.components;
 
 import com.google.gson.Gson;
 import jakarta.annotation.Nullable;
+import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 
 public class ComponentsApi {
 
@@ -49,6 +51,35 @@ public class ComponentsApi {
       var responseStr = response.bodyAsString();
       return new Gson().fromJson(responseStr, SearchResponse.class);
     }
+  }
+
+  public String getProjectId(String projectKey) {
+    var path = new UrlBuilder("/api/v2/components/projects")
+      .addParam("keys", projectKey).addParam("pageSize", 1).build();
+    try (var response = helper.get(path)) {
+      var result = new Gson().fromJson(response.bodyAsString(), ProjectsResponse.class);
+      if (result == null || result.projects() == null || result.projects().size() != 1
+        || result.page() == null || !Integer.valueOf(1).equals(result.page().total())) {
+        throw new IllegalStateException("Could not resolve the project. Check its key and Browse permission.");
+      }
+      var project = result.projects().getFirst();
+      if (project == null || !projectKey.equals(project.key()) || !(project.id() instanceof String id) || id.isBlank()) {
+        throw new IllegalStateException("The public project lookup returned an invalid project.");
+      }
+      return id;
+    } catch (NotFoundException e) {
+      throw new IllegalStateException("This Server does not expose the public project lookup required for architecture findings. "
+        + "Use a Server build with GET /api/v2/components/projects and the public Architecture APIs.", e);
+    }
+  }
+
+  private record ProjectsResponse(List<Project> projects, Page page) {
+  }
+
+  private record Project(Object id, String key) {
+  }
+
+  private record Page(Integer total) {
   }
 
 }

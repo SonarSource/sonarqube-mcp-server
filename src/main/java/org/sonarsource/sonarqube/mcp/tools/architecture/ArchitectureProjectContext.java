@@ -52,4 +52,11 @@ final class ArchitectureProjectContext {
     throw new IllegalStateException(resource + " on SonarQube Server requires a project UUID, but no supported public API resolves it from a project key. "
       + "Nothing was read or changed. Waiting for public project ID resolution.");
   }
+
+  static String findingsProjectId(ServerApi serverApi, String projectKey) {
+    if (serverApi.isSonarQubeCloud()) {
+      return mainBranchId(serverApi, projectKey);
+    }
+    return serverApi.componentsApi().getProjectId(projectKey);
+  }
 }
