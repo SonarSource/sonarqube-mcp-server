@@ -131,6 +131,9 @@ tasks {
 	test {
 		useJUnitPlatform()
 		systemProperty("TELEMETRY_DISABLED", "true")
+		// Tests that opt in to telemetry must supply their own local collector.
+		systemProperty("sonarqube.mcp.analytics.endpoint", "http://127.0.0.1:1/mcp")
+		systemProperty("sonarqube.mcp.analytics.api.key", "test-api-key")
 		systemProperty("sonarqube.mcp.server.version", project.version)
 		// Reduce MCP client timeout for tests to speed up failure scenarios
 		systemProperty("mcp.client.timeout.seconds", "2")

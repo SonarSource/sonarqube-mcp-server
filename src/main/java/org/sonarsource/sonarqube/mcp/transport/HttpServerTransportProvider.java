@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import javax.net.ssl.SSLContext;
 import nl.altindag.ssl.SSLFactory;
 import org.apache.commons.lang3.SystemUtils;
@@ -43,14 +44,17 @@ import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.sonarsource.sonarqube.mcp.http.BlockedCertificateTrustManager;
+import org.sonarsource.sonarqube.mcp.analytics.AnalyticsService;
+import org.sonarsource.sonarqube.mcp.analytics.HttpAnalyticsContext;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter.OAuthSupport;
 import org.sonarsource.sonarqube.mcp.authentication.HttpRequestAuthentication;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthAuthenticationException;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
+import org.sonarsource.sonarqube.mcp.http.BlockedCertificateTrustManager;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import reactor.core.publisher.Mono;
@@ -159,12 +163,13 @@ public class HttpServerTransportProvider {
   }
 
   private Map<String, Object> createAuthenticationContext(HttpServletRequest request) {
-    if (!(request.getAttribute(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE) instanceof HttpRequestAuthentication(var token, var scopes))
+    if (!(request.getAttribute(AuthenticationFilter.AUTHENTICATION_ATTRIBUTE) instanceof HttpRequestAuthentication(var token, var scopes, var clientKey))
       || (oauth == null && scopes != null)) {
       throw OAuthAuthenticationException.unauthorized();
     }
     var contextBuilder = new HashMap<String, Object>();
     contextBuilder.put(CONTEXT_TOKEN_KEY, token);
+    contextBuilder.put(HttpAnalyticsContext.CONTEXT_KEY, new HttpAnalyticsContext(scopes == null ? "token" : "oauth", clientKey));
     if (scopes != null) {
       contextBuilder.put(OAuthScopeContext.CONTEXT_KEY, scopes);
     }
@@ -176,12 +181,18 @@ public class HttpServerTransportProvider {
    * when the SDK calls {@code setMcpHandler}, the transport immediately installs a {@link PerRequestToolFilteringHandler} wrapping the SDK handler.
    */
   public McpStatelessServerTransport getFilteringTransport(List<Tool> enabledTools) {
+    return getFilteringTransport(enabledTools, null, context -> null);
+  }
+
+  public McpStatelessServerTransport getFilteringTransport(List<Tool> enabledTools, @Nullable AnalyticsService analytics,
+    Function<McpTransportContext, ServerApi> initializationApiFactory) {
     return new McpStatelessServerTransport() {
       private final List<Tool> tools = List.copyOf(enabledTools);
 
       @Override
       public void setMcpHandler(McpStatelessServerHandler handler) {
-        mcpTransportProvider.setMcpHandler(new PerRequestToolFilteringHandler(handler, tools));
+        var filtered = new PerRequestToolFilteringHandler(handler, tools);
+        mcpTransportProvider.setMcpHandler(analytics == null ? filtered : new ClientInitializationAnalyticsHandler(filtered, analytics, initializationApiFactory));
       }
 
       @Override

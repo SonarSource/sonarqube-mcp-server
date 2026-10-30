@@ -172,6 +172,51 @@ class AnalyticsClientTest {
   }
 
   @Test
+  void it_should_serialize_both_new_event_contracts_and_omit_missing_fields() throws Exception {
+    analyticsClient.postEvent(new McpClientInitializedEvent("server", "1", "SQC", "http", "token", " Custom Client ", "1.0+preview", 123, null, null, null));
+    analyticsClient.postEvent(new McpOAuthAuthenticationFinishedEvent("server", "1", "SQC", "http", 124, "success", null, null, "key"));
+    await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> wireMock.verify(2, postRequestedFor(urlPathEqualTo("/"))));
+    var mapper = new ObjectMapper();
+    for (var received : wireMock.getAllServeEvents()) {
+      var body = mapper.readTree(received.getRequest().getBodyAsString());
+      assertThat(body.get("metadata").get("event_version").asText()).isEqualTo("1");
+      var payload = body.get("event_payload");
+      if (body.get("metadata").get("event_type").asText().endsWith("McpClientInitialized")) {
+        assertThat(payload.get("calling_agent_name").asText()).isEqualTo(" Custom Client ");
+        assertThat(payload.get("calling_agent_version").asText()).isEqualTo("1.0+preview");
+        assertThat(payload.has("oauth_client_key")).isFalse();
+        assertThat(payload.get("initialization_timestamp").asLong()).isEqualTo(123);
+        assertThat(payload.get("authentication_method").asText()).isEqualTo("token");
+      } else {
+        assertThat(body.get("metadata").get("event_type").asText()).isEqualTo("Analytics.Mcp.McpOAuthAuthenticationFinished");
+        assertThat(payload).isEqualTo(mapper.readTree("""
+          {
+            "mcp_server_id": "server",
+            "mcp_server_version": "1",
+            "connection_type": "SQC",
+            "transport_mode": "http",
+            "authentication_timestamp": 124,
+            "outcome": "success",
+            "oauth_client_key": "key"
+          }
+          """));
+      }
+      assertThat(payload.has("user_uuid")).isFalse();
+      assertThat(payload.has("organization_uuid_v4")).isFalse();
+    }
+  }
+
+  @Test
+  void it_should_serialize_optional_initialization_identifiers() throws Exception {
+    analyticsClient.postEvent(new McpClientInitializedEvent("server", "1", "SQS", "http", "token", null, null, 123, null, "user", "installation"));
+    await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> wireMock.verify(1, postRequestedFor(urlPathEqualTo("/"))));
+    var payload = new ObjectMapper().readTree(wireMock.getAllServeEvents().getFirst().getRequest().getBodyAsString()).get("event_payload");
+    assertThat(payload.get("user_uuid").asText()).isEqualTo("user");
+    assertThat(payload.get("sqs_installation_id").asText()).isEqualTo("installation");
+    assertThat(payload.has("organization_uuid_v4")).isFalse();
+  }
+
+  @Test
   void it_should_send_x_api_key_header() {
     var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());
 
@@ -194,6 +239,7 @@ class AnalyticsClientTest {
     await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
       wireMock.verify(3, postRequestedFor(urlPathEqualTo("/")))
     );
+    assertThat(wireMock.getAllServeEvents().stream().map(received -> received.getRequest().getBodyAsString()).distinct()).hasSize(1);
   }
 
   @Test
@@ -231,7 +277,7 @@ class AnalyticsClientTest {
   @Test
   void it_should_silently_swallow_errors_when_server_is_unreachable() {
     var httpClient = httpClientProvider.getHttpClientForAnalytics("key");
-    System.setProperty(AnalyticsClient.PROPERTY_ANALYTICS_ENDPOINT, "http://192.0.2.1:9999/mcp");
+    System.setProperty(AnalyticsClient.PROPERTY_ANALYTICS_ENDPOINT, "http://127.0.0.1:1/mcp");
     var unreachableClient = new AnalyticsClient(httpClient);
 
     var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());
