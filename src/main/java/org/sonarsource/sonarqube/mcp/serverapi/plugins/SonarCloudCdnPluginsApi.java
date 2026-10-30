@@ -20,6 +20,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
+import static org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper.awaitResponse;
+
 public class SonarCloudCdnPluginsApi {
 
   public static final String PLUGIN_DOWNLOAD_PATH = "/plugins/%s/versions/%s.jar";
@@ -33,7 +35,7 @@ public class SonarCloudCdnPluginsApi {
   }
 
   public HttpClient.Response downloadPlugin(String pluginKey, String md5) {
-    return httpClient.getAsyncAnonymous(buildDownloadUrl(baseUrl, pluginKey, md5), HttpClient.DOWNLOAD_TIMEOUT).join();
+    return awaitResponse(httpClient.getAsyncAnonymous(buildDownloadUrl(baseUrl, pluginKey, md5), HttpClient.DOWNLOAD_TIMEOUT));
   }
 
   static String buildDownloadUrl(String baseUrl, String pluginKey, String md5) {

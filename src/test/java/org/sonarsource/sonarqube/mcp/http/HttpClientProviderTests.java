@@ -37,8 +37,10 @@ import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.util.DeadlineTimeoutException;
 import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -60,6 +62,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -107,6 +110,86 @@ class HttpClientProviderTests {
       .withHeader("Authorization", equalTo("Bearer token"))
       .withHeader("Content-Type", equalTo(HttpClient.MERGE_PATCH_CONTENT_TYPE))
       .withRequestBody(equalTo("{}")));
+  }
+
+  @Test
+  void it_should_fail_when_the_response_exceeds_the_timeout() {
+    sonarqubeMock.stubFor(get("/stalled")
+      .willReturn(aResponse().withFixedDelay(10_000)));
+
+    var underTest = new HttpClientProvider(USER_AGENT, Timeout.ofMilliseconds(500));
+    try {
+      var future = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/stalled"));
+      var error = assertThrows(ExecutionException.class, () -> future.get(3, TimeUnit.SECONDS));
+
+      assertThat(future).isCompletedExceptionally();
+      assertThat(isTimeout(error)).isTrue();
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
+  @Test
+  void it_should_allow_analysis_to_exceed_the_api_response_timeout() {
+    sonarqubeMock.stubFor(post(SonarQubeIdeBridgeClient.ANALYSIS_FILES_PATH)
+      .willReturn(aResponse().withBody("{\"findings\":[]}").withFixedDelay(1200)));
+    sonarqubeMock.stubFor(get("/stalled-api").willReturn(aResponse().withFixedDelay(3000)));
+    var underTest = new HttpClientProvider(USER_AGENT, Timeout.ofMilliseconds(500));
+    var helper = new ServerApiHelper(new EndpointParams(sonarqubeMock.baseUrl(), null, null, false), underTest.getHttpClientForBridge());
+    var bridge = new SonarQubeIdeBridgeClient(helper);
+
+    try {
+      assertThat(bridge.requestAnalyzeFileList(List.of("file.java"))).isPresent();
+      sonarqubeMock.verify(1, postRequestedFor(urlEqualTo(SonarQubeIdeBridgeClient.ANALYSIS_FILES_PATH))
+        .withHeader("Host", equalTo("localhost"))
+        .withHeader("Origin", equalTo("http://localhost"))
+        .withRequestBody(equalTo("{\"fileAbsolutePaths\":[\"file.java\"]}")));
+      var future = underTest.getHttpClient("token").getAsync(sonarqubeMock.url("/stalled-api"));
+      var error = assertThrows(ExecutionException.class, () -> future.get(3, TimeUnit.SECONDS));
+      assertThat(isTimeout(error)).isTrue();
+    } finally {
+      underTest.shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_preserve_the_pool_timeout_when_overriding_request_settings(boolean customPostTimeout) throws Exception {
+    sonarqubeMock.stubFor(get("/occupied").willReturn(aResponse().withFixedDelay(1500)));
+    var connectionManager = PoolingAsyncClientConnectionManagerBuilder.create().setMaxConnPerRoute(1).setMaxConnTotal(1).build();
+    var requestConfig = RequestConfig.custom()
+      .setConnectionRequestTimeout(Timeout.ofMilliseconds(200))
+      .setResponseTimeout(Timeout.ofSeconds(10))
+      .build();
+
+    try (var apacheClient = HttpAsyncClients.custom().setConnectionManager(connectionManager).setDefaultRequestConfig(requestConfig).build()) {
+      apacheClient.start();
+      var client = new HttpClientAdapter(apacheClient, null, false, Duration.ofSeconds(10), requestConfig, null);
+      var occupied = client.getAsync(sonarqubeMock.url("/occupied"));
+      try {
+        await().atMost(3, TimeUnit.SECONDS).until(() -> connectionManager.getTotalStats().getLeased() == 1);
+
+        var future = customPostTimeout
+          ? client.postAsync(sonarqubeMock.url("/queued"), HttpClient.JSON_CONTENT_TYPE, "{}", Duration.ofSeconds(60))
+          : client.getAsyncAnonymousWithoutRedirects(sonarqubeMock.url("/queued"));
+        var error = assertThrows(ExecutionException.class, () -> future.get(3, TimeUnit.SECONDS));
+        assertThat(error).hasCauseInstanceOf(DeadlineTimeoutException.class);
+      } finally {
+        occupied.cancel(true);
+      }
+    }
+  }
+
+  private static boolean isTimeout(Throwable error) {
+    var current = error;
+    while (current != null) {
+      var typeName = current.getClass().getName();
+      if (typeName.contains("Timeout") || typeName.contains("SocketTimeout")) {
+        return true;
+      }
+      current = current.getCause();
+    }
+    return false;
   }
 
   @Test
@@ -179,7 +262,7 @@ class HttpClientProviderTests {
     var firstRequest = new CompletableFuture<SimpleHttpResponse>();
     var secondRequest = new CompletableFuture<SimpleHttpResponse>();
     when(apacheClient.execute(any(SimpleHttpRequest.class), any())).thenReturn(firstRequest).thenReturn(secondRequest);
-    var client = new HttpClientAdapter(apacheClient, null, false, Duration.ofSeconds(1));
+    var client = new HttpClientAdapter(apacheClient, null, false, Duration.ofSeconds(1), RequestConfig.DEFAULT, null);
     var callbackStarted = new CompletableFuture<Void>();
     var releaseCallback = new CompletableFuture<Void>();
     var first = client.getAsync("http://localhost/first");
@@ -280,12 +363,13 @@ class HttpClientProviderTests {
   void it_should_override_the_socket_timeout_only_for_the_explicit_post() throws Exception {
     sonarqubeMock.stubFor(post("/slow-analysis").willReturn(aResponse().withBody("findings").withFixedDelay(700)));
     sonarqubeMock.stubFor(get("/stalled-api").willReturn(aResponse().withFixedDelay(2000)));
+    var requestConfig = RequestConfig.custom().setResponseTimeout(Timeout.ofMilliseconds(200)).build();
     try (var apacheClient = HttpAsyncClients.custom()
-      .setDefaultRequestConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMilliseconds(200)).build())
+      .setDefaultRequestConfig(requestConfig)
       .setIOReactorConfig(IOReactorConfig.custom().setSoTimeout(Timeout.ofMilliseconds(200)).build())
       .build()) {
       apacheClient.start();
-      var client = new HttpClientAdapter(apacheClient, null, true, Duration.ofSeconds(5));
+      var client = new HttpClientAdapter(apacheClient, null, true, Duration.ofSeconds(5), requestConfig, null);
 
       try (var response = client.postAsync(sonarqubeMock.url("/slow-analysis"), "text/plain", "", Duration.ofSeconds(3))
         .get(4, TimeUnit.SECONDS)) {

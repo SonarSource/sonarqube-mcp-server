@@ -27,10 +27,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
@@ -159,6 +162,33 @@ class SonarQubeMcpServerGenericTest {
     server.shutdown();
     server.shutdown();
     server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void shutdown_should_stop_background_initialization(SonarQubeMcpServerTestHarness harness) throws Exception {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TOOLSETS", "analysis");
+    harness.prepareMockWebServer(environment);
+    harness.getMockSonarQubeServer().stubFor(get(PluginsApi.INSTALLED_PLUGINS_PATH)
+      .willReturn(aResponse().withBody("{\"plugins\":[]}").withFixedDelay(20_000)));
+    var server = new SonarQubeMcpServer(environment);
+    var existingThreads = Thread.getAllStackTraces().keySet();
+    server.start();
+
+    try {
+      await().atMost(5, SECONDS).until(harness.getMockSonarQubeServer()::hasReceivedInstalledPluginsRequest);
+      var worker = Thread.getAllStackTraces().keySet().stream()
+        .filter(thread -> !existingThreads.contains(thread) && "mcp-background-init".equals(thread.getName()))
+        .findFirst().orElseThrow();
+      assertThat(worker.isDaemon()).isFalse();
+
+      CompletableFuture.runAsync(server::shutdown).get(15, SECONDS);
+
+      assertThat(worker.isAlive()).isFalse();
+      assertThatThrownBy(server::waitForInitialization).isInstanceOf(CancellationException.class);
+    } finally {
+      server.shutdown();
+    }
   }
 
   @SonarQubeMcpServerTest
