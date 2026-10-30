@@ -159,6 +159,7 @@ public class ArchitectureGetTool extends Tool {
     }
     var pageIndex = arguments.getPageIndexOrDefault(1);
     var pageSize = arguments.getPageSizeOrDefault(50);
+    ArchitectureApi.validateFindingPage(pageIndex, pageSize);
     var category = arguments.getOptionalEnumValue(CATEGORY_PROPERTY, CATEGORIES);
     var type = arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new));
     var organizationId = ArchitectureProjectContext.organizationId(serverApi);

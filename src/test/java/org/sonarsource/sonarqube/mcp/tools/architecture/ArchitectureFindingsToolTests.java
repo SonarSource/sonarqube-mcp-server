@@ -203,10 +203,14 @@ class ArchitectureFindingsToolTests {
   @ParameterizedTest
   @CsvSource({"pageIndex,0", "pageIndex,-1", "pageSize,-1", "pageSize,1001"})
   void it_should_reject_out_of_range_pagination(String name, int value) {
-    stubMainBranch(harness);
-    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "findings", "projectKey", "my_project", name, value));
+    var client = harness.newClient(CLOUD_ENV);
+    var orgRequests = harness.getMockSonarQubeServer().getReceivedBodies("GET", "/organizations/organizations").size();
+    var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "missing-project", name, value));
     assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Page must be >= 1 and page size must be between 0 and 1000.");
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/organizations/organizations")).hasSize(orgRequests);
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/api/project_branches/list")).isEmpty();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
   }
 

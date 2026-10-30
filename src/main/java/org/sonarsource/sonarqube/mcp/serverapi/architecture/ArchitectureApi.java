@@ -318,9 +318,7 @@ public class ArchitectureApi {
   }
 
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
-    if (pageIndex < 1 || pageSize < 0 || pageSize > 1000) {
-      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 0 and 1000.");
-    }
+    validateFindingPage(pageIndex, pageSize);
     var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
       .addParam("category", filters.category()).addParam("type", filters.type()).addParam("language", filters.language())
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
@@ -367,6 +365,12 @@ public class ArchitectureApi {
   }
 
   private record RawFindingPage(List<com.google.gson.JsonElement> findings, com.google.gson.JsonObject page) {
+  }
+
+  public static void validateFindingPage(int pageIndex, int pageSize) {
+    if (pageIndex < 1 || pageSize < 0 || pageSize > 1000) {
+      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 0 and 1000.");
+    }
   }
 
   public record FindingFilters(@Nullable String category, @Nullable String type, @Nullable String language) {
