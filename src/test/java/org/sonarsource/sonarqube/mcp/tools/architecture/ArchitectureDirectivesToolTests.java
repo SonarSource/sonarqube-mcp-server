@@ -54,6 +54,18 @@ class ArchitectureDirectivesToolTests {
   @RegisterExtension
   final SonarQubeMcpServerTestHarness harness = new SonarQubeMcpServerTestHarness();
 
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_show_graph_type_hint_only_on_cloud(boolean cloud) {
+    var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
+    var schema = client.listTools().stream().filter(tool -> ArchitectureGetTool.TOOL_NAME.equals(tool.name())).findFirst().orElseThrow().inputSchema();
+    if (cloud) {
+      assertThat(schema.toString()).contains("Current keys: Java/C# namespace_graph");
+    } else {
+      assertThat(schema.toString()).doesNotContain("Current keys:");
+    }
+  }
+
   @Test
   void it_should_read_paginated_directives_and_skip_duplicates_without_replacement() {
     stubMainBranch(harness);
