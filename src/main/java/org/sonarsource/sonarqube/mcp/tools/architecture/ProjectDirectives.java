@@ -146,7 +146,7 @@ final class ProjectDirectives {
     var warnings = new ArrayList<String>();
     warnings.add("Concurrent edits can race the reads; the public API has no conditional writes. Changes are applied individually without automatic retry or rollback.");
     if (noVisibleDirectives) {
-      warnings.add("No directives are visible. Check project access: duplicate checks cannot identify directives hidden by permissions.");
+      warnings.add("No directives are visible. This is normal before the first create; duplicate checks cannot identify directives hidden by permissions.");
     }
     return List.copyOf(warnings);
   }
