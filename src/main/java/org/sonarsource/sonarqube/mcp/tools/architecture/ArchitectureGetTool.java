@@ -77,8 +77,8 @@ public class ArchitectureGetTool extends Tool {
           + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
-        + "Intended: group labels joined by /. Top level when omitted. "
-        + "Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective.")
+        + "Intended: group labels joined by /. Top level when omitted."
+        + (isSonarQubeCloud ? " Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective." : ""))
       .addNumberProperty(DEPTH_PROPERTY, "Levels below the start to return. Default 1 for current, all for intended.")
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
