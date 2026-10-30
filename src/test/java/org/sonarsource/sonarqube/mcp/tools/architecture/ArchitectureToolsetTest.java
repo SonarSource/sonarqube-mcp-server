@@ -67,7 +67,7 @@ class ArchitectureToolsetTest {
     var read = tools.stream().filter(tool -> tool.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) read.inputSchema().get("properties");
-    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives"));
+    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
     assertThat(read.description()).contains("intended");
     assertThat(read.inputSchema().toString()).contains("directiveId");
     assertThat(toolNames(harness, Map.of("SONARQUBE_TOOLSETS", "architecture", "SONARQUBE_READ_ONLY", "true")))
