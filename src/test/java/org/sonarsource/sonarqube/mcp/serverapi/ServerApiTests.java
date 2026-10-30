@@ -43,6 +43,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.delete;
 import static com.github.tomakehurst.wiremock.client.WireMock.deleteRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
@@ -112,6 +113,24 @@ class ServerApiTests {
     assertThat(exception).hasMessage(expectedMessage);
     var postException = assertThrows(expectedException, () -> serverApiHelper.post("/test", "application/json", "{}", Duration.ofSeconds(5)));
     assertThat(postException).hasMessage(expectedMessage);
+  }
+
+  @Test
+  void it_should_delete_from_the_server_base_url_with_request_credentials() {
+    sonarqubeMock.stubFor(delete("/api/v2/example/resource").willReturn(aResponse().withStatus(204)));
+    try (var response = serverApiHelper.delete("/api/v2/example/resource")) {
+      assertThat(response.code()).isEqualTo(204);
+    }
+    sonarqubeMock.verify(1, deleteRequestedFor(urlEqualTo("/api/v2/example/resource"))
+      .withHeader("Authorization", equalTo("Bearer token")));
+  }
+
+  @ParameterizedTest
+  @MethodSource("getErrorResponses")
+  void it_should_propagate_server_delete_rejections(int statusCode, Class<? extends Exception> expectedException, String ignoredMessage) {
+    sonarqubeMock.stubFor(delete("/delete-rejection").willReturn(aResponse().withStatus(statusCode)));
+    assertThrows(expectedException, () -> serverApiHelper.delete("/delete-rejection"));
+    sonarqubeMock.verify(1, deleteRequestedFor(urlEqualTo("/delete-rejection")));
   }
 
   static Stream<Arguments> errorBodyParsingCases() {
