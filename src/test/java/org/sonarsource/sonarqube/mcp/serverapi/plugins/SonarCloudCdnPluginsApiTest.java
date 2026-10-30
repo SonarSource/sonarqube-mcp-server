@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.plugins;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -78,6 +79,25 @@ class SonarCloudCdnPluginsApiTest {
 
     assertThat(result).isSameAs(response);
     verify(httpClient).getAsyncAnonymous(expectedUrl, HttpClient.DOWNLOAD_TIMEOUT);
+  }
+
+  @Test
+  void it_should_cancel_the_download_when_interrupted() {
+    var httpClient = mock(HttpClient.class);
+    var request = new CompletableFuture<HttpClient.Response>();
+    var expectedUrl = "https://scanner.sonarcloud.io/plugins/java/versions/" + LOWERCASE_MD5 + ".jar";
+    when(httpClient.getAsyncAnonymous(expectedUrl, HttpClient.DOWNLOAD_TIMEOUT)).thenReturn(request);
+    var pluginsApi = new SonarCloudCdnPluginsApi("https://sonarcloud.io", httpClient);
+
+    Thread.currentThread().interrupt();
+    try {
+      assertThatThrownBy(() -> pluginsApi.downloadPlugin("java", LOWERCASE_MD5))
+        .isInstanceOf(CancellationException.class);
+      assertThat(request.isCancelled()).isTrue();
+      assertThat(Thread.currentThread().isInterrupted()).isTrue();
+    } finally {
+      Thread.interrupted();
+    }
   }
 
 }
