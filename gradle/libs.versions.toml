@@ -13,7 +13,7 @@ mcp-server = "2.1.0"
 commons-lang3 = "3.21.0"
 commons-text = "1.15.0"
 ayza = "10.1.0"
-logback = "1.6.5"
+logback = "1.6.6"
 jetty = "12.1.14"
 
 junit = "6.1.3"
