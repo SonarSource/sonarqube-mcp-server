@@ -220,7 +220,25 @@ public class ArchitectureApi {
     return response;
   }
 
-
+  public ProjectDirective createDirective(String projectKey, String projectId, ProjectDirective directive) {
+    directive.validate();
+    return write(projectKey, () -> {
+      var body = gson.toJson(directive.forProject(projectId));
+      var response = fromJson(request(PROJECT_DIRECTIVES_PATH, body, false), ProjectDirective.class);
+      if (response == null) {
+        throw new IllegalStateException("The directive write returned no directive. Inspect the current list before retrying.");
+      }
+      response.validateStored();
+      if (!projectId.equals(response.projectId())) {
+        throw new IllegalStateException("The directive write returned a different project. Inspect the current list before retrying.");
+      }
+      if (!response.identity().equals(directive.identity())
+        || (directive.description() != null && !directive.description().equals(response.description()))) {
+        throw new IllegalStateException("The directive write response did not confirm the requested directive. Inspect the current list before retrying.");
+      }
+      return response;
+    });
+  }
 
   public ProjectDirective getDirective(String projectKey, String projectId, String id) {
     return read(projectKey, () -> {
