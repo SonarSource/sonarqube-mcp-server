@@ -213,6 +213,45 @@ class HttpClientProviderTests {
     assertThat(future).isCancelled();
   }
 
+  @ParameterizedTest
+  @ValueSource(ints = {301, 302, 303, 307, 308})
+  void it_should_not_follow_delete_redirects(int status) {
+    sonarqubeMock.stubFor(delete("/delete-redirect").willReturn(aResponse().withStatus(status)
+      .withHeader("Location", sonarqubeMock.url("/redirect-target"))));
+    sonarqubeMock.stubFor(get("/redirect-target").willReturn(aResponse().withStatus(200)));
+    sonarqubeMock.stubFor(delete("/redirect-target").willReturn(aResponse().withStatus(204)));
+    var provider = new HttpClientProvider(USER_AGENT);
+    try {
+      try (var response = provider.getHttpClient("private-token").deleteAsync(sonarqubeMock.url("/delete-redirect")).join()) {
+        assertThat(response.code()).isEqualTo(status);
+        assertThat(response.isSuccessful()).isFalse();
+      }
+      sonarqubeMock.verify(1, deleteRequestedFor(urlEqualTo("/delete-redirect"))
+        .withHeader("Authorization", equalTo("Bearer private-token")));
+      sonarqubeMock.verify(0, getRequestedFor(urlEqualTo("/redirect-target")));
+      sonarqubeMock.verify(0, deleteRequestedFor(urlEqualTo("/redirect-target")));
+    } finally {
+      provider.shutdown();
+    }
+  }
+
+  @Test
+  void it_should_still_follow_get_redirects() {
+    sonarqubeMock.stubFor(get("/get-redirect").willReturn(aResponse().withStatus(303)
+      .withHeader("Location", sonarqubeMock.url("/get-target"))));
+    sonarqubeMock.stubFor(get("/get-target").willReturn(aResponse().withStatus(200).withBody("result")));
+    var provider = new HttpClientProvider(USER_AGENT);
+    try {
+      try (var response = provider.getHttpClient("private-token").getAsync(sonarqubeMock.url("/get-redirect")).join()) {
+        assertThat(response.code()).isEqualTo(200);
+        assertThat(response.bodyAsString()).isEqualTo("result");
+      }
+      sonarqubeMock.verify(1, getRequestedFor(urlEqualTo("/get-target")));
+    } finally {
+      provider.shutdown();
+    }
+  }
+
   @Test
   void it_should_fetch_anonymously_without_following_redirects() {
     sonarqubeMock.stubFor(get("/issuer-keys").willReturn(aResponse().withStatus(302)

@@ -126,7 +126,9 @@ class HttpClientAdapter implements HttpClient {
     if (isBridgeClient) {
       requestBuilder.addHeader(HOST_HEADER, LOCALHOST).addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
     }
-    return executeAsync(requestBuilder.build(), token, operationTimeout);
+    var request = requestBuilder.build();
+    request.setConfig(RequestConfig.copy(defaultRequestConfig).setRedirectsEnabled(false).build());
+    return executeAsync(request, token, operationTimeout);
   }
 
   @Override
