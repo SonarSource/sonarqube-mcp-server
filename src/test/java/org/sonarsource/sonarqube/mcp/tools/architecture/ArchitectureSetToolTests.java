@@ -692,11 +692,12 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_reject_server_intended_writes_before_private_id_discovery(SonarQubeMcpServerTestHarness harness) {
+  void it_should_refuse_server_writes_when_public_project_lookup_is_unavailable(SonarQubeMcpServerTestHarness harness) {
     var client = harness.newClient();
-    assertThatThrownBy(() -> client.callTool(ArchitectureSetTool.TOOL_NAME,
-      Map.of("target", "intended", "projectKey", "my_project", "model", NEXT, "dryRun", true)))
-      .isInstanceOf(io.modelcontextprotocol.spec.McpError.class).hasMessage("Unknown tool: invalid_tool_name");
+    var result = client.callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model", NEXT, "dryRun", true));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("public project lookup");
     assertNoPrivateRequests(harness);
     assertWrites(harness, 0, 0);
   }

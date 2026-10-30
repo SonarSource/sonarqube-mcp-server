@@ -185,7 +185,7 @@ class ArchitectureHttpTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_advertise_only_current_architecture_over_server_http(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
+  void it_should_advertise_architecture_operations_over_server_http(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
     var port = port();
     var env = environment(harness, storage, port);
     env.put("SONARQUBE_IS_CLOUD", "false");
@@ -194,12 +194,22 @@ class ArchitectureHttpTest {
     try (var client = HttpClient.newHttpClient()) {
       server.start();
       var response = send(client, port, "a", false, "tools/list", Map.of());
-      assertThat(response).contains("architecture_get").doesNotContain("architecture_set");
+      for (var suffix : new String[] {"a", "b", "a"}) {
+        harness.getMockSonarQubeServer().stubFor(get("/api/v2/components/projects?keys=my_project&pageSize=1")
+          .withHeader("Authorization", equalTo("Bearer token-" + suffix))
+          .willReturn(okJson("{\"projects\":[{\"id\":\"project-" + suffix + "\",\"key\":\"my_project\"}],\"page\":{\"total\":1}}")));
+        harness.getMockSonarQubeServer().stubFor(get("/api/v2/architecture/intended-architectures?projectId=project-" + suffix)
+          .withHeader("Authorization", equalTo("Bearer token-" + suffix))
+          .willReturn(okJson("{\"id\":null,\"intendedArchitectures\":[]}")));
+        assertThat(send(client, port, suffix, false, "tools/call", Map.of("name", "architecture_get", "arguments",
+          Map.of("target", "intended", "projectKey", "my_project")))).doesNotContain("isError\":true");
+      }
+      assertThat(response).contains("architecture_get", "architecture_set");
       var tools = com.google.gson.JsonParser.parseString(response).getAsJsonObject().getAsJsonObject("result").getAsJsonArray("tools");
       var read = tools.asList().stream().map(com.google.gson.JsonElement::getAsJsonObject)
         .filter(tool -> tool.get("name").getAsString().equals("architecture_get")).findFirst().orElseThrow();
       assertThat(read.getAsJsonObject("inputSchema").getAsJsonObject("properties").getAsJsonObject("target").getAsJsonArray("enum"))
-        .hasToString("[\"current\"]");
+        .hasToString("[\"current\",\"intended\",\"directives\"]");
     } finally {
       server.shutdown();
     }
