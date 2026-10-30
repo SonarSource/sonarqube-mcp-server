@@ -46,7 +46,7 @@ public class ArchitectureSetTool extends Tool {
       .addRequiredEnumProperty("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES}, "intended: replace model; directives: explicit CRUD operations.")
       .addRequiredStringProperty(MODEL_PROPERTY, "Intended: full response or models array. Directives: "
         + "{create: [directives], update: [{id, fields}], delete: [{id}]}; directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
-        + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current (RENAME_NODE: new name), "
+        + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current (RENAME_NODE: full renamed key), "
         + "graphPerspective defaults to default_perspective, optional description.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get target intended; defaults to the model response revision. A mismatch prevents writing.")

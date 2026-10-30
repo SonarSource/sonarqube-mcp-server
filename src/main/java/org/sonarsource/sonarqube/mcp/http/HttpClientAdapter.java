@@ -43,6 +43,7 @@ class HttpClientAdapter implements HttpClient {
   private static final String LOCALHOST = "localhost";
   private static final String LOCALHOST_ORIGIN = "http://localhost";
   private final CloseableHttpAsyncClient apacheClient;
+  private final RequestConfig defaultRequestConfig;
   private final String token;
   private final boolean isBridgeClient;
   private final Duration operationTimeout;
@@ -59,12 +60,10 @@ class HttpClientAdapter implements HttpClient {
     return scheduler;
   }
 
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, Duration operationTimeout) {
-    this(apacheClient, sonarqubeCloudToken, isBridgeClient, operationTimeout, null);
-  }
-
-  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, Duration operationTimeout, @Nullable String apiKey) {
+  HttpClientAdapter(CloseableHttpAsyncClient apacheClient, @Nullable String sonarqubeCloudToken, boolean isBridgeClient, Duration operationTimeout,
+    RequestConfig defaultRequestConfig, @Nullable String apiKey) {
     this.apacheClient = apacheClient;
+    this.defaultRequestConfig = defaultRequestConfig;
     this.token = sonarqubeCloudToken;
     this.isBridgeClient = isBridgeClient;
     this.operationTimeout = operationTimeout;
@@ -80,7 +79,7 @@ class HttpClientAdapter implements HttpClient {
   public CompletableFuture<Response> postAsync(String url, String contentType, String body, Duration timeout) {
     var request = buildPostRequest(url, contentType, body);
     // Long-running operations also need a response timeout beyond the client's default.
-    request.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.of(timeout)).build());
+    request.setConfig(RequestConfig.copy(defaultRequestConfig).setResponseTimeout(Timeout.of(timeout)).build());
     return executeAsync(request, token, timeout);
   }
 
@@ -127,7 +126,9 @@ class HttpClientAdapter implements HttpClient {
     if (isBridgeClient) {
       requestBuilder.addHeader(HOST_HEADER, LOCALHOST).addHeader(ORIGIN_HEADER, LOCALHOST_ORIGIN);
     }
-    return executeAsync(requestBuilder.build(), token, operationTimeout);
+    var request = requestBuilder.build();
+    request.setConfig(RequestConfig.copy(defaultRequestConfig).setRedirectsEnabled(false).build());
+    return executeAsync(request, token, operationTimeout);
   }
 
   @Override
@@ -138,7 +139,7 @@ class HttpClientAdapter implements HttpClient {
   @Override
   public CompletableFuture<Response> getAsyncAnonymousWithoutRedirects(String url) {
     var request = buildGetRequest(url);
-    request.setConfig(RequestConfig.custom().setRedirectsEnabled(false).build());
+    request.setConfig(RequestConfig.copy(defaultRequestConfig).setRedirectsEnabled(false).build());
     return executeAsync(request, null, operationTimeout);
   }
 
