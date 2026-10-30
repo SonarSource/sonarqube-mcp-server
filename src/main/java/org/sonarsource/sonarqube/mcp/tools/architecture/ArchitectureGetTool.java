@@ -27,6 +27,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -45,10 +46,14 @@ public class ArchitectureGetTool extends Tool {
   public static final String CURRENT = "current";
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
+  public static final String FINDINGS = "findings";
   private static final String DIRECTIVE_ID_PROPERTY = "directiveId";
+  private static final String TYPE_PROPERTY = "type";
+  private static final String CATEGORY_PROPERTY = "category";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
-  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
+  private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
+  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
   private static final int MAX_CONCURRENT_CURRENT_READS = 2;
   private final Semaphore currentReads = new Semaphore(MAX_CONCURRENT_CURRENT_READS);
 
@@ -66,9 +71,10 @@ public class ArchitectureGetTool extends Tool {
     var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
-      .setDescription("Read current graphs, intended architecture or project directives.")
+      .setDescription("Read current graphs, intended architecture, project directives or findings.")
       .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
-        "current: dependencies; intended: model; directives: project directives (directiveId/pageIndex/pageSize apply only to directives).")
+        "current: dependencies; intended: model; directives: project directives (directiveId); "
+          + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
         + "Intended: group labels joined by /. Top level when omitted. "
@@ -77,8 +83,10 @@ public class ArchitectureGetTool extends Tool {
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
     builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "read one UUID instead of a page.")
+      .addEnumProperty(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new), "only findings of this type.")
+      .addEnumProperty(CATEGORY_PROPERTY, CATEGORIES, "only findings of this category.")
       .addNumberProperty(ToolParameters.PAGE_INDEX, "page number, default 1.")
-      .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50, maximum 1000.");
+      .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50; directives: 1–1000, findings: 0–1000 (0 counts only).");
     return builder.build();
   }
 
@@ -94,12 +102,22 @@ public class ArchitectureGetTool extends Tool {
     }
 
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-    if (!DIRECTIVES.equals(target) && (arguments.toMap().get(ToolParameters.PAGE_INDEX) != null
-      || arguments.toMap().get(ToolParameters.PAGE_SIZE) != null || arguments.toMap().get(DIRECTIVE_ID_PROPERTY) != null)) {
-      throw new IllegalArgumentException("Pagination parameters are only used for directives.");
+    var parameters = arguments.toMap();
+    if (!DIRECTIVES.equals(target) && !FINDINGS.equals(target)
+      && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
+      throw new IllegalArgumentException("Pagination parameters are only used for directives and findings.");
+    }
+    if (!DIRECTIVES.equals(target) && parameters.get(DIRECTIVE_ID_PROPERTY) != null) {
+      throw new IllegalArgumentException("directiveId is only used for directives.");
+    }
+    if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
+      throw new IllegalArgumentException("type and category are only used for findings.");
     }
     if (DIRECTIVES.equals(target)) {
       return directives(serverApi, projectKey, arguments, component, depth, language);
+    }
+    if (FINDINGS.equals(target)) {
+      return findings(serverApi, projectKey, arguments, component, depth, language);
     }
     if (CURRENT.equals(target)) {
       return readCurrent(serverApi, projectKey, component, depth, language);
@@ -114,7 +132,7 @@ public class ArchitectureGetTool extends Tool {
     }
     var pageIndex = arguments.getOptionalPageIndex();
     var pageSize = arguments.getOptionalPageSize();
-    validateDirectivePage(pageIndex, pageSize);
+    validatePage(pageIndex, pageSize);
     var id = arguments.toMap().containsKey(DIRECTIVE_ID_PROPERTY) ? arguments.getStringOrThrow(DIRECTIVE_ID_PROPERTY) : null;
     if (id != null && (pageIndex != null || pageSize != null)) {
       throw new IllegalArgumentException("Use either directiveId or pagination parameters.");
@@ -131,9 +149,29 @@ public class ArchitectureGetTool extends Tool {
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
 
-  private static void validateDirectivePage(@Nullable Integer pageIndex, @Nullable Integer pageSize) {
+  private static Result findings(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
+    @Nullable String language) {
+    if (component != null || depth != null) {
+      throw new IllegalArgumentException("Findings reads do not accept component or depth filters.");
+    }
+    if (arguments.toMap().containsKey("findingId")) {
+      throw new IllegalArgumentException("Findings have no ids. Use category, type or language to filter the list.");
+    }
+    var pageIndex = arguments.getPageIndexOrDefault(1);
+    var pageSize = arguments.getPageSizeOrDefault(50);
+    ArchitectureApi.validateFindingPage(pageIndex, pageSize);
+    var category = arguments.getOptionalEnumValue(CATEGORY_PROPERTY, CATEGORIES);
+    var type = arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new));
+    var organizationId = ArchitectureProjectContext.organizationId(serverApi);
+    var branchId = ArchitectureProjectContext.mainBranchId(serverApi, projectKey);
+    var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, new ArchitectureApi.FindingFilters(category, type, language), pageIndex, pageSize);
+    return Result.success(new FindingsView(projectKey, page.findings(), page.page(), page.findings().isEmpty() && page.page().total() == 0
+      ? "No findings are visible. Check project access and whether the project has been analyzed." : null));
+  }
+
+  private static void validatePage(@Nullable Integer pageIndex, @Nullable Integer pageSize) {
     if ((pageIndex != null && pageIndex < 1) || (pageSize != null && (pageSize < 1 || pageSize > 1000))) {
-      throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
+      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 1 and 1000.");
     }
   }
 
@@ -141,6 +179,9 @@ public class ArchitectureGetTool extends Tool {
   }
 
   private record DirectivesView(String projectKey, List<ProjectDirective> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
+  }
+
+  private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
   private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
