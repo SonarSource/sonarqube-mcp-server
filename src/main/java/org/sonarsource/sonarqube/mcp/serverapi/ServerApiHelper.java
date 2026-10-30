@@ -175,7 +175,7 @@ public class ServerApiHelper {
   }
 
   public HttpClient.Response delete(String path) {
-    var response = client.deleteAsync(buildEndpointUrl(path)).join();
+    var response = awaitResponse(client.deleteAsync(buildEndpointUrl(path)));
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
