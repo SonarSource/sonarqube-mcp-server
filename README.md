@@ -1449,7 +1449,7 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 **Note: Agentic Readiness tools are only available on SonarQube Cloud and require the feature to be enabled for your organization.**
 
-The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agentic-readiness` to the server's `SONARQUBE_TOOLSETS` to enable the tools. Restart the server to apply changes.
+The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agentic-readiness` to the server's `SONARQUBE_TOOLSETS` to enable the tools.
 
 - **start_agentic_readiness_assessment** - Start an agentic readiness assessment for a project. Returns immediately with status `PENDING` and an `assessmentId`. Use `get_agentic_readiness_assessment` to poll for results.
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
