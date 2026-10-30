@@ -43,7 +43,8 @@ public class ArchitectureApi {
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
   public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
-  public static final List<String> FINDING_CATEGORIES = List.of("DEVIATION", "FLAW", "SMELL");
+  public static final List<String> FINDING_CATEGORIES = List.of("deviation", "flaw", "smell");
+  public static final List<String> FINDING_TYPES = List.of("structuralDeviation", "relationshipDeviation", "tangle", "oversizedComponent", "weakTangle", "splitResponsibility");
   public static final String SERVER_API_PREFIX = "/api/v2";
   private static final String PROJECT_ID_PARAM = "projectId";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
@@ -314,66 +315,66 @@ public class ArchitectureApi {
   public record DirectivePage(List<ProjectDirective> projectDirectives, DirectivePageInfo page) {
   }
 
-  public FindingPage getFindingPage(String projectKey, String projectId, @Nullable String category, int pageIndex, int pageSize) {
-    if (pageIndex < 1 || pageSize < 1 || pageSize > 1000) {
-      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 1 and 1000.");
+  public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, @Nullable String category,
+    @Nullable String type, @Nullable String language, int pageIndex, int pageSize) {
+    if (pageIndex < 1 || pageSize < 0 || pageSize > 1000) {
+      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 0 and 1000.");
     }
-    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam(PROJECT_ID_PARAM, projectId).addParam("category", category)
+    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
+      .addParam("category", category).addParam("type", type).addParam("language", language)
       .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
-    var response = read(projectKey, () -> findingsJson(get(path), FindingPage.class));
-    if (response == null || response.projectFindings() == null || response.page() == null
+    var response = read(projectKey, () -> findingsJson(get(path)));
+    if (response == null || response.findings() == null || response.page() == null
       || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
-      || response.page().total() == null || response.page().total() < 0 || response.projectFindings().size() > pageSize) {
-      throw new IllegalStateException("Invalid public findings page; no complete page was read.");
+      || response.page().total() == null || response.page().total() < 0 || response.findings().size() > pageSize) {
+      throw new IllegalStateException("Invalid public findings page.");
     }
-    var ids = new java.util.HashSet<String>();
-    for (var finding : response.projectFindings()) {
-      validateFinding(finding, projectId);
-      if (!ids.add(finding.id())) {
-        throw new IllegalStateException("The public findings page returned duplicate ids.");
+    for (var finding : response.findings()) {
+      if (finding == null) {
+        throw new IllegalStateException("The public findings response contains an empty finding.");
+      }
+      if ((category != null && !category.equals(finding.category())) || (type != null && !type.equals(finding.type()))
+        || (language != null && !language.equals(finding.language()))) {
+        throw new IllegalStateException("The public findings response does not match the requested filters.");
       }
     }
     return response;
   }
 
-  public ProjectFinding getFinding(String projectKey, String projectId, String id) {
-    if (id.isBlank() || ".".equals(id) || "..".equals(id)) {
-      throw new IllegalArgumentException("Finding id must be a nonempty id.");
-    }
-    var path = new URIBuilder().setPath(PROJECT_FINDINGS_PATH).appendPathSegments(id).toString();
-    ProjectFinding finding;
-    try {
-      finding = read(projectKey, () -> findingsJson(get(path), ProjectFinding.class));
-    } catch (NotFoundException e) {
-      throw new NotFoundException("Finding " + id + " was not found or is not accessible in the selected project.");
-    }
-    validateFinding(finding, projectId);
-    if (!id.equals(finding.id())) {
-      throw new IllegalStateException("The public finding response returned a different id or project.");
-    }
-    return finding;
-  }
-
-  private static void validateFinding(@Nullable ProjectFinding finding, String projectId) {
-    if (finding == null) {
-      throw new IllegalStateException("The public findings response contains an empty finding.");
-    }
-    finding.validateStored();
-    if (!projectId.equals(finding.projectId())) {
-      throw new IllegalStateException("The public finding response returned a different id or project.");
-    }
-  }
-
   @Nullable
-  private <T> T findingsJson(HttpClient.Response response, Class<T> type) {
+  private FindingPage findingsJson(HttpClient.Response response) {
     try {
-      return fromJson(response, type);
+      var page = fromJson(response, RawFindingPage.class);
+      return page == null || page.findings() == null ? null
+        : new FindingPage(page.findings().stream().map(ProjectFinding::parse).toList(), findingPageInfo(page.page()));
     } catch (JsonParseException e) {
-      throw new IllegalStateException("Invalid public findings response; no complete finding was read.");
+      throw new IllegalStateException("Invalid public findings response.", e);
     }
   }
 
-  public record FindingPage(List<ProjectFinding> projectFindings, DirectivePageInfo page) {
+  private static DirectivePageInfo findingPageInfo(@Nullable com.google.gson.JsonObject page) {
+    if (page == null) {
+      throw new IllegalStateException("Invalid public findings page.");
+    }
+    return new DirectivePageInfo(findingPageNumber(page, "pageIndex"), findingPageNumber(page, "pageSize"), findingPageNumber(page, "total"));
+  }
+
+  private static int findingPageNumber(com.google.gson.JsonObject page, String name) {
+    var value = page.get(name);
+    try {
+      if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+        throw new IllegalStateException("Invalid public findings page number.");
+      }
+      return value.getAsBigDecimal().intValueExact();
+    } catch (ArithmeticException | NumberFormatException e) {
+      throw new IllegalStateException("Invalid public findings page number.", e);
+    }
+  }
+
+  private record RawFindingPage(List<com.google.gson.JsonElement> findings, com.google.gson.JsonObject page) {
+  }
+
+  public record FindingPage(List<ProjectFinding> findings, DirectivePageInfo page) {
   }
 
   public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {

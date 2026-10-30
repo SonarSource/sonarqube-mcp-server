@@ -48,7 +48,7 @@ public class ArchitectureGetTool extends Tool {
   public static final String DIRECTIVES = "directives";
   public static final String FINDINGS = "findings";
   private static final String DIRECTIVE_ID_PROPERTY = "directiveId";
-  private static final String FINDING_ID_PROPERTY = "findingId";
+  private static final String TYPE_PROPERTY = "type";
   private static final String CATEGORY_PROPERTY = "category";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
@@ -74,7 +74,7 @@ public class ArchitectureGetTool extends Tool {
       .setDescription("Read current graphs, intended architecture, project directives or findings.")
       .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
         "current: dependencies; intended: model; directives: project directives (directiveId); "
-          + "findings: deviations, flaws and smells (findingId, category); pageIndex/pageSize apply to directives and findings.")
+          + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
         + "Intended: group labels joined by /. Top level when omitted. "
@@ -83,10 +83,10 @@ public class ArchitectureGetTool extends Tool {
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
     builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "read one UUID instead of a page.")
-      .addStringProperty(FINDING_ID_PROPERTY, "read one finding with its details instead of a page.")
+      .addEnumProperty(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new), "only findings of this type.")
       .addEnumProperty(CATEGORY_PROPERTY, CATEGORIES, "only findings of this category.")
       .addNumberProperty(ToolParameters.PAGE_INDEX, "page number, default 1.")
-      .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50, maximum 1000.");
+      .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50; directives: 1–1000, findings: 0–1000 (0 counts only).");
     return builder.build();
   }
 
@@ -110,8 +110,8 @@ public class ArchitectureGetTool extends Tool {
     if (!DIRECTIVES.equals(target) && parameters.get(DIRECTIVE_ID_PROPERTY) != null) {
       throw new IllegalArgumentException("directiveId is only used for directives.");
     }
-    if (!FINDINGS.equals(target) && (parameters.get(FINDING_ID_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
-      throw new IllegalArgumentException("findingId and category are only used for findings.");
+    if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
+      throw new IllegalArgumentException("type and category are only used for findings.");
     }
     if (DIRECTIVES.equals(target)) {
       return directives(serverApi, projectKey, arguments, component, depth, language);
@@ -151,23 +151,20 @@ public class ArchitectureGetTool extends Tool {
 
   private static Result findings(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
     @Nullable String language) {
-    if (component != null || depth != null || language != null) {
-      throw new IllegalArgumentException("Findings reads do not accept component, depth or language filters.");
+    if (component != null || depth != null) {
+      throw new IllegalArgumentException("Findings reads do not accept component or depth filters.");
     }
-    var pageIndex = arguments.getOptionalPageIndex();
-    var pageSize = arguments.getOptionalPageSize();
-    validatePage(pageIndex, pageSize);
+    if (arguments.toMap().containsKey("findingId")) {
+      throw new IllegalArgumentException("Findings have no ids. Use category, type or language to filter the list.");
+    }
+    var pageIndex = arguments.getPageIndexOrDefault(1);
+    var pageSize = arguments.getPageSizeOrDefault(50);
     var category = arguments.getOptionalEnumValue(CATEGORY_PROPERTY, CATEGORIES);
-    var id = arguments.toMap().containsKey(FINDING_ID_PROPERTY) ? arguments.getStringOrThrow(FINDING_ID_PROPERTY) : null;
-    if (id != null && (pageIndex != null || pageSize != null || category != null)) {
-      throw new IllegalArgumentException("Use either findingId or category and pagination parameters.");
-    }
-    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
-    if (id != null) {
-      return Result.success(new FindingView(projectKey, serverApi.architectureApi().getFinding(projectKey, projectId, id)));
-    }
-    var page = serverApi.architectureApi().getFindingPage(projectKey, projectId, category, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(50));
-    return Result.success(new FindingsView(projectKey, page.projectFindings(), page.page(), page.projectFindings().isEmpty() && page.page().total() == 0
+    var type = arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new));
+    var organizationId = ArchitectureProjectContext.organizationId(serverApi);
+    var branchId = ArchitectureProjectContext.mainBranchId(serverApi, projectKey);
+    var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, category, type, language, pageIndex, pageSize);
+    return Result.success(new FindingsView(projectKey, page.findings(), page.page(), page.findings().isEmpty() && page.page().total() == 0
       ? "No findings are visible. Check project access and whether the project has been analyzed." : null));
   }
 
@@ -181,9 +178,6 @@ public class ArchitectureGetTool extends Tool {
   }
 
   private record DirectivesView(String projectKey, List<ProjectDirective> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
-  }
-
-  private record FindingView(String projectKey, ProjectFinding finding) {
   }
 
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {

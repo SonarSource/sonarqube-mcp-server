@@ -68,7 +68,7 @@ public class ComponentsApi {
       }
       return id;
     } catch (NotFoundException e) {
-      throw new IllegalStateException("This Server does not expose the public project lookup required for architecture operations. "
+      throw new IllegalStateException("This Server does not expose the public project lookup required for intended architecture and directives. "
         + "Use a Server build with GET /api/v2/components/projects and the public Architecture APIs.", e);
     }
   }
