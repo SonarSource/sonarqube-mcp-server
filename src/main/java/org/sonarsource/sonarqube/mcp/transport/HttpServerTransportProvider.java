@@ -258,11 +258,11 @@ public class HttpServerTransportProvider {
     }
   }
 
-  public CompletableFuture<Void> stopServer() {
+  public void stopServer() {
     var server = httpServer;
     if (server == null) {
       LOG.info("HTTP server is not running");
-      return CompletableFuture.completedFuture(null);
+      return;
     }
 
     LOG.info("Stopping MCP HTTP server...");
@@ -273,7 +273,6 @@ public class HttpServerTransportProvider {
     } catch (Exception e) {
       LOG.error("Error stopping HTTP server", e);
     }
-    return CompletableFuture.completedFuture(null);
   }
 
   public String getServerUrl() {

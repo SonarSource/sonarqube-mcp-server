@@ -54,7 +54,7 @@ class HttpServerTransportIntegrationTest {
   @AfterEach
   void tearDown() {
     if (httpServer != null) {
-      httpServer.stopServer().join();
+      httpServer.stopServer();
     }
   }
 
@@ -106,8 +106,7 @@ class HttpServerTransportIntegrationTest {
 
     httpServer.stopServer();
 
-    // Wait for server to be stopped
-    await().atMost(5, TimeUnit.SECONDS).until(() -> !isServerRunning(httpServer.getServerUrl()));
+    assertThat(isServerRunning(httpServer.getServerUrl())).isFalse();
   }
 
   @Test

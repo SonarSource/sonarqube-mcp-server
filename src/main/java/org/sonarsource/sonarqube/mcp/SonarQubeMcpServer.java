@@ -836,7 +836,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     try {
       LOG.info("Stopping HTTP server...");
-      httpServerManager.stopServer().join();
+      httpServerManager.stopServer();
       LOG.info("HTTP server stopped");
     } catch (Exception e) {
       LOG.error("Error shutting down HTTP server", e);
