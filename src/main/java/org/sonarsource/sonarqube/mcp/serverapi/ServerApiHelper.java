@@ -24,6 +24,10 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
@@ -85,7 +89,7 @@ public class ServerApiHelper {
   }
 
   public HttpClient.Response patch(String path, String contentType, String body) {
-    var response = client.patchAsync(buildEndpointUrl(path), contentType, body).join();
+    var response = awaitResponse(client.patchAsync(buildEndpointUrl(path), contentType, body));
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
@@ -93,7 +97,7 @@ public class ServerApiHelper {
   }
 
   public HttpClient.Response post(String path, String contentType, String body, Duration timeout) {
-    var response = client.postAsync(buildEndpointUrl(path), contentType, body, timeout).join();
+    var response = awaitResponse(client.postAsync(buildEndpointUrl(path), contentType, body, timeout));
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
@@ -104,23 +108,23 @@ public class ServerApiHelper {
    * Execute GET and don't check response
    */
   public HttpClient.Response rawGet(String relativePath) {
-    return client.getAsync(buildEndpointUrl(relativePath)).join();
+    return awaitResponse(client.getAsync(buildEndpointUrl(relativePath)));
   }
 
   public HttpClient.Response rawGet(String relativePath, Duration timeout) {
-    return client.getAsync(buildEndpointUrl(relativePath), timeout).join();
+    return awaitResponse(client.getAsync(buildEndpointUrl(relativePath), timeout));
   }
 
   public HttpClient.Response rawGetAnonymous(String relativePath) {
-    return client.getAsyncAnonymous(buildEndpointUrl(relativePath)).join();
+    return awaitResponse(client.getAsyncAnonymous(buildEndpointUrl(relativePath)));
   }
 
   public HttpClient.Response rawGetAnonymous(String relativePath, Duration timeout) {
-    return client.getAsyncAnonymous(buildEndpointUrl(relativePath), timeout).join();
+    return awaitResponse(client.getAsyncAnonymous(buildEndpointUrl(relativePath), timeout));
   }
 
   private HttpClient.Response rawPost(String url, String contentType, String body) {
-    return client.postAsync(url, contentType, body).join();
+    return awaitResponse(client.postAsync(url, contentType, body));
   }
 
   /**
@@ -138,7 +142,7 @@ public class ServerApiHelper {
    * Execute raw GET using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
    */
   public HttpClient.Response rawGetApiSubdomain(String relativePath) {
-    return client.getAsync(buildApiSubdomainUrl(relativePath)).join();
+    return awaitResponse(client.getAsync(buildApiSubdomainUrl(relativePath)));
   }
 
   /**
@@ -156,14 +160,14 @@ public class ServerApiHelper {
    * Execute raw POST using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
    */
   public HttpClient.Response rawPostApiSubdomain(String relativePath, String contentType, String body) {
-    return client.postAsync(buildApiSubdomainUrl(relativePath), contentType, body).join();
+    return awaitResponse(client.postAsync(buildApiSubdomainUrl(relativePath), contentType, body));
   }
 
   /**
    * Execute PATCH using the API subdomain (api.sonarcloud.io / api.sonarqube.us).
    */
   public HttpClient.Response patchApiSubdomain(String path, String contentType, String body) {
-    var response = client.patchAsync(buildApiSubdomainUrl(path), contentType, body).join();
+    var response = awaitResponse(client.patchAsync(buildApiSubdomainUrl(path), contentType, body));
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
@@ -171,11 +175,26 @@ public class ServerApiHelper {
   }
 
   public HttpClient.Response deleteApiSubdomain(String path) {
-    var response = client.deleteAsync(buildApiSubdomainUrl(path)).join();
+    var response = awaitResponse(client.deleteAsync(buildApiSubdomainUrl(path)));
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
     return response;
+  }
+
+  /**
+   * Wait for a response, cancelling the request if the caller is interrupted.
+   */
+  public static HttpClient.Response awaitResponse(CompletableFuture<HttpClient.Response> request) {
+    try {
+      return request.get();
+    } catch (InterruptedException e) {
+      request.cancel(true);
+      Thread.currentThread().interrupt();
+      throw new CancellationException("HTTP request interrupted");
+    } catch (ExecutionException e) {
+      throw new CompletionException(e.getCause());
+    }
   }
 
   private String buildEndpointUrl(String relativePath) {
