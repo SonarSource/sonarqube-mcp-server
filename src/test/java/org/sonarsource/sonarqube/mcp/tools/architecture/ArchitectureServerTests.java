@@ -117,7 +117,8 @@ class ArchitectureServerTests {
     backend.stubFor(get(page).willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}")));
     var client = harness.newClient(Map.of());
     var schema = client.listTools().stream().filter(tool -> ArchitectureGetTool.TOOL_NAME.equals(tool.name())).findFirst().orElseThrow().inputSchema();
-    assertThat(schema.toString()).contains("directiveId/pageIndex/pageSize apply only to directives", "default_perspective", "namespace_graph", "file_graph");
+    assertThat(schema.toString()).contains("directiveId/pageIndex/pageSize apply only to directives")
+      .doesNotContain("Current keys:", "default_perspective", "namespace_graph", "file_graph");
     var args = new java.util.HashMap<String, Object>(Map.of("target", "directives", "projectKey", "my_project", "model", "{\"create\":[" + INPUT + "]}", "dryRun", true));
     assertThat(client.callTool(ArchitectureSetTool.TOOL_NAME, args).isError()).isFalse();
     assertThat(backend.getReceivedBodies("POST", DIRECTIVES)).isEmpty();
