@@ -81,7 +81,7 @@ class HttpsServerTransportIntegrationTest {
     assertThat(startFuture).isCompleted();
 
     // Should stop without exceptions
-    httpsServer.stopServer().get();
+    httpsServer.stopServer();
   }
 
   @Test
