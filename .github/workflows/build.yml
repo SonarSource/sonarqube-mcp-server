@@ -95,7 +95,17 @@ jobs:
           SONARCLOUD_IT_TOKEN: ${{ steps.vault_it_token.outputs.vault && fromJSON(steps.vault_it_token.outputs.vault).SONARCLOUD_IT_TOKEN || '' }}
           DOWNLOADED_JAR_PATH: ${{ github.workspace }}/downloaded-plugin/sonarqube-mcp-server.jar
         run: |
-          ./gradlew :its:integrationTest --tests "*${{ matrix.test_class }}" --info
+          ./gradlew :its:cleanIntegrationTest :its:integrationTest --tests "org.sonarsource.sonarqube.mcp.its.${{ matrix.test_class }}" --info
+
+      - name: Upload integration test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: integration-test-reports-${{ matrix.name }}
+          path: |
+            its/build/test-results/integrationTest/
+            its/build/reports/tests/integrationTest/
+          if-no-files-found: error
 
   promote:
     needs: [build, integration]

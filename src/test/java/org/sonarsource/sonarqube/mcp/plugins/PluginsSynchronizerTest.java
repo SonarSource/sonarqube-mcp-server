@@ -18,9 +18,11 @@ package org.sonarsource.sonarqube.mcp.plugins;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
@@ -31,6 +33,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.response.InstalledPluginsResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -63,6 +66,21 @@ class PluginsSynchronizerTest {
       .exists()
       .hasContent(HELLO_CONTENT);
     verify(pluginsApi).downloadPlugin("java");
+  }
+
+  @Test
+  void it_should_stop_synchronization_when_a_download_is_cancelled(@TempDir Path tempDir) {
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "java.jar", HELLO_MD5),
+      new InstalledPluginsResponse.Plugin("js", true, "js.jar", HELLO_MD5))));
+    var cancellation = new CancellationException("HTTP request interrupted");
+    when(pluginsApi.downloadPlugin("java")).thenThrow(cancellation);
+
+    assertThatThrownBy(() -> newPluginsSynchronizer(serverApi, tempDir).synchronizeAnalyzers()).isSameAs(cancellation);
+    verify(pluginsApi, never()).downloadPlugin("js");
   }
 
   @Test
@@ -261,7 +279,71 @@ class PluginsSynchronizerTest {
     var analyzers = pluginsSynchronizer.synchronizeAnalyzers();
 
     assertThat(analyzers.analyzerPaths()).isEmpty();
-    assertThat(tempDir.resolve("plugins").resolve("filename")).doesNotExist();
+    assertThat(tempDir.resolve("plugins")).isEmptyDirectory();
+  }
+
+  @Test
+  void it_should_publish_a_plugin_only_after_the_download_is_complete(@TempDir Path tempDir) throws IOException {
+    var pluginsPath = Files.createDirectories(tempDir.resolve("plugins"));
+    var pluginPath = pluginsPath.resolve("java.jar");
+    Files.writeString(pluginPath, "previous plugin");
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "java.jar", HELLO_MD5))));
+    var response = mock(HttpClient.Response.class);
+    when(response.isSuccessful()).thenReturn(true);
+    when(response.bodyAsStream()).thenReturn(new ByteArrayInputStream(HELLO_CONTENT.getBytes()) {
+      @Override
+      public synchronized int read(byte[] buffer, int offset, int length) {
+        assertThat(pluginPath).hasContent("previous plugin");
+        return super.read(buffer, offset, length);
+      }
+    });
+    when(pluginsApi.downloadPlugin("java")).thenReturn(response);
+
+    newPluginsSynchronizer(serverApi, tempDir).synchronizeAnalyzers();
+
+    assertThat(pluginPath).hasContent(HELLO_CONTENT);
+    try (var files = Files.list(pluginsPath)) {
+      assertThat(files).containsExactly(pluginPath);
+    }
+  }
+
+  @Test
+  void it_should_preserve_the_previous_plugin_when_a_download_is_interrupted(@TempDir Path tempDir) throws IOException {
+    var pluginsPath = Files.createDirectories(tempDir.resolve("plugins"));
+    var pluginPath = pluginsPath.resolve("java.jar");
+    Files.writeString(pluginPath, "previous plugin");
+    var serverApi = mock(ServerApi.class);
+    var pluginsApi = mock(PluginsApi.class);
+    when(serverApi.pluginsApi()).thenReturn(pluginsApi);
+    when(pluginsApi.getInstalled()).thenReturn(new InstalledPluginsResponse(List.of(
+      new InstalledPluginsResponse.Plugin("java", true, "java.jar", HELLO_MD5))));
+    var response = mock(HttpClient.Response.class);
+    var stream = new InputStream() {
+      private boolean firstByte = true;
+
+      @Override
+      public int read() throws IOException {
+        if (firstByte) {
+          firstByte = false;
+          return 'x';
+        }
+        throw new IOException("Download interrupted");
+      }
+    };
+    when(response.isSuccessful()).thenReturn(true);
+    when(response.bodyAsStream()).thenReturn(stream);
+    when(pluginsApi.downloadPlugin("java")).thenReturn(response);
+
+    newPluginsSynchronizer(serverApi, tempDir).synchronizeAnalyzers();
+
+    assertThat(pluginPath).hasContent("previous plugin");
+    try (var files = Files.list(pluginsPath)) {
+      assertThat(files).containsExactly(pluginPath);
+    }
   }
 
   @Test

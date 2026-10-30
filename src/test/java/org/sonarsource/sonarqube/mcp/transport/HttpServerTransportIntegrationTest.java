@@ -33,6 +33,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.harness.SslTestUtils;
 import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings.RequestSettings;
@@ -54,7 +55,7 @@ class HttpServerTransportIntegrationTest {
   @AfterEach
   void tearDown() {
     if (httpServer != null) {
-      httpServer.stopServer().join();
+      httpServer.stopServer();
     }
   }
 
@@ -80,6 +81,19 @@ class HttpServerTransportIntegrationTest {
   }
 
   @Test
+  void should_serve_requests_as_soon_as_start_returns() {
+    assertThat(httpServer.startServer()).isCompleted();
+    assertThat(isServerRunning(httpServer.getServerUrl())).isTrue();
+  }
+
+  @Test
+  void should_report_startup_failure_when_the_port_is_in_use() throws IOException {
+    try (var occupiedPort = new ServerSocket(testPort)) {
+      assertThat(httpServer.startServer()).isCompletedExceptionally();
+    }
+  }
+
+  @Test
   void should_start_and_stop_http_server() {
     var startFuture = httpServer.startServer();
 
@@ -93,8 +107,7 @@ class HttpServerTransportIntegrationTest {
 
     httpServer.stopServer();
 
-    // Wait for server to be stopped
-    await().atMost(5, TimeUnit.SECONDS).until(() -> !isServerRunning(httpServer.getServerUrl()));
+    assertThat(isServerRunning(httpServer.getServerUrl())).isFalse();
   }
 
   @Test
@@ -264,6 +277,50 @@ class HttpServerTransportIntegrationTest {
 
       // Stateless transport only accepts POST
       assertThat(response.statusCode()).isEqualTo(405);
+    }
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {"text/plain", "application/jsonp", "text/plain; a=application/json"})
+  void it_should_reject_post_requests_without_json_content_type(String contentType) throws Exception {
+    httpServer.startServer().join();
+
+    try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
+      var request = HttpRequest.newBuilder(URI.create(httpServer.getServerUrl()))
+        .header("Authorization", "Bearer test-token")
+        .header("Accept", "application/json, text/event-stream")
+        .POST(HttpRequest.BodyPublishers.ofString("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}"));
+      if (contentType != null) {
+        request.header("Content-Type", contentType);
+      }
+
+      var response = client.send(request.build(), HttpResponse.BodyHandlers.ofString());
+
+      assertThat(response.statusCode()).isEqualTo(415);
+      assertThat(response.headers().firstValue("Content-Type").orElseThrow()).startsWith("application/json");
+      assertThat(response.body()).contains("\"code\":-32600");
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"{", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":[]}"})
+  void it_should_reject_malformed_json_rpc_requests(String body) throws Exception {
+    httpServer.startServer().join();
+
+    try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
+      var request = HttpRequest.newBuilder(URI.create(httpServer.getServerUrl()))
+        .header("Authorization", "Bearer test-token")
+        .header("Accept", "application/json, text/event-stream")
+        .header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body))
+        .build();
+
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      assertThat(response.statusCode()).isEqualTo(400);
+      assertThat(response.headers().firstValue("Content-Type").orElseThrow()).startsWith("application/json");
+      assertThat(response.body()).contains("\"code\":-32600");
     }
   }
 

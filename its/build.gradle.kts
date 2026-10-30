@@ -2,17 +2,13 @@ import java.net.URI
 
 plugins {
     java
-    alias(libs.plugins.license)
 }
 
 // This subproject contains only integration tests and should not contribute to the SBOM
 tasks.named("cyclonedxDirectBom") { enabled = false }
 
-license {
-    header = rootProject.file("HEADER")
-    mapping(mapOf("java" to "SLASHSTAR_STYLE"))
-    excludes(listOf("**/*.json"))
-    strictCheck = true
+tasks.named("check") {
+    dependsOn(rootProject.tasks.named("spotlessCheck"))
 }
 
 java {
@@ -137,7 +133,10 @@ tasks.test {
 tasks.register<Test>("integrationTest") {
     description = "Runs integration tests for proxied MCP servers using Testcontainers"
     group = "verification"
+    doNotTrackState("Integration tests depend on live staging services")
 
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform()
 
     val downloadedJarPath = System.getenv("DOWNLOADED_JAR_PATH")
