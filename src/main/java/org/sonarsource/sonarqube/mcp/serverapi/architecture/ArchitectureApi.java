@@ -47,6 +47,8 @@ public class ArchitectureApi {
   public static final List<String> FINDING_TYPES = List.of("structuralDeviation", "relationshipDeviation", "tangle", "oversizedComponent", "weakTangle", "splitResponsibility");
   public static final String SERVER_API_PREFIX = "/api/v2";
   private static final String PROJECT_ID_PARAM = "projectId";
+  private static final String PAGE_INDEX_PARAM = "pageIndex";
+  private static final String PAGE_SIZE_PARAM = "pageSize";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
   public static final int MAX_PERSPECTIVES = 50;
@@ -215,7 +217,7 @@ public class ArchitectureApi {
       throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
     }
     var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam(PROJECT_ID_PARAM, projectId)
-      .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
+      .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var response = fromJson(get(path), DirectivePage.class);
     if (response == null || response.projectDirectives() == null || response.page() == null
       || response.page().pageIndex() == null || response.page().pageIndex() != pageIndex
@@ -315,28 +317,21 @@ public class ArchitectureApi {
   public record DirectivePage(List<ProjectDirective> projectDirectives, DirectivePageInfo page) {
   }
 
-  public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, @Nullable String category,
-    @Nullable String type, @Nullable String language, int pageIndex, int pageSize) {
+  public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
     if (pageIndex < 1 || pageSize < 0 || pageSize > 1000) {
       throw new IllegalArgumentException("Page must be >= 1 and page size must be between 0 and 1000.");
     }
     var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
-      .addParam("category", category).addParam("type", type).addParam("language", language)
-      .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
+      .addParam("category", filters.category()).addParam("type", filters.type()).addParam("language", filters.language())
+      .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var response = read(projectKey, () -> findingsJson(get(path)));
     if (response == null || response.findings() == null || response.page() == null
       || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
       || response.page().total() == null || response.page().total() < 0 || response.findings().size() > pageSize) {
       throw new IllegalStateException("Invalid public findings page.");
     }
-    for (var finding : response.findings()) {
-      if (finding == null) {
-        throw new IllegalStateException("The public findings response contains an empty finding.");
-      }
-      if ((category != null && !category.equals(finding.category())) || (type != null && !type.equals(finding.type()))
-        || (language != null && !language.equals(finding.language()))) {
-        throw new IllegalStateException("The public findings response does not match the requested filters.");
-      }
+    if (response.findings().stream().anyMatch(finding -> !filters.matches(finding))) {
+      throw new IllegalStateException("The public findings response does not match the requested filters.");
     }
     return response;
   }
@@ -356,7 +351,7 @@ public class ArchitectureApi {
     if (page == null) {
       throw new IllegalStateException("Invalid public findings page.");
     }
-    return new DirectivePageInfo(findingPageNumber(page, "pageIndex"), findingPageNumber(page, "pageSize"), findingPageNumber(page, "total"));
+    return new DirectivePageInfo(findingPageNumber(page, PAGE_INDEX_PARAM), findingPageNumber(page, PAGE_SIZE_PARAM), findingPageNumber(page, "total"));
   }
 
   private static int findingPageNumber(com.google.gson.JsonObject page, String name) {
@@ -372,6 +367,13 @@ public class ArchitectureApi {
   }
 
   private record RawFindingPage(List<com.google.gson.JsonElement> findings, com.google.gson.JsonObject page) {
+  }
+
+  public record FindingFilters(@Nullable String category, @Nullable String type, @Nullable String language) {
+    private boolean matches(ProjectFinding finding) {
+      return (category == null || category.equals(finding.category())) && (type == null || type.equals(finding.type()))
+        && (language == null || language.equals(finding.language()));
+    }
   }
 
   public record FindingPage(List<ProjectFinding> findings, DirectivePageInfo page) {

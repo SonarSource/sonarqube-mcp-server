@@ -163,7 +163,7 @@ public class ArchitectureGetTool extends Tool {
     var type = arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new));
     var organizationId = ArchitectureProjectContext.organizationId(serverApi);
     var branchId = ArchitectureProjectContext.mainBranchId(serverApi, projectKey);
-    var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, category, type, language, pageIndex, pageSize);
+    var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, new ArchitectureApi.FindingFilters(category, type, language), pageIndex, pageSize);
     return Result.success(new FindingsView(projectKey, page.findings(), page.page(), page.findings().isEmpty() && page.page().total() == 0
       ? "No findings are visible. Check project access and whether the project has been analyzed." : null));
   }
