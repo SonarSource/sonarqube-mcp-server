@@ -31,7 +31,7 @@ jobs:
 
       - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
         with:
-          version: 2026.6.1
+          version: 2026.10.21
 
       - id: build-step
         uses: SonarSource/ci-github-actions/build-gradle@62463382a24f2004ffa20adbe9985f6459e031e6 # 2.3.0
@@ -62,7 +62,7 @@ jobs:
 
       - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
         with:
-          version: 2026.6.1
+          version: 2026.10.21
 
       - name: Vault (SonarCloud IT token)
         id: vault_it_token
