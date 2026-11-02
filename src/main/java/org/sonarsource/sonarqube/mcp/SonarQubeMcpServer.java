@@ -257,7 +257,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (httpServerManager != null) {
       httpServerManager.startServer().join();
       var enabledTools = filterForEnabledTools(supportedTools);
-      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools))
+      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools, analyticsService,
+        context -> createServerApiWithTokenAndOrg((String) context.get(HttpServerTransportProvider.CONTEXT_TOKEN_KEY), null)))
         .serverInfo(McpSchema.Implementation.builder(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()).build())
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())

@@ -22,7 +22,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 
 public class AnalyticsService {
 
@@ -101,6 +103,24 @@ public class AnalyticsService {
     );
 
     client.postEvent(event);
+  }
+
+  public void notifyClientInitialized(HttpAnalyticsContext context, @Nullable String name, @Nullable String version, long timestamp,
+    Supplier<ServerApi> apiSupplier) {
+    submit(() -> {
+      var identity = ConnectionContext.empty();
+      try {
+        var api = apiSupplier.get();
+        if (api != null) {
+          identity.resolveIdentityFrom(api);
+        }
+      } catch (RuntimeException e) {
+        LOG.debug("Unable to enrich initialization analytics (" + e.getClass().getSimpleName() + ")");
+      }
+      client.postEvent(new McpClientInitializedEvent(mcpServerId, mcpServerVersion,
+        isSonarQubeCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS, transportMode,
+        context.authenticationMethod(), name, version, timestamp, context.oauthClientKey(), identity.getUserUuid(), identity.getSqsInstallationId()));
+    });
   }
 
   public void notifyOAuthAuthenticationFinished(OAuthAuthenticationResult result) {
