@@ -180,6 +180,20 @@ class AnalyticsServiceTest {
 
 
   @Test
+  void it_should_send_authentication_outcome_without_identity() {
+    var service = new AnalyticsService(mockClient, "server", "1", true, false, true);
+    service.notifyOAuthAuthenticationFinished(new OAuthAuthenticationResult(124, "rejected", "delegation_validation", "insufficient_scope", "key"));
+    service.shutdown();
+    var event = ArgumentCaptor.forClass(McpOAuthAuthenticationFinishedEvent.class);
+    verify(mockClient).postEvent(event.capture());
+    assertThat(event.getValue().failureStage()).isEqualTo("delegation_validation");
+    assertThat(event.getValue().outcome()).isEqualTo("rejected");
+    assertThat(event.getValue().failureCategory()).isEqualTo("insufficient_scope");
+    assertThat(event.getValue().authenticationTimestamp()).isEqualTo(124);
+    assertThat(event.getValue().oauthClientKey()).isEqualTo("key");
+  }
+
+  @Test
   void it_should_execute_submitted_tasks() throws InterruptedException {
     var service = new AnalyticsService(mockClient, "server-id", "1.0.0", false, false, false);
     var executed = new AtomicBoolean(false);
