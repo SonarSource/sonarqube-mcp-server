@@ -103,6 +103,12 @@ public class AnalyticsService {
     client.postEvent(event);
   }
 
+  public void notifyOAuthAuthenticationFinished(OAuthAuthenticationResult result) {
+    submit(() -> client.postEvent(new McpOAuthAuthenticationFinishedEvent(mcpServerId, mcpServerVersion,
+      isSonarQubeCloud ? CONNECTION_TYPE_SQC : CONNECTION_TYPE_SQS, transportMode,
+      result.timestamp(), result.outcome(), result.failureStage(), result.failureCategory(), result.oauthClientKey())));
+  }
+
   public void submit(Runnable task) {
     try {
       executor.submit(task);
