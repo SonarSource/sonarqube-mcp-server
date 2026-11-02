@@ -172,6 +172,28 @@ class AnalyticsClientTest {
   }
 
   @Test
+  void it_should_serialize_authentication_outcome_and_omit_missing_fields() throws Exception {
+    analyticsClient.postEvent(new McpOAuthAuthenticationFinishedEvent("server", "1", "SQC", "http", 124, "success", null, null, "key"));
+    await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> wireMock.verify(1, postRequestedFor(urlPathEqualTo("/"))));
+    var mapper = new ObjectMapper();
+    var body = mapper.readTree(wireMock.getAllServeEvents().getFirst().getRequest().getBodyAsString());
+    assertThat(body.get("metadata").get("event_version").asText()).isEqualTo("1");
+    assertThat(body.get("metadata").get("event_type").asText()).isEqualTo("Analytics.Mcp.McpOAuthAuthenticationFinished");
+    assertThat(body.get("event_payload")).isEqualTo(mapper.readTree("""
+      {
+        "mcp_server_id": "server",
+        "mcp_server_version": "1",
+        "connection_type": "SQC",
+        "transport_mode": "http",
+        "authentication_timestamp": 124,
+        "outcome": "success",
+        "oauth_client_key": "key"
+      }
+      """));
+  }
+
+
+  @Test
   void it_should_send_x_api_key_header() {
     var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());
 
@@ -194,6 +216,7 @@ class AnalyticsClientTest {
     await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
       wireMock.verify(3, postRequestedFor(urlPathEqualTo("/")))
     );
+    assertThat(wireMock.getAllServeEvents().stream().map(received -> received.getRequest().getBodyAsString()).distinct()).hasSize(1);
   }
 
   @Test
@@ -231,7 +254,7 @@ class AnalyticsClientTest {
   @Test
   void it_should_silently_swallow_errors_when_server_is_unreachable() {
     var httpClient = httpClientProvider.getHttpClientForAnalytics("key");
-    System.setProperty(AnalyticsClient.PROPERTY_ANALYTICS_ENDPOINT, "http://192.0.2.1:9999/mcp");
+    System.setProperty(AnalyticsClient.PROPERTY_ANALYTICS_ENDPOINT, "http://127.0.0.1:1/mcp");
     var unreachableClient = new AnalyticsClient(httpClient);
 
     var event = new McpToolInvokedEvent("id", "tool", "SQS", null, null, null, "srv", "1.0.0", "stdio", null, null, 100L, true, null, 0L, null, 0L, List.of());
