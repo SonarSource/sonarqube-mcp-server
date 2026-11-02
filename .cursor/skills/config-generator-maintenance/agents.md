@@ -66,7 +66,8 @@ Client URL for the Sonar-hosted MCP endpoint (not the Cloud REST API base used i
 - **Doc**: https://zed.dev/docs/ai/mcp
 - **Config file**: Zed `settings.json`
 - **Config key**: flat object with `sonarqube_token`, `sonarqube_url`, `sonarqube_org`, `docker_path`
-- **HTTP support**: ❌ not supported — the Zed SonarQube extension only supports Stdio/Docker
+- **Hosted Cloud**: native remote MCP uses output.sqc with rootKey=context_servers, url and optional headers; no extension required. OAuth prompts automatically without an Authorization header.
+- **Self-hosted HTTP support**: unchanged — the Zed SonarQube extension only supports Stdio/Docker
 - **Quirks**: completely different format; uses extension-specific keys, not standard MCP schema
 
 ---

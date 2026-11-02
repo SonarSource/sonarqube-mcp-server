@@ -38,7 +38,7 @@ Three things must be configured:
 
   1. PLATFORM            -- SonarQube Cloud / SonarQube Cloud US / SonarQube Server
   2. TRANSPORT MODE      -- how the AI agent talks to the MCP server
-  3. AUTHENTICATION      -- a SonarQube user token
+  3. AUTHENTICATION      -- OAuth for supported hosted clients, or a user token
 
 Everything else (toolsets, workspace mount, TLS, project key, etc.) is optional.
 
@@ -82,7 +82,21 @@ Either SONARQUBE_URL or SONARQUBE_ORG must always be set (in stdio mode).
       URL (EU)   : https://api.sonarcloud.io/mcp
       URL (US)   : https://api.sonarqube.us/mcp
       Available  : only for SonarQube Cloud / SonarQube Cloud US (not Server)
-      Values via : HTTP headers (Authorization: Bearer ..., SONARQUBE_ORG, ...)
+      Auth       : OAuth (default for supported clients) or a user token.
+      OAuth      : Claude Code, Codex, Cursor, native VS Code MCP and Zed.
+                   Configure the endpoint, then sign in through your client.
+                   Do not configure Authorization, SONARQUBE_TOKEN or
+                   SONARQUBE_ORG. Supply the organization key to tools when
+                   requested. Optional toolset and read-only headers still apply.
+      User token : Authorization: Bearer <YourSonarQubeUserToken> and
+                   SONARQUBE_ORG: <YourSonarQubeOrganizationKey>.
+      Other clients: use a user token. If the client supports Client ID Metadata
+                   Documents (CIMD), request OAuth approval at
+                   https://community.sonarsource.com/c/mcp/54
+                   Without CIMD support, the client vendor must add it first.
+      Shared URLs: auth=oauth or auth=token. Existing links without auth keep
+                   token mode; invalid/unsupported selections use tokens.
+                   Credentials are never shared; OAuth links omit organization.
       Limitation : a restricted set of toolsets is exposed -- see section 4.
 
   3.3 Remote server (HTTP / HTTPS) -- client mode
@@ -145,6 +159,8 @@ comma-separated list of keys. If unset, the DEFAULT SET is enabled.
   portfolios              no       Not available in SonarQube Cloud-hosted server.
   system                  no       Not available in SonarQube Cloud-hosted server.
   webhooks                no       Not available in SonarQube Cloud-hosted server.
+  architecture            no       Current architecture and intended models.
+                                   Not available in SonarQube Cloud-hosted server.
 
 SonarQube Cloud-hosted server limitation:
   Only the DEFAULT SET minus stdio-only toolsets (`analysis`, `ide`, `cag`)
@@ -218,11 +234,14 @@ Common building blocks (used for stdio configs):
      ... same optional flags ...,
      "sonarsource/sonarqube-mcp"]
 
-  HTTP headers (client mode):
+  HTTP headers (user-token client mode):
     Authorization: Bearer <YourSonarQubeUserToken>
     SONARQUBE_ORG: <YourSonarQubeOrganizationKey>            (cloud platforms)
     SONARQUBE_TOOLSETS: <csv>                                (if non-default)
     SONARQUBE_READ_ONLY: true                                (if enabled)
+
+  Hosted OAuth configurations omit token and organization headers from the
+  shapes below. Keep optional toolset and read-only headers when configured.
 
   7.1 Cursor IDE, Kiro, Antigravity, Generic, Gemini, Windsurf
       File       : varies (see each agent's docs)
@@ -247,10 +266,16 @@ Common building blocks (used for stdio configs):
       HTTP shape (Gemini):      uses "httpUrl" instead of "url"; no "type".
       HTTP shape (Kiro):        omits the "type" field.
 
+      Hosted OAuth (Cursor): use the URL without an Authorization header,
+      then complete the sign-in prompt in Cursor's MCP settings.
+
   7.2 VS Code (native MCP, Roo Cline, etc.)
       File       : .vscode/mcp.json, or cline_mcp_settings.json
       Root key   : "servers" instead of "mcpServers".
       Shape      : identical to section 7.1 otherwise.
+      Hosted OAuth: supported by native VS Code MCP. Start the server and follow
+                    its browser sign-in prompt. Other extensions have separate
+                    client support.
 
   7.3 Claude Code / Claude Desktop
       Stdio: run `claude mcp add --transport stdio sonarqube -- docker run ...`
@@ -262,7 +287,9 @@ Common building blocks (used for stdio configs):
                     -e SONARQUBE_ORG=<YourSonarQubeOrganizationKey> \
                     sonarsource/sonarqube-mcp
       HTTP : run `claude mcp add --transport http sonarqube <url>` with
-             one or more `--header "KEY: VALUE"` flags.
+             `--header "KEY: VALUE"` flags for user-token authentication.
+      Hosted OAuth (Claude Code): run the HTTP command without token or
+             organization headers. Open /mcp, select sonarqube and authenticate.
 
   7.4 GitHub Copilot CLI and GitHub Copilot cloud agent
       File       : ~/.copilot/mcp-config.json (global) or .copilot/mcp-config.json
@@ -295,11 +322,19 @@ Common building blocks (used for stdio configs):
         [mcp_servers.sonarqube]
         url = "<url>"
         http_headers = { "Authorization" = "Bearer ...", "SONARQUBE_ORG" = "..." }
+      Hosted OAuth: omit http_headers unless setting optional preferences,
+                    then run codex mcp login sonarqube and sign in.
 
   7.6 Zed IDE
       File       : Zed settings.json (Cmd + , -> Open Settings JSON)
-      Prereq     : install the "SonarQube" extension for Zed.
-      HTTP       : NOT SUPPORTED. Stdio only.
+      Stdio     : install the "SonarQube" extension for Zed.
+      Hosted    : use native remote MCP, without the SonarQube extension:
+        { "context_servers": { "sonarqube": {
+            "url": "https://api.sonarcloud.io/mcp"
+        }}}
+        Zed prompts for OAuth sign-in. Optional preferences go in "headers".
+        For user-token setup, include Authorization and SONARQUBE_ORG headers.
+      Self-hosted HTTP: unchanged; not offered by the extension-based generator.
       Stdio shape:
         {
           "sonarqube_token": "<YourSonarQubeUserToken>",

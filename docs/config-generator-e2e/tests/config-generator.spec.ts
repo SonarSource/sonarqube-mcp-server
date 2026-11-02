@@ -75,6 +75,7 @@ test.describe('config-generator.html', () => {
     await page.locator('#pf-org').fill('my-test-org');
     await page.locator('#token').fill('test-token');
     await page.locator('#card-sqc').click();
+    await page.locator('#hostedAuth').selectOption('token');
     const out = await page.locator('#codeOutput').textContent();
     expect(out).toMatch(/https:\/\/api\.sonarcloud\.io\/mcp\b/);
     expect(out).not.toContain('api.sonarcloud.io/api');
@@ -100,6 +101,7 @@ test.describe('config-generator.html', () => {
     await page.locator('#envControl .segment-btn[data-value="cloud"]').click();
     await page.locator('#token').fill('test-token');
     await page.locator('#card-sqc').click();
+    await page.locator('#hostedAuth').selectOption('token');
     const out = await page.locator('#codeOutput').textContent();
     const parsed = JSON.parse(out!.trim());
     expect(parsed.mcpServers.sonarqube.headers).toBeDefined();
@@ -119,6 +121,205 @@ test.describe('config-generator.html', () => {
     const parsed = JSON.parse(out!.trim());
     expect(parsed.mcpServers.sonarqube.headers.SONARQUBE_TOOLSETS).toBeDefined();
     expect(parsed.mcpServers.sonarqube.headers.SONARQUBE_TOOLSETS).not.toContain('issues');
+  });
+
+
+  const oauthClients = [
+    { id: 'claude', signIn: '/mcp' },
+    { id: 'codex', signIn: 'codex mcp login sonarqube' },
+    { id: 'cursor', signIn: 'sign-in prompt' },
+    { id: 'vscode', signIn: 'browser sign-in prompt' },
+    { id: 'zed', signIn: 'native remote MCP' },
+  ];
+  const hostedRegions = [
+    { id: 'cloud', url: 'https://api.sonarcloud.io/mcp' },
+    { id: 'cloud-us', url: 'https://api.sonarqube.us/mcp' },
+  ];
+
+  function expectHostedOutput(client: string, output: string, url: string, headers: Record<string, string> = {}) {
+    if (client === 'claude') {
+      expect(output).toContain("claude mcp add --transport http sonarqube '" + url + "'");
+      expect(output.match(/--header/g) || []).toHaveLength(Object.keys(headers).length);
+      for (const [key, value] of Object.entries(headers)) expect(output).toContain('--header "' + key + ': ' + value + '"');
+    } else if (client === 'codex') {
+      expect(output).toContain('[mcp_servers.sonarqube]\nurl = "' + url + '"');
+      if (Object.keys(headers).length === 0) expect(output).not.toContain('http_headers');
+      else {
+        expect(output).toContain('http_headers');
+        for (const [key, value] of Object.entries(headers)) expect(output).toContain('"' + key + '" = "' + value + '"');
+      }
+    } else {
+      const root = client === 'vscode' ? 'servers' : client === 'zed' ? 'context_servers' : 'mcpServers';
+      expect(JSON.parse(output)).toEqual({
+        [root]: {
+          sonarqube: {
+            url,
+            ...(client === 'vscode' ? { type: 'http' } : {}),
+            ...(Object.keys(headers).length ? { headers } : {}),
+          },
+        },
+      });
+    }
+  }
+
+  for (const client of oauthClients) {
+    for (const region of hostedRegions) {
+      test('hosted OAuth: ' + client.id + ' defaults to OAuth in ' + region.id + ' without leaking token or org', async ({ page }) => {
+        await page.goto('/config-generator.html');
+        await page.locator('#agent').selectOption(client.id);
+        await page.locator('#envControl [data-value="' + region.id + '"]').click();
+        await page.locator('#token').fill('previous-user-token');
+        await page.locator('#pf-org').fill('previous-org');
+        await page.locator('#card-sqc').click();
+        await expect(page.locator('#hostedAuth')).toHaveValue('oauth');
+        await expect(page.locator('#tokenField')).toBeHidden();
+        await expect(page.locator('#field-org')).toBeHidden();
+        await expect(page.locator('#tokenSecurityNote')).toBeHidden();
+        await expect(page.locator('#tokenOutputWarning')).toBeHidden();
+        await expect(page.locator('#instructionAlert')).toContainText(client.signIn);
+        await expect(page.locator('#instructionAlert')).not.toContainText('token is exposed');
+        const output = (await page.locator('#codeOutput').textContent())!;
+        expectHostedOutput(client.id, output, region.url);
+        expect(output).not.toMatch(/Authorization|SONARQUBE_TOKEN|SONARQUBE_ORG|previous-user-token|previous-org|YourSonarQube/);
+        await expect(page).toHaveURL(/auth=oauth/);
+        expect(new URL(page.url()).searchParams.has('org')).toBe(false);
+      });
+    }
+
+    test('hosted OAuth: ' + client.id + ' preserves read-only and toolset preferences', async ({ page }) => {
+      await page.goto('/config-generator.html?agent=' + client.id + '&transport=sqc&auth=oauth');
+      await page.locator('#opt-readonly').check();
+      await page.locator('#tool-issues').uncheck();
+      const output = (await page.locator('#codeOutput').textContent())!;
+      expect(output).not.toMatch(/Authorization|SONARQUBE_ORG|SONARQUBE_TOKEN/);
+      expect(output).toContain('SONARQUBE_READ_ONLY');
+      expect(output).toContain('SONARQUBE_TOOLSETS');
+      expect(output).not.toMatch(/\bissues\b/);
+      await page.locator('#hostedAuth').selectOption('token');
+      await page.locator('#token').fill('manual-user-token');
+      await page.locator('#pf-org').fill('my-org');
+      const tokenOutput = (await page.locator('#codeOutput').textContent())!;
+      expect(tokenOutput).toContain('Bearer manual-user-token');
+      expect(tokenOutput).toContain('my-org');
+      expect(tokenOutput).toContain('SONARQUBE_READ_ONLY');
+      expect(tokenOutput).toContain('SONARQUBE_TOOLSETS');
+      await expect(page.locator('#instructionAlert')).toContainText('token is exposed');
+      await page.locator('#hostedAuth').selectOption('oauth');
+      await expect(page.locator('#codeOutput')).not.toContainText('manual-user-token');
+      await expect(page.locator('#codeOutput')).not.toContainText('my-org');
+      await expect(page.locator('#instructionAlert')).not.toContainText('token is exposed');
+    });
+  }
+
+  for (const client of ['gemini', 'generic', 'copilot-cli', 'copilot-agent', 'antigravity', 'kiro', 'windsurf']) {
+    test('hosted OAuth: ' + client + ' retains token setup and explains support requirements', async ({ page }) => {
+      await page.goto('/config-generator.html?agent=' + client + '&transport=sqc&auth=oauth');
+      await expect(page.locator('#hostedAuth')).toHaveValue('token');
+      await expect(page.locator('#hostedAuth option[value="oauth"]')).toBeDisabled();
+      await expect(page.locator('#tokenField')).toBeVisible();
+      await expect(page.locator('#field-org')).toBeVisible();
+      await expect(page.locator('#codeOutput')).toContainText('Authorization');
+      await expect(page.locator('#codeOutput')).toContainText('SONARQUBE_ORG');
+      await expect(page.locator('#hostedAuthHelp')).toContainText('CIMD');
+      await expect(page.locator('#hostedAuthHelp a')).toHaveAttribute('href', 'https://community.sonarsource.com/c/mcp/54');
+      await expect(page.locator('#hostedAuthNotice')).toBeVisible();
+      await expect(page).toHaveURL(/auth=token/);
+    });
+  }
+
+  test('hosted auth: invalid method falls back visibly and legacy links retain token mode', async ({ page }) => {
+    for (const authParam of ['', '&auth=unexpected']) {
+      await page.goto('/config-generator.html?agent=cursor&transport=sqc&org=legacy-org' + authParam);
+      await expect(page.locator('#hostedAuth')).toHaveValue('token');
+      await expect(page.locator('#codeOutput')).toContainText('legacy-org');
+      await expect(page.locator('#codeOutput')).toContainText('Authorization');
+      if (authParam) await expect(page.locator('#hostedAuthNotice')).toContainText('User-token authentication is selected');
+      else await expect(page.locator('#hostedAuthNotice')).toBeHidden();
+      await page.reload();
+      await expect(page.locator('#hostedAuth')).toHaveValue('token');
+    }
+  });
+
+  test('hosted auth: client changes reset capability and fresh supported setups use OAuth', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&transport=sqc&auth=oauth');
+    await page.locator('#agent').selectOption('kiro');
+    await expect(page.locator('#hostedAuth')).toHaveValue('token');
+    await expect(page.locator('#codeOutput')).toContainText('Authorization');
+    await page.locator('#agent').selectOption('vscode');
+    await expect(page.locator('#hostedAuth')).toHaveValue('oauth');
+    await expect(page.locator('#codeOutput')).not.toContainText('Authorization');
+    await page.locator('#hostedAuth').selectOption('token');
+    await page.locator('#card-sqc').click();
+    await expect(page.locator('#hostedAuth')).toHaveValue('token');
+  });
+
+  test('hosted auth: OAuth cannot affect stdio, self-hosted clients or launch commands', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=cursor&transport=sqc&auth=oauth');
+    for (const transport of ['stdio', 'http', 'https']) {
+      await page.locator('#card-' + transport).click();
+      await expect(page.locator('#hostedAuthGroup')).toBeHidden();
+      await expect(page.locator('#tokenField')).toBeVisible();
+      await expect(page.locator('#field-org')).toBeVisible();
+      if (transport === 'stdio') await expect(page.locator('#codeOutput')).toContainText('SONARQUBE_TOKEN');
+      if (transport !== 'stdio') {
+        await page.locator('#btn-http-client').click();
+        await expect(page.locator('#codeOutput')).toContainText('Authorization');
+        await page.locator('#btn-http-launch').click();
+        await expect(page.locator('#codeOutput')).toContainText('SONARQUBE_TOKEN');
+        await expect(page.locator('#codeOutput')).toContainText('SONARQUBE_ORG');
+        await expect(page.locator('#codeOutput')).toContainText('SONARQUBE_TRANSPORT');
+      }
+      await page.locator('#card-sqc').click();
+      await expect(page.locator('#hostedAuth')).toHaveValue('oauth');
+    }
+    await page.locator('#envControl [data-value="server"]').click();
+    await expect(page.locator('#hostedAuthGroup')).toBeHidden();
+    await expect(page.locator('#card-sqc')).toBeHidden();
+    await expect(page.locator('#codeOutput')).toContainText('SONARQUBE_TOKEN');
+    await expect(page.locator('#codeOutput')).toContainText('SONARQUBE_URL');
+  });
+
+  test('hosted auth: Zed keeps its extension stdio and self-hosted behavior', async ({ page }) => {
+    await page.goto('/config-generator.html?agent=zed&transport=sqc&auth=oauth');
+    await expect(page.locator('#codeOutput')).toContainText('context_servers');
+    await page.locator('#card-stdio').click();
+    await expect(page.locator('#codeOutput')).toContainText('sonarqube_token');
+    await expect(page.locator('#codeOutput')).not.toContainText('context_servers');
+    await page.locator('#card-http').click();
+    await expect(page.locator('#codeOutput')).toContainText('HTTP is not supported by the SonarQube Zed Extension.');
+  });
+
+  test('hosted OAuth: shared link and copied config survive refresh without credentials or org', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto('/config-generator.html?agent=cursor&env=cloud-us&transport=sqc&auth=oauth&org=ignored-org&token=ignored-token&readonly=1');
+    await expect(page.locator('#hostedAuth')).toHaveValue('oauth');
+    await expect(page.locator('#token')).toHaveValue('');
+    await expect(page).toHaveURL(/auth=oauth/);
+    await expect(page).not.toHaveURL(/org=/);
+    await expect(page).not.toHaveURL(/token=/);
+    await page.reload();
+    await expect(page.locator('#hostedAuth')).toHaveValue('oauth');
+    await expect(page.locator('#opt-readonly')).toBeChecked();
+    await page.evaluate(() => document.getElementById('feedbackFab')?.remove());
+    await page.locator('#copyBtn').click();
+    expectHostedOutput('cursor', await page.evaluate(() => navigator.clipboard.readText()), 'https://api.sonarqube.us/mcp', { SONARQUBE_READ_ONLY: 'true' });
+    await page.locator('#copyLinkBtn').click();
+    const shared = new URL(await page.evaluate(() => navigator.clipboard.readText()));
+    expect(shared.searchParams.get('auth')).toBe('oauth');
+    expect(shared.searchParams.get('env')).toBe('cloud-us');
+    expect(shared.searchParams.has('org')).toBe(false);
+    expect(shared.searchParams.has('token')).toBe(false);
+  });
+
+  test('rebase: architecture is opt-in and unavailable on the hosted server', async ({ page }) => {
+    await selectCursor(page);
+    await expect(page.locator('#tool-architecture')).not.toBeChecked();
+    await page.locator('#tool-architecture').check();
+    await expect(page.locator('#codeOutput')).toContainText('architecture');
+    await page.locator('#card-sqc').click();
+    await expect(page.locator('#tool-architecture-label')).toBeHidden();
+    await expect(page.locator('#tool-architecture')).toBeDisabled();
+    await expect(page.locator('#codeOutput')).not.toContainText('architecture');
   });
 
   test('SQC transport: analysis and non-default toolsets are hidden', async ({ page }) => {
@@ -405,6 +606,7 @@ test.describe('config-generator.html', () => {
     await expect(page.locator('#codeOutput')).toContainText('my_project');
 
     await page.locator('#card-sqc').click();
+    await page.locator('#hostedAuth').selectOption('token');
     await expect(page.locator('#projectKeyWrap')).toBeHidden();
     const out = await page.locator('#codeOutput').textContent();
     const parsed = JSON.parse(out!.trim());
@@ -433,6 +635,7 @@ test.describe('config-generator.html', () => {
     await page.locator('#pf-org').fill('my-org');
     await page.locator('#token').fill('sqp_super_secret_token');
     await page.locator('#card-sqc').click();
+    await page.locator('#hostedAuth').selectOption('token');
     await expect(page).toHaveURL(/agent=cursor/);
     await expect(page).toHaveURL(/transport=sqc/);
     await expect(page).toHaveURL(/org=my-org/);
@@ -494,6 +697,7 @@ test.describe('config-generator.html', () => {
     await page.locator('#pf-org').fill('share-org');
     await page.locator('#token').fill('sqp_super_secret_token');
     await page.locator('#card-sqc').click();
+    await page.locator('#hostedAuth').selectOption('token');
     await expect(page.locator('#copyLinkBtn')).toBeEnabled();
     await page.evaluate(() => document.getElementById('feedbackFab')?.remove());
     await page.locator('#copyLinkBtn').click();
@@ -502,7 +706,8 @@ test.describe('config-generator.html', () => {
     expect(clipboard).toContain('agent=cursor');
     expect(clipboard).toContain('org=share-org');
     expect(clipboard).toContain('transport=sqc');
-    expect(clipboard).not.toMatch(/token/i);
+    expect(new URL(clipboard).searchParams.has('token')).toBe(false);
+    expect(new URL(clipboard).searchParams.has('SONARQUBE_TOKEN')).toBe(false);
     expect(clipboard).not.toContain('sqp_super_secret_token');
   });
 

@@ -29,6 +29,31 @@ When a user changes a selection, the renderer:
 2. Builds an env-vars map or an HTTP-headers map depending on the transport's `valueDelivery` field.
 3. Formats the output using the agent's `output.format` descriptor (`json`, `cli-claude-stdio`, `cli-claude-http`, `toml`, `custom-json`, or `unsupported`).
 
+## Hosted Cloud authentication
+
+The SonarQube Cloud-hosted transport offers OAuth and user-token authentication.
+New setups default to OAuth for Claude Code, Codex, Cursor, native VS Code MCP
+and Zed. Other clients keep user-token setup and receive Community guidance:
+CIMD-capable clients can request approval; clients without CIMD need vendor support.
+
+OAuth support is declared by each agent's instructions.oauth entry in
+config-flow.json. The hosted transport's authentication object defines the
+methods, defaults and fallback guidance. An optional output.sqc descriptor
+overrides the usual HTTP format for hosted connections; Zed uses this for
+native context_servers JSON while keeping its existing extension-based stdio
+and self-hosted behavior.
+
+OAuth output omits Authorization, SONARQUBE_TOKEN and SONARQUBE_ORG, including
+values left in the form from token setup. The user signs in through the client
+and supplies an organization key to tools when requested. Optional toolset and
+read-only headers still apply. The generator never performs login or handles
+OAuth access tokens or client secrets.
+
+Hosted shareable links explicitly contain auth=oauth or auth=token. Existing
+hosted links without auth retain user-token authentication; invalid or
+unsupported choices fall back visibly to tokens. OAuth links omit organization
+values. All shared links continue to exclude credentials.
+
 ## Running locally
 
 Browsers block `fetch()` over `file://`, so you must serve the page via HTTP.

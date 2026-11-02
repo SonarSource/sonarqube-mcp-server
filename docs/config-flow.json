@@ -58,7 +58,17 @@
       "valueDelivery": "headers",
       "availableFor": ["cloud", "cloud-us"],
       "urls": { "cloud": "https://api.sonarcloud.io/mcp", "cloud-us": "https://api.sonarqube.us/mcp" },
-      "features": ["toolsets", "read-only"]
+      "features": ["toolsets", "read-only"],
+      "authentication": {
+        "default": "oauth",
+        "legacyDefault": "token",
+        "methods": [
+          { "id": "oauth", "label": "OAuth", "description": "Sign in through your client. No user token is needed. Provide the organization key when a tool asks for it." },
+          { "id": "token", "label": "User token", "description": "Connect with your SonarQube user token and organization key." }
+        ],
+        "unsupportedMessage": "Use a user token for this client. If it supports Client ID Metadata Documents (CIMD), request OAuth support on the <a href='https://community.sonarsource.com/c/mcp/54' target='_blank' rel='noopener'>Sonar Community forum</a>. Otherwise, the client must add CIMD support first.",
+        "invalidMessage": "This OAuth selection is unavailable. User-token authentication is selected instead."
+      }
     },
     {
       "id": "http",
@@ -137,6 +147,7 @@
     { "key": "cag", "label": "Vortex context", "defaultEnabled": true, "onlyForTransports": ["stdio"], "hint": "Deprecated in favor of vortex. Vortex context tools work only with local execution (stdio). Requires workspace mount at /app/mcp-workspace." },
     { "key": "vortex", "label": "Vortex", "defaultEnabled": false, "onlyForTransports": ["stdio"], "hint": "Recommended. Surfaces Vortex context and Vortex analysis tools. Stdio only. Requires combined organization entitlement and workspace mount at /app/mcp-workspace." },
     { "key": "agentic-readiness", "label": "Agentic readiness", "defaultEnabled": true, "hint": "Agentic Readiness Assessment tools. SonarQube Cloud only, requires organization entitlement." },
+    { "key": "architecture", "label": "Architecture", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"], "hint": "Read current architecture and manage intended models. Not enabled by default." },
     { "key": "sources", "label": "Sources", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },
     { "key": "languages", "label": "Languages", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },
     { "key": "portfolios", "label": "Portfolios", "defaultEnabled": false, "onlyForTransports": ["stdio", "http", "https"] },
@@ -150,7 +161,8 @@
       "label": "Claude Desktop / Claude Code",
       "instructions": {
         "stdio": "<strong>Claude Code / Desktop</strong>: Run the command below for Claude Code, or select 'Generic JSON' to copy the config for Claude Desktop.",
-        "http": "<strong>Claude Code / Desktop</strong>: Run the command below for Claude Code, or select 'Generic JSON' to copy the config for Claude Desktop."
+        "http": "<strong>Claude Code / Desktop</strong>: Run the command below for Claude Code, or select 'Generic JSON' to copy the config for Claude Desktop.",
+        "oauth": "<strong>Claude Code</strong>: Run the command below, then open <code>/mcp</code>, select <code>sonarqube</code> and authenticate in your browser."
       },
       "output": {
         "stdio": { "format": "cli-claude-stdio" },
@@ -162,7 +174,8 @@
       "label": "Codex CLI",
       "instructions": {
         "stdio": "<strong>Codex CLI</strong>: Append these lines directly to your <code>~/.codex/config.toml</code> or project-scoped <code>.codex/config.toml</code> file.",
-        "http": "<strong>Codex CLI</strong>: Append these lines directly to your <code>~/.codex/config.toml</code> or project-scoped <code>.codex/config.toml</code> file."
+        "http": "<strong>Codex CLI</strong>: Append these lines directly to your <code>~/.codex/config.toml</code> or project-scoped <code>.codex/config.toml</code> file.",
+        "oauth": "<strong>Codex</strong>: Add this to <code>~/.codex/config.toml</code> or <code>.codex/config.toml</code>, then run <code>codex mcp login sonarqube</code> and complete browser sign-in."
       },
       "output": {
         "stdio": { "format": "toml", "sectionKey": "mcp_servers.sonarqube", "envSectionKey": "mcp_servers.sonarqube.env" },
@@ -174,7 +187,8 @@
       "label": "Cursor IDE",
       "instructions": {
         "stdio": "<strong>Cursor IDE config</strong>: Add this to <code>.cursor/mcp.json</code> in your workspace, or <code>~/.cursor/mcp.json</code> for global use.",
-        "http": "<strong>Cursor IDE config</strong>: Add this to <code>.cursor/mcp.json</code> in your workspace, or <code>~/.cursor/mcp.json</code> for global use."
+        "http": "<strong>Cursor IDE config</strong>: Add this to <code>.cursor/mcp.json</code> in your workspace, or <code>~/.cursor/mcp.json</code> for global use.",
+        "oauth": "<strong>Cursor</strong>: Add this to <code>.cursor/mcp.json</code> or <code>~/.cursor/mcp.json</code>. Open Cursor's MCP settings and complete the sign-in prompt for <code>sonarqube</code>."
       },
       "output": {
         "stdio": { "format": "json", "rootKey": "mcpServers", "schema": "standard-docker", "stdioTypeField": "stdio" },
@@ -258,7 +272,8 @@
       "label": "VS Code",
       "instructions": {
         "stdio": "<strong>VS Code config</strong>: Add this to <code>.vscode/mcp.json</code> in your workspace (native MCP). Other extensions may use a different file, such as <code>cline_mcp_settings.json</code> for Roo Cline.",
-        "http": "<strong>VS Code config</strong>: Add this to <code>.vscode/mcp.json</code> in your workspace (native MCP). Other extensions may use a different file, such as <code>cline_mcp_settings.json</code> for Roo Cline."
+        "http": "<strong>VS Code config</strong>: Add this to <code>.vscode/mcp.json</code> in your workspace (native MCP). Other extensions may use a different file, such as <code>cline_mcp_settings.json</code> for Roo Cline.",
+        "oauth": "<strong>VS Code native MCP</strong>: Add this to <code>.vscode/mcp.json</code>. Start the <code>sonarqube</code> server and follow VS Code's browser sign-in prompt. Other VS Code extensions have separate client support."
       },
       "output": {
         "stdio": { "format": "json", "rootKey": "servers", "schema": "standard-docker" },
@@ -282,7 +297,9 @@
       "label": "Zed",
       "instructions": {
         "stdio": "<strong>Zed IDE</strong>: Install the 'SonarQube' extension in Zed. Then add this block to your Zed <code>settings.json</code> file (Cmd + , -> Open Settings JSON).",
-        "http": "<strong>Zed IDE HTTP</strong>: The SonarQube Zed extension currently only supports Docker/stdio transport, not HTTP. Please switch to stdio."
+        "http": "<strong>Zed IDE HTTP</strong>: The SonarQube Zed extension currently only supports Docker/stdio transport, not HTTP. Please switch to stdio.",
+        "oauth": "<strong>Zed</strong>: Add this to your Zed <code>settings.json</code>. Zed will prompt you to sign in through your browser. This uses Zed's native remote MCP support; the SonarQube extension is not required.",
+        "sqc": "<strong>Zed</strong>: Add this to your Zed <code>settings.json</code>. This uses native remote MCP support; the SonarQube extension is not required."
       },
       "output": {
         "stdio": {
@@ -290,7 +307,8 @@
           "keyMap": { "SONARQUBE_TOKEN": "sonarqube_token", "SONARQUBE_URL": "sonarqube_url", "SONARQUBE_ORG": "sonarqube_org" },
           "staticFields": { "docker_path": "/usr/local/bin/docker" }
         },
-        "http": { "format": "unsupported", "message": "HTTP is not supported by the SonarQube Zed Extension." }
+        "http": { "format": "unsupported", "message": "HTTP is not supported by the SonarQube Zed Extension." },
+        "sqc": { "format": "json", "rootKey": "context_servers", "urlKey": "url", "headersKey": "headers" }
       }
     }
   ]

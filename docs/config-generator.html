@@ -65,9 +65,15 @@
           <label>Platform type</label>
           <div class="segmented-control" id="envControl"></div>
         </div>
+        <div class="form-group hidden" id="hostedAuthGroup">
+          <label for="hostedAuth">Authentication method</label>
+          <select id="hostedAuth" onchange="setHostedAuth(this.value)"></select>
+          <span class="help-text" id="hostedAuthHelp"></span>
+          <output class="help-text hidden" id="hostedAuthNotice"></output>
+        </div>
         <div id="platformFields"></div>
 
-        <details class="security-note">
+        <details class="security-note" id="tokenSecurityNote">
           <summary>Security recommendation — avoid hardcoding your user token</summary>
           <div class="security-note-body">
             <p>Pasting your user token here embeds it in plain text inside your config file, which can end up in version control or be read by other processes. Consider these safer alternatives instead:</p>
@@ -80,7 +86,7 @@
           </div>
         </details>
 
-        <div class="form-group">
+        <div class="form-group" id="tokenField">
           <label for="token">User token <span style="color:var(--text-muted); font-weight:normal;">(optional)</span></label>
           <span class="help-text">If provided, it will be injected into the config. Keep this secret! Leave empty to keep <code>&lt;YourSonarQubeUserToken&gt;</code> placeholder. <a href="#" id="tokenDocsLink" target="_blank" rel="noopener">How to get a user token</a></span>
           <input type="password" id="token" placeholder="sqp_xxxxxxxxxxxxxxxxxxx" oninput="generateConfig()">
@@ -202,7 +208,7 @@
           Copy shareable link
         </button>
       </div>
-      <p class="help-text" style="text-align:center; margin-top: 8px;">Do not share the generated configuration if it contains your SonarQube user token. Copy shareable link includes settings only — never your token.</p>
+      <p class="help-text" id="tokenOutputWarning" style="text-align:center; margin-top: 8px;">Do not share the generated configuration if it contains your SonarQube user token. Copy shareable link includes settings only — never your token.</p>
     </div>
   </div>
 </div>
@@ -260,7 +266,7 @@
   })();
 
   let flow = null;
-  let state = { agent: '', env: '', transport: 'stdio', httpMode: 'client', sqcRegion: 'eu' };
+  let state = { agent: '', env: '', transport: 'stdio', httpMode: 'client', sqcRegion: 'eu', auth: 'token', authFallback: false };
   let isApplyingFromUrl = false;
   let urlSyncTimer = null;
 
@@ -366,10 +372,12 @@
       params.set('httpMode', state.httpMode);
     }
 
+    if (state.transport === 'sqc') params.set('auth', state.auth);
+
     const platform = flow.platforms.find(p => p.id === state.env);
     if (platform) {
       platform.fields.forEach(f => {
-        if (f.secret || f.id === 'token') return;
+        if (f.secret || f.id === 'token' || (isHostedOAuth() && f.envVar === 'SONARQUBE_ORG')) return;
         const el = document.getElementById('pf-' + f.id);
         const val = el ? el.value.trim() : '';
         if (val) params.set(f.id, val);
@@ -482,6 +490,11 @@
         }
       }
 
+      if (state.transport === 'sqc') {
+        // Links created before authentication selection used user tokens.
+        setHostedAuth(params.get('auth') ?? getHostedAuthDefinition().legacyDefault);
+      }
+
       const httpMode = params.get('httpMode');
       if (httpMode && isValidHttpMode(httpMode) && (state.transport === 'http' || state.transport === 'https')) {
         setHttpMode(httpMode);
@@ -579,6 +592,14 @@
         `<div class="radio-content"><span class="radio-title">${t.label}</span>` +
         `<span class="radio-desc">${t.description}</span></div>`;
       tg.appendChild(label);
+    });
+
+    const authSelect = document.getElementById('hostedAuth');
+    getHostedAuthDefinition().methods.forEach(method => {
+      const option = document.createElement('option');
+      option.value = method.id;
+      option.textContent = method.label;
+      authSelect.appendChild(option);
     });
 
     buildToolsetsGrid();
@@ -683,7 +704,9 @@
   }
 
   function setTransport(mode) {
+    const changed = state.transport !== mode;
     state.transport = mode;
+    if (changed && mode === 'sqc') resetHostedAuth();
     flow.transports.forEach(t => {
       const card = document.getElementById('card-' + t.id);
       if (card) card.classList.remove('active');
@@ -714,6 +737,53 @@
     syncWorkspaceMountVisibility();
     syncToolsetStates();
     generateConfig();
+  }
+
+  function getHostedAuthDefinition() {
+    return flow.transports.find(t => t.id === 'sqc').authentication;
+  }
+
+  function supportsHostedOAuth() {
+    return !!flow.agents.find(a => a.id === state.agent)?.instructions.oauth;
+  }
+
+  function isHostedOAuth() {
+    return state.transport === 'sqc' && state.auth === 'oauth' && supportsHostedOAuth();
+  }
+
+  function resetHostedAuth() {
+    const auth = getHostedAuthDefinition();
+    state.auth = supportsHostedOAuth() ? auth.default : auth.legacyDefault;
+    state.authFallback = false;
+  }
+
+  function setHostedAuth(method) {
+    const auth = getHostedAuthDefinition();
+    const valid = auth.methods.some(m => m.id === method) && (method !== 'oauth' || supportsHostedOAuth());
+    state.auth = valid ? method : auth.legacyDefault;
+    state.authFallback = !valid;
+    generateConfig();
+  }
+
+  function syncAuthenticationUI() {
+    const hosted = state.transport === 'sqc';
+    const oauth = isHostedOAuth();
+    const auth = getHostedAuthDefinition();
+    const select = document.getElementById('hostedAuth');
+    document.getElementById('hostedAuthGroup').classList.toggle('hidden', !hosted);
+    select.querySelector('option[value="oauth"]').disabled = !supportsHostedOAuth();
+    select.value = state.auth;
+    const method = auth.methods.find(m => m.id === state.auth);
+    document.getElementById('hostedAuthHelp').innerHTML =
+      supportsHostedOAuth() ? method.description : auth.unsupportedMessage;
+    const notice = document.getElementById('hostedAuthNotice');
+    notice.textContent = state.authFallback ? auth.invalidMessage : '';
+    notice.classList.toggle('hidden', !state.authFallback);
+    document.getElementById('tokenField').classList.toggle('hidden', oauth);
+    document.getElementById('tokenSecurityNote').classList.toggle('hidden', oauth);
+    document.getElementById('tokenOutputWarning').classList.toggle('hidden', oauth);
+    const org = document.getElementById('field-org');
+    if (org) org.style.display = oauth ? 'none' : '';
   }
 
   function syncSqcUrl() {
@@ -831,7 +901,9 @@
   }
 
   function updateUI() {
+    const previousAgent = state.agent;
     state.agent = document.getElementById('agent').value;
+    if (state.transport === 'sqc' && previousAgent !== state.agent) resetHostedAuth();
     const badge = document.getElementById('clientBadge');
     if (state.agent) {
       const agentDef = flow.agents.find(a => a.id === state.agent);
@@ -853,7 +925,7 @@
   function collectValues() {
     const platform = flow.platforms.find(p => p.id === state.env);
     const transport = getActiveTransport();
-    const rawToken = document.getElementById('token').value.trim();
+    const rawToken = isHostedOAuth() ? '' : document.getElementById('token').value.trim();
     const token = rawToken || snippetDefault('SONARQUBE_TOKEN');
     const isHttpClient = transport.valueDelivery === 'headers';
     const isHttpLaunch = !isHttpClient && !!transport.dockerMode && transport.dockerMode === 'daemon';
@@ -861,7 +933,7 @@
     let envVars = {};
     let httpHeaders = {};
 
-    if (isHttpClient) {
+    if (isHttpClient && !isHostedOAuth()) {
       httpHeaders['Authorization'] = `Bearer ${token}`;
       if (platform) {
         platform.fields.forEach(f => {
@@ -875,7 +947,7 @@
           }
         });
       }
-    } else {
+    } else if (!isHttpClient) {
       envVars['SONARQUBE_TOKEN'] = token;
       if (platform) {
         platform.fields.forEach(f => {
@@ -1058,7 +1130,7 @@
 
   function formatOutput(agentDef, vals) {
     const mode = vals.isHttpClient ? 'http' : 'stdio';
-    const outputDef = agentDef.output[mode];
+    const outputDef = (state.transport === 'sqc' && agentDef.output.sqc) || agentDef.output[mode];
     if (!outputDef) return '';
 
     switch (outputDef.format) {
@@ -1072,7 +1144,14 @@
     }
   }
 
+  function getClientInstructions(agentDef, isHttpClient) {
+    if (isHostedOAuth()) return agentDef.instructions.oauth;
+    if (state.transport === 'sqc' && agentDef.instructions.sqc) return agentDef.instructions.sqc;
+    return agentDef.instructions[isHttpClient ? 'http' : 'stdio'] || '';
+  }
+
   function generateConfig() {
+    if (flow) syncAuthenticationUI();
     if (!flow || !state.agent) {
       document.getElementById('codeOutput').textContent = 'Please select a target client (step 1) to build the configuration.';
       document.getElementById('instructionAlert').classList.add('hidden');
@@ -1095,8 +1174,7 @@
       cmd += '\n  ' + flow.dockerImage;
       code = cmd;
     } else {
-      const mode = vals.isHttpClient ? 'http' : 'stdio';
-      instructions = agentDef.instructions[mode] || '';
+      instructions = getClientInstructions(agentDef, vals.isHttpClient);
       code = formatOutput(agentDef, vals);
     }
 
