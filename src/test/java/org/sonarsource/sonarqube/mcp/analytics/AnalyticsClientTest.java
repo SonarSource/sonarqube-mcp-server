@@ -192,6 +192,32 @@ class AnalyticsClientTest {
       """));
   }
 
+  @Test
+  void it_should_serialize_initialization_and_omit_missing_fields() throws Exception {
+    analyticsClient.postEvent(new McpClientInitializedEvent("server", "1", "SQC", "http", "token", " Custom Client ", "1.0+preview", 123, null, null, null));
+    await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> wireMock.verify(1, postRequestedFor(urlPathEqualTo("/"))));
+    var body = new ObjectMapper().readTree(wireMock.getAllServeEvents().getFirst().getRequest().getBodyAsString());
+    assertThat(body.get("metadata").get("event_type").asText()).isEqualTo("Analytics.Mcp.McpClientInitialized");
+    assertThat(body.get("metadata").get("event_version").asText()).isEqualTo("1");
+    var payload = body.get("event_payload");
+    assertThat(payload.get("calling_agent_name").asText()).isEqualTo(" Custom Client ");
+    assertThat(payload.get("calling_agent_version").asText()).isEqualTo("1.0+preview");
+    assertThat(payload.get("initialization_timestamp").asLong()).isEqualTo(123);
+    assertThat(payload.get("authentication_method").asText()).isEqualTo("token");
+    assertThat(payload.has("oauth_client_key")).isFalse();
+    assertThat(payload.has("user_uuid")).isFalse();
+    assertThat(payload.has("organization_uuid_v4")).isFalse();
+  }
+
+  @Test
+  void it_should_serialize_optional_initialization_identifiers() throws Exception {
+    analyticsClient.postEvent(new McpClientInitializedEvent("server", "1", "SQS", "http", "token", null, null, 123, null, "user", "installation"));
+    await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> wireMock.verify(1, postRequestedFor(urlPathEqualTo("/"))));
+    var payload = new ObjectMapper().readTree(wireMock.getAllServeEvents().getFirst().getRequest().getBodyAsString()).get("event_payload");
+    assertThat(payload.get("user_uuid").asText()).isEqualTo("user");
+    assertThat(payload.get("sqs_installation_id").asText()).isEqualTo("installation");
+    assertThat(payload.has("organization_uuid_v4")).isFalse();
+  }
 
   @Test
   void it_should_send_x_api_key_header() {
