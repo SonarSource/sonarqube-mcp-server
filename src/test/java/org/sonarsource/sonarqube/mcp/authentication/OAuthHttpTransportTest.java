@@ -569,6 +569,186 @@ class OAuthHttpTransportTest {
   }
 
   @Test
+  void it_should_emit_correlated_events_with_production_authentication_over_stateless_http() throws Exception {
+    startWithProductionAuthentication(true);
+    var source = currentToken(oauth.resource()).withClaim("scope", "mcp:tools:read");
+    var grant = productionGrant(sign(source));
+    stubOrganization(grant, "my-org");
+    // Failed enrichment must retain this tool's successful outcome.
+    cloud.stubFor(get(urlPathEqualTo("/api/users/current")).willReturn(aResponse().withStatus(503)));
+    var params = Map.<String, Object>of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+      "clientInfo", Map.of("name", " Custom Client ", "version", "2026.10+preview"));
+    assertSuccess(send(request(grant.source(), "initialize", params).build()), "serverInfo");
+    assertSuccess(send(call(grant, "list_organizations", Map.of())), "my-org");
+    assertThat(send(request(null, "ping", Map.of()).build()).statusCode()).isEqualTo(401);
+    assertThat(send(request("eyJ.invalid.token", "initialize", params).build()).statusCode()).isEqualTo(401);
+    var noScope = sign(currentToken(oauth.resource()).withClaim("scope", "offline_access"));
+    assertThat(send(request(noScope, "initialize", params).build()).statusCode()).isEqualTo(403);
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents()).hasSize(6));
+    var events = analyticsEvents();
+    var initialized = events.stream().filter(e -> e.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpClientInitialized"))
+      .map(e -> e.getAsJsonObject("event_payload")).toList();
+    assertThat(initialized).singleElement().satisfies(payload -> {
+      assertThat(payload.get("calling_agent_name").getAsString()).isEqualTo(" Custom Client ");
+      assertThat(payload.get("calling_agent_version").getAsString()).isEqualTo("2026.10+preview");
+      assertThat(payload.get("authentication_method").getAsString()).isEqualTo("oauth");
+      assertThat(payload.has("user_uuid")).isFalse();
+    });
+    var key = initialized.getFirst().get("oauth_client_key").getAsString();
+    assertUnchangedToolEventWithoutIdentity(events);
+    var authentication = events.stream().filter(e -> e.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpOAuthAuthenticationFinished"))
+      .map(e -> e.getAsJsonObject("event_payload")).toList();
+    assertThat(authentication).hasSize(4).allSatisfy(payload -> {
+      assertThat(payload.has("user_uuid")).isFalse();
+      assertThat(payload.has("authentication_duration_ms")).isFalse();
+      assertThat(payload.has("was_cache_hit")).isFalse();
+    });
+    assertThat(authentication.stream().filter(e -> e.get("outcome").getAsString().equals("success")).toList())
+      .hasSize(2).allSatisfy(payload -> assertThat(payload.get("oauth_client_key").getAsString()).isEqualTo(key));
+    assertThat(authentication.stream().filter(e -> e.has("failure_stage") && e.get("failure_stage").getAsString().equals("mcp_token_verification")).toList())
+      .singleElement().satisfies(payload -> assertThat(payload.has("oauth_client_key")).isFalse());
+    assertThat(authentication.stream().filter(e -> e.has("failure_category") && e.get("failure_category").getAsString().equals("insufficient_scope")).toList())
+      .singleElement().satisfies(payload -> assertThat(payload.get("oauth_client_key").getAsString()).isEqualTo(key));
+    assertThat(events).allSatisfy(event -> assertThat(event.toString()).doesNotContain(grant.source(), grant.cloud(), "test-secret", "oauth2|github"));
+    assertThat(events.stream().map(e -> e.getAsJsonObject("event_payload").get("mcp_server_id").getAsString()).distinct()).hasSize(1);
+    cloud.verify(1, postRequestedFor(urlEqualTo("/oauth/token")));
+  }
+
+  private static void assertUnchangedToolEventWithoutIdentity(List<JsonObject> events) {
+    var tools = events.stream().filter(e -> e.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpToolInvoked")).toList();
+    assertThat(tools).singleElement().satisfies(event -> {
+      assertThat(event.getAsJsonObject("metadata").get("event_version").getAsString()).isEqualTo("2");
+      var payload = event.getAsJsonObject("event_payload");
+      assertThat(payload.has("oauth_client_key")).isFalse();
+      assertThat(payload.has("authentication_method")).isFalse();
+      assertThat(payload.get("is_successful").getAsBoolean()).isTrue();
+      assertThat(payload.has("user_uuid")).isFalse();
+    });
+  }
+
+  @Test
+  void it_should_keep_application_attribution_isolated_for_concurrent_http_requests() throws Exception {
+    startWithProductionAuthentication(true);
+    var first = productionGrant(sign(currentToken(oauth.resource()).withClaim("azp", "application-a").withClaim("scope", "mcp:tools:read")), "application-a");
+    var second = productionGrant(sign(currentToken(oauth.resource()).withClaim("azp", "application-b").withClaim("scope", "mcp:tools:read")), "application-b");
+    stubOrganization(first, "org-a");
+    stubOrganization(second, "org-b");
+    cloud.stubFor(get(urlPathEqualTo("/api/users/current")).withHeader("Authorization", equalTo("Bearer " + first.cloud()))
+      .willReturn(okJson("{\"id\":\"user-a\"}")));
+    cloud.stubFor(get(urlPathEqualTo("/api/users/current")).withHeader("Authorization", equalTo("Bearer " + second.cloud()))
+      .willReturn(okJson("{\"id\":\"user-b\"}")));
+    var requests = List.of(
+      request(first.source(), "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+        "clientInfo", Map.of("name", "client-a", "version", "1"))).build(),
+      request(second.source(), "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+        "clientInfo", Map.of("name", "client-b", "version", "2"))).build(),
+      call(first, "list_organizations", Map.of()),
+      call(second, "search_my_sonarqube_projects", Map.of("organization", "org-b")));
+    var pending = requests.stream().map(request -> client.sendAsync(request, HttpResponse.BodyHandlers.ofString())).toList();
+    for (var response : pending) {
+      assertSuccess(response.get(10, TimeUnit.SECONDS), "result");
+    }
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents()).hasSize(8));
+    var keys = new HashMap<String, String>();
+    var users = new HashMap<String, String>();
+    analyticsEvents().stream().filter(event -> event.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpClientInitialized"))
+      .map(event -> event.getAsJsonObject("event_payload"))
+      .forEach(payload -> {
+        keys.put(payload.get("calling_agent_name").getAsString(), payload.get("oauth_client_key").getAsString());
+        users.put(payload.get("calling_agent_name").getAsString(), payload.get("user_uuid").getAsString());
+        assertThat(payload.has("organization_uuid_v4")).isFalse();
+        assertThat(payload.has("sqs_installation_id")).isFalse();
+      });
+    assertThat(keys).hasSize(2);
+    assertThat(users).containsExactlyInAnyOrderEntriesOf(Map.of("client-a", "user-a", "client-b", "user-b"));
+    assertThat(keys.get("client-a")).isNotNull().isNotEqualTo(keys.get("client-b"));
+    analyticsEvents().stream().filter(event -> event.getAsJsonObject("metadata").get("event_type").getAsString().endsWith(".McpToolInvoked"))
+      .map(event -> event.getAsJsonObject("event_payload"))
+      .forEach(payload -> {
+        assertThat(payload.has("oauth_client_key")).isFalse();
+        assertThat(payload.has("authentication_method")).isFalse();
+      });
+    cloud.verify(2, postRequestedFor(urlEqualTo("/oauth/token")));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"Authorization", "SONARQUBE_TOKEN"})
+  void it_should_report_header_token_initialization_and_tools_without_oauth_attribution(String header) throws Exception {
+    startWithProductionAuthentication(true);
+    var params = Map.<String, Object>of("protocolVersion", "2025-06-18", "capabilities", Map.of(), "clientInfo", Map.of("name", "token-client", "version", "1"));
+    var credential = header.equals("Authorization") ? "Bearer existing-token" : "existing-token";
+    cloud.stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)).willReturn(okJson("[]")));
+    assertSuccess(send(request(null, "initialize", params).header(header, credential).build()), "serverInfo");
+    assertSuccess(send(request(null, "tools/call", Map.of("name", "list_organizations", "arguments", Map.of())).header(header, credential).build()), "organizations");
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents()).hasSize(2));
+    assertThat(analyticsEvents()).allSatisfy(event -> {
+      var payload = event.getAsJsonObject("event_payload");
+      if (event.getAsJsonObject("metadata").get("event_type").getAsString().endsWith("McpClientInitialized")) {
+        assertThat(payload.get("authentication_method").getAsString()).isEqualTo("token");
+      } else {
+        assertThat(payload.has("authentication_method")).isFalse();
+        assertThat(event.getAsJsonObject("metadata").get("event_version").getAsString()).isEqualTo("2");
+      }
+      assertThat(payload.has("oauth_client_key")).isFalse();
+      assertThat(event.getAsJsonObject("metadata").get("event_type").getAsString()).doesNotContain("McpOAuthAuthenticationFinished");
+    });
+    cloud.verify(0, postRequestedFor(urlEqualTo("/oauth/token")));
+  }
+
+  @Test
+  void it_should_enrich_server_initialization_without_organization_lookups() throws Exception {
+    environment.keySet().removeIf(key -> key.startsWith("SONARQUBE_OAUTH_"));
+    environment.remove("SONARQUBE_IS_CLOUD");
+    environment.remove("SONARQUBE_CLOUD_API_URL");
+    environment.put("TELEMETRY_DISABLED", "false");
+    cloud.stubFor(get(SystemApi.STATUS_PATH).willReturn(okJson("{\"id\":\"installation\",\"version\":\"2026.1.0\",\"status\":\"UP\"}")));
+    cloud.stubFor(get("/api/users/current").withHeader("Authorization", equalTo("Bearer existing-token"))
+      .willReturn(okJson("{\"id\":\"server-user\"}")));
+    startProductionServer();
+    assertSuccess(send(request("existing-token", "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+      "clientInfo", Map.of("name", "server-client", "version", "1"))).build()), "serverInfo");
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents()).hasSize(1));
+    var payload = analyticsEvents().getFirst().getAsJsonObject("event_payload");
+    assertThat(payload.get("user_uuid").getAsString()).isEqualTo("server-user");
+    assertThat(payload.get("sqs_installation_id").getAsString()).isEqualTo("installation");
+    assertThat(payload.get("authentication_method").getAsString()).isEqualTo("token");
+    assertThat(payload.has("organization_uuid_v4")).isFalse();
+    assertThat(payload.has("oauth_client_key")).isFalse();
+    cloud.verify(0, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)));
+    assertThat(auth0.getAllServeEvents()).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {400, 503})
+  void it_should_preserve_http_responses_when_the_local_telemetry_collector_fails(int status) throws Exception {
+    cloud.stubFor(post("/gessie").willReturn(aResponse().withStatus(status)));
+    startWithProductionAuthentication(true);
+    var grant = productionGrant(sign(currentToken(oauth.resource()).withClaim("scope", "mcp:tools:read")));
+    stubOrganization(grant, "org");
+
+    assertSuccess(send(request(grant.source(), "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+      "clientInfo", Map.of("name", "client", "version", "1"))).build()), "serverInfo");
+    assertSuccess(send(call(grant, "list_organizations", Map.of())), "org");
+    assertThat(send(request("eyJ.invalid.token", "ping", Map.of()).build()).statusCode()).isEqualTo(401);
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents().stream()
+      .map(event -> event.getAsJsonObject("metadata").get("event_type").getAsString()).distinct())
+      .containsExactlyInAnyOrder("Analytics.Mcp.McpClientInitialized", "Analytics.Mcp.McpToolInvoked", "Analytics.Mcp.McpOAuthAuthenticationFinished"));
+  }
+
+  @Test
+  void it_should_disable_all_three_http_events_when_telemetry_is_disabled() throws Exception {
+    startWithProductionAuthentication(false);
+    var grant = productionGrant(sign(currentToken(oauth.resource()).withClaim("scope", "mcp:tools:read")));
+    stubOrganization(grant, "org");
+    assertSuccess(send(request(grant.source(), "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+      "clientInfo", Map.of("name", "client", "version", "1"))).build()), "serverInfo");
+    assertSuccess(send(call(grant, "list_organizations", Map.of())), "org");
+    assertThat(send(request("eyJ.invalid.token", "ping", Map.of()).build()).statusCode()).isEqualTo(401);
+    server.shutdown();
+    assertThat(analyticsEvents()).isEmpty();
+  }
+
+  @Test
   void it_should_report_oauth_outcomes_over_stateless_http() throws Exception {
     startWithProductionAuthentication(true);
     var grant = productionGrant(sign(currentToken(oauth.resource()).withClaim("scope", "mcp:tools:read")));
