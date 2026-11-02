@@ -18,12 +18,15 @@ package org.sonarsource.sonarqube.mcp.analytics;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -144,6 +147,37 @@ class AnalyticsServiceTest {
     verify(mockClient).postEvent(captor.capture());
     assertThat(captor.getValue().transportMode()).isEqualTo("http");
   }
+
+  @Test
+  void it_should_drop_excess_work_without_blocking_or_failing_the_caller() throws Exception {
+    var service = new AnalyticsService(mockClient, "server", "1", true, false, true);
+    var started = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    var completed = new AtomicInteger();
+    service.submit(() -> {
+      started.countDown();
+      try {
+        release.await();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    });
+    try {
+      assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThatCode(() -> {
+        for (var i = 0; i < 1002; i++) {
+          service.submit(completed::incrementAndGet);
+        }
+      }).doesNotThrowAnyException();
+    } finally {
+      release.countDown();
+      service.shutdown();
+    }
+    assertThat(completed.get()).isEqualTo(1000);
+    assertThatCode(() -> service.submit(completed::incrementAndGet))
+      .doesNotThrowAnyException();
+  }
+
 
   @Test
   void it_should_execute_submitted_tasks() throws InterruptedException {

@@ -40,6 +40,9 @@ class HttpTransportITest {
   @Test
   void should_start_server_with_http_transport() {
     assertThat(httpServerContainer.isRunning()).isTrue();
+    assertThat(httpServerContainer.getEnvMap())
+      .withFailMessage("Telemetry must be disabled in integration tests")
+      .containsEntry("TELEMETRY_DISABLED", "true");
 
     assertThat(httpServerContainer.getLogs()).contains("Created HTTP transport provider");
   }
