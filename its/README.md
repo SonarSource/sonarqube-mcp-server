@@ -44,85 +44,30 @@ The following dependencies are automatically installed in test containers to mat
 - **nodejs**: Runtime dependencies
 - **wget**: HTTP testing utility
 
-## Hosted Staging authentication acceptance
+## HTTP authentication against Staging
 
-The opt-in `hostedAuthenticationTest` suite targets `https://api.sc-staging.io/mcp`.
-It uses the MCP Java client and real credentials, without Docker, an application JAR, or CAG binaries.
-It is separate from `integrationTest`, `test`, `build`, and normal PR CI.
+`HttpTransportITest` starts the current application JAR in two containers using
+`McpServerTestContainers`: one with legacy authentication and one with OAuth configured.
+The tests call the containers' mapped HTTP ports; their Cloud API calls go to Staging.
+The existing HTTP CI job runs this class against the JAR built by the PR.
 
-The Staging deployment must expose OAuth discovery metadata. The OAuth exchange tests additionally
-require a fresh MCP-audience access token; the existing `SONARCLOUD_IT_TOKEN` used by the container
-integration tests covers only legacy authentication.
-
-### Credentials and fixtures
-
-Supply these environment variables through your local secret manager or a secure shell prompt;
-do not paste tokens into commands, chat, or tracked files:
-
-- `SONARCLOUD_IT_OAUTH_TOKEN`: a fresh, preferably previously unused Auth0 access token (Token A),
-  issued by `https://auth.sc-staging.io/` for audience `https://api.sc-staging.io/mcp`,
-  with at least `mcp:tools:read`. Use the OAuth client login flow to obtain it; an ID token,
-  Cloud API token (Token B), or machine-to-machine token is not suitable.
-- `SONARCLOUD_IT_TOKEN`: a valid Staging SonarQube **user** token with access to both fixtures.
-- `SONARCLOUD_IT_ORGANIZATION`: the key of an organization the user belongs to.
-- `SONARCLOUD_IT_PRIVATE_PROJECT_KEY`: the exact key of a **private** project in that organization
-  which the user can browse and find through `search_my_sonarqube_projects`. A project-management
-  listing alone does not prove it is accessible. The tests check that anonymous access is denied.
-
-Prefer the same existing SQC account for both credentials. The account must have signed into
-Staging SQC at least once; an Auth0 account alone is insufficient for Cloud API access.
-OAuth-only runs do not require `SONARCLOUD_IT_TOKEN`; legacy-only runs do not require
-`SONARCLOUD_IT_OAUTH_TOKEN`. Missing configuration fails explicitly. OAuth expiry is checked
-locally; a revoked or expired SonarQube user token is detected by failed live authorization/reads.
-
-### Running
-
-From the repository root, with Java 21:
+Set `SONARCLOUD_IT_TOKEN` to the existing Staging integration-test user token, supplied
+through your secret manager or environment. The user must belong to `sonarlint-it`,
+which must contain at least one project. No additional OAuth credentials are required.
 
 ```bash
-# Both live authentication paths (plus the local helper tests)
-./gradlew :its:hostedAuthenticationTest
-
-# OAuth discovery only: no credentials or fixtures required
-./gradlew :its:hostedAuthenticationTest --tests '*HostedOAuthAuthenticationITest.it_should_advertise_staging_oauth_discovery'
-
-# Full OAuth acceptance: requires SONARCLOUD_IT_OAUTH_TOKEN and both fixtures
-./gradlew :its:hostedAuthenticationTest --tests '*HostedOAuthAuthenticationITest'
-
-# Legacy token only: exercises Authorization and SONARQUBE_TOKEN separately
-./gradlew :its:hostedAuthenticationTest --tests '*HostedTokenAuthenticationITest'
+./gradlew :its:integrationTest --tests 'org.sonarsource.sonarqube.mcp.its.HttpTransportITest'
 ```
 
-Each run checks the current deployment, even if a previous run passed. Tests perform only reads.
-They set `SONARQUBE_READ_ONLY=true` and `SONARQUBE_TOOLSETS=projects`, initialize the client,
-check that listed tools are read-only, and assert real fixture data returned by `list_organizations`
-and `search_my_sonarqube_projects`. HTTP 200 with an MCP tool error is a failure.
-OAuth passes the organization as a tool argument; legacy requests use `SONARQUBE_ORG`.
+The tests initialize an MCP client, list read-only tools, and read the user's organizations
+and projects through both `Authorization: Bearer` and `SONARQUBE_TOKEN`, with and without
+OAuth configuration. They verify that missing credentials receive HTTP 401 and that invalid
+legacy tokens fail a protected Cloud read. Container-wide tokens are cleared so requests
+must use the supplied credentials.
 
-The OAuth suite also checks the unauthenticated Bearer challenge and its Staging metadata,
-requires Token A to be rejected directly by the protected Cloud organizations API, and checks
-that an altered JWT signature is rejected. Network failures, redirects, and HTTP 5xx do not count
-as successful authentication rejection. The legacy suite checks missing and invalid credentials.
-
-Successful Cloud reads through MCP, while the same Token A is rejected directly by Cloud,
-provide functional evidence of the deployed token exchange/delegation flow. Token B and backend
-client secrets stay on the server. These tests do not observe the exact exchange payload or count;
-the existing mocked OAuth tests cover those details. A previously used Token A may reuse the
-server's short-lived exchange cache.
-
-Failures deliberately omit raw HTTP bodies and exception causes because they can contain tokens.
-The isolated runtime has no logging provider; do not enable JDK HTTP wire logging or add one that
-logs credentials. Browser login, consent UI, refresh tokens, writes, and caller-IP restrictions are
-outside this suite. No deployment or OAuth acceptance result is implied by compiling it.
-
-### Local preparation without contacting Staging
-
-```bash
-./gradlew :its:compileHostedTestJava
-./gradlew :its:hostedAuthenticationTest --tests '*HostedAuthenticationSupportTest'
-./gradlew :its:hostedAuthenticationTest --dry-run
-```
-
-The helper tests use synthetic credentials and a loopback HTTP server to check the MCP client
-lifecycle, header/organization handling, token fixture validation, redirects, and sanitized failures.
-The task graph must not include `:jar`, `:its:downloadCagBinary`, or container tests.
+OAuth discovery checks the container's unauthenticated Bearer challenge and local metadata
+endpoint, including the canonical Staging resource, issuer, scopes, and bearer method.
+The OAuth container uses placeholder exchange-client credentials because discovery and
+legacy requests do not use token exchange. These tests do not validate live OAuth login,
+JWT verification, or token exchange; those flows have separate mocked unit coverage.
+All live Cloud requests in this class are reads against Staging.
