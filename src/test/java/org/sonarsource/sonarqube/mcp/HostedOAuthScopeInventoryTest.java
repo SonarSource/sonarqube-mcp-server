@@ -100,6 +100,7 @@ class HostedOAuthScopeInventoryTest {
 
   @SonarQubeMcpServerTest
   void it_should_resolve_the_project_before_starting_the_assessment(SonarQubeMcpServerTestHarness harness) {
+    harness.stubSaraEnabled();
     var backend = harness.getMockSonarQubeServer();
     backend.stubFor(get(urlPathEqualTo(ProjectBranchesApi.BRANCHES_LIST_PATH)).willReturn(okJson("""
       {"branches":[{"name":"main","isMain":true,"branchId":"project-id"}]}
