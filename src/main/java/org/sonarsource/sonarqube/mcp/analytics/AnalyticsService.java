@@ -17,13 +17,16 @@
 package org.sonarsource.sonarqube.mcp.analytics;
 
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import jakarta.annotation.Nullable;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 
 public class AnalyticsService {
 
+  private static final McpLogger LOG = McpLogger.getInstance();
   private static final String CONNECTION_TYPE_SQC = "SQC";
   private static final String CONNECTION_TYPE_SQS = "SQS";
 
@@ -43,7 +46,7 @@ public class AnalyticsService {
     this.transportMode = resolveTransportMode(isHttpEnabled, isHttpsEnabled);
     this.isSonarQubeCloud = isSonarQubeCloud;
     this.containerArch = resolveContainerArch();
-    this.executor = Executors.newSingleThreadExecutor(r -> {
+    this.executor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1000), r -> {
       var thread = new Thread(r, "analytics-dispatcher");
       thread.setDaemon(true);
       return thread;
@@ -101,7 +104,12 @@ public class AnalyticsService {
   }
 
   public void submit(Runnable task) {
-    executor.submit(task);
+    try {
+      executor.submit(task);
+    } catch (RuntimeException e) {
+      // A full queue or shutdown must not change an MCP response.
+      LOG.debug("Unable to schedule analytics (" + e.getClass().getSimpleName() + ")");
+    }
   }
 
   public void shutdown() {
