@@ -16,9 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp.authentication;
 
+import com.auth0.jwt.JWTCreator;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
@@ -27,12 +29,15 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -64,6 +69,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.KEY;
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.keyValues;
 import static org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.sign;
@@ -75,7 +81,9 @@ class OAuthHttpTransportTest {
   private static final String EXTERNAL_METADATA = "https://metadata.example.com/oauth-protected-resource";
   private static final String TRUST_STORE = "javax.net.ssl.trustStore";
   private static final String TRUST_STORE_PASSWORD = "javax.net.ssl.trustStorePassword";
-  private static final Path KEYSTORE = Path.of("src/test/resources/ssl/test-keystore.p12").toAbsolutePath();
+  @TempDir
+  static Path tlsStorage;
+  private static Path keystore;
   private static final String PASSWORD = "test123";
   private static final Gson GSON = new Gson();
 
@@ -90,18 +98,34 @@ class OAuthHttpTransportTest {
   private Map<String, String> environment;
   private OAuthConfiguration oauth;
   private String endpoint;
+  private String originalAnalyticsEndpoint;
   private String originalTrustStore;
   private String originalTrustStorePassword;
+
+  @BeforeAll
+  static void createTlsFixture() throws Exception {
+    // OkHttp requires SANs; the older shared fixture only has a common name.
+    keystore = tlsStorage.resolve("localhost.p12");
+    var keytool = Path.of(System.getProperty("java.home"), "bin", "keytool").toString();
+    var process = new ProcessBuilder(keytool, "-genkeypair", "-alias", "localhost", "-keyalg", "RSA", "-keysize", "2048",
+      "-validity", "2", "-dname", "CN=localhost", "-ext", "SAN=dns:localhost,ip:127.0.0.1", "-storetype", "PKCS12",
+      "-keystore", keystore.toString(), "-storepass", PASSWORD, "-keypass", PASSWORD).redirectErrorStream(true).start();
+    assertThat(process.waitFor(15, TimeUnit.SECONDS)).isTrue();
+    assertThat(process.exitValue()).isZero();
+  }
 
   @BeforeEach
   void setUp() {
     originalTrustStore = System.getProperty(TRUST_STORE);
     originalTrustStorePassword = System.getProperty(TRUST_STORE_PASSWORD);
-    System.setProperty(TRUST_STORE, KEYSTORE.toString());
+    System.setProperty(TRUST_STORE, keystore.toString());
     System.setProperty(TRUST_STORE_PASSWORD, PASSWORD);
-    cloud = new WireMockServer(wireMockConfig().httpDisabled(true).dynamicHttpsPort().keystorePath(KEYSTORE.toString())
+    cloud = new WireMockServer(wireMockConfig().httpDisabled(true).dynamicHttpsPort().http2TlsDisabled(true).keystorePath(keystore.toString())
       .keystorePassword(PASSWORD).keyManagerPassword(PASSWORD));
     cloud.start();
+    originalAnalyticsEndpoint = System.getProperty("sonarqube.mcp.analytics.endpoint");
+    System.setProperty("sonarqube.mcp.analytics.endpoint", cloud.baseUrl() + "/gessie");
+    cloud.stubFor(post("/gessie").willReturn(okJson("{}")));
     auth0 = new WireMockServer(wireMockConfig().dynamicPort());
     auth0.start();
     auth0.stubFor(get("/.well-known/jwks.json").willReturn(okJson(GSON.toJson(Map.of("keys", List.of(keyValues("key", KEY)))))));
@@ -135,6 +159,7 @@ class OAuthHttpTransportTest {
     httpClients.shutdown();
     auth0.stop();
     cloud.stop();
+    restoreProperty("sonarqube.mcp.analytics.endpoint", originalAnalyticsEndpoint);
     restoreProperty(TRUST_STORE, originalTrustStore);
     restoreProperty(TRUST_STORE_PASSWORD, originalTrustStorePassword);
   }
@@ -376,7 +401,7 @@ class OAuthHttpTransportTest {
   @CsvSource({"http,false", "https,false", "http,true"})
   void it_should_wire_production_bootstrap_and_local_or_external_metadata(String transport, boolean external) throws Exception {
     environment.put("SONARQUBE_TRANSPORT", transport);
-    environment.put("SONARQUBE_HTTPS_KEYSTORE_PATH", KEYSTORE.toString());
+    environment.put("SONARQUBE_HTTPS_KEYSTORE_PATH", keystore.toString());
     environment.put("SONARQUBE_HTTPS_KEYSTORE_PASSWORD", PASSWORD);
     if (external) {
       environment.put("SONARQUBE_OAUTH_METADATA_URL", EXTERNAL_METADATA);
@@ -543,11 +568,95 @@ class OAuthHttpTransportTest {
     endpoint = server.getHttpServerUrl();
   }
 
+  @Test
+  void it_should_report_oauth_outcomes_over_stateless_http() throws Exception {
+    startWithProductionAuthentication(true);
+    var grant = productionGrant(sign(currentToken(oauth.resource()).withClaim("scope", "mcp:tools:read")));
+    assertSuccess(send(request(grant.source(), "ping", Map.of()).build()), "result");
+    assertSuccess(send(request(grant.source(), "ping", Map.of()).build()), "result");
+    assertThat(send(request(null, "ping", Map.of()).build()).statusCode()).isEqualTo(401);
+    assertThat(send(request("eyJ.invalid.token", "ping", Map.of()).build()).statusCode()).isEqualTo(401);
+    var noScope = sign(currentToken(oauth.resource()).withClaim("scope", "offline_access"));
+    assertThat(send(request(noScope, "ping", Map.of()).build()).statusCode()).isEqualTo(403);
+    assertSuccess(send(request("existing-token", "ping", Map.of()).build()), "result");
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents()).hasSize(4));
+    var payloads = analyticsEvents().stream().map(event -> {
+      assertThat(event.getAsJsonObject("metadata").get("event_type").getAsString()).isEqualTo("Analytics.Mcp.McpOAuthAuthenticationFinished");
+      assertThat(event.toString()).doesNotContain(grant.source(), grant.cloud(), "test-secret", "oauth2|github");
+      return event.getAsJsonObject("event_payload");
+    }).toList();
+    assertThat(payloads).allSatisfy(payload -> {
+      assertThat(payload.has("user_uuid")).isFalse();
+      assertThat(payload.has("authentication_duration_ms")).isFalse();
+      assertThat(payload.has("was_cache_hit")).isFalse();
+    });
+    var successes = payloads.stream().filter(p -> p.get("outcome").getAsString().equals("success")).toList();
+    assertThat(successes).hasSize(2);
+    var key = successes.getFirst().get("oauth_client_key").getAsString();
+    assertThat(successes).allSatisfy(p -> assertThat(p.get("oauth_client_key").getAsString()).isEqualTo(key));
+    assertThat(payloads.stream().filter(p -> p.has("failure_stage") && p.get("failure_stage").getAsString().equals("mcp_token_verification")).toList())
+      .singleElement().satisfies(p -> assertThat(p.has("oauth_client_key")).isFalse());
+    assertThat(payloads.stream().filter(p -> p.has("failure_category") && p.get("failure_category").getAsString().equals("insufficient_scope")).toList())
+      .singleElement().satisfies(p -> assertThat(p.get("oauth_client_key").getAsString()).isEqualTo(key));
+    cloud.verify(1, postRequestedFor(urlEqualTo("/oauth/token")));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {400, 503})
+  void it_should_preserve_authentication_responses_when_telemetry_delivery_fails(int status) throws Exception {
+    cloud.stubFor(post("/gessie").willReturn(aResponse().withStatus(status)));
+    startWithProductionAuthentication(true);
+    var grant = productionGrant(sign(currentToken(oauth.resource()).withClaim("scope", "mcp:tools:read")));
+    assertSuccess(send(request(grant.source(), "ping", Map.of()).build()), "result");
+    assertThat(send(request("eyJ.invalid.token", "ping", Map.of()).build()).statusCode()).isEqualTo(401);
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents()).isNotEmpty());
+  }
+
+  @Test
+  void it_should_disable_oauth_outcomes_when_telemetry_is_disabled() throws Exception {
+    startWithProductionAuthentication(false);
+    var grant = productionGrant(sign(currentToken(oauth.resource()).withClaim("scope", "mcp:tools:read")));
+    assertSuccess(send(request(grant.source(), "ping", Map.of()).build()), "result");
+    assertThat(send(request("eyJ.invalid.token", "ping", Map.of()).build()).statusCode()).isEqualTo(401);
+    server.shutdown();
+    assertThat(analyticsEvents()).isEmpty();
+  }
+
+  private void startWithProductionAuthentication(boolean telemetryEnabled) {
+    environment.put("TELEMETRY_DISABLED", Boolean.toString(!telemetryEnabled));
+    environment.put("SONARQUBE_OAUTH_ISSUER", cloud.baseUrl() + "/");
+    cloud.stubFor(get("/.well-known/jwks.json").willReturn(okJson(GSON.toJson(Map.of("keys", List.of(keyValues("key", KEY)))))));
+    oauth = new McpServerLaunchConfiguration(environment).getOAuthConfiguration();
+    startProductionServer();
+  }
+
+  private JWTCreator.Builder currentToken(String audience) {
+    return token(audience).withIssuer(oauth.issuer().toString()).withIssuedAt(Instant.now().minusSeconds(1)).withExpiresAt(Instant.now().plusSeconds(299));
+  }
+
+  private Grant productionGrant(String source) {
+    return productionGrant(source, "client");
+  }
+
+  private Grant productionGrant(String source, String initiatingClient) {
+    var downstream = sign(currentToken(oauth.cloudAudience()).withClaim("azp", oauth.clientId()).withClaim("scope", "read:all")
+      .withClaim("act", Map.of("sub", oauth.clientId(), "act", Map.of("sub", initiatingClient))));
+    cloud.stubFor(post("/oauth/token").withRequestBody(matchingJsonPath("$.subject_token", equalTo(source)))
+      .willReturn(okJson(GSON.toJson(Map.of("access_token", downstream, "token_type", "Bearer")))));
+    return new Grant(source, downstream);
+  }
+
+  private List<JsonObject> analyticsEvents() {
+    return cloud.findAll(postRequestedFor(urlEqualTo("/gessie"))).stream()
+      .map(request -> JsonParser.parseString(request.getBodyAsString()).getAsJsonObject()).toList();
+
+  }
+
   private void startWithRealAuthentication() {
     var configuration = new McpServerLaunchConfiguration(environment);
     oauth = configuration.getOAuthConfiguration();
     var keys = new Auth0JwkProvider(URI.create(auth0.baseUrl() + "/"), httpClients.getAnonymousHttpClient(), clock);
-    var service = new Auth0OAuthAuthenticationService(oauth, new Auth0TokenVerifier(oauth, keys, clock), new Auth0TokenExchange(oauth, auth0.baseUrl()), clock);
+    var service = new Auth0OAuthAuthenticationService(oauth, new Auth0TokenVerifier(oauth, keys, clock), new Auth0TokenExchange(oauth, auth0.baseUrl()), clock, null);
     var transport = new HttpServerTransportProvider(HttpTransportSettings.from(configuration), new OAuthSupport(
       new OAuthProtectedResourceMetadata(oauth.resource(), oauth.issuer().toString(), configuration.getOAuthMetadataUrl()), service::authenticate));
     server = new SonarQubeMcpServer(null, transport, environment);
