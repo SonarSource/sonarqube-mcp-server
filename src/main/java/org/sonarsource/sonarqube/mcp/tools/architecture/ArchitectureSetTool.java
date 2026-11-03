@@ -44,7 +44,8 @@ public class ArchitectureSetTool extends Tool {
       .setDescription("Replace the complete intended model; omitted content and metadata are removed.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addRequiredEnumProperty("target", new String[] {"intended"}, "intended: replace the model.")
-      .addRequiredStringProperty(MODEL_PROPERTY, "Full response or models array from unfiltered architecture_get target intended; partial views are rejected. An empty complete model deletes it.")
+      .addRequiredStringProperty(MODEL_PROPERTY, "Full response or models array from unfiltered architecture_get target intended; "
+        + "partial views are rejected. An empty complete model deletes it.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get target intended; defaults to the model response revision. A mismatch prevents writing.")
       .build(),
