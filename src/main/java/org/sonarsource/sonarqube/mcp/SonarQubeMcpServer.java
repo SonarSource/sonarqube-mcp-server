@@ -688,7 +688,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     } else {
       LOG.info("Workspace: none");
     }
-    LOG.info("Status: Server ready - tools loading in background");
+    LOG.info("Status: Server ready - tools registered");
     LOG.info("========================================");
 
     logDebugDetails();
