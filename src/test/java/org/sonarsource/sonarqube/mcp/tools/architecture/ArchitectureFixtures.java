@@ -68,8 +68,14 @@ final class ArchitectureFixtures {
     return "{ \"currentArchitectures\": " + graphs + " }";
   }
 
-  /** Wraps models the way {@code GET /architecture/intended-architectures} returns them. */
+  /** Public GET collection; the requested project has zero or one resource. */
   static String intendedArchitectures(String models) {
+    var array = com.google.gson.JsonParser.parseString(models).getAsJsonArray();
+    return "{\"intendedArchitectures\":" + (array.isEmpty() ? "[]" : "[" + intendedResource(models) + "]") + "}";
+  }
+
+  /** Public POST/PATCH return the resource directly. */
+  static String intendedResource(String models) {
     var array = com.google.gson.JsonParser.parseString(models).getAsJsonArray().deepCopy();
     var response = new com.google.gson.JsonObject();
     for (var element : array) {
@@ -79,10 +85,10 @@ final class ArchitectureFixtures {
       }
       model.add("qualifiers", model.remove("type"));
     }
-    if (!array.isEmpty() && !response.has("id")) {
+    if (!response.has("id")) {
       response.addProperty("id", "11111111-1111-4111-8111-111111111111");
     }
-    response.add("intendedArchitectures", array);
+    response.add("perspectives", array);
     return response.toString();
   }
 
