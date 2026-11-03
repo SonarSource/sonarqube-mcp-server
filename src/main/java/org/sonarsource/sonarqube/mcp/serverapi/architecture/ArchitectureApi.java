@@ -30,6 +30,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 
 /** Public architecture HTTP requests, response validation and Cloud/Server routing. */
@@ -91,7 +92,7 @@ public class ArchitectureApi {
 
   public IntendedState getIntendedState(String projectKey, String projectId) {
     var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH).addParam("projectId", projectId).build();
-    var response = read(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
+    var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
     if (response == null || response.intendedArchitectures() == null || response.intendedArchitectures().size() > 1) {
       throw incompleteModel();
     }
@@ -200,7 +201,19 @@ public class ArchitectureApi {
     }
   }
 
-  private static String reason(ForbiddenException e) {
+  private <T> T readProjectResource(String projectKey, Supplier<T> request) {
+    try {
+      return read(projectKey, request);
+    } catch (NotFoundException e) {
+      if (helper.isSonarQubeCloud()) {
+        throw e;
+      }
+      throw new NotFoundException(reason(e) + ". Check the project and Browse permission. "
+        + "On older Server versions, use a Server build that exposes the public Architecture APIs");
+    }
+  }
+
+  private static String reason(ServerApiException e) {
     return Strings.CS.removeStart(e.getMessage(), ServerApiException.MESSAGE_PREFIX);
   }
 
