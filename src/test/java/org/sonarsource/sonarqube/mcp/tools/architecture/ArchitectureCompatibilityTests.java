@@ -48,7 +48,7 @@ class ArchitectureCompatibilityTests {
   void it_should_explain_incompatible_response_envelopes_without_writing(boolean cloud) {
     project();
     var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
-    var paths = Map.of("current", "current-architectures", "intended", "intended-architectures", "directives", "project-directives", "findings", "project-findings");
+    var paths = Map.of("current", "current-architectures", "intended", "project-intended-architectures", "directives", "project-directives", "findings", "project-findings");
     for (var target : paths.keySet()) {
       harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo((cloud ? "" : "/api/v2") + "/architecture/" + paths.get(target)))
         .willReturn(okJson("{}")));
