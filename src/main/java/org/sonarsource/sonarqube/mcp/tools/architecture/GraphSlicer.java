@@ -167,6 +167,10 @@ final class GraphSlicer {
       + "Omitted siblings have no continuation token and may remain undiscoverable; this is not a complete graph export.";
   }
 
+  static String childSeparator(StructureGraph.Node node) {
+    return IndexedGraph.childSeparator(node);
+  }
+
   private static final class IndexedGraph {
     private final String language;
     @Nullable

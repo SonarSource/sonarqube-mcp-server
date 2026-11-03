@@ -1484,6 +1484,10 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 - **architecture_set** - Replace the whole intended model on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
+  **Validation:** Exact constraint endpoints must name unambiguous groups in the same perspective; self-references are rejected. Wildcard selectors and imported descendants retain their public semantics. A changed model is also checked against available discovery data: exact container patterns and skipped physical parents produce warnings, without rewriting patterns or moving groups. Failed or missing discovery is reported as unchecked, not as a missing match. Exact leaf patterns and logical groupings remain valid.
+
+  For physical models, read bounded current slices first and keep intermediate parents. Under `gctoolkit-parser`, nest `jvm` and `unified` inside `com.microsoft.gctoolkit.parser`; use `gctoolkit-parser:com.microsoft.gctoolkit.parser.**` for that subtree. Follow a single-child artifact chain to its branching point. Keep exact patterns for leaves and preserve discovery-binding patterns when moving or renaming groups. Do not infer physical structure from labels alone or replace user-requested logical groupings.
+
   **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: the public export does not expand their groups or constraints, and imported contents cannot be edited here. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
 
   Parameters:

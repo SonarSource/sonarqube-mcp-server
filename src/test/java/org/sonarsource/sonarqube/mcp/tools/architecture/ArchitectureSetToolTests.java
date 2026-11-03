@@ -263,8 +263,28 @@ class ArchitectureSetToolTests {
   }
 
   @Test
+  void it_should_reject_missing_and_self_referential_constraint_endpoints() {
+    for (var endpoint : List.of("", " ", "app/missing", "app/domain")) {
+      var models = JsonParser.parseString(INTENDED_JAVA_MODEL).getAsJsonArray();
+      models.get(0).getAsJsonObject().getAsJsonArray("constraints").get(0).getAsJsonObject().addProperty("from", endpoint);
+      assertThat(IntendedModels.invalidReason(IntendedModels.parse(models.toString()))).isNotNull();
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_reject_invalid_constraints_before_any_backend_request(SonarQubeMcpServerTestHarness harness) {
+    var invalid = INTENDED_JAVA_MODEL.replace("app/web", "missing");
+    var result = set(harness, invalid, false, null);
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("does not name a unique group");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/project_branches/")).isFalse();
+    assertWrites(harness, 0, 0);
+  }
+
+  @Test
   void it_should_accept_public_constraint_strings_and_reject_duplicate_constraints() {
-    for (var endpoint : new String[] {"", " ", "app/missing", "app/*"}) {
+    for (var endpoint : new String[] {"app/web", "app/*"}) {
       var models = JsonParser.parseString(INTENDED_JAVA_MODEL).getAsJsonArray();
       models.get(0).getAsJsonObject().getAsJsonArray("constraints").get(0).getAsJsonObject().addProperty("from", endpoint);
       assertThat(IntendedModels.invalidReason(IntendedModels.parse(models.toString()))).isNull();
