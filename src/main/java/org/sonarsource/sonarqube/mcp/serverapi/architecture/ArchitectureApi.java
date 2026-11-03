@@ -123,7 +123,7 @@ public class ArchitectureApi {
   public void deleteIntended(String projectKey, String id) {
     var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
     write(projectKey, () -> {
-      try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path) : helper.delete(SERVER_API_PREFIX + path)) {
+      try (var response = delete(path)) {
         if (response.code() != 204) {
           throw new IllegalStateException("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
         }
@@ -219,7 +219,7 @@ public class ArchitectureApi {
         throw e;
       }
       throw new NotFoundException(reason(e) + ". Check the project or directive id and Browse permission. "
-        + "On older Server versions, use a Server build that exposes the public Architecture APIs.");
+        + "On older Server versions, use a Server build that exposes the public Architecture APIs");
     }
   }
 
@@ -283,7 +283,7 @@ public class ArchitectureApi {
   }
 
   public ProjectDirective getDirective(String projectKey, String projectId, String id) {
-    return readProjectResource(projectKey, () -> {
+    return read(projectKey, () -> {
       var directive = fromJson(get(directivePath(id)), ProjectDirective.class);
       validateDirectiveResource(directive, projectId, id);
       return directive;
@@ -307,8 +307,7 @@ public class ArchitectureApi {
 
   public void deleteDirective(String projectKey, String id) {
     write(projectKey, () -> {
-      try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(directivePath(id))
-        : helper.delete(SERVER_API_PREFIX + directivePath(id))) {
+      try (var response = delete(directivePath(id))) {
         if (response.code() != java.net.HttpURLConnection.HTTP_NO_CONTENT) {
           throw new IllegalStateException("The directive deletion was not confirmed. Inspect it before retrying.");
         }
@@ -418,6 +417,10 @@ public class ArchitectureApi {
   }
 
   public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
+  }
+
+  private HttpClient.Response delete(String path) {
+    return helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path) : helper.delete(SERVER_API_PREFIX + path);
   }
 
   private HttpClient.Response get(String path) {
