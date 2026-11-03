@@ -271,6 +271,18 @@ class ServerApiTests {
     sonarqubeMock.verify(1, deleteRequestedFor(urlEqualTo("/api/test")));
   }
 
+  @ParameterizedTest
+  @MethodSource("postApiSubdomainErrorResponses")
+  void delete_should_reject_errors_without_replay(int statusCode, Class<? extends Exception> expectedException, String messageTemplate) {
+    sonarqubeMock.stubFor(delete("/api/test").willReturn(aResponse().withStatus(statusCode)));
+    var expectedMessage = messageTemplate.contains("%s") ? messageTemplate.formatted(sonarqubeMock.baseUrl()) : messageTemplate;
+
+    var exception = assertThrows(expectedException, () -> serverApiHelper.delete("/api/test"));
+
+    assertThat(exception).hasMessage(expectedMessage);
+    sonarqubeMock.verify(1, deleteRequestedFor(urlEqualTo("/api/test")));
+  }
+
   static Stream<Arguments> buildApiSubdomainUrlCases() {
     return Stream.of(
       // SQC - known hosts: api.* subdomain is derived automatically

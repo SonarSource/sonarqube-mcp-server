@@ -91,6 +91,17 @@ class ServerApiHelperTest {
   }
 
   @Test
+  void it_should_keep_server_delete_on_the_server_when_a_cloud_override_is_configured() {
+    var client = mock(HttpClient.class);
+    var response = mock(HttpClient.Response.class);
+    when(response.isSuccessful()).thenReturn(true);
+    when(client.deleteAsync("http://localhost/api/v2/architecture/model")).thenReturn(CompletableFuture.completedFuture(response));
+    var helper = new ServerApiHelper(new EndpointParams("http://localhost", null, "https://api.sonarcloud.io", false), client);
+
+    assertThat(helper.delete("/api/v2/architecture/model")).isSameAs(response);
+  }
+
+  @Test
   void it_should_cancel_the_request_when_interrupted() {
     var request = new CompletableFuture<HttpClient.Response>();
     Thread.currentThread().interrupt();
