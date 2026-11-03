@@ -118,7 +118,7 @@ class ArchitectureServerTests {
     var client = harness.newClient(Map.of());
     var schema = client.listTools().stream().filter(tool -> ArchitectureGetTool.TOOL_NAME.equals(tool.name())).findFirst().orElseThrow().inputSchema();
     assertThat(schema.toString()).contains("directives: project directives (directiveId)", "findings: deviations, flaws and smells (category, type, language)",
-      "pageIndex/pageSize apply to directives and findings")
+      "pageIndex/pageSize apply to directives, findings and current from/to queries")
       .doesNotContain("Current keys:", "default_perspective", "namespace_graph", "file_graph");
     var args = new java.util.HashMap<String, Object>(Map.of("target", "directives", "projectKey", "my_project", "model", "{\"create\":[" + INPUT + "]}", "dryRun", true));
     assertThat(client.callTool(ArchitectureSetTool.TOOL_NAME, args).isError()).isFalse();

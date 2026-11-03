@@ -43,6 +43,8 @@ public class ArchitectureGetTool extends Tool {
   public static final String COMPONENT_PROPERTY = "component";
   public static final String DEPTH_PROPERTY = "depth";
   public static final String LANGUAGE_PROPERTY = "language";
+  private static final String FROM_PROPERTY = "from";
+  private static final String TO_PROPERTY = "to";
   public static final String CURRENT = "current";
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
@@ -74,7 +76,9 @@ public class ArchitectureGetTool extends Tool {
       .setDescription("Read current graphs, intended architecture, project directives or findings.")
       .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
         "current: dependencies; intended: model; directives: project directives (directiveId); "
-          + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings.")
+          + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives, findings and current from/to queries.")
+      .addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
+      .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
         + "Intended: group labels joined by /. Top level when omitted."
@@ -86,7 +90,7 @@ public class ArchitectureGetTool extends Tool {
       .addEnumProperty(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new), "only findings of this type.")
       .addEnumProperty(CATEGORY_PROPERTY, CATEGORIES, "only findings of this category.")
       .addNumberProperty(ToolParameters.PAGE_INDEX, "page number, default 1.")
-      .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50; directives: 1–1000, findings: 0–1000 (0 counts only).");
+      .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page; current from/to: default/max 20, others default 50; directives: 1–1000, findings: 0–1000 (0 counts only).");
     return builder.build();
   }
 
@@ -101,9 +105,10 @@ public class ArchitectureGetTool extends Tool {
       throw new IllegalArgumentException("depth must be 1 or more.");
     }
 
+    var selection = dependencySelection(arguments, target, component);
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     var parameters = arguments.toMap();
-    if (!DIRECTIVES.equals(target) && !FINDINGS.equals(target)
+    if (selection == null && !DIRECTIVES.equals(target) && !FINDINGS.equals(target)
       && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
       throw new IllegalArgumentException("Pagination parameters are only used for directives and findings.");
     }
@@ -120,9 +125,27 @@ public class ArchitectureGetTool extends Tool {
       return findings(serverApi, projectKey, arguments, component, depth, language);
     }
     if (CURRENT.equals(target)) {
-      return readCurrent(serverApi, projectKey, component, depth, language);
+      return readCurrent(serverApi, projectKey, component, depth, language, selection);
     }
     return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.projectId(serverApi, projectKey), component, depth, language);
+  }
+
+  private static @Nullable DependencyQuery.Selection dependencySelection(Arguments arguments, String target, @Nullable String component) {
+    var from = arguments.getOptionalString(FROM_PROPERTY);
+    var to = arguments.getOptionalString(TO_PROPERTY);
+    if (!arguments.toMap().containsKey(FROM_PROPERTY) && !arguments.toMap().containsKey(TO_PROPERTY)) {
+      return null;
+    }
+    if (!CURRENT.equals(target) || from == null || to == null || component != null) {
+      throw new IllegalArgumentException("Use both from and to with target current, without component.");
+    }
+    for (var field : List.of(ToolParameters.PAGE_INDEX, ToolParameters.PAGE_SIZE)) {
+      var value = arguments.toMap().get(field);
+      if (value != null && !(value instanceof Number) && !(value instanceof String string && !string.isBlank())) {
+        throw new IllegalArgumentException(field + " must be an integer.");
+      }
+    }
+    return new DependencyQuery.Selection(from, to, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(20));
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
@@ -184,7 +207,7 @@ public class ArchitectureGetTool extends Tool {
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
+  private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language, @Nullable DependencyQuery.Selection selection) {
     try {
       if (!currentReads.tryAcquire(5, TimeUnit.SECONDS)) {
         throw new IllegalStateException("Architecture reads are busy. Try again shortly.");
@@ -195,19 +218,25 @@ public class ArchitectureGetTool extends Tool {
     }
     try {
       serverApi.requireOrganization();
-      return current(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.organizationId(serverApi),
-        ArchitectureProjectContext.mainBranchId(serverApi, projectKey), component, depth == null ? 1 : depth, language);
+      return current(serverApi, projectKey, component, depth == null ? 1 : depth, language, selection);
     } finally {
       currentReads.release();
     }
   }
 
-  private static Result current(ArchitectureApi api, String projectKey, String organizationId, String branchId, @Nullable String component, int depth, @Nullable String language) {
+  private static Result current(ServerApi serverApi, String projectKey, @Nullable String component, int depth, @Nullable String language,
+    @Nullable DependencyQuery.Selection selection) {
+    var api = serverApi.architectureApi();
+    var organizationId = ArchitectureProjectContext.organizationId(serverApi);
+    var branchId = ArchitectureProjectContext.mainBranchId(serverApi, projectKey);
     var languages = language == null ? ArchitectureApi.LANGUAGES : List.of(language);
     var graphs = languages.stream()
       .flatMap(lang -> api.getStructure(projectKey, organizationId, branchId, lang).stream().map(graph -> new GraphSlicer.LanguageGraph(lang, graph)))
       .filter(languageGraph -> languageGraph.graph().nodes() != null && !languageGraph.graph().nodes().isEmpty())
       .toList();
+    if (selection != null) {
+      return Result.success(DependencyQuery.query(projectKey, graphs, selection, depth));
+    }
     if (graphs.isEmpty()) {
       return Result.success(new ArchitectureGetCurrentToolResponse(projectKey, component, 0, depth, false, List.of(), List.of(),
         "No current architecture is visible for project '" + projectKey + "'" + (language == null ? "" : (" in " + language))
