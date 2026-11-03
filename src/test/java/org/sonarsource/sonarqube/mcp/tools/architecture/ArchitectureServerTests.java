@@ -228,7 +228,7 @@ class ArchitectureServerTests {
     var result = harness.newClient(Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", target, "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("older Server versions", "public Architecture APIs", "Browse permission").doesNotContain("..");
+    assertThat(textOf(result)).contains("older Server versions", "public Architecture APIs", "Browse permission").doesNotContain("..", "directive id");
   }
 
   @ParameterizedTest
