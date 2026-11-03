@@ -1470,6 +1470,8 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, project directives, or deviations, flaws and smells with their details. Findings are read from the latest main-branch analysis. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
+  For a focused dependency query, supply both `from` and `to` with exact current keys, without `component`. The query includes descendants and preserves direction. `depth` defaults to 1 (direct children, retaining leaves); use a returned pair or increase depth for detail. Matching leaf-level dependencies are aggregated before pagination, independent of the overview node cap. Each page returns dependency keys/weights, a total and `revision`; compare revisions before combining pages and restart if changed. Specify `language` if the pair matches multiple graphs. Container-level relationship graphs are rejected in this mode. Counts limit rows, not bytes or tokens.
+
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
@@ -1477,13 +1479,14 @@ Then, mount the project workspace to give the Context Augmentation server direct
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current` and `findings` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
+  - `from` / `to` - Current only: source and destination keys including descendants; provide both, without `component` - _String_
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended/findings only - _String_
   - `directiveId` - Directives only: read one UUID instead of a page; cannot be combined with paging - _String_
   - `category` - Findings only: `deviation`, `flaw` or `smell` - _Enum_
   - `type` - Findings only: `structuralDeviation`, `relationshipDeviation`, `tangle`, `oversizedComponent`, `weakTangle` or `splitResponsibility` - _Enum_
-  - `pageIndex` - Directives or findings page, starting at 1; default 1 - _Number_
-  - `pageSize` - Directives or findings per page; default 50, maximum 1000; findings also accept 0 for count only - _Number_
+  - `pageIndex` - Targeted current dependencies, directives or findings page, starting at 1; default 1 - _Number_
+  - `pageSize` - Current `from`/`to`: default/maximum 20. Directives/findings: default 50, maximum 1000; findings also accept 0 for count only - _Number_
 
   Findings filters combine with AND. Each row contains `type`, `category`, `language`, `details` and `files`; no finding ID or detail lookup is available. Empty results mean no findings are visible, rather than proof that a project is healthy. Both Cloud and Server use organization and main-branch context, without the Server project UUID lookup used by intended architecture and directives.
 
