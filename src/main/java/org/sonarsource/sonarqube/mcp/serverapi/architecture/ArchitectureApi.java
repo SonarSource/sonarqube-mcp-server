@@ -436,7 +436,7 @@ public class ArchitectureApi {
   private record CurrentArchitectures(@Nullable List<StructureGraph> currentArchitectures) {
   }
 
-  private static IntendedState exportedResource(IntendedResource response) {
+  private static IntendedState exportedResource(@Nullable IntendedResource response) {
     try {
       if (response == null || response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())
         || response.perspectives() == null || response.perspectives().size() > MAX_PERSPECTIVES) {

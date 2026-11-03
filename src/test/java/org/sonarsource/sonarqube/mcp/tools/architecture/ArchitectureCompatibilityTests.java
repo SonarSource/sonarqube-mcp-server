@@ -73,6 +73,7 @@ class ArchitectureCompatibilityTests {
     var cases = new String[][] {
       {"current", "current-architectures", "{\"currentArchitectures\":\"x\"}"},
       {"intended", "project-intended-architectures", "not JSON"},
+      {"intended", "project-intended-architectures", "{\"intendedArchitectures\":[null]}"},
       {"directives", "project-directives", "{\"projectDirectives\":[],\"page\":{}}"},
       {"directives", "project-directives", "{\"projectDirectives\":[{}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"},
       {"findings", "project-findings", "{\"findings\":[],\"page\":{}}"},

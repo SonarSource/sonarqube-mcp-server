@@ -120,7 +120,14 @@ public class ArchitectureSetTool extends Tool {
     } catch (IntendedArchitectureReplacement.IntendedRecoveryException failure) {
       return Result.failure(failure.callerMessage());
     }
-    return Result.success(new ArchitectureSetToolResponse(projectKey, next.isEmpty() ? "cleared" : storedState.id() == null ? "created" : "replaced", diff, warnings));
+    return Result.success(new ArchitectureSetToolResponse(projectKey, replacementStatus(next.isEmpty(), storedState.id()), diff, warnings));
+  }
+
+  private static String replacementStatus(boolean clear, @Nullable String storedId) {
+    if (clear) {
+      return "cleared";
+    }
+    return storedId == null ? "created" : "replaced";
   }
 
   @Nullable
