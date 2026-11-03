@@ -20,7 +20,10 @@ import com.google.gson.Gson;
 import jakarta.annotation.Nullable;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
@@ -38,34 +41,41 @@ final class IntendedArchitectureReplacement {
   }
 
   /** Replaces all perspectives of the backed-up model; the public API provides no conditional write. */
-  void replace(String projectKey, String projectId, List<IntendedArchitecture> previous, List<IntendedArchitecture> next) {
+  void replace(String projectKey, String projectId, ArchitectureApi.IntendedState previousState, List<IntendedArchitecture> next) {
+    var previous = previousState.models();
     checkWritableModels(previous, next);
-    var actual = api.getIntended(projectKey, projectId);
-    if (!sameResources(previous, actual)) {
+    var actual = api.getIntendedState(projectKey, projectId);
+    if (!sameResources(previousState, actual)) {
       throw new IllegalStateException("The intended architecture changed before replacement. "
         + "Nothing was changed; read it again and repeat the dry run.");
     }
-    final List<IntendedArchitecture> written;
+    final ArchitectureApi.IntendedState written;
     try {
-      written = previous.isEmpty() ? api.createIntended(projectKey, projectId, next) : api.patchIntended(projectKey, previous.getFirst().id(), next);
+      var writable = writableModels(next);
+      if (next.isEmpty()) {
+        api.deleteIntended(projectKey, previousState.id());
+        written = new ArchitectureApi.IntendedState(null, List.of());
+      } else {
+        written = previousState.id() == null ? api.createIntended(projectKey, projectId, writable) : api.patchIntended(projectKey, previousState.id(), writable);
+      }
     } catch (RuntimeException failure) {
       if (isDefiniteRejection(failure)) {
         throw failure;
       }
-      reconcileFailure(projectKey, projectId, previous, next, failure);
+      reconcileFailure(projectKey, projectId, previousState, next, failure);
       return;
     }
     try {
-      validateResourceIds(written);
-      if (!sameModels(next, written) || (!previous.isEmpty() && !previous.getFirst().id().equals(written.getFirst().id()))) {
+      validateResourceIds(written.models());
+      if (!sameModels(next, written.models()) || (!next.isEmpty() && previousState.id() != null && !previousState.id().equals(written.id()))) {
         throw new IllegalStateException("The public API write response did not identify the requested model. "
           + "Read the current state before retrying.");
       }
-      if (!sameResources(written, api.getIntended(projectKey, projectId))) {
+      if (!sameResources(written, api.getIntendedState(projectKey, projectId))) {
         throw new IllegalStateException("The intended architecture after the write differs from its response.");
       }
     } catch (RuntimeException failure) {
-      reconcileFailure(projectKey, projectId, previous, next, failure);
+      reconcileFailure(projectKey, projectId, previousState, next, failure);
     }
   }
 
@@ -75,24 +85,31 @@ final class IntendedArchitectureReplacement {
   }
 
   static void checkWritableModels(List<IntendedArchitecture> previous, List<IntendedArchitecture> next) {
-    if (next.isEmpty() || next.size() > ArchitectureApi.MAX_PERSPECTIVES) {
-      throw new IllegalArgumentException("Give between 1 and " + ArchitectureApi.MAX_PERSPECTIVES
+    if (next.size() > ArchitectureApi.MAX_PERSPECTIVES) {
+      throw new IllegalArgumentException("Give at most " + ArchitectureApi.MAX_PERSPECTIVES
         + " intended architecture perspectives. Nothing was changed.");
     }
     validateResourceIds(previous);
     for (var model : next) {
-      checkImportedGroups(model.groups());
+      var storedGroups = previous.stream().filter(stored -> Objects.equals(stored.language(), model.language()) && Objects.equals(stored.type(), model.type()))
+        .findFirst().map(IntendedArchitecture::groups).orElse(List.of());
+      checkImportedGroups(storedGroups, model.groups());
     }
   }
 
-  private static void checkImportedGroups(List<IntendedArchitecture.Group> groups) {
-    for (var group : groups) {
+  private static void checkImportedGroups(List<IntendedArchitecture.Group> previous, List<IntendedArchitecture.Group> next) {
+    var storedByLabel = previous.stream().collect(Collectors.toMap(IntendedArchitecture.Group::label, Function.identity(), (left, right) -> {
+      throw new IllegalStateException("The public intended architecture response has duplicate group labels. Nothing was changed.");
+    }));
+    for (var group : next) {
+      var stored = storedByLabel.get(group.label());
       if (group.patternId() != null && group.groups() != null && !group.groups().isEmpty()) {
-        throw new IllegalArgumentException("Group '" + group.label() + "' imports a pattern and cannot declare child groups. "
-          + "Remove its child groups and keep patternId. Nothing was changed.");
-      }
-      if (group.groups() != null) {
-        checkImportedGroups(group.groups());
+        if (stored == null || !group.patternId().equalsIgnoreCase(stored.patternId()) || !IntendedRevision.sameGroups(stored.groups(), group.groups())) {
+          throw new IllegalArgumentException("Group '" + group.label() + "' imports a pattern and cannot declare child groups. "
+            + "Keep its exported child groups unchanged, or remove them and keep patternId. Nothing was changed.");
+        }
+      } else if (group.patternId() == null && group.groups() != null) {
+        checkImportedGroups(stored == null || stored.patternId() != null || stored.groups() == null ? List.of() : stored.groups(), group.groups());
       }
     }
   }
@@ -113,37 +130,39 @@ final class IntendedArchitectureReplacement {
     }
   }
 
-  private static boolean sameResources(List<IntendedArchitecture> left, List<IntendedArchitecture> right) {
-    return IntendedRevision.of(left).equals(IntendedRevision.of(right))
-      && left.stream().map(IntendedArchitecture::id).sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList()
-      .equals(right.stream().map(IntendedArchitecture::id).sorted(Comparator.nullsFirst(Comparator.naturalOrder())).toList());
+  private static boolean sameResources(ArchitectureApi.IntendedState left, ArchitectureApi.IntendedState right) {
+    return Objects.equals(left.id(), right.id()) && IntendedRevision.of(left.models()).equals(IntendedRevision.of(right.models()));
   }
 
-  private void reconcileFailure(String projectKey, String projectId, List<IntendedArchitecture> previous, List<IntendedArchitecture> next,
+  private void reconcileFailure(String projectKey, String projectId, ArchitectureApi.IntendedState previous, List<IntendedArchitecture> next,
     RuntimeException failure) {
-    final List<IntendedArchitecture> actual;
+    final ArchitectureApi.IntendedState actual;
     try {
-      actual = api.getIntended(projectKey, projectId);
-      validateResourceIds(actual);
+      actual = api.getIntendedState(projectKey, projectId);
+      validateResourceIds(actual.models());
     } catch (RuntimeException readFailure) {
-      throw manualRecovery(previous, "The write could not be confirmed and its resulting state could not be read. No automatic rollback was attempted", failure);
+      throw manualRecovery(previous.models(), "The write could not be confirmed and its resulting state could not be read. No automatic rollback was attempted", failure);
     }
-    if (sameModels(next, actual) && (previous.isEmpty() || previous.getFirst().id().equals(actual.getFirst().id()))) {
+    if (!next.isEmpty() && sameModels(next, actual.models()) && (previous.id() == null || previous.id().equals(actual.id()))) {
       return;
     }
-    throw manualRecovery(previous, "The write could not be confirmed and the requested model could not be verified. "
+    throw manualRecovery(previous.models(), "The write could not be confirmed and the requested model could not be verified. "
       + "No automatic rollback was attempted; read the current state before retrying", failure);
   }
 
   private IntendedRecoveryException manualRecovery(List<IntendedArchitecture> previous, String message, RuntimeException cause) {
     return new IntendedRecoveryException(message + ". Failure: " + cause.getMessage() + ". " + ArchitectureApi.EXPORT_WARNING,
-      gson.toJson(new PreviousModels(previous.stream().map(model -> new IntendedArchitecture(model.id(), model.type(), model.language(),
-        recoveryGroups(model.groups()), model.constraints(), model.label(), model.description())).toList())));
+      gson.toJson(new PreviousModels(writableModels(previous))));
   }
 
-  private static List<IntendedArchitecture.Group> recoveryGroups(List<IntendedArchitecture.Group> groups) {
+  private static List<IntendedArchitecture> writableModels(List<IntendedArchitecture> models) {
+    return models.stream().map(model -> new IntendedArchitecture(model.id(), model.type(), model.language(),
+      writableGroups(model.groups()), model.constraints(), model.label(), model.description())).toList();
+  }
+
+  private static List<IntendedArchitecture.Group> writableGroups(List<IntendedArchitecture.Group> groups) {
     return groups.stream().map(group -> new IntendedArchitecture.Group(group.label(), group.patterns(),
-      group.patternId() != null || group.groups() == null ? null : recoveryGroups(group.groups()),
+      group.patternId() != null || group.groups() == null ? null : writableGroups(group.groups()),
       group.isInterface(), group.interfaceAccess(), group.description(), group.patternId())).toList();
   }
 

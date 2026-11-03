@@ -1483,8 +1483,10 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
   - `language` - `java`, `cs`, `js`, `ts` or `py`; all when omitted - _String_
 
 - **architecture_set** - Replace the whole intended model on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
+  Intended reads and writes use the public `project-intended-architectures` API. An empty complete model clears it with DELETE; preview it first. No internal endpoint fallback is used.
 
-  **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: the public export does not expand their groups or constraints, and imported contents cannot be edited here. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
+
+  **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: keep any exported child groups unchanged or omit them; derived children are excluded from writes, and imported contents cannot be edited here. Partial views are rejected. An empty complete model deletes the stored intended resource after preview. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
 
   Parameters:
   - `target` - `intended` - _Required Enum_
