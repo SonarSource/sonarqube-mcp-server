@@ -206,7 +206,7 @@ public class ArchitectureApi {
       if (helper.isSonarQubeCloud()) {
         throw e;
       }
-      throw new NotFoundException(reason(e) + ". Check the project or directive id and Browse permission. "
+      throw new NotFoundException(reason(e) + ". Check the project and Browse permission. "
         + "On older Server versions, use a Server build that exposes the public Architecture APIs");
     }
   }
