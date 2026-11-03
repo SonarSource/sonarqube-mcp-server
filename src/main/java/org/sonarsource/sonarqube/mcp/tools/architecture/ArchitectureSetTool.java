@@ -77,7 +77,7 @@ public class ArchitectureSetTool extends Tool {
       }
       var directives = ProjectDirectives.parse(model, projectKey);
       var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-      var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
+      var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
       return Result.success(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun));
     }
 
@@ -88,7 +88,7 @@ public class ArchitectureSetTool extends Tool {
       throw new IllegalArgumentException(invalidReason);
     }
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Intended architecture");
+    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
     var api = serverApi.architectureApi();
     var stored = api.getIntended(projectKey, projectId);
     if (revision != null && !revision.equals(IntendedRevision.of(stored))) {
