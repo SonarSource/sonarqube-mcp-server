@@ -1470,7 +1470,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 **Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended reads and writes are Cloud-only until public project UUID resolution is available.**
 
-- **architecture_get** - Read current dependencies or intended groups and constraints. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
+- **architecture_get** - Read current dependencies or intended groups and constraints. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export. `omittedNodes` counts nodes excluded by limits within the requested component/depth, not deeper descendants. Every returned node includes `descendants` and `truncated` navigation metadata; the five `drillDown` entries are suggestions. Selecting a leaf returns an explanatory message.
 
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 

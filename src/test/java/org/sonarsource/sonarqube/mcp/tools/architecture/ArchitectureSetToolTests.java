@@ -44,6 +44,19 @@ class ArchitectureSetToolTests {
     [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[{"label":"A -> B"},{"label":"C"},{"label":"A"},{"label":"B -> C"}],
     "constraints":[{"from":"A -> B","to":"C"}]}]""";
 
+  @SonarQubeMcpServerTest
+  void it_should_reject_a_cli_language_scoped_export_before_backend_reads(SonarQubeMcpServerTestHarness harness) {
+    var cliExport = """
+      {"project":"my_project","revision":"exported-revision","language":"java","models":%s}
+      """.formatted(NEXT);
+
+    var result = set(harness, cliExport, false, null);
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("partial architecture view");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+  }
+
   @Test
   void it_should_compare_constraint_endpoint_pairs_instead_of_display_strings() {
     var before = IntendedModels.parse(COLLIDING_CONSTRAINT_MODEL);
