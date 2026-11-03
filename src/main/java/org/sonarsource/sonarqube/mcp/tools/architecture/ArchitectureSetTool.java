@@ -44,7 +44,7 @@ public class ArchitectureSetTool extends Tool {
       .setDescription("Replace the complete intended model; omitted content and metadata are removed.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addRequiredEnumProperty("target", new String[] {"intended"}, "intended: replace the model.")
-      .addRequiredStringProperty(MODEL_PROPERTY, "Whole JSON response or models array from unfiltered architecture_get target intended; partial views are rejected.")
+      .addRequiredStringProperty(MODEL_PROPERTY, "Full response or models array from unfiltered architecture_get target intended; partial views are rejected. An empty complete model deletes it.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get target intended; defaults to the model response revision. A mismatch prevents writing.")
       .build(),
@@ -73,7 +73,8 @@ public class ArchitectureSetTool extends Tool {
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     var projectId = ArchitectureProjectContext.intendedProjectId(serverApi, projectKey);
     var api = serverApi.architectureApi();
-    var stored = api.getIntended(projectKey, projectId);
+    var storedState = api.getIntendedState(projectKey, projectId);
+    var stored = storedState.models();
     if (revision != null && !revision.equals(IntendedRevision.of(stored))) {
       throw new IllegalStateException("The intended architecture of '" + projectKey + "' changed since revision " + revision + " was read, so nothing was changed. "
         + "Call " + ArchitectureGetTool.TOOL_NAME + " with target intended again, reapply the edits to that model and run a dry run again.");
@@ -83,6 +84,9 @@ public class ArchitectureSetTool extends Tool {
     var diff = IntendedModels.diff(current, next);
     var warnings = new java.util.ArrayList<String>();
     warnings.add(ArchitectureApi.EXPORT_WARNING);
+    if (storedState.id() != null && next.isEmpty()) {
+      warnings.add("The stored intended architecture resource will be deleted when this change is applied.");
+    }
     warnings.add("The public API has no conditional write; concurrent edits can race the revision check.");
     if (revision == null) {
       warnings.add("No revision was supplied; changes since the original export cannot be detected. "
@@ -91,15 +95,22 @@ public class ArchitectureSetTool extends Tool {
     if (dryRun) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));
     }
-    if (diff.isEmpty()) {
+    if (diff.isEmpty() && !(storedState.id() != null && next.isEmpty())) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "unchanged", diff, warnings));
     }
     try {
-      new IntendedArchitectureReplacement(api).replace(projectKey, projectId, stored, next);
+      new IntendedArchitectureReplacement(api).replace(projectKey, projectId, storedState, next);
     } catch (IntendedArchitectureReplacement.IntendedRecoveryException failure) {
       return Result.failure(failure.callerMessage());
     }
-    return Result.success(new ArchitectureSetToolResponse(projectKey, current.isEmpty() ? "created" : "replaced", diff, warnings));
+    return Result.success(new ArchitectureSetToolResponse(projectKey, replacementStatus(next.isEmpty(), storedState.id()), diff, warnings));
+  }
+
+  private static String replacementStatus(boolean clear, @Nullable String storedId) {
+    if (clear) {
+      return "cleared";
+    }
+    return storedId == null ? "created" : "replaced";
   }
 
   @Nullable
