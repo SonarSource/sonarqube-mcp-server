@@ -20,11 +20,15 @@ import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.transport.OAuthScopeContext;
 
 /** The selected downstream credential and optional request-local OAuth authorization. */
-public record HttpRequestAuthentication(String token, @Nullable OAuthScopeContext scopes) {
+public record HttpRequestAuthentication(String token, @Nullable OAuthScopeContext scopes, @Nullable String oauthClientKey) {
   public HttpRequestAuthentication {
     if (token == null || token.isBlank()) {
       throw new IllegalArgumentException("A downstream credential is required");
     }
+  }
+
+  public HttpRequestAuthentication(String token, @Nullable OAuthScopeContext scopes) {
+    this(token, scopes, null);
   }
 
   @Override
