@@ -54,8 +54,8 @@ class ArchitecturePatchRecoveryTest {
 
   private static final String BASE_URL = "https://sonarcloud.io";
   private static final String BRANCH_URL = BASE_URL + "/api/project_branches/list?project=my_project";
-  private static final String MODELS_URL = "https://api.sonarcloud.io/architecture/intended-architectures?projectId=main-branch";
-  private static final String PATCH_URL = "https://api.sonarcloud.io/architecture/intended-architectures/11111111-1111-4111-8111-111111111111";
+  private static final String MODELS_URL = "https://api.sonarcloud.io/architecture/project-intended-architectures?projectId=main-branch";
+  private static final String PATCH_URL = "https://api.sonarcloud.io/architecture/project-intended-architectures/11111111-1111-4111-8111-111111111111";
   private static final String SENTINEL = "private-patch-recovery-pattern-sentinel";
   private static final String PREVIOUS = """
     {"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java",
@@ -70,7 +70,7 @@ class ArchitecturePatchRecoveryTest {
     var stored = new AtomicReference<>(PREVIOUS);
     var requestBody = new AtomicReference<String>();
     when(client.getAsync(BRANCH_URL)).thenAnswer(invocation -> response("{\"branches\":[{\"isMain\":true,\"branchId\":\"main-branch\"}]}"));
-    when(client.getAsync(MODELS_URL)).thenAnswer(invocation -> response("{\"id\":\"11111111-1111-4111-8111-111111111111\",\"intendedArchitectures\":[" + stored.get().replace("\"type\"", "\"qualifiers\"") + "]}"));
+    when(client.getAsync(MODELS_URL)).thenAnswer(invocation -> response("{\"intendedArchitectures\":[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"perspectives\":[" + stored.get().replace("\"type\"", "\"qualifiers\"") + "]}]}"));
     when(client.patchAsync(eq(PATCH_URL), eq(HttpClient.MERGE_PATCH_CONTENT_TYPE), anyString())).thenAnswer(invocation -> {
       requestBody.set(invocation.getArgument(2));
       if (committed) {
@@ -125,9 +125,9 @@ class ArchitecturePatchRecoveryTest {
     expected.remove("id");
     expected.add("qualifiers", expected.remove("type"));
     var request = JsonParser.parseString(body).getAsJsonObject();
-    assertThat(request.keySet()).containsExactly("intendedArchitectures");
-    assertThat(request.getAsJsonArray("intendedArchitectures")).hasSize(1);
-    assertThat(request.getAsJsonArray("intendedArchitectures").get(0)).isEqualTo(expected);
+    assertThat(request.keySet()).containsExactly("perspectives");
+    assertThat(request.getAsJsonArray("perspectives")).hasSize(1);
+    assertThat(request.getAsJsonArray("perspectives").get(0)).isEqualTo(expected);
   }
 
   private static CompletableFuture<HttpClient.Response> failedWrite(boolean cancelled) {
