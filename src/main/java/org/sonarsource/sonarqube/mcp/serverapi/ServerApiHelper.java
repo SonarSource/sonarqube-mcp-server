@@ -174,6 +174,14 @@ public class ServerApiHelper {
     return response;
   }
 
+  public HttpClient.Response delete(String path) {
+    var response = awaitResponse(client.deleteAsync(buildEndpointUrl(path)));
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
   public HttpClient.Response deleteApiSubdomain(String path) {
     var response = awaitResponse(client.deleteAsync(buildApiSubdomainUrl(path)));
     if (!response.isSuccessful()) {
