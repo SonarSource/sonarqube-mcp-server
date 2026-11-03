@@ -1468,7 +1468,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended reads and writes are Cloud-only until public project UUID resolution is available.**
+**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended reads and writes are Cloud-only until public project UUID resolution is available.**
 
 - **architecture_get** - Read current dependencies or intended groups and constraints. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
