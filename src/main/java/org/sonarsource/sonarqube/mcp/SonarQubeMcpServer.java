@@ -232,11 +232,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.mcpConfiguration = new McpServerLaunchConfiguration(environment);
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
 
+    initializeAnalytics();
+
     if (mcpConfiguration.isHttpEnabled()) {
       var oauthConfiguration = mcpConfiguration.getOAuthConfiguration();
       this.httpServerManager = new HttpServerTransportProvider(HttpTransportSettings.from(mcpConfiguration), oauthConfiguration == null ? null : new OAuthSupport(
         new OAuthProtectedResourceMetadata(oauthConfiguration.resource(), oauthConfiguration.issuer().toString(), mcpConfiguration.getOAuthMetadataUrl()),
-        new Auth0OAuthAuthenticationService(oauthConfiguration, httpClientProvider.getAnonymousHttpClient())::authenticate));
+        Auth0OAuthAuthenticationService.create(oauthConfiguration, httpClientProvider.getAnonymousHttpClient(), result -> {
+          if (analyticsService != null) {
+            analyticsService.notifyOAuthAuthenticationFinished(result);
+          }
+        })::authenticate));
       this.transportProvider = null;
     } else {
       this.httpServerManager = null;
@@ -250,7 +256,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (httpServerManager != null) {
       httpServerManager.startServer().join();
       var enabledTools = filterForEnabledTools(supportedTools);
-      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools))
+      statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools, analyticsService,
+        context -> createServerApiWithTokenAndOrg((String) context.get(HttpServerTransportProvider.CONTEXT_TOKEN_KEY), null)))
         .serverInfo(McpSchema.Implementation.builder(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()).build())
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
@@ -277,6 +284,15 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     thread.start();
   }
 
+  private void initializeAnalytics() {
+    if (mcpConfiguration.isTelemetryEnabled()) {
+      var analyticsHttpClient = httpClientProvider.getHttpClientForAnalytics(AnalyticsClient.resolveApiKey());
+      var analyticsClient = new AnalyticsClient(analyticsHttpClient);
+      this.analyticsService = new AnalyticsService(analyticsClient, mcpConfiguration.getMcpServerId(),
+        mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarQubeCloud());
+    }
+  }
+
   /**
    * Initializes all services and loads all tools synchronously.
    * The backend is initialized immediately (without analyzers) so that tools can be registered.
@@ -284,13 +300,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   private void initializeBasicServicesAndTools() {
     this.backendService = new BackendService(mcpConfiguration);
-
-    if (mcpConfiguration.isTelemetryEnabled()) {
-      var analyticsHttpClient = httpClientProvider.getHttpClientForAnalytics(AnalyticsClient.resolveApiKey());
-      var analyticsClient = new AnalyticsClient(analyticsHttpClient);
-      this.analyticsService = new AnalyticsService(analyticsClient, mcpConfiguration.getMcpServerId(),
-        mcpConfiguration.getAppVersion(), mcpConfiguration.isHttpEnabled(), mcpConfiguration.isHttpsEnabled(), mcpConfiguration.isSonarQubeCloud());
-    }
 
     // Capture the invocation API for analytics; stdio reuses session identity, HTTP resolves identity per call.
     this.toolExecutor = new ToolExecutor(backendService, analyticsService,
@@ -343,7 +352,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
 
     // Agentic readiness tools
-    loadSaraTools();
+    loadSaraTools(organizations);
 
     loadAnalysisTools(vortexAnalysisEnabled);
 
@@ -530,8 +539,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     proxiedInstructions.forEach(s -> LOG.debug("Proxied instructions: {}", s));
   }
 
-  private void loadSaraTools() {
-    if (isEnabledAgenticReadiness()) {
+  private void loadSaraTools(List<ResolvedOrganization> organizations) {
+    if (isEnabledAgenticReadiness(organizations)) {
       var configuredProjectKey = mcpConfiguration.getProjectKey();
       supportedTools.add(new StartAgenticReadinessAssessmentTool(this, configuredProjectKey));
       supportedTools.add(new GetAgenticReadinessAssessmentTool(this));
@@ -541,7 +550,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  private boolean isEnabledAgenticReadiness() {
+  private boolean isEnabledAgenticReadiness(List<ResolvedOrganization> organizations) {
     if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)) {
       LOG.debug("Agentic readiness toolset is not enabled, skipping tools initialization");
       return false;
@@ -550,8 +559,21 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.debug("Agentic readiness is only available on SonarQube Cloud, skipping tools initialization");
       return false;
     }
-    // These APIs are project/assessment-scoped; the backend enforces entitlement per call.
-    return true;
+    // HTTP requires explicit toolset opt-in; the backend enforces entitlement per call.
+    if (mcpConfiguration.isHttpEnabled()) {
+      return mcpConfiguration.isToolCategoryExplicitlyEnabled(ToolCategory.AGENTIC_READINESS);
+    }
+    var relevantOrganizations = resolvedOrganization != null ? List.of(resolvedOrganization) : organizations;
+    for (var organization : relevantOrganizations) {
+      try {
+        if (serverApi.orgFeatureEntitlements().isSaraEnabledForOrg(organization)) {
+          return true;
+        }
+      } catch (Exception e) {
+        LOG.warn("Could not check agentic readiness feature flag for organization '" + organization.key() + "': " + e.getMessage());
+      }
+    }
+    return false;
   }
 
   private void setBaseInstructions() {
@@ -875,6 +897,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.httpClientProvider = new HttpClientProvider(mcpConfiguration.getUserAgent());
     this.transportProvider = transportProvider;
     this.httpServerManager = httpServerManager;
+    initializeAnalytics();
     initializeBasicServicesAndTools();
   }
 
