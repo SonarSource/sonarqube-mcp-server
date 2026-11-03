@@ -37,6 +37,7 @@ import reactor.core.publisher.Mono;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.patch;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -91,16 +92,40 @@ class ArchitectureOAuthScopeTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_require_read_scopes_for_directives_before_backend_calls(SonarQubeMcpServerTestHarness harness) {
+  void it_should_require_read_write_scopes_for_directive_preview_and_create_before_backend_calls(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     var backend = harness.getMockSonarQubeServer();
-    backend.stubFor(get(ArchitectureApi.PROJECT_DIRECTIVES_PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=100")
+    var path = ArchitectureApi.PROJECT_DIRECTIVES_PATH;
+    var input = """
+      {"type":"REMOVE_EDGE","ecosystem":"java","graphType":"namespace_graph","fromNodeKey":"app:a","toNodeKey":"app:b"}
+      """.trim();
+    var id = "00000000-0000-4000-8000-000000000001";
+    var saved = input.substring(0, input.length() - 1) + ",\"id\":\"" + id + "\",\"projectId\":\""
+      + MAIN_BRANCH_ID + "\",\"graphPerspective\":\"default_perspective\",\"origin\":\"sonarqube-mcp-server\"}";
+    backend.stubFor(get(path + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=100")
       .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}")));
+    backend.stubFor(post(path).willReturn(okJson(saved)));
     var clients = new HttpClientProvider("architecture-directive-scope-test");
     var baseUrl = backend.baseUrl();
     var api = new ServerApi(new ServerApiHelper(new EndpointParams(baseUrl, "org", baseUrl, true), clients.getHttpClient("token")), true);
     var handler = handler(api);
     try {
+      for (var dryRun : List.of(true, false)) {
+        var arguments = Map.<String, Object>of("target", "directives", "projectKey", "my_project", "model", "{\"create\":[" + input + "]}", "dryRun", dryRun);
+        for (var scopes : List.of(Set.of("read:all"), Set.of("write:all"))) {
+          var before = backend.getReceivedRequests().size();
+          var denied = handler.handleRequest(context(scopes), call("architecture_set", arguments)).block();
+          assertThat(denied.error()).isNotNull();
+          assertThat(denied.error().message()).contains("Insufficient OAuth scope");
+          assertThat(backend.getReceivedRequests()).hasSize(before);
+        }
+        var allowed = handler.handleRequest(context(Set.of("read:all", "write:all")), call("architecture_set", arguments)).block();
+        assertThat(allowed.error()).isNull();
+        var result = (McpSchema.CallToolResult) allowed.result();
+        assertThat(result.isError()).as(result.content().toString()).isFalse();
+        assertThat(result.content().toString()).contains(dryRun ? "dry-run" : "applied");
+        assertThat(backend.getReceivedBodies("POST", path)).hasSize(dryRun ? 0 : 1);
+      }
       var arguments = Map.<String, Object>of("target", "directives", "projectKey", "my_project", "pageSize", 100);
       var before = backend.getReceivedRequests().size();
       assertThat(handler.handleRequest(context(Set.of("write:all")), call("architecture_get", arguments)).block().error()).isNotNull();
