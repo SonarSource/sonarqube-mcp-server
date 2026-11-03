@@ -59,8 +59,8 @@ class ServerApiHelperTest {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void it_should_cancel_delete_when_the_caller_is_interrupted(boolean cloud) throws InterruptedException {
+  @ValueSource(booleans = {false, true})
+  void it_should_cancel_delete_when_the_caller_is_interrupted(boolean apiSubdomain) throws InterruptedException {
     var request = new CompletableFuture<HttpClient.Response>();
     var client = mock(HttpClient.class);
     when(client.deleteAsync("http://localhost/directive")).thenReturn(request);
@@ -69,7 +69,7 @@ class ServerApiHelperTest {
     var caller = new Thread(() -> {
       try {
         Thread.currentThread().interrupt();
-        if (cloud) {
+        if (apiSubdomain) {
           helper.deleteApiSubdomain("/directive");
         } else {
           helper.delete("/directive");
