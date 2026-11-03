@@ -42,11 +42,11 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 class ArchitectureServerTests {
   private static final String LOOKUP = "/api/v2/components/projects?keys=my_project&pageSize=1";
   private static final String DIRECTIVES = "/api/v2/architecture/project-directives";
-  private static final String INTENDED = "/api/v2/architecture/intended-architectures";
+  private static final String INTENDED = "/api/v2/architecture/project-intended-architectures";
   private static final String ID = "00000000-0000-4000-8000-000000000001";
   private static final String INPUT = "{\"type\":\"REMOVE_EDGE\",\"ecosystem\":\"java\",\"graphType\":\"namespace_graph\",\"fromNodeKey\":\"app:a\",\"toNodeKey\":\"app:b\"}";
   private static final String MODEL = "[{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{\"label\":\"app\",\"patterns\":[\"app:**\"]}],\"constraints\":[]}]";
-  private static final String SAVED_MODEL = "{\"id\":\"" + ID + "\",\"intendedArchitectures\":" + MODEL.replace("\"type\"", "\"qualifiers\"") + "}";
+  private static final String SAVED_MODEL = "{\"id\":\"" + ID + "\",\"perspectives\":" + MODEL.replace("\"type\"", "\"qualifiers\"") + "}";
   @RegisterExtension
   final SonarQubeMcpServerTestHarness harness = new SonarQubeMcpServerTestHarness();
 
@@ -85,7 +85,7 @@ class ArchitectureServerTests {
   }
 
   @Test
-  void it_should_use_the_public_project_id_for_intended_preview_create_update_and_refuse_empty_replacement() {
+  void it_should_use_the_public_project_id_for_intended_preview_create_update_and_clear() {
     lookup();
     var backend = harness.getMockSonarQubeServer();
     backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("Started").willReturn(okJson("{\"id\":null,\"intendedArchitectures\":[]}")));
@@ -94,18 +94,22 @@ class ArchitectureServerTests {
     assertThat(client.callTool(ArchitectureSetTool.TOOL_NAME, args).isError()).isFalse();
     assertThat(backend.getReceivedBodies("POST", INTENDED)).isEmpty();
     backend.stubFor(post(INTENDED).inScenario("model").willSetStateTo("created").willReturn(aResponse().withStatus(201).withBody(SAVED_MODEL)));
-    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("created").willReturn(okJson(SAVED_MODEL)));
+    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("created").willReturn(okJson("{\"intendedArchitectures\":[" + SAVED_MODEL + "]}")));
     args.put("dryRun", false);
     assertThat(client.callTool(ArchitectureSetTool.TOOL_NAME, args).isError()).isFalse();
     assertThat(backend.getReceivedBodies("POST", INTENDED)).singleElement().asString().contains("opaque-project-id");
     backend.stubFor(patch(INTENDED + "/" + ID).inScenario("model").willSetStateTo("updated").willReturn(okJson(SAVED_MODEL.replace("app:**", "app:new:**"))));
-    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("updated").willReturn(okJson(SAVED_MODEL.replace("app:**", "app:new:**"))));
+    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("updated").willReturn(okJson("{\"intendedArchitectures\":[" + SAVED_MODEL.replace("app:**", "app:new:**") + "]}")));
     args.put("model", "{\"models\":" + MODEL.replace("app:**", "app:new:**") + "}");
     assertThat(client.callTool(ArchitectureSetTool.TOOL_NAME, args).isError()).isFalse();
+    backend.stubFor(com.github.tomakehurst.wiremock.client.WireMock.delete(INTENDED + "/" + ID).inScenario("model")
+      .willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
+    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("deleted")
+      .willReturn(okJson("{\"intendedArchitectures\":[]}")));
     args.put("model", "{\"models\":[]}");
     var clear = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
-    assertThat(clear.isError()).isTrue();
-    assertThat(backend.getReceivedBodies("DELETE", INTENDED + "/" + ID)).isEmpty();
+    assertThat(clear.isError()).isFalse();
+    assertThat(backend.getReceivedBodies("DELETE", INTENDED + "/" + ID)).hasSize(1);
     assertThat(backend.hasReceivedRequestContaining("project_branches")).isFalse();
   }
 

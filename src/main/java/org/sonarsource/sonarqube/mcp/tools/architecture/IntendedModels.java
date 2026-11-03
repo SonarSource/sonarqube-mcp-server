@@ -232,9 +232,6 @@ final class IntendedModels {
 
   private static List<String> problems(List<IntendedArchitecture> models) {
     var problems = new ArrayList<String>();
-    if (models.isEmpty()) {
-      problems.add("The model has no language. Give at least one.");
-    }
     var perspectives = new HashSet<List<String>>();
     var groupCount = new int[] {0};
     for (var model : models) {
