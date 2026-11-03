@@ -53,7 +53,7 @@ class ArchitectureGetIntendedToolTests {
       "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[],\"constraints\":[{\"from\":\"A\"}]}"
     }) {
       harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED)
-        .willReturn(okJson("{\"id\":\"11111111-1111-4111-8111-111111111111\",\"intendedArchitectures\":[" + model.replace("\"type\"", "\"qualifiers\"") + "]}")));
+        .willReturn(okJson("{\"intendedArchitectures\":[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"perspectives\":[" + model.replace("\"type\"", "\"qualifiers\"") + "]}]}")));
 
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
 

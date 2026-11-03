@@ -44,6 +44,7 @@ import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.INTENDED_JAVA_MODEL;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.MAIN_BRANCH_ID;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.intendedArchitectures;
+import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.intendedResource;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.stubMainBranch;
 
 class ArchitectureOAuthScopeTest {
@@ -57,7 +58,7 @@ class ArchitectureOAuthScopeTest {
     backend.stubFor(get(path).willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
     backend.stubFor(patch(ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "/11111111-1111-4111-8111-111111111111")
       .inScenario("scope-save").whenScenarioStateIs("Started").willSetStateTo("saved")
-      .willReturn(okJson(intendedArchitectures(next))));
+      .willReturn(okJson(intendedResource(next))));
     backend.stubFor(get(path).inScenario("scope-save").whenScenarioStateIs("saved").willReturn(okJson(intendedArchitectures(next))));
     var clients = new HttpClientProvider("architecture-scope-test");
     var baseUrl = backend.baseUrl();
