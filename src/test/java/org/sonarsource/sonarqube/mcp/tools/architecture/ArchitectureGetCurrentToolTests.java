@@ -113,7 +113,7 @@ class ArchitectureGetCurrentToolTests {
       arguments.put(field, " padded ");
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME, arguments);
       assertThat(result.isError()).isTrue();
-      assertThat(textOf(result)).contains(field, "whitespace");
+      assertThat(textOf(result)).contains(field + " must be an exact component key without surrounding whitespace");
     }
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/architecture/")).isZero();
   }
