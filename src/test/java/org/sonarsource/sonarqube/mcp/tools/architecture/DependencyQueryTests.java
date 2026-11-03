@@ -89,6 +89,27 @@ class DependencyQueryTests {
   }
 
   @Test
+  void it_should_omit_nested_aggregate_rows_but_keep_deeper_dependencies() {
+    var nested = List.of(graph("java", node(1, "compat", List.of(node(2, "a", List.of(
+      node(3, "A", List.of(), new StructureGraph.Edge(4, 9)), node(4, "B", List.of())))))));
+    var forward = new DependencyQuery.Selection("compat", "compat:a", 1, 20);
+    var reverse = new DependencyQuery.Selection("compat:a", "compat", 1, 20);
+    assertThat(DependencyQuery.query("p", nested, forward, 1).dependencies()).isEmpty();
+    assertThat(DependencyQuery.query("p", nested, reverse, 1).dependencies()).isEmpty();
+    assertThat(DependencyQuery.query("p", nested, forward, 2).dependencies())
+      .containsExactly(new DependencyQuery.Dependency("compat:a:A", "compat:a:B", 9));
+    assertThat(DependencyQuery.query("p", nested, reverse, 2).dependencies())
+      .containsExactly(new DependencyQuery.Dependency("compat:a:A", "compat:a:B", 9));
+  }
+
+  @Test
+  void it_should_not_index_an_unrelated_malformed_language() {
+    var unrelated = graph("py", node(99, "other", List.of()), node(99, "unrelated", List.of()));
+    assertThat(DependencyQuery.query("p", List.of(unrelated, fixture()), selection(1, 20), 1).dependencies())
+      .containsExactly(new DependencyQuery.Dependency("compat:a", "impl:C", 7));
+  }
+
+  @Test
   void it_should_not_combine_graphs_or_accept_ambiguous_endpoints() {
     var query = selection(1, 20);
     var graphs = List.of(fixture(), new GraphSlicer.LanguageGraph("ts", fixture().graph()));

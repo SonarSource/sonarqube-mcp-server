@@ -30,7 +30,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGr
 
 final class DependencyQuery {
   static final int MAX_PAGE_SIZE = 20;
-  private static final long MAX_SAFE_WEIGHT = 9007199254740991L;
+  private static final long MAX_SAFE_WEIGHT = 9_007_199_254_740_991L;
 
   private DependencyQuery() {
   }
@@ -63,7 +63,9 @@ final class DependencyQuery {
   }
 
   static Response query(String projectKey, List<GraphSlicer.LanguageGraph> graphs, Selection selection, int depth) {
-    var matches = graphs.stream().map(Index::new)
+    var matches = graphs.stream()
+      .filter(graph -> mayContainEndpoint(graph.graph(), selection.from()) && mayContainEndpoint(graph.graph(), selection.to()))
+      .map(Index::new)
       .filter(index -> index.idByKey.containsKey(selection.from()) && index.idByKey.containsKey(selection.to())).toList();
     if (matches.size() != 1) {
       throw new IllegalArgumentException(matches.size() > 1 ? "Dependency endpoints match more than one graph. Specify language."
@@ -79,6 +81,31 @@ final class DependencyQuery {
     var page = start >= all.size() ? List.<Dependency>of() : all.subList((int) start, (int) end);
     return new Response(projectKey, index.language, selection.from(), selection.to(), depth, revision, page,
       new Page(selection.pageIndex(), selection.pageSize(), all.size(), end < all.size()));
+  }
+
+  private static boolean mayContainEndpoint(StructureGraph graph, String key) {
+    return graph.nodes() != null && graph.nodes().stream().anyMatch(root -> rootMayContainEndpoint(root, key));
+  }
+
+  private static boolean rootMayContainEndpoint(StructureGraph.Node root, String key) {
+    if (key.equals(root.name())) {
+      return true;
+    }
+    if (root.nodes() == null || root.nodes().isEmpty()) {
+      return false;
+    }
+    if ("file".equals(root.kind()) && (root.separator() == null || root.separator().isEmpty())) {
+      return key.startsWith(root.name());
+    }
+    var separator = root.separator();
+    if (separator == null || separator.isEmpty()) {
+      separator = switch (root.kind()) {
+        case "module" -> ":";
+        case "directory", "folder" -> "/";
+        default -> ".";
+      };
+    }
+    return key.startsWith(root.name() + separator);
   }
 
   private static String revision(String language, Selection selection, int depth, List<Dependency> dependencies) {
@@ -99,6 +126,7 @@ final class DependencyQuery {
     private final String language;
     private final Map<Integer, StructureGraph.Node> nodes = new HashMap<>();
     private final Map<Integer, String> keys = new HashMap<>();
+    private final Map<Integer, Integer> parents = new HashMap<>();
     private final Map<String, Integer> idByKey = new HashMap<>();
 
     private Index(GraphSlicer.LanguageGraph graph) {
@@ -128,6 +156,7 @@ final class DependencyQuery {
         };
       }
       for (var child : children) {
+        parents.put(child.id(), node.id());
         add(child, key + separator + child.name());
       }
     }
@@ -178,7 +207,7 @@ final class DependencyQuery {
       if (!children(node).isEmpty() || !children(nodes.get(edge.toId())).isEmpty()) {
         throw new IllegalArgumentException("Targeted dependencies require leaf-level edges; this graph has container-level relationships in the selected scope.");
       }
-      if (from.equals(to)) {
+      if (isAncestor(idByKey.get(from), idByKey.get(to)) || isAncestor(idByKey.get(to), idByKey.get(from))) {
         return;
       }
       var pair = new Pair(from, to);
@@ -187,6 +216,17 @@ final class DependencyQuery {
         throw new IllegalArgumentException("Aggregated dependency weight exceeds the supported integer range.");
       }
       weights.put(pair, weight);
+    }
+
+    private boolean isAncestor(int ancestor, int node) {
+      var current = Integer.valueOf(node);
+      while (current != null) {
+        if (current == ancestor) {
+          return true;
+        }
+        current = parents.get(current);
+      }
+      return false;
     }
 
     private static List<StructureGraph.Node> children(StructureGraph.Node node) {
