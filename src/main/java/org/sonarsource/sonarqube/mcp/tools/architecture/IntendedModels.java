@@ -47,6 +47,7 @@ final class IntendedModels {
   private static final String PATTERNS_PROPERTY = "patterns";
   private static final String PATTERN_ID_PROPERTY = "patternId";
   private static final String DUPLICATE_SUFFIX = " appears more than once.";
+  private static final String LANGUAGE_SEPARATOR = "' of ";
   private static final String GROUP_DESCRIPTION = " group ";
   private static final int MAX_REPORTED_PROBLEMS = 10;
   private static final int MAX_DEPTH = 64;
@@ -244,7 +245,7 @@ final class IntendedModels {
         continue;
       }
       if (model.type() == null || !TYPES.contains(model.type())) {
-        problems.add("Type '" + model.type() + "' of " + language + " is not file or namespace.");
+        problems.add("Type '" + model.type() + LANGUAGE_SEPARATOR + language + " is not file or namespace.");
       }
       if (!perspectives.add(Arrays.asList(language, model.type()))) {
         problems.add("Perspective " + language + "/" + model.type() + DUPLICATE_SUFFIX);
@@ -277,7 +278,7 @@ final class IntendedModels {
       var key = new ArrayList<>(parentPath);
       key.add(group.label());
       if (!keys.add(key)) {
-        problems.add("Group '" + key + "' of " + language + DUPLICATE_SUFFIX);
+        problems.add("Group '" + key + LANGUAGE_SEPARATOR + language + DUPLICATE_SUFFIX);
       }
       checkGroups(language, nullToEmpty(group.groups()), key, depth + 1, keys, groupCount, problems);
     }
@@ -294,18 +295,23 @@ final class IntendedModels {
       } else if (constraint.from() == null || constraint.to() == null) {
         problems.add("Constraint endpoints of " + language + " must be strings.");
       } else {
-        for (var endpoint : List.of(constraint.from(), constraint.to())) {
-          if (!knownConstraintEnd(endpoint, endpointCounts, importedKeys)) {
-            problems.add("Constraint endpoint '" + endpoint + "' of " + language + " does not name a unique group.");
-          }
-        }
-        if (constraint.from().equals(constraint.to()) && !constraint.from().contains("*") && !constraint.from().contains("?")) {
-          problems.add("Constraint " + describe(constraint) + " of " + language + " refers to itself.");
-        }
+        checkConstraintEndpoints(language, constraint, endpointCounts, importedKeys, problems);
         if (!seen.add(constraint)) {
           problems.add("Constraint " + describe(constraint) + " of " + language + DUPLICATE_SUFFIX);
         }
       }
+    }
+  }
+
+  private static void checkConstraintEndpoints(String language, IntendedArchitecture.Constraint constraint, Map<String, Integer> endpointCounts,
+    List<String> importedKeys, List<String> problems) {
+    for (var endpoint : List.of(constraint.from(), constraint.to())) {
+      if (!knownConstraintEnd(endpoint, endpointCounts, importedKeys)) {
+        problems.add("Constraint endpoint '" + endpoint + LANGUAGE_SEPARATOR + language + " does not name a unique group.");
+      }
+    }
+    if (constraint.from().equals(constraint.to()) && !constraint.from().contains("*") && !constraint.from().contains("?")) {
+      problems.add("Constraint " + describe(constraint) + " of " + language + " refers to itself.");
     }
   }
 

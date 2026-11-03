@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,7 +32,8 @@ final class IntendedDiagnostics {
   }
 
   static List<String> inspect(ServerApi api, String projectKey, List<IntendedArchitecture> models) {
-    var warnings = new ArrayList<String>();
+    var warnings = new Warnings();
+    var unavailable = new ArrayList<String>();
     var languages = models.stream().filter(model -> !groups(model).isEmpty()).map(IntendedArchitecture::language).distinct().toList();
     for (var language : languages) {
       try {
@@ -40,22 +42,47 @@ final class IntendedDiagnostics {
         if (graphs.size() != 1 || graphs.getFirst().nodes() == null) {
           throw new IllegalStateException("No unique discovery graph");
         }
-        warnings.addAll(inspect(models.stream().filter(model -> language.equals(model.language())).toList(), graphs.getFirst()));
+        inspect(models.stream().filter(model -> language.equals(model.language())).toList(), graphs.getFirst(), warnings);
       } catch (RuntimeException e) {
-        warnings.add(language + ": pattern and physical hierarchy checks unavailable; no complete discovery graph was read. Structural validation still applies.");
+        unavailable.add(language + ": pattern and physical hierarchy checks unavailable; no complete discovery graph was read. Structural validation still applies.");
       }
     }
-    return warnings.stream().limit(MAX_WARNINGS).toList();
+    return warnings.result(unavailable);
   }
 
   static List<String> inspect(List<IntendedArchitecture> models, StructureGraph graph) {
+    var warnings = new Warnings();
+    inspect(models, graph, warnings);
+    return warnings.result(List.of());
+  }
+
+  private static void inspect(List<IntendedArchitecture> models, StructureGraph graph, Warnings warnings) {
     var artifacts = new HashMap<String, Artifact>();
     index(graph.nodes() == null ? List.of() : graph.nodes(), "", "", artifacts);
-    var warnings = new ArrayList<String>();
     for (var model : models) {
       inspectGroups(groups(model), artifacts, "", warnings);
     }
-    return warnings;
+  }
+
+  private static final class Warnings {
+    private final List<String> shown = new ArrayList<>();
+    private int total;
+
+    private void add(String message) {
+      total++;
+      if (shown.size() < MAX_WARNINGS) {
+        shown.add(message);
+      }
+    }
+
+    private List<String> result(List<String> unavailable) {
+      var result = new ArrayList<>(unavailable);
+      result.addAll(shown);
+      if (total > shown.size()) {
+        result.add((total - shown.size()) + " additional discovery warning(s) omitted.");
+      }
+      return List.copyOf(result);
+    }
   }
 
   private static List<IntendedArchitecture.Group> groups(IntendedArchitecture model) {
@@ -84,27 +111,39 @@ final class IntendedDiagnostics {
     }
   }
 
-  private static void inspectGroups(List<IntendedArchitecture.Group> groups, Map<String, Artifact> artifacts, String parent, List<String> warnings) {
+  private static void inspectGroups(List<IntendedArchitecture.Group> groups, Map<String, Artifact> artifacts, String parent, Warnings warnings) {
     for (var group : groups) {
-      if (group.patternId() != null || warnings.size() >= MAX_WARNINGS) {
+      if (group.patternId() != null) {
         continue;
       }
-      Artifact artifact = null;
-      for (var pattern : group.patterns() == null ? List.<String>of() : group.patterns()) {
-        var found = artifacts.get(pattern);
-        if (found != null && found.container() && !pattern.endsWith("**")) {
-          warnings.add("Group '" + group.label() + "': exact pattern '" + pattern
-            + "' names a container, not its descendants. Use its discovery pattern with the child separator and ** if the subtree is intended; exact leaf patterns remain valid.");
-        }
-        if (artifact == null) {
-          artifact = found;
-        }
-      }
-      if (artifact != null && !parent.isEmpty() && !parent.equals(artifact.parent()) && !artifact.parent().isEmpty()) {
-        warnings.add("Group '" + group.label() + "' is under a different parent from discovery ('" + artifact.parent()
-          + "'). For a physical hierarchy, retain intermediate parents; logical groupings are allowed. No groups were moved.");
+      var artifact = inspectPatterns(group, artifacts, warnings);
+      if (artifact != null) {
+        inspectParent(group.label(), artifact, parent, warnings);
       }
       inspectGroups(group.groups() == null ? List.of() : group.groups(), artifacts, artifact == null ? "" : artifact.key(), warnings);
+    }
+  }
+
+  @Nullable
+  private static Artifact inspectPatterns(IntendedArchitecture.Group group, Map<String, Artifact> artifacts, Warnings warnings) {
+    Artifact artifact = null;
+    for (var pattern : group.patterns() == null ? List.<String>of() : group.patterns()) {
+      var found = artifacts.get(pattern);
+      if (found != null && found.container() && !pattern.endsWith("**")) {
+        warnings.add("Group '" + group.label() + "': exact pattern '" + pattern
+          + "' names a container, not its descendants. Use its discovery pattern with the child separator and ** if the subtree is intended; exact leaf patterns remain valid.");
+      }
+      if (artifact == null) {
+        artifact = found;
+      }
+    }
+    return artifact;
+  }
+
+  private static void inspectParent(String label, Artifact artifact, String parent, Warnings warnings) {
+    if (!parent.isEmpty() && !parent.equals(artifact.parent()) && !artifact.parent().isEmpty()) {
+      warnings.add("Group '" + label + "' is under a different parent from discovery ('" + artifact.parent()
+        + "'). For a physical hierarchy, retain intermediate parents; logical groupings are allowed. No groups were moved.");
     }
   }
 }

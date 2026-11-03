@@ -18,6 +18,15 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Test;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.IntStream;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
+import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -66,4 +75,29 @@ class IntendedDiagnosticsTests {
       """;
     assertThat(IntendedDiagnostics.inspect(IntendedModels.parse(model), new Gson().fromJson(GRAPH, StructureGraph.class))).isEmpty();
   }
+  @Test
+  void it_should_keep_unavailable_languages_and_count_omitted_warnings() {
+    var api = mock(ServerApi.class);
+    var architecture = mock(ArchitectureApi.class);
+    var branches = mock(ProjectBranchesApi.class);
+    when(api.architectureApi()).thenReturn(architecture);
+    when(api.projectBranchesApi()).thenReturn(branches);
+    when(branches.getProjectId("project")).thenReturn(Optional.of("branch"));
+    when(architecture.getStructure("project", ArchitectureApi.SERVER_ORGANIZATION_ID, "branch", "java"))
+      .thenReturn(List.of(new Gson().fromJson(GRAPH, StructureGraph.class)));
+    when(architecture.getStructure("project", ArchitectureApi.SERVER_ORGANIZATION_ID, "branch", "ts"))
+      .thenThrow(new IllegalStateException("unavailable"));
+    var groups = IntStream.range(0, 13).mapToObj(i -> new IntendedArchitecture.Group("group" + i,
+      List.of("gctoolkit-parser"), null, null, null)).toList();
+    var models = List.of(new IntendedArchitecture(null, "namespace", "java", groups, List.of()),
+      new IntendedArchitecture(null, "file", "ts", groups, List.of()));
+
+    var warnings = IntendedDiagnostics.inspect(api, "project", models);
+
+    assertThat(warnings.getFirst()).contains("ts: pattern and physical hierarchy checks unavailable");
+    assertThat(warnings.stream().filter(warning -> warning.contains("names a container"))).hasSize(10);
+    assertThat(warnings.getLast()).isEqualTo("3 additional discovery warning(s) omitted.");
+    assertThat(warnings).hasSize(12);
+  }
+
 }
