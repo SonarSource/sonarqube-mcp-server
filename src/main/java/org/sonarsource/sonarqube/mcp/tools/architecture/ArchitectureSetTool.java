@@ -101,6 +101,9 @@ public class ArchitectureSetTool extends Tool {
     var diff = IntendedModels.diff(current, next);
     var warnings = new java.util.ArrayList<String>();
     warnings.add(ArchitectureApi.EXPORT_WARNING);
+    if (storedState.id() != null && next.isEmpty()) {
+      warnings.add("The stored intended architecture resource will be deleted when this change is applied.");
+    }
     warnings.add("The public API has no conditional write; concurrent edits can race the revision check.");
     if (revision == null) {
       warnings.add("No revision was supplied; changes since the original export cannot be detected. "

@@ -67,6 +67,7 @@ class ArchitectureIntendedResourceTests {
     var preview = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", true));
     assertThat(preview.isError()).isFalse();
+    assertThat(textOf(preview)).contains("resource will be deleted");
     assertThat(backend.getReceivedBodies("DELETE", PATH)).isEmpty();
     var applied = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false));
