@@ -22,6 +22,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
@@ -49,7 +51,7 @@ final class IntendedArchitectureReplacement {
     }
     final ArchitectureApi.IntendedState written;
     try {
-      var writable = next;
+      var writable = writableModels(next);
       if (next.isEmpty()) {
         api.deleteIntended(projectKey, previousState.id());
         written = new ArchitectureApi.IntendedState(null, List.of());
@@ -89,18 +91,25 @@ final class IntendedArchitectureReplacement {
     }
     validateResourceIds(previous);
     for (var model : next) {
-      checkImportedGroups(model.groups());
+      var storedGroups = previous.stream().filter(stored -> Objects.equals(stored.language(), model.language()) && Objects.equals(stored.type(), model.type()))
+        .findFirst().map(IntendedArchitecture::groups).orElse(List.of());
+      checkImportedGroups(storedGroups, model.groups());
     }
   }
 
-  private static void checkImportedGroups(List<IntendedArchitecture.Group> groups) {
-    for (var group : groups) {
+  private static void checkImportedGroups(List<IntendedArchitecture.Group> previous, List<IntendedArchitecture.Group> next) {
+    var storedByLabel = previous.stream().collect(Collectors.toMap(IntendedArchitecture.Group::label, Function.identity(), (left, right) -> {
+      throw new IllegalStateException("The public intended architecture response has duplicate group labels. Nothing was changed.");
+    }));
+    for (var group : next) {
+      var stored = storedByLabel.get(group.label());
       if (group.patternId() != null && group.groups() != null && !group.groups().isEmpty()) {
-        throw new IllegalArgumentException("Group '" + group.label() + "' imports a pattern and cannot declare child groups. "
-          + "Remove its child groups and keep patternId. Nothing was changed.");
-      }
-      if (group.groups() != null) {
-        checkImportedGroups(group.groups());
+        if (stored == null || !group.patternId().equalsIgnoreCase(stored.patternId()) || !IntendedRevision.sameGroups(stored.groups(), group.groups())) {
+          throw new IllegalArgumentException("Group '" + group.label() + "' imports a pattern and cannot declare child groups. "
+            + "Keep its exported child groups unchanged, or remove them and keep patternId. Nothing was changed.");
+        }
+      } else if (group.patternId() == null && group.groups() != null) {
+        checkImportedGroups(stored == null || stored.patternId() != null || stored.groups() == null ? List.of() : stored.groups(), group.groups());
       }
     }
   }
@@ -143,13 +152,17 @@ final class IntendedArchitectureReplacement {
 
   private IntendedRecoveryException manualRecovery(List<IntendedArchitecture> previous, String message, RuntimeException cause) {
     return new IntendedRecoveryException(message + ". Failure: " + cause.getMessage() + ". " + ArchitectureApi.EXPORT_WARNING,
-      gson.toJson(new PreviousModels(previous.stream().map(model -> new IntendedArchitecture(model.id(), model.type(), model.language(),
-        recoveryGroups(model.groups()), model.constraints(), model.label(), model.description())).toList())));
+      gson.toJson(new PreviousModels(writableModels(previous))));
   }
 
-  private static List<IntendedArchitecture.Group> recoveryGroups(List<IntendedArchitecture.Group> groups) {
+  private static List<IntendedArchitecture> writableModels(List<IntendedArchitecture> models) {
+    return models.stream().map(model -> new IntendedArchitecture(model.id(), model.type(), model.language(),
+      writableGroups(model.groups()), model.constraints(), model.label(), model.description())).toList();
+  }
+
+  private static List<IntendedArchitecture.Group> writableGroups(List<IntendedArchitecture.Group> groups) {
     return groups.stream().map(group -> new IntendedArchitecture.Group(group.label(), group.patterns(),
-      group.patternId() != null || group.groups() == null ? null : recoveryGroups(group.groups()),
+      group.patternId() != null || group.groups() == null ? null : writableGroups(group.groups()),
       group.isInterface(), group.interfaceAccess(), group.description(), group.patternId())).toList();
   }
 

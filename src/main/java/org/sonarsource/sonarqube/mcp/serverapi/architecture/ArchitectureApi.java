@@ -45,8 +45,8 @@ public class ArchitectureApi {
   public static final List<String> LANGUAGES = List.of("java", "cs", "js", "ts", "py");
 
   public static final String EXPORT_WARNING = "Imported organization patterns remain linked by patternId. "
-    + "The public export does not expand their groups or constraints. "
-    + "Keep patternId to preserve the reference; imported contents cannot be edited here.";
+    + "Keep patternId and leave any exported child groups unchanged, or omit those children from writes. "
+    + "Imported contents cannot be edited here.";
 
   private static final String READ_HINT = "Check project permissions, feature availability and the public API gateway routing; "
     + "HTTP 403 alone does not establish which check failed";

@@ -75,14 +75,14 @@ class ArchitectureSetToolTests {
 
     var preview = set(harness, next, true, revision);
     assertThat(preview.isError()).isFalse();
-    assertThat(textOf(preview)).contains("dry-run").doesNotContain("unchanged");
+    assertThat(JsonParser.parseString(textOf(preview)).getAsJsonObject().get("mode").getAsString()).isEqualTo("dry-run");
     assertWrites(harness, 0, 0);
 
     stubPatch(harness, next);
 
     var applied = set(harness, next, false, revision);
     assertThat(applied.isError()).withFailMessage(textOf(applied)).isFalse();
-    assertThat(textOf(applied)).contains("replaced").doesNotContain("unchanged");
+    assertThat(JsonParser.parseString(textOf(applied)).getAsJsonObject().get("mode").getAsString()).isEqualTo("replaced");
     assertWrites(harness, 1, 0);
     var body = JsonParser.parseString(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", MODEL_PATH).getFirst()).getAsJsonObject();
     var expected = JsonParser.parseString(next).getAsJsonArray().get(0).getAsJsonObject().get("constraints");
@@ -180,7 +180,7 @@ class ArchitectureSetToolTests {
     var result = set(harness, NEXT, true, null);
     assertThat(result.isError()).isFalse();
     assertThat(textOf(result)).contains("dry-run", "java group app/domain", "java group app/infra", "patternId",
-      "does not expand their groups or constraints", "Keep patternId");
+      "exported child groups unchanged", "Keep patternId");
     assertWrites(harness, 0, 0);
   }
 
@@ -394,7 +394,8 @@ class ArchitectureSetToolTests {
     var result = set(harness, after, false, IntendedRevision.of(IntendedModels.parse(before)));
 
     assertThat(result.isError()).as(textOf(result)).isFalse();
-    assertThat(textOf(result)).contains("replaced", "java group UI/API").doesNotContain("unchanged");
+    assertThat(textOf(result)).contains("java group UI/API");
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().get("mode").getAsString()).isEqualTo("replaced");
     var diff = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("diff");
     assertThat(diff.getAsJsonArray("removed").toString()).contains("java group UI/API");
     assertThat(diff.getAsJsonArray("added").toString()).contains("java group UI/API");
@@ -403,6 +404,42 @@ class ArchitectureSetToolTests {
     expected.remove("id");
     expected.add("qualifiers", expected.remove("type"));
     assertThat(patchBody(harness).getAsJsonArray("perspectives").get(0)).isEqualTo(expected);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_round_trip_an_unchanged_imported_expansion(SonarQubeMcpServerTestHarness harness) {
+    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    stored(harness, before);
+    var read = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
+    for (var dryRun : List.of(true, false)) {
+      var result = set(harness, textOf(read), dryRun, null);
+      assertThat(result.isError()).as(textOf(result)).isFalse();
+      assertThat(textOf(result)).contains(dryRun ? "dry-run" : "unchanged");
+    }
+    assertWrites(harness, 0, 0);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_edit_a_sibling_while_preserving_an_imported_expansion(SonarQubeMcpServerTestHarness harness) {
+    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"description\":\"Imported group\",\"label\": \"app\"");
+    stored(harness, before);
+    var read = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
+    var exported = JsonParser.parseString(textOf(read)).getAsJsonObject();
+    exported.getAsJsonArray("models").get(0).getAsJsonObject().getAsJsonArray("groups").add(JsonParser.parseString("{\"label\":\"Storage\"}"));
+    var next = exported.getAsJsonArray("models").toString();
+    var preview = set(harness, exported.toString(), true, null);
+    assertThat(preview.isError()).as(textOf(preview)).isFalse();
+    assertThat(textOf(preview)).contains("dry-run", "Storage");
+    assertWrites(harness, 0, 0);
+    stubPatch(harness, next);
+    var applied = set(harness, exported.toString(), false, null);
+    assertThat(applied.isError()).as(textOf(applied)).isFalse();
+    assertThat(textOf(applied)).contains("replaced");
+    assertWrites(harness, 1, 0);
+    var imported = patchBody(harness).getAsJsonArray("perspectives").get(0).getAsJsonObject().getAsJsonArray("groups").get(0).getAsJsonObject();
+    assertThat(imported.has("groups")).isFalse();
+    assertThat(imported.get("patternId").getAsString()).isEqualTo("33333333-3333-4333-8333-333333333333");
+    assertThat(imported.get("description").getAsString()).isEqualTo("Imported group");
   }
 
   @SonarQubeMcpServerTest
