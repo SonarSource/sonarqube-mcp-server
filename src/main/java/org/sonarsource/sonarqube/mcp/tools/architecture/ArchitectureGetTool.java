@@ -122,7 +122,8 @@ public class ArchitectureGetTool extends Tool {
     return new DependencyQuery.Selection(from, to, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(20));
   }
 
-  private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language, @Nullable DependencyQuery.Selection selection) {
+  private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language,
+    @Nullable DependencyQuery.Selection selection) {
     try {
       if (!currentReads.tryAcquire(5, TimeUnit.SECONDS)) {
         throw new IllegalStateException("Architecture reads are busy. Try again shortly.");

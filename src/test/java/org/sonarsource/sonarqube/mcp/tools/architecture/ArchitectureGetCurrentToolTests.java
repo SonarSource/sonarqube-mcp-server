@@ -66,7 +66,7 @@ class ArchitectureGetCurrentToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_reject_targeted_arguments_before_backend_reads(SonarQubeMcpServerTestHarness harness) {
-    var client = harness.newClient();
+    var client = harness.newClient(CLOUD_ENV);
     for (var options : List.of(Map.of("from", "app"), Map.of("from", "", "to", ""),
       Map.of("from", "app", "to", "other", "component", "app"), Map.of("from", "app", "to", "other", "pageSize", 21),
       Map.of("from", "app", "to", "other", "pageIndex", 1.5))) {
@@ -75,8 +75,11 @@ class ArchitectureGetCurrentToolTests {
       arguments.put("projectKey", "my_project");
       assertThat(client.callTool(ArchitectureGetTool.TOOL_NAME, arguments).isError()).isTrue();
     }
-    for (var target : List.of("intended", "directives", "findings")) {
-      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", target, "projectKey", "my_project", "from", "app", "to", "other"));
+    var intended = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "from", "app", "to", "other"));
+    assertThat(intended.isError()).isTrue();
+    for (var target : List.of("current", "intended")) {
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", target, "projectKey", "my_project", "pageIndex", 1));
       assertThat(result.isError()).isTrue();
     }
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/architecture/")).isZero();
