@@ -181,16 +181,19 @@ class DependencyQueryTests {
 
   @Test
   void it_should_ignore_a_known_unrelated_target_but_refuse_an_unknown_relevant_target() {
+    var query = selection(1, 20);
     var graphs = List.of(graph("java", node(1, "compat", List.of(), new StructureGraph.Edge(3, 99)),
       node(2, "impl", List.of()), node(3, "other", List.of(node(4, "child", List.of())))));
     assertThat(DependencyQuery.query("p", graphs, selection(1, 20), 1).paging().total()).isZero();
     var dangling = List.of(graph("java", node(1, "compat", List.of(), new StructureGraph.Edge(999, 1)), node(2, "impl", List.of())));
-    assertThatThrownBy(() -> DependencyQuery.query("p", dangling, selection(1, 20), 1)).isInstanceOf(IllegalStateException.class).hasMessageContaining("unresolved");
+    assertThatThrownBy(() -> DependencyQuery.query("p", dangling, query, 1)).isInstanceOf(IllegalStateException.class).hasMessageContaining("unresolved");
   }
 
   @Test
   void it_should_distinguish_no_current_architecture_from_a_valid_empty_dependency_selection() {
-    assertThatThrownBy(() -> DependencyQuery.query("p", List.of(), selection(1, 20), 1))
+    var query = selection(1, 20);
+    var emptyGraphs = List.<GraphSlicer.LanguageGraph>of();
+    assertThatThrownBy(() -> DependencyQuery.query("p", emptyGraphs, query, 1))
       .isInstanceOf(IllegalStateException.class).hasMessageContaining("No current architecture is visible").hasMessageContaining("latest analysis");
     var graphs = List.of(graph("java", node(1, "compat", List.of()), node(2, "impl", List.of())));
     var result = DependencyQuery.query("p", graphs, selection(1, 20), 1);

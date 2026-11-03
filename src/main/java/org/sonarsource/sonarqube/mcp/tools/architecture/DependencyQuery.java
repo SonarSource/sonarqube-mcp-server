@@ -188,10 +188,9 @@ final class DependencyQuery {
           }
           var from = sources.get(node.id());
           var to = targets.get(edge.toId());
-          if (from == null || to == null) {
-            continue;
+          if (from != null && to != null) {
+            addDependency(node, edge, from, to, seen, weights);
           }
-          addDependency(node, edge, from, to, seen, weights);
         }
       }
       return weights.entrySet().stream().map(entry -> new Dependency(entry.getKey().from(), entry.getKey().to(), entry.getValue()))
