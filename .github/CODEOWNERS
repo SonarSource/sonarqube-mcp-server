@@ -1,2 +1,8 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 .github/CODEOWNERS @sonarsource/agentic-sdlc-development-experience-squad
+
+# Architecture tools, API clients and their tests
+src/main/java/org/sonarsource/sonarqube/mcp/tools/architecture/ @sonarsource/quality-architecture-squad @sonarsource/agentic-sdlc-development-experience-squad
+src/main/java/org/sonarsource/sonarqube/mcp/serverapi/architecture/ @sonarsource/quality-architecture-squad @sonarsource/agentic-sdlc-development-experience-squad
+src/test/java/org/sonarsource/sonarqube/mcp/tools/architecture/ @sonarsource/quality-architecture-squad @sonarsource/agentic-sdlc-development-experience-squad
+src/test/java/org/sonarsource/sonarqube/mcp/serverapi/architecture/ @sonarsource/quality-architecture-squad @sonarsource/agentic-sdlc-development-experience-squad
