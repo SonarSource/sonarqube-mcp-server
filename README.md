@@ -1470,6 +1470,8 @@ Then, mount the project workspace to give the Context Augmentation server direct
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, project directives, or deviations, flaws and smells with their details. Findings are read from the latest main-branch analysis. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
+  If an Architecture response does not match the supported public API contract, the error asks you to check MCP/server compatibility. Authentication, permissions, missing resources, server errors and empty results do not establish a version incompatibility. No release checks or additional requests are made.
+
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
