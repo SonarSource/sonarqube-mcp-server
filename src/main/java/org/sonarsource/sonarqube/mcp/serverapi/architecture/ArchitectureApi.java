@@ -31,6 +31,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 
 /** Public architecture HTTP requests, response validation and Cloud/Server routing. */
@@ -84,7 +85,7 @@ public class ArchitectureApi {
     var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH)
       .addParam("projectId", projectId)
       .build();
-    var response = read(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
+    var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
     if (response == null || response.intendedArchitectures() == null) {
       throw new IllegalStateException("The public architecture API did not return intendedArchitectures. No complete model was read.");
     }
@@ -183,12 +184,24 @@ public class ArchitectureApi {
     }
   }
 
-  private static String reason(ForbiddenException e) {
+  private <T> T readProjectResource(String projectKey, Supplier<T> request) {
+    try {
+      return read(projectKey, request);
+    } catch (NotFoundException e) {
+      if (helper.isSonarQubeCloud()) {
+        throw e;
+      }
+      throw new NotFoundException(reason(e) + ". Check the project and Browse permission. "
+        + "On older Server versions, use a Server build that exposes the public Architecture APIs");
+    }
+  }
+
+  private static String reason(ServerApiException e) {
     return Strings.CS.removeStart(e.getMessage(), ServerApiException.MESSAGE_PREFIX);
   }
 
   public DirectivePage getDirectivePage(String projectKey, String projectId, int pageIndex, int pageSize) {
-    return read(projectKey, () -> readDirectivePage(projectId, pageIndex, pageSize));
+    return readProjectResource(projectKey, () -> readDirectivePage(projectId, pageIndex, pageSize));
   }
 
   private DirectivePage readDirectivePage(String projectId, int pageIndex, int pageSize) {
@@ -266,7 +279,7 @@ public class ArchitectureApi {
 
   public void deleteDirective(String projectKey, String id) {
     write(projectKey, () -> {
-      try (var response = helper.deleteApiSubdomain(directivePath(id))) {
+      try (var response = delete(directivePath(id))) {
         if (response.code() != java.net.HttpURLConnection.HTTP_NO_CONTENT) {
           throw new IllegalStateException("The directive deletion was not confirmed. Inspect it before retrying.");
         }
@@ -296,6 +309,10 @@ public class ArchitectureApi {
   }
 
   public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
+  }
+
+  private HttpClient.Response delete(String path) {
+    return helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path) : helper.delete(SERVER_API_PREFIX + path);
   }
 
   private HttpClient.Response get(String path) {
