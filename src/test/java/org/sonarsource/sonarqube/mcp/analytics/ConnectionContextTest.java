@@ -28,7 +28,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.system.response.StatusResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -196,7 +195,7 @@ class ConnectionContextTest {
     var captured = ctx.snapshot();
 
     assertThat(ctx.snapshotFor(api, captured).organizationUuidV4()).isNull();
-    assertThatThrownBy(() -> ctx.snapshotFor(api, captured)).hasMessage("lookup failed");
+    assertThat(ctx.snapshotFor(api, captured).organizationUuidV4()).isNull();
     assertThat(ctx.snapshotFor(api, captured).organizationUuidV4()).isEqualTo("selected-uuid");
     assertThat(ctx.snapshotFor(api, captured).organizationUuidV4()).isEqualTo("selected-uuid");
     assertThat(ctx.snapshot()).isEqualTo(captured);
@@ -272,7 +271,9 @@ class ConnectionContextTest {
       .thenReturn(new StatusResponse("server-id", "2026.1", "UP"));
     when(api.usersApi().getCurrentUserId()).thenReturn("user-uuid");
     var ctx = ConnectionContext.empty();
-    assertThatThrownBy(() -> ctx.resolveFrom(api)).hasMessage("unavailable");
+    ctx.resolveFrom(api);
+    assertThat(ctx.getSqsInstallationId()).isNull();
+    assertThat(ctx.getUserUuid()).isEqualTo("user-uuid");
 
     var recovered = ctx.snapshotFor(api, ctx.snapshot());
 
