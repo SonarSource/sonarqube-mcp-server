@@ -69,8 +69,8 @@ class DependencyQueryTests {
       var response = DependencyQuery.query("p", graphs, selection(page, 20), 1);
       all.addAll(response.dependencies());
       revisions.add(response.revision());
-      assertThat(response.page().total()).isEqualTo(160);
-      assertThat(response.page().hasNextPage()).isEqualTo(page < 8);
+      assertThat(response.paging().total()).isEqualTo(160);
+      assertThat(response.paging().hasNextPage()).isEqualTo(page < 8);
     }
     assertThat(all).hasSize(160).doesNotHaveDuplicates();
     assertThat(revisions).hasSize(1);
@@ -122,13 +122,17 @@ class DependencyQueryTests {
   void it_should_refuse_malformed_or_aggregated_edges_without_claiming_completeness() {
     var query = selection(1, 20);
     var duplicateIds = List.of(graph("java", node(1, "compat", List.of()), node(1, "impl", List.of())));
-    assertThatThrownBy(() -> DependencyQuery.query("p", duplicateIds, query, 1)).hasMessageContaining("duplicate node");
+    assertThatThrownBy(() -> DependencyQuery.query("p", duplicateIds, query, 1)).isInstanceOf(IllegalStateException.class).hasMessageContaining("duplicate node");
+    var ambiguousUnrelatedSubtree = List.of(graph("java", node(1, "compat", List.of()), node(2, "impl", List.of()),
+      node(3, "other", List.of()), node(3, "unrelated", List.of())));
+    assertThatThrownBy(() -> DependencyQuery.query("p", ambiguousUnrelatedSubtree, query, 1))
+      .isInstanceOf(IllegalStateException.class).hasMessageContaining("duplicate node");
     var dangling = List.of(graph("java", node(1, "compat", List.of(), new StructureGraph.Edge(999, 1)), node(2, "impl", List.of())));
-    assertThatThrownBy(() -> DependencyQuery.query("p", dangling, query, 1)).hasMessageContaining("unresolved");
+    assertThatThrownBy(() -> DependencyQuery.query("p", dangling, query, 1)).isInstanceOf(IllegalStateException.class).hasMessageContaining("unresolved");
     var duplicateEdges = List.of(graph("java", node(1, "compat", List.of(), new StructureGraph.Edge(2, 1), new StructureGraph.Edge(2, 1)), node(2, "impl", List.of())));
-    assertThatThrownBy(() -> DependencyQuery.query("p", duplicateEdges, query, 1)).hasMessageContaining("duplicate dependency");
+    assertThatThrownBy(() -> DependencyQuery.query("p", duplicateEdges, query, 1)).isInstanceOf(IllegalStateException.class).hasMessageContaining("duplicate dependency");
     var containers = List.of(graph("java", node(1, "compat", List.of(node(3, "A", List.of())), new StructureGraph.Edge(2, 1)), node(2, "impl", List.of())));
-    assertThatThrownBy(() -> DependencyQuery.query("p", containers, query, 1)).hasMessageContaining("leaf-level");
+    assertThatThrownBy(() -> DependencyQuery.query("p", containers, query, 1)).isInstanceOf(IllegalStateException.class).hasMessageContaining("leaf-level");
   }
 
   @Test
@@ -151,4 +155,54 @@ class DependencyQueryTests {
     assertThatThrownBy(() -> new DependencyQuery.Selection("compat", "impl", 0, 20)).isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> new DependencyQuery.Selection("compat", "impl", 1, 21)).isInstanceOf(IllegalArgumentException.class);
   }
+  @Test
+  void it_should_ignore_unrelated_dangling_and_container_edges() {
+    var graphs = List.of(graph("java", node(1, "compat", List.of(), new StructureGraph.Edge(2, 7)),
+      node(2, "impl", List.of()), node(3, "other", List.of(node(4, "child", List.of())),
+        new StructureGraph.Edge(999, 4), new StructureGraph.Edge(2, 5))));
+    assertThat(DependencyQuery.query("p", graphs, selection(1, 20), 1).dependencies())
+      .containsExactly(new DependencyQuery.Dependency("compat", "impl", 7));
+  }
+
+  @Test
+  void it_should_reject_ancestor_container_relationships_in_either_selected_endpoint() {
+    var sourceAncestor = List.of(graph("java",
+      node(1, "compat", List.of(node(3, "child", List.of(), new StructureGraph.Edge(2, 7))), new StructureGraph.Edge(2, 99)),
+      node(2, "impl", List.of())));
+    assertThatThrownBy(() -> DependencyQuery.query("p", sourceAncestor,
+      new DependencyQuery.Selection("compat:child", "impl", 1, 20), 1)).hasMessageContaining("container-level");
+    var targetAncestor = List.of(graph("java", node(1, "compat", List.of(), new StructureGraph.Edge(2, 99)),
+      node(2, "impl", List.of(node(3, "child", List.of())))));
+    assertThatThrownBy(() -> DependencyQuery.query("p", targetAncestor,
+      new DependencyQuery.Selection("compat", "impl:child", 1, 20), 1)).hasMessageContaining("container-level");
+    assertThat(DependencyQuery.query("p", sourceAncestor,
+      new DependencyQuery.Selection("impl", "compat:child", 1, 20), 1).dependencies()).isEmpty();
+  }
+
+  @Test
+  void it_should_ignore_a_known_unrelated_target_but_refuse_an_unknown_relevant_target() {
+    var graphs = List.of(graph("java", node(1, "compat", List.of(), new StructureGraph.Edge(3, 99)),
+      node(2, "impl", List.of()), node(3, "other", List.of(node(4, "child", List.of())))));
+    assertThat(DependencyQuery.query("p", graphs, selection(1, 20), 1).paging().total()).isZero();
+    var dangling = List.of(graph("java", node(1, "compat", List.of(), new StructureGraph.Edge(999, 1)), node(2, "impl", List.of())));
+    assertThatThrownBy(() -> DependencyQuery.query("p", dangling, selection(1, 20), 1)).isInstanceOf(IllegalStateException.class).hasMessageContaining("unresolved");
+  }
+
+  @Test
+  void it_should_distinguish_no_current_architecture_from_a_valid_empty_dependency_selection() {
+    assertThatThrownBy(() -> DependencyQuery.query("p", List.of(), selection(1, 20), 1))
+      .isInstanceOf(IllegalStateException.class).hasMessageContaining("No current architecture is visible").hasMessageContaining("latest analysis");
+    var graphs = List.of(graph("java", node(1, "compat", List.of()), node(2, "impl", List.of())));
+    var result = DependencyQuery.query("p", graphs, selection(1, 20), 1);
+    assertThat(result.paging().total()).isZero();
+    assertThat(result.dependencies()).isEmpty();
+    assertThat(result.revision()).hasSize(64);
+  }
+
+  @Test
+  void it_should_reject_padded_exact_keys_without_normalizing_them() {
+    assertThatThrownBy(() -> new DependencyQuery.Selection(" compat", "impl", 1, 20)).hasMessageContaining("from").hasMessageContaining("whitespace");
+    assertThatThrownBy(() -> new DependencyQuery.Selection("compat", "impl ", 1, 20)).hasMessageContaining("to").hasMessageContaining("whitespace");
+  }
+
 }

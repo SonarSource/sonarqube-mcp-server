@@ -54,9 +54,11 @@ class ArchitectureGetCurrentToolTests {
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, arguments);
     assertThat(result.isError()).isFalse();
     var body = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(body.has("paging")).isTrue();
+    assertThat(body.has("page")).isFalse();
     assertThat(body.getAsJsonArray("dependencies")).hasSize(1);
-    assertThat(body.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(2);
-    assertThat(body.getAsJsonObject("page").get("hasNextPage").getAsBoolean()).isTrue();
+    assertThat(body.getAsJsonObject("paging").get("total").getAsInt()).isEqualTo(2);
+    assertThat(body.getAsJsonObject("paging").get("hasNextPage").getAsBoolean()).isTrue();
     var nextArguments = new java.util.HashMap<>(arguments);
     nextArguments.put("pageIndex", 2);
     var next = JsonParser.parseString(textOf(client.callTool(ArchitectureGetTool.TOOL_NAME, nextArguments))).getAsJsonObject();
@@ -67,20 +69,51 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_reject_targeted_arguments_before_backend_reads(SonarQubeMcpServerTestHarness harness) {
     var client = harness.newClient(CLOUD_ENV);
-    for (var options : List.of(Map.of("from", "app"), Map.of("from", "", "to", ""),
-      Map.of("from", "app", "to", "other", "component", "app"), Map.of("from", "app", "to", "other", "pageSize", 21),
-      Map.of("from", "app", "to", "other", "pageIndex", 1.5))) {
-      var arguments = new java.util.HashMap<String, Object>(options);
+    var cases = List.of(
+      Map.entry(Map.<String, Object>of("from", "app"), "Use both from and to"),
+      Map.entry(Map.<String, Object>of("from", "", "to", ""), "Use both from and to"),
+      Map.entry(Map.<String, Object>of("from", "app", "to", "other", "component", "app"), "without component"),
+      Map.entry(Map.<String, Object>of("from", "app", "to", "other", "pageSize", 21), "dependency page size"),
+      Map.entry(Map.<String, Object>of("from", "app", "to", "other", "pageIndex", 1.5), "pageIndex"));
+    for (var example : cases) {
+      var arguments = new java.util.HashMap<>(example.getKey());
       arguments.put("target", "current");
       arguments.put("projectKey", "my_project");
-      assertThat(client.callTool(ArchitectureGetTool.TOOL_NAME, arguments).isError()).isTrue();
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains(example.getValue());
     }
     var intended = client.callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "intended", "projectKey", "my_project", "from", "app", "to", "other"));
     assertThat(intended.isError()).isTrue();
+    assertThat(textOf(intended)).contains("Use both from and to with target current");
     for (var target : List.of("current", "intended")) {
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", target, "projectKey", "my_project", "pageIndex", 1));
       assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains("Pagination parameters are only used for current from/to queries");
+    }
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/architecture/")).isZero();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_report_no_current_architecture_for_targeted_reads(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    stubEmptyCurrent(harness);
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "current", "projectKey", "my_project", "language", "java", "from", "app", "to", "other"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("No current architecture is visible", "latest analysis").doesNotContain("revision");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_reject_padded_dependency_keys_before_backend_reads(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+    for (var field : List.of("from", "to")) {
+      var arguments = new java.util.HashMap<String, Object>(Map.of("target", "current", "projectKey", "my_project", "from", "app", "to", "other"));
+      arguments.put(field, " padded ");
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains(field, "whitespace");
     }
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/architecture/")).isZero();
   }

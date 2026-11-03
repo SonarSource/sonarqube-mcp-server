@@ -71,8 +71,8 @@ public class ArchitectureGetTool extends Tool {
       .addNumberProperty(DEPTH_PROPERTY, isSonarQubeCloud ? "Levels below the start to return. Default 1 for current, all for intended."
         : "Levels below the start to return. Default 1.")
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
-      .addNumberProperty(ToolParameters.PAGE_INDEX, "Dependency page number, default 1; requires current from/to.")
-      .addNumberProperty(ToolParameters.PAGE_SIZE, "Dependencies per page, default/maximum 20; requires current from/to.")
+      .addNumberProperty(ToolParameters.PAGE_INDEX, "Page number from 1; current from/to only.")
+      .addNumberProperty(ToolParameters.PAGE_SIZE, "Page size, default/max " + DependencyQuery.MAX_PAGE_SIZE + "; current from/to only.")
       .setReadOnlyHint()
       .build(),
       ToolCategory.ARCHITECTURE);
@@ -120,7 +120,7 @@ public class ArchitectureGetTool extends Tool {
         throw new IllegalArgumentException(field + " must be an integer.");
       }
     }
-    return new DependencyQuery.Selection(from, to, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(20));
+    return new DependencyQuery.Selection(from, to, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(DependencyQuery.MAX_PAGE_SIZE));
   }
 
   private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language,

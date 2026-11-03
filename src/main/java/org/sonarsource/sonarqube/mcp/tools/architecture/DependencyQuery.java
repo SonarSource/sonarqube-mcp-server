@@ -40,8 +40,14 @@ final class DependencyQuery {
       if (from.isEmpty() || to.isEmpty()) {
         throw new IllegalArgumentException("Use nonempty from and to component keys.");
       }
+      if (!from.equals(from.strip())) {
+        throw new IllegalArgumentException("from must be an exact component key without surrounding whitespace.");
+      }
+      if (!to.equals(to.strip())) {
+        throw new IllegalArgumentException("to must be an exact component key without surrounding whitespace.");
+      }
       if (pageIndex < 1 || pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
-        throw new IllegalArgumentException("Page must be >= 1; dependency page size must be between 1 and 20.");
+        throw new IllegalArgumentException("Page must be >= 1; dependency page size must be between 1 and " + MAX_PAGE_SIZE + ".");
       }
     }
   }
@@ -53,7 +59,7 @@ final class DependencyQuery {
   }
 
   record Response(String projectKey, String language, String from, String to, int depth, String revision,
-    List<Dependency> dependencies, Page page) {
+    List<Dependency> dependencies, Page paging) {
   }
 
   private record EdgeKey(int from, int to) {
@@ -63,6 +69,9 @@ final class DependencyQuery {
   }
 
   static Response query(String projectKey, List<GraphSlicer.LanguageGraph> graphs, Selection selection, int depth) {
+    if (graphs.isEmpty()) {
+      throw new IllegalStateException("No current architecture is visible. Check project access, organization, selected language and latest analysis.");
+    }
     var matches = graphs.stream()
       .filter(graph -> mayContainEndpoint(graph.graph(), selection.from()) && mayContainEndpoint(graph.graph(), selection.to()))
       .map(Index::new)
@@ -74,7 +83,7 @@ final class DependencyQuery {
     var index = matches.getFirst();
     var sources = index.representatives(selection.from(), depth);
     var targets = index.representatives(selection.to(), depth);
-    var all = index.dependencies(sources, targets);
+    var all = index.dependencies(sources, targets, selection);
     var revision = revision(index.language, selection, depth, all);
     var start = (long) (selection.pageIndex() - 1) * selection.pageSize();
     var end = Math.min(start + selection.pageSize(), all.size());
@@ -97,15 +106,7 @@ final class DependencyQuery {
     if ("file".equals(root.kind()) && (root.separator() == null || root.separator().isEmpty())) {
       return key.startsWith(root.name());
     }
-    var separator = root.separator();
-    if (separator == null || separator.isEmpty()) {
-      separator = switch (root.kind()) {
-        case "module" -> ":";
-        case "directory", "folder" -> "/";
-        default -> ".";
-      };
-    }
-    return key.startsWith(root.name() + separator);
+    return key.startsWith(root.name() + GraphSlicer.childSeparator(root));
   }
 
   private static String revision(String language, Selection selection, int depth, List<Dependency> dependencies) {
@@ -140,21 +141,14 @@ final class DependencyQuery {
 
     private void add(StructureGraph.Node node, String key) {
       if (nodes.putIfAbsent(node.id(), node) != null || idByKey.putIfAbsent(key, node.id()) != null) {
-        throw new IllegalArgumentException("Current graph has ambiguous node keys or duplicate node ids.");
+        throw new IllegalStateException("Current graph has ambiguous node keys or duplicate node ids.");
       }
       keys.put(node.id(), key);
       var children = children(node);
       if ("file".equals(node.kind()) && !children.isEmpty() && (node.separator() == null || node.separator().isEmpty())) {
-        throw new IllegalArgumentException("Cannot derive keys for a file with children without a public separator.");
+        throw new IllegalStateException("Cannot derive keys for a file with children without a public separator.");
       }
-      var separator = node.separator();
-      if (separator == null || separator.isEmpty()) {
-        separator = switch (node.kind()) {
-          case "module" -> ":";
-          case "directory", "folder" -> "/";
-          default -> ".";
-        };
-      }
+      var separator = GraphSlicer.childSeparator(node);
       for (var child : children) {
         parents.put(child.id(), node.id());
         add(child, key + separator + child.name());
@@ -179,13 +173,18 @@ final class DependencyQuery {
       return result;
     }
 
-    private List<Dependency> dependencies(Map<Integer, String> sources, Map<Integer, String> targets) {
+    private List<Dependency> dependencies(Map<Integer, String> sources, Map<Integer, String> targets, Selection selection) {
       var weights = new HashMap<Pair, Long>();
       var seen = new HashSet<EdgeKey>();
+      var sourceRoot = idByKey.get(selection.from());
+      var targetRoot = idByKey.get(selection.to());
       for (var node : nodes.values()) {
+        if (!intersects(node.id(), sourceRoot)) {
+          continue;
+        }
         for (var edge : node.edges() == null ? List.<StructureGraph.Edge>of() : node.edges()) {
-          if (!nodes.containsKey(edge.toId())) {
-            throw new IllegalArgumentException("Current graph contains an unresolved dependency target.");
+          if (!isSelectedTarget(node, edge, targetRoot)) {
+            continue;
           }
           var from = sources.get(node.id());
           var to = targets.get(edge.toId());
@@ -199,13 +198,24 @@ final class DependencyQuery {
         .sorted(Comparator.comparingLong(Dependency::weight).reversed().thenComparing(Dependency::from).thenComparing(Dependency::to)).toList();
     }
 
+    private boolean isSelectedTarget(StructureGraph.Node source, StructureGraph.Edge edge, int targetRoot) {
+      var target = nodes.get(edge.toId());
+      if (target == null) {
+        throw new IllegalStateException("Current graph contains an unresolved dependency target.");
+      }
+      if (!intersects(edge.toId(), targetRoot)) {
+        return false;
+      }
+      if (!children(source).isEmpty() || !children(target).isEmpty()) {
+        throw new IllegalStateException("Targeted dependencies require leaf-level edges; this graph has container-level relationships in the selected scope.");
+      }
+      return true;
+    }
+
     private void addDependency(StructureGraph.Node node, StructureGraph.Edge edge, String from, String to,
       java.util.Set<EdgeKey> seen, Map<Pair, Long> weights) {
       if (edge.weight() < 0 || !seen.add(new EdgeKey(node.id(), edge.toId()))) {
-        throw new IllegalArgumentException("Current graph contains invalid or duplicate dependency edges.");
-      }
-      if (!children(node).isEmpty() || !children(nodes.get(edge.toId())).isEmpty()) {
-        throw new IllegalArgumentException("Targeted dependencies require leaf-level edges; this graph has container-level relationships in the selected scope.");
+        throw new IllegalStateException("Current graph contains invalid or duplicate dependency edges.");
       }
       if (isAncestor(idByKey.get(from), idByKey.get(to)) || isAncestor(idByKey.get(to), idByKey.get(from))) {
         return;
@@ -213,9 +223,13 @@ final class DependencyQuery {
       var pair = new Pair(from, to);
       var weight = Math.addExact(weights.getOrDefault(pair, 0L), edge.weight());
       if (weight > MAX_SAFE_WEIGHT) {
-        throw new IllegalArgumentException("Aggregated dependency weight exceeds the supported integer range.");
+        throw new IllegalStateException("Aggregated dependency weight exceeds the supported integer range.");
       }
       weights.put(pair, weight);
+    }
+
+    private boolean intersects(int node, int selectedRoot) {
+      return isAncestor(node, selectedRoot) || isAncestor(selectedRoot, node);
     }
 
     private boolean isAncestor(int ancestor, int node) {
