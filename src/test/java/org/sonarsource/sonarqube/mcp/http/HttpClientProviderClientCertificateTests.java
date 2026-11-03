@@ -28,7 +28,10 @@ import java.util.Objects;
 import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.apache.hc.core5.io.CloseMode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.LoggerFactory;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -103,27 +106,36 @@ class HttpClientProviderClientCertificateTests {
     }
   }
 
-  @Test
-  void it_should_present_client_certificate_when_keystore_configured() {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_present_client_certificate_when_keystore_configured(boolean recover) {
     trustServerCertificate();
     System.setProperty(KEY_STORE_PROPERTY, KEYSTORE_PATH.toString());
     System.setProperty(KEY_STORE_PASSWORD_PROPERTY, KEY_STORE_PASSWORD);
 
     underTest = new HttpClientProvider(USER_AGENT);
 
-    try (var ignored = underTest.getHttpClient("token").getAsync(mcpUrl("/test")).join()) {
+    var client = underTest.getHttpClient("token");
+    if (recover) {
+      underTest.getRunningClient().close(CloseMode.IMMEDIATE);
+    }
+    try (var ignored = client.getAsync(mcpUrl("/test")).join()) {
       // nothing
     }
     sonarqubeMock.verify(getRequestedFor(urlEqualTo("/test")));
   }
 
-  @Test
-  void it_should_fail_handshake_when_client_certificate_is_absent() {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_fail_handshake_when_client_certificate_is_absent(boolean recover) {
     trustServerCertificate();
     System.clearProperty(KEY_STORE_PROPERTY);
     System.clearProperty(KEY_STORE_PASSWORD_PROPERTY);
 
     underTest = new HttpClientProvider(USER_AGENT);
+    if (recover) {
+      underTest.getRunningClient().close(CloseMode.IMMEDIATE);
+    }
     var getRequest = underTest.getHttpClient("token").getAsync(mcpUrl("/test"));
     assertThatThrownBy(getRequest::join)
       .isInstanceOf(CompletionException.class)

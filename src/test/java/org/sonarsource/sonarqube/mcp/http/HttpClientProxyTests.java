@@ -30,8 +30,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.io.CloseMode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -105,8 +108,9 @@ class HttpClientProxyTests {
       .anyMatch(uri -> uri.getHost().equals("localhost"));
   }
 
-  @Test
-  void should_use_custom_proxy_selector_for_each_request() {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void should_use_custom_proxy_selector_for_each_request(boolean recover) {
     // Create a proxy selector that tracks all calls
     var customProxySelector = new TrackingProxySelector();
     originalProxySelector = ProxySelector.getDefault();
@@ -120,6 +124,9 @@ class HttpClientProxyTests {
     var underTest = new HttpClientProvider(USER_AGENT);
 
     underTest.getHttpClient("token").getAsync(targetServer.url("/endpoint1")).join().close();
+    if (recover) {
+      underTest.getRunningClient().close(CloseMode.IMMEDIATE);
+    }
     underTest.getHttpClient("token").getAsync(targetServer.url("/endpoint2")).join().close();
 
     assertThat(customProxySelector.getSelectCallCount())
