@@ -240,12 +240,11 @@ public class ArchitectureApi {
     var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam(PROJECT_ID_PARAM, projectId)
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var response = fromJson(get(path), DirectivePage.class);
-    if (response == null || response.projectDirectives() == null || response.page() == null) {
+    if (response == null || response.projectDirectives() == null || response.page() == null
+      || response.page().pageIndex() == null || response.page().pageSize() == null || response.page().total() == null) {
       throw incompatibleResponse("Invalid public directives page; no complete page was read.");
     }
-    if (response.page().pageIndex() == null || response.page().pageIndex() != pageIndex
-      || response.page().pageSize() == null || response.page().pageSize() != pageSize
-      || response.page().total() == null || response.page().total() < 0
+    if (response.page().pageIndex() != pageIndex || response.page().pageSize() != pageSize || response.page().total() < 0
       || response.projectDirectives().size() > pageSize) {
       throw new IllegalStateException("Invalid public directives page; no complete page was read.");
     }
@@ -254,7 +253,7 @@ public class ArchitectureApi {
       if (directive == null) {
         throw incompatibleResponse("The public directives response contains an incomplete directive.");
       }
-      directive.validateStored();
+      validateStoredDirective(directive);
       if (!ids.add(directive.id().toLowerCase(java.util.Locale.ROOT))) {
         throw new IllegalStateException("The public directives page returned duplicate ids.");
       }
@@ -273,7 +272,7 @@ public class ArchitectureApi {
       if (response == null) {
         throw new IllegalStateException("The directive write returned no directive. Inspect the current list before retrying.");
       }
-      response.validateStored();
+      validateStoredDirective(response);
       if (!projectId.equals(response.projectId())) {
         throw new IllegalStateException("The directive write returned a different project. Inspect the current list before retrying.");
       }
@@ -327,11 +326,19 @@ public class ArchitectureApi {
     return PROJECT_DIRECTIVES_PATH + "/" + id;
   }
 
+  private static void validateStoredDirective(ProjectDirective directive) {
+    try {
+      directive.validateStored();
+    } catch (IllegalArgumentException invalid) {
+      throw new IllegalStateException(invalid.getMessage() + " " + COMPATIBILITY_HINT, invalid);
+    }
+  }
+
   private static void validateDirectiveResource(@Nullable ProjectDirective directive, String projectId, String id) {
     if (directive == null) {
       throw new IllegalStateException("The public directive response is empty.");
     }
-    directive.validateStored();
+    validateStoredDirective(directive);
     if (!projectId.equals(directive.projectId()) || !id.equalsIgnoreCase(directive.id())) {
       throw new IllegalStateException("The public directive response returned a different id or project.");
     }
@@ -361,12 +368,16 @@ public class ArchitectureApi {
 
   @Nullable
   private FindingPage findingsJson(HttpClient.Response response) {
+    var page = fromJson(response, RawFindingPage.class);
+    return page == null || page.findings() == null ? null
+      : new FindingPage(page.findings().stream().map(ArchitectureApi::parseFinding).toList(), findingPageInfo(page.page()));
+  }
+
+  private static ProjectFinding parseFinding(com.google.gson.JsonElement value) {
     try {
-      var page = fromJson(response, RawFindingPage.class);
-      return page == null || page.findings() == null ? null
-        : new FindingPage(page.findings().stream().map(ProjectFinding::parse).toList(), findingPageInfo(page.page()));
-    } catch (JsonParseException e) {
-      throw new IllegalStateException("Invalid public findings response. " + COMPATIBILITY_HINT, e);
+      return ProjectFinding.parse(value);
+    } catch (IllegalStateException invalid) {
+      throw new IllegalStateException(invalid.getMessage() + " " + COMPATIBILITY_HINT, invalid);
     }
   }
 
@@ -381,11 +392,11 @@ public class ArchitectureApi {
     var value = page.get(name);
     try {
       if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
-        throw new IllegalStateException("Invalid public findings page number.");
+        throw incompatibleResponse("Invalid public findings page number.");
       }
       return value.getAsBigDecimal().intValueExact();
     } catch (ArithmeticException | NumberFormatException e) {
-      throw new IllegalStateException("Invalid public findings page number.", e);
+      throw new IllegalStateException("Invalid public findings page number. " + COMPATIBILITY_HINT, e);
     }
   }
 
@@ -419,6 +430,8 @@ public class ArchitectureApi {
   private <T> T fromJson(HttpClient.Response toBeClosed, Class<T> type) {
     try (var response = toBeClosed) {
       return gson.fromJson(response.bodyAsString(), type);
+    } catch (JsonParseException invalid) {
+      throw new IllegalStateException("Invalid public architecture response. " + COMPATIBILITY_HINT, invalid);
     }
   }
 
