@@ -147,13 +147,11 @@ public class ArchitectureApi {
   }
 
   private IntendedState writeModels(String path, String body, boolean patch) {
-    try (var response = request(path, body, patch)) {
-      var result = gson.fromJson(response.bodyAsString(), IntendedResource.class);
-      if (result == null || result.perspectives() == null || result.perspectives().isEmpty()) {
-        throw incompatibleResponse("The public architecture API did not return the written intended perspectives.");
-      }
-      return exportedResource(result);
+    var result = fromJson(request(path, body, patch), IntendedResource.class);
+    if (result == null || result.perspectives() == null || result.perspectives().isEmpty()) {
+      throw incompatibleResponse("The public architecture API did not return the written intended perspectives.");
     }
+    return exportedResource(result);
   }
 
   private HttpClient.Response request(String path, String body, boolean patch) {

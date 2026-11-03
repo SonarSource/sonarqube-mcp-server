@@ -63,9 +63,9 @@ class ArchitecturePatchRecoveryTest {
     """;
   private static final String NEXT = PREVIOUS.replace(SENTINEL, "proposed-pattern");
 
-  @ParameterizedTest(name = "PATCH cancelled={0}, committed={1}")
-  @CsvSource({"false,false", "false,true", "true,false", "true,true"})
-  void it_should_reconcile_patch_failures_without_rollback_or_logging_exports(boolean cancelled, boolean committed) {
+  @ParameterizedTest(name = "PATCH cancelled={0}, committed={1}, malformedBody={2}")
+  @CsvSource({"false,false,false", "false,true,false", "true,false,false", "true,true,false", "false,false,true", "false,true,true"})
+  void it_should_reconcile_patch_failures_without_rollback_or_logging_exports(boolean cancelled, boolean committed, boolean malformedBody) {
     var client = mock(HttpClient.class);
     var stored = new AtomicReference<>(PREVIOUS);
     var requestBody = new AtomicReference<String>();
@@ -76,7 +76,7 @@ class ArchitecturePatchRecoveryTest {
       if (committed) {
         stored.set(NEXT);
       }
-      return failedWrite(cancelled);
+      return malformedBody ? response("not JSON") : failedWrite(cancelled);
     });
     var helper = new ServerApiHelper(new EndpointParams(BASE_URL, null, null, true), client);
     var api = new ServerApi(helper, true);
@@ -98,6 +98,9 @@ class ArchitecturePatchRecoveryTest {
         assertThat(result.content().toString()).contains("replaced").doesNotContain("Previous exported model");
       } else {
         assertThat(result.content().toString()).contains("No automatic rollback", "Previous exported model", SENTINEL);
+        if (malformedBody) {
+          assertThat(result.content().toString()).contains("supported public Architecture API contract");
+        }
       }
       assertThat(stored.get()).isEqualTo(committed ? NEXT : PREVIOUS);
       assertPatchRequest(requestBody.get());
@@ -142,6 +145,7 @@ class ArchitecturePatchRecoveryTest {
   private static CompletableFuture<HttpClient.Response> response(String body) {
     var response = mock(HttpClient.Response.class);
     when(response.isSuccessful()).thenReturn(true);
+    when(response.code()).thenReturn(200);
     when(response.bodyAsString()).thenReturn(body);
     return CompletableFuture.completedFuture(response);
   }

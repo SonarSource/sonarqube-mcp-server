@@ -72,7 +72,7 @@ class ArchitectureCompatibilityTests {
     var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
     var cases = new String[][] {
       {"current", "current-architectures", "{\"currentArchitectures\":\"x\"}"},
-      {"intended", "intended-architectures", "not JSON"},
+      {"intended", "project-intended-architectures", "not JSON"},
       {"directives", "project-directives", "{\"projectDirectives\":[],\"page\":{}}"},
       {"directives", "project-directives", "{\"projectDirectives\":[{}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"},
       {"findings", "project-findings", "{\"findings\":[],\"page\":{}}"},
