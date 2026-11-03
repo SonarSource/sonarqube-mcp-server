@@ -20,12 +20,16 @@ import java.io.IOException;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ServerApiHelperTest {
 
@@ -52,6 +56,49 @@ class ServerApiHelperTest {
     request.cancel(true);
 
     assertThatThrownBy(() -> ServerApiHelper.awaitResponse(request)).isInstanceOf(CancellationException.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_cancel_delete_when_the_caller_is_interrupted(boolean cloud) throws InterruptedException {
+    var request = new CompletableFuture<HttpClient.Response>();
+    var client = mock(HttpClient.class);
+    when(client.deleteAsync("http://localhost/directive")).thenReturn(request);
+    var helper = new ServerApiHelper(new EndpointParams("http://localhost", null, null, false), client);
+    var failure = new AtomicReference<Throwable>();
+    var caller = new Thread(() -> {
+      try {
+        Thread.currentThread().interrupt();
+        if (cloud) {
+          helper.deleteApiSubdomain("/directive");
+        } else {
+          helper.delete("/directive");
+        }
+      } catch (Throwable error) {
+        failure.set(error);
+      }
+    });
+    try {
+      caller.start();
+      caller.join(1000);
+      assertThat(caller.isAlive()).isFalse();
+      assertThat(failure.get()).isInstanceOf(CancellationException.class);
+      assertThat(request.isCancelled()).isTrue();
+    } finally {
+      request.cancel(true);
+      caller.join(1000);
+    }
+  }
+
+  @Test
+  void it_should_keep_server_delete_on_the_server_when_a_cloud_override_is_configured() {
+    var client = mock(HttpClient.class);
+    var response = mock(HttpClient.Response.class);
+    when(response.isSuccessful()).thenReturn(true);
+    when(client.deleteAsync("http://localhost/api/v2/architecture/model")).thenReturn(CompletableFuture.completedFuture(response));
+    var helper = new ServerApiHelper(new EndpointParams("http://localhost", null, "https://api.sonarcloud.io", false), client);
+
+    assertThat(helper.delete("/api/v2/architecture/model")).isSameAs(response);
   }
 
   @Test
