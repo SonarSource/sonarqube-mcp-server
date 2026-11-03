@@ -22,6 +22,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,8 +58,9 @@ class ServerApiHelperTest {
     assertThatThrownBy(() -> ServerApiHelper.awaitResponse(request)).isInstanceOf(CancellationException.class);
   }
 
-  @Test
-  void it_should_cancel_delete_when_the_caller_is_interrupted() throws InterruptedException {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_cancel_delete_when_the_caller_is_interrupted(boolean apiSubdomain) throws InterruptedException {
     var request = new CompletableFuture<HttpClient.Response>();
     var client = mock(HttpClient.class);
     when(client.deleteAsync("http://localhost/directive")).thenReturn(request);
@@ -66,7 +69,11 @@ class ServerApiHelperTest {
     var caller = new Thread(() -> {
       try {
         Thread.currentThread().interrupt();
-        helper.deleteApiSubdomain("/directive");
+        if (apiSubdomain) {
+          helper.deleteApiSubdomain("/directive");
+        } else {
+          helper.delete("/directive");
+        }
       } catch (Throwable error) {
         failure.set(error);
       }
