@@ -27,6 +27,7 @@ import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -86,6 +87,19 @@ class ComponentsApiTest {
     sonarqubeMock.stubFor(get(LOOKUP).willReturn(okJson(body)));
 
     assertThatThrownBy(() -> api.getProjectId("shop:api")).isInstanceOf(IllegalStateException.class);
+    assertThat(sonarqubeMock.getAllServeEvents()).hasSize(1);
+  }
+
+  @Test
+  void it_should_explain_the_missing_lookup_without_feature_specific_advice() {
+    sonarqubeMock.stubFor(get(LOOKUP).willReturn(aResponse().withStatus(404)));
+
+    assertThatThrownBy(() -> api.getProjectId("shop:api"))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("GET /api/v2/components/projects")
+      .hasMessageNotContaining("architecture")
+      .hasMessageNotContaining("directives")
+      .hasCauseInstanceOf(NotFoundException.class);
     assertThat(sonarqubeMock.getAllServeEvents()).hasSize(1);
   }
 

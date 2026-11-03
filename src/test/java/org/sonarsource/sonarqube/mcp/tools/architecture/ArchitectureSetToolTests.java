@@ -693,12 +693,13 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_refuse_server_writes_when_public_project_lookup_is_unavailable(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get("/api/v2/components/projects?keys=my_project&pageSize=1").willReturn(aResponse().withStatus(404)));
     var client = harness.newClient();
     var result = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "intended", "projectKey", "my_project", "model", NEXT, "dryRun", true));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("public project lookup");
-    assertNoPrivateRequests(harness);
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
     assertWrites(harness, 0, 0);
   }
 
