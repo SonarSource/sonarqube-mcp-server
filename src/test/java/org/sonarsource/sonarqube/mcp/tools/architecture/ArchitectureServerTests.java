@@ -125,7 +125,8 @@ class ArchitectureServerTests {
     backend.stubFor(post(DIRECTIVES).willReturn(aResponse().withStatus(201).withBody(saved())));
     args.put("dryRun", false);
     assertThat(client.callTool(ArchitectureSetTool.TOOL_NAME, args).isError()).isFalse();
-    assertThat(backend.getReceivedBodies("POST", DIRECTIVES)).singleElement().asString().contains("sonarqube-mcp-server", "default_perspective");
+    assertThat(backend.getReceivedBodies("POST", DIRECTIVES)).singleElement().asString()
+      .contains("opaque-project-id", "sonarqube-mcp-server", "default_perspective");
     backend.stubFor(get(page).willReturn(okJson("{\"projectDirectives\":[" + saved() + "],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":1}}")));
     var duplicate = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
     assertThat(duplicate.isError()).isFalse();
@@ -187,6 +188,32 @@ class ArchitectureServerTests {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"read", "update", "delete"})
+  void it_should_preserve_missing_directive_errors_without_upgrade_advice(String operation) {
+    lookup();
+    var backend = harness.getMockSonarQubeServer();
+    backend.stubFor(get(DIRECTIVES + "/" + ID).willReturn(aResponse().withStatus(404)));
+    var client = harness.newClient(Map.of());
+    Map<String, Object> arguments;
+    String tool;
+    if (operation.equals("read")) {
+      tool = ArchitectureGetTool.TOOL_NAME;
+      arguments = Map.of("target", "directives", "projectKey", "my_project", "directiveId", ID);
+    } else {
+      tool = ArchitectureSetTool.TOOL_NAME;
+      var model = operation.equals("update") ? "{\"update\":[{\"id\":\"" + ID + "\",\"description\":\"changed\"}]}"
+        : "{\"delete\":[{\"id\":\"" + ID + "\"}]}";
+      arguments = Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", false);
+    }
+    var result = client.callTool(tool, arguments);
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("404", ID).doesNotContain("older Server", "..", "public Architecture APIs");
+    for (var method : new String[] {"POST", "PATCH", "DELETE"}) {
+      assertThat(backend.getReceivedBodies(method, DIRECTIVES)).isEmpty();
+    }
+  }
+
+  @ParameterizedTest
   @ValueSource(strings = {"intended", "directives"})
   void it_should_explain_unavailable_public_architecture_routes_on_server(String target) {
     lookup();
@@ -196,7 +223,7 @@ class ArchitectureServerTests {
     var result = harness.newClient(Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", target, "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("older Server versions", "public Architecture APIs", "Browse permission");
+    assertThat(textOf(result)).contains("older Server versions", "public Architecture APIs", "Browse permission").doesNotContain("..");
   }
 
   @ParameterizedTest
