@@ -110,7 +110,7 @@ public class ArchitectureGetTool extends Tool {
     var parameters = arguments.toMap();
     if (selection == null && !DIRECTIVES.equals(target) && !FINDINGS.equals(target)
       && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
-      throw new IllegalArgumentException("Pagination parameters are only used for directives and findings.");
+      throw new IllegalArgumentException("Pagination parameters are only used for directives, findings and current from/to queries.");
     }
     if (!DIRECTIVES.equals(target) && parameters.get(DIRECTIVE_ID_PROPERTY) != null) {
       throw new IllegalArgumentException("directiveId is only used for directives.");
@@ -207,7 +207,8 @@ public class ArchitectureGetTool extends Tool {
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language, @Nullable DependencyQuery.Selection selection) {
+  private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language,
+    @Nullable DependencyQuery.Selection selection) {
     try {
       if (!currentReads.tryAcquire(5, TimeUnit.SECONDS)) {
         throw new IllegalStateException("Architecture reads are busy. Try again shortly.");
