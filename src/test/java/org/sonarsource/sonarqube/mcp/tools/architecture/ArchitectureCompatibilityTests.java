@@ -67,6 +67,37 @@ class ArchitectureCompatibilityTests {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
+  void it_should_explain_malformed_response_fields_without_relabeling_page_value_mismatches(boolean cloud) {
+    project();
+    var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
+    var cases = new String[][] {
+      {"current", "current-architectures", "{\"currentArchitectures\":\"x\"}"},
+      {"intended", "intended-architectures", "not JSON"},
+      {"directives", "project-directives", "{\"projectDirectives\":[],\"page\":{}}"},
+      {"directives", "project-directives", "{\"projectDirectives\":[{}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"},
+      {"findings", "project-findings", "{\"findings\":[],\"page\":{}}"},
+      {"findings", "project-findings", "{\"findings\":[{}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"}
+    };
+    for (var fixture : cases) {
+      harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo((cloud ? "" : "/api/v2") + "/architecture/" + fixture[1]))
+        .willReturn(okJson(fixture[2])));
+      var arguments = new java.util.HashMap<String, Object>(Map.of("target", fixture[0], "projectKey", "my_project"));
+      if (!fixture[0].equals("directives")) {
+        arguments.put("language", "java");
+      }
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).as(fixture[2]).contains(COMPATIBILITY);
+    }
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo((cloud ? "" : "/api/v2") + "/architecture/project-directives"))
+      .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":2,\"pageSize\":50,\"total\":0}}")));
+    var mismatched = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project"));
+    assertThat(mismatched.isError()).isTrue();
+    assertThat(textOf(mismatched)).doesNotContain(COMPATIBILITY);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
   void it_should_not_relabel_http_errors_or_empty_results_as_version_incompatibility(boolean cloud) {
     project();
     var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
