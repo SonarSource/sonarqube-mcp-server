@@ -108,6 +108,10 @@ class ArchitectureHttpTest {
         var graph = send(client, port, suffix, false, "tools/call", Map.of("name", "architecture_get", "arguments",
           Map.of("target", "current", "projectKey", "my_project", "language", "java", "organization", "org-" + suffix)));
         assertThat(graph).contains("app-" + suffix).doesNotContain("isError\":true");
+        var dependencies = send(client, port, suffix, true, "tools/call", Map.of("name", "architecture_get", "arguments",
+          Map.of("target", "current", "projectKey", "my_project", "language", "java", "organization", "org-" + suffix,
+            "from", "app-" + suffix + ":com.acme.web", "to", "app-" + suffix + ":com.acme.domain", "pageSize", 1)));
+        assertThat(dependencies).contains("dependencies", "revision", "app-" + suffix).doesNotContain("isError\":true");
         var preview = send(client, port, suffix, false, "tools/call", Map.of("name", "architecture_set", "arguments",
           Map.of("target", "intended", "projectKey", "my_project", "model", INTENDED_JAVA_MODEL, "dryRun", true, "organization", "org-" + suffix)));
         assertThat(preview).contains("dry-run", "patternId").doesNotContain("isError\":true");
