@@ -227,7 +227,7 @@ class ArchitectureHttpTest {
         harness.getMockSonarQubeServer().stubFor(get("/api/v2/components/projects?keys=my_project&pageSize=1")
           .withHeader("Authorization", equalTo("Bearer token-" + suffix))
           .willReturn(okJson("{\"projects\":[{\"id\":\"project-" + suffix + "\",\"key\":\"my_project\"}],\"page\":{\"total\":1}}")));
-        harness.getMockSonarQubeServer().stubFor(get("/api/v2/architecture/intended-architectures?projectId=project-" + suffix)
+        harness.getMockSonarQubeServer().stubFor(get("/api/v2/architecture/project-intended-architectures?projectId=project-" + suffix)
           .withHeader("Authorization", equalTo("Bearer token-" + suffix))
           .willReturn(okJson("{\"id\":null,\"intendedArchitectures\":[]}")));
         assertThat(send(client, port, suffix, false, "tools/call", Map.of("name", "architecture_get", "arguments",
