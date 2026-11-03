@@ -45,6 +45,21 @@ class ArchitectureGetCurrentToolTests {
     + "&branchId=" + MAIN_BRANCH_ID + "&language=";
 
   @SonarQubeMcpServerTest
+  void it_should_explain_the_server_language_binding_failure_without_raw_spring_text(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(aResponse().withStatus(400)
+      .withBody("{\"message\":\"Method parameter 'language': Failed to convert value to com.sonarsource.architecture.publicapi.api.model.PublicEcosystem\"}")));
+
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "current", "projectKey", "my_project", "language", "java"));
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("SonarQube Server", "language parameter", "administrator")
+      .doesNotContain("PublicEcosystem", "Failed to convert", "upgrade");
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/v2/architecture/current-architectures")).isEqualTo(1);
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var tool = harness.newClient().listTools().stream().filter(t -> t.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
 

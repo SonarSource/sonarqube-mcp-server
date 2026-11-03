@@ -1468,7 +1468,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server requires the Architecture feature; intended and directive operations also require the public `/api/v2/components/projects` lookup and public Architecture APIs.**
+**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to register these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. On SonarQube Server, tools remain listed even when the Architecture feature or required public APIs are unavailable; those calls fail when invoked. Intended and directive operations need the public `/api/v2/components/projects` lookup and public Architecture APIs.**
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, project directives, or deviations, flaws and smells with their details. Findings are read from the latest main-branch analysis. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 

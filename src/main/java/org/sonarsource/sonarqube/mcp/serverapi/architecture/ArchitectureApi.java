@@ -32,6 +32,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
@@ -86,7 +87,18 @@ public class ArchitectureApi {
       .addParam("branchId", branchId)
       .addParam("language", language)
       .build();
-    var response = read(projectKey, () -> fromJson(get(path), CurrentArchitectures.class));
+    CurrentArchitectures response;
+    try {
+      response = read(projectKey, () -> fromJson(get(path), CurrentArchitectures.class));
+    } catch (ClientErrorException e) {
+      var message = e.getMessage();
+      if (helper.isSonarQubeCloud() || e.status() != java.net.HttpURLConnection.HTTP_BAD_REQUEST || message == null
+        || !message.contains("Method parameter 'language'") || !message.contains("Failed to convert") || !message.contains(".PublicEcosystem")) {
+        throw e;
+      }
+      throw new IllegalStateException("SonarQube Server rejected the current-architecture language parameter (HTTP 400). "
+        + "Ask your administrator to check the Server Architecture API language-binding fix.", e);
+    }
     if (response == null || response.currentArchitectures() == null) {
       throw incompatibleResponse("The public architecture API did not return currentArchitectures. No complete graph was read.");
     }
