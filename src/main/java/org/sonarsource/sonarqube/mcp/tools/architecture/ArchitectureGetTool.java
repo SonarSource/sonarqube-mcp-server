@@ -94,7 +94,8 @@ public class ArchitectureGetTool extends Tool {
 
     var selection = dependencySelection(arguments, target, component);
     var parameters = arguments.toMap();
-    if (selection == null && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
+    if ((INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
+      && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
       throw new IllegalArgumentException("Pagination parameters are only used for current from/to queries.");
     }
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
