@@ -114,7 +114,7 @@ public class ArchitectureApi {
     write(projectKey, () -> {
       try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path) : helper.delete(SERVER_API_PREFIX + path)) {
         if (response.code() != 204) {
-          throw new IllegalStateException("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
+          throw incompatibleResponse("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
         }
       }
       return null;
