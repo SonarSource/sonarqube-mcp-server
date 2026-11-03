@@ -251,7 +251,7 @@ final class IntendedModels {
       }
       var groupKeys = new HashSet<List<String>>();
       checkGroups(language, nullToEmpty(model.groups()), List.of(), 1, groupKeys, groupCount, problems);
-      checkConstraints(language, nullToEmpty(model.constraints()), problems);
+      checkConstraints(language, nullToEmpty(model.constraints()), groupKeys, importedKeys(nullToEmpty(model.groups()), ""), problems);
     }
     if (models.size() > ArchitectureApi.MAX_PERSPECTIVES) {
       problems.add("The model has more than " + ArchitectureApi.MAX_PERSPECTIVES + " perspectives.");
@@ -283,17 +283,55 @@ final class IntendedModels {
     }
   }
 
-  private static void checkConstraints(String language, List<IntendedArchitecture.Constraint> constraints, List<String> problems) {
+  private static void checkConstraints(String language, List<IntendedArchitecture.Constraint> constraints, Set<List<String>> groupKeys,
+    List<String> importedKeys, List<String> problems) {
+    var endpointCounts = new java.util.HashMap<String, Integer>();
+    groupKeys.forEach(key -> endpointCounts.merge(String.join("/", key), 1, Integer::sum));
     var seen = new HashSet<IntendedArchitecture.Constraint>();
     for (var constraint : constraints) {
       if (constraint == null) {
         problems.add("A constraint of " + language + " is null.");
       } else if (constraint.from() == null || constraint.to() == null) {
         problems.add("Constraint endpoints of " + language + " must be strings.");
-      } else if (!seen.add(constraint)) {
-        problems.add("Constraint " + describe(constraint) + " of " + language + DUPLICATE_SUFFIX);
+      } else {
+        for (var endpoint : List.of(constraint.from(), constraint.to())) {
+          if (!knownConstraintEnd(endpoint, endpointCounts, importedKeys)) {
+            problems.add("Constraint endpoint '" + endpoint + "' of " + language + " does not name a unique group.");
+          }
+        }
+        if (constraint.from().equals(constraint.to()) && !constraint.from().contains("*") && !constraint.from().contains("?")) {
+          problems.add("Constraint " + describe(constraint) + " of " + language + " refers to itself.");
+        }
+        if (!seen.add(constraint)) {
+          problems.add("Constraint " + describe(constraint) + " of " + language + DUPLICATE_SUFFIX);
+        }
       }
     }
+  }
+
+  private static boolean knownConstraintEnd(String endpoint, Map<String, Integer> keys, List<String> importedKeys) {
+    // Wildcard selectors and server-resolved imported descendants keep their public semantics.
+    if (keys.containsKey(endpoint)) {
+      return keys.get(endpoint) == 1;
+    }
+    return endpoint.contains("*") || endpoint.contains("?")
+      || importedKeys.stream().anyMatch(key -> endpoint.startsWith(key + "/"));
+  }
+
+  private static List<String> importedKeys(List<IntendedArchitecture.Group> groups, String prefix) {
+    var keys = new ArrayList<String>();
+    for (var group : groups) {
+      if (group == null || group.label() == null) {
+        continue;
+      }
+      var key = prefix + group.label();
+      if (group.patternId() != null) {
+        keys.add(key);
+      } else {
+        keys.addAll(importedKeys(nullToEmpty(group.groups()), key + "/"));
+      }
+    }
+    return keys;
   }
 
   /**
