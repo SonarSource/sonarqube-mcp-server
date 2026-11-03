@@ -125,7 +125,7 @@ public class ArchitectureApi {
     write(projectKey, () -> {
       try (var response = delete(path)) {
         if (response.code() != 204) {
-          throw new IllegalStateException("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
+          throw incompatibleResponse("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
         }
       }
       return null;
