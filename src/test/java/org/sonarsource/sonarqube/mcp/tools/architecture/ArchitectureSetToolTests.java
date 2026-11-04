@@ -315,8 +315,6 @@ class ArchitectureSetToolTests {
     assertNoPrivateRequests(harness);
   }
 
-
-
   @SonarQubeMcpServerTest
   void it_should_create_directly_when_the_export_is_empty(SonarQubeMcpServerTestHarness harness) {
     stored(harness, "[]");
@@ -574,7 +572,6 @@ class ArchitectureSetToolTests {
     assertWrites(harness, 0, 0);
   }
 
-
   @SonarQubeMcpServerTest
   void it_should_verify_a_committed_patch_after_a_failed_response(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL);
@@ -587,7 +584,6 @@ class ArchitectureSetToolTests {
     assertThat(textOf(result)).contains("replaced");
     assertWrites(harness, 1, 0);
   }
-
 
   @SonarQubeMcpServerTest
   void it_should_reject_invalid_or_partial_models_before_network(SonarQubeMcpServerTestHarness harness) {
@@ -684,7 +680,6 @@ class ArchitectureSetToolTests {
     assertThat(textOf(result)).contains("created");
     assertWrites(harness, 0, 1);
   }
-
 
   @SonarQubeMcpServerTest
   void it_should_return_recovery_data_to_the_caller_without_logging_it(SonarQubeMcpServerTestHarness harness) {

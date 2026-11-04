@@ -20,15 +20,16 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
@@ -79,8 +80,6 @@ final class ProjectDirectives {
     }
     return object.getAsJsonArray(key);
   }
-
-
 
   private static ProjectDirective parseDirective(JsonElement item, Gson gson) {
     if (!item.isJsonObject() || !FIELDS.containsAll(item.getAsJsonObject().keySet())) {
@@ -181,16 +180,8 @@ final class ProjectDirectives {
     }
   }
 
-
-
-
-
-
-
-
-
   private static boolean isDefiniteRejection(RuntimeException failure) {
-    return (failure instanceof ClientErrorException clientError && clientError.status() != java.net.HttpURLConnection.HTTP_CLIENT_TIMEOUT)
+    return (failure instanceof ClientErrorException clientError && clientError.status() != HttpURLConnection.HTTP_CLIENT_TIMEOUT)
       || failure instanceof ForbiddenException || failure instanceof NotFoundException || failure instanceof UnauthorizedException;
   }
 
@@ -199,10 +190,6 @@ final class ProjectDirectives {
 
   record Changes(List<ProjectDirective> create) {
   }
-
-
-
-
 
   record Applied(String projectKey, String mode, List<ProjectDirective> toCreate, int skipped, List<String> skippedIds,
     List<ProjectDirective> created, List<String> warnings) {
