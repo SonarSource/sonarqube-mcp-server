@@ -16,12 +16,17 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
-import java.util.Objects;
-import java.util.UUID;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import jakarta.annotation.Nullable;
+import java.net.HttpURLConnection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Supplier;
 import org.apache.commons.lang3.Strings;
 import org.apache.hc.core5.net.URIBuilder;
@@ -85,7 +90,7 @@ public class ArchitectureApi {
       response = read(projectKey, () -> fromJson(get(path), CurrentArchitectures.class));
     } catch (ClientErrorException e) {
       var message = e.getMessage();
-      if (helper.isSonarQubeCloud() || e.status() != java.net.HttpURLConnection.HTTP_BAD_REQUEST || message == null
+      if (helper.isSonarQubeCloud() || e.status() != HttpURLConnection.HTTP_BAD_REQUEST || message == null
         || !message.contains("Method parameter 'language'") || !message.contains("Failed to convert") || !message.contains(".PublicEcosystem")) {
         throw e;
       }
@@ -238,13 +243,13 @@ public class ArchitectureApi {
       || response.projectDirectives().size() > pageSize) {
       throw new IllegalStateException("Invalid public directives page; no complete page was read.");
     }
-    var ids = new java.util.HashSet<String>();
+    var ids = new HashSet<String>();
     for (var directive : response.projectDirectives()) {
       if (directive == null) {
         throw new IllegalStateException("The public directives response contains an incomplete directive.");
       }
       directive.validateStored();
-      if (!ids.add(directive.id().toLowerCase(java.util.Locale.ROOT))) {
+      if (!ids.add(directive.id().toLowerCase(Locale.ROOT))) {
         throw new IllegalStateException("The public directives page returned duplicate ids.");
       }
       if (!projectId.equals(directive.projectId())) {
@@ -300,7 +305,7 @@ public class ArchitectureApi {
   public void deleteDirective(String projectKey, String id) {
     write(projectKey, () -> {
       try (var response = delete(directivePath(id))) {
-        if (response.code() != java.net.HttpURLConnection.HTTP_NO_CONTENT) {
+        if (response.code() != HttpURLConnection.HTTP_NO_CONTENT) {
           throw new IllegalStateException("The directive deletion was not confirmed. Inspect it before retrying.");
         }
       }
@@ -356,14 +361,14 @@ public class ArchitectureApi {
     }
   }
 
-  private static DirectivePageInfo findingPageInfo(@Nullable com.google.gson.JsonObject page) {
+  private static DirectivePageInfo findingPageInfo(@Nullable JsonObject page) {
     if (page == null) {
       throw new IllegalStateException("Invalid public findings page.");
     }
     return new DirectivePageInfo(findingPageNumber(page, PAGE_INDEX_PARAM), findingPageNumber(page, PAGE_SIZE_PARAM), findingPageNumber(page, "total"));
   }
 
-  private static int findingPageNumber(com.google.gson.JsonObject page, String name) {
+  private static int findingPageNumber(JsonObject page, String name) {
     var value = page.get(name);
     try {
       if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
@@ -375,7 +380,7 @@ public class ArchitectureApi {
     }
   }
 
-  private record RawFindingPage(List<com.google.gson.JsonElement> findings, com.google.gson.JsonObject page) {
+  private record RawFindingPage(List<JsonElement> findings, JsonObject page) {
   }
 
   public static void validateFindingPage(int pageIndex, int pageSize) {

@@ -18,8 +18,10 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.Gson;
 import jakarta.annotation.Nullable;
+import java.net.HttpURLConnection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
@@ -74,7 +76,7 @@ final class IntendedArchitectureReplacement {
   }
 
   private static boolean isDefiniteRejection(RuntimeException failure) {
-    return (failure instanceof ClientErrorException clientError && clientError.status() != java.net.HttpURLConnection.HTTP_CLIENT_TIMEOUT)
+    return (failure instanceof ClientErrorException clientError && clientError.status() != HttpURLConnection.HTTP_CLIENT_TIMEOUT)
       || failure instanceof ForbiddenException || failure instanceof NotFoundException || failure instanceof UnauthorizedException;
   }
 
@@ -193,7 +195,7 @@ final class IntendedArchitectureReplacement {
     return groups.stream().map(group -> new IntendedArchitecture.Group(group.label(),
       group.patterns() == null ? List.of() : group.patterns().stream().sorted().toList(), normalizedGroups(group.patternId() == null ? group.groups() : null),
       Boolean.TRUE.equals(group.isInterface()), Boolean.TRUE.equals(group.interfaceAccess()), group.description(),
-      group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT))).toList();
+      group.patternId() == null ? null : group.patternId().toLowerCase(Locale.ROOT))).toList();
   }
 
   private record PreviousModels(List<IntendedArchitecture> models) {

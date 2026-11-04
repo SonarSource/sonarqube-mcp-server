@@ -16,7 +16,12 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -314,8 +319,6 @@ class ArchitectureSetToolTests {
     assertThat(perspective.toString()).contains("infra").doesNotContain("id", "projectId");
     assertNoPrivateRequests(harness);
   }
-
-
 
   @SonarQubeMcpServerTest
   void it_should_create_directly_when_the_export_is_empty(SonarQubeMcpServerTestHarness harness) {
@@ -653,7 +656,6 @@ class ArchitectureSetToolTests {
     assertWrites(harness, 0, 0);
   }
 
-
   @SonarQubeMcpServerTest
   void it_should_verify_a_committed_patch_after_a_failed_response(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL);
@@ -666,7 +668,6 @@ class ArchitectureSetToolTests {
     assertThat(textOf(result)).contains("replaced");
     assertWrites(harness, 1, 0);
   }
-
 
   @SonarQubeMcpServerTest
   void it_should_reject_invalid_or_partial_models_before_network(SonarQubeMcpServerTestHarness harness) {
@@ -708,7 +709,7 @@ class ArchitectureSetToolTests {
     stored(harness, INTENDED_JAVA_MODEL);
     var client = harness.newClient(CLOUD_ENV);
     for (var filter : List.of(Map.of("language", "java"), Map.of("component", "app"), Map.of("depth", 1))) {
-      var args = new java.util.HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project"));
+      var args = new HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project"));
       args.putAll(filter);
       var read = client.callTool(ArchitectureGetTool.TOOL_NAME, args);
       var envelope = JsonParser.parseString(textOf(read)).getAsJsonObject();
@@ -766,7 +767,6 @@ class ArchitectureSetToolTests {
     assertWrites(harness, 0, 1);
   }
 
-
   @SonarQubeMcpServerTest
   void it_should_return_recovery_data_to_the_caller_without_logging_it(SonarQubeMcpServerTestHarness harness) {
     var sentinel = "private-recovery-pattern-sentinel";
@@ -781,13 +781,13 @@ class ArchitectureSetToolTests {
     appender.start();
     logger.addAppender(appender);
     var originalErr = System.err;
-    var stderr = new java.io.ByteArrayOutputStream();
-    try (var capturedErr = new java.io.PrintStream(stderr, true, java.nio.charset.StandardCharsets.UTF_8)) {
+    var stderr = new ByteArrayOutputStream();
+    try (var capturedErr = new PrintStream(stderr, true, StandardCharsets.UTF_8)) {
       System.setErr(capturedErr);
       var result = set(harness, NEXT, false, IntendedRevision.of(IntendedModels.parse(previous)));
       assertThat(result.isError()).isTrue();
       assertThat(textOf(result)).contains("Previous exported model", sentinel);
-      assertThat(stderr.toString(java.nio.charset.StandardCharsets.UTF_8)).doesNotContain(sentinel, "Previous exported model");
+      assertThat(stderr.toString(StandardCharsets.UTF_8)).doesNotContain(sentinel, "Previous exported model");
       assertThat(appender.list).allSatisfy(event -> {
         assertThat(event.getFormattedMessage()).doesNotContain(sentinel, "Previous exported model");
         assertThat(event.getThrowableProxy()).isNull();
@@ -960,7 +960,7 @@ class ArchitectureSetToolTests {
   }
 
   private static io.modelcontextprotocol.spec.McpSchema.CallToolResult set(SonarQubeMcpServerTestHarness harness, String model, boolean dryRun, String revision) {
-    var args = new java.util.HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project", "model", model, "dryRun", dryRun));
+    var args = new HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project", "model", model, "dryRun", dryRun));
     if (revision != null) {
       args.put("revision", revision);
     }
@@ -993,7 +993,7 @@ class ArchitectureSetToolTests {
       .willReturn(okJson(intendedArchitectures(models))));
   }
 
-  private static com.google.gson.JsonObject patchBody(SonarQubeMcpServerTestHarness harness) {
+  private static JsonObject patchBody(SonarQubeMcpServerTestHarness harness) {
     return JsonParser.parseString(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", MODEL_PATH).getFirst()).getAsJsonObject();
   }
 
