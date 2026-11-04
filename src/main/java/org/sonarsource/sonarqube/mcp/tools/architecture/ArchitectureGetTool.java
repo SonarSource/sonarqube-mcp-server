@@ -136,7 +136,8 @@ public class ArchitectureGetTool extends Tool {
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
     var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(50));
-    return Result.success(new DirectivesView(projectKey, "summary", page.projectDirectives().stream().map(DirectiveResponses::summary).toList(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
+    return Result.success(new DirectivesView(projectKey, "summary",
+      page.projectDirectives().stream().map(DirectiveResponses::summary).toList(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
 

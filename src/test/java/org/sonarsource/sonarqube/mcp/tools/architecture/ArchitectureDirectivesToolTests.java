@@ -19,7 +19,6 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
