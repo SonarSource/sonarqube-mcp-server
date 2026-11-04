@@ -47,6 +47,7 @@ final class IntendedModels {
   private static final String PATTERNS_PROPERTY = "patterns";
   private static final String PATTERN_ID_PROPERTY = "patternId";
   private static final String DUPLICATE_SUFFIX = " appears more than once.";
+  private static final String LANGUAGE_SEPARATOR = "' of ";
   private static final String GROUP_DESCRIPTION = " group ";
   private static final int MAX_REPORTED_PROBLEMS = 10;
   private static final int MAX_DEPTH = 64;
@@ -244,14 +245,14 @@ final class IntendedModels {
         continue;
       }
       if (model.type() == null || !TYPES.contains(model.type())) {
-        problems.add("Type '" + model.type() + "' of " + language + " is not file or namespace.");
+        problems.add("Type '" + model.type() + LANGUAGE_SEPARATOR + language + " is not file or namespace.");
       }
       if (!perspectives.add(Arrays.asList(language, model.type()))) {
         problems.add("Perspective " + language + "/" + model.type() + DUPLICATE_SUFFIX);
       }
       var groupKeys = new HashSet<List<String>>();
       checkGroups(language, nullToEmpty(model.groups()), List.of(), 1, groupKeys, groupCount, problems);
-      checkConstraints(language, nullToEmpty(model.constraints()), problems);
+      checkConstraints(language, nullToEmpty(model.constraints()), groupKeys, importedKeys(nullToEmpty(model.groups()), ""), problems);
     }
     if (models.size() > ArchitectureApi.MAX_PERSPECTIVES) {
       problems.add("The model has more than " + ArchitectureApi.MAX_PERSPECTIVES + " perspectives.");
@@ -277,23 +278,66 @@ final class IntendedModels {
       var key = new ArrayList<>(parentPath);
       key.add(group.label());
       if (!keys.add(key)) {
-        problems.add("Group '" + key + "' of " + language + DUPLICATE_SUFFIX);
+        problems.add("Group '" + key + LANGUAGE_SEPARATOR + language + DUPLICATE_SUFFIX);
       }
       checkGroups(language, nullToEmpty(group.groups()), key, depth + 1, keys, groupCount, problems);
     }
   }
 
-  private static void checkConstraints(String language, List<IntendedArchitecture.Constraint> constraints, List<String> problems) {
+  private static void checkConstraints(String language, List<IntendedArchitecture.Constraint> constraints, Set<List<String>> groupKeys,
+    List<String> importedKeys, List<String> problems) {
+    var endpointCounts = new java.util.HashMap<String, Integer>();
+    groupKeys.forEach(key -> endpointCounts.merge(String.join("/", key), 1, Integer::sum));
     var seen = new HashSet<IntendedArchitecture.Constraint>();
     for (var constraint : constraints) {
       if (constraint == null) {
         problems.add("A constraint of " + language + " is null.");
       } else if (constraint.from() == null || constraint.to() == null) {
         problems.add("Constraint endpoints of " + language + " must be strings.");
-      } else if (!seen.add(constraint)) {
-        problems.add("Constraint " + describe(constraint) + " of " + language + DUPLICATE_SUFFIX);
+      } else {
+        checkConstraintEndpoints(language, constraint, endpointCounts, importedKeys, problems);
+        if (!seen.add(constraint)) {
+          problems.add("Constraint " + describe(constraint) + " of " + language + DUPLICATE_SUFFIX);
+        }
       }
     }
+  }
+
+  private static void checkConstraintEndpoints(String language, IntendedArchitecture.Constraint constraint, Map<String, Integer> endpointCounts,
+    List<String> importedKeys, List<String> problems) {
+    for (var endpoint : List.of(constraint.from(), constraint.to())) {
+      if (!knownConstraintEnd(endpoint, endpointCounts, importedKeys)) {
+        problems.add("Constraint endpoint '" + endpoint + LANGUAGE_SEPARATOR + language + " does not name a unique group.");
+      }
+    }
+    if (constraint.from().equals(constraint.to()) && !constraint.from().contains("*") && !constraint.from().contains("?")) {
+      problems.add("Constraint " + describe(constraint) + " of " + language + " refers to itself.");
+    }
+  }
+
+  private static boolean knownConstraintEnd(String endpoint, Map<String, Integer> keys, List<String> importedKeys) {
+    // Wildcard selectors and server-resolved imported descendants keep their public semantics.
+    if (keys.containsKey(endpoint)) {
+      return keys.get(endpoint) == 1;
+    }
+    return endpoint.contains("*") || endpoint.contains("?")
+      || importedKeys.stream().anyMatch(key -> endpoint.startsWith(key + "/"));
+  }
+
+  private static List<String> importedKeys(List<IntendedArchitecture.Group> groups, String prefix) {
+    var keys = new ArrayList<String>();
+    for (var group : groups) {
+      if (group == null || group.label() == null) {
+        continue;
+      }
+      var key = prefix + group.label();
+      if (group.patternId() != null) {
+        keys.add(key);
+      } else {
+        keys.addAll(importedKeys(nullToEmpty(group.groups()), key + "/"));
+      }
+    }
+    return keys;
   }
 
   /**
