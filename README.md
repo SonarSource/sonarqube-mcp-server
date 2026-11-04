@@ -1472,6 +1472,8 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, or project directives by page or ID. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
 
+  For a focused dependency query, supply both `from` and `to` with exact current keys, without `component`. The query includes descendants and preserves direction. `depth` defaults to 1 (direct children, retaining leaves); use a returned pair or increase depth for detail. Matching leaf-level dependencies are aggregated before pagination, independent of the overview node cap. Ancestor/descendant aggregate rows are omitted; increase depth to inspect internal dependencies. Each page returns dependency keys/weights, `paging` metadata including the total, and `revision`; compare revisions before combining pages and restart if changed. Specify `language` if the pair matches multiple graphs. Container-level relationships overlapping both selected subtrees are rejected in this mode. Unrelated relationships are ignored. Matching graphs reject duplicate node IDs or ambiguous keys because complete dependency pages require unambiguous edge identities; the overview is best-effort. Counts limit rows, not bytes or tokens.
+
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
@@ -1482,8 +1484,9 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended only - _String_
   - `directiveId` - Cloud directives only: read one UUID instead of a page; cannot be combined with paging - _String_
-  - `pageIndex` - Directives page, starting at 1; default 1 - _Number_
-  - `pageSize` - Directives per page; default 50, maximum 1000 - _Number_
+  - `from` / `to` - Current only: exact source/destination keys including descendants; supply both without `component` - _String_
+  - `pageIndex` - Directives or current from/to queries; starts at 1, default 1 - _Number_
+  - `pageSize` - Current from/to: default/maximum 20; directives: default 50, maximum 1000 - _Number_
 
 - **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
