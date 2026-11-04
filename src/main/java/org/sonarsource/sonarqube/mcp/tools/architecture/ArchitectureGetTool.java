@@ -20,6 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
@@ -127,7 +128,7 @@ public class ArchitectureGetTool extends Tool {
     if (id != null && (pageIndex != null || pageSize != null)) {
       throw new IllegalArgumentException("Use either directiveId or pagination parameters.");
     }
-    if (id != null && !java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+    if (id != null && !UUID.fromString(id).toString().equalsIgnoreCase(id)) {
       throw new IllegalArgumentException("Directive id must be a UUID.");
     }
     var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");

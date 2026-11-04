@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -130,9 +132,9 @@ class ArchitectureDirectivesToolTests {
   })
   void it_should_reject_invalid_stored_directives(String invalidFields) {
     stubMainBranch(harness);
-    var json = new com.google.gson.Gson();
-    var directive = json.fromJson(saved(1, "app:a"), com.google.gson.JsonObject.class);
-    json.fromJson(invalidFields, com.google.gson.JsonObject.class).entrySet()
+    var json = new Gson();
+    var directive = json.fromJson(saved(1, "app:a"), JsonObject.class);
+    json.fromJson(invalidFields, JsonObject.class).entrySet()
       .forEach(entry -> directive.add(entry.getKey(), entry.getValue()));
     stubPage(1, directive.toString(), 1);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
