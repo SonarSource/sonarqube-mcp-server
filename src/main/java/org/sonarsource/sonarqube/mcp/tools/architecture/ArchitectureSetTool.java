@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import jakarta.annotation.Nullable;
+import java.util.ArrayList;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -98,7 +99,7 @@ public class ArchitectureSetTool extends Tool {
     IntendedArchitectureReplacement.checkWritableModels(stored, next);
     var current = stored;
     var diff = IntendedModels.diff(current, next);
-    var warnings = new java.util.ArrayList<String>();
+    var warnings = new ArrayList<String>();
     warnings.add(ArchitectureApi.EXPORT_WARNING);
     warnings.add("The public API has no conditional write; concurrent edits can race the revision check.");
     if (revision == null) {

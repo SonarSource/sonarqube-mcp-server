@@ -38,6 +38,9 @@ SonarQube Cloud project key: `SonarSource_sonarqube-mcp-server`.
 
 ## Code Style
 
+- Use one blank line between members and logical sections; remove consecutive empty lines left by edits.
+- Import Java types instead of fully qualifying them inline. Keep constants grouped by visibility, with related property constants together.
+
 - Follow [SonarSource/sonar-developer-toolset](https://github.com/SonarSource/sonar-developer-toolset#code-style).
 - Every `.java` file must include the SSAL license header from `HEADER`.
 - Commits and PRs should start with the Jira ticket ID when available (e.g. `MCP-1234`).
