@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import jakarta.annotation.Nullable;
+import java.util.ArrayList;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -41,11 +42,12 @@ public class ArchitectureSetTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Set Architecture")
       .setDestructiveHint()
-      .setDescription("Replace intended architecture (omitted content is removed), or create explicit project directives.")
+      .setDescription("Replace intended architecture (omitted content is removed), or create, update or delete explicit project directives.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
-      .addRequiredEnumProperty("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES}, "intended: replace model; directives: create missing directives.")
+      .addRequiredEnumProperty("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES}, "intended: replace model; directives: explicit CRUD operations.")
       .addRequiredStringProperty(MODEL_PROPERTY, "Intended: full response or models array. Directives: "
-        + "{create: [directives]}; directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
+        + "{create: [directives], update: [{id, ...changed directive fields}], delete: [{id}]}; updates are flat objects. "
+        + "Directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
         + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current (RENAME_NODE: full renamed key), "
         + "graphPerspective defaults to default_perspective, optional description.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
@@ -97,7 +99,7 @@ public class ArchitectureSetTool extends Tool {
     IntendedArchitectureReplacement.checkWritableModels(stored, next);
     var current = stored;
     var diff = IntendedModels.diff(current, next);
-    var warnings = new java.util.ArrayList<String>();
+    var warnings = new ArrayList<String>();
     warnings.add(ArchitectureApi.EXPORT_WARNING);
     warnings.add("The public API has no conditional write; concurrent edits can race the revision check.");
     if (revision == null) {
