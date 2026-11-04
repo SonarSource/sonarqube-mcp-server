@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import jakarta.annotation.Nullable;
 import java.net.HttpURLConnection;
 import java.util.HashSet;
@@ -34,13 +35,14 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 
 /** Public architecture HTTP requests, response validation and Cloud/Server routing. */
 public class ArchitectureApi {
 
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
-  public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
+  public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/project-intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
   public static final String SERVER_API_PREFIX = "/api/v2";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
@@ -56,6 +58,13 @@ public class ArchitectureApi {
     + "HTTP 403 alone does not establish which check failed";
   private static final String PLAN_HINT = "Architecture is available on SonarQube Cloud Team and Enterprise plans, "
     + "and on SonarQube Server editions that include it";
+
+  private static final String COMPATIBILITY_HINT = "The response does not match this MCP server's supported public Architecture API contract. "
+    + "Check that the MCP server and the connected SonarQube deployment support the same Architecture API.";
+
+  private static IllegalStateException incompatibleResponse(String message) {
+    return new IllegalStateException(message + " " + COMPATIBILITY_HINT);
+  }
 
   private final ServerApiHelper helper;
   private final Gson gson = new Gson();
@@ -84,25 +93,39 @@ public class ArchitectureApi {
    * Returns all publicly exported intended perspectives, or an empty list when none is visible.
    */
   public List<IntendedArchitecture> getIntended(String projectKey, String projectId) {
-    var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH)
-      .addParam("projectId", projectId)
-      .build();
-    var response = read(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
-    if (response == null || response.intendedArchitectures() == null) {
-      throw new IllegalStateException("The public architecture API did not return intendedArchitectures. No complete model was read.");
-    }
-    return exportedModels(response);
+    return getIntendedState(projectKey, projectId).models();
   }
 
-  public List<IntendedArchitecture> createIntended(String projectKey, String projectId, List<IntendedArchitecture> models) {
+  public IntendedState getIntendedState(String projectKey, String projectId) {
+    var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH).addParam("projectId", projectId).build();
+    var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
+    if (response == null || response.intendedArchitectures() == null || response.intendedArchitectures().size() > 1) {
+      throw incompleteModel();
+    }
+    return response.intendedArchitectures().isEmpty() ? new IntendedState(null, List.of()) : exportedResource(response.intendedArchitectures().getFirst());
+  }
+
+  public IntendedState createIntended(String projectKey, String projectId, List<IntendedArchitecture> models) {
     var body = gson.toJson(new CreateModels(projectId, publicModels(models)));
     return write(projectKey, () -> writeModels(INTENDED_ARCHITECTURES_PATH, body, false));
   }
 
-  public List<IntendedArchitecture> patchIntended(String projectKey, String id, List<IntendedArchitecture> models) {
+  public IntendedState patchIntended(String projectKey, String id, List<IntendedArchitecture> models) {
     var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
     var body = gson.toJson(new PatchModels(publicModels(models)));
     return write(projectKey, () -> writeModels(path, body, true));
+  }
+
+  public void deleteIntended(String projectKey, String id) {
+    var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
+    write(projectKey, () -> {
+      try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path) : helper.delete(SERVER_API_PREFIX + path)) {
+        if (response.code() != 204) {
+          throw incompatibleResponse("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
+        }
+      }
+      return null;
+    });
   }
 
   private static List<PublicIntendedModel> publicModels(List<IntendedArchitecture> models) {
@@ -119,14 +142,12 @@ public class ArchitectureApi {
     }
   }
 
-  private List<IntendedArchitecture> writeModels(String path, String body, boolean patch) {
-    try (var response = request(path, body, patch)) {
-      var result = gson.fromJson(response.bodyAsString(), IntendedArchitectures.class);
-      if (result == null || result.intendedArchitectures() == null || result.intendedArchitectures().isEmpty()) {
-        throw new IllegalStateException("The public architecture API did not return the written intendedArchitectures.");
-      }
-      return exportedModels(result);
+  private IntendedState writeModels(String path, String body, boolean patch) {
+    var result = fromJson(request(path, body, patch), IntendedResource.class);
+    if (result == null || result.perspectives() == null || result.perspectives().isEmpty()) {
+      throw incompatibleResponse("The public architecture API did not return the written intended perspectives.");
     }
+    return exportedResource(result);
   }
 
   private HttpClient.Response request(String path, String body, boolean patch) {
@@ -165,13 +186,13 @@ public class ArchitectureApi {
   }
 
   private static IllegalStateException incompleteModel() {
-    return new IllegalStateException("The public architecture API returned an incomplete intended architecture. No complete model was read.");
+    return incompatibleResponse("The public architecture API returned an incomplete intended architecture. No complete model was read.");
   }
 
-  private record CreateModels(String projectId, List<PublicIntendedModel> intendedArchitectures) {
+  private record CreateModels(String projectId, List<PublicIntendedModel> perspectives) {
   }
 
-  private record PatchModels(List<PublicIntendedModel> intendedArchitectures) {
+  private record PatchModels(List<PublicIntendedModel> perspectives) {
   }
 
   private record PublicIntendedModel(String qualifiers, String language, @Nullable String label, @Nullable String description, List<IntendedArchitecture.Group> groups,
@@ -186,7 +207,19 @@ public class ArchitectureApi {
     }
   }
 
-  private static String reason(ForbiddenException e) {
+  private <T> T readProjectResource(String projectKey, Supplier<T> request) {
+    try {
+      return read(projectKey, request);
+    } catch (NotFoundException e) {
+      if (helper.isSonarQubeCloud()) {
+        throw e;
+      }
+      throw new NotFoundException(reason(e) + ". Check the project and Browse permission. "
+        + "On older Server versions, use a Server build that exposes the public Architecture APIs");
+    }
+  }
+
+  private static String reason(ServerApiException e) {
     return Strings.CS.removeStart(e.getMessage(), ServerApiException.MESSAGE_PREFIX);
   }
 
@@ -309,36 +342,44 @@ public class ArchitectureApi {
   private <T> T fromJson(HttpClient.Response toBeClosed, Class<T> type) {
     try (var response = toBeClosed) {
       return gson.fromJson(response.bodyAsString(), type);
+    } catch (JsonParseException invalid) {
+      throw new IllegalStateException("Invalid public architecture response. " + COMPATIBILITY_HINT, invalid);
     }
   }
 
   private record CurrentArchitectures(@Nullable List<StructureGraph> currentArchitectures) {
   }
 
-  private static List<IntendedArchitecture> exportedModels(IntendedArchitectures response) {
-    if (!response.intendedArchitectures().isEmpty()) {
-      try {
-        if (response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())) {
-          throw incompleteModel();
-        }
-      } catch (IllegalArgumentException e) {
+  private static IntendedState exportedResource(@Nullable IntendedResource response) {
+    try {
+      if (response == null || response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())
+        || response.perspectives() == null || response.perspectives().size() > MAX_PERSPECTIVES) {
         throw incompleteModel();
       }
+    } catch (IllegalArgumentException invalid) {
+      throw incompleteModel();
     }
-    return validateModels(response.intendedArchitectures().stream().map(model -> {
-      if (model == null) {
+    var identities = new java.util.HashSet<String>();
+    var models = validateModels(response.perspectives().stream().map(model -> {
+      if (model == null || !identities.add(model.qualifiers() + "/" + model.language())) {
         throw incompleteModel();
       }
-      return new IntendedArchitecture(response.id(), model.qualifiers(), model.language(),
-      model.groups(), model.constraints(), model.label(), model.description());
+      return new IntendedArchitecture(response.id(), model.qualifiers(), model.language(), model.groups(), model.constraints(), model.label(), model.description());
     }).toList());
+    return new IntendedState(response.id(), models);
+  }
+
+  public record IntendedState(@Nullable String id, List<IntendedArchitecture> models) {
   }
 
   private record PublicIntendedExport(String qualifiers, String language, List<IntendedArchitecture.Group> groups,
     List<IntendedArchitecture.Constraint> constraints, @Nullable String label, @Nullable String description) {
   }
 
-  private record IntendedArchitectures(@Nullable String id, @Nullable List<PublicIntendedExport> intendedArchitectures) {
+  private record IntendedResource(@Nullable String id, @Nullable List<PublicIntendedExport> perspectives) {
+  }
+
+  private record IntendedArchitectures(@Nullable List<IntendedResource> intendedArchitectures) {
   }
 
 }
