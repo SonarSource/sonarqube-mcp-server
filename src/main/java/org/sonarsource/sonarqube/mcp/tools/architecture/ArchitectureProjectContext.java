@@ -45,11 +45,10 @@ final class ArchitectureProjectContext {
         + "' has no main branch. Use search_my_sonarqube_projects to check the project key."));
   }
 
-  static String projectId(ServerApi serverApi, String projectKey, String resource) {
+  static String projectId(ServerApi serverApi, String projectKey) {
     if (serverApi.isSonarQubeCloud()) {
       return mainBranchId(serverApi, projectKey);
     }
-    throw new IllegalStateException(resource + " on SonarQube Server requires a project UUID, but no supported public API resolves it from a project key. "
-      + "Nothing was read or changed. Waiting for public project ID resolution.");
+    return serverApi.componentsApi().getProjectId(projectKey);
   }
 }
