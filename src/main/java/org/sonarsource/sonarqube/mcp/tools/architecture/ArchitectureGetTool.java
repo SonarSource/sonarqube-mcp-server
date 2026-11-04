@@ -20,6 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
@@ -41,11 +42,11 @@ public class ArchitectureGetTool extends Tool {
   public static final String TARGET_PROPERTY = "target";
   public static final String COMPONENT_PROPERTY = "component";
   public static final String DEPTH_PROPERTY = "depth";
+  public static final String DIRECTIVE_ID_PROPERTY = "directiveId";
   public static final String LANGUAGE_PROPERTY = "language";
   public static final String CURRENT = "current";
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
-  private static final String DIRECTIVE_ID_PROPERTY = "directiveId";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
@@ -127,7 +128,7 @@ public class ArchitectureGetTool extends Tool {
     if (id != null && (pageIndex != null || pageSize != null)) {
       throw new IllegalArgumentException("Use either directiveId or pagination parameters.");
     }
-    if (id != null && !java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+    if (id != null && !UUID.fromString(id).toString().equalsIgnoreCase(id)) {
       throw new IllegalArgumentException("Directive id must be a UUID.");
     }
     var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
