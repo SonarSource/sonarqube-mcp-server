@@ -16,18 +16,22 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 
@@ -72,7 +76,7 @@ class ArchitectureDirectivesToolTests {
   void it_should_read_paginated_directives_and_skip_duplicates_without_replacement() {
     stubMainBranch(harness);
     var backend = harness.getMockSonarQubeServer();
-    var firstPage = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)).collect(java.util.stream.Collectors.joining(","));
+    var firstPage = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)).collect(Collectors.joining(","));
     stubPage(1, firstPage, 101);
     stubPage(2, saved(101, "app:a"), 101);
     var client = harness.newClient(CLOUD_ENV);
@@ -95,7 +99,7 @@ class ArchitectureDirectivesToolTests {
   void it_should_refuse_short_pages_even_when_later_pages_make_the_total_match() {
     stubMainBranch(harness);
     var first = IntStream.rangeClosed(1, 99).mapToObj(id -> saved(id, "app:" + id))
-      .collect(java.util.stream.Collectors.joining(","));
+      .collect(Collectors.joining(","));
     stubPage(1, first, 101);
     stubPage(2, saved(100, "app:100") + "," + saved(101, "app:101"), 101);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
@@ -111,7 +115,7 @@ class ArchitectureDirectivesToolTests {
     for (var page = 1; page <= 10; page++) {
       var firstId = (page - 1) * 100 + 1;
       var rows = IntStream.range(firstId, firstId + 100).mapToObj(id -> saved(id, "same:node"))
-        .collect(java.util.stream.Collectors.joining(","));
+        .collect(Collectors.joining(","));
       stubPage(page, rows, 1000);
     }
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
@@ -125,7 +129,7 @@ class ArchitectureDirectivesToolTests {
   void it_should_refuse_pages_larger_than_the_requested_size() {
     stubMainBranch(harness);
     var rows = IntStream.rangeClosed(1, 101).mapToObj(id -> saved(id, "app:" + id))
-      .collect(java.util.stream.Collectors.joining(","));
+      .collect(Collectors.joining(","));
     stubPage(1, rows, 101);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
@@ -215,8 +219,8 @@ class ArchitectureDirectivesToolTests {
   @Test
   void it_should_refuse_a_changing_list_before_creating_anything() {
     stubMainBranch(harness);
-    var first = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)).collect(java.util.stream.Collectors.joining(","));
-    var second = IntStream.rangeClosed(102, 201).mapToObj(i -> saved(i, "app:" + i)).collect(java.util.stream.Collectors.joining(","));
+    var first = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)).collect(Collectors.joining(","));
+    var second = IntStream.rangeClosed(102, 201).mapToObj(i -> saved(i, "app:" + i)).collect(Collectors.joining(","));
     stubPage(1, first, 201);
     stubPage(2, second, 200);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
@@ -518,7 +522,7 @@ class ArchitectureDirectivesToolTests {
     backend.stubFor(get(PATH + "/" + second).willReturn(okJson(saved(2, "app:other"))));
     if ("later-page".equals(kind)) {
       var filler = IntStream.rangeClosed(3, 101).mapToObj(i -> saved(i, "app:" + i))
-        .collect(java.util.stream.Collectors.joining(","));
+        .collect(Collectors.joining(","));
       stubPage(1, saved(1, "app:a") + "," + filler, 101);
       stubPage(2, saved(2, "app:other"), 101);
     } else {
@@ -560,7 +564,7 @@ class ArchitectureDirectivesToolTests {
 
   private static String changeFile(String operation, String rows) {
     var value = JsonParser.parseString(rows);
-    var result = new com.google.gson.JsonObject();
+    var result = new JsonObject();
     if (value.isJsonObject()) {
       result = value.getAsJsonObject();
       var directives = result.remove("directives");
@@ -583,9 +587,9 @@ class ArchitectureDirectivesToolTests {
   })
   void it_should_reject_invalid_stored_directives(String invalidFields) {
     stubMainBranch(harness);
-    var json = new com.google.gson.Gson();
-    var directive = json.fromJson(saved(1, "app:a"), com.google.gson.JsonObject.class);
-    json.fromJson(invalidFields, com.google.gson.JsonObject.class).entrySet()
+    var json = new Gson();
+    var directive = json.fromJson(saved(1, "app:a"), JsonObject.class);
+    json.fromJson(invalidFields, JsonObject.class).entrySet()
       .forEach(entry -> directive.add(entry.getKey(), entry.getValue()));
     stubPage(1, directive.toString(), 1);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
@@ -656,7 +660,7 @@ class ArchitectureDirectivesToolTests {
   void it_should_report_unchanged_update_ids(boolean dryRun, boolean duplicateCreate) {
     stubMainBranch(harness);
     var id = "abcdefab-1234-4000-8000-000000000001";
-    var requestedId = id.toUpperCase(java.util.Locale.ROOT);
+    var requestedId = id.toUpperCase(Locale.ROOT);
     var stored = saved(1, "app:a").replace("00000000-0000-4000-8000-000000000001", id);
     harness.getMockSonarQubeServer().stubFor(get(PATH + "/" + requestedId).willReturn(okJson(stored)));
     stubPage(1, stored, 1);
@@ -665,7 +669,7 @@ class ArchitectureDirectivesToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", dryRun));
     assertThat(result.isError()).isFalse();
-    var value = new com.google.gson.Gson().fromJson(textOf(result), com.google.gson.JsonObject.class);
+    var value = new Gson().fromJson(textOf(result), JsonObject.class);
     assertThat(value.get("skipped").getAsInt()).isEqualTo(duplicateCreate ? 2 : 1);
     assertThat(value.getAsJsonArray("skippedIds")).hasSize(1);
     assertThat(value.getAsJsonArray("skippedIds").get(0).getAsString()).isEqualTo(id);
