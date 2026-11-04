@@ -1472,6 +1472,8 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, or project directives by page or ID. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export. `omittedNodes` counts nodes excluded by limits within the requested component/depth, not deeper descendants. Every returned node includes `descendants` and `truncated` navigation metadata; the five `drillDown` entries are suggestions. Selecting a leaf returns an explanatory message.
 
+  Directive pages return `view: "summary"`: all matching page entries and their exact operation keys, origin and IDs, without descriptions. `descriptionOmitted` indicates whether a description is stored; use `directiveId` for the complete record. Summaries are not full exports. Pagination defaults and totals are unchanged. Long keys and large pages can still produce large responses.
+
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
@@ -1488,6 +1490,8 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 - **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
   **Directives:** Supply a JSON object with optional `create`, `update` and `delete` arrays. Create records contain directive fields, update records contain `{id, changed fields}`, and delete records contain only `{id}`. Unspecified update fields and unmentioned directives are retained. Creation skips duplicate operations. Preview with `dryRun=true` and apply only after confirmation. The whole batch is validated before writing; conflicting IDs are rejected. Writes are individual, not atomic. A partial or uncertain failure reports confirmed IDs and stops without retry or rollback. Duplicate checks and preflight reads can race concurrent edits. Optional fields cannot be cleared with null; the API has no conditional writes.
+
+  Directive previews return the proposed creates, update targets with only changed values in `after`, and delete targets without stored descriptions. Apply responses return confirmed operation summaries and IDs without repeating the preview. Unchanged fields remain on the server; no client replacement is inferred from summaries. New descriptions in create/update previews are shown in full. This reduces repeated content, but does not impose a byte limit on inputs or results.
 
   Directive fields: `type` (`REMOVE_EDGE`, `RENAME_NODE`, `MOVE_NODE`), `ecosystem`, `graphType` (`file_graph`, `namespace_graph`), `fromNodeKey`, `toNodeKey`; optional `graphPerspective` (defaults to `default_perspective`) and `description`. Creation sets origin to `sonarqube-mcp-server`; updates preserve the stored origin.
 

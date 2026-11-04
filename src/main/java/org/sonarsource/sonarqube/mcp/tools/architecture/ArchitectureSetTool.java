@@ -79,7 +79,7 @@ public class ArchitectureSetTool extends Tool {
       var directives = ProjectDirectives.parse(model, projectKey);
       var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
       var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
-      return Result.success(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun));
+      return Result.success(DirectiveResponses.of(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun)));
     }
 
     var next = IntendedModels.parse(model);
