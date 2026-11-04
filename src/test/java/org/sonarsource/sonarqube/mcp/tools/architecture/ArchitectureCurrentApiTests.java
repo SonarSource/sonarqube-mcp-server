@@ -46,7 +46,7 @@ class ArchitectureCurrentApiTests {
     var api = new ArchitectureApi(helper);
 
     assertThatThrownBy(() -> api.getStructure("my_project", "org", "branch", "java"))
-      .hasMessageContaining("SonarQube Server", "language parameter", "administrator")
+      .hasMessageContaining("known SonarQube Server issue", "currently blocks current architecture reads", "HTTP 400")
       .hasMessageNotContaining("PublicEcosystem")
       .hasMessageNotContaining("Failed to convert")
       .hasMessageNotContaining("upgrade")
