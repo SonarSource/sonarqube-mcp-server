@@ -106,6 +106,9 @@ public class ArchitectureSetTool extends Tool {
       warnings.add("No revision was supplied; changes since the original export cannot be detected. "
         + "Use the whole architecture_get response or supply revision.");
     }
+    if (!diff.isEmpty()) {
+      warnings.addAll(IntendedDiagnostics.inspect(serverApi, projectKey, next));
+    }
     if (dryRun) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));
     }
