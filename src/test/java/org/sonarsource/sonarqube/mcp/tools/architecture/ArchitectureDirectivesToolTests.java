@@ -22,12 +22,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 
@@ -70,7 +71,7 @@ class ArchitectureDirectivesToolTests {
   void it_should_read_paginated_directives_and_skip_duplicates_without_replacement() {
     stubMainBranch(harness);
     var backend = harness.getMockSonarQubeServer();
-    var firstPage = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)).collect(java.util.stream.Collectors.joining(","));
+    var firstPage = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)).collect(Collectors.joining(","));
     stubPage(1, firstPage, 101);
     stubPage(2, saved(101, "app:a"), 101);
     var client = harness.newClient(CLOUD_ENV);
@@ -92,7 +93,7 @@ class ArchitectureDirectivesToolTests {
   void it_should_refuse_short_pages_even_when_later_pages_make_the_total_match() {
     stubMainBranch(harness);
     var first = IntStream.rangeClosed(1, 99).mapToObj(id -> saved(id, "app:" + id))
-      .collect(java.util.stream.Collectors.joining(","));
+      .collect(Collectors.joining(","));
     stubPage(1, first, 101);
     stubPage(2, saved(100, "app:100") + "," + saved(101, "app:101"), 101);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
@@ -108,7 +109,7 @@ class ArchitectureDirectivesToolTests {
     for (var page = 1; page <= 10; page++) {
       var firstId = (page - 1) * 100 + 1;
       var rows = IntStream.range(firstId, firstId + 100).mapToObj(id -> saved(id, "same:node"))
-        .collect(java.util.stream.Collectors.joining(","));
+        .collect(Collectors.joining(","));
       stubPage(page, rows, 1000);
     }
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
@@ -122,7 +123,7 @@ class ArchitectureDirectivesToolTests {
   void it_should_refuse_pages_larger_than_the_requested_size() {
     stubMainBranch(harness);
     var rows = IntStream.rangeClosed(1, 101).mapToObj(id -> saved(id, "app:" + id))
-      .collect(java.util.stream.Collectors.joining(","));
+      .collect(Collectors.joining(","));
     stubPage(1, rows, 101);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
@@ -142,8 +143,6 @@ class ArchitectureDirectivesToolTests {
     assertThat(value.getAsJsonArray("skippedIds").get(0).getAsString()).endsWith("000000000001");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
   }
-
-
 
   @Test
   void it_should_preview_then_create_only_missing_directives() {
@@ -198,8 +197,8 @@ class ArchitectureDirectivesToolTests {
   @Test
   void it_should_refuse_a_changing_list_before_creating_anything() {
     stubMainBranch(harness);
-    var first = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)).collect(java.util.stream.Collectors.joining(","));
-    var second = IntStream.rangeClosed(102, 201).mapToObj(i -> saved(i, "app:" + i)).collect(java.util.stream.Collectors.joining(","));
+    var first = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)).collect(Collectors.joining(","));
+    var second = IntStream.rangeClosed(102, 201).mapToObj(i -> saved(i, "app:" + i)).collect(Collectors.joining(","));
     stubPage(1, first, 201);
     stubPage(2, second, 200);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
@@ -325,30 +324,6 @@ class ArchitectureDirectivesToolTests {
       .hasMessageContaining("attempted change may already have been applied");
     verify(api).createDirective("my_project", MAIN_BRANCH_ID, directive);
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   private static String changeFile(String operation, String rows) {
     var value = JsonParser.parseString(rows);

@@ -16,10 +16,12 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
-import java.util.UUID;
 import com.google.gson.Gson;
 import jakarta.annotation.Nullable;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 import java.util.function.Supplier;
 import org.apache.commons.lang3.Strings;
 import org.apache.hc.core5.net.URIBuilder;
@@ -204,13 +206,13 @@ public class ArchitectureApi {
       || response.projectDirectives().size() > pageSize) {
       throw new IllegalStateException("Invalid public directives page; no complete page was read.");
     }
-    var ids = new java.util.HashSet<String>();
+    var ids = new HashSet<String>();
     for (var directive : response.projectDirectives()) {
       if (directive == null) {
         throw new IllegalStateException("The public directives response contains an incomplete directive.");
       }
       directive.validateStored();
-      if (!ids.add(directive.id().toLowerCase(java.util.Locale.ROOT))) {
+      if (!ids.add(directive.id().toLowerCase(Locale.ROOT))) {
         throw new IllegalStateException("The public directives page returned duplicate ids.");
       }
       if (!projectId.equals(directive.projectId())) {
@@ -247,10 +249,6 @@ public class ArchitectureApi {
       return directive;
     });
   }
-
-
-
-
 
   private static String directivePath(String id) {
     if (!UUID.fromString(id).toString().equalsIgnoreCase(id)) {
