@@ -79,7 +79,7 @@ public class ArchitectureSetTool extends Tool {
       var directives = ProjectDirectives.parse(model, projectKey);
       var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
       var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
-      return Result.success(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun));
+      return Result.success(DirectiveResponses.of(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun)));
     }
 
     var next = IntendedModels.parse(model);
@@ -105,6 +105,9 @@ public class ArchitectureSetTool extends Tool {
     if (revision == null) {
       warnings.add("No revision was supplied; changes since the original export cannot be detected. "
         + "Use the whole architecture_get response or supply revision.");
+    }
+    if (!diff.isEmpty()) {
+      warnings.addAll(IntendedDiagnostics.inspect(serverApi, projectKey, next));
     }
     if (dryRun) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));
