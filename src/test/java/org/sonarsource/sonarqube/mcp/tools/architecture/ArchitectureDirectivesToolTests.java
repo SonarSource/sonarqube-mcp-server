@@ -82,7 +82,8 @@ class ArchitectureDirectivesToolTests {
     var client = harness.newClient(CLOUD_ENV);
     var schema = client.listTools().stream().filter(tool -> ArchitectureGetTool.TOOL_NAME.equals(tool.name())).findFirst().orElseThrow().inputSchema();
     assertThat(schema.toString()).contains("directiveId/pageIndex/pageSize apply only to directives");
-    var read = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "pageIndex", 2, "pageSize", 100));
+    stubReadPage(3, saved(101, "app:a"), 101);
+    var read = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "pageIndex", 3, "pageSize", 50));
     assertThat(read.isError()).isFalse();
     assertThat(textOf(read)).contains("000000000101");
     var result = client.callTool(ArchitectureSetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "model", changeFile("create", "[" + INPUT + "," + INPUT + "]"), "dryRun", false));
@@ -129,9 +130,9 @@ class ArchitectureDirectivesToolTests {
     stubMainBranch(harness);
     var rows = IntStream.rangeClosed(1, 101).mapToObj(id -> saved(id, "app:" + id))
       .collect(Collectors.joining(","));
-    stubPage(1, rows, 101);
+    stubReadPage(1, rows, 101);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 50));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("Invalid public directives page");
   }
@@ -208,9 +209,9 @@ class ArchitectureDirectivesToolTests {
   @CsvSource({"1,0", "2,1", "1,3"})
   void it_should_allow_count_drift_on_single_page_reads(int pageIndex, int total) {
     stubMainBranch(harness);
-    stubPage(pageIndex, saved(1, "app:a"), total);
+    stubReadPage(pageIndex, saved(1, "app:a"), total);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 50));
     assertThat(result.isError()).isFalse();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
   }
@@ -327,7 +328,7 @@ class ArchitectureDirectivesToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "pageSize", pageSize));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("page size must be between 1 and 1000");
+    assertThat(textOf(result)).contains("page size must be between 1 and 50");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
   }
 
@@ -590,9 +591,9 @@ class ArchitectureDirectivesToolTests {
     var directive = json.fromJson(saved(1, "app:a"), JsonObject.class);
     json.fromJson(invalidFields, JsonObject.class).entrySet()
       .forEach(entry -> directive.add(entry.getKey(), entry.getValue()));
-    stubPage(1, directive.toString(), 1);
+    stubReadPage(1, directive.toString(), 1);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 50));
     assertThat(result.isError()).isTrue();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
   }
@@ -601,18 +602,18 @@ class ArchitectureDirectivesToolTests {
   @ValueSource(strings = {
     "null", "{}", "{\"projectDirectives\":[]}",
     "{\"projectDirectives\":[],\"page\":{}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":2,\"pageSize\":100,\"total\":0}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":2,\"pageSize\":50,\"total\":0}}",
     "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"total\":0}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":0}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":-1}}"
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":-1}}"
   })
   void it_should_reject_incomplete_page_metadata(String response) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=100")
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=50")
       .willReturn(okJson(response)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 50));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("Invalid public directives page");
   }
@@ -627,9 +628,9 @@ class ArchitectureDirectivesToolTests {
       case "null" -> "null";
       default -> row.replace(MAIN_BRANCH_ID, "other-project");
     };
-    stubPage(1, rows, 2);
+    stubReadPage(1, rows, 2);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 50));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains(switch (kind) {
       case "duplicate" -> "duplicate ids";
@@ -752,32 +753,34 @@ class ArchitectureDirectivesToolTests {
   void it_should_return_complete_summary_pages_and_full_details_on_demand() {
     stubMainBranch(harness);
     var description = "x".repeat(10000);
-    var rows = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)
+    var rows = IntStream.rangeClosed(1, 50).mapToObj(i -> saved(i, "app:" + i)
       .replace("\"description\":null", "\"description\":\"" + description + "\""))
       .collect(Collectors.joining(","));
-    stubPage(1, rows, 101);
-    stubPage(2, saved(101, "app:101"), 101);
+    stubReadPage(1, rows, 101);
+    stubReadPage(2, IntStream.rangeClosed(51, 100).mapToObj(i -> saved(i, "app:" + i)
+      .replace("\"description\":null", "\"description\":\"" + description + "\"")).collect(Collectors.joining(",")), 101);
+    stubReadPage(3, saved(101, "app:101"), 101);
     var id = "00000000-0000-4000-8000-000000000001";
     harness.getMockSonarQubeServer().stubFor(get(PATH + "/" + id)
       .willReturn(okJson(saved(1, "app:1").replace("\"description\":null", "\"description\":\"" + description + "\""))));
     var client = harness.newClient(CLOUD_ENV);
-    for (var pageIndex = 1; pageIndex <= 2; pageIndex++) {
+    for (var pageIndex = 1; pageIndex <= 3; pageIndex++) {
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
-        Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 100));
+        Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 50));
       assertThat(result.isError()).isFalse();
       var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
       assertThat(json.get("view").getAsString()).isEqualTo("summary");
       assertThat(json.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(101);
       var items = json.getAsJsonArray("directives");
-      assertThat(items.size()).isEqualTo(pageIndex == 1 ? 100 : 1);
+      assertThat(items.size()).isEqualTo(pageIndex < 3 ? 50 : 1);
       for (var offset = 0; offset < items.size(); offset++) {
         var item = items.get(offset).getAsJsonObject();
-        var number = (pageIndex - 1) * 100 + offset + 1;
+        var number = (pageIndex - 1) * 50 + offset + 1;
         assertThat(item.get("id").getAsString()).endsWith(String.format("%012d", number));
         assertThat(item.get("fromNodeKey").getAsString()).isEqualTo("app:" + number);
         assertThat(item.get("origin").getAsString()).isEqualTo("existing-client");
         assertThat(item.has("description")).isFalse();
-        assertThat(item.get("descriptionOmitted").getAsBoolean()).isEqualTo(pageIndex == 1);
+        assertThat(item.get("descriptionOmitted").getAsBoolean()).isEqualTo(pageIndex < 3);
       }
     }
     var detail = client.callTool(ArchitectureGetTool.TOOL_NAME,
@@ -808,12 +811,12 @@ class ArchitectureDirectivesToolTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {50, 1000})
+  @ValueSource(ints = {50, 1})
   void it_should_keep_every_entry_at_default_and_maximum_page_sizes(int size) {
     stubMainBranch(harness);
     var rows = IntStream.rangeClosed(1, size).mapToObj(i -> {
       var row = saved(i, "app:" + i);
-      return size == 50 ? row.replace("\"description\":null", "\"description\":\"" + "x".repeat(10000) + "\"") : row;
+      return row.replace("\"description\":null", "\"description\":\"" + "x".repeat(10000) + "\"");
     }).collect(Collectors.joining(","));
     harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=" + size)
       .willReturn(okJson("{\"projectDirectives\":[" + rows + "],\"page\":{\"pageIndex\":1,\"pageSize\":" + size + ",\"total\":" + size + "}}")));
@@ -836,8 +839,30 @@ class ArchitectureDirectivesToolTests {
       assertThat(entry.get("id").getAsString()).endsWith(String.format("%012d", index + 1));
       assertThat(entry.get("fromNodeKey").getAsString()).isEqualTo("app:" + (index + 1));
       assertThat(entry.has("description")).isFalse();
-      assertThat(entry.get("descriptionOmitted").getAsBoolean()).isEqualTo(size == 50);
+      assertThat(entry.get("descriptionOmitted").getAsBoolean()).isTrue();
     }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"1,51", "1,1000", "7,51", "7,1000"})
+  void it_should_reject_oversized_pages_before_any_backend_request(int pageIndex, int pageSize) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    backend.stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=" + pageIndex + "&pageSize=" + pageSize)
+      .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":" + pageIndex
+        + ",\"pageSize\":" + pageSize + ",\"total\":0}}")));
+    var client = harness.newClient(CLOUD_ENV);
+    var before = backend.getReceivedRequests().size();
+    var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", pageSize));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("between 1 and 50", "Restart at pageIndex=1");
+    assertThat(backend.getReceivedRequests()).hasSize(before);
+  }
+
+  private void stubReadPage(int index, String directives, int total) {
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=" + index + "&pageSize=50")
+      .willReturn(okJson("{\"projectDirectives\":[" + directives + "],\"page\":{\"pageIndex\":" + index + ",\"pageSize\":50,\"total\":" + total + "}}")));
   }
 
   private void stubPage(int index, String directives, int total) {

@@ -1472,7 +1472,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, or project directives by page or ID. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export. `omittedNodes` counts nodes excluded by limits within the requested component/depth, not deeper descendants. Every returned node includes `descendants` and `truncated` navigation metadata; the five `drillDown` entries are suggestions. Selecting a leaf returns an explanatory message.
 
-  Directive pages return `view: "summary"`: all matching page entries and their exact operation keys, origin and IDs, without descriptions. `descriptionOmitted` indicates whether a description is stored; use `directiveId` for the complete record. Summaries are not full exports. Pagination defaults and totals are unchanged. Backend pages still contain full records; this reduces tool output, not API transfer. Long keys and large pages can still produce large responses.
+  Directive pages return `view: "summary"`: all matching page entries and their exact operation keys, origin and IDs, without descriptions. `descriptionOmitted` indicates whether a description is stored; use `directiveId` for the complete record. Summaries are not full exports. The default remains 50; pages are limited to 50 entries. Requests above 50 fail instead of being silently clamped. When reducing `pageSize`, restart at `pageIndex: 1` and continue paging. Backend totals are unchanged. This limit applies only to MCP list reads; write preflight and CLI pagination are unchanged. Backend pages still contain full records; this reduces tool output, not API transfer. Long keys and large pages can still produce large responses.
 
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
@@ -1485,7 +1485,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
   - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended only - _String_
   - `directiveId` - Cloud directives only: full record, including description, by UUID; cannot be combined with paging - _String_
   - `pageIndex` - Directives page, starting at 1; default 1 - _Number_
-  - `pageSize` - Directives per page; default 50, maximum 1000 - _Number_
+  - `pageSize` - Directives per page; default 50, maximum 50 - _Number_
 
 - **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives on Cloud. For intended models, start from an unfiltered `architecture_get` response. Use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
