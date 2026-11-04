@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -805,6 +806,39 @@ class ArchitectureDirectivesToolTests {
     assertThat(change.getAsJsonObject("after").get("toNodeKey").getAsString()).isEqualTo("app:c");
     assertThat(textOf(result)).doesNotContain("x".repeat(100));
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", PATH + "/" + id)).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {50, 1000})
+  void it_should_keep_every_entry_at_default_and_maximum_page_sizes(int size) {
+    stubMainBranch(harness);
+    var rows = IntStream.rangeClosed(1, size).mapToObj(i -> {
+      var row = saved(i, "app:" + i);
+      return size == 50 ? row.replace("\"description\":null", "\"description\":\"" + "x".repeat(10000) + "\"") : row;
+    }).collect(Collectors.joining(","));
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=" + size)
+      .willReturn(okJson("{\"projectDirectives\":[" + rows + "],\"page\":{\"pageIndex\":1,\"pageSize\":" + size + ",\"total\":" + size + "}}")));
+    var arguments = new HashMap<String, Object>();
+    arguments.put("target", "directives");
+    arguments.put("projectKey", "my_project");
+    if (size != 50) {
+      arguments.put("pageSize", size);
+    }
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+    assertThat(result.isError()).isFalse();
+    var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(json.get("view").getAsString()).isEqualTo("summary");
+    assertThat(json.getAsJsonObject("page").get("pageSize").getAsInt()).isEqualTo(size);
+    assertThat(json.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(size);
+    var entries = json.getAsJsonArray("directives");
+    assertThat(entries.size()).isEqualTo(size);
+    for (var index = 0; index < size; index++) {
+      var entry = entries.get(index).getAsJsonObject();
+      assertThat(entry.get("id").getAsString()).endsWith(String.format("%012d", index + 1));
+      assertThat(entry.get("fromNodeKey").getAsString()).isEqualTo("app:" + (index + 1));
+      assertThat(entry.has("description")).isFalse();
+      assertThat(entry.get("descriptionOmitted").getAsBoolean()).isEqualTo(size == 50);
+    }
   }
 
   private void stubPage(int index, String directives, int total) {
