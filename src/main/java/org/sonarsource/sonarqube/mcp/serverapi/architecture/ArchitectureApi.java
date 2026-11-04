@@ -359,7 +359,7 @@ public class ArchitectureApi {
     } catch (IllegalArgumentException invalid) {
       throw incompleteModel();
     }
-    var identities = new java.util.HashSet<String>();
+    var identities = new HashSet<String>();
     var models = validateModels(response.perspectives().stream().map(model -> {
       if (model == null || !identities.add(model.qualifiers() + "/" + model.language())) {
         throw incompleteModel();
