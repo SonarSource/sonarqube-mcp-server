@@ -46,7 +46,7 @@ final class IntendedDiagnostics {
       } catch (RuntimeException e) {
         var reason = e.getMessage();
         unavailable.add(language + ": pattern and physical hierarchy checks unavailable; no complete discovery graph was read"
-          + ((reason == null || reason.isBlank()) ? "" : " (" + reason + ")") + ". Structural validation still applies.");
+          + ((reason == null || reason.isBlank()) ? "" : " (%s)".formatted(reason)) + ". Structural validation still applies.");
       }
     }
     return warnings.result(unavailable);
