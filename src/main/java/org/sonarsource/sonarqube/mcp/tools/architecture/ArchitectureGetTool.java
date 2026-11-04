@@ -41,11 +41,11 @@ public class ArchitectureGetTool extends Tool {
   public static final String TARGET_PROPERTY = "target";
   public static final String COMPONENT_PROPERTY = "component";
   public static final String DEPTH_PROPERTY = "depth";
+  public static final String DIRECTIVE_ID_PROPERTY = "directiveId";
   public static final String LANGUAGE_PROPERTY = "language";
   public static final String CURRENT = "current";
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
-  private static final String DIRECTIVE_ID_PROPERTY = "directiveId";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
