@@ -54,7 +54,7 @@ class ArchitectureGetCurrentToolTests {
       Map.of("target", "current", "projectKey", "my_project", "language", "java"));
 
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("SonarQube Server", "language parameter", "administrator")
+    assertThat(textOf(result)).contains("known SonarQube Server issue", "currently blocks current architecture reads", "HTTP 400")
       .doesNotContain("PublicEcosystem", "Failed to convert", "upgrade");
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/v2/architecture/current-architectures")).isEqualTo(1);
   }

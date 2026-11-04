@@ -94,8 +94,7 @@ public class ArchitectureApi {
         || !message.contains("Method parameter 'language'") || !message.contains("Failed to convert") || !message.contains(".PublicEcosystem")) {
         throw e;
       }
-      throw new IllegalStateException("SonarQube Server rejected the current-architecture language parameter (HTTP 400). "
-        + "Ask your administrator to check the Server Architecture API language-binding fix.", e);
+      throw new IllegalStateException("A known SonarQube Server issue currently blocks current architecture reads (HTTP 400).", e);
     }
     if (response == null || response.currentArchitectures() == null) {
       throw new IllegalStateException("The public architecture API did not return currentArchitectures. No complete graph was read.");
