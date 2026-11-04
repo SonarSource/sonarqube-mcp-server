@@ -84,7 +84,7 @@ public class ArchitectureGetTool extends Tool {
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
     if (isSonarQubeCloud) {
-      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "read one UUID instead of a page.")
+      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.")
         .addNumberProperty(ToolParameters.PAGE_INDEX, "page number, default 1.")
         .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50, maximum 1000.");
     }
@@ -136,7 +136,8 @@ public class ArchitectureGetTool extends Tool {
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
     var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(50));
-    return Result.success(new DirectivesView(projectKey, page.projectDirectives(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
+    return Result.success(new DirectivesView(projectKey, "summary",
+      page.projectDirectives().stream().map(DirectiveResponses::summary).toList(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
 
@@ -149,7 +150,7 @@ public class ArchitectureGetTool extends Tool {
   private record DirectiveView(String projectKey, ProjectDirective directive) {
   }
 
-  private record DirectivesView(String projectKey, List<ProjectDirective> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
+  private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
   private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {

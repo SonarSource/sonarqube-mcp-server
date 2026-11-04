@@ -19,10 +19,10 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -700,12 +700,27 @@ class ArchitectureDirectivesToolTests {
     var preview = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", true));
     assertThat(preview.isError()).isFalse();
-    assertThat(textOf(preview)).contains(description ? "requested description" : "old description", perspective ? "requested-view" : "old-view");
+    var proposed = JsonParser.parseString(textOf(preview)).getAsJsonObject().getAsJsonArray("changes").get(0).getAsJsonObject().getAsJsonObject("after");
+    assertThat(proposed.has("description")).isEqualTo(description);
+    assertThat(proposed.has("graphPerspective")).isEqualTo(perspective);
+    assertThat(proposed.get("toNodeKey").getAsString()).isEqualTo("app:new");
+    if (description) {
+      assertThat(proposed.get("description").getAsString()).isEqualTo("requested description");
+    }
+    if (perspective) {
+      assertThat(proposed.get("graphPerspective").getAsString()).isEqualTo("requested-view");
+    }
     assertThat(backend.getReceivedBodies("PATCH", path)).isEmpty();
     var applied = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", false));
     assertThat(applied.isError()).isFalse();
-    assertThat(textOf(applied)).contains(description ? "requested description" : "concurrent description", perspective ? "requested-view" : "concurrent-view");
+    assertThat(textOf(applied)).contains("receipt", id, perspective ? "requested-view" : "concurrent-view");
+    assertThat(textOf(applied)).doesNotContain("requested description", "concurrent description");
+    backend.stubFor(get(path).willReturn(okJson(after)));
+    var detail = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "directiveId", id));
+    assertThat(detail.isError()).isFalse();
+    assertThat(textOf(detail)).contains(description ? "requested description" : "concurrent description", perspective ? "requested-view" : "concurrent-view");
     assertThat(backend.getReceivedBodies("PATCH", path)).hasSize(1);
     var payload = JsonParser.parseString(backend.getReceivedBodies("PATCH", path).getFirst()).getAsJsonObject();
     assertThat(payload.has("description")).isEqualTo(description);
@@ -731,6 +746,98 @@ class ArchitectureDirectivesToolTests {
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("did not confirm the requested directive");
     assertThat(backend.getReceivedBodies("PATCH", path)).hasSize(1);
+  }
+
+  @Test
+  void it_should_return_complete_summary_pages_and_full_details_on_demand() {
+    stubMainBranch(harness);
+    var description = "x".repeat(10000);
+    var rows = IntStream.rangeClosed(1, 100).mapToObj(i -> saved(i, "app:" + i)
+      .replace("\"description\":null", "\"description\":\"" + description + "\""))
+      .collect(Collectors.joining(","));
+    stubPage(1, rows, 101);
+    stubPage(2, saved(101, "app:101"), 101);
+    var id = "00000000-0000-4000-8000-000000000001";
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "/" + id)
+      .willReturn(okJson(saved(1, "app:1").replace("\"description\":null", "\"description\":\"" + description + "\""))));
+    var client = harness.newClient(CLOUD_ENV);
+    for (var pageIndex = 1; pageIndex <= 2; pageIndex++) {
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
+        Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 100));
+      assertThat(result.isError()).isFalse();
+      var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+      assertThat(json.get("view").getAsString()).isEqualTo("summary");
+      assertThat(json.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(101);
+      var items = json.getAsJsonArray("directives");
+      assertThat(items.size()).isEqualTo(pageIndex == 1 ? 100 : 1);
+      for (var offset = 0; offset < items.size(); offset++) {
+        var item = items.get(offset).getAsJsonObject();
+        var number = (pageIndex - 1) * 100 + offset + 1;
+        assertThat(item.get("id").getAsString()).endsWith(String.format("%012d", number));
+        assertThat(item.get("fromNodeKey").getAsString()).isEqualTo("app:" + number);
+        assertThat(item.get("origin").getAsString()).isEqualTo("existing-client");
+        assertThat(item.has("description")).isFalse();
+        assertThat(item.get("descriptionOmitted").getAsBoolean()).isEqualTo(pageIndex == 1);
+      }
+    }
+    var detail = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "directiveId", id));
+    assertThat(detail.isError()).isFalse();
+    assertThat(JsonParser.parseString(textOf(detail)).getAsJsonObject().getAsJsonObject("directive")
+      .get("description").getAsString()).isEqualTo(description);
+  }
+
+  @Test
+  void it_should_preview_only_changed_values_and_not_echo_unchanged_descriptions() {
+    stubMainBranch(harness);
+    var id = "00000000-0000-4000-8000-000000000001";
+    var stored = saved(1, "app:a").replace("\"description\":null", "\"description\":\"" + "x".repeat(10000) + "\"");
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "/" + id).willReturn(okJson(stored)));
+    stubPage(1, stored, 1);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model",
+        changeFile("update", "[{\"id\":\"" + id + "\",\"toNodeKey\":\"app:c\"}]"), "dryRun", true));
+    assertThat(result.isError()).isFalse();
+    var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    var change = json.getAsJsonArray("changes").get(0).getAsJsonObject();
+    assertThat(change.getAsJsonObject("before").get("fromNodeKey").getAsString()).isEqualTo("app:a");
+    assertThat(change.getAsJsonObject("after").keySet()).containsExactly("toNodeKey");
+    assertThat(change.getAsJsonObject("after").get("toNodeKey").getAsString()).isEqualTo("app:c");
+    assertThat(textOf(result)).doesNotContain("x".repeat(100));
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", PATH + "/" + id)).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {50, 1000})
+  void it_should_keep_every_entry_at_default_and_maximum_page_sizes(int size) {
+    stubMainBranch(harness);
+    var rows = IntStream.rangeClosed(1, size).mapToObj(i -> {
+      var row = saved(i, "app:" + i);
+      return size == 50 ? row.replace("\"description\":null", "\"description\":\"" + "x".repeat(10000) + "\"") : row;
+    }).collect(Collectors.joining(","));
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=" + size)
+      .willReturn(okJson("{\"projectDirectives\":[" + rows + "],\"page\":{\"pageIndex\":1,\"pageSize\":" + size + ",\"total\":" + size + "}}")));
+    var arguments = new HashMap<String, Object>();
+    arguments.put("target", "directives");
+    arguments.put("projectKey", "my_project");
+    if (size != 50) {
+      arguments.put("pageSize", size);
+    }
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+    assertThat(result.isError()).isFalse();
+    var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(json.get("view").getAsString()).isEqualTo("summary");
+    assertThat(json.getAsJsonObject("page").get("pageSize").getAsInt()).isEqualTo(size);
+    assertThat(json.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(size);
+    var entries = json.getAsJsonArray("directives");
+    assertThat(entries.size()).isEqualTo(size);
+    for (var index = 0; index < size; index++) {
+      var entry = entries.get(index).getAsJsonObject();
+      assertThat(entry.get("id").getAsString()).endsWith(String.format("%012d", index + 1));
+      assertThat(entry.get("fromNodeKey").getAsString()).isEqualTo("app:" + (index + 1));
+      assertThat(entry.has("description")).isFalse();
+      assertThat(entry.get("descriptionOmitted").getAsBoolean()).isEqualTo(size == 50);
+    }
   }
 
   private void stubPage(int index, String directives, int total) {
