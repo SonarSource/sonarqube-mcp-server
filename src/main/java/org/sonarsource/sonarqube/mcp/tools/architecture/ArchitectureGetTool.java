@@ -87,8 +87,8 @@ public class ArchitectureGetTool extends Tool {
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .addNumberProperty(ToolParameters.PAGE_INDEX, isSonarQubeCloud ? "Page from 1; directives or current from/to only." : "Page from 1; current from/to only.")
       .addNumberProperty(ToolParameters.PAGE_SIZE, isSonarQubeCloud
-        ? "Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE + "; directives: default 50, max 1000."
-        : "Page size, default/max " + DependencyQuery.MAX_PAGE_SIZE + "; current from/to only.")
+        ? ("Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE + "; directives: default 50, max 1000.")
+        : ("Page size, default/max " + DependencyQuery.MAX_PAGE_SIZE + "; current from/to only."))
       .setReadOnlyHint();
     if (isSonarQubeCloud) {
       builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "read one UUID instead of a page.");
