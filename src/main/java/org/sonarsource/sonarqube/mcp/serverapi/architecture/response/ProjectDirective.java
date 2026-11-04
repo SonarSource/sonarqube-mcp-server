@@ -17,6 +17,8 @@
 package org.sonarsource.sonarqube.mcp.serverapi.architecture.response;
 
 import jakarta.annotation.Nullable;
+import java.util.Set;
+import java.util.UUID;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 
 public record ProjectDirective(@Nullable String id, @Nullable String projectId, String type, String ecosystem, String graphType,
@@ -55,9 +57,9 @@ public record ProjectDirective(@Nullable String id, @Nullable String projectId, 
   }
 
   private void validateEnums() {
-    if (!java.util.Set.of("REMOVE_EDGE", "RENAME_NODE", "MOVE_NODE").contains(type == null ? "" : type)
+    if (!Set.of("REMOVE_EDGE", "RENAME_NODE", "MOVE_NODE").contains(type == null ? "" : type)
       || !ArchitectureApi.LANGUAGES.contains(ecosystem == null ? "" : ecosystem)
-      || !java.util.Set.of("file_graph", "namespace_graph").contains(graphType == null ? "" : graphType)) {
+      || !Set.of("file_graph", "namespace_graph").contains(graphType == null ? "" : graphType)) {
       throw new IllegalArgumentException("A directive requires a supported type, ecosystem and graphType.");
     }
   }
@@ -67,7 +69,7 @@ public record ProjectDirective(@Nullable String id, @Nullable String projectId, 
     if (projectId == null || projectId.isBlank() || fromNodeKey == null || toNodeKey == null) {
       throw new IllegalArgumentException("The public directive response is incomplete.");
     }
-    if (id == null || !java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+    if (id == null || !UUID.fromString(id).toString().equalsIgnoreCase(id)) {
       throw new IllegalArgumentException("The public directive response has an invalid id.");
     }
   }

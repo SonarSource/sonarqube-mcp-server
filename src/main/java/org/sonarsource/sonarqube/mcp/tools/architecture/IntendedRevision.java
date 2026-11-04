@@ -23,6 +23,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 
 /**
@@ -71,7 +72,7 @@ final class IntendedRevision {
     var groups = nullToEmpty(group.groups()).stream().map(IntendedRevision::canonicalGroup).toList();
     return array(List.of(string(group.label()), array(patterns), String.valueOf(Boolean.TRUE.equals(group.isInterface())),
       String.valueOf(Boolean.TRUE.equals(group.interfaceAccess())), array(groups), string(group.description()),
-      string(group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT))));
+      string(group.patternId() == null ? null : group.patternId().toLowerCase(Locale.ROOT))));
   }
 
   private static String array(List<String> jsonValues) {

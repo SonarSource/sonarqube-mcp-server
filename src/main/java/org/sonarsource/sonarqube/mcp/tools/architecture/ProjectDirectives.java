@@ -20,16 +20,18 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
@@ -182,7 +184,7 @@ final class ProjectDirectives {
     if (existing.values().stream().mapToInt(List::size).sum() + creations.items().size() > MAX_DIRECTIVES_PER_PROJECT) {
       throw new IllegalArgumentException("The batch would exceed the 1000 directives per project limit. Nothing was changed.");
     }
-    var skippedIds = java.util.stream.Stream.concat(unchangedIds.stream(),
+    var skippedIds = Stream.concat(unchangedIds.stream(),
       input.create().stream().flatMap(item -> existing.getOrDefault(item.identity(), List.of()).stream()))
       .map(id -> id.toLowerCase(Locale.ROOT)).distinct().toList();
     var result = new Applied(projectKey, dryRun ? "dry-run" : "applied", creations.items(), List.copyOf(changes), List.copyOf(toDelete),
@@ -318,7 +320,7 @@ final class ProjectDirectives {
   }
 
   private static boolean isDefiniteRejection(RuntimeException failure) {
-    return (failure instanceof ClientErrorException clientError && clientError.status() != java.net.HttpURLConnection.HTTP_CLIENT_TIMEOUT)
+    return (failure instanceof ClientErrorException clientError && clientError.status() != HttpURLConnection.HTTP_CLIENT_TIMEOUT)
       || failure instanceof ForbiddenException || failure instanceof NotFoundException || failure instanceof UnauthorizedException;
   }
 
