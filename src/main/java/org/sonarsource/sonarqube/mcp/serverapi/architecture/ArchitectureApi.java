@@ -18,7 +18,10 @@ package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
 import com.google.gson.Gson;
 import jakarta.annotation.Nullable;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 import java.util.function.Supplier;
 import org.apache.commons.lang3.Strings;
 import org.apache.hc.core5.net.URIBuilder;
@@ -26,6 +29,7 @@ import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
@@ -35,6 +39,7 @@ public class ArchitectureApi {
 
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
+  public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
   public static final String SERVER_API_PREFIX = "/api/v2";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
@@ -183,6 +188,71 @@ public class ArchitectureApi {
     return Strings.CS.removeStart(e.getMessage(), ServerApiException.MESSAGE_PREFIX);
   }
 
+  public DirectivePage getDirectivePage(String projectKey, String projectId, int pageIndex, int pageSize) {
+    return read(projectKey, () -> readDirectivePage(projectId, pageIndex, pageSize));
+  }
+
+  private DirectivePage readDirectivePage(String projectId, int pageIndex, int pageSize) {
+    if (pageIndex < 1 || pageSize < 1 || pageSize > 1000) {
+      throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
+    }
+    var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam("projectId", projectId)
+      .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
+    var response = fromJson(get(path), DirectivePage.class);
+    if (response == null || response.projectDirectives() == null || response.page() == null
+      || response.page().pageIndex() == null || response.page().pageIndex() != pageIndex
+      || response.page().pageSize() == null || response.page().pageSize() != pageSize
+      || response.page().total() == null || response.page().total() < 0
+      || response.projectDirectives().size() > pageSize) {
+      throw new IllegalStateException("Invalid public directives page; no complete page was read.");
+    }
+    var ids = new HashSet<String>();
+    for (var directive : response.projectDirectives()) {
+      if (directive == null) {
+        throw new IllegalStateException("The public directives response contains an incomplete directive.");
+      }
+      directive.validateStored();
+      if (!ids.add(directive.id().toLowerCase(Locale.ROOT))) {
+        throw new IllegalStateException("The public directives page returned duplicate ids.");
+      }
+      if (!projectId.equals(directive.projectId())) {
+        throw new IllegalStateException("The public directives page returned a different project.");
+      }
+    }
+    return response;
+  }
+
+  public ProjectDirective getDirective(String projectKey, String projectId, String id) {
+    return read(projectKey, () -> {
+      var directive = fromJson(get(directivePath(id)), ProjectDirective.class);
+      validateDirectiveResource(directive, projectId, id);
+      return directive;
+    });
+  }
+
+  private static String directivePath(String id) {
+    if (!UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+      throw new IllegalArgumentException("Directive id must be a UUID.");
+    }
+    return PROJECT_DIRECTIVES_PATH + "/" + id;
+  }
+
+  private static void validateDirectiveResource(@Nullable ProjectDirective directive, String projectId, String id) {
+    if (directive == null) {
+      throw new IllegalStateException("The public directive response is empty.");
+    }
+    directive.validateStored();
+    if (!projectId.equals(directive.projectId()) || !id.equalsIgnoreCase(directive.id())) {
+      throw new IllegalStateException("The public directive response returned a different id or project.");
+    }
+  }
+
+  public record DirectivePage(List<ProjectDirective> projectDirectives, DirectivePageInfo page) {
+  }
+
+  public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
+  }
+
   private HttpClient.Response get(String path) {
     return helper.isSonarQubeCloud() ? helper.getApiSubdomain(path) : helper.get(SERVER_API_PREFIX + path);
   }
@@ -200,7 +270,7 @@ public class ArchitectureApi {
   private static List<IntendedArchitecture> exportedModels(IntendedArchitectures response) {
     if (!response.intendedArchitectures().isEmpty()) {
       try {
-        if (response.id() == null || !java.util.UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())) {
+        if (response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())) {
           throw incompleteModel();
         }
       } catch (IllegalArgumentException e) {
