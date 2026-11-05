@@ -151,6 +151,11 @@ class ArchitectureHttpTest {
       var read = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
         Map.of("target", "directives", "projectKey", "my_project", "directiveId", id)));
       assertThat(read).contains(id).doesNotContain("isError\":true");
+      var beforeOversizedRead = backend.getReceivedRequests().size();
+      var oversizedRead = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "directives", "projectKey", "my_project", "pageSize", 1000)));
+      assertThat(oversizedRead).contains("between 1 and 50", "Restart at pageIndex=1");
+      assertThat(backend.getReceivedRequests()).hasSize(beforeOversizedRead);
       var preview = send(client, port, "a", false, "tools/call", Map.of("name", "architecture_set", "arguments",
         Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", true)));
       assertThat(preview).contains("dry-run", "toCreate").doesNotContain("isError\":true");
