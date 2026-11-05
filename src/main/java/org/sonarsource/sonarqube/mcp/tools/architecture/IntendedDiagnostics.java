@@ -32,27 +32,38 @@ final class IntendedDiagnostics {
   }
 
   static List<String> inspect(ServerApi api, String projectKey, List<IntendedArchitecture> models, CurrentGraphReads currentReads) {
+    var languages = models.stream().filter(model -> !groups(model).isEmpty()).map(IntendedArchitecture::language).distinct().toList();
+    if (languages.isEmpty()) {
+      return List.of();
+    }
+    try {
+      return currentReads.execute(() -> inspectLanguages(api, projectKey, models, languages));
+    } catch (IllegalStateException e) {
+      return languages.stream().map(language -> unavailable(language, e.getMessage())).toList();
+    }
+  }
+
+  private static List<String> inspectLanguages(ServerApi api, String projectKey, List<IntendedArchitecture> models, List<String> languages) {
     var warnings = new Warnings();
     var unavailable = new ArrayList<String>();
-    var languages = models.stream().filter(model -> !groups(model).isEmpty()).map(IntendedArchitecture::language).distinct().toList();
     for (var language : languages) {
       try {
-        currentReads.execute(() -> {
-          var graphs = api.architectureApi().getStructure(projectKey, ArchitectureProjectContext.organizationId(api),
-            ArchitectureProjectContext.mainBranchId(api, projectKey), language);
-          if (graphs.size() != 1 || graphs.getFirst().nodes() == null) {
-            throw new IllegalStateException("No unique discovery graph");
-          }
-          inspect(models.stream().filter(model -> language.equals(model.language())).toList(), graphs.getFirst(), warnings);
-          return null;
-        });
+        var graphs = api.architectureApi().getStructure(projectKey, ArchitectureProjectContext.organizationId(api),
+          ArchitectureProjectContext.mainBranchId(api, projectKey), language);
+        if (graphs.size() != 1 || graphs.getFirst().nodes() == null) {
+          throw new IllegalStateException("No unique discovery graph");
+        }
+        inspect(models.stream().filter(model -> language.equals(model.language())).toList(), graphs.getFirst(), warnings);
       } catch (RuntimeException e) {
-        var reason = e.getMessage();
-        unavailable.add(language + ": pattern and physical hierarchy checks unavailable; no complete discovery graph was read"
-          + ((reason == null || reason.isBlank()) ? "" : " (%s)".formatted(reason)) + ". Structural validation still applies.");
+        unavailable.add(unavailable(language, e.getMessage()));
       }
     }
     return warnings.result(unavailable);
+  }
+
+  private static String unavailable(String language, @Nullable String reason) {
+    return language + ": pattern and physical hierarchy checks unavailable; no complete discovery graph was read"
+      + ((reason == null || reason.isBlank()) ? "" : " (%s)".formatted(reason)) + ". Structural validation still applies.";
   }
 
   static List<String> inspect(List<IntendedArchitecture> models, StructureGraph graph) {

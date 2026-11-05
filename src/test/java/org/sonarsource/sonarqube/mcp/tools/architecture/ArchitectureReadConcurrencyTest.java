@@ -132,6 +132,42 @@ class ArchitectureReadConcurrencyTest {
   }
 
   @Test
+  void it_should_wait_for_capacity_only_once_for_a_five_language_dry_run() throws Exception {
+    var entered = new CountDownLatch(2);
+    var release = new CountDownLatch(1);
+    when(architecture.getStructure(anyString(), anyString(), anyString(), anyString())).thenAnswer(invocation -> {
+      entered.countDown();
+      if (!release.await(30, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("Test did not release the backend");
+      }
+      return List.of();
+    });
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var first = executor.submit(() -> tool.execute(currentArguments()));
+      var second = executor.submit(() -> tool.execute(currentArguments()));
+      try {
+        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+        var diagnostic = executor.submit(() -> setTool.execute(multilingualDryRunArguments()));
+        var preview = diagnostic.get(8, TimeUnit.SECONDS);
+        assertThat(preview.isError()).isFalse();
+        var response = ((TextContent) preview.toCallToolResult().content().getFirst()).text();
+        assertThat(response).contains("Architecture reads are busy", "Structural validation still applies");
+        for (var language : List.of("java", "cs", "js", "ts", "py")) {
+          assertThat(response).contains(language + ": pattern and physical hierarchy checks unavailable");
+        }
+        verify(architecture, times(2)).getStructure(anyString(), anyString(), anyString(), anyString());
+        assertThat(tool.execute(new Tool.Arguments(Map.of("target", "intended", "projectKey", "project"), Map.of())).isError()).isFalse();
+      } finally {
+        release.countDown();
+      }
+      assertThat(first.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(tool.execute(currentArguments()).isError()).isFalse();
+      verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
+    }
+  }
+
+  @Test
   void it_should_queue_a_third_read_until_capacity_is_available() throws Exception {
     var entered = new CountDownLatch(2);
     var release = new CountDownLatch(1);
@@ -263,6 +299,14 @@ class ArchitectureReadConcurrencyTest {
     }
     doReturn(List.of()).when(architecture).getStructure(anyString(), anyString(), anyString(), anyString());
     assertThat(tool.execute(currentArguments()).isError()).isFalse();
+  }
+
+  private static Tool.Arguments multilingualDryRunArguments() {
+    var models = List.of("java", "cs", "js", "ts", "py").stream()
+      .map(language -> "{\"type\":\"namespace\",\"language\":\"" + language
+        + "\",\"groups\":[{\"label\":\"App\",\"patterns\":[\"app:**\"]}],\"constraints\":[]}")
+      .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+    return new Tool.Arguments(Map.of("target", "intended", "projectKey", "project", "dryRun", true, "model", models), Map.of());
   }
 
   private static Tool.Arguments dryRunArguments() {

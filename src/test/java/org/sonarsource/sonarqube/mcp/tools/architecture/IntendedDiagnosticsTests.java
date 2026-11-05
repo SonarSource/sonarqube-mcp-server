@@ -48,6 +48,16 @@ class IntendedDiagnosticsTests {
     """;
 
   @Test
+  void it_should_not_acquire_capacity_when_no_groups_need_discovery() {
+    var api = mock(ServerApi.class);
+    var reads = mock(CurrentGraphReads.class);
+    assertThat(IntendedDiagnostics.inspect(api, "project", List.of(), reads)).isEmpty();
+    var empty = new IntendedArchitecture("namespace", "java", List.of(), List.of());
+    assertThat(IntendedDiagnostics.inspect(api, "project", List.of(empty), reads)).isEmpty();
+    org.mockito.Mockito.verifyNoInteractions(api, reads);
+  }
+
+  @Test
   void it_should_diagnose_missing_wildcard_and_skipped_parent_without_rewriting() {
     var models = IntendedModels.parse(MODEL);
     var graph = new Gson().fromJson(GRAPH, StructureGraph.class);
