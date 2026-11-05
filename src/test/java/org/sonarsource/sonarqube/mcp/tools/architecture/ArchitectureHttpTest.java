@@ -35,6 +35,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.patch;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
@@ -119,6 +120,51 @@ class ArchitectureHttpTest {
       assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", "/architecture/")).isEmpty();
       assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", "/architecture/")).isEmpty();
       assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", "/architecture/")).isEmpty();
+    } finally {
+      server.shutdown();
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_read_preview_and_create_directives_over_http_with_request_read_only_controls(SonarQubeMcpServerTestHarness harness,
+    @TempDir Path storage) throws Exception {
+    ArchitectureFixtures.stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    var path = ArchitectureApi.PROJECT_DIRECTIVES_PATH;
+    var input = """
+      {"type":"REMOVE_EDGE","ecosystem":"java","graphType":"namespace_graph","fromNodeKey":"app:a","toNodeKey":"app:b"}
+      """.trim();
+    var id = "00000000-0000-4000-8000-000000000001";
+    var saved = input.substring(0, input.length() - 1) + ",\"id\":\"" + id + "\",\"projectId\":\""
+      + ArchitectureFixtures.MAIN_BRANCH_ID + "\",\"graphPerspective\":\"default_perspective\",\"origin\":\"sonarqube-mcp-server\"}";
+    backend.stubFor(get(path + "?projectId=" + ArchitectureFixtures.MAIN_BRANCH_ID + "&pageIndex=1&pageSize=100")
+      .withHeader("Authorization", equalTo("Bearer token-a"))
+      .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}")));
+    backend.stubFor(get(path + "/" + id).withHeader("Authorization", equalTo("Bearer token-a")).willReturn(okJson(saved)));
+    backend.stubFor(post(path).withHeader("Authorization", equalTo("Bearer token-a"))
+      .willReturn(aResponse().withStatus(201).withBody(saved)));
+    var port = port();
+    var server = new SonarQubeMcpServer(environment(harness, storage, port));
+    var model = "{\"create\":[" + input + "]}";
+    try (var client = HttpClient.newHttpClient()) {
+      server.start();
+      var read = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "directives", "projectKey", "my_project", "directiveId", id)));
+      assertThat(read).contains(id).doesNotContain("isError\":true");
+      var preview = send(client, port, "a", false, "tools/call", Map.of("name", "architecture_set", "arguments",
+        Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", true)));
+      assertThat(preview).contains("dry-run", "toCreate").doesNotContain("isError\":true");
+      assertThat(backend.getReceivedBodies("POST", path)).isEmpty();
+      var before = backend.getReceivedRequests().size();
+      var rejected = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_set", "arguments",
+        Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", false)));
+      assertThat(rejected).contains("Tool not found: architecture_set");
+      assertThat(backend.getReceivedRequests()).hasSize(before);
+      var applied = send(client, port, "a", false, "tools/call", Map.of("name", "architecture_set", "arguments",
+        Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", false)));
+      assertThat(applied).contains("applied", id).doesNotContain("isError\":true");
+      assertThat(backend.getReceivedBodies("POST", path)).singleElement()
+        .satisfies(body -> assertThat(body).contains("sonarqube-mcp-server", "default_perspective"));
     } finally {
       server.shutdown();
     }

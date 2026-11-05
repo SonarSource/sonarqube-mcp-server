@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.http;
 
+import org.apache.hc.core5.http.HttpRequest;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.time.Duration;
@@ -121,13 +123,7 @@ public class HttpClientProvider {
       .setConnectionManager(asyncConnectionManager)
       .addResponseInterceptorFirst(new RedirectInterceptor())
       .setUserAgent(userAgent)
-      .setRetryStrategy(new DefaultHttpRequestRetryStrategy() {
-        @Override
-        public boolean retryRequest(HttpResponse response, int execCount, HttpContext context) {
-          var request = HttpCoreContext.castOrCreate(context).getRequest();
-          return request != null && Method.isIdempotent(request.getMethod()) && super.retryRequest(response, execCount, context);
-        }
-      })
+      .setRetryStrategy(createRetryStrategy())
       .setDefaultRequestConfig(defaultRequestConfig)
       .setIOReactorConfig(buildReactorConfig())
       .setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider())
@@ -139,6 +135,22 @@ public class HttpClientProvider {
     this.httpClient = httpClientBuilder.build();
 
     httpClient.start();
+  }
+
+  static DefaultHttpRequestRetryStrategy createRetryStrategy() {
+    return new DefaultHttpRequestRetryStrategy() {
+      @Override
+      public boolean retryRequest(HttpRequest request, IOException exception, int execCount, HttpContext context) {
+        return !Method.DELETE.isSame(request.getMethod()) && super.retryRequest(request, exception, execCount, context);
+      }
+
+      @Override
+      public boolean retryRequest(HttpResponse response, int execCount, HttpContext context) {
+        var request = HttpCoreContext.castOrCreate(context).getRequest();
+        return request != null && !Method.DELETE.isSame(request.getMethod()) && Method.isIdempotent(request.getMethod())
+          && super.retryRequest(response, execCount, context);
+      }
+    };
   }
 
   private static boolean isClientCertificateConfigured() {
