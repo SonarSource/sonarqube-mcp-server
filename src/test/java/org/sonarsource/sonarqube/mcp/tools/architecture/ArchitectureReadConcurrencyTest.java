@@ -36,6 +36,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.settings.SettingsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
@@ -67,6 +68,9 @@ class ArchitectureReadConcurrencyTest {
     when(server.projectBranchesApi()).thenReturn(branches);
     when(branches.getProjectId(anyString())).thenReturn(Optional.of("branch-id"));
     when(server.architectureApi()).thenReturn(architecture);
+    var settings = mock(SettingsApi.class);
+    when(server.settingsApi()).thenReturn(settings);
+    when(settings.getValue(anyString(), anyString())).thenReturn(Optional.of("SERVER"));
     when(architecture.getIntended(anyString(), anyString())).thenReturn(List.of());
     var tools = ArchitectureTools.create(provider, true, null);
     tool = (ArchitectureGetTool) tools.get(0);

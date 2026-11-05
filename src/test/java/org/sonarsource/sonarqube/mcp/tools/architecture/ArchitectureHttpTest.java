@@ -52,6 +52,7 @@ class ArchitectureHttpTest {
   void it_should_keep_http_recovery_exports_out_of_server_logs(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
     var sentinel = "private-http-recovery-pattern-sentinel";
     ArchitectureFixtures.stubMainBranch(harness);
+    ArchitectureFixtures.stubServerManagedModel(harness);
     var path = ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "?projectId=" + ArchitectureFixtures.MAIN_BRANCH_ID;
     harness.getMockSonarQubeServer().stubFor(get(path)
       .willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL.replace("app:com.acme.domain.**", sentinel)))));

@@ -34,6 +34,7 @@ import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedModelGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
@@ -49,6 +50,8 @@ public class ArchitectureApi {
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
   public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
+  public static final String GRAPHS_PATH = "/architecture/graphs";
+  public static final String INTENDED_MODELS_GRAPH_TYPE = "intended_models";
   public static final List<String> FINDING_CATEGORIES = List.of("deviation", "flaw", "smell");
   public static final List<String> FINDING_TYPES = List.of("structuralDeviation", "relationshipDeviation", "tangle", "oversizedComponent", "weakTangle", "splitResponsibility");
   public static final String SERVER_API_PREFIX = "/api/v2";
@@ -121,6 +124,44 @@ public class ArchitectureApi {
       throw incompatibleResponse("The public architecture API did not return intendedArchitectures. No complete model was read.");
     }
     return exportedModels(response);
+  }
+
+  /**
+   * Ids of the {@code intended_models} graphs of the branch's last analysis; empty when it stored none.
+   */
+  public List<String> getIntendedModelGraphIds(String projectKey, String organizationId, String branchId) {
+    var path = new UrlBuilder(GRAPHS_PATH)
+      .addParam("organizationId", organizationId)
+      .addParam("branchId", branchId)
+      .build();
+    GraphSummaries response;
+    try {
+      response = read(projectKey, () -> fromJson(get(path), GraphSummaries.class));
+    } catch (NotFoundException e) {
+      return List.of();
+    }
+    if (response == null || response.graphs() == null) {
+      throw incompatibleResponse("The architecture graphs response has no graphs.");
+    }
+    return response.graphs().stream()
+      .filter(graph -> graph != null && INTENDED_MODELS_GRAPH_TYPE.equals(graph.type()) && graph.id() != null)
+      .map(GraphSummary::id)
+      .toList();
+  }
+
+  public IntendedModelGraph getIntendedModelGraph(String projectKey, String id) {
+    var path = new URIBuilder().setPath(GRAPHS_PATH).appendPathSegments(id).toString();
+    var graph = read(projectKey, () -> fromJson(get(path), IntendedModelGraph.class));
+    if (graph == null || graph.source() == null) {
+      throw incompatibleResponse("The intended_models graph has no source.");
+    }
+    return graph;
+  }
+
+  private record GraphSummary(@Nullable String id, @Nullable String type) {
+  }
+
+  private record GraphSummaries(@Nullable List<GraphSummary> graphs) {
   }
 
   public List<IntendedArchitecture> createIntended(String projectKey, String projectId, List<IntendedArchitecture> models) {

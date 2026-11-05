@@ -51,6 +51,7 @@ class ArchitectureServerTests {
   final SonarQubeMcpServerTestHarness harness = new SonarQubeMcpServerTestHarness();
 
   private void lookup() {
+    ArchitectureFixtures.stubServerManagedModel(harness);
     harness.getMockSonarQubeServer().stubFor(get(LOOKUP).willReturn(okJson("{\"projects\":[{\"key\":\"my_project\",\"id\":\"opaque-project-id\"}],\"page\":{\"total\":1}}")));
   }
 

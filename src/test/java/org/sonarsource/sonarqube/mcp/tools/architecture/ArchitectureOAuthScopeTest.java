@@ -51,6 +51,7 @@ class ArchitectureOAuthScopeTest {
   @SonarQubeMcpServerTest
   void it_should_check_scopes_before_project_lookup_and_preserve_preview_and_apply(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
+    ArchitectureFixtures.stubServerManagedModel(harness);
     var backend = harness.getMockSonarQubeServer();
     var path = ArchitectureApi.INTENDED_ARCHITECTURES_PATH + "?projectId=" + MAIN_BRANCH_ID;
     var next = INTENDED_JAVA_MODEL.replace("domain", "infra");

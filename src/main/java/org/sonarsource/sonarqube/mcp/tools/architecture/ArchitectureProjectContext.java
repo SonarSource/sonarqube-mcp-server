@@ -16,9 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.branches.response.BranchesListResponse;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
+import org.sonarsource.sonarqube.mcp.serverapi.pullrequests.response.PullRequestsListResponse;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 
 final class ArchitectureProjectContext {
   private ArchitectureProjectContext() {
@@ -43,6 +47,36 @@ final class ArchitectureProjectContext {
     return serverApi.projectBranchesApi().getProjectId(projectKey)
       .orElseThrow(() -> new IllegalStateException("Project '" + projectKey
         + "' has no main branch. Use search_my_sonarqube_projects to check the project key."));
+  }
+
+  /**
+   * Id of the named branch, of the pull request with the given key, or of the main branch when neither is given.
+   */
+  static String branchId(ServerApi serverApi, String projectKey, BranchPullRequestContext.Params params) {
+    var pullRequest = params.pullRequest();
+    if (pullRequest != null) {
+      var response = serverApi.pullRequestsApi().listPullRequests(projectKey);
+      var match = (response == null || response.pullRequests() == null ? List.<PullRequestsListResponse.PullRequest>of() : response.pullRequests()).stream()
+        .filter(candidate -> candidate != null && pullRequest.equals(candidate.key()))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Pull request '" + pullRequest + "' was not found in project '" + projectKey
+          + "'. Use list_pull_requests to find its key."));
+      if (match.pullRequestId() == null) {
+        throw new IllegalStateException("SonarQube did not return the id of pull request '" + pullRequest + "', so its analysis cannot be read.");
+      }
+      return match.pullRequestId();
+    }
+    var branch = params.branch();
+    if (branch != null) {
+      var response = serverApi.projectBranchesApi().listBranches(projectKey);
+      return (response == null || response.branches() == null ? List.<BranchesListResponse.Branch>of() : response.branches()).stream()
+        .filter(candidate -> candidate != null && branch.equals(candidate.name()) && candidate.branchId() != null)
+        .findFirst()
+        .map(BranchesListResponse.Branch::branchId)
+        .orElseThrow(() -> new IllegalArgumentException("Branch '" + branch + "' was not found in project '" + projectKey
+          + "'. Use list_branches to find its name."));
+    }
+    return mainBranchId(serverApi, projectKey);
   }
 
   static String projectId(ServerApi serverApi, String projectKey) {

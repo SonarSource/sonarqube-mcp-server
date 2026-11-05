@@ -27,6 +27,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -54,6 +55,8 @@ public class ArchitectureGetTool extends Tool {
   private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
   private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
+  static final String FILE_MANAGED_MESSAGE = "A repository file manages this model: edit sonar-architecture.json, .yml or .yaml in the project base "
+    + "directory (top-level perspectives, with qualifiers for type) and open a pull request. architecture_set refuses intended writes.";
   private final CurrentGraphReads currentReads;
 
   private final ServerApiProvider serverApiProvider;
@@ -77,7 +80,7 @@ public class ArchitectureGetTool extends Tool {
       .setTitle("Get Architecture")
       .setDescription("Read current graphs, intended architecture, project directives or findings.")
       .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
-        "current: dependencies; intended: model; directives: project directives (directiveId); "
+        "current: dependencies; intended: model and its source (FILE or SERVER) for the branch; directives: project directives (directiveId); "
           + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
@@ -85,6 +88,7 @@ public class ArchitectureGetTool extends Tool {
         + (isSonarQubeCloud ? " Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective." : ""))
       .addNumberProperty(DEPTH_PROPERTY, "Levels below the start to return. Default 1 for current, all for intended.")
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
+      .addBranchAndPullRequestProperties()
       .setReadOnlyHint();
     builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.")
       .addEnumProperty(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new), "only findings of this type.")
@@ -104,6 +108,11 @@ public class ArchitectureGetTool extends Tool {
     if (depth != null && depth < 1) {
       throw new IllegalArgumentException("depth must be 1 or more.");
     }
+    var branch = BranchPullRequestContext.from(arguments);
+    var branchError = branch.validationError();
+    if (branchError.isPresent()) {
+      return branchError.get();
+    }
 
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     var parameters = arguments.toMap();
@@ -117,16 +126,19 @@ public class ArchitectureGetTool extends Tool {
     if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
       throw new IllegalArgumentException("type and category are only used for findings.");
     }
+    if (DIRECTIVES.equals(target) && (branch.branch() != null || branch.pullRequest() != null)) {
+      throw new IllegalArgumentException("branch and pullRequest are not used for directives, which apply to the whole project.");
+    }
     if (DIRECTIVES.equals(target)) {
       return directives(serverApi, projectKey, arguments, component, depth, language);
     }
     if (FINDINGS.equals(target)) {
-      return findings(serverApi, projectKey, arguments, component, depth, language);
+      return findings(serverApi, projectKey, branch, arguments, component, depth, language);
     }
     if (CURRENT.equals(target)) {
-      return readCurrent(serverApi, projectKey, component, depth, language);
+      return readCurrent(serverApi, projectKey, branch, component, depth, language);
     }
-    return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.projectId(serverApi, projectKey), component, depth, language);
+    return intended(serverApi, projectKey, branch, component, depth, language);
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
@@ -154,7 +166,7 @@ public class ArchitectureGetTool extends Tool {
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
 
-  private static Result findings(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
+  private static Result findings(ServerApi serverApi, String projectKey, BranchPullRequestContext.Params branch, Arguments arguments, @Nullable String component, @Nullable Integer depth,
     @Nullable String language) {
     if (component != null || depth != null) {
       throw new IllegalArgumentException("Findings reads do not accept component or depth filters.");
@@ -168,7 +180,7 @@ public class ArchitectureGetTool extends Tool {
     var category = arguments.getOptionalEnumValue(CATEGORY_PROPERTY, CATEGORIES);
     var type = arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new));
     var organizationId = ArchitectureProjectContext.organizationId(serverApi);
-    var branchId = ArchitectureProjectContext.mainBranchId(serverApi, projectKey);
+    var branchId = ArchitectureProjectContext.branchId(serverApi, projectKey, branch);
     var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, new ArchitectureApi.FindingFilters(category, type, language), pageIndex, pageSize);
     return Result.success(new FindingsView(projectKey, page.findings(), page.page(), page.findings().isEmpty() && page.page().total() == 0
       ? "No findings are visible. Check project access and whether the project has been analyzed." : null));
@@ -193,11 +205,12 @@ public class ArchitectureGetTool extends Tool {
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
+  private Result readCurrent(ServerApi serverApi, String projectKey, BranchPullRequestContext.Params branch, @Nullable String component, @Nullable Integer depth,
+    @Nullable String language) {
     return currentReads.execute(() -> {
       serverApi.requireOrganization();
       return current(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.organizationId(serverApi),
-        ArchitectureProjectContext.mainBranchId(serverApi, projectKey), component, depth == null ? 1 : depth, language);
+        ArchitectureProjectContext.branchId(serverApi, projectKey, branch), component, depth == null ? 1 : depth, language);
     });
   }
 
@@ -215,28 +228,58 @@ public class ArchitectureGetTool extends Tool {
     return Result.success(GraphSlicer.slice(projectKey, graphs, component, depth));
   }
 
-  private static Result intended(ArchitectureApi api, String projectKey, String projectId, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
-    var stored = api.getIntended(projectKey, projectId);
-    var revision = IntendedRevision.of(stored);
-    var partial = component != null || depth != null || language != null;
-    var models = stored.stream()
-      .filter(model -> language == null || language.equals(model.language()))
-      .toList();
-    if (models.isEmpty()) {
-      return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, List.of(), partial ? true : null,
-        "No intended architecture is visible for project '" + projectKey + "'" + (language == null ? "" : (" in " + language))
-          + ". It may be undefined, inaccessible or in another organization."));
+  private static Result intended(ServerApi serverApi, String projectKey, BranchPullRequestContext.Params branch, @Nullable String component,
+    @Nullable Integer depth, @Nullable String language) {
+    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
+    var resolution = IntendedSource.resolve(serverApi, projectKey, branch);
+    var view = new IntendedView(projectKey, resolution, branch, component, depth, language);
+    if (resolution.isManagedByFile()) {
+      String problem = null;
+      if (resolution.fileModels().isEmpty()) {
+        problem = resolution.problem() != null ? resolution.problem()
+          : resolution.fileAnalysed() ? "The last analysis found no usable architecture file, so it ran without an intended model."
+          : "No analysis has read the architecture file yet.";
+      } else if (resolution.droppedConstraints() > 0) {
+        problem = resolution.droppedConstraints() + " constraints other than allow constraints are not shown; read the file for them.";
+      }
+      var message = problem == null ? FILE_MANAGED_MESSAGE : (problem + " " + FILE_MANAGED_MESSAGE);
+      return view.result(null, resolution.fileModels(), message, resolution.droppedConstraints() > 0);
+    }
+    var stored = serverApi.architectureApi().getIntended(projectKey, projectId);
+    var message = resolution.isServerManaged() ? null : ("Whether a repository file manages this model is unknown. " + resolution.problem());
+    return view.result(IntendedRevision.of(stored), stored, message, false);
+  }
+
+  private record IntendedView(String projectKey, IntendedSource.Resolution resolution, BranchPullRequestContext.Params branch, @Nullable String component,
+    @Nullable Integer depth, @Nullable String language) {
+
+    private Result result(@Nullable String revision, List<IntendedArchitecture> stored, @Nullable String message, boolean incomplete) {
+      var partial = component != null || depth != null || language != null || incomplete;
+      var models = stored.stream()
+        .filter(model -> language == null || language.equals(model.language()))
+        .toList();
+      if (models.isEmpty()) {
+        var none = "No intended architecture is visible for project '" + projectKey + "'" + (language == null ? "" : (" in " + language)) + ".";
+        if (resolution.isServerManaged()) {
+          none += " It may be undefined, inaccessible or in another organization.";
+        }
+        return response(revision, List.of(), partial, message == null ? none : (none + " " + message));
+      }
+      var views = models.stream()
+        .map(model -> toView(model, component, depth, partial))
+        .filter(Objects::nonNull)
+        .toList();
+      if (views.isEmpty()) {
+        throw new IllegalArgumentException("No group '" + component + "' in the intended architecture. Call " + TOOL_NAME
+          + " with target intended and without component to list the group keys.");
+      }
+      return response(revision, views, partial, message);
     }
 
-    var views = models.stream()
-      .map(model -> toView(model, component, depth, partial))
-      .filter(Objects::nonNull)
-      .toList();
-    if (views.isEmpty()) {
-      throw new IllegalArgumentException("No group '" + component + "' in the intended architecture. Call " + TOOL_NAME
-        + " with target intended and without component to list the group keys.");
+    private Result response(@Nullable String revision, List<Model> models, boolean partial, @Nullable String message) {
+      return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, resolution.source(), resolution.setting(), branch.branch(), branch.pullRequest(),
+        resolution.fromMainBranch() ? true : null, revision, component, depth, models, partial ? true : null, message));
     }
-    return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, views, partial ? true : null, null));
   }
 
   /**
