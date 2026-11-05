@@ -45,6 +45,40 @@ class ArchitectureGetCurrentToolTests {
     + "&branchId=" + MAIN_BRANCH_ID + "&language=";
 
   @SonarQubeMcpServerTest
+  void it_should_expose_navigation_metadata_beyond_the_five_drill_down_hints(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var nodes = java.util.stream.IntStream.range(0, 10).mapToObj(i -> """
+      {"id":%d,"name":"module%d","kind":"module","edges":[],"nodes":[{"id":%d,"name":"Leaf","kind":"class","edges":[]}]}
+      """.formatted(i * 2, i, i * 2 + 1)).collect(java.util.stream.Collectors.joining(","));
+    var graph = "[{\"nodeCount\":20,\"edgeCount\":0,\"nodes\":[" + nodes + "]}]";
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(graph))));
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "current", "projectKey", "my_project", "language", "java"));
+
+    var response = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    var returned = response.getAsJsonArray("graphs").get(0).getAsJsonObject().getAsJsonArray("nodes");
+    assertThat(returned).hasSize(10);
+    returned.forEach(node -> {
+      assertThat(node.getAsJsonObject().get("descendants").getAsInt()).isEqualTo(1);
+      assertThat(node.getAsJsonObject().get("truncated").getAsBoolean()).isTrue();
+    });
+    assertThat(response.getAsJsonArray("drillDown")).hasSize(5);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_explain_a_leaf_without_claiming_it_is_capped(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "current", "projectKey", "my_project", "component", "app:com.acme.domain.Service", "language", "java"));
+
+    var response = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(response.get("capped").getAsBoolean()).isFalse();
+    assertThat(response.get("message").getAsString()).contains("is a leaf; there are no children below it");
+    assertThat(response.getAsJsonArray("graphs").get(0).getAsJsonObject().getAsJsonArray("nodes")).isEmpty();
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
     var tool = harness.newClient().listTools().stream().filter(t -> t.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
 
@@ -81,9 +115,9 @@ class ArchitectureGetCurrentToolTests {
           "nodesInScope" : 3,
           "edgesInScope" : 1,
           "nodes" : [
-            { "key" : "app", "kind" : "module", "children" : 2 },
-            { "key" : "app:com.acme.web", "kind" : "package", "children" : 1 },
-            { "key" : "app:com.acme.domain", "kind" : "package", "children" : 2 }
+            { "key" : "app", "kind" : "module", "children" : 2, "descendants" : 5, "truncated" : false },
+            { "key" : "app:com.acme.web", "kind" : "package", "children" : 1, "descendants" : 1, "truncated" : true },
+            { "key" : "app:com.acme.domain", "kind" : "package", "children" : 2, "descendants" : 2, "truncated" : true }
           ],
           "edges" : [ { "from" : "app:com.acme.web", "to" : "app:com.acme.domain", "weight" : 4 } ],
           "feedbackPairs" : { "total" : 0, "heaviest" : [ ] },
@@ -124,8 +158,8 @@ class ArchitectureGetCurrentToolTests {
           "nodesInScope" : 2,
           "edgesInScope" : 1,
           "nodes" : [
-            { "key" : "app:com.acme.domain.Service", "kind" : "class", "children" : 0 },
-            { "key" : "app:com.acme.domain.Repository", "kind" : "class", "children" : 0 }
+            { "key" : "app:com.acme.domain.Service", "kind" : "class", "children" : 0, "descendants" : 0, "truncated" : false },
+            { "key" : "app:com.acme.domain.Repository", "kind" : "class", "children" : 0, "descendants" : 0, "truncated" : false }
           ],
           "edges" : [ { "from" : "app:com.acme.domain.Service", "to" : "app:com.acme.domain.Repository", "weight" : 2 } ],
           "feedbackPairs" : { "total" : 0, "heaviest" : [ ] },
@@ -169,8 +203,8 @@ class ArchitectureGetCurrentToolTests {
           "nodesInScope" : 2,
           "edgesInScope" : 2,
           "nodes" : [
-            { "key" : "app:web", "kind" : "package", "children" : 0 },
-            { "key" : "app:domain", "kind" : "package", "children" : 0 }
+            { "key" : "app:web", "kind" : "package", "children" : 0, "descendants" : 0, "truncated" : false },
+            { "key" : "app:domain", "kind" : "package", "children" : 0, "descendants" : 0, "truncated" : false }
           ],
           "edges" : [
             { "from" : "app:web", "to" : "app:domain", "weight" : 3 },
