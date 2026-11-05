@@ -14,7 +14,7 @@
  * You should have received a copy of the Sonar Source-Available License
  * along with this program; if not, see https://sonarsource.com/license/ssal/
  */
-package org.sonarsource.sonarqube.mcp.http;
+package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.slf4j.LoggerFactory;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
@@ -38,7 +39,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureSetTool;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -54,8 +54,8 @@ class ArchitecturePatchRecoveryTest {
 
   private static final String BASE_URL = "https://sonarcloud.io";
   private static final String BRANCH_URL = BASE_URL + "/api/project_branches/list?project=my_project";
-  private static final String MODELS_URL = "https://api.sonarcloud.io/architecture/intended-architectures?projectId=main-branch";
-  private static final String PATCH_URL = "https://api.sonarcloud.io/architecture/intended-architectures/11111111-1111-4111-8111-111111111111";
+  private static final String MODELS_URL = "https://api.sonarcloud.io/architecture/project-intended-architectures?projectId=main-branch";
+  private static final String PATCH_URL = "https://api.sonarcloud.io/architecture/project-intended-architectures/11111111-1111-4111-8111-111111111111";
   private static final String SENTINEL = "private-patch-recovery-pattern-sentinel";
   private static final String PREVIOUS = """
     {"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java",
@@ -63,20 +63,20 @@ class ArchitecturePatchRecoveryTest {
     """;
   private static final String NEXT = PREVIOUS.replace(SENTINEL, "proposed-pattern");
 
-  @ParameterizedTest(name = "PATCH cancelled={0}, committed={1}")
-  @CsvSource({"false,false", "false,true", "true,false", "true,true"})
-  void it_should_reconcile_patch_failures_without_rollback_or_logging_exports(boolean cancelled, boolean committed) {
+  @ParameterizedTest(name = "PATCH cancelled={0}, committed={1}, malformedBody={2}")
+  @CsvSource({"false,false,false", "false,true,false", "true,false,false", "true,true,false", "false,false,true", "false,true,true"})
+  void it_should_reconcile_patch_failures_without_rollback_or_logging_exports(boolean cancelled, boolean committed, boolean malformedBody) {
     var client = mock(HttpClient.class);
     var stored = new AtomicReference<>(PREVIOUS);
     var requestBody = new AtomicReference<String>();
     when(client.getAsync(BRANCH_URL)).thenAnswer(invocation -> response("{\"branches\":[{\"isMain\":true,\"branchId\":\"main-branch\"}]}"));
-    when(client.getAsync(MODELS_URL)).thenAnswer(invocation -> response("{\"id\":\"11111111-1111-4111-8111-111111111111\",\"intendedArchitectures\":[" + stored.get().replace("\"type\"", "\"qualifiers\"") + "]}"));
+    when(client.getAsync(MODELS_URL)).thenAnswer(invocation -> response("{\"intendedArchitectures\":[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"perspectives\":[" + stored.get().replace("\"type\"", "\"qualifiers\"") + "]}]}"));
     when(client.patchAsync(eq(PATCH_URL), eq(HttpClient.MERGE_PATCH_CONTENT_TYPE), anyString())).thenAnswer(invocation -> {
       requestBody.set(invocation.getArgument(2));
       if (committed) {
         stored.set(NEXT);
       }
-      return failedWrite(cancelled);
+      return malformedBody ? response("not JSON") : failedWrite(cancelled);
     });
     var helper = new ServerApiHelper(new EndpointParams(BASE_URL, null, null, true), client);
     var api = new ServerApi(helper, true);
@@ -98,6 +98,9 @@ class ArchitecturePatchRecoveryTest {
         assertThat(result.content().toString()).contains("replaced").doesNotContain("Previous exported model");
       } else {
         assertThat(result.content().toString()).contains("No automatic rollback", "Previous exported model", SENTINEL);
+        if (malformedBody) {
+          assertThat(result.content().toString()).contains("supported public Architecture API contract");
+        }
       }
       assertThat(stored.get()).isEqualTo(committed ? NEXT : PREVIOUS);
       assertPatchRequest(requestBody.get());
@@ -125,9 +128,9 @@ class ArchitecturePatchRecoveryTest {
     expected.remove("id");
     expected.add("qualifiers", expected.remove("type"));
     var request = JsonParser.parseString(body).getAsJsonObject();
-    assertThat(request.keySet()).containsExactly("intendedArchitectures");
-    assertThat(request.getAsJsonArray("intendedArchitectures")).hasSize(1);
-    assertThat(request.getAsJsonArray("intendedArchitectures").get(0)).isEqualTo(expected);
+    assertThat(request.keySet()).containsExactly("perspectives");
+    assertThat(request.getAsJsonArray("perspectives")).hasSize(1);
+    assertThat(request.getAsJsonArray("perspectives").get(0)).isEqualTo(expected);
   }
 
   private static CompletableFuture<HttpClient.Response> failedWrite(boolean cancelled) {
@@ -142,6 +145,7 @@ class ArchitecturePatchRecoveryTest {
   private static CompletableFuture<HttpClient.Response> response(String body) {
     var response = mock(HttpClient.Response.class);
     when(response.isSuccessful()).thenReturn(true);
+    when(response.code()).thenReturn(200);
     when(response.bodyAsString()).thenReturn(body);
     return CompletableFuture.completedFuture(response);
   }
