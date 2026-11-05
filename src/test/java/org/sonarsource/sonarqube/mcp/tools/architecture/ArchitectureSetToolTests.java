@@ -41,6 +41,7 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.INTENDED_JAVA_MODEL;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.MAIN_BRANCH_ID;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.intendedArchitectures;
+import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.intendedResource;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.stubMainBranch;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.textOf;
 
@@ -92,18 +93,18 @@ class ArchitectureSetToolTests {
 
     var preview = set(harness, next, true, revision);
     assertThat(preview.isError()).isFalse();
-    assertThat(textOf(preview)).contains("dry-run").doesNotContain("unchanged");
+    assertThat(JsonParser.parseString(textOf(preview)).getAsJsonObject().get("mode").getAsString()).isEqualTo("dry-run");
     assertWrites(harness, 0, 0);
 
     stubPatch(harness, next);
 
     var applied = set(harness, next, false, revision);
     assertThat(applied.isError()).withFailMessage(textOf(applied)).isFalse();
-    assertThat(textOf(applied)).contains("replaced").doesNotContain("unchanged");
+    assertThat(JsonParser.parseString(textOf(applied)).getAsJsonObject().get("mode").getAsString()).isEqualTo("replaced");
     assertWrites(harness, 1, 0);
     var body = JsonParser.parseString(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", MODEL_PATH).getFirst()).getAsJsonObject();
     var expected = JsonParser.parseString(next).getAsJsonArray().get(0).getAsJsonObject().get("constraints");
-    assertThat(body.getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject().getAsJsonArray("constraints")).isEqualTo(expected);
+    assertThat(body.getAsJsonArray("perspectives").get(0).getAsJsonObject().getAsJsonArray("constraints")).isEqualTo(expected);
   }
 
   @Test
@@ -345,9 +346,9 @@ class ArchitectureSetToolTests {
     assertThat(textOf(result)).contains("replaced", "patternId");
     assertWrites(harness, 1, 0);
     var body = patchBody(harness);
-    assertThat(body.keySet()).containsExactly("intendedArchitectures");
-    assertThat(body.getAsJsonArray("intendedArchitectures")).hasSize(1);
-    var perspective = body.getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject();
+    assertThat(body.keySet()).containsExactly("perspectives");
+    assertThat(body.getAsJsonArray("perspectives")).hasSize(1);
+    var perspective = body.getAsJsonArray("perspectives").get(0).getAsJsonObject();
     assertThat(perspective.keySet()).containsExactlyInAnyOrder("qualifiers", "language", "groups", "constraints");
     assertThat(perspective.toString()).contains("infra").doesNotContain("id", "projectId");
     assertNoPrivateRequests(harness);
@@ -364,10 +365,10 @@ class ArchitectureSetToolTests {
     assertWrites(harness, 0, 1);
     var body = JsonParser.parseString(harness.getMockSonarQubeServer()
       .getReceivedBodies("POST", ArchitectureApi.INTENDED_ARCHITECTURES_PATH).getFirst()).getAsJsonObject();
-    assertThat(body.keySet()).containsExactlyInAnyOrder("projectId", "intendedArchitectures");
+    assertThat(body.keySet()).containsExactlyInAnyOrder("projectId", "perspectives");
     assertThat(body.get("projectId").getAsString()).isEqualTo(MAIN_BRANCH_ID);
-    assertThat(body.getAsJsonArray("intendedArchitectures")).hasSize(2);
-    body.getAsJsonArray("intendedArchitectures").forEach(item -> assertThat(item.getAsJsonObject().has("id")).isFalse());
+    assertThat(body.getAsJsonArray("perspectives")).hasSize(2);
+    body.getAsJsonArray("perspectives").forEach(item -> assertThat(item.getAsJsonObject().has("id")).isFalse());
   }
 
   @SonarQubeMcpServerTest
@@ -429,7 +430,8 @@ class ArchitectureSetToolTests {
     var result = set(harness, after, false, IntendedRevision.of(IntendedModels.parse(before)));
 
     assertThat(result.isError()).as(textOf(result)).isFalse();
-    assertThat(textOf(result)).contains("replaced", "java group UI/API").doesNotContain("unchanged");
+    assertThat(textOf(result)).contains("java group UI/API");
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().get("mode").getAsString()).isEqualTo("replaced");
     var diff = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("diff");
     assertThat(diff.getAsJsonArray("removed").toString()).contains("java group UI/API");
     assertThat(diff.getAsJsonArray("added").toString()).contains("java group UI/API");
@@ -437,7 +439,7 @@ class ArchitectureSetToolTests {
     var expected = JsonParser.parseString(created(after)).getAsJsonObject();
     expected.remove("id");
     expected.add("qualifiers", expected.remove("type"));
-    assertThat(patchBody(harness).getAsJsonArray("intendedArchitectures").get(0)).isEqualTo(expected);
+    assertThat(patchBody(harness).getAsJsonArray("perspectives").get(0)).isEqualTo(expected);
   }
 
   @SonarQubeMcpServerTest
@@ -470,7 +472,7 @@ class ArchitectureSetToolTests {
     assertThat(applied.isError()).as(textOf(applied)).isFalse();
     assertThat(textOf(applied)).contains("replaced");
     assertWrites(harness, 1, 0);
-    var imported = patchBody(harness).getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject().getAsJsonArray("groups").get(0).getAsJsonObject();
+    var imported = patchBody(harness).getAsJsonArray("perspectives").get(0).getAsJsonObject().getAsJsonArray("groups").get(0).getAsJsonObject();
     assertThat(imported.has("groups")).isFalse();
     assertThat(imported.get("patternId").getAsString()).isEqualTo("33333333-3333-4333-8333-333333333333");
     assertThat(imported.get("description").getAsString()).isEqualTo("Imported group");
@@ -640,7 +642,7 @@ class ArchitectureSetToolTests {
     var result = set(harness, next, false, IntendedRevision.of(IntendedModels.parse(before)));
     assertThat(result.isError()).as(textOf(result)).isFalse();
     assertThat(textOf(result)).contains("replaced", "perspective metadata");
-    var body = patchBody(harness).getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject();
+    var body = patchBody(harness).getAsJsonArray("perspectives").get(0).getAsJsonObject();
     assertThat(body.get("label").getAsString()).isEqualTo("Perspective");
     assertThat(body.get("description").getAsString()).isEqualTo("After");
     var group = body.getAsJsonArray("groups").get(0).getAsJsonObject();
@@ -669,7 +671,7 @@ class ArchitectureSetToolTests {
     var expected = JsonParser.parseString(next).getAsJsonArray().get(0).getAsJsonObject();
     expected.remove("id");
     expected.add("qualifiers", expected.remove("type"));
-    assertThat(patchBody(harness).getAsJsonArray("intendedArchitectures").get(0)).isEqualTo(expected);
+    assertThat(patchBody(harness).getAsJsonArray("perspectives").get(0)).isEqualTo(expected);
   }
 
   @SonarQubeMcpServerTest
@@ -705,7 +707,7 @@ class ArchitectureSetToolTests {
   @SonarQubeMcpServerTest
   void it_should_reject_invalid_or_partial_models_before_network(SonarQubeMcpServerTestHarness harness) {
     var client = harness.newClient(CLOUD_ENV);
-    for (var input : List.of("not json", "[]", "[{\"language\":\"bad\"}]", "{\"partial\":true,\"models\":" + NEXT + "}")) {
+    for (var input : List.of("not json", "[{\"language\":\"bad\"}]", "{\"partial\":true,\"models\":" + NEXT + "}")) {
       var result = client.callTool(ArchitectureSetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project", "model", input, "dryRun", true));
       assertThat(result.isError()).isTrue();
     }
@@ -841,7 +843,7 @@ class ArchitectureSetToolTests {
     var result = set(harness, after, false, IntendedRevision.of(IntendedModels.parse(before)));
     assertThat(result.isError()).as(textOf(result)).isFalse();
     assertWrites(harness, 1, 0);
-    assertThat(patchBody(harness).getAsJsonArray("intendedArchitectures")).hasSize(2);
+    assertThat(patchBody(harness).getAsJsonArray("perspectives")).hasSize(2);
   }
 
   @SonarQubeMcpServerTest
@@ -866,7 +868,7 @@ class ArchitectureSetToolTests {
   void it_should_refuse_a_public_model_without_a_resource_id(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL);
     var response = JsonParser.parseString(intendedArchitectures(INTENDED_JAVA_MODEL)).getAsJsonObject();
-    response.remove("id");
+    response.getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject().remove("id");
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson(response.toString())));
     assertThat(textOf(set(harness, NEXT, false, null))).contains("incomplete intended architecture");
     assertWrites(harness, 0, 0);
@@ -886,7 +888,7 @@ class ArchitectureSetToolTests {
   @SonarQubeMcpServerTest
   void it_should_verify_readback_after_a_successful_patch_response(SonarQubeMcpServerTestHarness harness) {
     stored(harness, INTENDED_JAVA_MODEL);
-    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).willReturn(okJson(intendedArchitectures(NEXT))));
+    harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).willReturn(okJson(intendedResource(NEXT))));
 
     var result = set(harness, NEXT, false, revision());
 
@@ -956,7 +958,7 @@ class ArchitectureSetToolTests {
   void it_should_verify_created_models_in_a_public_read(SonarQubeMcpServerTestHarness harness) {
     stored(harness, "[]");
     harness.getMockSonarQubeServer().stubFor(post(ArchitectureApi.INTENDED_ARCHITECTURES_PATH)
-      .willReturn(aResponse().withStatus(201).withBody(intendedArchitectures(NEXT))));
+      .willReturn(aResponse().withStatus(201).withBody(intendedResource(NEXT))));
 
     var result = set(harness, NEXT, false, IntendedRevision.of(List.of()));
 
@@ -1011,7 +1013,7 @@ class ArchitectureSetToolTests {
 
   private static void stubPatch(SonarQubeMcpServerTestHarness harness, String models) {
     harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).inScenario("write").whenScenarioStateIs("Started")
-      .willSetStateTo("saved").willReturn(okJson(intendedArchitectures(models))));
+      .willSetStateTo("saved").willReturn(okJson(intendedResource(models))));
     harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("write").whenScenarioStateIs("saved")
       .willReturn(okJson(intendedArchitectures(models))));
   }
@@ -1019,7 +1021,7 @@ class ArchitectureSetToolTests {
   private static void stubPost(SonarQubeMcpServerTestHarness harness, String models) {
     harness.getMockSonarQubeServer().stubFor(post(ArchitectureApi.INTENDED_ARCHITECTURES_PATH)
       .inScenario("write").whenScenarioStateIs("Started").willSetStateTo("saved")
-      .willReturn(aResponse().withStatus(201).withBody(intendedArchitectures(models))));
+      .willReturn(aResponse().withStatus(201).withBody(intendedResource(models))));
     harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("write").whenScenarioStateIs("saved")
       .willReturn(okJson(intendedArchitectures(models))));
   }
