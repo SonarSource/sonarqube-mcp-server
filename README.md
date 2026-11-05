@@ -1468,7 +1468,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Enable these tools with `SONARQUBE_TOOLSETS=architecture`. SonarQube Cloud requires a Team or Enterprise plan. Available targets and filters depend on the installed build and public APIs; see [implementation status, workflows and recovery](docs/architecture.md).**
+**Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. Available targets and filters depend on the installed build and public APIs; see [implementation status, workflows and recovery](docs/architecture.md).**
 
 - **architecture_get** - Read current dependencies, intended architecture, or project directives.
   - `target` - Architecture resource advertised by the installed build - _Required Enum_
