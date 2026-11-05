@@ -54,6 +54,7 @@ class ArchitecturePatchRecoveryTest {
 
   private static final String BASE_URL = "https://sonarcloud.io";
   private static final String BRANCH_URL = BASE_URL + "/api/project_branches/list?project=my_project";
+  private static final String SETTINGS_URL = BASE_URL + "/api/settings/values?keys=sonar.architecture.model.location&component=my_project";
   private static final String MODELS_URL = "https://api.sonarcloud.io/architecture/intended-architectures?projectId=main-branch";
   private static final String PATCH_URL = "https://api.sonarcloud.io/architecture/intended-architectures/11111111-1111-4111-8111-111111111111";
   private static final String SENTINEL = "private-patch-recovery-pattern-sentinel";
@@ -70,6 +71,7 @@ class ArchitecturePatchRecoveryTest {
     var stored = new AtomicReference<>(PREVIOUS);
     var requestBody = new AtomicReference<String>();
     when(client.getAsync(BRANCH_URL)).thenAnswer(invocation -> response("{\"branches\":[{\"isMain\":true,\"branchId\":\"main-branch\"}]}"));
+    when(client.getAsync(SETTINGS_URL)).thenAnswer(invocation -> response("{\"settings\":[{\"key\":\"sonar.architecture.model.location\",\"value\":\"SERVER\"}]}"));
     when(client.getAsync(MODELS_URL)).thenAnswer(invocation -> response("{\"id\":\"11111111-1111-4111-8111-111111111111\",\"intendedArchitectures\":[" + stored.get().replace("\"type\"", "\"qualifiers\"") + "]}"));
     when(client.patchAsync(eq(PATCH_URL), eq(HttpClient.MERGE_PATCH_CONTENT_TYPE), anyString())).thenAnswer(invocation -> {
       requestBody.set(invocation.getArgument(2));
@@ -114,6 +116,7 @@ class ArchitecturePatchRecoveryTest {
     verify(client, never()).postAsync(anyString(), anyString(), anyString());
     var order = inOrder(client);
     order.verify(client).getAsync(BRANCH_URL);
+    order.verify(client).getAsync(SETTINGS_URL);
     order.verify(client, times(2)).getAsync(MODELS_URL);
     order.verify(client).patchAsync(eq(PATCH_URL), eq(HttpClient.MERGE_PATCH_CONTENT_TYPE), anyString());
     order.verify(client).getAsync(MODELS_URL);

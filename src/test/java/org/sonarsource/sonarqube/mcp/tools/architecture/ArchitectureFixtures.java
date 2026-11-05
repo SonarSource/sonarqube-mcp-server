@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.settings.SettingsApi;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
@@ -35,6 +36,7 @@ final class ArchitectureFixtures {
   /** Org uuid returned by the harness's organizations stub. */
   static final String CLOUD_ORGANIZATION_ID = "00000000-0000-0000-0000-000000000001";
   static final String MAIN_BRANCH_ID = "main-branch-id";
+  static final String MODEL_LOCATION_PATH = SettingsApi.SETTINGS_VALUES_PATH + "?keys=sonar.architecture.model.location&component=my_project";
 
   /**
    * app (module) contains com.acme.web (Controller) and com.acme.domain (Service, Repository).
@@ -130,6 +132,15 @@ final class ArchitectureFixtures {
         { "name": "feature", "isMain": false, "type": "SHORT", "branchId": "other-branch-id" },
         { "name": "main", "isMain": true, "type": "LONG", "branchId": "%s" }
       ] }""".formatted(MAIN_BRANCH_ID))));
+  }
+
+  static String modelLocation(String value) {
+    return "{ \"settings\": [ { \"key\": \"sonar.architecture.model.location\", \"value\": \"" + value + "\" } ] }";
+  }
+
+  /** The project's model location setting is SERVER, so the web UI model applies and no analysed model is read. */
+  static void stubServerManagedModel(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(MODEL_LOCATION_PATH).willReturn(okJson(modelLocation("SERVER"))));
   }
 
   static String textOf(McpSchema.CallToolResult result) {

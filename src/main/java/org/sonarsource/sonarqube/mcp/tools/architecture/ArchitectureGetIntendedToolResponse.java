@@ -22,9 +22,11 @@ import java.util.List;
 
 /**
  * Without component, depth and language, {@code models} contains all publicly exported perspectives; the export may omit metadata. {@code revision} is the
- * revision of the whole stored model, whatever component, depth or language were asked for.
+ * revision of the whole stored model, whatever component, depth or language were asked for, and is absent when a repository file manages the model.
+ * {@code source} is {@code FILE}, {@code SERVER} or {@code UNKNOWN}; {@code sourceSetting} is the project's model location setting.
  */
-public record ArchitectureGetIntendedToolResponse(String projectKey, String revision, @Nullable String component, @Nullable Integer depth, List<Model> models,
+public record ArchitectureGetIntendedToolResponse(String projectKey, String source, String sourceSetting, @Nullable String branch, @Nullable String pullRequest,
+  @Nullable Boolean fromMainBranch, @Nullable String revision, @Nullable String component, @Nullable Integer depth, List<Model> models,
   @Nullable Boolean partial, @Nullable String message) {
 
   public record Model(@Nullable String language, @Nullable String type, List<Group> groups, List<Constraint> constraints,

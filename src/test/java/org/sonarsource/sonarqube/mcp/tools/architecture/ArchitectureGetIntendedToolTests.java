@@ -278,6 +278,8 @@ class ArchitectureGetIntendedToolTests {
   private static void assertViewEquals(McpSchema.CallToolResult result, String expected) {
     var json = com.google.gson.JsonParser.parseString(((McpSchema.TextContent) result.content().getFirst()).text()).getAsJsonObject();
     assertThat(json.remove("revision").getAsString()).isNotBlank();
+    assertThat(json.remove("source").getAsString()).isEqualTo("SERVER");
+    assertThat(json.remove("sourceSetting").getAsString()).isEqualTo("DYNAMIC");
     json.getAsJsonArray("models").forEach(model -> model.getAsJsonObject().remove("partial"));
     assertThat(json).isEqualTo(com.google.gson.JsonParser.parseString(expected));
   }

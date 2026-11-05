@@ -997,6 +997,7 @@ class ArchitectureSetToolTests {
     if (revision != null) {
       args.put("revision", revision);
     }
+    ArchitectureFixtures.stubServerManagedModel(harness);
     return harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME, args);
   }
 

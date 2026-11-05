@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -47,7 +48,8 @@ public class ArchitectureSetTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Set Architecture")
       .setDestructiveHint()
-      .setDescription("Replace intended architecture (omitted content is removed), or create, update or delete explicit project directives.")
+      .setDescription("Replace the server-managed intended architecture (omitted content is removed; refused when a repository file manages it), "
+        + "or create, update or delete explicit project directives.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addRequiredEnumProperty("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES}, "intended: replace model; directives: explicit CRUD operations.")
       .addRequiredStringProperty(MODEL_PROPERTY, "Intended: full response or models array. Directives: "
@@ -97,6 +99,10 @@ public class ArchitectureSetTool extends Tool {
     }
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
+    var source = IntendedSource.resolve(serverApi, projectKey, new BranchPullRequestContext.Params(null, null));
+    if (!source.isServerManaged()) {
+      return Result.failure(refusal(projectKey, source));
+    }
     var api = serverApi.architectureApi();
     var stored = api.getIntended(projectKey, projectId);
     if (revision != null && !revision.equals(IntendedRevision.of(stored))) {
@@ -128,6 +134,17 @@ public class ArchitectureSetTool extends Tool {
       return Result.failure(failure.callerMessage());
     }
     return Result.success(new ArchitectureSetToolResponse(projectKey, current.isEmpty() ? "created" : "replaced", diff, warnings));
+  }
+
+  static String refusal(String projectKey, IntendedSource.Resolution source) {
+    var setting = IntendedSource.MODEL_LOCATION_KEY + "=" + source.setting();
+    if (source.isManagedByFile()) {
+      return "The intended architecture of '" + projectKey + "' on the main branch is managed by a repository file (sonar-architecture.json, .yml or .yaml "
+        + "in the project base directory; " + setting + "). Nothing was changed. Edit the file and open a pull request, or set "
+        + IntendedSource.MODEL_LOCATION_KEY + " to SERVER to manage it here.";
+    }
+    return "Could not determine whether a repository file manages the intended architecture of '" + projectKey + "' (" + setting + "), "
+      + "so nothing was changed. " + source.problem() + " Retry, or set " + IntendedSource.MODEL_LOCATION_KEY + " to SERVER to manage it here.";
   }
 
   @Nullable
