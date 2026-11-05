@@ -49,6 +49,19 @@ class ArchitectureSetToolTests {
     [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[{"label":"A -> B"},{"label":"C"},{"label":"A"},{"label":"B -> C"}],
     "constraints":[{"from":"A -> B","to":"C"}]}]""";
 
+  @SonarQubeMcpServerTest
+  void it_should_reject_a_cli_language_scoped_export_before_backend_reads(SonarQubeMcpServerTestHarness harness) {
+    var cliExport = """
+      {"project":"my_project","revision":"exported-revision","language":"java","models":%s}
+      """.formatted(NEXT);
+
+    var result = set(harness, cliExport, false, null);
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("partial architecture view");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+  }
+
   @Test
   void it_should_compare_constraint_endpoint_pairs_instead_of_display_strings() {
     var before = IntendedModels.parse(COLLIDING_CONSTRAINT_MODEL);
@@ -268,8 +281,28 @@ class ArchitectureSetToolTests {
   }
 
   @Test
+  void it_should_reject_missing_and_self_referential_constraint_endpoints() {
+    for (var endpoint : List.of("", " ", "app/missing", "app/domain")) {
+      var models = JsonParser.parseString(INTENDED_JAVA_MODEL).getAsJsonArray();
+      models.get(0).getAsJsonObject().getAsJsonArray("constraints").get(0).getAsJsonObject().addProperty("from", endpoint);
+      assertThat(IntendedModels.invalidReason(IntendedModels.parse(models.toString()))).isNotNull();
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_reject_invalid_constraints_before_any_backend_request(SonarQubeMcpServerTestHarness harness) {
+    var invalid = INTENDED_JAVA_MODEL.replace("app/web", "missing");
+    var result = set(harness, invalid, false, null);
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("does not name a unique group");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/project_branches/")).isFalse();
+    assertWrites(harness, 0, 0);
+  }
+
+  @Test
   void it_should_accept_public_constraint_strings_and_reject_duplicate_constraints() {
-    for (var endpoint : new String[] {"", " ", "app/missing", "app/*"}) {
+    for (var endpoint : new String[] {"app/web", "app/*"}) {
       var models = JsonParser.parseString(INTENDED_JAVA_MODEL).getAsJsonArray();
       models.get(0).getAsJsonObject().getAsJsonArray("constraints").get(0).getAsJsonObject().addProperty("from", endpoint);
       assertThat(IntendedModels.invalidReason(IntendedModels.parse(models.toString()))).isNull();
@@ -693,12 +726,14 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_reject_server_intended_writes_before_private_id_discovery(SonarQubeMcpServerTestHarness harness) {
+  void it_should_refuse_server_writes_when_public_project_lookup_is_unavailable(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get("/api/v2/components/projects?keys=my_project&pageSize=1").willReturn(aResponse().withStatus(404)));
     var client = harness.newClient();
-    assertThatThrownBy(() -> client.callTool(ArchitectureSetTool.TOOL_NAME,
-      Map.of("target", "intended", "projectKey", "my_project", "model", NEXT, "dryRun", true)))
-      .isInstanceOf(io.modelcontextprotocol.spec.McpError.class).hasMessage("Unknown tool: invalid_tool_name");
-    assertNoPrivateRequests(harness);
+    var result = client.callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model", NEXT, "dryRun", true));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("public project lookup");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
     assertWrites(harness, 0, 0);
   }
 
