@@ -1468,30 +1468,36 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended and directive operations are Cloud-only until public project UUID resolution is available.**
+> **Pending features:** This reference covers the combined Architecture work in progress. Use the tools and parameters advertised by your installed build; see [implementation status and detailed behavior](docs/architecture.md) for the corresponding PRs.
 
-- **architecture_get** - Read current dependencies, intended groups and constraints, or project directives by page or ID. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
+**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. On SonarQube Server, calls require the corresponding public Architecture APIs; intended and directive operations also require the public project lookup. Tools remain listed when these APIs are unavailable and report an error when called.**
 
-  Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
+- **architecture_get** - Read current dependencies, intended architecture, project directives, or findings (deviations, flaws and smells) from the latest main-branch analysis.
+
+  Current views show at most 150 nodes and are not complete exports. Use `component` or `language` to narrow the view, or both `from` and `to` for paginated dependencies; compare page revisions before combining results. Directive pages are summaries without descriptions; use `directiveId` for a complete record. Findings have no IDs or single-finding lookup. Empty results mean no visible data, not proof that a project is healthy.
 
   Parameters:
-  - `target` - `current`, `intended` or `directives` on Cloud; `current` on Server - _Required Enum_
+  - `target` - `current`, `intended`, `directives` or `findings` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `organization` - SonarQube Cloud organization key when none is configured; required for `current` - _Optional String_
+  - `organization` - SonarQube Cloud organization key when none is configured; required for `current` and `findings` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
-  - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended only - _String_
-  - `directiveId` - Cloud directives only: read one UUID instead of a page; cannot be combined with paging - _String_
-  - `pageIndex` - Directives page, starting at 1; default 1 - _Number_
-  - `pageSize` - Directives per page; default 50, maximum 1000 - _Number_
+  - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended/findings only - _String_
+  - `directiveId` - Directives only: full record, including description, by UUID; cannot be combined with paging - _String_
+  - `category` - Findings only: `deviation`, `flaw` or `smell` - _Enum_
+  - `type` - Findings only: `structuralDeviation`, `relationshipDeviation`, `tangle`, `oversizedComponent`, `weakTangle` or `splitResponsibility` - _Enum_
+  - `from` / `to` - Current only: exact source/destination keys including descendants; supply both without `component` - _String_
+  - `pageIndex` - Directives, findings or current from/to queries; starts at 1, default 1 - _Number_
+  - `pageSize` - Current from/to: default/maximum 20; directives: default/maximum 50; findings: default 50, maximum 1000, or 0 for count only - _Number_
 
-- **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
-  **Directives:** Supply a JSON object with optional `create`, `update` and `delete` arrays. Create records contain directive fields, update records contain `{id, changed fields}`, and delete records contain only `{id}`. Unspecified update fields and unmentioned directives are retained. Creation skips duplicate operations. Preview with `dryRun=true` and apply only after confirmation. The whole batch is validated before writing; conflicting IDs are rejected. Writes are individual, not atomic. A partial or uncertain failure reports confirmed IDs and stops without retry or rollback. Duplicate checks and preflight reads can race concurrent edits. Optional fields cannot be cleared with null; the API has no conditional writes.
+- **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives. Preview with `dryRun: true` and apply only after confirmation. Hidden when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
-  Directive fields: `type` (`REMOVE_EDGE`, `RENAME_NODE`, `MOVE_NODE`), `ecosystem`, `graphType` (`file_graph`, `namespace_graph`), `fromNodeKey`, `toNodeKey`; optional `graphPerspective` (defaults to `default_perspective`) and `description`. Creation sets origin to `sonarqube-mcp-server`; updates preserve the stored origin.
+  **Intended models:** Start from the whole unfiltered `architecture_get` response to retain its revision check. Omitted perspectives and groups are removed; an empty complete model deletes the stored model. Partial views are rejected. Imported patterns remain references and their contents cannot be edited here. Concurrent edits can still race the revision check. Uncertain writes return recovery information without automatic rollback or replay.
 
-  **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: exported child groups must stay unchanged or be omitted, and are excluded from writes. Imported contents cannot be edited here. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
+  **Directives:** Use optional `create`, `update` and `delete` arrays. Updates contain `{id, changed fields}`; deletes contain `{id}`. Unspecified fields and unmentioned records remain unchanged; duplicate creates are skipped. Writes are individual, not atomic; partial failures report confirmed IDs and stop without automatic retry or rollback. Optional fields cannot be cleared with null.
+
+  Create fields: `type` (`REMOVE_EDGE`, `RENAME_NODE`, `MOVE_NODE`), `ecosystem`, `graphType` (`file_graph`, `namespace_graph`), `fromNodeKey`, `toNodeKey`; optional `graphPerspective` (defaults to `default_perspective`) and `description`. Creation sets origin to `sonarqube-mcp-server`; updates preserve it. See [workflow details and examples](docs/architecture.md) for validation, summaries and recovery behavior.
 
   Parameters:
   - `target` - `intended` or `directives` - _Required Enum_
