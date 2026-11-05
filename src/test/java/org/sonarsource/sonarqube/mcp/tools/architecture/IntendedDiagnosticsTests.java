@@ -96,7 +96,7 @@ class IntendedDiagnosticsTests {
     var models = List.of(new IntendedArchitecture(null, "namespace", "java", groups, List.of()),
       new IntendedArchitecture(null, "file", "ts", groups, List.of()));
 
-    var warnings = IntendedDiagnostics.inspect(api, "project", models);
+    var warnings = IntendedDiagnostics.inspect(api, "project", models, new CurrentGraphReads());
 
     assertThat(warnings.getFirst()).contains("ts: pattern and physical hierarchy checks unavailable", backendReason, "Structural validation still applies");
     assertThat(warnings.stream().filter(warning -> warning.contains("names a container"))).hasSize(10);
@@ -117,7 +117,7 @@ class IntendedDiagnosticsTests {
     when(architecture.getStructure("project", ArchitectureApi.SERVER_ORGANIZATION_ID, "branch", "java"))
       .thenThrow(new IllegalStateException(reason));
 
-    var warnings = IntendedDiagnostics.inspect(api, "project", IntendedModels.parse(MODEL));
+    var warnings = IntendedDiagnostics.inspect(api, "project", IntendedModels.parse(MODEL), new CurrentGraphReads());
 
     assertThat(warnings).singleElement().asString()
       .contains("checks unavailable", "Structural validation still applies")

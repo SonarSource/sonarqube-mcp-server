@@ -31,18 +31,21 @@ final class IntendedDiagnostics {
   private IntendedDiagnostics() {
   }
 
-  static List<String> inspect(ServerApi api, String projectKey, List<IntendedArchitecture> models) {
+  static List<String> inspect(ServerApi api, String projectKey, List<IntendedArchitecture> models, CurrentGraphReads currentReads) {
     var warnings = new Warnings();
     var unavailable = new ArrayList<String>();
     var languages = models.stream().filter(model -> !groups(model).isEmpty()).map(IntendedArchitecture::language).distinct().toList();
     for (var language : languages) {
       try {
-        var graphs = api.architectureApi().getStructure(projectKey, ArchitectureProjectContext.organizationId(api),
-          ArchitectureProjectContext.mainBranchId(api, projectKey), language);
-        if (graphs.size() != 1 || graphs.getFirst().nodes() == null) {
-          throw new IllegalStateException("No unique discovery graph");
-        }
-        inspect(models.stream().filter(model -> language.equals(model.language())).toList(), graphs.getFirst(), warnings);
+        currentReads.execute(() -> {
+          var graphs = api.architectureApi().getStructure(projectKey, ArchitectureProjectContext.organizationId(api),
+            ArchitectureProjectContext.mainBranchId(api, projectKey), language);
+          if (graphs.size() != 1 || graphs.getFirst().nodes() == null) {
+            throw new IllegalStateException("No unique discovery graph");
+          }
+          inspect(models.stream().filter(model -> language.equals(model.language())).toList(), graphs.getFirst(), warnings);
+          return null;
+        });
       } catch (RuntimeException e) {
         var reason = e.getMessage();
         unavailable.add(language + ": pattern and physical hierarchy checks unavailable; no complete discovery graph was read"

@@ -34,10 +34,15 @@ public class ArchitectureSetTool extends Tool {
   public static final String REVISION_PROPERTY = "revision";
 
   private final ServerApiProvider serverApiProvider;
+  private final CurrentGraphReads currentReads;
   @Nullable
   private final String configuredProjectKey;
 
   public ArchitectureSetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
+    this(serverApiProvider, isSonarQubeCloud, configuredProjectKey, new CurrentGraphReads());
+  }
+
+  ArchitectureSetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
     super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Set Architecture")
@@ -54,6 +59,7 @@ public class ArchitectureSetTool extends Tool {
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get target intended; defaults to the model response revision. A mismatch prevents writing.")
       .build(),
       ToolCategory.ARCHITECTURE);
+    this.currentReads = currentReads;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }
@@ -107,7 +113,7 @@ public class ArchitectureSetTool extends Tool {
         + "Use the whole architecture_get response or supply revision.");
     }
     if (!diff.isEmpty()) {
-      warnings.addAll(IntendedDiagnostics.inspect(serverApi, projectKey, next));
+      warnings.addAll(IntendedDiagnostics.inspect(serverApi, projectKey, next, currentReads));
     }
     if (dryRun) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));

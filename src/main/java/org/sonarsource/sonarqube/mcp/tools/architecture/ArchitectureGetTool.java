@@ -21,8 +21,6 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
@@ -52,17 +50,21 @@ public class ArchitectureGetTool extends Tool {
   private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
   private static final String[] SERVER_TARGETS = {CURRENT};
   private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
-  private static final int MAX_CONCURRENT_CURRENT_READS = 2;
   private final String[] availableTargets;
-  private final Semaphore currentReads = new Semaphore(MAX_CONCURRENT_CURRENT_READS);
+  private final CurrentGraphReads currentReads;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
   private final String configuredProjectKey;
 
   public ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
+    this(serverApiProvider, isSonarQubeCloud, configuredProjectKey, new CurrentGraphReads());
+  }
+
+  ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
     super(definition(isSonarQubeCloud, configuredProjectKey), ToolCategory.ARCHITECTURE);
     this.availableTargets = isSonarQubeCloud ? TARGETS : SERVER_TARGETS;
+    this.currentReads = currentReads;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }
@@ -159,21 +161,11 @@ public class ArchitectureGetTool extends Tool {
   }
 
   private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
-    try {
-      if (!currentReads.tryAcquire(5, TimeUnit.SECONDS)) {
-        throw new IllegalStateException("Architecture reads are busy. Try again shortly.");
-      }
-    } catch (InterruptedException interrupted) {
-      Thread.currentThread().interrupt();
-      throw new IllegalStateException("Architecture read interrupted while waiting for capacity.", interrupted);
-    }
-    try {
+    return currentReads.execute(() -> {
       serverApi.requireOrganization();
       return current(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.organizationId(serverApi),
         ArchitectureProjectContext.mainBranchId(serverApi, projectKey), component, depth == null ? 1 : depth, language);
-    } finally {
-      currentReads.release();
-    }
+    });
   }
 
   private static Result current(ArchitectureApi api, String projectKey, String organizationId, String branchId, @Nullable String component, int depth, @Nullable String language) {
