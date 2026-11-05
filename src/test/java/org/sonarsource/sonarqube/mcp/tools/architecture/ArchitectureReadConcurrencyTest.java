@@ -25,6 +25,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,6 +43,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -240,8 +242,8 @@ class ArchitectureReadConcurrencyTest {
       assertThat(first.get(5, TimeUnit.SECONDS).isError()).isFalse();
       assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
       assertThat(maximum.get()).isEqualTo(2);
-      verify(architecture, org.mockito.Mockito.never()).createIntended(anyString(), anyString(), any());
-      verify(architecture, org.mockito.Mockito.never()).patchIntended(anyString(), anyString(), any());
+      verify(architecture, never()).createIntended(anyString(), anyString(), any());
+      verify(architecture, never()).patchIntended(anyString(), anyString(), any());
       verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
     }
   }
@@ -305,7 +307,7 @@ class ArchitectureReadConcurrencyTest {
     var models = List.of("java", "cs", "js", "ts", "py").stream()
       .map(language -> "{\"type\":\"namespace\",\"language\":\"" + language
         + "\",\"groups\":[{\"label\":\"App\",\"patterns\":[\"app:**\"]}],\"constraints\":[]}")
-      .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+      .collect(Collectors.joining(",", "[", "]"));
     return new Tool.Arguments(Map.of("target", "intended", "projectKey", "project", "dryRun", true, "model", models), Map.of());
   }
 

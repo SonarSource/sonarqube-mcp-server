@@ -30,6 +30,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static verifyNoInteractions;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,7 +55,7 @@ class IntendedDiagnosticsTests {
     assertThat(IntendedDiagnostics.inspect(api, "project", List.of(), reads)).isEmpty();
     var empty = new IntendedArchitecture("namespace", "java", List.of(), List.of());
     assertThat(IntendedDiagnostics.inspect(api, "project", List.of(empty), reads)).isEmpty();
-    org.mockito.Mockito.verifyNoInteractions(api, reads);
+    verifyNoInteractions(api, reads);
   }
 
   @Test
