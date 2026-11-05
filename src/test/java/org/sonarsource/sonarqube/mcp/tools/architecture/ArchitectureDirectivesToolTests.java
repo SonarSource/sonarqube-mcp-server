@@ -19,10 +19,10 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -82,13 +82,14 @@ class ArchitectureDirectivesToolTests {
     var client = harness.newClient(CLOUD_ENV);
     var schema = client.listTools().stream().filter(tool -> ArchitectureGetTool.TOOL_NAME.equals(tool.name())).findFirst().orElseThrow().inputSchema();
     assertThat(schema.toString()).contains("directives: project directives", "directives or current from/to");
-    var read = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "pageIndex", 2, "pageSize", 100));
+    stubReadPage(3, saved(101, "app:a"), 101);
+    var read = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "pageIndex", 3, "pageSize", 50));
     assertThat(read.isError()).isFalse();
     assertThat(textOf(read)).contains("000000000101");
     var result = client.callTool(ArchitectureSetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "model", changeFile("create", "[" + INPUT + "," + INPUT + "]"), "dryRun", false));
     assertThat(result.isError()).isFalse();
-    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().get("skipped").getAsInt()).isEqualTo(2);
-    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("created")).isEmpty();
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("counts").get("skipped").getAsInt()).isEqualTo(2);
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("createdIds")).isEmpty();
     assertThat(backend.getReceivedBodies("POST", PATH)).isEmpty();
     assertThat(backend.getReceivedBodies("PATCH", PATH)).isEmpty();
     assertThat(backend.getReceivedBodies("DELETE", PATH)).isEmpty();
@@ -129,9 +130,9 @@ class ArchitectureDirectivesToolTests {
     stubMainBranch(harness);
     var rows = IntStream.rangeClosed(1, 101).mapToObj(id -> saved(id, "app:" + id))
       .collect(Collectors.joining(","));
-    stubPage(1, rows, 101);
+    stubReadPage(1, rows, 101);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 50));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("Invalid public directives page");
   }
@@ -208,9 +209,9 @@ class ArchitectureDirectivesToolTests {
   @CsvSource({"1,0", "2,1", "1,3"})
   void it_should_allow_count_drift_on_single_page_reads(int pageIndex, int total) {
     stubMainBranch(harness);
-    stubPage(pageIndex, saved(1, "app:a"), total);
+    stubReadPage(pageIndex, saved(1, "app:a"), total);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 50));
     assertThat(result.isError()).isFalse();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
   }
@@ -327,7 +328,7 @@ class ArchitectureDirectivesToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "pageSize", pageSize));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("page size must be between 1 and 1000");
+    assertThat(textOf(result)).contains("page size must be between 1 and 50");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
   }
 
@@ -590,9 +591,9 @@ class ArchitectureDirectivesToolTests {
     var directive = json.fromJson(saved(1, "app:a"), JsonObject.class);
     json.fromJson(invalidFields, JsonObject.class).entrySet()
       .forEach(entry -> directive.add(entry.getKey(), entry.getValue()));
-    stubPage(1, directive.toString(), 1);
+    stubReadPage(1, directive.toString(), 1);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 50));
     assertThat(result.isError()).isTrue();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", PATH)).isEmpty();
   }
@@ -601,18 +602,18 @@ class ArchitectureDirectivesToolTests {
   @ValueSource(strings = {
     "null", "{}", "{\"projectDirectives\":[]}",
     "{\"projectDirectives\":[],\"page\":{}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":2,\"pageSize\":100,\"total\":0}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":2,\"pageSize\":50,\"total\":0}}",
     "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"total\":0}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":0}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":-1}}"
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50}}",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":-1}}"
   })
   void it_should_reject_incomplete_page_metadata(String response) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=100")
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=50")
       .willReturn(okJson(response)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 50));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("Invalid public directives page");
   }
@@ -627,9 +628,9 @@ class ArchitectureDirectivesToolTests {
       case "null" -> "null";
       default -> row.replace(MAIN_BRANCH_ID, "other-project");
     };
-    stubPage(1, rows, 2);
+    stubReadPage(1, rows, 2);
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 100));
+      Map.of("target", "directives", "projectKey", "my_project", "pageSize", 50));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains(switch (kind) {
       case "duplicate" -> "duplicate ids";
@@ -669,7 +670,7 @@ class ArchitectureDirectivesToolTests {
       Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", dryRun));
     assertThat(result.isError()).isFalse();
     var value = new Gson().fromJson(textOf(result), JsonObject.class);
-    assertThat(value.get("skipped").getAsInt()).isEqualTo(duplicateCreate ? 2 : 1);
+    assertThat((dryRun ? value : value.getAsJsonObject("counts")).get("skipped").getAsInt()).isEqualTo(duplicateCreate ? 2 : 1);
     assertThat(value.getAsJsonArray("skippedIds")).hasSize(1);
     assertThat(value.getAsJsonArray("skippedIds").get(0).getAsString()).isEqualTo(id);
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", PATH)).isEmpty();
@@ -700,12 +701,27 @@ class ArchitectureDirectivesToolTests {
     var preview = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", true));
     assertThat(preview.isError()).isFalse();
-    assertThat(textOf(preview)).contains(description ? "requested description" : "old description", perspective ? "requested-view" : "old-view");
+    var proposed = JsonParser.parseString(textOf(preview)).getAsJsonObject().getAsJsonArray("changes").get(0).getAsJsonObject().getAsJsonObject("after");
+    assertThat(proposed.has("description")).isEqualTo(description);
+    assertThat(proposed.has("graphPerspective")).isEqualTo(perspective);
+    assertThat(proposed.get("toNodeKey").getAsString()).isEqualTo("app:new");
+    if (description) {
+      assertThat(proposed.get("description").getAsString()).isEqualTo("requested description");
+    }
+    if (perspective) {
+      assertThat(proposed.get("graphPerspective").getAsString()).isEqualTo("requested-view");
+    }
     assertThat(backend.getReceivedBodies("PATCH", path)).isEmpty();
     var applied = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", false));
     assertThat(applied.isError()).isFalse();
-    assertThat(textOf(applied)).contains(description ? "requested description" : "concurrent description", perspective ? "requested-view" : "concurrent-view");
+    assertThat(textOf(applied)).contains("applied", id).doesNotContain("requested-view", "concurrent-view");
+    assertThat(textOf(applied)).doesNotContain("requested description", "concurrent description");
+    backend.stubFor(get(path).willReturn(okJson(after)));
+    var detail = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "directiveId", id));
+    assertThat(detail.isError()).isFalse();
+    assertThat(textOf(detail)).contains(description ? "requested description" : "concurrent description", perspective ? "requested-view" : "concurrent-view");
     assertThat(backend.getReceivedBodies("PATCH", path)).hasSize(1);
     var payload = JsonParser.parseString(backend.getReceivedBodies("PATCH", path).getFirst()).getAsJsonObject();
     assertThat(payload.has("description")).isEqualTo(description);
@@ -731,6 +747,123 @@ class ArchitectureDirectivesToolTests {
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("did not confirm the requested directive");
     assertThat(backend.getReceivedBodies("PATCH", path)).hasSize(1);
+  }
+
+  @Test
+  void it_should_return_complete_summary_pages_and_full_details_on_demand() {
+    stubMainBranch(harness);
+    var description = "x".repeat(10000);
+    var rows = IntStream.rangeClosed(1, 50).mapToObj(i -> saved(i, "app:" + i)
+      .replace("\"description\":null", "\"description\":\"" + description + "\""))
+      .collect(Collectors.joining(","));
+    stubReadPage(1, rows, 101);
+    stubReadPage(2, IntStream.rangeClosed(51, 100).mapToObj(i -> saved(i, "app:" + i)
+      .replace("\"description\":null", "\"description\":\"" + description + "\"")).collect(Collectors.joining(",")), 101);
+    stubReadPage(3, saved(101, "app:101"), 101);
+    var id = "00000000-0000-4000-8000-000000000001";
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "/" + id)
+      .willReturn(okJson(saved(1, "app:1").replace("\"description\":null", "\"description\":\"" + description + "\""))));
+    var client = harness.newClient(CLOUD_ENV);
+    for (var pageIndex = 1; pageIndex <= 3; pageIndex++) {
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
+        Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 50));
+      assertThat(result.isError()).isFalse();
+      var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+      assertThat(json.get("view").getAsString()).isEqualTo("summary");
+      assertThat(json.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(101);
+      var items = json.getAsJsonArray("directives");
+      assertThat(items.size()).isEqualTo(pageIndex < 3 ? 50 : 1);
+      for (var offset = 0; offset < items.size(); offset++) {
+        var item = items.get(offset).getAsJsonObject();
+        var number = (pageIndex - 1) * 50 + offset + 1;
+        assertThat(item.get("id").getAsString()).endsWith(String.format("%012d", number));
+        assertThat(item.get("fromNodeKey").getAsString()).isEqualTo("app:" + number);
+        assertThat(item.get("origin").getAsString()).isEqualTo("existing-client");
+        assertThat(item.has("description")).isFalse();
+        assertThat(item.get("descriptionOmitted").getAsBoolean()).isEqualTo(pageIndex < 3);
+      }
+    }
+    var detail = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "directiveId", id));
+    assertThat(detail.isError()).isFalse();
+    assertThat(JsonParser.parseString(textOf(detail)).getAsJsonObject().getAsJsonObject("directive")
+      .get("description").getAsString()).isEqualTo(description);
+  }
+
+  @Test
+  void it_should_preview_only_changed_values_and_not_echo_unchanged_descriptions() {
+    stubMainBranch(harness);
+    var id = "00000000-0000-4000-8000-000000000001";
+    var stored = saved(1, "app:a").replace("\"description\":null", "\"description\":\"" + "x".repeat(10000) + "\"");
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "/" + id).willReturn(okJson(stored)));
+    stubPage(1, stored, 1);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "model",
+        changeFile("update", "[{\"id\":\"" + id + "\",\"toNodeKey\":\"app:c\"}]"), "dryRun", true));
+    assertThat(result.isError()).isFalse();
+    var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    var change = json.getAsJsonArray("changes").get(0).getAsJsonObject();
+    assertThat(change.getAsJsonObject("before").keySet()).containsExactly("toNodeKey");
+    assertThat(change.getAsJsonObject("before").get("toNodeKey").getAsString()).isEqualTo("app:b");
+    assertThat(change.getAsJsonObject("after").keySet()).containsExactly("toNodeKey");
+    assertThat(change.getAsJsonObject("after").get("toNodeKey").getAsString()).isEqualTo("app:c");
+    assertThat(textOf(result)).doesNotContain("x".repeat(100));
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", PATH + "/" + id)).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {50, 1})
+  void it_should_keep_every_entry_at_default_and_maximum_page_sizes(int size) {
+    stubMainBranch(harness);
+    var rows = IntStream.rangeClosed(1, size).mapToObj(i -> {
+      var row = saved(i, "app:" + i);
+      return row.replace("\"description\":null", "\"description\":\"" + "x".repeat(10000) + "\"");
+    }).collect(Collectors.joining(","));
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=" + size)
+      .willReturn(okJson("{\"projectDirectives\":[" + rows + "],\"page\":{\"pageIndex\":1,\"pageSize\":" + size + ",\"total\":" + size + "}}")));
+    var arguments = new HashMap<String, Object>();
+    arguments.put("target", "directives");
+    arguments.put("projectKey", "my_project");
+    if (size != 50) {
+      arguments.put("pageSize", size);
+    }
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+    assertThat(result.isError()).isFalse();
+    var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(json.get("view").getAsString()).isEqualTo("summary");
+    assertThat(json.getAsJsonObject("page").get("pageSize").getAsInt()).isEqualTo(size);
+    assertThat(json.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(size);
+    var entries = json.getAsJsonArray("directives");
+    assertThat(entries.size()).isEqualTo(size);
+    for (var index = 0; index < size; index++) {
+      var entry = entries.get(index).getAsJsonObject();
+      assertThat(entry.get("id").getAsString()).endsWith(String.format("%012d", index + 1));
+      assertThat(entry.get("fromNodeKey").getAsString()).isEqualTo("app:" + (index + 1));
+      assertThat(entry.has("description")).isFalse();
+      assertThat(entry.get("descriptionOmitted").getAsBoolean()).isTrue();
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"1,51", "1,1000", "7,51", "7,1000"})
+  void it_should_reject_oversized_pages_before_any_backend_request(int pageIndex, int pageSize) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    backend.stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=" + pageIndex + "&pageSize=" + pageSize)
+      .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":" + pageIndex
+        + ",\"pageSize\":" + pageSize + ",\"total\":0}}")));
+    var client = harness.newClient(CLOUD_ENV);
+    var before = backend.getReceivedRequests().size();
+    var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "directives", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", pageSize));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("between 1 and 50", "Restart at pageIndex=1");
+    assertThat(backend.getReceivedRequests()).hasSize(before);
+  }
+
+  private void stubReadPage(int index, String directives, int total) {
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=" + index + "&pageSize=50")
+      .willReturn(okJson("{\"projectDirectives\":[" + directives + "],\"page\":{\"pageIndex\":" + index + ",\"pageSize\":50,\"total\":" + total + "}}")));
   }
 
   private void stubPage(int index, String directives, int total) {

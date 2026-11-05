@@ -78,8 +78,11 @@ final class GraphSlicer {
       .sorted(Comparator.comparingInt(DrillDown::descendants).reversed().thenComparing(DrillDown::language).thenComparing(DrillDown::component))
       .limit(MAX_DRILL_DOWN)
       .toList();
-    return new ArchitectureGetCurrentToolResponse(projectKey, component, effectiveDepth, depth, capped, slices, biggestDrillDowns,
-      capped ? limitMessage(slices) : null);
+    var message = capped ? limitMessage(slices) : null;
+    if (component != null && scopes.stream().allMatch(scope -> scope.size() == 0)) {
+      message = "Component '" + component + "' is a leaf; there are no children below it.";
+    }
+    return new ArchitectureGetCurrentToolResponse(projectKey, component, effectiveDepth, depth, capped, slices, biggestDrillDowns, message);
   }
 
   private record Scope(List<List<Integer>> levels, int size) {
@@ -244,7 +247,8 @@ final class GraphSlicer {
     private Graph toResponse(int nodesInScope, Selection selection) {
       var kept = selection.nodes();
       var keptIds = Set.copyOf(kept);
-      var nodes = kept.stream().map(id -> new Node(keyById.get(id), kindById.get(id), childrenById.get(id).size())).toList();
+      var nodes = kept.stream().map(id -> new Node(keyById.get(id), kindById.get(id), childrenById.get(id).size(), descendantsById.get(id),
+        childrenById.get(id).stream().anyMatch(child -> !keptIds.contains(child)))).toList();
       var weightByEdge = new LinkedHashMap<List<Integer>, Integer>();
       var outsideViewWeight = 0;
       for (var rawEdge : rawEdges) {

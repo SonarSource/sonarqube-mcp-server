@@ -42,9 +42,10 @@ public record ArchitectureGetCurrentToolResponse(String projectKey, @Nullable St
   }
 
   /**
-   * {@code children} is the number of direct children in the whole graph, shown or not.
+   * {@code children}/{@code descendants} count direct/all children in the whole graph.
+   * {@code truncated} means at least one direct child is outside this view, including by requested depth.
    */
-  public record Node(String key, String kind, int children) {
+  public record Node(String key, String kind, int children, int descendants, boolean truncated) {
   }
 
   public record Edge(String from, String to, int weight) {
