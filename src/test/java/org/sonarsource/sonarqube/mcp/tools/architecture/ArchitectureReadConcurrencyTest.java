@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +25,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,6 +43,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,6 +51,7 @@ import static org.mockito.Mockito.when;
 class ArchitectureReadConcurrencyTest {
   private final ArchitectureApi architecture = mock(ArchitectureApi.class);
   private ArchitectureGetTool tool;
+  private ArchitectureSetTool setTool;
 
   @BeforeEach
   void setUp() {
@@ -62,7 +66,9 @@ class ArchitectureReadConcurrencyTest {
     when(branches.getProjectId(anyString())).thenReturn(Optional.of("branch-id"));
     when(server.architectureApi()).thenReturn(architecture);
     when(architecture.getIntended(anyString(), anyString())).thenReturn(List.of());
-    tool = new ArchitectureGetTool(provider, true, null);
+    var tools = ArchitectureTools.create(provider, true, null);
+    tool = (ArchitectureGetTool) tools.get(0);
+    setTool = (ArchitectureSetTool) tools.get(1);
   }
 
   @Test
@@ -84,6 +90,73 @@ class ArchitectureReadConcurrencyTest {
         var excessRead = currentArguments();
         assertThatThrownBy(() -> tool.execute(excessRead)).isInstanceOf(IllegalStateException.class)
           .hasMessage("Architecture reads are busy. Try again shortly.");
+        verify(architecture, times(2)).getStructure(anyString(), anyString(), anyString(), anyString());
+        assertThat(tool.execute(new Tool.Arguments(Map.of("target", "intended", "projectKey", "project"), Map.of())).isError()).isFalse();
+      } finally {
+        release.countDown();
+      }
+      assertThat(first.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(tool.execute(currentArguments()).isError()).isFalse();
+      verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
+    }
+  }
+
+  @Test
+  void it_should_report_unavailable_diagnostics_when_current_capacity_stays_busy() throws Exception {
+    var entered = new CountDownLatch(2);
+    var release = new CountDownLatch(1);
+    when(architecture.getStructure(anyString(), anyString(), anyString(), anyString())).thenAnswer(invocation -> {
+      entered.countDown();
+      if (!release.await(10, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("Test did not release the backend");
+      }
+      return List.of();
+    });
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var first = executor.submit(() -> tool.execute(currentArguments()));
+      var second = executor.submit(() -> tool.execute(currentArguments()));
+      try {
+        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+        var preview = setTool.execute(dryRunArguments());
+        assertThat(preview.isError()).isFalse();
+        assertThat(((TextContent) preview.toCallToolResult().content().getFirst()).text()).contains("Architecture reads are busy", "Structural validation still applies");
+        verify(architecture, times(2)).getStructure(anyString(), anyString(), anyString(), anyString());
+        assertThat(tool.execute(new Tool.Arguments(Map.of("target", "intended", "projectKey", "project"), Map.of())).isError()).isFalse();
+      } finally {
+        release.countDown();
+      }
+      assertThat(first.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(tool.execute(currentArguments()).isError()).isFalse();
+      verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
+    }
+  }
+
+  @Test
+  void it_should_wait_for_capacity_only_once_for_a_five_language_dry_run() throws Exception {
+    var entered = new CountDownLatch(2);
+    var release = new CountDownLatch(1);
+    when(architecture.getStructure(anyString(), anyString(), anyString(), anyString())).thenAnswer(invocation -> {
+      entered.countDown();
+      if (!release.await(30, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("Test did not release the backend");
+      }
+      return List.of();
+    });
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var first = executor.submit(() -> tool.execute(currentArguments()));
+      var second = executor.submit(() -> tool.execute(currentArguments()));
+      try {
+        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+        var diagnostic = executor.submit(() -> setTool.execute(multilingualDryRunArguments()));
+        var preview = diagnostic.get(8, TimeUnit.SECONDS);
+        assertThat(preview.isError()).isFalse();
+        var response = ((TextContent) preview.toCallToolResult().content().getFirst()).text();
+        assertThat(response).contains("Architecture reads are busy", "Structural validation still applies");
+        for (var language : List.of("java", "cs", "js", "ts", "py")) {
+          assertThat(response).contains(language + ": pattern and physical hierarchy checks unavailable");
+        }
         verify(architecture, times(2)).getStructure(anyString(), anyString(), anyString(), anyString());
         assertThat(tool.execute(new Tool.Arguments(Map.of("target", "intended", "projectKey", "project"), Map.of())).isError()).isFalse();
       } finally {
@@ -130,6 +203,47 @@ class ArchitectureReadConcurrencyTest {
       assertThat(first.get(5, TimeUnit.SECONDS).isError()).isFalse();
       assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
       assertThat(maximum.get()).isEqualTo(2);
+      verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void it_should_share_capacity_between_current_reads_and_intended_dry_runs(boolean diagnosticsFirst) throws Exception {
+    var entered = new CountDownLatch(2);
+    var release = new CountDownLatch(1);
+    var active = new java.util.concurrent.atomic.AtomicInteger();
+    var maximum = new java.util.concurrent.atomic.AtomicInteger();
+    when(architecture.getStructure(anyString(), anyString(), anyString(), anyString())).thenAnswer(invocation -> {
+      maximum.accumulateAndGet(active.incrementAndGet(), Math::max);
+      entered.countDown();
+      try {
+        if (!release.await(10, TimeUnit.SECONDS)) {
+          throw new IllegalStateException("Test did not release the backend");
+        }
+        return List.of();
+      } finally {
+        active.decrementAndGet();
+      }
+    });
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var first = executor.submit(() -> diagnosticsFirst ? setTool.execute(dryRunArguments()) : tool.execute(currentArguments()));
+      var second = executor.submit(() -> diagnosticsFirst ? setTool.execute(dryRunArguments()) : tool.execute(currentArguments()));
+      try {
+        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+        var queued = executor.submit(() -> diagnosticsFirst ? tool.execute(currentArguments()) : setTool.execute(dryRunArguments()));
+        assertThatThrownBy(() -> queued.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+        verify(architecture, times(2)).getStructure(anyString(), anyString(), anyString(), anyString());
+        release.countDown();
+        assertThat(queued.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      } finally {
+        release.countDown();
+      }
+      assertThat(first.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
+      assertThat(maximum.get()).isEqualTo(2);
+      verify(architecture, never()).createIntended(anyString(), anyString(), any());
+      verify(architecture, never()).patchIntended(anyString(), anyString(), any());
       verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
     }
   }
@@ -187,6 +301,20 @@ class ArchitectureReadConcurrencyTest {
     }
     doReturn(List.of()).when(architecture).getStructure(anyString(), anyString(), anyString(), anyString());
     assertThat(tool.execute(currentArguments()).isError()).isFalse();
+  }
+
+  private static Tool.Arguments multilingualDryRunArguments() {
+    var models = List.of("java", "cs", "js", "ts", "py").stream()
+      .map(language -> "{\"type\":\"namespace\",\"language\":\"" + language
+        + "\",\"groups\":[{\"label\":\"App\",\"patterns\":[\"app:**\"]}],\"constraints\":[]}")
+      .collect(Collectors.joining(",", "[", "]"));
+    return new Tool.Arguments(Map.of("target", "intended", "projectKey", "project", "dryRun", true, "model", models), Map.of());
+  }
+
+  private static Tool.Arguments dryRunArguments() {
+    return new Tool.Arguments(Map.of("target", "intended", "projectKey", "project", "dryRun", true, "model", """
+      [{"type":"namespace","language":"java","groups":[{"label":"App","patterns":["app:**"]}],"constraints":[]}]
+      """), Map.of());
   }
 
   private static Tool.Arguments currentArguments() {

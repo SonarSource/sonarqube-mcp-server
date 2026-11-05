@@ -29,8 +29,9 @@ public final class ArchitectureTools {
 
   public static List<Tool> create(ServerApiProvider provider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
     var tools = new ArrayList<Tool>();
-    tools.add(new ArchitectureGetTool(provider, isSonarQubeCloud, configuredProjectKey));
-    tools.add(new ArchitectureSetTool(provider, isSonarQubeCloud, configuredProjectKey));
+    var currentReads = new CurrentGraphReads();
+    tools.add(new ArchitectureGetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
+    tools.add(new ArchitectureSetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
     return tools;
   }
 }

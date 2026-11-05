@@ -33,7 +33,11 @@ public record ProjectDirective(@Nullable String id, @Nullable String projectId, 
   }
 
   public Identity identity() {
-    return new Identity(type, ecosystem, graphType, fromNodeKey, toNodeKey, graphPerspective == null ? DEFAULT_PERSPECTIVE : graphPerspective);
+    var perspective = graphPerspective == null ? "" : graphPerspective.trim();
+    if (perspective.isBlank() || perspective.startsWith("transformed")) {
+      perspective = DEFAULT_PERSPECTIVE;
+    }
+    return new Identity(type, ecosystem, graphType, fromNodeKey, toNodeKey, perspective);
   }
 
   public record Identity(String type, String ecosystem, String graphType, String fromNodeKey, String toNodeKey, String perspective) {
