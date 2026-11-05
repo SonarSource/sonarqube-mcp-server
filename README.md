@@ -1470,18 +1470,19 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 **Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. Available targets and filters depend on the installed build and public APIs; see [implementation status, workflows and recovery](docs/architecture.md).**
 
-- **architecture_get** - Read current dependencies, intended architecture, or project directives.
+- **architecture_get** - Read current dependencies, intended architecture, or project directives. Intended reads report `source` (`FILE`, `SERVER` or `UNKNOWN`) and `sourceSetting` (`sonar.architecture.model.location`); when a repository file manages the model, the response shows the model the last analysis read from it.
   - `target` - Architecture resource advertised by the installed build - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String_
   - `component` - Exact current node key or intended group path; top level when omitted - _String_
   - `depth` - Current/intended only: levels below the start; default 1 for current, all for intended - _Number_
   - `language` - Language supported by the selected target: `java`, `cs`, `js`, `ts` or `py` - _Enum_
+  - `branch` / `pullRequest` - Branch name or pull request key (from `list_branches` / `list_pull_requests`); main branch when omitted; not both; not for directives - _String_
   - `directiveId` - Full directive by UUID, including description; use instead of paging - _String_
   - `pageIndex` - 1-based page index for targets supporting pagination (default: 1) - _Number_
   - `pageSize` - Entries per page; use the limit advertised for the selected target - _Number_
 
-- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available when advertised by the build and writes are enabled.
+- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available when advertised by the build and writes are enabled. Intended writes and dry runs are refused, with nothing changed, when a repository file manages the main branch's model or its source cannot be determined.
   - `target` - `intended` or `directives` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String_
