@@ -104,11 +104,12 @@ public class ArchitectureSetTool extends Tool {
         + "Call " + ArchitectureGetTool.TOOL_NAME + " with target intended again, reapply the edits to that model and run a dry run again.");
     }
     IntendedArchitectureReplacement.checkWritableModels(stored, next);
+    var clearingStoredResource = storedState.id() != null && next.isEmpty();
     var current = stored;
     var diff = IntendedModels.diff(current, next);
     var warnings = new ArrayList<String>();
     warnings.add(ArchitectureApi.EXPORT_WARNING);
-    if (storedState.id() != null && next.isEmpty()) {
+    if (clearingStoredResource) {
       warnings.add("The stored intended architecture resource will be deleted when this change is applied.");
     }
     warnings.add("The public API has no conditional write; concurrent edits can race the revision check.");
@@ -122,7 +123,7 @@ public class ArchitectureSetTool extends Tool {
     if (dryRun) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));
     }
-    if (diff.isEmpty() && !(storedState.id() != null && next.isEmpty())) {
+    if (diff.isEmpty() && !clearingStoredResource) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "unchanged", diff, warnings));
     }
     try {
