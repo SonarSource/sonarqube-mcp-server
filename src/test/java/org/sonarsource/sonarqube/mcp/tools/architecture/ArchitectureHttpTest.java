@@ -109,6 +109,10 @@ class ArchitectureHttpTest {
         var graph = send(client, port, suffix, false, "tools/call", Map.of("name", "architecture_get", "arguments",
           Map.of("target", "current", "projectKey", "my_project", "language", "java", "organization", "org-" + suffix)));
         assertThat(graph).contains("app-" + suffix).doesNotContain("isError\":true");
+        var dependencies = send(client, port, suffix, true, "tools/call", Map.of("name", "architecture_get", "arguments",
+          Map.of("target", "current", "projectKey", "my_project", "language", "java", "organization", "org-" + suffix,
+            "from", "app-" + suffix + ":com.acme.web", "to", "app-" + suffix + ":com.acme.domain", "pageSize", 1)));
+        assertThat(dependencies).contains("dependencies", "revision", "app-" + suffix).doesNotContain("isError\":true");
         var preview = send(client, port, suffix, false, "tools/call", Map.of("name", "architecture_set", "arguments",
           Map.of("target", "intended", "projectKey", "my_project", "model", INTENDED_JAVA_MODEL, "dryRun", true, "organization", "org-" + suffix)));
         assertThat(preview).contains("dry-run", "patternId").doesNotContain("isError\":true");
@@ -151,6 +155,11 @@ class ArchitectureHttpTest {
       var read = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
         Map.of("target", "directives", "projectKey", "my_project", "directiveId", id)));
       assertThat(read).contains(id).doesNotContain("isError\":true");
+      var beforeOversizedRead = backend.getReceivedRequests().size();
+      var oversizedRead = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "directives", "projectKey", "my_project", "pageSize", 1000)));
+      assertThat(oversizedRead).contains("between 1 and 50", "Restart at pageIndex=1");
+      assertThat(backend.getReceivedRequests()).hasSize(beforeOversizedRead);
       var preview = send(client, port, "a", false, "tools/call", Map.of("name", "architecture_set", "arguments",
         Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", true)));
       assertThat(preview).contains("dry-run", "toCreate").doesNotContain("isError\":true");

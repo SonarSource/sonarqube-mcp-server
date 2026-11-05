@@ -34,10 +34,15 @@ public class ArchitectureSetTool extends Tool {
   public static final String REVISION_PROPERTY = "revision";
 
   private final ServerApiProvider serverApiProvider;
+  private final CurrentGraphReads currentReads;
   @Nullable
   private final String configuredProjectKey;
 
   public ArchitectureSetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
+    this(serverApiProvider, isSonarQubeCloud, configuredProjectKey, new CurrentGraphReads());
+  }
+
+  ArchitectureSetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
     super((isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Set Architecture")
@@ -48,12 +53,14 @@ public class ArchitectureSetTool extends Tool {
       .addRequiredStringProperty(MODEL_PROPERTY, "Intended: full response or models array. Directives: "
         + "{create: [directives], update: [{id, ...changed directive fields}], delete: [{id}]}; updates are flat objects. "
         + "Directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
-        + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current (RENAME_NODE: full renamed key), "
+        + "graphType file_graph|namespace_graph; node keys from architecture_get current. "
+        + "MOVE_NODE: existing destination container; RENAME_NODE: new complete key. "
         + "graphPerspective defaults to default_perspective, optional description.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get target intended; defaults to the model response revision. A mismatch prevents writing.")
       .build(),
       ToolCategory.ARCHITECTURE);
+    this.currentReads = currentReads;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }
@@ -79,7 +86,7 @@ public class ArchitectureSetTool extends Tool {
       var directives = ProjectDirectives.parse(model, projectKey);
       var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
       var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
-      return Result.success(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun));
+      return Result.success(DirectiveResponses.of(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun)));
     }
 
     var next = IntendedModels.parse(model);
@@ -105,6 +112,9 @@ public class ArchitectureSetTool extends Tool {
     if (revision == null) {
       warnings.add("No revision was supplied; changes since the original export cannot be detected. "
         + "Use the whole architecture_get response or supply revision.");
+    }
+    if (!diff.isEmpty()) {
+      warnings.addAll(IntendedDiagnostics.inspect(serverApi, projectKey, next, currentReads));
     }
     if (dryRun) {
       return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));
