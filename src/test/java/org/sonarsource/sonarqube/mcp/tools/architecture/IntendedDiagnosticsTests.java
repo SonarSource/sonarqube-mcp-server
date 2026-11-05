@@ -30,6 +30,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,6 +47,16 @@ class IntendedDiagnosticsTests {
         {"label":"com.microsoft.gctoolkit.parser.jvm","patterns":["gctoolkit-parser:com.microsoft.gctoolkit.parser.jvm"]},
         {"label":"com.microsoft.gctoolkit.parser.unified","patterns":["gctoolkit-parser:com.microsoft.gctoolkit.parser.unified"]}]}]}]
     """;
+
+  @Test
+  void it_should_not_acquire_capacity_when_no_groups_need_discovery() {
+    var api = mock(ServerApi.class);
+    var reads = mock(CurrentGraphReads.class);
+    assertThat(IntendedDiagnostics.inspect(api, "project", List.of(), reads)).isEmpty();
+    var empty = new IntendedArchitecture("namespace", "java", List.of(), List.of());
+    assertThat(IntendedDiagnostics.inspect(api, "project", List.of(empty), reads)).isEmpty();
+    verifyNoInteractions(api, reads);
+  }
 
   @Test
   void it_should_diagnose_missing_wildcard_and_skipped_parent_without_rewriting() {
@@ -96,7 +107,7 @@ class IntendedDiagnosticsTests {
     var models = List.of(new IntendedArchitecture(null, "namespace", "java", groups, List.of()),
       new IntendedArchitecture(null, "file", "ts", groups, List.of()));
 
-    var warnings = IntendedDiagnostics.inspect(api, "project", models);
+    var warnings = IntendedDiagnostics.inspect(api, "project", models, new CurrentGraphReads());
 
     assertThat(warnings.getFirst()).contains("ts: pattern and physical hierarchy checks unavailable", backendReason, "Structural validation still applies");
     assertThat(warnings.stream().filter(warning -> warning.contains("names a container"))).hasSize(10);
@@ -117,7 +128,7 @@ class IntendedDiagnosticsTests {
     when(architecture.getStructure("project", ArchitectureApi.SERVER_ORGANIZATION_ID, "branch", "java"))
       .thenThrow(new IllegalStateException(reason));
 
-    var warnings = IntendedDiagnostics.inspect(api, "project", IntendedModels.parse(MODEL));
+    var warnings = IntendedDiagnostics.inspect(api, "project", IntendedModels.parse(MODEL), new CurrentGraphReads());
 
     assertThat(warnings).singleElement().asString()
       .contains("checks unavailable", "Structural validation still applies")
