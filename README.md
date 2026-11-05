@@ -1468,38 +1468,26 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to enable these tools in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server advertises current architecture only; intended and directive operations are Cloud-only until public project UUID resolution is available.**
+**Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. Available targets and filters depend on the installed build and public APIs; see [implementation status, workflows and recovery](docs/architecture.md).**
 
-- **architecture_get** - Read current dependencies, intended groups and constraints, or project directives by page or ID. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export.
-
-  Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
-
-  Parameters:
-  - `target` - `current`, `intended` or `directives` on Cloud; `current` on Server - _Required Enum_
+- **architecture_get** - Read current dependencies, intended architecture, or project directives.
+  - `target` - Architecture resource advertised by the installed build - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `organization` - SonarQube Cloud organization key when none is configured; required for `current` - _Optional String_
-  - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
-  - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
-  - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended only - _String_
-  - `directiveId` - Cloud directives only: read one UUID instead of a page; cannot be combined with paging - _String_
-  - `pageIndex` - Directives page, starting at 1; default 1 - _Number_
-  - `pageSize` - Directives per page; default 50, maximum 1000 - _Number_
+  - `organization` - SonarQube Cloud organization key when none is configured - _Optional String_
+  - `component` - Exact current node key or intended group path; top level when omitted - _String_
+  - `depth` - Current/intended only: levels below the start; default 1 for current, all for intended - _Number_
+  - `language` - Language supported by the selected target: `java`, `cs`, `js`, `ts` or `py` - _Enum_
+  - `directiveId` - Full directive by UUID, including description; use instead of paging - _String_
+  - `pageIndex` - 1-based page index for targets supporting pagination (default: 1) - _Number_
+  - `pageSize` - Entries per page; use the limit advertised for the selected target - _Number_
 
-- **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives on Cloud. Start from an unfiltered `architecture_get` response and use `dryRun: true` to review changes. Hidden on Server or when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
-
-  **Directives:** Supply a JSON object with optional `create`, `update` and `delete` arrays. Create records contain directive fields, update records contain `{id, changed fields}`, and delete records contain only `{id}`. Unspecified update fields and unmentioned directives are retained. Creation skips duplicate operations. Preview with `dryRun=true` and apply only after confirmation. The whole batch is validated before writing; conflicting IDs are rejected. Writes are individual, not atomic. A partial or uncertain failure reports confirmed IDs and stops without retry or rollback. Duplicate checks and preflight reads can race concurrent edits. Optional fields cannot be cleared with null; the API has no conditional writes.
-
-  Directive fields: `type` (`REMOVE_EDGE`, `RENAME_NODE`, `MOVE_NODE`), `ecosystem`, `graphType` (`file_graph`, `namespace_graph`), `fromNodeKey`, `toNodeKey`; optional `graphPerspective` (defaults to `default_perspective`) and `description`. Creation sets origin to `sonarqube-mcp-server`; updates preserve the stored origin.
-
-  **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: exported child groups must stay unchanged or be omitted, and are excluded from writes. Imported contents cannot be edited here. Partial views and an empty overall model are rejected. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
-
-  Parameters:
+- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available when advertised by the build and writes are enabled.
   - `target` - `intended` or `directives` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String_
-  - `model` - Intended: whole unfiltered response or `models` array. Directives: `{create: [...], update: [...], delete: [...]}`, with fields listed above - _Required String_
+  - `model` - JSON string: complete intended export or `models` array (omitted content is removed), or directive changes with `create`, `update` and `delete` arrays - _Required String_
   - `dryRun` - `true` to preview, `false` to apply - _Required Boolean_
-  - `revision` - Intended only: exported revision; defaults to the whole response's revision. Bare arrays without it cannot detect changes since export - _String_
+  - `revision` - Intended only: revision from `architecture_get`; defaults to the complete export's revision - _String_
 
 ## Example Prompts
 

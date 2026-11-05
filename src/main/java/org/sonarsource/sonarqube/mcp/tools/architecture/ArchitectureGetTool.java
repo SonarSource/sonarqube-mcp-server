@@ -21,8 +21,6 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
@@ -51,17 +49,22 @@ public class ArchitectureGetTool extends Tool {
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
   private static final String[] SERVER_TARGETS = {CURRENT};
-  private static final int MAX_CONCURRENT_CURRENT_READS = 2;
+  private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
   private final String[] availableTargets;
-  private final Semaphore currentReads = new Semaphore(MAX_CONCURRENT_CURRENT_READS);
+  private final CurrentGraphReads currentReads;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
   private final String configuredProjectKey;
 
   public ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
+    this(serverApiProvider, isSonarQubeCloud, configuredProjectKey, new CurrentGraphReads());
+  }
+
+  ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
     super(definition(isSonarQubeCloud, configuredProjectKey), ToolCategory.ARCHITECTURE);
     this.availableTargets = isSonarQubeCloud ? TARGETS : SERVER_TARGETS;
+    this.currentReads = currentReads;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }
@@ -84,9 +87,9 @@ public class ArchitectureGetTool extends Tool {
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
     if (isSonarQubeCloud) {
-      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "read one UUID instead of a page.")
+      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.")
         .addNumberProperty(ToolParameters.PAGE_INDEX, "page number, default 1.")
-        .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default 50, maximum 1000.");
+        .addNumberProperty(ToolParameters.PAGE_SIZE, "items per page, default and maximum " + MAX_DIRECTIVE_PAGE_SIZE + ".");
     }
     return builder.build();
   }
@@ -135,39 +138,34 @@ public class ArchitectureGetTool extends Tool {
     if (id != null) {
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
-    var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(50));
-    return Result.success(new DirectivesView(projectKey, page.projectDirectives(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
+    var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(MAX_DIRECTIVE_PAGE_SIZE));
+    return Result.success(new DirectivesView(projectKey, "summary",
+      page.projectDirectives().stream().map(DirectiveResponses::summary).toList(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
 
   private static void validateDirectivePage(@Nullable Integer pageIndex, @Nullable Integer pageSize) {
-    if ((pageIndex != null && pageIndex < 1) || (pageSize != null && (pageSize < 1 || pageSize > 1000))) {
-      throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
+    if (pageIndex != null && pageIndex < 1) {
+      throw new IllegalArgumentException("Directive page must be >= 1.");
+    }
+    if (pageSize != null && (pageSize < 1 || pageSize > MAX_DIRECTIVE_PAGE_SIZE)) {
+      throw new IllegalArgumentException("Directive page size must be between 1 and " + MAX_DIRECTIVE_PAGE_SIZE
+        + ". Restart at pageIndex=1 with pageSize<=" + MAX_DIRECTIVE_PAGE_SIZE + " and continue paging. Nothing was changed.");
     }
   }
 
   private record DirectiveView(String projectKey, ProjectDirective directive) {
   }
 
-  private record DirectivesView(String projectKey, List<ProjectDirective> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
+  private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
   private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
-    try {
-      if (!currentReads.tryAcquire(5, TimeUnit.SECONDS)) {
-        throw new IllegalStateException("Architecture reads are busy. Try again shortly.");
-      }
-    } catch (InterruptedException interrupted) {
-      Thread.currentThread().interrupt();
-      throw new IllegalStateException("Architecture read interrupted while waiting for capacity.", interrupted);
-    }
-    try {
+    return currentReads.execute(() -> {
       serverApi.requireOrganization();
       return current(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.organizationId(serverApi),
         ArchitectureProjectContext.mainBranchId(serverApi, projectKey), component, depth == null ? 1 : depth, language);
-    } finally {
-      currentReads.release();
-    }
+    });
   }
 
   private static Result current(ArchitectureApi api, String projectKey, String organizationId, String branchId, @Nullable String component, int depth, @Nullable String language) {
