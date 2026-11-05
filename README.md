@@ -622,7 +622,7 @@ By default, only important toolsets are enabled. Enable additional toolsets only
 | **Vortex Context**    | `cag`               | Vortex context tools — stdio only. **Deprecated** in favor of `vortex` (old name: Context Augmentation/CAG)                                                 |
 | **Vortex**            | `vortex`            | Unified, **recommended** toolset surfacing both Vortex context and Vortex analysis tools under one name (stdio only; Cloud needs combined org entitlement; Server needs both hubs entitled) |
 | **Agentic Readiness** | `agentic-readiness` | Agentic Readiness Assessment tools (SonarQube Cloud, requires org entitlement)                                                                              |
-| **Architecture**      | `architecture`      | Read architecture, replace intended models and manage project directives (not enabled by default)                                                        |
+| **Architecture**      | `architecture`      | Read current/intended architecture and project directives, replace intended models (not enabled by default)                                                        |
 
 #### Examples
 
@@ -1468,23 +1468,23 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture`. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server supports current architecture reads only.**
+**Enable these tools with `SONARQUBE_TOOLSETS=architecture`. SonarQube Cloud requires a Team or Enterprise plan. Available targets and filters depend on the installed build and public APIs; see [implementation status, workflows and recovery](docs/architecture.md).**
 
 - **architecture_get** - Read current dependencies, intended architecture, or project directives.
-  - `target` - `current`, `intended` or `directives` on Cloud; `current` on Server - _Required Enum_
+  - `target` - Architecture resource advertised by the installed build - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
+  - `organization` - SonarQube Cloud organization key when none is configured - _Optional String_
   - `component` - Exact current node key or intended group path; top level when omitted - _String_
   - `depth` - Current/intended only: levels below the start; default 1 for current, all for intended - _Number_
-  - `language` - Current/intended only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
-  - `directiveId` - Full directive by UUID, including description; use instead of paging - _String, Cloud only_
-  - `pageIndex` - Directives only: 1-based page index (default: 1) - _Number_
-  - `pageSize` - Directives only: entries per page, descriptions omitted (default/maximum: 50) - _Number_
+  - `language` - Language supported by the selected target: `java`, `cs`, `js`, `ts` or `py` - _Enum_
+  - `directiveId` - Full directive by UUID, including description; use instead of paging - _String_
+  - `pageIndex` - 1-based page index for targets supporting pagination (default: 1) - _Number_
+  - `pageSize` - Entries per page; use the limit advertised for the selected target - _Number_
 
-- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available on Cloud when writes are enabled.
+- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available when advertised by the build and writes are enabled.
   - `target` - `intended` or `directives` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
+  - `organization` - SonarQube Cloud organization key when none is configured - _Optional String_
   - `model` - JSON string: complete intended export or `models` array (omitted content is removed), or directive changes with `create`, `update` and `delete` arrays - _Required String_
   - `dryRun` - `true` to preview, `false` to apply - _Required Boolean_
   - `revision` - Intended only: revision from `architecture_get`; defaults to the complete export's revision - _String_
