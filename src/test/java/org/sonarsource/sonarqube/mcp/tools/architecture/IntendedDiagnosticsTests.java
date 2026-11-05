@@ -132,9 +132,8 @@ class IntendedDiagnosticsTests {
 
     var warnings = IntendedDiagnostics.inspect(api, "project", IntendedModels.parse(MODEL), new CurrentGraphReads());
 
-    assertThat(warnings).singleElement().asString()
-      .contains("checks unavailable", "Structural validation still applies")
-      .doesNotContain("(null)", "()");
+    assertThat(warnings).containsExactly(
+      "java: pattern and physical hierarchy checks unavailable; no complete discovery graph was read. Structural validation still applies.");
   }
 
   @Test
