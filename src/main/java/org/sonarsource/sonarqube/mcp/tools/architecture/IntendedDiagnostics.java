@@ -47,12 +47,22 @@ final class IntendedDiagnostics {
   }
 
   private static List<String> inspectLanguages(ServerApi api, String projectKey, List<IntendedArchitecture> models, List<String> languages) {
+    String organizationId;
+    String branchId;
+    try {
+      organizationId = ArchitectureProjectContext.organizationId(api);
+      branchId = ArchitectureProjectContext.mainBranchId(api, projectKey);
+    } catch (RuntimeException e) {
+      if (Thread.currentThread().isInterrupted()) {
+        throw e;
+      }
+      return languages.stream().map(language -> unavailable(language, e.getMessage())).toList();
+    }
     var warnings = new Warnings();
     var unavailable = new ArrayList<String>();
     for (var language : languages) {
       try {
-        var graphs = api.architectureApi().getStructure(projectKey, ArchitectureProjectContext.organizationId(api),
-          ArchitectureProjectContext.mainBranchId(api, projectKey), language);
+        var graphs = api.architectureApi().getStructure(projectKey, organizationId, branchId, language);
         if (graphs.size() != 1 || graphs.getFirst().nodes() == null) {
           throw new IllegalStateException("No unique discovery graph");
         }
