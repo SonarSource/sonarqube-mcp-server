@@ -1,4 +1,4 @@
-FROM node:24.22.1-alpine3.24 AS node-runtime
+FROM node:24.22.2-alpine3.24 AS node-runtime
 
 FROM eclipse-temurin:21-jdk-alpine AS builder
 
