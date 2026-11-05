@@ -91,7 +91,9 @@ class ArchitectureDirectiveContractTests {
       assertThat(writeProperties.get(name)).containsEntry("type", "string");
     }
     assertThat(writeProperties.get("dryRun")).containsEntry("type", "boolean");
-    assertThat(writeProperties.get("model").get("description").toString()).contains("MOVE_NODE: existing destination container", "RENAME_NODE: new complete key");
+    assertThat(writeProperties.get("model").get("description").toString()).contains(
+      "fromNodeKey/toNodeKey from architecture_get current",
+      "toNodeKey for MOVE_NODE: existing destination container; for RENAME_NODE: new complete key");
     assertThat(write.annotations().readOnlyHint()).isFalse();
     assertThat(write.annotations().destructiveHint()).isTrue();
     assertThat(write.annotations().openWorldHint()).isTrue();

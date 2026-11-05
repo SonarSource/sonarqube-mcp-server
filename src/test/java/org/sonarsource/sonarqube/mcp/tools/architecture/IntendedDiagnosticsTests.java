@@ -29,6 +29,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
@@ -113,6 +114,7 @@ class IntendedDiagnosticsTests {
     assertThat(warnings.stream().filter(warning -> warning.contains("names a container"))).hasSize(10);
     assertThat(warnings.getLast()).isEqualTo("3 additional discovery warning(s) omitted.");
     assertThat(warnings).hasSize(12);
+    verify(branches).getProjectId("project");
   }
 
   @ParameterizedTest
@@ -130,9 +132,28 @@ class IntendedDiagnosticsTests {
 
     var warnings = IntendedDiagnostics.inspect(api, "project", IntendedModels.parse(MODEL), new CurrentGraphReads());
 
-    assertThat(warnings).singleElement().asString()
-      .contains("checks unavailable", "Structural validation still applies")
-      .doesNotContain("(null)", "()");
+    assertThat(warnings).containsExactly(
+      "java: pattern and physical hierarchy checks unavailable; no complete discovery graph was read. Structural validation still applies.");
+  }
+
+  @Test
+  void it_should_report_all_languages_unavailable_after_one_failed_context_lookup() {
+    var api = mock(ServerApi.class);
+    var architecture = mock(ArchitectureApi.class);
+    var branches = mock(ProjectBranchesApi.class);
+    when(api.projectBranchesApi()).thenReturn(branches);
+    when(branches.getProjectId("project")).thenThrow(new IllegalStateException("Branch lookup failed"));
+    var groups = List.of(new IntendedArchitecture.Group("group", List.of("app/**"), null, null, null));
+    var models = List.of(new IntendedArchitecture(null, "namespace", "java", groups, List.of()),
+      new IntendedArchitecture(null, "file", "ts", groups, List.of()));
+
+    var warnings = IntendedDiagnostics.inspect(api, "project", models, new CurrentGraphReads());
+
+    assertThat(warnings).hasSize(2).allMatch(warning -> warning.contains("checks unavailable") && warning.contains("Branch lookup failed"));
+    assertThat(warnings.getFirst()).startsWith("java:");
+    assertThat(warnings.getLast()).startsWith("ts:");
+    verify(branches).getProjectId("project");
+    verifyNoInteractions(architecture);
   }
 
 }
