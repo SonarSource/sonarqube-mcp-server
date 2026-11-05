@@ -91,22 +91,32 @@ class ArchitectureServerTests {
     backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("Started").willReturn(okJson("{\"id\":null,\"intendedArchitectures\":[]}")));
     var client = harness.newClient(Map.of());
     var args = new java.util.HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":" + MODEL + "}", "dryRun", true));
-    assertThat(client.callTool(ArchitectureSetTool.TOOL_NAME, args).isError()).isFalse();
+    var preview = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
+    assertThat(preview.isError()).isFalse();
+    assertThat(textOf(preview)).contains("pattern and physical hierarchy checks unavailable", "Structural validation still applies");
+    assertThat(backend.countRequestsContaining("project_branches")).isEqualTo(1);
     assertThat(backend.getReceivedBodies("POST", INTENDED)).isEmpty();
     backend.stubFor(post(INTENDED).inScenario("model").willSetStateTo("created").willReturn(aResponse().withStatus(201).withBody(SAVED_MODEL)));
     backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("created").willReturn(okJson(SAVED_MODEL)));
     args.put("dryRun", false);
-    assertThat(client.callTool(ArchitectureSetTool.TOOL_NAME, args).isError()).isFalse();
+    var created = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
+    assertThat(created.isError()).isFalse();
+    assertThat(textOf(created)).contains("pattern and physical hierarchy checks unavailable", "Structural validation still applies");
+    assertThat(backend.countRequestsContaining("project_branches")).isEqualTo(2);
     assertThat(backend.getReceivedBodies("POST", INTENDED)).singleElement().asString().contains("opaque-project-id");
     backend.stubFor(patch(INTENDED + "/" + ID).inScenario("model").willSetStateTo("updated").willReturn(okJson(SAVED_MODEL.replace("app:**", "app:new:**"))));
     backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("updated").willReturn(okJson(SAVED_MODEL.replace("app:**", "app:new:**"))));
     args.put("model", "{\"models\":" + MODEL.replace("app:**", "app:new:**") + "}");
-    assertThat(client.callTool(ArchitectureSetTool.TOOL_NAME, args).isError()).isFalse();
+    var updated = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
+    assertThat(updated.isError()).isFalse();
+    assertThat(textOf(updated)).contains("pattern and physical hierarchy checks unavailable", "Structural validation still applies");
+    assertThat(backend.countRequestsContaining("project_branches")).isEqualTo(3);
     args.put("model", "{\"models\":[]}");
     var clear = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
     assertThat(clear.isError()).isTrue();
     assertThat(backend.getReceivedBodies("DELETE", INTENDED + "/" + ID)).isEmpty();
-    assertThat(backend.hasReceivedRequestContaining("project_branches")).isFalse();
+    assertThat(backend.countRequestsContaining("project_branches")).isEqualTo(3);
+    assertThat(backend.getReceivedBodies("PATCH", INTENDED + "/" + ID)).singleElement().asString().contains("app:new:**");
   }
 
   @Test
