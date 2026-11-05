@@ -42,6 +42,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.QualityGatesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sca.ScaApi;
+import org.sonarsource.sonarqube.mcp.serverapi.settings.SettingsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.SourcesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
 import org.sonarsource.sonarqube.mcp.serverapi.users.UsersApi;
@@ -174,6 +175,10 @@ public class ServerApi {
 
   public ArchitectureApi architectureApi() {
     return new ArchitectureApi(helper);
+  }
+
+  public SettingsApi settingsApi() {
+    return new SettingsApi(helper);
   }
 
   public OrgFeatureEntitlements orgFeatureEntitlements() {

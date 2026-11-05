@@ -16,11 +16,12 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.pullrequests.response;
 
+import jakarta.annotation.Nullable;
 import java.util.List;
 
 public record PullRequestsListResponse(List<PullRequest> pullRequests) {
 
-  public record PullRequest(String key, String title, String branch) {
+  public record PullRequest(String key, String title, String branch, @Nullable String pullRequestId) {
   }
 
 }
