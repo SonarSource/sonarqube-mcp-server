@@ -54,28 +54,26 @@ class DirectiveResponsesTests {
     var changes = List.of(new ProjectDirectives.Change(before.id(), before, after));
     var preview = new ProjectDirectives.Applied("my_project", "dry-run", List.of(created.withoutIdentity()), changes, List.of(deleting),
       1, List.of("skipped-id"), List.of(), List.of(), List.of(), List.of("permission notice", "concurrent edit notice"));
-    var compact = DirectiveResponses.of(preview);
+    var compact = (DirectiveResponses.Preview) DirectiveResponses.of(preview);
     assertThat(compact.toCreate().getFirst().description()).isEqualTo(description);
     assertThat(compact.changes().getFirst().after()).containsOnlyKeys("description").containsEntry("description", description);
     assertThat(compact.toDelete().getFirst().fromNodeKey()).isEqualTo("app:d");
-    assertThat(compact.toDelete().getFirst().descriptionOmitted()).isTrue();
+    assertThat(compact.changes().getFirst().before()).containsOnlyKeys("description").containsEntry("description", before.description());
     assertThat(compact.warnings()).containsExactlyElementsOf(preview.warnings());
-    assertThat(ToolResponseUtils.toJsonString(compact)).doesNotContain("old".repeat(100));
+    assertThat(ToolResponseUtils.toJsonString(compact)).contains(before.description(), description);
     var applied = new ProjectDirectives.Applied("my_project", "applied", preview.toCreate(), changes, preview.toDelete(),
       preview.skipped(), preview.skippedIds(), List.of(created), List.of(directive(1, description, "app:a")), List.of(deleting.id()), preview.warnings());
-    var receipt = DirectiveResponses.of(applied);
-    assertThat(receipt.view()).isEqualTo("receipt");
-    assertThat(receipt.toCreate()).isNull();
-    assertThat(receipt.changes()).isNull();
-    assertThat(receipt.toDelete()).isNull();
-    assertThat(receipt.created().getFirst().id()).isEqualTo(created.id());
-    assertThat(receipt.updated().getFirst().id()).isEqualTo(before.id());
-    assertThat(receipt.deleted()).containsExactly(deleting.id());
+    var receipt = (DirectiveResponses.Confirmation) DirectiveResponses.of(applied);
+    assertThat(receipt.counts()).isEqualTo(new DirectiveResponses.Counts(1, 1, 1, 1));
+    assertThat(receipt.createdIds()).containsExactly(created.id());
+    assertThat(receipt.updatedIds()).containsExactly(before.id());
+    assertThat(receipt.deletedIds()).containsExactly(deleting.id());
     assertThat(receipt.skippedIds()).containsExactly("skipped-id");
     assertThat(receipt.warnings()).containsExactlyElementsOf(applied.warnings());
     var originalBytes = bytes(ToolResponseUtils.toJsonString(applied));
     var receiptBytes = bytes(ToolResponseUtils.toJsonString(receipt));
-    assertThat(ToolResponseUtils.toJsonString(receipt)).doesNotContain(description, "old".repeat(100));
+    assertThat(ToolResponseUtils.toJsonString(receipt)).doesNotContain(description, "old".repeat(100), "app:a", "toCreate", "changes", "toDelete", "view");
+    assertThat(receiptBytes).isLessThan(1000);
     System.out.printf("PAYLOAD mixed-receipt before=%d after=%d reduction=%.2f%%%n", originalBytes, receiptBytes,
       100.0 * (originalBytes - receiptBytes) / originalBytes);
   }
