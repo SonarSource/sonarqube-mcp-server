@@ -30,7 +30,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import static org.assertj.core.api.Assertions.assertThat;
 
