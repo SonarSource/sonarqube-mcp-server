@@ -1468,6 +1468,17 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
+> **Pending feature documentation:** This section describes the combined target of the PRs below. An individual feature branch does not provide all of it. Until the relevant implementation lands, use the tools and parameters advertised by that build. Before these PRs land, `master` exposes current architecture only on Server, uses `intended-architectures`, rejects an empty intended model and allows directive pages up to 1000.
+
+| Pending capability | Implementation PR |
+| --- | --- |
+| Server intended architecture and directives | [#678](https://github.com/SonarSource/sonarqube-mcp-server/pull/678) |
+| Findings and their filters | [#680](https://github.com/SonarSource/sonarqube-mcp-server/pull/680) |
+| Focused `from` / `to` dependency pagination | [#691](https://github.com/SonarSource/sonarqube-mcp-server/pull/691) |
+| Response-contract compatibility hints | [#693](https://github.com/SonarSource/sonarqube-mcp-server/pull/693) |
+| `project-intended-architectures` and empty-model DELETE | [#694](https://github.com/SonarSource/sonarqube-mcp-server/pull/694) |
+| Directive summaries, 50-entry directive pages and validation/navigation improvements | [#695](https://github.com/SonarSource/sonarqube-mcp-server/pull/695) |
+
 **Note: Add `architecture` to `SONARQUBE_TOOLSETS` to register these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. On SonarQube Server, tools remain listed even when the Architecture feature or required public APIs are unavailable; those calls fail when invoked. Intended and directive operations need the public `/api/v2/components/projects` lookup and public Architecture APIs.**
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, project directives, or deviations, flaws and smells with their details. Findings are read from the latest main-branch analysis. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export. `omittedNodes` counts nodes excluded by limits within the requested component/depth, not deeper descendants. Every returned node includes `descendants` and `truncated` navigation metadata; the five `drillDown` entries are suggestions. Selecting a leaf returns an explanatory message.
@@ -1510,7 +1521,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
   **Validation:** Exact constraint endpoints must name unambiguous groups in the same perspective; self-references are rejected. Wildcard selectors and imported descendants retain their public semantics. A changed model is also checked against available discovery data: exact container patterns and skipped physical parents produce warnings, without rewriting patterns or moving groups. Failed or missing discovery is reported as unchecked, not as a missing match. Exact leaf patterns and logical groupings remain valid.
 
-  For physical models, read bounded current slices first and keep intermediate parents. Under `gctoolkit-parser`, nest `jvm` and `unified` inside `com.microsoft.gctoolkit.parser`; use `gctoolkit-parser:com.microsoft.gctoolkit.parser.**` for that subtree. Follow a single-child artifact chain to its branching point. Keep exact patterns for leaves and preserve discovery-binding patterns when moving or renaming groups. Do not infer physical structure from labels alone or replace user-requested logical groupings.
+  For physical models, read bounded current slices first and keep intermediate parents. For example, in a GCToolkit-style layout under `gctoolkit-parser`, nest `jvm` and `unified` inside `com.microsoft.gctoolkit.parser` and use `gctoolkit-parser:com.microsoft.gctoolkit.parser.**` for that subtree. Follow a single-child artifact chain to its branching point. Keep exact patterns for leaves and preserve discovery-binding patterns when moving or renaming groups. Do not infer physical structure from labels alone or replace user-requested logical groupings.
 
   **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: keep any exported child groups unchanged or omit them; derived children are excluded from writes, and imported contents cannot be edited here. Partial views are rejected. An empty complete model deletes the stored intended resource after preview. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
 
