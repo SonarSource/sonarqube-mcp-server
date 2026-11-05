@@ -32,38 +32,58 @@ final class DirectiveResponses {
       directive.toNodeKey(), directive.graphPerspective(), directive.origin(), directive.description() != null);
   }
 
-  static Response of(ProjectDirectives.Applied result) {
-    var preview = "dry-run".equals(result.mode());
-    return new Response(result.projectKey(), result.mode(), preview ? "preview" : "receipt",
-      preview ? result.toCreate() : null,
-      preview ? result.changes().stream().map(DirectiveResponses::change).toList() : null,
-      preview ? result.toDelete().stream().map(DirectiveResponses::summary).toList() : null,
-      result.skipped(), result.skippedIds(), result.created().stream().map(DirectiveResponses::summary).toList(),
-      result.updated().stream().map(DirectiveResponses::summary).toList(), result.deleted(), result.warnings());
+  static Record of(ProjectDirectives.Applied result) {
+    if ("dry-run".equals(result.mode())) {
+      return new Preview(result.projectKey(), result.mode(), result.toCreate(),
+        result.changes().stream().map(DirectiveResponses::change).toList(),
+        result.toDelete().stream().map(DirectiveResponses::target).toList(), result.skipped(), result.skippedIds(), result.warnings());
+    }
+    return new Confirmation(result.projectKey(), result.mode(),
+      new Counts(result.created().size(), result.updated().size(), result.deleted().size(), result.skipped()),
+      result.created().stream().map(ProjectDirective::id).toList(), result.updated().stream().map(ProjectDirective::id).toList(),
+      result.deleted(), result.skippedIds(), result.warnings());
+  }
+
+  private static Target target(ProjectDirective directive) {
+    return new Target(directive.id(), directive.type(), directive.ecosystem(), directive.graphType(), directive.fromNodeKey(),
+      directive.toNodeKey(), directive.graphPerspective());
   }
 
   private static Change change(ProjectDirectives.Change change) {
     var gson = new Gson();
     var before = gson.toJsonTree(change.before().withoutIdentity()).getAsJsonObject();
     var after = gson.toJsonTree(change.after()).getAsJsonObject();
-    var fields = new LinkedHashMap<String, String>();
+    var previous = new LinkedHashMap<String, String>();
+    var proposed = new LinkedHashMap<String, String>();
     for (var field : after.entrySet()) {
-      if (!field.getValue().equals(before.get(field.getKey()))) {
-        fields.put(field.getKey(), field.getValue().getAsString());
+      var oldValue = before.get(field.getKey());
+      if (!field.getValue().equals(oldValue)) {
+        previous.put(field.getKey(), oldValue == null || oldValue.isJsonNull() ? null : oldValue.getAsString());
+        proposed.put(field.getKey(), field.getValue().getAsString());
       }
     }
-    return new Change(change.id(), summary(change.before()), fields);
+    return new Change(change.id(), previous, proposed);
   }
 
   record Summary(@Nullable String id, String type, String ecosystem, String graphType, String fromNodeKey, String toNodeKey,
     @Nullable String graphPerspective, @Nullable String origin, boolean descriptionOmitted) {
   }
 
-  record Change(String id, Summary before, Map<String, String> after) {
+  record Target(String id, String type, String ecosystem, String graphType, String fromNodeKey, String toNodeKey,
+    @Nullable String graphPerspective) {
   }
 
-  record Response(String projectKey, String mode, String view, @Nullable List<ProjectDirective> toCreate, @Nullable List<Change> changes,
-    @Nullable List<Summary> toDelete, int skipped, List<String> skippedIds, List<Summary> created, List<Summary> updated, List<String> deleted,
-    List<String> warnings) {
+  record Change(String id, Map<String, String> before, Map<String, String> after) {
+  }
+
+  record Preview(String projectKey, String mode, List<ProjectDirective> toCreate, List<Change> changes, List<Target> toDelete,
+    int skipped, List<String> skippedIds, List<String> warnings) {
+  }
+
+  record Counts(int created, int updated, int deleted, int skipped) {
+  }
+
+  record Confirmation(String projectKey, String mode, Counts counts, List<String> createdIds, List<String> updatedIds,
+    List<String> deletedIds, List<String> skippedIds, List<String> warnings) {
   }
 }
