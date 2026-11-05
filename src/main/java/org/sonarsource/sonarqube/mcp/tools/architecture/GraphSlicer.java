@@ -78,8 +78,11 @@ final class GraphSlicer {
       .sorted(Comparator.comparingInt(DrillDown::descendants).reversed().thenComparing(DrillDown::language).thenComparing(DrillDown::component))
       .limit(MAX_DRILL_DOWN)
       .toList();
-    return new ArchitectureGetCurrentToolResponse(projectKey, component, effectiveDepth, depth, capped, slices, biggestDrillDowns,
-      capped ? limitMessage(slices) : null);
+    var message = capped ? limitMessage(slices) : null;
+    if (component != null && scopes.stream().allMatch(scope -> scope.size() == 0)) {
+      message = "Component '" + component + "' is a leaf; there are no children below it.";
+    }
+    return new ArchitectureGetCurrentToolResponse(projectKey, component, effectiveDepth, depth, capped, slices, biggestDrillDowns, message);
   }
 
   private record Scope(List<List<Integer>> levels, int size) {
@@ -167,6 +170,21 @@ final class GraphSlicer {
       + "Omitted siblings have no continuation token and may remain undiscoverable; this is not a complete graph export.";
   }
 
+  /**
+   * What SonarQube joins a node's children to it with, as its architecture pages build node keys: the node's own separator, or one inferred
+   * from its kind when the response leaves it out ({@code module:package.Class}, {@code dir/file}).
+   */
+  static String childSeparator(StructureGraph.Node node) {
+    if (node.separator() != null && !node.separator().isEmpty()) {
+      return node.separator();
+    }
+    return switch (node.kind()) {
+      case "module" -> ":";
+      case "directory", "folder" -> "/";
+      default -> ".";
+    };
+  }
+
   private static final class IndexedGraph {
     private final String language;
     @Nullable
@@ -186,21 +204,6 @@ final class GraphSlicer {
         rootIds.add(root.id());
         add(root, null);
       }
-    }
-
-    /**
-     * What SonarQube joins a node's children to it with, as its architecture pages build node keys: the node's own separator, or one inferred
-     * from its kind when the response leaves it out ({@code module:package.Class}, {@code dir/file}).
-     */
-    private static String childSeparator(StructureGraph.Node node) {
-      if (node.separator() != null && !node.separator().isEmpty()) {
-        return node.separator();
-      }
-      return switch (node.kind()) {
-        case "module" -> ":";
-        case "directory", "folder" -> "/";
-        default -> ".";
-      };
     }
 
     private int add(StructureGraph.Node node, @Nullable Integer parentId) {
@@ -244,7 +247,8 @@ final class GraphSlicer {
     private Graph toResponse(int nodesInScope, Selection selection) {
       var kept = selection.nodes();
       var keptIds = Set.copyOf(kept);
-      var nodes = kept.stream().map(id -> new Node(keyById.get(id), kindById.get(id), childrenById.get(id).size())).toList();
+      var nodes = kept.stream().map(id -> new Node(keyById.get(id), kindById.get(id), childrenById.get(id).size(), descendantsById.get(id),
+        childrenById.get(id).stream().anyMatch(child -> !keptIds.contains(child)))).toList();
       var weightByEdge = new LinkedHashMap<List<Integer>, Integer>();
       var outsideViewWeight = 0;
       for (var rawEdge : rawEdges) {
