@@ -98,7 +98,7 @@ class HttpClientProviderTests {
 
   @Test
   void it_should_identify_mcp_on_architecture_writes() {
-    var path = "/api/v2/architecture/project-intended-architectures";
+    var path = "/api/v2/architecture/project-directives";
     sonarqubeMock.stubFor(post(path).willReturn(aResponse().withStatus(201)));
     sonarqubeMock.stubFor(patch(path + "/model-id").willReturn(aResponse().withStatus(200)));
     var client = new HttpClientProvider(USER_AGENT).getHttpClient("token");
