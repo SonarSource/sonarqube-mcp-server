@@ -103,8 +103,10 @@ class ArchitectureOAuthScopeTest {
     var id = "00000000-0000-4000-8000-000000000001";
     var saved = input.substring(0, input.length() - 1) + ",\"id\":\"" + id + "\",\"projectId\":\""
       + MAIN_BRANCH_ID + "\",\"graphPerspective\":\"default_perspective\",\"origin\":\"sonarqube-mcp-server\"}";
-    backend.stubFor(get(path + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=100")
-      .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}")));
+    for (var pageSize : List.of(50, 100)) {
+      backend.stubFor(get(path + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=" + pageSize)
+        .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":" + pageSize + ",\"total\":0}}")));
+    }
     backend.stubFor(post(path).willReturn(okJson(saved)));
     var clients = new HttpClientProvider("architecture-directive-scope-test");
     var baseUrl = backend.baseUrl();
@@ -127,7 +129,7 @@ class ArchitectureOAuthScopeTest {
         assertThat(result.content().toString()).contains(dryRun ? "dry-run" : "applied");
         assertThat(backend.getReceivedBodies("POST", path)).hasSize(dryRun ? 0 : 1);
       }
-      var arguments = Map.<String, Object>of("target", "directives", "projectKey", "my_project", "pageSize", 100);
+      var arguments = Map.<String, Object>of("target", "directives", "projectKey", "my_project", "pageSize", 50);
       var before = backend.getReceivedRequests().size();
       assertThat(handler.handleRequest(context(Set.of("write:all")), call("architecture_get", arguments)).block().error()).isNotNull();
       assertThat(backend.getReceivedRequests()).hasSize(before);
