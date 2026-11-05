@@ -88,8 +88,8 @@ class ArchitectureDirectivesToolTests {
     assertThat(textOf(read)).contains("000000000101");
     var result = client.callTool(ArchitectureSetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project", "model", changeFile("create", "[" + INPUT + "," + INPUT + "]"), "dryRun", false));
     assertThat(result.isError()).isFalse();
-    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().get("skipped").getAsInt()).isEqualTo(2);
-    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("created")).isEmpty();
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("counts").get("skipped").getAsInt()).isEqualTo(2);
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("createdIds")).isEmpty();
     assertThat(backend.getReceivedBodies("POST", PATH)).isEmpty();
     assertThat(backend.getReceivedBodies("PATCH", PATH)).isEmpty();
     assertThat(backend.getReceivedBodies("DELETE", PATH)).isEmpty();
@@ -670,7 +670,7 @@ class ArchitectureDirectivesToolTests {
       Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", dryRun));
     assertThat(result.isError()).isFalse();
     var value = new Gson().fromJson(textOf(result), JsonObject.class);
-    assertThat(value.get("skipped").getAsInt()).isEqualTo(duplicateCreate ? 2 : 1);
+    assertThat((dryRun ? value : value.getAsJsonObject("counts")).get("skipped").getAsInt()).isEqualTo(duplicateCreate ? 2 : 1);
     assertThat(value.getAsJsonArray("skippedIds")).hasSize(1);
     assertThat(value.getAsJsonArray("skippedIds").get(0).getAsString()).isEqualTo(id);
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", PATH)).isEmpty();
@@ -715,7 +715,7 @@ class ArchitectureDirectivesToolTests {
     var applied = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", false));
     assertThat(applied.isError()).isFalse();
-    assertThat(textOf(applied)).contains("receipt", id, perspective ? "requested-view" : "concurrent-view");
+    assertThat(textOf(applied)).contains("applied", id).doesNotContain("requested-view", "concurrent-view");
     assertThat(textOf(applied)).doesNotContain("requested description", "concurrent description");
     backend.stubFor(get(path).willReturn(okJson(after)));
     var detail = client.callTool(ArchitectureGetTool.TOOL_NAME,
@@ -803,7 +803,8 @@ class ArchitectureDirectivesToolTests {
     assertThat(result.isError()).isFalse();
     var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
     var change = json.getAsJsonArray("changes").get(0).getAsJsonObject();
-    assertThat(change.getAsJsonObject("before").get("fromNodeKey").getAsString()).isEqualTo("app:a");
+    assertThat(change.getAsJsonObject("before").keySet()).containsExactly("toNodeKey");
+    assertThat(change.getAsJsonObject("before").get("toNodeKey").getAsString()).isEqualTo("app:b");
     assertThat(change.getAsJsonObject("after").keySet()).containsExactly("toNodeKey");
     assertThat(change.getAsJsonObject("after").get("toNodeKey").getAsString()).isEqualTo("app:c");
     assertThat(textOf(result)).doesNotContain("x".repeat(100));
