@@ -39,6 +39,9 @@ final class IntendedDiagnostics {
     try {
       return currentReads.execute(() -> inspectLanguages(api, projectKey, models, languages));
     } catch (IllegalStateException e) {
+      if (Thread.currentThread().isInterrupted()) {
+        throw e;
+      }
       return languages.stream().map(language -> unavailable(language, e.getMessage())).toList();
     }
   }
@@ -55,6 +58,9 @@ final class IntendedDiagnostics {
         }
         inspect(models.stream().filter(model -> language.equals(model.language())).toList(), graphs.getFirst(), warnings);
       } catch (RuntimeException e) {
+        if (Thread.currentThread().isInterrupted()) {
+          throw e;
+        }
         unavailable.add(unavailable(language, e.getMessage()));
       }
     }
