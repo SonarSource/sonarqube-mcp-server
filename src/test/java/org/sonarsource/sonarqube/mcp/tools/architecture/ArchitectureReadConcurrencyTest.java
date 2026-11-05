@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -249,6 +250,35 @@ class ArchitectureReadConcurrencyTest {
       verify(architecture, never()).createIntended(anyString(), anyString(), any());
       verify(architecture, never()).patchIntended(anyString(), anyString(), any());
       verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"false,false", "true,false", "false,true", "true,true"})
+  void it_should_stop_interrupted_diagnostics_before_replacement(boolean dryRun, boolean duringGraphRead) {
+    var arguments = new HashMap<>(dryRunArguments().toMap());
+    arguments.put("dryRun", dryRun);
+    var request = new Tool.Arguments(arguments, Map.of());
+    if (duringGraphRead) {
+      when(architecture.getStructure(anyString(), anyString(), anyString(), anyString())).thenAnswer(invocation -> {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("Interrupted discovery read", new InterruptedException());
+      });
+    } else {
+      when(architecture.getIntended(anyString(), anyString())).thenAnswer(invocation -> {
+        Thread.currentThread().interrupt();
+        return List.of();
+      });
+    }
+    try {
+      assertThatThrownBy(() -> setTool.execute(request)).isInstanceOf(IllegalStateException.class)
+        .hasCauseInstanceOf(InterruptedException.class);
+      assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      verify(architecture, times(1)).getIntended(anyString(), anyString());
+      verify(architecture, never()).createIntended(anyString(), anyString(), any());
+      verify(architecture, never()).patchIntended(anyString(), anyString(), any());
+    } finally {
+      Thread.interrupted();
     }
   }
 
