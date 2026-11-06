@@ -7,7 +7,7 @@
 | Pending capability | Implementation PR |
 | --- | --- |
 | Focused `from` / `to` dependency pagination | [#691](https://github.com/SonarSource/sonarqube-mcp-server/pull/691) |
-| Response-contract hints and Findings validation | [#693](https://github.com/SonarSource/sonarqube-mcp-server/pull/693) |
+| API response diagnostics and Findings validation | [#693](https://github.com/SonarSource/sonarqube-mcp-server/pull/693) |
 | `project-intended-architectures` and empty-model DELETE | [#694](https://github.com/SonarSource/sonarqube-mcp-server/pull/694) |
 
 **Availability:** Enable `architecture` in `SONARQUBE_TOOLSETS` for stdio or HTTP. Cloud requires a Team or Enterprise plan.
@@ -42,7 +42,7 @@ For intended architecture and directives on Server, use an MCP build containing 
 
 - **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives. For intended models, start from an unfiltered `architecture_get` response. Use `dryRun: true` to review changes. Hidden when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
-  Intended reads and writes use the public `project-intended-architectures` API. Preview an empty complete model before applying its DELETE. Applying a clear requires the revision from an unfiltered `architecture_get` response; a bare empty array cannot authorize deletion.
+  Intended reads and writes use the public `project-intended-architectures` API. Preview an empty complete model before applying its DELETE. Applying a clear requires the revision from `architecture_get` with `target: intended`; that revision covers the whole stored model even when the read is filtered. A bare empty array cannot authorize deletion.
 
   **Directives:** Supply a JSON object with optional `create`, `update` and `delete` arrays. Create records contain directive fields, update records contain `{id, changed fields}`, and delete records contain only `{id}`. Unspecified update fields and unmentioned directives are retained. Creation skips duplicate operations. Preview with `dryRun=true` and apply only after confirmation. The whole batch is validated before writing; conflicting IDs are rejected. Writes are individual, not atomic. A partial or uncertain failure reports confirmed IDs and stops without retry or rollback. Duplicate checks and preflight reads can race concurrent edits. Optional fields cannot be cleared with null; the API has no conditional writes.
 
