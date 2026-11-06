@@ -57,7 +57,8 @@ public class ArchitectureSetTool extends Tool {
         + "toNodeKey for MOVE_NODE: existing destination container; for RENAME_NODE: new complete key. "
         + "graphPerspective defaults to default_perspective, optional description.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
-      .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get intended; defaults to the model response revision. Required to clear the whole model; a mismatch prevents writing.")
+      .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get intended; defaults to the model response revision. "
+        + "Required to clear the whole model; a mismatch prevents writing.")
       .build(),
       ToolCategory.ARCHITECTURE);
     this.currentReads = currentReads;
