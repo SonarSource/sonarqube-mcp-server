@@ -74,6 +74,7 @@ class ArchitectureReadConcurrencyTest {
     when(branches.getProjectId(anyString())).thenReturn(Optional.of("branch-id"));
     when(server.architectureApi()).thenReturn(architecture);
     when(architecture.getIntended(anyString(), anyString())).thenReturn(List.of());
+    when(architecture.getIntendedState(anyString(), anyString())).thenReturn(new ArchitectureApi.IntendedState(null, List.of()));
     var tools = ArchitectureTools.create(provider, true, null);
     tool = (ArchitectureGetTool) tools.get(0);
     setTool = (ArchitectureSetTool) tools.get(1);
@@ -305,16 +306,16 @@ class ArchitectureReadConcurrencyTest {
         throw new IllegalStateException("Interrupted discovery read", new InterruptedException());
       });
     } else {
-      when(architecture.getIntended(anyString(), anyString())).thenAnswer(invocation -> {
+      when(architecture.getIntendedState(anyString(), anyString())).thenAnswer(invocation -> {
         Thread.currentThread().interrupt();
-        return List.of();
+        return new ArchitectureApi.IntendedState(null, List.of());
       });
     }
     try {
       assertThatThrownBy(() -> setTool.execute(request)).isInstanceOf(IllegalStateException.class)
         .hasCauseInstanceOf(InterruptedException.class);
       assertThat(Thread.currentThread().isInterrupted()).isTrue();
-      verify(architecture, times(1)).getIntended(anyString(), anyString());
+      verify(architecture, times(1)).getIntendedState(anyString(), anyString());
       verify(architecture, never()).createIntended(anyString(), anyString(), any());
       verify(architecture, never()).patchIntended(anyString(), anyString(), any());
     } finally {
