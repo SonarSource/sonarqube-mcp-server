@@ -154,8 +154,12 @@ class AnalysisToolRegistrationTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void it_should_keep_http_local_analysis_only_for_server_with_startup_token(boolean cloud, boolean startupToken,
+  @CsvSource({
+    "true, true, false", "true, true, true", "true, false, false", "true, false, true",
+    "false, true, false", "false, true, true", "false, false, false", "false, false, true",
+    "true, true,"
+  })
+  void it_should_register_http_snippet_analysis_only_with_startup_token(boolean cloud, boolean startupToken, String forceLocal,
     @TempDir Path storage) throws Exception {
     var environment = new HashMap<String, String>();
     environment.put("SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl());
@@ -168,8 +172,10 @@ class AnalysisToolRegistrationTest {
       environment.put("SONARQUBE_HTTP_PORT", Integer.toString(socket.getLocalPort()));
     }
     environment.put("SONARQUBE_IS_CLOUD", Boolean.toString(cloud));
-    environment.put("SONARQUBE_TOOLSETS", "analysis,ide,vortex");
-    environment.put("SONARQUBE_FORCE_LOCAL_ANALYSIS", "true");
+    if (forceLocal != null) {
+      environment.put("SONARQUBE_TOOLSETS", "analysis,ide,vortex");
+      environment.put("SONARQUBE_FORCE_LOCAL_ANALYSIS", forceLocal);
+    }
     environment.put("TELEMETRY_DISABLED", "true");
     harness.prepareMockWebServer(environment);
     var server = new SonarQubeMcpServer(environment);
@@ -180,13 +186,13 @@ class AnalysisToolRegistrationTest {
       var analysisNames = server.getSupportedTools().stream().map(Tool::definition).map(McpSchema.Tool::name)
         .filter(name -> name.equals(AnalyzeCodeSnippetTool.TOOL_NAME) || name.equals(RunAdvancedCodeAnalysisTool.TOOL_NAME)
           || name.equals(AnalyzeFileListTool.TOOL_NAME) || name.equals(ToggleAutomaticAnalysisTool.TOOL_NAME)).toList();
-      if (!cloud && startupToken) {
+      if (startupToken) {
         assertThat(analysisNames).containsExactly(AnalyzeCodeSnippetTool.TOOL_NAME);
       } else {
         assertThat(analysisNames).isEmpty();
       }
       assertThat(harness.getMockSonarQubeServer().countRequestsContaining(PluginsApi.INSTALLED_PLUGINS_PATH))
-        .isEqualTo(!cloud && startupToken ? 1 : 0);
+        .isEqualTo(startupToken ? 1 : 0);
     } finally {
       server.shutdown();
     }
