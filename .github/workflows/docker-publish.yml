@@ -235,7 +235,7 @@ jobs:
             development/kv/data/docker/sonardockerrw access_token_rwd | docker_password;
 
       - name: Login to Docker Hub
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: ${{ fromJSON(steps.secrets.outputs.vault).docker_username }}
           password: ${{ fromJSON(steps.secrets.outputs.vault).docker_password }}

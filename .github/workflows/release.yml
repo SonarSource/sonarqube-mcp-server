@@ -21,7 +21,7 @@ jobs:
     permissions:
       id-token: write
       contents: write
-    uses: SonarSource/gh-action_release/.github/workflows/main.yaml@bf4faffefea8fce5e434a3b185d2ac03fba5592c # 7.7.1
+    uses: SonarSource/gh-action_release/.github/workflows/main.yaml@3d1c7391e2f4882b692d9e292be7948496c64abb # 7.10.0
     with:
       version: ${{ inputs.version }}
       publishToBinaries: true
