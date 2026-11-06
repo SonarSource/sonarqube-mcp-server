@@ -55,6 +55,7 @@ public class ArchitectureApi {
   private static final String PROJECT_ID_PARAM = "projectId";
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
+  private static final String INVALID_FINDINGS_PAGE = "Invalid public findings page.";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
   public static final int MAX_PERSPECTIVES = 50;
@@ -354,11 +355,11 @@ public class ArchitectureApi {
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var response = read(projectKey, () -> findingsJson(get(path), pageSize, filters));
     if (response == null || response.findings() == null || response.page() == null) {
-      throw incompatibleResponse("Invalid public findings page.");
+      throw incompatibleResponse(INVALID_FINDINGS_PAGE);
     }
     if (!Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
       || response.page().total() == null || response.page().total() < 0 || response.findings().size() > pageSize) {
-      throw new IllegalStateException("Invalid public findings page.");
+      throw new IllegalStateException(INVALID_FINDINGS_PAGE);
     }
     if (response.findings().stream().anyMatch(finding -> !filters.matches(finding))) {
       throw new IllegalStateException("The public findings response does not match the requested filters.");
@@ -374,7 +375,7 @@ public class ArchitectureApi {
         return null;
       }
       if (page.findings().size() > pageSize) {
-        throw incompatibleResponse("Invalid public findings page.");
+        throw incompatibleResponse(INVALID_FINDINGS_PAGE);
       }
       if (page.findings().stream().anyMatch(row -> !filters.matchesRaw(row))) {
         throw incompatibleResponse("The public findings response does not match the requested filters.");
@@ -398,7 +399,7 @@ public class ArchitectureApi {
 
   private static DirectivePageInfo findingPageInfo(@Nullable JsonObject page) {
     if (page == null) {
-      throw incompatibleResponse("Invalid public findings page.");
+      throw incompatibleResponse(INVALID_FINDINGS_PAGE);
     }
     return new DirectivePageInfo(findingPageNumber(page, PAGE_INDEX_PARAM), findingPageNumber(page, PAGE_SIZE_PARAM), findingPageNumber(page, "total"));
   }
