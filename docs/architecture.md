@@ -2,14 +2,12 @@
 
 [Tool reference and setup](../README.md#architecture). This document contains the detailed output, validation and recovery behavior for Architecture workflows.
 
-> **Pending feature documentation:** This section describes the combined target of the PRs below. An individual feature branch does not provide all of it. Until the relevant implementation lands, use the tools and parameters advertised by that build. `master` currently exposes only current architecture on Server, uses `intended-architectures` and rejects an empty intended model. Directive summaries, the 50-entry list limit and the validation/navigation improvements from #695, plus the contract refinements from #703, are already included.
+> **Pending feature documentation:** This section describes the combined target of the PRs below. An individual feature branch does not provide all of it. Until the relevant implementation lands, use the tools and parameters advertised by that build. `master` includes Server intended/directive support and Findings from #678 and #680. It still uses `intended-architectures` and rejects an empty intended model until #694 lands. Directive summaries, the 50-entry list limit and the validation/navigation improvements from #695, plus the contract refinements from #703, are already included.
 
 | Pending capability | Implementation PR |
 | --- | --- |
-| Server intended architecture and directives | [#678](https://github.com/SonarSource/sonarqube-mcp-server/pull/678) |
-| Findings and their filters | [#680](https://github.com/SonarSource/sonarqube-mcp-server/pull/680) |
 | Focused `from` / `to` dependency pagination | [#691](https://github.com/SonarSource/sonarqube-mcp-server/pull/691) |
-| Response-contract compatibility hints | [#693](https://github.com/SonarSource/sonarqube-mcp-server/pull/693) |
+| Response-contract hints and Findings validation | [#693](https://github.com/SonarSource/sonarqube-mcp-server/pull/693) |
 | `project-intended-architectures` and empty-model DELETE | [#694](https://github.com/SonarSource/sonarqube-mcp-server/pull/694) |
 
 **Availability:** Enable `architecture` in `SONARQUBE_TOOLSETS` for stdio or HTTP. Cloud requires a Team or Enterprise plan.
@@ -40,11 +38,11 @@ For intended architecture and directives on Server, use an MCP build containing 
   - `pageIndex` - Directives, findings or current from/to queries; starts at 1, default 1 - _Number_
   - `pageSize` - Current from/to: default/maximum 20; directives: default/maximum 50; findings: default 50, maximum 1000, or 0 for count only - _Number_
 
-  Findings filters combine with AND. Each row contains `type`, `category`, `language`, `details` and `files`; no finding ID or detail lookup is available. Empty results mean no findings are visible, rather than proof that a project is healthy. Both Cloud and Server use organization and main-branch context, without the Server project UUID lookup used by intended architecture and directives.
+  Findings filters combine with AND. Each row contains `type`, `category`, `language`, `details` and `files`; no finding ID or detail lookup is available. Empty results mean no findings are visible, rather than proof that a project is healthy. Both Cloud and Server use organization and main-branch context, without the Server project UUID lookup used by intended architecture and directives. The pending follow-up in [#693](https://github.com/SonarSource/sonarqube-mcp-server/pull/693) rejects incompatible category/type pairs before backend requests, refuses Findings reads before main-branch analysis, validates returned rows against active filters, identifies active filters for zero results, and gives a last-page hint. With #693, unsupported future types, languages and deviation reasons are omitted with an explicit `skippedFindings` count only when they match any active filters; backend totals stay unchanged. Malformed known findings still fail, so omitted future rows do not imply a clean or complete analysis.
 
 - **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives. For intended models, start from an unfiltered `architecture_get` response. Use `dryRun: true` to review changes. Hidden when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
-  Intended reads and writes use the public `project-intended-architectures` API. Preview an empty complete model before applying its DELETE.
+  Intended reads and writes use the public `project-intended-architectures` API. Preview an empty complete model before applying its DELETE. Applying a clear requires the revision from an unfiltered `architecture_get` response; a bare empty array cannot authorize deletion.
 
   **Directives:** Supply a JSON object with optional `create`, `update` and `delete` arrays. Create records contain directive fields, update records contain `{id, changed fields}`, and delete records contain only `{id}`. Unspecified update fields and unmentioned directives are retained. Creation skips duplicate operations. Preview with `dryRun=true` and apply only after confirmation. The whole batch is validated before writing; conflicting IDs are rejected. Writes are individual, not atomic. A partial or uncertain failure reports confirmed IDs and stops without retry or rollback. Duplicate checks and preflight reads can race concurrent edits. Optional fields cannot be cleared with null; the API has no conditional writes.
 
@@ -58,7 +56,7 @@ For intended architecture and directives on Server, use an MCP build containing 
 
   For physical models, read bounded current slices first and keep intermediate parents. For example, in a GCToolkit-style layout under `gctoolkit-parser`, nest `jvm` and `unified` inside `com.microsoft.gctoolkit.parser` and use `gctoolkit-parser:com.microsoft.gctoolkit.parser.**` for that subtree. Follow a single-child artifact chain to its branching point. Keep exact patterns for leaves and preserve discovery-binding patterns when moving or renaming groups. Do not infer physical structure from labels alone or replace user-requested logical groupings.
 
-  **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: keep any exported child groups unchanged or omit them; derived children are excluded from writes, and imported contents cannot be edited here. Partial views are rejected. An empty complete model deletes the stored intended resource after preview. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
+  **Data-loss limitations:** Omitted perspectives and groups are removed. Perspective labels, descriptions and imported pattern links are preserved when supplied in the exported model. Imported patterns remain references: keep any exported child groups unchanged or omit them; derived children are excluded from writes, and imported contents cannot be edited here. Partial views are rejected. An empty complete model deletes the stored intended resource after preview only when its exported revision is supplied. Supply the whole response to retain its revision check; concurrent edits can still race the check. Definite HTTP client rejections are relayed directly. An empty collection read after a failed DELETE response does not confirm deletion; the result reports that no model is visible and leaves the write unconfirmed. Uncertain writes return a recovery export when the desired state cannot be verified; no automatic rollback is attempted.
 
   Parameters:
   - `target` - `intended` or `directives` - _Required Enum_
@@ -66,4 +64,4 @@ For intended architecture and directives on Server, use an MCP build containing 
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String_
   - `model` - Intended: whole unfiltered response or `models` array. Directives: `{create: [...], update: [...], delete: [...]}`, with fields listed above - _Required String_
   - `dryRun` - `true` to preview, `false` to apply - _Required Boolean_
-  - `revision` - Intended only: exported revision; defaults to the whole response's revision. Bare arrays without it cannot detect changes since export - _String_
+  - `revision` - Intended only: exported revision; defaults to the whole response's revision. Required when applying a clear; other bare arrays without it cannot detect changes since export - _String_
