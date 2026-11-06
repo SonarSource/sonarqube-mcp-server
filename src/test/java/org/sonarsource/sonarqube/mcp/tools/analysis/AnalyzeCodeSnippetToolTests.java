@@ -29,6 +29,10 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,17 +41,26 @@ import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.response.SearchResponse.QualityProfile;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
+import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
+import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse.ActiveRule;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertMissingRequiredArgument;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool.TOOL_NAME;
@@ -82,6 +95,64 @@ class AnalyzeCodeSnippetToolTests {
     assertThat(callToolResult.isError()).isTrue();
     assertThat(callToolResult.toCallToolResult().toString()).contains("Server initialization failed: Initialization failed. " +
       "Please check the server logs for more details.");
+  }
+
+  @Test
+  void it_should_keep_each_callers_rules_until_analysis_and_cleanup_finish(@TempDir Path workDir) throws Exception {
+    var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    var secondRulesFetched = new CountDownLatch(1);
+    for (var caller : List.of("first", "second")) {
+      when(api.qualityProfilesApi().getQualityProfiles(caller).profiles()).thenReturn(List.of(new QualityProfile(caller)));
+      when(api.rulesApi().search(caller, 1)).thenAnswer(invocation -> {
+        if (caller.equals("second")) {
+          secondRulesFetched.countDown();
+        }
+        return new SearchResponse(1, 1, 500, Map.of(caller + ":rule", List.of(new ActiveRule(List.of()))));
+      });
+    }
+    var provider = mock(ServerApiProvider.class);
+    when(provider.get("first-org")).thenReturn(api);
+    when(provider.get("second-org")).thenReturn(api);
+    var backend = mock(BackendService.class);
+    when(backend.getWorkDir()).thenReturn(workDir);
+    var analysis = mock(AnalyzeFilesResponse.class);
+    when(analysis.getRawIssues()).thenReturn(List.of());
+    var firstAnalysis = new CompletableFuture<AnalyzeFilesResponse>();
+    var firstAnalysisStarted = new CountDownLatch(1);
+    when(backend.analyzeFilesAndTrack(any(), any())).thenAnswer(invocation -> {
+      firstAnalysisStarted.countDown();
+      return firstAnalysis;
+    }).thenReturn(CompletableFuture.completedFuture(analysis));
+    var tool = new AnalyzeCodeSnippetTool(backend, provider, CompletableFuture.completedFuture(null), null, null, true);
+
+    try (var callers = Executors.newFixedThreadPool(2)) {
+      try {
+        var first = callers.submit(() -> tool.execute(new Tool.Arguments(Map.of("organization", "first-org", "projectKey", "first",
+          "fileContent", "<?php echo 'first';", "language", "php"), null)));
+        assertThat(firstAnalysisStarted.await(5, TimeUnit.SECONDS)).isTrue();
+        var second = callers.submit(() -> tool.execute(new Tool.Arguments(Map.of("organization", "second-org", "projectKey", "second",
+          "fileContent", "<?php echo 'second';", "language", "php"), null)));
+        assertThat(secondRulesFetched.await(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThatThrownBy(() -> second.get(250, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+        verify(backend, times(1)).updateRulesConfiguration(any());
+        firstAnalysis.complete(analysis);
+        assertThat(first.get(5, TimeUnit.SECONDS).isError()).isFalse();
+        assertThat(second.get(5, TimeUnit.SECONDS).isError()).isFalse();
+
+        var order = inOrder(backend);
+        order.verify(backend).updateRulesConfiguration(argThat(rules -> rules.containsKey("first:rule")));
+        order.verify(backend).addFile(any());
+        order.verify(backend).analyzeFilesAndTrack(any(), any());
+        order.verify(backend).removeFile(any());
+        order.verify(backend).updateRulesConfiguration(argThat(rules -> rules.containsKey("second:rule")));
+        order.verify(backend).addFile(any());
+        order.verify(backend).analyzeFilesAndTrack(any(), any());
+        order.verify(backend).removeFile(any());
+      } finally {
+        firstAnalysis.complete(analysis);
+      }
+    }
   }
 
   @SonarQubeMcpServerTest
