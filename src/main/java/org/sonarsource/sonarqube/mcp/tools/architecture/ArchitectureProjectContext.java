@@ -45,6 +45,19 @@ final class ArchitectureProjectContext {
         + "' has no main branch. Use search_my_sonarqube_projects to check the project key."));
   }
 
+  static String analyzedMainBranchId(ServerApi serverApi, String projectKey) {
+    var response = serverApi.projectBranchesApi().listBranches(projectKey);
+    if (response != null && response.branches() != null) {
+      var branchId = response.branches().stream()
+        .filter(branch -> branch.isMain() && branch.analysisDate() != null && !branch.analysisDate().isBlank())
+        .map(branch -> branch.branchId()).filter(id -> id != null && !id.isBlank()).findFirst();
+      if (branchId.isPresent()) {
+        return branchId.get();
+      }
+    }
+    throw new IllegalStateException("Project '" + projectKey + "' has no analyzed main branch. Analyze the main branch before requesting findings.");
+  }
+
   static String projectId(ServerApi serverApi, String projectKey) {
     if (serverApi.isSonarQubeCloud()) {
       return mainBranchId(serverApi, projectKey);

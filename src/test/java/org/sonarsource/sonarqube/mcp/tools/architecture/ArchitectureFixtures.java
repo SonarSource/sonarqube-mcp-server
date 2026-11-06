@@ -136,7 +136,7 @@ final class ArchitectureFixtures {
     harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project").willReturn(okJson("""
       { "branches": [
         { "name": "feature", "isMain": false, "type": "SHORT", "branchId": "other-branch-id" },
-        { "name": "main", "isMain": true, "type": "LONG", "branchId": "%s" }
+        { "name": "main", "isMain": true, "type": "LONG", "branchId": "%s", "analysisDate": "2026-01-01T00:00:00+0000" }
       ] }""".formatted(MAIN_BRANCH_ID))));
   }
 
