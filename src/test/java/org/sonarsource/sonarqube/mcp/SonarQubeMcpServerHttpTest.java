@@ -24,9 +24,15 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParser;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -34,7 +40,10 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -156,6 +165,28 @@ class SonarQubeMcpServerHttpTest {
     @RegisterExtension
     final SonarQubeMcpServerTestHarness harness = new SonarQubeMcpServerTestHarness();
 
+    private ProxySelector originalProxySelector;
+
+    @BeforeEach
+    void route_cloud_downloads_to_mock_server() {
+      originalProxySelector = ProxySelector.getDefault();
+      var proxySelector = mock(ProxySelector.class);
+      when(proxySelector.select(any())).thenAnswer(invocation -> {
+        var uri = invocation.getArgument(0, URI.class);
+        // The Cloud CDN uses scanner.localhost, which need not resolve on the test machine.
+        var proxy = "scanner.localhost".equals(uri.getHost())
+          ? new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", harness.getMockSonarQubeServer().getPort()))
+          : Proxy.NO_PROXY;
+        return List.of(proxy);
+      });
+      ProxySelector.setDefault(proxySelector);
+    }
+
+    @AfterEach
+    void restore_proxy_selector() {
+      ProxySelector.setDefault(originalProxySelector);
+    }
+
     @ParameterizedTest
     @CsvSource({"http, 200", "https, 200", "http, 403", "https, 403"})
     void it_should_analyze_cloud_snippets_with_caller_credentials(String transport, int profileStatus, @TempDir Path storage) throws Exception {
@@ -188,6 +219,7 @@ class SonarQubeMcpServerHttpTest {
       try (var client = HttpClient.newBuilder().sslContext(SslTestUtils.trustAllSslContext()).build()) {
         server.start();
         server.waitForInitialization();
+        assertThat(mock.countRequestsContaining("/plugins/php/versions/")).isEqualTo(1);
         assertThat(Files.mismatch(plugin, storage.resolve("plugins").resolve(plugin.getFileName()))).isEqualTo(-1);
         assertThat(mock.getReceivedRequests()).extracting(ReceivedRequest::authorizationHeader).containsOnlyNulls();
         var request = HttpRequest.newBuilder(URI.create(server.getHttpServerUrl().replace("127.0.0.1", "localhost")))
