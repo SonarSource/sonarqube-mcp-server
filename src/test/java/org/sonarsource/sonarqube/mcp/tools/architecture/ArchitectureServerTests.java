@@ -42,11 +42,11 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 class ArchitectureServerTests {
   private static final String LOOKUP = "/api/v2/components/projects?keys=my_project&pageSize=1";
   private static final String DIRECTIVES = "/api/v2/architecture/project-directives";
-  private static final String INTENDED = "/api/v2/architecture/intended-architectures";
+  private static final String INTENDED = "/api/v2/architecture/project-intended-architectures";
   private static final String ID = "00000000-0000-4000-8000-000000000001";
   private static final String INPUT = "{\"type\":\"REMOVE_EDGE\",\"ecosystem\":\"java\",\"graphType\":\"namespace_graph\",\"fromNodeKey\":\"app:a\",\"toNodeKey\":\"app:b\"}";
   private static final String MODEL = "[{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{\"label\":\"app\",\"patterns\":[\"app:**\"]}],\"constraints\":[]}]";
-  private static final String SAVED_MODEL = "{\"id\":\"" + ID + "\",\"intendedArchitectures\":" + MODEL.replace("\"type\"", "\"qualifiers\"") + "}";
+  private static final String SAVED_MODEL = "{\"id\":\"" + ID + "\",\"perspectives\":" + MODEL.replace("\"type\"", "\"qualifiers\"") + "}";
   @RegisterExtension
   final SonarQubeMcpServerTestHarness harness = new SonarQubeMcpServerTestHarness();
 
@@ -85,10 +85,10 @@ class ArchitectureServerTests {
   }
 
   @Test
-  void it_should_use_the_public_project_id_for_intended_preview_create_update_and_refuse_empty_replacement() {
+  void it_should_use_the_public_project_id_for_intended_writes_and_require_a_revision_for_full_clear() {
     lookup();
     var backend = harness.getMockSonarQubeServer();
-    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("Started").willReturn(okJson("{\"id\":null,\"intendedArchitectures\":[]}")));
+    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("Started").willReturn(okJson("{\"intendedArchitectures\":[]}")));
     var client = harness.newClient(Map.of());
     var args = new java.util.HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":" + MODEL + "}", "dryRun", true));
     var preview = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
@@ -97,7 +97,7 @@ class ArchitectureServerTests {
     assertThat(backend.countRequestsContaining("project_branches")).isEqualTo(1);
     assertThat(backend.getReceivedBodies("POST", INTENDED)).isEmpty();
     backend.stubFor(post(INTENDED).inScenario("model").willSetStateTo("created").willReturn(aResponse().withStatus(201).withBody(SAVED_MODEL)));
-    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("created").willReturn(okJson(SAVED_MODEL)));
+    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("created").willReturn(okJson("{\"intendedArchitectures\":[" + SAVED_MODEL + "]}")));
     args.put("dryRun", false);
     var created = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
     assertThat(created.isError()).isFalse();
@@ -105,7 +105,7 @@ class ArchitectureServerTests {
     assertThat(backend.countRequestsContaining("project_branches")).isEqualTo(2);
     assertThat(backend.getReceivedBodies("POST", INTENDED)).singleElement().asString().contains("opaque-project-id");
     backend.stubFor(patch(INTENDED + "/" + ID).inScenario("model").willSetStateTo("updated").willReturn(okJson(SAVED_MODEL.replace("app:**", "app:new:**"))));
-    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("updated").willReturn(okJson(SAVED_MODEL.replace("app:**", "app:new:**"))));
+    backend.stubFor(get(INTENDED + "?projectId=opaque-project-id").inScenario("model").whenScenarioStateIs("updated").willReturn(okJson("{\"intendedArchitectures\":[" + SAVED_MODEL.replace("app:**", "app:new:**") + "]}")));
     args.put("model", "{\"models\":" + MODEL.replace("app:**", "app:new:**") + "}");
     var updated = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
     assertThat(updated.isError()).isFalse();
@@ -114,6 +114,7 @@ class ArchitectureServerTests {
     args.put("model", "{\"models\":[]}");
     var clear = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
     assertThat(clear.isError()).isTrue();
+    assertThat(textOf(clear)).contains("Clearing the whole intended architecture needs the revision");
     assertThat(backend.getReceivedBodies("DELETE", INTENDED + "/" + ID)).isEmpty();
     assertThat(backend.countRequestsContaining("project_branches")).isEqualTo(3);
     assertThat(backend.getReceivedBodies("PATCH", INTENDED + "/" + ID)).singleElement().asString().contains("app:new:**");
@@ -183,7 +184,7 @@ class ArchitectureServerTests {
     var backend = harness.getMockSonarQubeServer();
     backend.stubFor(get("/api/v2/components/projects?keys=my%3Aproject&pageSize=1")
       .willReturn(okJson("{\"projects\":[{\"id\":\"opaque\",\"key\":\"my:project\"}],\"page\":{\"total\":1}}")));
-    backend.stubFor(get(INTENDED + "?projectId=opaque").willReturn(okJson("{\"id\":null,\"intendedArchitectures\":[]}")));
+    backend.stubFor(get(INTENDED + "?projectId=opaque").willReturn(okJson("{\"intendedArchitectures\":[]}")));
     assertThat(harness.newClient(Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "intended", "projectKey", "my:project")).isError()).isFalse();
   }

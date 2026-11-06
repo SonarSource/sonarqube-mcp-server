@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -68,10 +70,16 @@ final class ArchitectureFixtures {
     return "{ \"currentArchitectures\": " + graphs + " }";
   }
 
-  /** Wraps models the way {@code GET /architecture/intended-architectures} returns them. */
+  /** Public GET collection; the requested project has zero or one resource. */
   static String intendedArchitectures(String models) {
-    var array = com.google.gson.JsonParser.parseString(models).getAsJsonArray().deepCopy();
-    var response = new com.google.gson.JsonObject();
+    var array = JsonParser.parseString(models).getAsJsonArray();
+    return "{\"intendedArchitectures\":" + (array.isEmpty() ? "[]" : "[" + intendedResource(models) + "]") + "}";
+  }
+
+  /** Public POST/PATCH return the resource directly. */
+  static String intendedResource(String models) {
+    var array = JsonParser.parseString(models).getAsJsonArray().deepCopy();
+    var response = new JsonObject();
     for (var element : array) {
       var model = element.getAsJsonObject();
       if (model.has("id")) {
@@ -79,10 +87,10 @@ final class ArchitectureFixtures {
       }
       model.add("qualifiers", model.remove("type"));
     }
-    if (!array.isEmpty() && !response.has("id")) {
+    if (!response.has("id")) {
       response.addProperty("id", "11111111-1111-4111-8111-111111111111");
     }
-    response.add("intendedArchitectures", array);
+    response.add("perspectives", array);
     return response.toString();
   }
 
@@ -128,7 +136,7 @@ final class ArchitectureFixtures {
     harness.getMockSonarQubeServer().stubFor(get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project").willReturn(okJson("""
       { "branches": [
         { "name": "feature", "isMain": false, "type": "SHORT", "branchId": "other-branch-id" },
-        { "name": "main", "isMain": true, "type": "LONG", "branchId": "%s" }
+        { "name": "main", "isMain": true, "type": "LONG", "branchId": "%s", "analysisDate": "2026-01-01T00:00:00+0000" }
       ] }""".formatted(MAIN_BRANCH_ID))));
   }
 
