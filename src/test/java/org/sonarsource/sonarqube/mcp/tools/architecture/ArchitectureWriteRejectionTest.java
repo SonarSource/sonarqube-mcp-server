@@ -32,6 +32,7 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.INTENDED_JAVA_MODEL;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.MAIN_BRANCH_ID;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.intendedArchitectures;
+import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.intendedResource;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.stubMainBranch;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.textOf;
 
@@ -71,7 +72,7 @@ class ArchitectureWriteRejectionTest {
     var backend = harness.getMockSonarQubeServer();
     backend.stubFor(get(PATH).willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
     backend.stubFor(patch(MODEL_PATH).inScenario("saved").whenScenarioStateIs("Started")
-      .willSetStateTo("unreadable").willReturn(okJson(intendedArchitectures(next))));
+      .willSetStateTo("unreadable").willReturn(okJson(intendedResource(next))));
     backend.stubFor(get(PATH).inScenario("saved").whenScenarioStateIs("unreadable").willReturn(aResponse().withStatus(status)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "intended", "projectKey", "my_project", "model", next, "dryRun", false));

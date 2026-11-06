@@ -46,7 +46,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 public class ArchitectureApi {
 
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
-  public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
+  public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/project-intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
   public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
   public static final List<String> FINDING_CATEGORIES = List.of("deviation", "flaw", "smell");
@@ -55,6 +55,7 @@ public class ArchitectureApi {
   private static final String PROJECT_ID_PARAM = "projectId";
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
+  private static final String LANGUAGE_PARAM = "language";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
   public static final int MAX_PERSPECTIVES = 50;
@@ -68,6 +69,12 @@ public class ArchitectureApi {
     + "HTTP 403 alone does not establish which check failed";
   private static final String PLAN_HINT = "Architecture is available on SonarQube Cloud Team and Enterprise plans, "
     + "and on SonarQube Server editions that include it";
+
+  private static final String API_RESPONSE_ERROR = "The Architecture API returned an unexpected response.";
+
+  private static IllegalStateException unexpectedResponse(String message) {
+    return new IllegalStateException(message + " " + API_RESPONSE_ERROR);
+  }
 
   private final ServerApiHelper helper;
   private final Gson gson = new Gson();
@@ -83,7 +90,7 @@ public class ArchitectureApi {
     var path = new UrlBuilder(CURRENT_ARCHITECTURES_PATH)
       .addParam("organizationId", organizationId)
       .addParam("branchId", branchId)
-      .addParam("language", language)
+      .addParam(LANGUAGE_PARAM, language)
       .build();
     CurrentArchitectures response;
     try {
@@ -106,25 +113,39 @@ public class ArchitectureApi {
    * Returns all publicly exported intended perspectives, or an empty list when none is visible.
    */
   public List<IntendedArchitecture> getIntended(String projectKey, String projectId) {
-    var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH)
-      .addParam(PROJECT_ID_PARAM, projectId)
-      .build();
-    var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
-    if (response == null || response.intendedArchitectures() == null) {
-      throw new IllegalStateException("The public architecture API did not return intendedArchitectures. No complete model was read.");
-    }
-    return exportedModels(response);
+    return getIntendedState(projectKey, projectId).models();
   }
 
-  public List<IntendedArchitecture> createIntended(String projectKey, String projectId, List<IntendedArchitecture> models) {
+  public IntendedState getIntendedState(String projectKey, String projectId) {
+    var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH).addParam(PROJECT_ID_PARAM, projectId).build();
+    var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
+    if (response == null || response.intendedArchitectures() == null || response.intendedArchitectures().size() > 1) {
+      throw incompleteModel();
+    }
+    return response.intendedArchitectures().isEmpty() ? new IntendedState(null, List.of()) : exportedResource(response.intendedArchitectures().getFirst());
+  }
+
+  public IntendedState createIntended(String projectKey, String projectId, List<IntendedArchitecture> models) {
     var body = gson.toJson(new CreateModels(projectId, publicModels(models)));
     return write(projectKey, () -> writeModels(INTENDED_ARCHITECTURES_PATH, body, false));
   }
 
-  public List<IntendedArchitecture> patchIntended(String projectKey, String id, List<IntendedArchitecture> models) {
+  public IntendedState patchIntended(String projectKey, String id, List<IntendedArchitecture> models) {
     var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
     var body = gson.toJson(new PatchModels(publicModels(models)));
     return write(projectKey, () -> writeModels(path, body, true));
+  }
+
+  public void deleteIntended(String projectKey, String id) {
+    var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
+    write(projectKey, () -> {
+      try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path) : helper.delete(SERVER_API_PREFIX + path)) {
+        if (response.code() != 204) {
+          throw unexpectedResponse("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
+        }
+      }
+      return null;
+    });
   }
 
   private static List<PublicIntendedModel> publicModels(List<IntendedArchitecture> models) {
@@ -141,14 +162,12 @@ public class ArchitectureApi {
     }
   }
 
-  private List<IntendedArchitecture> writeModels(String path, String body, boolean patch) {
-    try (var response = request(path, body, patch)) {
-      var result = gson.fromJson(response.bodyAsString(), IntendedArchitectures.class);
-      if (result == null || result.intendedArchitectures() == null || result.intendedArchitectures().isEmpty()) {
-        throw new IllegalStateException("The public architecture API did not return the written intendedArchitectures.");
-      }
-      return exportedModels(result);
+  private IntendedState writeModels(String path, String body, boolean patch) {
+    var result = fromJson(request(path, body, patch), IntendedResource.class);
+    if (result == null || result.perspectives() == null || result.perspectives().isEmpty()) {
+      throw unexpectedResponse("The public architecture API did not return the written intended perspectives.");
     }
+    return exportedResource(result);
   }
 
   private HttpClient.Response request(String path, String body, boolean patch) {
@@ -187,13 +206,13 @@ public class ArchitectureApi {
   }
 
   private static IllegalStateException incompleteModel() {
-    return new IllegalStateException("The public architecture API returned an incomplete intended architecture. No complete model was read.");
+    return unexpectedResponse("The public architecture API returned an incomplete intended architecture. No complete model was read.");
   }
 
-  private record CreateModels(String projectId, List<PublicIntendedModel> intendedArchitectures) {
+  private record CreateModels(String projectId, List<PublicIntendedModel> perspectives) {
   }
 
-  private record PatchModels(List<PublicIntendedModel> intendedArchitectures) {
+  private record PatchModels(List<PublicIntendedModel> perspectives) {
   }
 
   private record PublicIntendedModel(String qualifiers, String language, @Nullable String label, @Nullable String description, List<IntendedArchitecture.Group> groups,
@@ -204,7 +223,12 @@ public class ArchitectureApi {
     try {
       return request.get();
     } catch (ForbiddenException e) {
-      throw new ForbiddenException("a refusal to read the architecture of project '" + projectKey + "': " + reason(e) + ". " + READ_HINT + ". " + PLAN_HINT);
+      var gatewayHint = reason(e).contains("Invalid key=value pair") && reason(e).contains("Authorization header")
+        ? ". This gateway response can also mean the Architecture endpoint is unavailable on the deployment; check endpoint availability and gateway routing" : "";
+      var failure = new ForbiddenException("a refusal to read the architecture of project '" + projectKey + "': " + reason(e)
+        + ". " + READ_HINT + ". " + PLAN_HINT + gatewayHint);
+      failure.initCause(e);
+      throw failure;
     }
   }
 
@@ -215,8 +239,9 @@ public class ArchitectureApi {
       if (helper.isSonarQubeCloud()) {
         throw e;
       }
-      throw new NotFoundException(reason(e) + ". Check the project and Browse permission. "
-        + "On older Server versions, use a Server build that exposes the public Architecture APIs");
+      var failure = new NotFoundException(reason(e) + ". Check the project and Browse permission, public Architecture endpoint availability and gateway routing");
+      failure.initCause(e);
+      throw failure;
     }
   }
 
@@ -321,7 +346,7 @@ public class ArchitectureApi {
 
   private static void validateDirectiveResource(@Nullable ProjectDirective directive, String projectId, String id) {
     if (directive == null) {
-      throw new IllegalStateException("The public directive response is empty.");
+      throw unexpectedResponse("The public directive response is empty.");
     }
     directive.validateStored();
     if (!projectId.equals(directive.projectId()) || !id.equalsIgnoreCase(directive.id())) {
@@ -335,9 +360,9 @@ public class ArchitectureApi {
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
     validateFindingPage(pageIndex, pageSize);
     var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
-      .addParam("category", filters.category()).addParam("type", filters.type()).addParam("language", filters.language())
+      .addParam("category", filters.category()).addParam("type", filters.type()).addParam(LANGUAGE_PARAM, filters.language())
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
-    var response = read(projectKey, () -> findingsJson(get(path)));
+    var response = read(projectKey, () -> findingsJson(get(path), pageSize, filters));
     if (response == null || response.findings() == null || response.page() == null
       || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
       || response.page().total() == null || response.page().total() < 0 || response.findings().size() > pageSize) {
@@ -350,11 +375,21 @@ public class ArchitectureApi {
   }
 
   @Nullable
-  private FindingPage findingsJson(HttpClient.Response response) {
+  private FindingPage findingsJson(HttpClient.Response response, int pageSize, FindingFilters filters) {
     try {
       var page = fromJson(response, RawFindingPage.class);
-      return page == null || page.findings() == null ? null
-        : new FindingPage(page.findings().stream().map(ProjectFinding::parse).toList(), findingPageInfo(page.page()));
+      if (page == null || page.findings() == null) {
+        return null;
+      }
+      if (page.findings().size() > pageSize) {
+        throw new IllegalStateException("Invalid public findings page.");
+      }
+      if (page.findings().stream().anyMatch(row -> !filters.matchesRaw(row))) {
+        throw unexpectedResponse("The public findings response does not match the requested filters.");
+      }
+      var findings = page.findings().stream().map(ProjectFinding::parse).filter(Objects::nonNull).toList();
+      var skipped = page.findings().size() - findings.size();
+      return new FindingPage(findings, findingPageInfo(page.page()), skipped == 0 ? null : skipped);
     } catch (JsonParseException e) {
       throw new IllegalStateException("Invalid public findings response.", e);
     }
@@ -389,13 +424,34 @@ public class ArchitectureApi {
   }
 
   public record FindingFilters(@Nullable String category, @Nullable String type, @Nullable String language) {
+    public FindingFilters {
+      if (type != null && category != null && !ProjectFinding.categoryOf(type).equals(category)) {
+        throw new IllegalArgumentException("Finding type " + type + " belongs to category " + ProjectFinding.categoryOf(type) + ", not " + category + ".");
+      }
+    }
+
+    private boolean matchesRaw(@Nullable JsonElement finding) {
+      if (category == null && type == null && language == null) {
+        return true;
+      }
+      if (finding == null || !finding.isJsonObject()) {
+        return false;
+      }
+      var row = finding.getAsJsonObject();
+      return matchesRawField(row.get("category"), category) && matchesRawField(row.get("type"), type) && matchesRawField(row.get(LANGUAGE_PARAM), language);
+    }
+
+    private static boolean matchesRawField(@Nullable JsonElement field, @Nullable String filter) {
+      return filter == null || (field != null && field.isJsonPrimitive() && field.getAsJsonPrimitive().isString() && filter.equals(field.getAsString()));
+    }
+
     private boolean matches(ProjectFinding finding) {
       return (category == null || category.equals(finding.category())) && (type == null || type.equals(finding.type()))
         && (language == null || language.equals(finding.language()));
     }
   }
 
-  public record FindingPage(List<ProjectFinding> findings, DirectivePageInfo page) {
+  public record FindingPage(List<ProjectFinding> findings, DirectivePageInfo page, @Nullable Integer skippedFindings) {
   }
 
   public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
@@ -413,36 +469,44 @@ public class ArchitectureApi {
   private <T> T fromJson(HttpClient.Response toBeClosed, Class<T> type) {
     try (var response = toBeClosed) {
       return gson.fromJson(response.bodyAsString(), type);
+    } catch (JsonParseException invalid) {
+      throw new IllegalStateException("Invalid public architecture response. " + API_RESPONSE_ERROR, invalid);
     }
   }
 
   private record CurrentArchitectures(@Nullable List<StructureGraph> currentArchitectures) {
   }
 
-  private static List<IntendedArchitecture> exportedModels(IntendedArchitectures response) {
-    if (!response.intendedArchitectures().isEmpty()) {
-      try {
-        if (response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())) {
-          throw incompleteModel();
-        }
-      } catch (IllegalArgumentException e) {
+  private static IntendedState exportedResource(@Nullable IntendedResource response) {
+    try {
+      if (response == null || response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())
+        || response.perspectives() == null || response.perspectives().size() > MAX_PERSPECTIVES) {
         throw incompleteModel();
       }
+    } catch (IllegalArgumentException invalid) {
+      throw incompleteModel();
     }
-    return validateModels(response.intendedArchitectures().stream().map(model -> {
-      if (model == null) {
+    var identities = new HashSet<String>();
+    var models = validateModels(response.perspectives().stream().map(model -> {
+      if (model == null || !identities.add(model.qualifiers() + "/" + model.language())) {
         throw incompleteModel();
       }
-      return new IntendedArchitecture(response.id(), model.qualifiers(), model.language(),
-      model.groups(), model.constraints(), model.label(), model.description());
+      return new IntendedArchitecture(response.id(), model.qualifiers(), model.language(), model.groups(), model.constraints(), model.label(), model.description());
     }).toList());
+    return new IntendedState(response.id(), models);
+  }
+
+  public record IntendedState(@Nullable String id, List<IntendedArchitecture> models) {
   }
 
   private record PublicIntendedExport(String qualifiers, String language, List<IntendedArchitecture.Group> groups,
     List<IntendedArchitecture.Constraint> constraints, @Nullable String label, @Nullable String description) {
   }
 
-  private record IntendedArchitectures(@Nullable String id, @Nullable List<PublicIntendedExport> intendedArchitectures) {
+  private record IntendedResource(@Nullable String id, @Nullable List<PublicIntendedExport> perspectives) {
+  }
+
+  private record IntendedArchitectures(@Nullable List<IntendedResource> intendedArchitectures) {
   }
 
 }

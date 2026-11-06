@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -167,22 +168,46 @@ public class ArchitectureGetTool extends Tool {
     ArchitectureApi.validateFindingPage(pageIndex, pageSize);
     var category = arguments.getOptionalEnumValue(CATEGORY_PROPERTY, CATEGORIES);
     var type = arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new));
+    var filters = new ArchitectureApi.FindingFilters(category, type, language);
     var organizationId = ArchitectureProjectContext.organizationId(serverApi);
-    var branchId = ArchitectureProjectContext.mainBranchId(serverApi, projectKey);
-    var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, new ArchitectureApi.FindingFilters(category, type, language), pageIndex, pageSize);
-    return Result.success(new FindingsView(projectKey, page.findings(), page.page(), findingPageMessage(page)));
+    var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
+    var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, filters, pageIndex, pageSize);
+    return Result.success(new FindingsView(projectKey, page.findings(), page.page(), findingPageMessage(page, filters), page.skippedFindings()));
   }
 
   @Nullable
-  private static String findingPageMessage(ArchitectureApi.FindingPage page) {
-    if (!page.findings().isEmpty()) {
-      return null;
+  private static String findingPageMessage(ArchitectureApi.FindingPage page, ArchitectureApi.FindingFilters filters) {
+    var messages = new ArrayList<String>();
+    if (page.skippedFindings() != null) {
+      messages.add("Skipped %d finding(s) with unsupported type, language or reason; backend total is unchanged.".formatted(page.skippedFindings()));
     }
     if (page.page().total() == 0) {
-      return "No findings are visible. Check project access and whether the project has been analyzed.";
+      var activeFilters = activeFindingFilters(filters);
+      messages.add(activeFilters.isEmpty() ? "No findings are visible. Check project access and whether the project has been analyzed."
+        : ("No findings match " + String.join(", ", activeFilters) + "."));
+    } else if (page.page().pageSize() > 0) {
+      var last = (int) Math.ceil((double) page.page().total() / page.page().pageSize());
+      if (page.page().pageIndex() > last) {
+        messages.add("Requested page %d is past the last page (%d). Use pageIndex=%d.".formatted(page.page().pageIndex(), last, last));
+      } else if (page.findings().isEmpty() && page.skippedFindings() == null) {
+        messages.add("No findings on page %d; total is %d.".formatted(page.page().pageIndex(), page.page().total()));
+      }
     }
-    return page.page().pageSize() == 0 ? null
-      : "No findings on page %d; total is %d.".formatted(page.page().pageIndex(), page.page().total());
+    return messages.isEmpty() ? null : String.join(" ", messages);
+  }
+
+  private static List<String> activeFindingFilters(ArchitectureApi.FindingFilters filters) {
+    var activeFilters = new ArrayList<String>();
+    if (filters.category() != null) {
+      activeFilters.add("category=" + filters.category());
+    }
+    if (filters.type() != null) {
+      activeFilters.add("type=" + filters.type());
+    }
+    if (filters.language() != null) {
+      activeFilters.add("language=" + filters.language());
+    }
+    return activeFilters;
   }
 
   private static void validateDirectivePage(@Nullable Integer pageIndex, @Nullable Integer pageSize) {
@@ -201,7 +226,8 @@ public class ArchitectureGetTool extends Tool {
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
+  private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,
+    @Nullable String message, @Nullable Integer skippedFindings) {
   }
 
   private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
