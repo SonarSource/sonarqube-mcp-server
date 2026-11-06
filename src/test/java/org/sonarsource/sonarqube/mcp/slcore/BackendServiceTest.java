@@ -20,22 +20,16 @@ import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
-import org.sonarsource.sonarlint.core.rpc.protocol.backend.config.ConfigurationRpcService;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.initialize.InitializeParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -59,39 +53,9 @@ class BackendServiceTest {
     mockServer = mock(SonarLintRpcServer.class);
     when(mockLauncher.getServerProxy()).thenReturn(mockServer);
     when(mockServer.initialize(any())).thenReturn(CompletableFuture.completedFuture(null));
-    var configuration = mock(ConfigurationRpcService.class);
-    when(mockServer.getConfigurationService()).thenReturn(configuration);
     when(mockServer.shutdown()).thenReturn(CompletableFuture.completedFuture(null));
     
     backendService = new BackendService(mockLauncher, tempDir, "1.0", "TestApp");
-  }
-
-  @Test
-  void it_should_register_configuration_scope_before_initialization_returns() throws Exception {
-    var configuration = mock(ConfigurationRpcService.class);
-    when(mockServer.getConfigurationService()).thenReturn(configuration);
-    var scopeRegistrationStarted = new CountDownLatch(1);
-    var releaseScopeRegistration = new CountDownLatch(1);
-    doAnswer(invocation -> {
-      scopeRegistrationStarted.countDown();
-      if (!releaseScopeRegistration.await(5, TimeUnit.SECONDS)) {
-        throw new IllegalStateException("Scope registration was not released");
-      }
-      return null;
-    }).when(configuration).didAddConfigurationScopes(any());
-
-    try (var caller = Executors.newSingleThreadExecutor()) {
-      try {
-        var initialization = caller.submit(() -> backendService.initialize(
-          new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class))));
-        assertThat(scopeRegistrationStarted.await(5, TimeUnit.SECONDS)).isTrue();
-        assertThatThrownBy(() -> initialization.get(250, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
-        releaseScopeRegistration.countDown();
-        initialization.get(5, TimeUnit.SECONDS);
-      } finally {
-        releaseScopeRegistration.countDown();
-      }
-    }
   }
 
   @Test
