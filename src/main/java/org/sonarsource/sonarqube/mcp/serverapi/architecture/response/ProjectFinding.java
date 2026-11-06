@@ -24,6 +24,9 @@ import java.util.stream.StreamSupport;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 
 public record ProjectFinding(String type, String category, String language, Details details, List<String> files) {
+  private static final String STRUCTURAL_DEVIATION = "structuralDeviation";
+  private static final String RELATIONSHIP_DEVIATION = "relationshipDeviation";
+
   public sealed interface Details permits StructuralDetails, RelationshipDetails, TangleDetails, ComponentDetails {
   }
 
@@ -39,31 +42,51 @@ public record ProjectFinding(String type, String category, String language, Deta
   public record ComponentDetails(String nodeKey, @Nullable Integer leafArtifactCount, @Nullable Integer fragmentCount) implements Details {
   }
 
+  @Nullable
   public static ProjectFinding parse(JsonElement value) {
     var row = objectValue(value);
     var type = stringValue(row.get("type"));
-    var category = stringValue(row.get("category"));
-    var language = stringValue(row.get("language"));
-    if (!ArchitectureApi.FINDING_TYPES.contains(type) || !ArchitectureApi.LANGUAGES.contains(language) || !expectedCategory(type).equals(category)) {
-      throw new IllegalStateException("Invalid public finding type, category or language.");
+    if (type.isBlank()) {
+      throw new IllegalStateException("Invalid public finding type.");
     }
-    return new ProjectFinding(type, category, language, parseDetails(type, objectValue(row.get("details"))), strings(row.get("files")));
+    if (!ArchitectureApi.FINDING_TYPES.contains(type)) {
+      return null;
+    }
+    var category = stringValue(row.get("category"));
+    if (!categoryOf(type).equals(category)) {
+      throw new IllegalStateException("Invalid public finding category.");
+    }
+    var language = stringValue(row.get("language"));
+    if (language.isBlank()) {
+      throw new IllegalStateException("Invalid public finding language.");
+    }
+    if (!ArchitectureApi.LANGUAGES.contains(language)) {
+      return null;
+    }
+    var details = objectValue(row.get("details"));
+    if (type.equals(STRUCTURAL_DEVIATION) || type.equals(RELATIONSHIP_DEVIATION)) {
+      var reason = stringValue(details.get("reason"));
+      if (!reason.isBlank() && !List.of("misplacedComponent", "unimplementedComponent", "disallowedDependency", "interfaceViolation").contains(reason)) {
+        return null;
+      }
+    }
+    return new ProjectFinding(type, category, language, parseDetails(type, details), strings(row.get("files")));
   }
 
   private static Details parseDetails(String type, JsonObject details) {
     return switch (type) {
-      case "structuralDeviation" -> new StructuralDetails(reason(details, List.of("misplacedComponent", "unimplementedComponent")),
+      case STRUCTURAL_DEVIATION -> new StructuralDetails(reason(details, List.of("misplacedComponent", "unimplementedComponent")),
         stringValue(details.get("nodeKey")), optionalCount(details, "misplacedComponentCount"));
-      case "relationshipDeviation" -> new RelationshipDetails(reason(details, List.of("disallowedDependency", "interfaceViolation")),
+      case RELATIONSHIP_DEVIATION -> new RelationshipDetails(reason(details, List.of("disallowedDependency", "interfaceViolation")),
         stringValue(details.get("fromNodeKey")), stringValue(details.get("toNodeKey")), optionalCount(details, "dependencyCount"));
       case "tangle", "weakTangle" -> new TangleDetails(strings(details.get("nodeKeys")), count(details.get("nodeCount")));
       default -> new ComponentDetails(stringValue(details.get("nodeKey")), optionalCount(details, "leafArtifactCount"), optionalCount(details, "fragmentCount"));
     };
   }
 
-  private static String expectedCategory(String type) {
+  public static String categoryOf(String type) {
     return switch (type) {
-      case "structuralDeviation", "relationshipDeviation" -> "deviation";
+      case STRUCTURAL_DEVIATION, RELATIONSHIP_DEVIATION -> "deviation";
       case "tangle", "oversizedComponent" -> "flaw";
       default -> "smell";
     };
