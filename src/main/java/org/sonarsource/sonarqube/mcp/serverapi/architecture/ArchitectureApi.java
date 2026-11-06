@@ -337,7 +337,7 @@ public class ArchitectureApi {
     var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
       .addParam("category", filters.category()).addParam("type", filters.type()).addParam("language", filters.language())
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
-    var response = read(projectKey, () -> findingsJson(get(path)));
+    var response = read(projectKey, () -> findingsJson(get(path), pageSize, filters));
     if (response == null || response.findings() == null || response.page() == null
       || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
       || response.page().total() == null || response.page().total() < 0 || response.findings().size() > pageSize) {
@@ -350,11 +350,21 @@ public class ArchitectureApi {
   }
 
   @Nullable
-  private FindingPage findingsJson(HttpClient.Response response) {
+  private FindingPage findingsJson(HttpClient.Response response, int pageSize, FindingFilters filters) {
     try {
       var page = fromJson(response, RawFindingPage.class);
-      return page == null || page.findings() == null ? null
-        : new FindingPage(page.findings().stream().map(ProjectFinding::parse).toList(), findingPageInfo(page.page()));
+      if (page == null || page.findings() == null) {
+        return null;
+      }
+      if (page.findings().size() > pageSize) {
+        throw new IllegalStateException("Invalid public findings page.");
+      }
+      if (page.findings().stream().anyMatch(row -> !filters.matchesRaw(row))) {
+        throw new IllegalStateException("The public findings response does not match the requested filters.");
+      }
+      var findings = page.findings().stream().map(ProjectFinding::parse).filter(Objects::nonNull).toList();
+      var skipped = page.findings().size() - findings.size();
+      return new FindingPage(findings, findingPageInfo(page.page()), skipped == 0 ? null : skipped);
     } catch (JsonParseException e) {
       throw new IllegalStateException("Invalid public findings response.", e);
     }
@@ -389,13 +399,34 @@ public class ArchitectureApi {
   }
 
   public record FindingFilters(@Nullable String category, @Nullable String type, @Nullable String language) {
+    public FindingFilters {
+      if (type != null && category != null && !ProjectFinding.categoryOf(type).equals(category)) {
+        throw new IllegalArgumentException("Finding type " + type + " belongs to category " + ProjectFinding.categoryOf(type) + ", not " + category + ".");
+      }
+    }
+
+    private boolean matchesRaw(@Nullable JsonElement finding) {
+      if (category == null && type == null && language == null) {
+        return true;
+      }
+      if (finding == null || !finding.isJsonObject()) {
+        return false;
+      }
+      var row = finding.getAsJsonObject();
+      return matchesRawField(row.get("category"), category) && matchesRawField(row.get("type"), type) && matchesRawField(row.get("language"), language);
+    }
+
+    private static boolean matchesRawField(@Nullable JsonElement field, @Nullable String filter) {
+      return filter == null || (field != null && field.isJsonPrimitive() && field.getAsJsonPrimitive().isString() && filter.equals(field.getAsString()));
+    }
+
     private boolean matches(ProjectFinding finding) {
       return (category == null || category.equals(finding.category())) && (type == null || type.equals(finding.type()))
         && (language == null || language.equals(finding.language()));
     }
   }
 
-  public record FindingPage(List<ProjectFinding> findings, DirectivePageInfo page) {
+  public record FindingPage(List<ProjectFinding> findings, DirectivePageInfo page, @Nullable Integer skippedFindings) {
   }
 
   public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
