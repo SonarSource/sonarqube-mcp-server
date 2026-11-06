@@ -55,6 +55,7 @@ public class ArchitectureApi {
   private static final String PROJECT_ID_PARAM = "projectId";
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
+  private static final String LANGUAGE_PARAM = "language";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
   public static final int MAX_PERSPECTIVES = 50;
@@ -83,7 +84,7 @@ public class ArchitectureApi {
     var path = new UrlBuilder(CURRENT_ARCHITECTURES_PATH)
       .addParam("organizationId", organizationId)
       .addParam("branchId", branchId)
-      .addParam("language", language)
+      .addParam(LANGUAGE_PARAM, language)
       .build();
     CurrentArchitectures response;
     try {
@@ -335,7 +336,7 @@ public class ArchitectureApi {
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
     validateFindingPage(pageIndex, pageSize);
     var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
-      .addParam("category", filters.category()).addParam("type", filters.type()).addParam("language", filters.language())
+      .addParam("category", filters.category()).addParam("type", filters.type()).addParam(LANGUAGE_PARAM, filters.language())
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var response = read(projectKey, () -> findingsJson(get(path), pageSize, filters));
     if (response == null || response.findings() == null || response.page() == null
@@ -413,7 +414,7 @@ public class ArchitectureApi {
         return false;
       }
       var row = finding.getAsJsonObject();
-      return matchesRawField(row.get("category"), category) && matchesRawField(row.get("type"), type) && matchesRawField(row.get("language"), language);
+      return matchesRawField(row.get("category"), category) && matchesRawField(row.get("type"), type) && matchesRawField(row.get(LANGUAGE_PARAM), language);
     }
 
     private static boolean matchesRawField(@Nullable JsonElement field, @Nullable String filter) {
