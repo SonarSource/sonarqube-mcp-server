@@ -26,7 +26,11 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 
 public class ComponentsApi {
 
+  /** Resource route under the public Server v2 API. */
+  public static final String COMPONENTS_PROJECTS_PATH = "/components/projects";
   public static final String COMPONENTS_SEARCH_PATH = "/api/components/search";
+
+  private static final String API_V2_PREFIX = "/api/v2";
 
   private final ServerApiHelper helper;
 
@@ -54,7 +58,7 @@ public class ComponentsApi {
   }
 
   public String getProjectId(String projectKey) {
-    var path = new UrlBuilder("/api/v2/components/projects")
+    var path = new UrlBuilder(API_V2_PREFIX + COMPONENTS_PROJECTS_PATH)
       .addParam("keys", projectKey).addParam("pageSize", 1).build();
     try (var response = helper.get(path)) {
       var result = new Gson().fromJson(response.bodyAsString(), ProjectsResponse.class);
@@ -68,7 +72,7 @@ public class ComponentsApi {
       }
       return id;
     } catch (NotFoundException e) {
-      throw new IllegalStateException("This Server does not expose the public project lookup (GET /api/v2/components/projects). "
+      throw new IllegalStateException("This Server does not expose the public project lookup (GET " + API_V2_PREFIX + COMPONENTS_PROJECTS_PATH + "). "
         + "Use a Server build that provides this endpoint.", e);
     }
   }

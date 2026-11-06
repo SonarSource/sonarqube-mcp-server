@@ -1468,20 +1468,20 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server supports current architecture reads only.** See [architecture workflows and recovery](docs/architecture.md).
+**Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. On Server, intended architecture, directives and writes require an MCP build containing [#678](https://github.com/SonarSource/sonarqube-mcp-server/pull/678) and compatible public APIs; builds without it expose current reads only.** See [architecture workflows and recovery](docs/architecture.md).
 
 - **architecture_get** - Read current dependencies, intended architecture, or project directives.
-  - `target` - `current`, `intended` or `directives` on Cloud; `current` on Server - _Required Enum_
+  - `target` - `current`, `intended` or `directives`; availability depends on the MCP and Server build - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
   - `component` - Exact current node key or intended group path; top level when omitted - _String_
   - `depth` - Current/intended only: levels below the start; default 1 for current, all for intended - _Number_
   - `language` - Current/intended only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
-  - `directiveId` - Full directive by UUID, including description; use instead of paging - _String, Cloud only_
+  - `directiveId` - Full directive by UUID, including description; use instead of paging - _String_
   - `pageIndex` - Directives only: 1-based page index (default: 1) - _Number_
   - `pageSize` - Directives only: entries per page, descriptions omitted (default/maximum: 50) - _Number_
 
-- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available on Cloud when writes are enabled.
+- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available on supported Cloud and Server builds when writes are enabled.
   - `target` - `intended` or `directives` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
