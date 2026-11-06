@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
@@ -34,13 +35,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.harness.SslTestUtils;
+import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
+import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.rules.RulesApi;
@@ -145,55 +150,70 @@ class SonarQubeMcpServerHttpTest {
     assertThat(server.getMcpConfiguration().isHttpEnabled()).isFalse();
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"http", "https"})
-  @ExtendWith(SonarQubeMcpServerTestHarness.class)
-  void it_should_analyze_cloud_snippets_over_http(String transport, SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
-    var environment = createTestEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("STORAGE_PATH", storage.toString());
-    environment.put("SONARQUBE_IS_CLOUD", "true");
-    environment.put("SONARQUBE_TRANSPORT", transport);
-    environment.put("SONARQUBE_HTTP_PORT", "0");
-    if (transport.equals("https")) {
-      environment.put("SONARQUBE_HTTPS_KEYSTORE_PATH", Path.of(getClass().getResource("/ssl/test-keystore.p12").toURI()).toString());
-      environment.put("SONARQUBE_HTTPS_KEYSTORE_PASSWORD", "test123");
-    }
-    harness.withPlugins().prepareMockWebServer(environment);
-    var mock = harness.getMockSonarQubeServer();
-    var plugin = Path.of("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.58.0.16263.jar");
-    mock.stubFor(get(urlPathMatching(SonarCloudCdnPluginsApi.PLUGIN_DOWNLOAD_PATH.formatted("php", ".*")))
-      .willReturn(aResponse().withBody(Files.readAllBytes(plugin))));
-    mock.stubFor(get(urlPathEqualTo(QualityProfilesApi.SEARCH_PATH))
-      .withHeader("Authorization", equalTo("Bearer caller-token"))
-      .withQueryParam("organization", equalTo("selected-org"))
-      .withQueryParam("defaults", equalTo("true"))
-      .willReturn(okJson("{\"profiles\":[{\"key\":\"selected-profile\"}]}")));
-    mock.stubFor(get(urlPathEqualTo(RulesApi.SEARCH_PATH))
-      .withHeader("Authorization", equalTo("Bearer caller-token"))
-      .withQueryParam("organization", equalTo("selected-org"))
-      .withQueryParam("qprofile", equalTo("selected-profile"))
-      .willReturn(okJson("{\"actives\":{\"php:S1135\":[{\"params\":[]}]}}")));
-    var server = new SonarQubeMcpServer(environment);
-    try (var client = HttpClient.newBuilder().sslContext(SslTestUtils.trustAllSslContext()).build()) {
-      server.start();
-      server.waitForInitialization();
-      var request = HttpRequest.newBuilder(URI.create(server.getHttpServerUrl().replace("127.0.0.1", "localhost")))
-        .header("Authorization", "Bearer caller-token")
-        .header("Content-Type", "application/json")
-        .header("Accept", "application/json, text/event-stream")
-        .POST(HttpRequest.BodyPublishers.ofString(new Gson().toJson(Map.of("jsonrpc", "2.0", "id", 1, "method", "tools/call", "params",
-          Map.of("name", AnalyzeCodeSnippetTool.TOOL_NAME, "arguments",
-            Map.of("organization", "selected-org", "language", "php", "fileContent", "<?php\n// TODO implement this\n"))))))
-        .build();
+  @Nested
+  class CloudSnippetAnalysis {
 
-      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    @RegisterExtension
+    final SonarQubeMcpServerTestHarness harness = new SonarQubeMcpServerTestHarness();
 
-      assertThat(response.statusCode()).isEqualTo(200);
-      var result = JsonParser.parseString(response.body()).getAsJsonObject().getAsJsonObject("result");
-      assertThat(result.get("isError").getAsBoolean()).isFalse();
-      assertThat(result.toString()).contains("php:S1135");
-    } finally {
-      server.shutdown();
+    @ParameterizedTest
+    @CsvSource({"http, 200", "https, 200", "http, 403", "https, 403"})
+    void it_should_analyze_cloud_snippets_with_caller_credentials(String transport, int profileStatus, @TempDir Path storage) throws Exception {
+      var environment = createTestEnvironment(harness.getMockSonarQubeServer().baseUrl());
+      environment.put("STORAGE_PATH", storage.toString());
+      environment.put("SONARQUBE_IS_CLOUD", "true");
+      environment.put("SONARQUBE_TRANSPORT", transport);
+      environment.put("SONARQUBE_HTTP_PORT", "0");
+      if (transport.equals("https")) {
+        environment.put("SONARQUBE_HTTPS_KEYSTORE_PATH", Path.of(getClass().getResource("/ssl/test-keystore.p12").toURI()).toString());
+        environment.put("SONARQUBE_HTTPS_KEYSTORE_PASSWORD", "test123");
+      }
+      harness.withPlugins().prepareMockWebServer(environment);
+      var mock = harness.getMockSonarQubeServer();
+      var plugin = Path.of("build/sonarqube-mcp-server/plugins/sonar-php-plugin-3.58.0.16263.jar");
+      mock.stubFor(get(urlPathMatching(SonarCloudCdnPluginsApi.PLUGIN_DOWNLOAD_PATH.formatted("php", ".*")))
+        .withHeader("Authorization", absent())
+        .willReturn(aResponse().withBody(Files.readAllBytes(plugin))));
+      mock.stubFor(get(urlPathEqualTo(QualityProfilesApi.SEARCH_PATH))
+        .withHeader("Authorization", equalTo("Bearer caller-token"))
+        .withQueryParam("organization", equalTo("selected-org"))
+        .withQueryParam("defaults", equalTo("true"))
+        .willReturn(aResponse().withStatus(profileStatus).withBody("{\"profiles\":[{\"key\":\"selected-profile\"}]}")));
+      mock.stubFor(get(urlPathEqualTo(RulesApi.SEARCH_PATH))
+        .withHeader("Authorization", equalTo("Bearer caller-token"))
+        .withQueryParam("organization", equalTo("selected-org"))
+        .withQueryParam("qprofile", equalTo("selected-profile"))
+        .willReturn(okJson("{\"actives\":{\"php:S1135\":[{\"params\":[]}]}}")));
+      var server = new SonarQubeMcpServer(environment);
+      try (var client = HttpClient.newBuilder().sslContext(SslTestUtils.trustAllSslContext()).build()) {
+        server.start();
+        server.waitForInitialization();
+        assertThat(mock.getReceivedRequests()).extracting(ReceivedRequest::authorizationHeader).containsOnlyNulls();
+        var request = HttpRequest.newBuilder(URI.create(server.getHttpServerUrl().replace("127.0.0.1", "localhost")))
+          .header("Authorization", "Bearer caller-token")
+          .header("Content-Type", "application/json")
+          .header("Accept", "application/json, text/event-stream")
+          .POST(HttpRequest.BodyPublishers.ofString(new Gson().toJson(Map.of("jsonrpc", "2.0", "id", 1, "method", "tools/call", "params",
+            Map.of("name", AnalyzeCodeSnippetTool.TOOL_NAME, "arguments",
+              Map.of("organization", "selected-org", "language", "php", "fileContent", "<?php\n// TODO implement this\n"))))))
+          .build();
+
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        var result = JsonParser.parseString(response.body()).getAsJsonObject().getAsJsonObject("result");
+        assertThat(result.get("isError").getAsBoolean()).isEqualTo(profileStatus == 403);
+        if (profileStatus == 200) {
+          assertThat(result.toString()).contains("php:S1135");
+        }
+        assertThat(mock.countRequestsContaining(QualityProfilesApi.SEARCH_PATH)).isEqualTo(1);
+        assertThat(mock.getReceivedRequests()).extracting(ReceivedRequest::authorizationHeader).doesNotContain("Bearer test-token");
+        assertThat(mock.countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH)).isZero();
+        assertThat(mock.countRequestsContaining(A3sAnalysisApi.A3S_ORG_CONFIG_PATH)).isZero();
+        assertThat(mock.countRequestsContaining(A3sAnalysisApi.ANALYSES_PATH)).isZero();
+      } finally {
+        server.shutdown();
+      }
     }
   }
 
