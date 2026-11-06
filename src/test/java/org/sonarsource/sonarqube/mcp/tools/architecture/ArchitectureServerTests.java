@@ -81,7 +81,7 @@ class ArchitectureServerTests {
     assertThatThrownBy(() -> api.getIntended("my_project", "project-id"))
       .isInstanceOf(NotFoundException.class)
       .hasMessageContaining("Project model is unavailable")
-      .hasMessageContaining("public Architecture APIs");
+      .hasMessageContaining("public Architecture endpoint availability");
   }
 
   @Test
@@ -234,7 +234,8 @@ class ArchitectureServerTests {
     var result = harness.newClient(Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", target, "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("older Server versions", "public Architecture APIs", "Browse permission").doesNotContain("..", "directive id");
+    assertThat(textOf(result)).contains("404", "public Architecture endpoint availability", "Browse permission", "gateway routing")
+      .doesNotContain("..", "directive id", "older Server", "Update the MCP server");
   }
 
   @ParameterizedTest
