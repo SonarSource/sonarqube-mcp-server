@@ -117,7 +117,7 @@ public class ArchitectureSetTool extends Tool {
     warnings.add(ArchitectureApi.EXPORT_WARNING);
     if (clearingStoredResource) {
       warnings.add("The stored intended architecture resource will be deleted when this change is applied. "
-        + "Applying this clear requires the revision from an unfiltered " + ArchitectureGetTool.TOOL_NAME + " response with target intended.");
+        + "Applying this clear requires the revision from " + ArchitectureGetTool.TOOL_NAME + " response with target intended.");
     }
     warnings.add("The public API has no conditional write; concurrent edits can race the revision check.");
     if (revision == null) {

@@ -50,7 +50,7 @@ class ArchitectureIntendedDeleteStatusTests {
   void it_should_explain_unexpected_successful_delete_status_without_confirming_clear(int status, boolean hidden) {
     var result = clearWithStatus(status, hidden);
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("could not be confirmed", "No automatic rollback", "supported public Architecture API contract");
+    assertThat(textOf(result)).contains("could not be confirmed", "No automatic rollback", "The Architecture API returned an unexpected response.");
   }
 
   @ParameterizedTest
@@ -63,7 +63,7 @@ class ArchitectureIntendedDeleteStatusTests {
       case 403 -> "Forbidden";
       default -> "Error 500";
     };
-    assertThat(textOf(result)).contains(expected).doesNotContain("supported public Architecture API contract");
+    assertThat(textOf(result)).contains(expected).doesNotContain("The Architecture API returned an unexpected response.");
   }
 
   private McpSchema.CallToolResult clearWithStatus(int status, boolean hidden) {

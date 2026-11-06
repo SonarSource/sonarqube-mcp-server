@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.JsonParser;
 import java.util.List;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -106,13 +107,37 @@ class ArchitectureIntendedResourceTests {
     var preview = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", true));
     assertThat(preview.isError()).isFalse();
-    assertThat(textOf(preview)).contains("resource will be deleted", "Applying this clear requires the revision", "unfiltered architecture_get response with target intended");
+    assertThat(textOf(preview)).contains("resource will be deleted", "Applying this clear requires the revision", "architecture_get response with target intended");
     assertThat(backend.getReceivedBodies("DELETE", PATH)).isEmpty();
     var applied = client.callTool(ArchitectureSetTool.TOOL_NAME,
       Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false, "revision", IntendedRevision.of(List.of())));
     assertThat(applied.isError()).as(textOf(applied)).isFalse();
     assertThat(textOf(applied)).contains("cleared");
     assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).hasSize(1);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_accept_a_whole_model_revision_from_a_filtered_read_for_clear(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    backend.stubFor(get(READ).inScenario("filtered-clear").whenScenarioStateIs("Started")
+      .willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
+    backend.stubFor(delete(PATH + "/" + ID).inScenario("filtered-clear").willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
+    backend.stubFor(get(READ).inScenario("filtered-clear").whenScenarioStateIs("deleted")
+      .willReturn(okJson("{\"intendedArchitectures\":[]}")));
+    var client = harness.newClient(CLOUD_ENV);
+    var read = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "language", "java", "depth", 1));
+    assertThat(read.isError()).isFalse();
+    var revision = JsonParser.parseString(textOf(read)).getAsJsonObject().get("revision").getAsString();
+    assertThat(revision).isEqualTo(IntendedRevision.of(IntendedModels.parse(INTENDED_JAVA_MODEL)));
+    var applied = client.callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model", "[]", "dryRun", false, "revision", revision));
+    assertThat(applied.isError()).as(textOf(applied)).isFalse();
+    assertThat(textOf(applied)).contains("cleared");
+    assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).hasSize(1);
+    assertThat(backend.getReceivedBodies("POST", PATH)).isEmpty();
+    assertThat(backend.getReceivedBodies("PATCH", PATH)).isEmpty();
   }
 
   @SonarQubeMcpServerTest

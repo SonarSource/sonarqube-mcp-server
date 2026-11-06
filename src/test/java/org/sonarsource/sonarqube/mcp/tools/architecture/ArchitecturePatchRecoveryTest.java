@@ -99,7 +99,7 @@ class ArchitecturePatchRecoveryTest {
       } else {
         assertThat(result.content().toString()).contains("No automatic rollback", "Previous exported model", SENTINEL);
         if (malformedBody) {
-          assertThat(result.content().toString()).contains("supported public Architecture API contract");
+          assertThat(result.content().toString()).contains("The Architecture API returned an unexpected response.");
         }
       }
       assertThat(stored.get()).isEqualTo(committed ? NEXT : PREVIOUS);

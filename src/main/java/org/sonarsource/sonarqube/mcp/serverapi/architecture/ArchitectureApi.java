@@ -55,6 +55,7 @@ public class ArchitectureApi {
   private static final String PROJECT_ID_PARAM = "projectId";
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
+  private static final String LANGUAGE_PARAM = "language";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
   public static final int MAX_PERSPECTIVES = 50;
@@ -69,11 +70,10 @@ public class ArchitectureApi {
   private static final String PLAN_HINT = "Architecture is available on SonarQube Cloud Team and Enterprise plans, "
     + "and on SonarQube Server editions that include it";
 
-  private static final String COMPATIBILITY_HINT = "The response does not match this MCP server's supported public Architecture API contract. "
-    + "Check that the MCP server and the connected SonarQube deployment support the same Architecture API.";
+  private static final String API_RESPONSE_ERROR = "The Architecture API returned an unexpected response.";
 
-  private static IllegalStateException incompatibleResponse(String message) {
-    return new IllegalStateException(message + " " + COMPATIBILITY_HINT);
+  private static IllegalStateException unexpectedResponse(String message) {
+    return new IllegalStateException(message + " " + API_RESPONSE_ERROR);
   }
 
   private final ServerApiHelper helper;
@@ -90,7 +90,7 @@ public class ArchitectureApi {
     var path = new UrlBuilder(CURRENT_ARCHITECTURES_PATH)
       .addParam("organizationId", organizationId)
       .addParam("branchId", branchId)
-      .addParam("language", language)
+      .addParam(LANGUAGE_PARAM, language)
       .build();
     CurrentArchitectures response;
     try {
@@ -141,7 +141,7 @@ public class ArchitectureApi {
     write(projectKey, () -> {
       try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path) : helper.delete(SERVER_API_PREFIX + path)) {
         if (response.code() != 204) {
-          throw incompatibleResponse("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
+          throw unexpectedResponse("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
         }
       }
       return null;
@@ -165,7 +165,7 @@ public class ArchitectureApi {
   private IntendedState writeModels(String path, String body, boolean patch) {
     var result = fromJson(request(path, body, patch), IntendedResource.class);
     if (result == null || result.perspectives() == null || result.perspectives().isEmpty()) {
-      throw incompatibleResponse("The public architecture API did not return the written intended perspectives.");
+      throw unexpectedResponse("The public architecture API did not return the written intended perspectives.");
     }
     return exportedResource(result);
   }
@@ -206,7 +206,7 @@ public class ArchitectureApi {
   }
 
   private static IllegalStateException incompleteModel() {
-    return incompatibleResponse("The public architecture API returned an incomplete intended architecture. No complete model was read.");
+    return unexpectedResponse("The public architecture API returned an incomplete intended architecture. No complete model was read.");
   }
 
   private record CreateModels(String projectId, List<PublicIntendedModel> perspectives) {
@@ -340,7 +340,7 @@ public class ArchitectureApi {
 
   private static void validateDirectiveResource(@Nullable ProjectDirective directive, String projectId, String id) {
     if (directive == null) {
-      throw new IllegalStateException("The public directive response is empty.");
+      throw unexpectedResponse("The public directive response is empty.");
     }
     directive.validateStored();
     if (!projectId.equals(directive.projectId()) || !id.equalsIgnoreCase(directive.id())) {
@@ -354,7 +354,7 @@ public class ArchitectureApi {
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
     validateFindingPage(pageIndex, pageSize);
     var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
-      .addParam("category", filters.category()).addParam("type", filters.type()).addParam("language", filters.language())
+      .addParam("category", filters.category()).addParam("type", filters.type()).addParam(LANGUAGE_PARAM, filters.language())
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var response = read(projectKey, () -> findingsJson(get(path), pageSize, filters));
     if (response == null || response.findings() == null || response.page() == null
@@ -379,7 +379,7 @@ public class ArchitectureApi {
         throw new IllegalStateException("Invalid public findings page.");
       }
       if (page.findings().stream().anyMatch(row -> !filters.matchesRaw(row))) {
-        throw incompatibleResponse("The public findings response does not match the requested filters.");
+        throw unexpectedResponse("The public findings response does not match the requested filters.");
       }
       var findings = page.findings().stream().map(ProjectFinding::parse).filter(Objects::nonNull).toList();
       var skipped = page.findings().size() - findings.size();
@@ -432,7 +432,7 @@ public class ArchitectureApi {
         return false;
       }
       var row = finding.getAsJsonObject();
-      return matchesRawField(row.get("category"), category) && matchesRawField(row.get("type"), type) && matchesRawField(row.get("language"), language);
+      return matchesRawField(row.get("category"), category) && matchesRawField(row.get("type"), type) && matchesRawField(row.get(LANGUAGE_PARAM), language);
     }
 
     private static boolean matchesRawField(@Nullable JsonElement field, @Nullable String filter) {
@@ -464,7 +464,7 @@ public class ArchitectureApi {
     try (var response = toBeClosed) {
       return gson.fromJson(response.bodyAsString(), type);
     } catch (JsonParseException invalid) {
-      throw new IllegalStateException("Invalid public architecture response. " + COMPATIBILITY_HINT, invalid);
+      throw new IllegalStateException("Invalid public architecture response. " + API_RESPONSE_ERROR, invalid);
     }
   }
 
