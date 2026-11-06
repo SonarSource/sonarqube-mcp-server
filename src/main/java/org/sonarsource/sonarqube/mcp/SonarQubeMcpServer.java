@@ -493,8 +493,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   private void loadAnalysisTools(boolean vortexAnalysisEnabled) {
-    if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isHttpEnabled()) {
-      LOG.debug("Cloud HTTP mode - skipping analysis tool registration");
+    if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null) {
+      LOG.debug("HTTP mode without a startup token - skipping analysis tool registration");
       return;
     }
     if (vortexAnalysisEnabled) {

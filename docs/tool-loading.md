@@ -84,9 +84,9 @@ All tools are registered at startup:
 - `analyze_file_list` - Uses IDE bridge (if available); also tagged under the `ide` toolset alongside `analysis`
 - Analysis works once analyzers are downloaded
 
-Cloud stdio registers either Vortex analysis (when the workspace is mounted and at least one accessible organization is entitled) or local analysis, preserving an explicitly configured IDE bridge. `SONARQUBE_FORCE_LOCAL_ANALYSIS=true` selects snippet analysis even for entitled organizations. Confirmed entitlements are cached for the session; the advanced tool still validates the selected organization.
+Cloud stdio registers either Vortex analysis (when the workspace is mounted and at least one accessible organization is entitled) or local analysis, preserving an explicitly configured IDE bridge. `SONARQUBE_FORCE_LOCAL_ANALYSIS=true` selects snippet analysis even for entitled organizations in Cloud stdio only. Confirmed entitlements are cached for the session; the advanced tool still validates the selected organization.
 
-Cloud HTTP/HTTPS registers no analysis tools and skips analyzer downloads. SonarQube Server HTTP/HTTPS retains local analysis and analyzer downloads when a startup token is provided.
+Cloud and Server HTTP/HTTPS register `analyze_code_snippet` and download analyzers when a startup `SONARQUBE_TOKEN` is provided and the `analysis` toolset is enabled. The startup token is required for analyzer initialization; Cloud plugin downloads remain anonymous, while Server downloads use the startup token. Analysis calls retrieve quality profiles and active rules with the caller’s credentials and, on Cloud, the organization selected for the request. No Vortex entitlement is required. Without a startup token or with the `analysis` toolset disabled, snippet analysis and analyzer downloads are unavailable. `SONARQUBE_FORCE_LOCAL_ANALYSIS` cannot bypass the startup token requirement.
 
 ## Backend Restart
 
