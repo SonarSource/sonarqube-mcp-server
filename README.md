@@ -583,9 +583,9 @@ Over stdio, analysis is selected at startup (subject to enabled toolsets):
 
 Local analysis uses SonarQube for IDE if connected or `analyze_code_snippet`. Without a mount, snippet analysis requires `fileContent`.
 
-On Cloud, `SONARQUBE_ORG` limits the entitlement check to that organization. To use snippets for all organizations, set `SONARQUBE_FORCE_LOCAL_ANALYSIS=true`, enable the `analysis` toolset, and restart. This setting has no effect on Server.
+On Cloud stdio, `SONARQUBE_ORG` limits the entitlement check to that organization. To use snippets for all organizations, set `SONARQUBE_FORCE_LOCAL_ANALYSIS=true`, enable the `analysis` toolset, and restart. This setting only affects Cloud stdio.
 
-Over HTTP/HTTPS, Server supports snippet analysis with a startup `SONARQUBE_TOKEN`; Cloud exposes no analysis tools.
+Over HTTP/HTTPS, Cloud and Server support `analyze_code_snippet` when the MCP server has a startup `SONARQUBE_TOKEN` and the `analysis` toolset is enabled. The startup token is required for analyzer initialization (Cloud plugin downloads are anonymous); calls use the caller’s token and, on Cloud, the organization selected for the request to retrieve quality profiles and active rules. Without a startup token, snippet analysis and analyzer downloads are disabled, even with `SONARQUBE_FORCE_LOCAL_ANALYSIS=true`. Vortex entitlement is not required.
 
 ### Selective Tool Enablement
 

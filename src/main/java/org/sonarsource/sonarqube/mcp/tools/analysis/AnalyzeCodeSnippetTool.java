@@ -70,6 +70,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
   private static final String[] VALID_SCOPES = {"MAIN", "TEST"};
   private static final String[] VALID_LANGUAGES = getValidLanguageNames();
 
+  private final Object analysisLock = new Object();
   private final BackendService backendService;
   private final ServerApiProvider serverApiProvider;
   @Nullable
@@ -181,31 +182,27 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
     var isTest = "TEST".equalsIgnoreCase(scope);
 
-    applyRulesFromProject(serverApi, projectKey);
+    // Standalone rule configuration is shared by every call to this backend.
+    synchronized (analysisLock) {
+      applyRulesFromProject(serverApi, projectKey);
 
-    var analysisId = UUID.randomUUID();
-    Path tmpFile = null;
-    try {
-      tmpFile = createTemporaryFileForLanguage(analysisId.toString(), backendService.getWorkDir(), fileContent,
-        language, sonarLanguage);
-      var clientFileDto = backendService.toClientFileDto(tmpFile, fileContent, mapSonarLanguageToLanguage(sonarLanguage), isTest);
-      backendService.addFile(clientFileDto);
-      var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri())).get(30, TimeUnit.SECONDS);
-      var toolResponse = buildStructuredContent(response, mode, snippetStartLineNumber, snippetEndLineNumber);
-      return Tool.Result.success(toolResponse);
-    } catch (IOException | ExecutionException | TimeoutException e) {
-      return Tool.Result.failure("Error while analyzing the code: " + e.getMessage());
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return Tool.Result.failure("Error while analyzing the code: " + e.getMessage());
-    } finally {
-      if (tmpFile != null) {
-        backendService.removeFile(tmpFile.toUri());
-        try {
-          removeTmpFileForAnalysis(tmpFile);
-        } catch (IOException e) {
-          // Error
-        }
+      var analysisId = UUID.randomUUID();
+      Path tmpFile = null;
+      try {
+        tmpFile = createTemporaryFileForLanguage(analysisId.toString(), backendService.getWorkDir(), fileContent,
+          language, sonarLanguage);
+        var clientFileDto = backendService.toClientFileDto(tmpFile, fileContent, mapSonarLanguageToLanguage(sonarLanguage), isTest);
+        backendService.addFile(clientFileDto);
+        var response = backendService.analyzeFilesAndTrack(analysisId, List.of(tmpFile.toUri())).get(30, TimeUnit.SECONDS);
+        var toolResponse = buildStructuredContent(response, mode, snippetStartLineNumber, snippetEndLineNumber);
+        return Tool.Result.success(toolResponse);
+      } catch (IOException | ExecutionException | TimeoutException e) {
+        return Tool.Result.failure("Error while analyzing the code: " + e.getMessage());
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return Tool.Result.failure("Error while analyzing the code: " + e.getMessage());
+      } finally {
+        removeTmpFileForAnalysis(tmpFile);
       }
     }
   }
@@ -237,8 +234,15 @@ public class AnalyzeCodeSnippetTool extends Tool {
     return tempFile;
   }
 
-  private static void removeTmpFileForAnalysis(Path tempFile) throws IOException {
-    Files.deleteIfExists(tempFile);
+  private void removeTmpFileForAnalysis(@Nullable Path tempFile) {
+    if (tempFile != null) {
+      backendService.removeFile(tempFile.toUri());
+      try {
+        Files.deleteIfExists(tempFile);
+      } catch (IOException e) {
+        // Error
+      }
+    }
   }
 
   private static int findSnippetInFile(String[] fileLines, String[] snippetLines) {
