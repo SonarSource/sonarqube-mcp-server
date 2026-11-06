@@ -2,7 +2,7 @@
 
 [Tool reference and setup](../README.md#architecture). This document contains the detailed output, validation and recovery behavior for Architecture workflows.
 
-> **Pending feature documentation:** This section describes the combined target of the PRs below. An individual feature branch does not provide all of it. Until the relevant implementation lands, use the tools and parameters advertised by that build. Before these PRs land, `master` exposes current architecture only on Server, uses `intended-architectures`, rejects an empty intended model and allows directive pages up to 1000.
+> **Pending feature documentation:** This section describes the combined target of the PRs below. An individual feature branch does not provide all of it. Until the relevant implementation lands, use the tools and parameters advertised by that build. `master` currently exposes only current architecture on Server, uses `intended-architectures` and rejects an empty intended model. Directive summaries, the 50-entry list limit and the validation/navigation improvements from #695, plus the contract refinements from #703, are already included.
 
 | Pending capability | Implementation PR |
 | --- | --- |
@@ -11,10 +11,10 @@
 | Focused `from` / `to` dependency pagination | [#691](https://github.com/SonarSource/sonarqube-mcp-server/pull/691) |
 | Response-contract compatibility hints | [#693](https://github.com/SonarSource/sonarqube-mcp-server/pull/693) |
 | `project-intended-architectures` and empty-model DELETE | [#694](https://github.com/SonarSource/sonarqube-mcp-server/pull/694) |
-| Directive summaries, 50-entry directive pages and validation/navigation improvements | [#695](https://github.com/SonarSource/sonarqube-mcp-server/pull/695) |
-| Normalized directive identity, changed-field before/after previews and counts/confirmed-ID applies | [#703](https://github.com/SonarSource/sonarqube-mcp-server/pull/703) |
 
-**Note: Add `architecture` to `SONARQUBE_TOOLSETS` to register these tools in stdio or HTTP mode. SonarQube Cloud requires a Team or Enterprise plan. On SonarQube Server, tools remain listed even when the Architecture feature or required public APIs are unavailable; those calls fail when invoked. Intended and directive operations need the public `/api/v2/components/projects` lookup and public Architecture APIs.**
+**Availability:** Enable `architecture` in `SONARQUBE_TOOLSETS` for stdio or HTTP. Cloud requires a Team or Enterprise plan.
+
+For intended architecture and directives on Server, use an MCP build containing [#678](https://github.com/SonarSource/sonarqube-mcp-server/pull/678). The Server build must expose the public `/api/v2/components/projects` lookup and the public Architecture APIs, and accept lowercase language values (backend fix SONARCH-3426). Adding the project lookup alone does not enable these operations. Unavailable features or endpoints fail when called; use the tool schema advertised by the running MCP build.
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, project directives, or deviations, flaws and smells with their details. Findings are read from the latest main-branch analysis. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export. `omittedNodes` counts nodes excluded by limits within the requested component/depth, not deeper descendants. Every returned node includes `descendants` and `truncated` navigation metadata; the five `drillDown` entries are suggestions. Selecting a leaf returns an explanatory message.
 
