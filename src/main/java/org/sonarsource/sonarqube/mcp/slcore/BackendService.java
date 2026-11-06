@@ -117,7 +117,7 @@ public class BackendService {
 
   public void addFile(ClientFileDto clientFileDto) {
     LOG.info("Adding file " + clientFileDto.getUri());
-    backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(clientFileDto), List.of(), List.of())));
+    backendFuture.thenAccept(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(clientFileDto), List.of(), List.of())));
   }
 
   public ClientFileDto toClientFileDto(Path filePath, String content, @Nullable Language language, boolean isTest) {
@@ -127,7 +127,7 @@ public class BackendService {
 
   public void removeFile(URI file) {
     LOG.info("Removing file " + file);
-    backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(), List.of(), List.of(file))));
+    backendFuture.thenAccept(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(), List.of(), List.of(file))));
   }
 
   public void notifyToolCalled(String toolName, boolean succeeded) {
@@ -185,10 +185,10 @@ public class BackendService {
       }
       var backend = clientLauncher.getServerProxy();
       initRpcServer(backend, analyzers).get(1, TimeUnit.MINUTES);
+      projectOpened(backend);
       backendFuture.complete(backend);
       isInitialized = true;
       LOG.info("Backend service initialized");
-      projectOpened();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
@@ -279,11 +279,9 @@ public class BackendService {
         LogLevel.DEBUG));
   }
 
-  private void projectOpened() {
-    backendFuture.thenAcceptAsync(server -> server
-      .getConfigurationService()
-      .didAddConfigurationScopes(new DidAddConfigurationScopesParams(
-        List.of(new ConfigurationScopeDto(PROJECT_ID, null, false, PROJECT_ID, null)))));
+  private static void projectOpened(SonarLintRpcServer server) {
+    server.getConfigurationService().didAddConfigurationScopes(new DidAddConfigurationScopesParams(
+      List.of(new ConfigurationScopeDto(PROJECT_ID, null, false, PROJECT_ID, null))));
   }
 
   public void shutdown() {

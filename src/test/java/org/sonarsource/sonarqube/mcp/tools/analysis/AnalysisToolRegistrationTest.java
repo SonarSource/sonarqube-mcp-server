@@ -16,8 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.analysis;
 
+import com.google.gson.JsonParser;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.net.ServerSocket;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,7 +42,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.qualityprofiles.QualityProfilesApi;
-import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -154,8 +158,12 @@ class AnalysisToolRegistrationTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void it_should_keep_http_local_analysis_only_for_server_with_startup_token(boolean cloud, boolean startupToken,
+  @CsvSource({
+    "true, true, false, true", "true, true, true, true", "true, false, false, true", "true, false, true, true",
+    "false, true, false, true", "false, true, true, true", "false, false, false, true", "false, false, true, true",
+    "true, true,, true", "true, true, false, false", "true, true, true, false"
+  })
+  void it_should_register_http_snippet_analysis_only_with_startup_token_and_toolset(boolean cloud, boolean startupToken, String forceLocal, boolean analysisEnabled,
     @TempDir Path storage) throws Exception {
     var environment = new HashMap<String, String>();
     environment.put("SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl());
@@ -168,25 +176,38 @@ class AnalysisToolRegistrationTest {
       environment.put("SONARQUBE_HTTP_PORT", Integer.toString(socket.getLocalPort()));
     }
     environment.put("SONARQUBE_IS_CLOUD", Boolean.toString(cloud));
-    environment.put("SONARQUBE_TOOLSETS", "analysis,ide,vortex");
-    environment.put("SONARQUBE_FORCE_LOCAL_ANALYSIS", "true");
+    if (forceLocal != null) {
+      environment.put("SONARQUBE_TOOLSETS", analysisEnabled ? "analysis,ide,vortex" : "issues");
+      environment.put("SONARQUBE_FORCE_LOCAL_ANALYSIS", forceLocal);
+    }
     environment.put("TELEMETRY_DISABLED", "true");
     harness.prepareMockWebServer(environment);
     var server = new SonarQubeMcpServer(environment);
-    try {
+    try (var client = HttpClient.newHttpClient()) {
       server.start();
       server.waitForInitialization();
+      var request = HttpRequest.newBuilder(URI.create(server.getHttpServerUrl()))
+        .header("Authorization", "Bearer caller-token")
+        .header("Content-Type", "application/json")
+        .header("Accept", "application/json, text/event-stream")
+        .POST(HttpRequest.BodyPublishers.ofString("""
+          {"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}
+          """))
+        .build();
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+      assertThat(response.statusCode()).isEqualTo(200);
+      var tools = JsonParser.parseString(response.body()).getAsJsonObject().getAsJsonObject("result").getAsJsonArray("tools");
 
-      var analysisNames = server.getSupportedTools().stream().map(Tool::definition).map(McpSchema.Tool::name)
+      var analysisNames = tools.asList().stream().map(tool -> tool.getAsJsonObject().get("name").getAsString())
         .filter(name -> name.equals(AnalyzeCodeSnippetTool.TOOL_NAME) || name.equals(RunAdvancedCodeAnalysisTool.TOOL_NAME)
           || name.equals(AnalyzeFileListTool.TOOL_NAME) || name.equals(ToggleAutomaticAnalysisTool.TOOL_NAME)).toList();
-      if (!cloud && startupToken) {
+      if (startupToken && analysisEnabled) {
         assertThat(analysisNames).containsExactly(AnalyzeCodeSnippetTool.TOOL_NAME);
       } else {
         assertThat(analysisNames).isEmpty();
       }
       assertThat(harness.getMockSonarQubeServer().countRequestsContaining(PluginsApi.INSTALLED_PLUGINS_PATH))
-        .isEqualTo(!cloud && startupToken ? 1 : 0);
+        .isEqualTo(startupToken && analysisEnabled ? 1 : 0);
     } finally {
       server.shutdown();
     }
