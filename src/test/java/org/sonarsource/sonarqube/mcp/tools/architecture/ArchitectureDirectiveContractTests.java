@@ -102,17 +102,31 @@ class ArchitectureDirectiveContractTests {
 
   @Test
   @SuppressWarnings("unchecked")
-  void it_should_advertise_only_the_server_read_contract() {
+  void it_should_advertise_the_complete_server_read_and_write_contract() {
     var serverTools = harness.newClient().listTools();
-    assertThat(serverTools).extracting(Tool::name).doesNotContain(ArchitectureSetTool.TOOL_NAME);
+    assertThat(serverTools).extracting(Tool::name).contains(ArchitectureSetTool.TOOL_NAME);
     var serverRead = serverTools.stream().filter(tool -> tool.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     var serverProperties = (Map<String, Map<String, Object>>) serverRead.inputSchema().get("properties");
-    assertThat(serverProperties).containsOnlyKeys("target", "projectKey", "component", "depth", "language");
-    assertThat(serverProperties.get("target")).containsEntry("enum", List.of("current"));
+    assertThat(serverProperties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize");
+    assertThat(serverProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives"));
     assertThat(serverRead.inputSchema()).containsEntry("required", List.of("target", "projectKey")).containsEntry("additionalProperties", false);
     assertThat(serverRead.annotations().readOnlyHint()).isTrue();
     assertThat(serverRead.annotations().openWorldHint()).isTrue();
     assertThat(serverRead.outputSchema()).isNull();
+
+    var serverWrite = serverTools.stream().filter(tool -> tool.name().equals(ArchitectureSetTool.TOOL_NAME)).findFirst().orElseThrow();
+    var writeProperties = (Map<String, Map<String, Object>>) serverWrite.inputSchema().get("properties");
+    assertThat(writeProperties).containsOnlyKeys("projectKey", "target", "model", "dryRun", "revision");
+    assertThat(serverWrite.inputSchema()).containsEntry("required", List.of("projectKey", "target", "model", "dryRun")).containsEntry("additionalProperties", false);
+    assertThat(writeProperties.get("target")).containsEntry("enum", List.of("intended", "directives"));
+    for (var name : List.of("projectKey", "target", "model", "revision")) {
+      assertThat(writeProperties.get(name)).containsEntry("type", "string");
+    }
+    assertThat(writeProperties.get("dryRun")).containsEntry("type", "boolean");
+    assertThat(serverWrite.annotations().readOnlyHint()).isFalse();
+    assertThat(serverWrite.annotations().destructiveHint()).isTrue();
+    assertThat(serverWrite.annotations().openWorldHint()).isTrue();
+    assertThat(serverWrite.outputSchema()).isNull();
   }
 
   @Test

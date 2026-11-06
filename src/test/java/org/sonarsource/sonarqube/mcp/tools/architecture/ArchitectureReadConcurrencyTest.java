@@ -32,6 +32,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
@@ -52,6 +56,7 @@ import static org.mockito.Mockito.when;
 
 class ArchitectureReadConcurrencyTest {
   private final ArchitectureApi architecture = mock(ArchitectureApi.class);
+  private ServerApi serverApi;
   private ArchitectureGetTool tool;
   private ArchitectureSetTool setTool;
 
@@ -59,6 +64,7 @@ class ArchitectureReadConcurrencyTest {
   void setUp() {
     var provider = mock(ServerApiProvider.class);
     var server = mock(ServerApi.class);
+    serverApi = server;
     var branches = mock(ProjectBranchesApi.class);
     when(provider.get(null)).thenReturn(server);
     when(server.isSonarQubeCloud()).thenReturn(true);
@@ -212,6 +218,10 @@ class ArchitectureReadConcurrencyTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void it_should_share_capacity_between_current_reads_and_intended_dry_runs(boolean diagnosticsFirst) throws Exception {
+    assertSharedCapacity(diagnosticsFirst);
+  }
+
+  private void assertSharedCapacity(boolean diagnosticsFirst) throws Exception {
     var entered = new CountDownLatch(2);
     var release = new CountDownLatch(1);
     var active = new java.util.concurrent.atomic.AtomicInteger();
@@ -247,6 +257,39 @@ class ArchitectureReadConcurrencyTest {
       verify(architecture, never()).createIntended(anyString(), anyString(), any());
       verify(architecture, never()).patchIntended(anyString(), anyString(), any());
       verify(architecture, times(3)).getStructure(anyString(), anyString(), anyString(), anyString());
+    }
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_share_registered_current_capacity_with_diagnostics(SonarQubeMcpServerTestHarness harness) throws Exception {
+    assertRegisteredCapacity(harness, false);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_share_registered_diagnostic_capacity_with_current(SonarQubeMcpServerTestHarness harness) throws Exception {
+    assertRegisteredCapacity(harness, true);
+  }
+
+  private void assertRegisteredCapacity(SonarQubeMcpServerTestHarness harness, boolean diagnosticsFirst) throws Exception {
+    var environment = new HashMap<>(Map.of(
+      "SONARQUBE_TOKEN", "test-token", "SONARQUBE_URL", harness.getMockSonarQubeServer().baseUrl(),
+      "SONARQUBE_ORG", "org", "SONARQUBE_IS_CLOUD", "true", "SONARQUBE_TOOLSETS", "architecture", "STORAGE_PATH", System.getProperty("java.io.tmpdir")));
+    harness.prepareMockWebServer(environment);
+    var mockedApi = serverApi;
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment) {
+      @Override
+      public ServerApi get() {
+        return mockedApi;
+      }
+    };
+    try {
+      server.start();
+      var registered = server.getSupportedTools();
+      tool = (ArchitectureGetTool) registered.stream().filter(value -> value.definition().name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
+      setTool = (ArchitectureSetTool) registered.stream().filter(value -> value.definition().name().equals(ArchitectureSetTool.TOOL_NAME)).findFirst().orElseThrow();
+      assertSharedCapacity(diagnosticsFirst);
+    } finally {
+      server.shutdown();
     }
   }
 

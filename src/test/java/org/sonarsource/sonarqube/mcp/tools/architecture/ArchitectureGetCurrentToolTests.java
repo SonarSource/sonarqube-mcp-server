@@ -45,6 +45,21 @@ class ArchitectureGetCurrentToolTests {
     + "&branchId=" + MAIN_BRANCH_ID + "&language=";
 
   @SonarQubeMcpServerTest
+  void it_should_explain_the_server_language_binding_failure_without_raw_spring_text(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(aResponse().withStatus(400)
+      .withBody("{\"message\":\"Method parameter 'language': Failed to convert value to com.sonarsource.architecture.publicapi.api.model.PublicEcosystem\"}")));
+
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "current", "projectKey", "my_project", "language", "java"));
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("known SonarQube Server issue", "currently blocks current architecture reads", "HTTP 400")
+      .doesNotContain("PublicEcosystem", "Failed to convert", "upgrade");
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/v2/architecture/current-architectures")).isEqualTo(1);
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_expose_navigation_metadata_beyond_the_five_drill_down_hints(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     var nodes = java.util.stream.IntStream.range(0, 10).mapToObj(i -> """
@@ -88,8 +103,8 @@ class ArchitectureGetCurrentToolTests {
     assertThat(tool.inputSchema()).containsEntry("required", List.of("target", "projectKey"));
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) tool.inputSchema().get("properties");
-    assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language");
-    assertThat(properties.get("target")).containsEntry("enum", List.of("current"));
+    assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize");
+    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives"));
     assertThat(properties.get("language")).containsEntry("enum", List.of("java", "cs", "js", "ts", "py"));
   }
 
