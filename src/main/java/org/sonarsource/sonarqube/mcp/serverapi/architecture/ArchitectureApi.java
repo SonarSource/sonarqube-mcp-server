@@ -69,8 +69,7 @@ public class ArchitectureApi {
   private static final String PLAN_HINT = "Architecture is available on SonarQube Cloud Team and Enterprise plans, "
     + "and on SonarQube Server editions that include it";
 
-  private static final String COMPATIBILITY_HINT = "The response does not match this MCP server's supported public Architecture API contract. "
-    + "Check that the MCP server and the connected SonarQube deployment support the same Architecture API.";
+  private static final String COMPATIBILITY_HINT = "Update the MCP server, or check that the connected SonarQube deployment supports the same public Architecture API.";
 
   private final ServerApiHelper helper;
   private final Gson gson = new Gson();

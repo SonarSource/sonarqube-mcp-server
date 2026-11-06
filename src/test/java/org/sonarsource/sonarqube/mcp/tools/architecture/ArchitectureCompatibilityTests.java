@@ -32,7 +32,7 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.textOf;
 
 class ArchitectureCompatibilityTests {
-  private static final String COMPATIBILITY = "supported public Architecture API contract";
+  private static final String COMPATIBILITY = "Update the MCP server";
 
   @RegisterExtension
   final SonarQubeMcpServerTestHarness harness = new SonarQubeMcpServerTestHarness();
