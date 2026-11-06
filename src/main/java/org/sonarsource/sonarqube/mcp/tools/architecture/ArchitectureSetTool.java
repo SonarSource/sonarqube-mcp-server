@@ -18,8 +18,10 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -101,10 +103,7 @@ public class ArchitectureSetTool extends Tool {
     var api = serverApi.architectureApi();
     var storedState = api.getIntendedState(projectKey, projectId);
     var stored = storedState.models();
-    if (revision != null && !revision.equals(IntendedRevision.of(stored))) {
-      throw new IllegalStateException("The intended architecture of '" + projectKey + "' changed since revision " + revision + " was read, so nothing was changed. "
-        + "Call " + ArchitectureGetTool.TOOL_NAME + " with target intended again, reapply the edits to that model and run a dry run again.");
-    }
+    checkRevision(projectKey, revision, stored);
     IntendedArchitectureReplacement.checkWritableModels(stored, next);
     var clearingStoredResource = storedState.id() != null && next.isEmpty();
     if (clearingStoredResource && !dryRun && revision == null) {
@@ -139,6 +138,13 @@ public class ArchitectureSetTool extends Tool {
       return Result.failure(failure.callerMessage());
     }
     return Result.success(new ArchitectureSetToolResponse(projectKey, replacementStatus(next.isEmpty(), storedState.id()), diff, warnings));
+  }
+
+  private static void checkRevision(String projectKey, @Nullable String revision, List<IntendedArchitecture> stored) {
+    if (revision != null && !revision.equals(IntendedRevision.of(stored))) {
+      throw new IllegalStateException("The intended architecture of '" + projectKey + "' changed since revision " + revision + " was read, so nothing was changed. "
+        + "Call " + ArchitectureGetTool.TOOL_NAME + " with target intended again, reapply the edits to that model and run a dry run again.");
+    }
   }
 
   private static String replacementStatus(boolean clear, @Nullable String storedId) {
