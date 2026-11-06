@@ -188,6 +188,7 @@ class SonarQubeMcpServerHttpTest {
       try (var client = HttpClient.newBuilder().sslContext(SslTestUtils.trustAllSslContext()).build()) {
         server.start();
         server.waitForInitialization();
+        assertThat(Files.mismatch(plugin, storage.resolve("plugins").resolve(plugin.getFileName()))).isEqualTo(-1);
         assertThat(mock.getReceivedRequests()).extracting(ReceivedRequest::authorizationHeader).containsOnlyNulls();
         var request = HttpRequest.newBuilder(URI.create(server.getHttpServerUrl().replace("127.0.0.1", "localhost")))
           .header("Authorization", "Bearer caller-token")

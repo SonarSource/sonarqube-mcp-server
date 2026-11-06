@@ -38,6 +38,7 @@ import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalysisRpcService;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.analysis.AnalyzeFilesAndTrackParams;
+import org.sonarsource.sonarlint.core.rpc.protocol.backend.config.ConfigurationRpcService;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.file.DidUpdateFileSystemParams;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.file.FileRpcService;
 import org.sonarsource.sonarlint.core.rpc.protocol.backend.telemetry.TelemetryRpcService;
@@ -68,6 +69,8 @@ class BackendServiceTests {
   void init() {
     var backend = mock(SonarLintRpcServer.class);
     when(backend.initialize(any())).thenReturn(CompletableFuture.completedFuture(null));
+    var configuration = mock(ConfigurationRpcService.class);
+    when(backend.getConfigurationService()).thenReturn(configuration);
     analysisRpcService = mock(AnalysisRpcService.class);
     telemetryRpcService = mock(TelemetryRpcService.class);
     fileRpcService = mock(FileRpcService.class);
