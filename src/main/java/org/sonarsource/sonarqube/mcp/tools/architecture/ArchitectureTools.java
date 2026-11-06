@@ -31,9 +31,7 @@ public final class ArchitectureTools {
     var tools = new ArrayList<Tool>();
     var currentReads = new CurrentGraphReads();
     tools.add(new ArchitectureGetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
-    if (isSonarQubeCloud) {
-      tools.add(new ArchitectureSetTool(provider, true, configuredProjectKey, currentReads));
-    }
+    tools.add(new ArchitectureSetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
     return tools;
   }
 }
