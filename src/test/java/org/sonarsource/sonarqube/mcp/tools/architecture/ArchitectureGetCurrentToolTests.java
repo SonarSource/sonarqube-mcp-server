@@ -91,7 +91,7 @@ class ArchitectureGetCurrentToolTests {
     for (var target : List.of("current", "intended")) {
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", target, "projectKey", "my_project", "pageIndex", 1));
       assertThat(result.isError()).isTrue();
-      assertThat(textOf(result)).contains("Pagination parameters are only used for current from/to queries");
+      assertThat(textOf(result)).contains("Pagination parameters are only used for directives, findings or current from/to queries");
     }
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/architecture/")).isZero();
   }
@@ -117,6 +117,21 @@ class ArchitectureGetCurrentToolTests {
       assertThat(textOf(result)).contains(field + " must be an exact component key without surrounding whitespace");
     }
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/architecture/")).isZero();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_explain_the_server_language_binding_failure_without_raw_spring_text(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(aResponse().withStatus(400)
+      .withBody("{\"message\":\"Method parameter 'language': Failed to convert value to com.sonarsource.architecture.publicapi.api.model.PublicEcosystem\"}")));
+
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "current", "projectKey", "my_project", "language", "java"));
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("known SonarQube Server issue", "currently blocks current architecture reads", "HTTP 400")
+      .doesNotContain("PublicEcosystem", "Failed to convert", "upgrade");
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/v2/architecture/current-architectures")).isEqualTo(1);
   }
 
   @SonarQubeMcpServerTest
@@ -163,8 +178,8 @@ class ArchitectureGetCurrentToolTests {
     assertThat(tool.inputSchema()).containsEntry("required", List.of("target", "projectKey"));
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) tool.inputSchema().get("properties");
-    assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "from", "to", "pageIndex", "pageSize");
-    assertThat(properties.get("target")).containsEntry("enum", List.of("current"));
+    assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "type", "category", "from", "to", "pageIndex", "pageSize");
+    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
     assertThat(properties.get("language")).containsEntry("enum", List.of("java", "cs", "js", "ts", "py"));
   }
 

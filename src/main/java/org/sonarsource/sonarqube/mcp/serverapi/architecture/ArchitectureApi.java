@@ -17,6 +17,9 @@
 package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import jakarta.annotation.Nullable;
 import java.net.HttpURLConnection;
 import java.util.HashSet;
@@ -32,8 +35,11 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 
 /** Public architecture HTTP requests, response validation and Cloud/Server routing. */
@@ -42,7 +48,13 @@ public class ArchitectureApi {
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
+  public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
+  public static final List<String> FINDING_CATEGORIES = List.of("deviation", "flaw", "smell");
+  public static final List<String> FINDING_TYPES = List.of("structuralDeviation", "relationshipDeviation", "tangle", "oversizedComponent", "weakTangle", "splitResponsibility");
   public static final String SERVER_API_PREFIX = "/api/v2";
+  private static final String PROJECT_ID_PARAM = "projectId";
+  private static final String PAGE_INDEX_PARAM = "pageIndex";
+  private static final String PAGE_SIZE_PARAM = "pageSize";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
   public static final int MAX_PERSPECTIVES = 50;
@@ -73,7 +85,17 @@ public class ArchitectureApi {
       .addParam("branchId", branchId)
       .addParam("language", language)
       .build();
-    var response = read(projectKey, () -> fromJson(get(path), CurrentArchitectures.class));
+    CurrentArchitectures response;
+    try {
+      response = read(projectKey, () -> fromJson(get(path), CurrentArchitectures.class));
+    } catch (ClientErrorException e) {
+      var message = e.getMessage();
+      if (helper.isSonarQubeCloud() || e.status() != HttpURLConnection.HTTP_BAD_REQUEST || message == null
+        || !message.contains("Method parameter 'language'") || !message.contains("Failed to convert") || !message.contains(".PublicEcosystem")) {
+        throw e;
+      }
+      throw new IllegalStateException("A known SonarQube Server issue currently blocks current architecture reads (HTTP 400).", e);
+    }
     if (response == null || response.currentArchitectures() == null) {
       throw new IllegalStateException("The public architecture API did not return currentArchitectures. No complete graph was read.");
     }
@@ -85,9 +107,9 @@ public class ArchitectureApi {
    */
   public List<IntendedArchitecture> getIntended(String projectKey, String projectId) {
     var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH)
-      .addParam("projectId", projectId)
+      .addParam(PROJECT_ID_PARAM, projectId)
       .build();
-    var response = read(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
+    var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
     if (response == null || response.intendedArchitectures() == null) {
       throw new IllegalStateException("The public architecture API did not return intendedArchitectures. No complete model was read.");
     }
@@ -186,20 +208,32 @@ public class ArchitectureApi {
     }
   }
 
-  private static String reason(ForbiddenException e) {
+  private <T> T readProjectResource(String projectKey, Supplier<T> request) {
+    try {
+      return read(projectKey, request);
+    } catch (NotFoundException e) {
+      if (helper.isSonarQubeCloud()) {
+        throw e;
+      }
+      throw new NotFoundException(reason(e) + ". Check the project and Browse permission. "
+        + "On older Server versions, use a Server build that exposes the public Architecture APIs");
+    }
+  }
+
+  private static String reason(ServerApiException e) {
     return Strings.CS.removeStart(e.getMessage(), ServerApiException.MESSAGE_PREFIX);
   }
 
   public DirectivePage getDirectivePage(String projectKey, String projectId, int pageIndex, int pageSize) {
-    return read(projectKey, () -> readDirectivePage(projectId, pageIndex, pageSize));
+    return readProjectResource(projectKey, () -> readDirectivePage(projectId, pageIndex, pageSize));
   }
 
   private DirectivePage readDirectivePage(String projectId, int pageIndex, int pageSize) {
     if (pageIndex < 1 || pageSize < 1 || pageSize > 1000) {
       throw new IllegalArgumentException("Directive page must be >= 1 and page size must be between 1 and 1000.");
     }
-    var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam("projectId", projectId)
-      .addParam("pageIndex", Integer.toString(pageIndex)).addParam("pageSize", Integer.toString(pageSize)).build();
+    var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam(PROJECT_ID_PARAM, projectId)
+      .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var response = fromJson(get(path), DirectivePage.class);
     if (response == null || response.projectDirectives() == null || response.page() == null
       || response.page().pageIndex() == null || response.page().pageIndex() != pageIndex
@@ -269,7 +303,7 @@ public class ArchitectureApi {
 
   public void deleteDirective(String projectKey, String id) {
     write(projectKey, () -> {
-      try (var response = helper.deleteApiSubdomain(directivePath(id))) {
+      try (var response = delete(directivePath(id))) {
         if (response.code() != HttpURLConnection.HTTP_NO_CONTENT) {
           throw new IllegalStateException("The directive deletion was not confirmed. Inspect it before retrying.");
         }
@@ -298,7 +332,77 @@ public class ArchitectureApi {
   public record DirectivePage(List<ProjectDirective> projectDirectives, DirectivePageInfo page) {
   }
 
+  public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
+    validateFindingPage(pageIndex, pageSize);
+    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
+      .addParam("category", filters.category()).addParam("type", filters.type()).addParam("language", filters.language())
+      .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
+    var response = read(projectKey, () -> findingsJson(get(path)));
+    if (response == null || response.findings() == null || response.page() == null
+      || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
+      || response.page().total() == null || response.page().total() < 0 || response.findings().size() > pageSize) {
+      throw new IllegalStateException("Invalid public findings page.");
+    }
+    if (response.findings().stream().anyMatch(finding -> !filters.matches(finding))) {
+      throw new IllegalStateException("The public findings response does not match the requested filters.");
+    }
+    return response;
+  }
+
+  @Nullable
+  private FindingPage findingsJson(HttpClient.Response response) {
+    try {
+      var page = fromJson(response, RawFindingPage.class);
+      return page == null || page.findings() == null ? null
+        : new FindingPage(page.findings().stream().map(ProjectFinding::parse).toList(), findingPageInfo(page.page()));
+    } catch (JsonParseException e) {
+      throw new IllegalStateException("Invalid public findings response.", e);
+    }
+  }
+
+  private static DirectivePageInfo findingPageInfo(@Nullable JsonObject page) {
+    if (page == null) {
+      throw new IllegalStateException("Invalid public findings page.");
+    }
+    return new DirectivePageInfo(findingPageNumber(page, PAGE_INDEX_PARAM), findingPageNumber(page, PAGE_SIZE_PARAM), findingPageNumber(page, "total"));
+  }
+
+  private static int findingPageNumber(JsonObject page, String name) {
+    var value = page.get(name);
+    try {
+      if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+        throw new IllegalStateException("Invalid public findings page number.");
+      }
+      return value.getAsBigDecimal().intValueExact();
+    } catch (ArithmeticException | NumberFormatException e) {
+      throw new IllegalStateException("Invalid public findings page number.", e);
+    }
+  }
+
+  private record RawFindingPage(List<JsonElement> findings, JsonObject page) {
+  }
+
+  public static void validateFindingPage(int pageIndex, int pageSize) {
+    if (pageIndex < 1 || pageSize < 0 || pageSize > 1000) {
+      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 0 and 1000.");
+    }
+  }
+
+  public record FindingFilters(@Nullable String category, @Nullable String type, @Nullable String language) {
+    private boolean matches(ProjectFinding finding) {
+      return (category == null || category.equals(finding.category())) && (type == null || type.equals(finding.type()))
+        && (language == null || language.equals(finding.language()));
+    }
+  }
+
+  public record FindingPage(List<ProjectFinding> findings, DirectivePageInfo page) {
+  }
+
   public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
+  }
+
+  private HttpClient.Response delete(String path) {
+    return helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path) : helper.delete(SERVER_API_PREFIX + path);
   }
 
   private HttpClient.Response get(String path) {

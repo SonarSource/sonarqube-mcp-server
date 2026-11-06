@@ -26,6 +26,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -47,12 +48,14 @@ public class ArchitectureGetTool extends Tool {
   public static final String CURRENT = "current";
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
+  public static final String FINDINGS = "findings";
+  private static final String TYPE_PROPERTY = "type";
+  private static final String CATEGORY_PROPERTY = "category";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
-  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES};
-  private static final String[] SERVER_TARGETS = {CURRENT};
+  private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
+  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
   private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
-  private final String[] availableTargets;
   private final CurrentGraphReads currentReads;
 
   private final ServerApiProvider serverApiProvider;
@@ -65,7 +68,6 @@ public class ArchitectureGetTool extends Tool {
 
   ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
     super(definition(isSonarQubeCloud, configuredProjectKey), ToolCategory.ARCHITECTURE);
-    this.availableTargets = isSonarQubeCloud ? TARGETS : SERVER_TARGETS;
     this.currentReads = currentReads;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
@@ -75,33 +77,31 @@ public class ArchitectureGetTool extends Tool {
     var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
-      .setDescription(isSonarQubeCloud ? "Read current graphs, intended architecture or project directives." : "Read current dependency graphs.")
-      .addRequiredEnumProperty(TARGET_PROPERTY, isSonarQubeCloud ? TARGETS : SERVER_TARGETS,
-        isSonarQubeCloud ? "current: dependencies; intended: model; directives: project directives." : "current: analyzed dependencies.")
+      .setDescription("Read current graphs, intended architecture, project directives or findings.")
+      .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
+        "current: dependencies; intended: model; directives: project directives (directiveId); "
+          + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings or current from/to queries.")
       .addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
       .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
-        + (isSonarQubeCloud ? "Intended: group labels joined by /. " : "")
-        + "Top level when omitted."
+        + "Intended: group labels joined by /. Top level when omitted."
         + (isSonarQubeCloud ? " Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective." : ""))
-      .addNumberProperty(DEPTH_PROPERTY, isSonarQubeCloud ? "Levels below the start to return. Default 1 for current, all for intended."
-        : "Levels below the start to return. Default 1.")
+      .addNumberProperty(DEPTH_PROPERTY, "Levels below the start to return. Default 1 for current, all for intended.")
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
-      .addNumberProperty(ToolParameters.PAGE_INDEX, isSonarQubeCloud ? "Page from 1; directives or current from/to only." : "Page from 1; current from/to only.")
-      .addNumberProperty(ToolParameters.PAGE_SIZE, isSonarQubeCloud
-        ? ("Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE + "; directives: default and maximum 50.")
-        : ("Page size, default/max " + DependencyQuery.MAX_PAGE_SIZE + "; current from/to only."))
+      .addNumberProperty(ToolParameters.PAGE_INDEX, "Page from 1; directives, findings or current from/to queries.")
+      .addNumberProperty(ToolParameters.PAGE_SIZE, "Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE
+        + "; directives: default and maximum " + MAX_DIRECTIVE_PAGE_SIZE + "; findings: default 50, maximum 1000 (0 counts only).")
       .setReadOnlyHint();
-    if (isSonarQubeCloud) {
-      builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.");
-    }
+    builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.")
+      .addEnumProperty(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new), "only findings of this type.")
+      .addEnumProperty(CATEGORY_PROPERTY, CATEGORIES, "only findings of this category.");
     return builder.build();
   }
 
   @Override
   public Result execute(Arguments arguments) {
-    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, availableTargets);
+    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, TARGETS);
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     var component = arguments.getOptionalString(COMPONENT_PROPERTY);
     var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);
@@ -114,19 +114,25 @@ public class ArchitectureGetTool extends Tool {
     var parameters = arguments.toMap();
     if ((INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
       && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
-      throw new IllegalArgumentException("Pagination parameters are only used for current from/to queries.");
+      throw new IllegalArgumentException("Pagination parameters are only used for directives, findings or current from/to queries.");
     }
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     if (!DIRECTIVES.equals(target) && parameters.get(DIRECTIVE_ID_PROPERTY) != null) {
       throw new IllegalArgumentException("directiveId is only used for directives.");
     }
+    if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
+      throw new IllegalArgumentException("type and category are only used for findings.");
+    }
     if (DIRECTIVES.equals(target)) {
       return directives(serverApi, projectKey, arguments, component, depth, language);
+    }
+    if (FINDINGS.equals(target)) {
+      return findings(serverApi, projectKey, arguments, component, depth, language);
     }
     if (CURRENT.equals(target)) {
       return readCurrent(serverApi, projectKey, component, depth, language, selection);
     }
-    return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.projectId(serverApi, projectKey, "Intended architecture"), component, depth, language);
+    return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.projectId(serverApi, projectKey), component, depth, language);
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
@@ -144,7 +150,7 @@ public class ArchitectureGetTool extends Tool {
     if (id != null && !UUID.fromString(id).toString().equalsIgnoreCase(id)) {
       throw new IllegalArgumentException("Directive id must be a UUID.");
     }
-    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
+    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
     if (id != null) {
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
@@ -152,6 +158,37 @@ public class ArchitectureGetTool extends Tool {
     return Result.success(new DirectivesView(projectKey, "summary",
       page.projectDirectives().stream().map(DirectiveResponses::summary).toList(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
+  }
+
+  private static Result findings(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
+    @Nullable String language) {
+    if (component != null || depth != null) {
+      throw new IllegalArgumentException("Findings reads do not accept component or depth filters.");
+    }
+    if (arguments.toMap().containsKey("findingId")) {
+      throw new IllegalArgumentException("Findings have no ids. Use category, type or language to filter the list.");
+    }
+    var pageIndex = arguments.getPageIndexOrDefault(1);
+    var pageSize = arguments.getPageSizeOrDefault(50);
+    ArchitectureApi.validateFindingPage(pageIndex, pageSize);
+    var category = arguments.getOptionalEnumValue(CATEGORY_PROPERTY, CATEGORIES);
+    var type = arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new));
+    var organizationId = ArchitectureProjectContext.organizationId(serverApi);
+    var branchId = ArchitectureProjectContext.mainBranchId(serverApi, projectKey);
+    var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, new ArchitectureApi.FindingFilters(category, type, language), pageIndex, pageSize);
+    return Result.success(new FindingsView(projectKey, page.findings(), page.page(), findingPageMessage(page)));
+  }
+
+  @Nullable
+  private static String findingPageMessage(ArchitectureApi.FindingPage page) {
+    if (!page.findings().isEmpty()) {
+      return null;
+    }
+    if (page.page().total() == 0) {
+      return "No findings are visible. Check project access and whether the project has been analyzed.";
+    }
+    return page.page().pageSize() == 0 ? null
+      : "No findings on page %d; total is %d.".formatted(page.page().pageIndex(), page.page().total());
   }
 
   private static void validateDirectivePage(@Nullable Integer pageIndex, @Nullable Integer pageSize) {
@@ -168,6 +205,9 @@ public class ArchitectureGetTool extends Tool {
   }
 
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
+  }
+
+  private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
   private static @Nullable DependencyQuery.Selection dependencySelection(Arguments arguments, String target, @Nullable String component) {
