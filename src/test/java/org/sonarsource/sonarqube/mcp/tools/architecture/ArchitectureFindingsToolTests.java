@@ -31,6 +31,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.CLOUD_ENV;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.CLOUD_ORGANIZATION_ID;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.MAIN_BRANCH_ID;
@@ -93,21 +94,36 @@ class ArchitectureFindingsToolTests {
     assertThat(textOf(result)).contains("\"pageIndex\" : 2", "\"pageSize\" : 1", "\"total\" : 3");
   }
 
-  @Test
-  void it_should_support_count_only_without_reporting_an_empty_analysis() {
-    stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(PATH + SCOPE + "&pageIndex=1&pageSize=0").willReturn(okJson(page("", 1, 0, 8))));
-    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "findings", "projectKey", "my_project", "pageSize", 0));
+  @ParameterizedTest
+  @CsvSource({"true,1", "false,1", "true,200", "false,200"})
+  void it_should_support_count_only_without_reporting_an_empty_analysis(boolean cloud, int pageIndex) {
+    stubEmptyPage(cloud, pageIndex, 0, 8);
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 0));
     assertThat(result.isError()).isFalse();
-    assertThat(textOf(result)).contains("\"total\" : 8").doesNotContain("No findings are visible");
+    assertResultEquals(result, """
+      {"projectKey":"my_project","findings":[],"page":{"pageIndex":%d,"pageSize":0,"total":8}}
+      """.formatted(pageIndex));
   }
 
-  @Test
-  void it_should_explain_no_visible_findings_without_claiming_a_clean_analysis() {
-    stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(PATH + SCOPE + "&pageIndex=1&pageSize=50").willReturn(okJson(page("", 1, 50, 0))));
-    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_explain_an_empty_later_page(boolean cloud) {
+    stubEmptyPage(cloud, 200, 50, 144);
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "pageIndex", 200));
+    assertThat(result.isError()).isFalse();
+    assertResultEquals(result, """
+      {"projectKey":"my_project","findings":[],"page":{"pageIndex":200,"pageSize":50,"total":144},
+        "message":"No findings on page 200; total is 144."}
+      """);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_explain_no_visible_findings_without_claiming_a_clean_analysis(boolean cloud) {
+    stubEmptyPage(cloud, 1, 50, 0);
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isFalse();
     assertThat(textOf(result)).contains("No findings are visible").doesNotContain("clean", "healthy", "complete");
   }
@@ -212,6 +228,14 @@ class ArchitectureFindingsToolTests {
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/organizations/organizations")).hasSize(orgRequests);
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/api/project_branches/list")).isEmpty();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
+  }
+
+  private void stubEmptyPage(boolean cloud, int pageIndex, int pageSize, int total) {
+    stubMainBranch(harness);
+    var organization = cloud ? CLOUD_ORGANIZATION_ID : ArchitectureApi.SERVER_ORGANIZATION_ID;
+    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + PATH + "?organizationId=" + organization
+      + "&branchId=" + MAIN_BRANCH_ID + "&pageIndex=" + pageIndex + "&pageSize=" + pageSize;
+    harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson(page("", pageIndex, pageSize, total))));
   }
 
   private static String page(String findings, int pageIndex, int pageSize, int total) {

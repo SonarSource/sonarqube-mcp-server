@@ -170,8 +170,19 @@ public class ArchitectureGetTool extends Tool {
     var organizationId = ArchitectureProjectContext.organizationId(serverApi);
     var branchId = ArchitectureProjectContext.mainBranchId(serverApi, projectKey);
     var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, new ArchitectureApi.FindingFilters(category, type, language), pageIndex, pageSize);
-    return Result.success(new FindingsView(projectKey, page.findings(), page.page(), page.findings().isEmpty() && page.page().total() == 0
-      ? "No findings are visible. Check project access and whether the project has been analyzed." : null));
+    return Result.success(new FindingsView(projectKey, page.findings(), page.page(), findingPageMessage(page)));
+  }
+
+  @Nullable
+  private static String findingPageMessage(ArchitectureApi.FindingPage page) {
+    if (!page.findings().isEmpty()) {
+      return null;
+    }
+    if (page.page().total() == 0) {
+      return "No findings are visible. Check project access and whether the project has been analyzed.";
+    }
+    return page.page().pageSize() == 0 ? null
+      : "No findings on page %d; total is %d.".formatted(page.page().pageIndex(), page.page().total());
   }
 
   private static void validateDirectivePage(@Nullable Integer pageIndex, @Nullable Integer pageSize) {
