@@ -252,6 +252,55 @@ class ArchitectureFindingsToolTests {
     assertThat(output.get("message").getAsString()).contains("Skipped 3", "backend total is unchanged");
   }
 
+  @ParameterizedTest
+  @MethodSource("rawFilterMismatches")
+  void it_should_reject_raw_filter_mismatches_before_skipping(String name, String filter, String row) {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + SCOPE + "&" + name + "=" + filter + "&pageIndex=1&pageSize=50")
+      .willReturn(okJson(page(row, 1, 50, 1))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", name, filter));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("does not match the requested filters");
+  }
+
+  private static Object[][] rawFilterMismatches() {
+    var future = DEVIATION.replace("structuralDeviation", "futureType");
+    return new Object[][] {
+      {"type", "structuralDeviation", future},
+      {"language", "java", DEVIATION.replace("java", "futureLanguage")},
+      {"category", "deviation", future.replace("\"category\":\"deviation\"", "\"category\":\"flaw\"")},
+      {"type", "structuralDeviation", DEVIATION.replace("structuralDeviation", "relationshipDeviation").replace("misplacedComponent", "futureReason")},
+      {"language", "java", future.replace("\"language\":\"java\"", "\"language\":5")},
+      {"language", "java", future.replace("\"language\":\"java\",", "")},
+      {"category", "deviation", future.replace("\"category\":\"deviation\"", "\"category\":false")},
+      {"category", "deviation", future.replace("\"category\":\"deviation\",", "")},
+      {"type", "structuralDeviation", DEVIATION.replace("\"type\":\"structuralDeviation\"", "\"type\":5").replace("java", "futureLanguage")},
+      {"type", "structuralDeviation", DEVIATION.replace("\"type\":\"structuralDeviation\",", "").replace("java", "futureLanguage")}
+    };
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true,false", "false,false", "true,true", "false,true"})
+  void it_should_skip_future_values_that_match_active_filters(boolean cloud, boolean futureReason) {
+    stubMainBranch(harness);
+    var row = futureReason ? DEVIATION.replace("misplacedComponent", "futureReason") : DEVIATION.replace("structuralDeviation", "futureType");
+    var organization = cloud ? CLOUD_ORGANIZATION_ID : ArchitectureApi.SERVER_ORGANIZATION_ID;
+    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + PATH + "?organizationId=" + organization
+      + "&branchId=" + MAIN_BRANCH_ID + "&category=deviation" + (futureReason ? "&type=structuralDeviation" : "") + "&language=java&pageIndex=1&pageSize=50";
+    harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson(page(row, 1, 50, 1))));
+    var arguments = new HashMap<String, Object>(Map.of("target", "findings", "projectKey", "my_project", "category", "deviation", "language", "java"));
+    if (futureReason) {
+      arguments.put("type", "structuralDeviation");
+    }
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    var output = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(output.getAsJsonArray("findings")).isEmpty();
+    assertThat(output.get("skippedFindings").getAsInt()).isEqualTo(1);
+    assertThat(output.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(1);
+  }
+
   @Test
   void it_should_reject_incompatible_finding_filters_before_requests() {
     var client = harness.newClient(CLOUD_ENV);
@@ -303,7 +352,7 @@ class ArchitectureFindingsToolTests {
     var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("has no analyzed main branch");
+    assertThat(textOf(result)).contains("selected branch", "has not been analyzed");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", ArchitectureApi.SERVER_API_PREFIX + PATH)).isEmpty();
   }
