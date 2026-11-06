@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ComponentsApiTest {
 
-  private static final String LOOKUP = ComponentsApi.COMPONENTS_PROJECTS_PATH + "?keys=shop%3Aapi&pageSize=1";
+  private static final String LOOKUP = "/api/v2" + ComponentsApi.COMPONENTS_PROJECTS_PATH + "?keys=shop%3Aapi&pageSize=1";
 
   @RegisterExtension
   static WireMockExtension sonarqubeMock = WireMockExtension.newInstance()
@@ -96,7 +96,7 @@ class ComponentsApiTest {
 
     assertThatThrownBy(() -> api.getProjectId("shop:api"))
       .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("GET " + ComponentsApi.COMPONENTS_PROJECTS_PATH)
+      .hasMessageContaining("GET /api/v2" + ComponentsApi.COMPONENTS_PROJECTS_PATH)
       .hasMessageNotContaining("architecture")
       .hasMessageNotContaining("directives")
       .hasCauseInstanceOf(NotFoundException.class);
