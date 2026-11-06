@@ -35,6 +35,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -210,8 +211,8 @@ class ArchitectureReadConcurrencyTest {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void it_should_share_capacity_between_current_reads_and_intended_dry_runs(boolean diagnosticsFirst) throws Exception {
+  @CsvSource({"false,false", "true,false", "false,true", "true,true"})
+  void it_should_share_capacity_between_current_reads_and_intended_dry_runs(boolean diagnosticsFirst, boolean targeted) throws Exception {
     var entered = new CountDownLatch(2);
     var release = new CountDownLatch(1);
     var active = new java.util.concurrent.atomic.AtomicInteger();
@@ -223,17 +224,19 @@ class ArchitectureReadConcurrencyTest {
         if (!release.await(10, TimeUnit.SECONDS)) {
           throw new IllegalStateException("Test did not release the backend");
         }
-        return List.of();
+        return List.of(new StructureGraph(2, 0, List.of(
+          new StructureGraph.Node(1, "compat", "module", null, List.of(), List.of()),
+          new StructureGraph.Node(2, "impl", "module", null, List.of(), List.of()))));
       } finally {
         active.decrementAndGet();
       }
     });
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-      var first = executor.submit(() -> diagnosticsFirst ? setTool.execute(dryRunArguments()) : tool.execute(currentArguments()));
-      var second = executor.submit(() -> diagnosticsFirst ? setTool.execute(dryRunArguments()) : tool.execute(currentArguments()));
+      var first = executor.submit(() -> diagnosticsFirst ? setTool.execute(dryRunArguments()) : tool.execute(readArguments(targeted)));
+      var second = executor.submit(() -> diagnosticsFirst ? setTool.execute(dryRunArguments()) : tool.execute(readArguments(targeted)));
       try {
         assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
-        var queued = executor.submit(() -> diagnosticsFirst ? tool.execute(currentArguments()) : setTool.execute(dryRunArguments()));
+        var queued = executor.submit(() -> diagnosticsFirst ? tool.execute(readArguments(targeted)) : setTool.execute(dryRunArguments()));
         assertThatThrownBy(() -> queued.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
         verify(architecture, times(2)).getStructure(anyString(), anyString(), anyString(), anyString());
         release.countDown();
@@ -346,6 +349,14 @@ class ArchitectureReadConcurrencyTest {
     return new Tool.Arguments(Map.of("target", "intended", "projectKey", "project", "dryRun", true, "model", """
       [{"type":"namespace","language":"java","groups":[{"label":"App","patterns":["app:**"]}],"constraints":[]}]
       """), Map.of());
+  }
+
+  private static Tool.Arguments readArguments(boolean targeted) {
+    if (!targeted) {
+      return currentArguments();
+    }
+    return new Tool.Arguments(Map.of("target", "current", "projectKey", "project", "language", "java",
+      "from", "compat", "to", "impl", "pageIndex", 1, "pageSize", 1), Map.of());
   }
 
   private static Tool.Arguments currentArguments() {
