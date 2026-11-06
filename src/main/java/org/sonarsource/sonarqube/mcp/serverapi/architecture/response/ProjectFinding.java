@@ -39,15 +39,35 @@ public record ProjectFinding(String type, String category, String language, Deta
   public record ComponentDetails(String nodeKey, @Nullable Integer leafArtifactCount, @Nullable Integer fragmentCount) implements Details {
   }
 
+  @Nullable
   public static ProjectFinding parse(JsonElement value) {
     var row = objectValue(value);
     var type = stringValue(row.get("type"));
-    var category = stringValue(row.get("category"));
-    var language = stringValue(row.get("language"));
-    if (!ArchitectureApi.FINDING_TYPES.contains(type) || !ArchitectureApi.LANGUAGES.contains(language) || !expectedCategory(type).equals(category)) {
-      throw new IllegalStateException("Invalid public finding type, category or language.");
+    if (type.isBlank()) {
+      throw new IllegalStateException("Invalid public finding type.");
     }
-    return new ProjectFinding(type, category, language, parseDetails(type, objectValue(row.get("details"))), strings(row.get("files")));
+    if (!ArchitectureApi.FINDING_TYPES.contains(type)) {
+      return null;
+    }
+    var category = stringValue(row.get("category"));
+    if (!categoryOf(type).equals(category)) {
+      throw new IllegalStateException("Invalid public finding category.");
+    }
+    var language = stringValue(row.get("language"));
+    if (language.isBlank()) {
+      throw new IllegalStateException("Invalid public finding language.");
+    }
+    if (!ArchitectureApi.LANGUAGES.contains(language)) {
+      return null;
+    }
+    var details = objectValue(row.get("details"));
+    if (type.equals("structuralDeviation") || type.equals("relationshipDeviation")) {
+      var reason = stringValue(details.get("reason"));
+      if (!reason.isBlank() && !List.of("misplacedComponent", "unimplementedComponent", "disallowedDependency", "interfaceViolation").contains(reason)) {
+        return null;
+      }
+    }
+    return new ProjectFinding(type, category, language, parseDetails(type, details), strings(row.get("files")));
   }
 
   private static Details parseDetails(String type, JsonObject details) {
@@ -61,7 +81,7 @@ public record ProjectFinding(String type, String category, String language, Deta
     };
   }
 
-  private static String expectedCategory(String type) {
+  public static String categoryOf(String type) {
     return switch (type) {
       case "structuralDeviation", "relationshipDeviation" -> "deviation";
       case "tangle", "oversizedComponent" -> "flaw";
