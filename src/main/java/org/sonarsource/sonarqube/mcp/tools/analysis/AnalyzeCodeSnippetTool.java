@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -182,9 +183,10 @@ public class AnalyzeCodeSnippetTool extends Tool {
 
     var isTest = "TEST".equalsIgnoreCase(scope);
 
+    var activeRules = fetchActiveRules(serverApi, projectKey);
     // Standalone rule configuration is shared by every call to this backend.
     synchronized (analysisLock) {
-      applyRulesFromProject(serverApi, projectKey);
+      backendService.updateRulesConfiguration(activeRules);
 
       var analysisId = UUID.randomUUID();
       Path tmpFile = null;
@@ -207,7 +209,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
     }
   }
 
-  private void applyRulesFromProject(ServerApi serverApi, @Nullable String projectKey) {
+  private static Map<String, StandaloneRuleConfigDto> fetchActiveRules(ServerApi serverApi, @Nullable String projectKey) {
     var activeRules = new HashMap<String, StandaloneRuleConfigDto>();
     serverApi.qualityProfilesApi().getQualityProfiles(projectKey).profiles()
       .forEach(profile -> {
@@ -223,7 +225,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
               SearchResponse.RuleParameter::value)))));
         } while (count < searchResponse.total());
       });
-    backendService.updateRulesConfiguration(activeRules);
+    return activeRules;
   }
 
   private static Path createTemporaryFileForLanguage(String analysisId, Path workDir, String fileContent,

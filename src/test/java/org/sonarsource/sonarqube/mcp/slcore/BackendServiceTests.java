@@ -24,9 +24,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.sonarsource.sonarlint.core.rpc.client.ClientJsonRpcLauncher;
 import org.sonarsource.sonarlint.core.rpc.protocol.SonarLintRpcServer;
@@ -40,7 +46,9 @@ import org.sonarsource.sonarlint.core.rpc.protocol.common.ClientFileDto;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
@@ -125,6 +133,38 @@ class BackendServiceTests {
       "changedFiles",
       "removedFiles"
     ).containsExactly(List.of(), List.of(), List.of(file));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_send_file_updates_before_returning(boolean adding) throws Exception {
+    var notificationStarted = new CountDownLatch(1);
+    var releaseNotification = new CountDownLatch(1);
+    doAnswer(invocation -> {
+      notificationStarted.countDown();
+      if (!releaseNotification.await(5, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("File notification was not released");
+      }
+      return null;
+    }).when(fileRpcService).didUpdateFileSystem(any());
+
+    try (var caller = Executors.newSingleThreadExecutor()) {
+      try {
+        var notification = caller.submit(() -> {
+          if (adding) {
+            service.addFile(mock(ClientFileDto.class));
+          } else {
+            service.removeFile(URI.create("file:///path/to/file.php"));
+          }
+        });
+        assertThat(notificationStarted.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThatThrownBy(() -> notification.get(250, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+        releaseNotification.countDown();
+        notification.get(5, TimeUnit.SECONDS);
+      } finally {
+        releaseNotification.countDown();
+      }
+    }
   }
 
   @Test

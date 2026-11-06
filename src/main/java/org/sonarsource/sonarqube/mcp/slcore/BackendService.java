@@ -117,7 +117,7 @@ public class BackendService {
 
   public void addFile(ClientFileDto clientFileDto) {
     LOG.info("Adding file " + clientFileDto.getUri());
-    backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(clientFileDto), List.of(), List.of())));
+    backendFuture.thenAccept(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(clientFileDto), List.of(), List.of())));
   }
 
   public ClientFileDto toClientFileDto(Path filePath, String content, @Nullable Language language, boolean isTest) {
@@ -127,7 +127,7 @@ public class BackendService {
 
   public void removeFile(URI file) {
     LOG.info("Removing file " + file);
-    backendFuture.thenAcceptAsync(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(), List.of(), List.of(file))));
+    backendFuture.thenAccept(server -> server.getFileService().didUpdateFileSystem(new DidUpdateFileSystemParams(List.of(), List.of(), List.of(file))));
   }
 
   public void notifyToolCalled(String toolName, boolean succeeded) {

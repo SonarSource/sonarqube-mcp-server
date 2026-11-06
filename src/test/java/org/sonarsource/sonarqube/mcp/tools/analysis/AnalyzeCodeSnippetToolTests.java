@@ -100,18 +100,19 @@ class AnalyzeCodeSnippetToolTests {
   @Test
   void it_should_keep_each_callers_rules_until_analysis_and_cleanup_finish(@TempDir Path workDir) throws Exception {
     var api = mock(ServerApi.class, RETURNS_DEEP_STUBS);
+    var secondRulesFetched = new CountDownLatch(1);
     for (var caller : List.of("first", "second")) {
       when(api.qualityProfilesApi().getQualityProfiles(caller).profiles()).thenReturn(List.of(new QualityProfile(caller)));
-      when(api.rulesApi().search(caller, 1)).thenReturn(new SearchResponse(1, 1, 500,
-        Map.of(caller + ":rule", List.of(new ActiveRule(List.of())))));
+      when(api.rulesApi().search(caller, 1)).thenAnswer(invocation -> {
+        if (caller.equals("second")) {
+          secondRulesFetched.countDown();
+        }
+        return new SearchResponse(1, 1, 500, Map.of(caller + ":rule", List.of(new ActiveRule(List.of()))));
+      });
     }
-    var secondCallerSelected = new CountDownLatch(1);
     var provider = mock(ServerApiProvider.class);
     when(provider.get("first-org")).thenReturn(api);
-    when(provider.get("second-org")).thenAnswer(invocation -> {
-      secondCallerSelected.countDown();
-      return api;
-    });
+    when(provider.get("second-org")).thenReturn(api);
     var backend = mock(BackendService.class);
     when(backend.getWorkDir()).thenReturn(workDir);
     var analysis = mock(AnalyzeFilesResponse.class);
@@ -131,7 +132,7 @@ class AnalyzeCodeSnippetToolTests {
         assertThat(firstAnalysisStarted.await(5, TimeUnit.SECONDS)).isTrue();
         var second = callers.submit(() -> tool.execute(new Tool.Arguments(Map.of("organization", "second-org", "projectKey", "second",
           "fileContent", "<?php echo 'second';", "language", "php"), null)));
-        assertThat(secondCallerSelected.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(secondRulesFetched.await(5, TimeUnit.SECONDS)).isTrue();
 
         assertThatThrownBy(() -> second.get(250, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
         verify(backend, times(1)).updateRulesConfiguration(any());
