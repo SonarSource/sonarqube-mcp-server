@@ -176,6 +176,35 @@ class ArchitectureHttpTest {
   }
 
   @SonarQubeMcpServerTest
+  void it_should_read_findings_over_http_with_request_credentials(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
+    ArchitectureFixtures.stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get("/organizations/organizations?organizationKey=org&excludeEligibility=true")
+      .withHeader("Authorization", equalTo("Bearer token-a"))
+      .willReturn(okJson("[{\"id\":\"org\",\"uuidV4\":\"" + ArchitectureFixtures.CLOUD_ORGANIZATION_ID + "\"}]")));
+
+    var finding = "{\"type\":\"tangle\",\"category\":\"flaw\",\"language\":\"java\",\"details\":{\"nodeKeys\":[\"a\",\"b\"],\"nodeCount\":2},\"files\":[\"src/App.java\"]}";
+    var path = ArchitectureApi.PROJECT_FINDINGS_PATH + "?organizationId=" + ArchitectureFixtures.CLOUD_ORGANIZATION_ID
+      + "&branchId=" + ArchitectureFixtures.MAIN_BRANCH_ID + "&category=flaw&type=tangle&language=java&pageIndex=1&pageSize=50";
+    harness.getMockSonarQubeServer().stubFor(get(path).withHeader("Authorization", equalTo("Bearer token-a"))
+      .willReturn(okJson("{\"findings\":[" + finding + "],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}")));
+    var port = port();
+    var server = new SonarQubeMcpServer(environment(harness, storage, port));
+    try (var client = HttpClient.newHttpClient()) {
+      server.start();
+      var read = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "findings", "projectKey", "my_project", "organization", "org", "category", "flaw", "type", "tangle", "language", "java")));
+      assertThat(read).contains("tangle", "nodeKeys", "src/App.java").doesNotContain("isError\":true");
+      harness.getMockSonarQubeServer().stubFor(get(path).withHeader("Authorization", equalTo("Bearer token-a"))
+        .willReturn(aResponse().withStatus(403)));
+      var denied = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "findings", "projectKey", "my_project", "organization", "org", "category", "flaw", "type", "tangle", "language", "java")));
+      assertThat(denied).contains("isError\":true", "refusal to read the architecture");
+    } finally {
+      server.shutdown();
+    }
+  }
+
+  @SonarQubeMcpServerTest
   void it_should_hide_architecture_set_in_server_read_only_mode(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
     var port = port();
     var env = environment(harness, storage, port);
@@ -190,7 +219,7 @@ class ArchitectureHttpTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_advertise_only_current_architecture_over_server_http(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
+  void it_should_advertise_architecture_operations_over_server_http(SonarQubeMcpServerTestHarness harness, @TempDir Path storage) throws Exception {
     var port = port();
     var env = environment(harness, storage, port);
     env.put("SONARQUBE_IS_CLOUD", "false");
@@ -199,12 +228,50 @@ class ArchitectureHttpTest {
     try (var client = HttpClient.newHttpClient()) {
       server.start();
       var response = send(client, port, "a", false, "tools/list", Map.of());
-      assertThat(response).contains("architecture_get").doesNotContain("architecture_set");
+      for (var suffix : new String[] {"a", "b", "a"}) {
+        var marker = "tenant-" + suffix;
+        var otherMarker = suffix.equals("a") ? "tenant-b" : "tenant-a";
+        var projectId = "project-" + suffix;
+        var directiveId = "00000000-0000-4000-8000-00000000000" + suffix;
+        var directive = "{\"id\":\"" + directiveId + "\",\"projectId\":\"" + projectId + "\",\"type\":\"REMOVE_EDGE\","
+          + "\"ecosystem\":\"java\",\"graphType\":\"namespace_graph\",\"fromNodeKey\":\"" + marker + ":from\",\"toNodeKey\":\"" + marker + ":to\","
+          + "\"origin\":\"sonarqube-mcp-server\",\"graphPerspective\":\"default_perspective\"}";
+        harness.getMockSonarQubeServer().stubFor(get("/api/v2/components/projects?keys=my_project&pageSize=1")
+          .withHeader("Authorization", equalTo("Bearer token-" + suffix))
+          .willReturn(okJson("{\"projects\":[{\"id\":\"" + projectId + "\",\"key\":\"my_project\"}],\"page\":{\"total\":1}}")));
+        harness.getMockSonarQubeServer().stubFor(get("/api/v2/architecture/project-intended-architectures?projectId=" + projectId)
+          .withHeader("Authorization", equalTo("Bearer token-" + suffix))
+          .willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL.replace("app", marker)))));
+        var intended = send(client, port, suffix, false, "tools/call", Map.of("name", "architecture_get", "arguments",
+          Map.of("target", "intended", "projectKey", "my_project")));
+        assertThat(intended).contains(marker).doesNotContain("isError\":true", otherMarker);
+        var directives = "/api/v2/architecture/project-directives";
+        harness.getMockSonarQubeServer().stubFor(get(directives + "?projectId=" + projectId + "&pageIndex=1&pageSize=50")
+          .withHeader("Authorization", equalTo("Bearer token-" + suffix))
+          .willReturn(okJson("{\"projectDirectives\":[" + directive + "],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}")));
+        harness.getMockSonarQubeServer().stubFor(get(directives + "/" + directiveId)
+          .withHeader("Authorization", equalTo("Bearer token-" + suffix)).willReturn(okJson(directive)));
+        var read = send(client, port, suffix, true, "tools/call", Map.of("name", "architecture_get", "arguments",
+          Map.of("target", "directives", "projectKey", "my_project")));
+        assertThat(read).contains(marker).doesNotContain("isError\":true", otherMarker);
+        var preview = send(client, port, suffix, false, "tools/call", Map.of("name", "architecture_set", "arguments",
+          Map.of("target", "directives", "projectKey", "my_project", "model", "{\"delete\":[{\"id\":\"" + directiveId + "\"}]}", "dryRun", true)));
+        assertThat(preview).contains(marker, "dry-run").doesNotContain("isError\":true", otherMarker);
+        ArchitectureFixtures.stubMainBranch(harness);
+        var findingsScope = "organizationId=" + ArchitectureApi.SERVER_ORGANIZATION_ID + "&branchId=" + ArchitectureFixtures.MAIN_BRANCH_ID;
+        harness.getMockSonarQubeServer().stubFor(get("/api/v2/architecture/project-findings?" + findingsScope + "&pageIndex=1&pageSize=50")
+          .withHeader("Authorization", equalTo("Bearer token-" + suffix))
+          .willReturn(okJson("{\"findings\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":0}}")));
+        assertThat(send(client, port, suffix, true, "tools/call", Map.of("name", "architecture_get", "arguments",
+          Map.of("target", "findings", "projectKey", "my_project")))).contains("findings").doesNotContain("isError\":true");
+      }
+      assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", "/api/v2/architecture/")).isEmpty();
+      assertThat(response).contains("architecture_get", "architecture_set");
       var tools = com.google.gson.JsonParser.parseString(response).getAsJsonObject().getAsJsonObject("result").getAsJsonArray("tools");
       var read = tools.asList().stream().map(com.google.gson.JsonElement::getAsJsonObject)
         .filter(tool -> tool.get("name").getAsString().equals("architecture_get")).findFirst().orElseThrow();
       assertThat(read.getAsJsonObject("inputSchema").getAsJsonObject("properties").getAsJsonObject("target").getAsJsonArray("enum"))
-        .hasToString("[\"current\"]");
+        .hasToString("[\"current\",\"intended\",\"directives\",\"findings\"]");
     } finally {
       server.shutdown();
     }

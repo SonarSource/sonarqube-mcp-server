@@ -75,7 +75,7 @@ class ArchitectureIntendedDeleteStatusTests {
     backend.stubFor(get(READ).inScenario("delete-status").whenScenarioStateIs("after")
       .willReturn(okJson(hidden ? "{\"intendedArchitectures\":[]}" : stored)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
-      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false));
+      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false, "revision", IntendedRevision.of(IntendedModels.parse(INTENDED_JAVA_MODEL))));
     assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).hasSize(1);
     assertThat(backend.getReceivedBodies("POST", PATH)).isEmpty();
     assertThat(backend.getReceivedBodies("PATCH", PATH)).isEmpty();

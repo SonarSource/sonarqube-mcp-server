@@ -53,10 +53,11 @@ public class ArchitectureSetTool extends Tool {
       .addRequiredStringProperty(MODEL_PROPERTY, "Intended: full response or models array; an empty complete model deletes it. Directives: "
         + "{create: [directives], update: [{id, ...changed directive fields}], delete: [{id}]}; updates are flat objects. "
         + "Directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
-        + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current (RENAME_NODE: full renamed key), "
+        + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current. "
+        + "toNodeKey for MOVE_NODE: existing destination container; for RENAME_NODE: new complete key. "
         + "graphPerspective defaults to default_perspective, optional description.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
-      .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get target intended; defaults to the model response revision. A mismatch prevents writing.")
+      .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get intended; defaults to the model response revision. Required to clear the whole model; a mismatch prevents writing.")
       .build(),
       ToolCategory.ARCHITECTURE);
     this.currentReads = currentReads;
@@ -84,7 +85,7 @@ public class ArchitectureSetTool extends Tool {
       }
       var directives = ProjectDirectives.parse(model, projectKey);
       var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-      var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Project directives");
+      var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
       return Result.success(DirectiveResponses.of(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun)));
     }
 
@@ -95,7 +96,7 @@ public class ArchitectureSetTool extends Tool {
       throw new IllegalArgumentException(invalidReason);
     }
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey, "Intended architecture");
+    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
     var api = serverApi.architectureApi();
     var storedState = api.getIntendedState(projectKey, projectId);
     var stored = storedState.models();
@@ -105,6 +106,10 @@ public class ArchitectureSetTool extends Tool {
     }
     IntendedArchitectureReplacement.checkWritableModels(stored, next);
     var clearingStoredResource = storedState.id() != null && next.isEmpty();
+    if (clearingStoredResource && !dryRun && revision == null) {
+      throw new IllegalArgumentException("Clearing the whole intended architecture needs the revision from " + ArchitectureGetTool.TOOL_NAME
+        + " with target intended. Run a dry run first and pass that revision. Nothing was changed.");
+    }
     var current = stored;
     var diff = IntendedModels.diff(current, next);
     var warnings = new ArrayList<String>();

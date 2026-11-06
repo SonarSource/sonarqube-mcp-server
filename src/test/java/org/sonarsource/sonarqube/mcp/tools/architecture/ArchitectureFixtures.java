@@ -16,6 +16,8 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -70,14 +72,14 @@ final class ArchitectureFixtures {
 
   /** Public GET collection; the requested project has zero or one resource. */
   static String intendedArchitectures(String models) {
-    var array = com.google.gson.JsonParser.parseString(models).getAsJsonArray();
+    var array = JsonParser.parseString(models).getAsJsonArray();
     return "{\"intendedArchitectures\":" + (array.isEmpty() ? "[]" : "[" + intendedResource(models) + "]") + "}";
   }
 
   /** Public POST/PATCH return the resource directly. */
   static String intendedResource(String models) {
-    var array = com.google.gson.JsonParser.parseString(models).getAsJsonArray().deepCopy();
-    var response = new com.google.gson.JsonObject();
+    var array = JsonParser.parseString(models).getAsJsonArray().deepCopy();
+    var response = new JsonObject();
     for (var element : array) {
       var model = element.getAsJsonObject();
       if (model.has("id")) {

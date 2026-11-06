@@ -64,7 +64,7 @@ final class IntendedArchitectureReplacement {
       if (isDefiniteRejection(failure)) {
         throw failure;
       }
-      reconcileFailure(projectKey, projectId, previousState, next, failure);
+      reconcileFailure(projectKey, projectId, previousState, next, failure, false);
       return;
     }
     try {
@@ -77,7 +77,7 @@ final class IntendedArchitectureReplacement {
         throw new IllegalStateException("The intended architecture after the write differs from its response.");
       }
     } catch (RuntimeException failure) {
-      reconcileFailure(projectKey, projectId, previousState, next, failure);
+      reconcileFailure(projectKey, projectId, previousState, next, failure, true);
     }
   }
 
@@ -137,7 +137,7 @@ final class IntendedArchitectureReplacement {
   }
 
   private void reconcileFailure(String projectKey, String projectId, ArchitectureApi.IntendedState previous, List<IntendedArchitecture> next,
-    RuntimeException failure) {
+    RuntimeException failure, boolean acknowledged) {
     final ArchitectureApi.IntendedState actual;
     try {
       actual = api.getIntendedState(projectKey, projectId);
@@ -147,6 +147,13 @@ final class IntendedArchitectureReplacement {
     }
     if (!next.isEmpty() && sameModels(next, actual.models()) && (previous.id() == null || previous.id().equals(actual.id()))) {
       return;
+    }
+    if (next.isEmpty() && actual.id() == null) {
+      if (acknowledged) {
+        return;
+      }
+      throw manualRecovery(previous.models(), "The deletion could not be confirmed. No intended architecture resource was visible on readback, "
+        + "but the DELETE response did not confirm deletion. No automatic rollback was attempted; read the current state before retrying", failure);
     }
     throw manualRecovery(previous.models(), "The write could not be confirmed and the requested model could not be verified. "
       + "No automatic rollback was attempted; read the current state before retrying", failure);

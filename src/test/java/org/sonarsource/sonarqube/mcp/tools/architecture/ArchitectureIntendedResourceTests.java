@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import java.util.List;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
@@ -40,6 +41,44 @@ class ArchitectureIntendedResourceTests {
   private static final String ID = "11111111-1111-4111-8111-111111111111";
   private static final String READ = PATH + "?projectId=" + MAIN_BRANCH_ID;
   private static final String EMPTY_RESOURCE = "{\"intendedArchitectures\":[{\"id\":\"" + ID + "\",\"perspectives\":[]}]}";
+
+  @SonarQubeMcpServerTest
+  void it_should_refuse_a_full_clear_without_a_revision(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    backend.stubFor(get(READ).willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model", "[]", "dryRun", false));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Clearing the whole intended architecture needs the revision", "Nothing was changed");
+    assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).isEmpty();
+    assertThat(backend.getReceivedBodies("POST", PATH)).isEmpty();
+    assertThat(backend.getReceivedBodies("PATCH", PATH)).isEmpty();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_refuse_clearing_an_empty_resource_without_a_revision(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    backend.stubFor(get(READ).willReturn(okJson(EMPTY_RESOURCE)));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model", "[]", "dryRun", false));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Clearing the whole intended architecture needs the revision", "Nothing was changed");
+    assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).isEmpty();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_refuse_a_full_clear_with_a_stale_revision(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    backend.stubFor(get(READ).willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model", "[]", "dryRun", false, "revision", "stale"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("changed since revision stale", "nothing was changed");
+    assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).isEmpty();
+  }
 
   @SonarQubeMcpServerTest
   void it_should_patch_an_existing_resource_with_zero_perspectives(SonarQubeMcpServerTestHarness harness) {
@@ -70,7 +109,7 @@ class ArchitectureIntendedResourceTests {
     assertThat(textOf(preview)).contains("resource will be deleted");
     assertThat(backend.getReceivedBodies("DELETE", PATH)).isEmpty();
     var applied = client.callTool(ArchitectureSetTool.TOOL_NAME,
-      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false));
+      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false, "revision", IntendedRevision.of(List.of())));
     assertThat(applied.isError()).as(textOf(applied)).isFalse();
     assertThat(textOf(applied)).contains("cleared");
     assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).hasSize(1);
@@ -84,10 +123,29 @@ class ArchitectureIntendedResourceTests {
     backend.stubFor(delete(PATH + "/" + ID).inScenario("clear").willSetStateTo("deleted").willReturn(aResponse().withStatus(204)));
     backend.stubFor(get(READ).inScenario("clear").whenScenarioStateIs("deleted").willReturn(okJson("{}")));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
-      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false));
+      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false, "revision", IntendedRevision.of(IntendedModels.parse(INTENDED_JAVA_MODEL))));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("could not be confirmed", "No automatic rollback");
     assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).hasSize(1);
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_confirm_an_acknowledged_delete_after_a_transient_verification_failure(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var backend = harness.getMockSonarQubeServer();
+    backend.stubFor(get(READ).inScenario("acknowledged-delete").whenScenarioStateIs("Started").willReturn(okJson(EMPTY_RESOURCE)));
+    backend.stubFor(delete(PATH + "/" + ID).inScenario("acknowledged-delete").willSetStateTo("verify").willReturn(aResponse().withStatus(204)));
+    backend.stubFor(get(READ).inScenario("acknowledged-delete").whenScenarioStateIs("verify").willSetStateTo("verified")
+      .willReturn(aResponse().withStatus(500)));
+    backend.stubFor(get(READ).inScenario("acknowledged-delete").whenScenarioStateIs("verified").willReturn(okJson("{\"intendedArchitectures\":[]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model", "[]", "dryRun", false, "revision", IntendedRevision.of(List.of())));
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    assertThat(textOf(result)).contains("cleared");
+    assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).hasSize(1);
+    assertThat(backend.countRequestsContaining(READ)).isEqualTo(4);
+    assertThat(backend.getReceivedBodies("POST", PATH)).isEmpty();
+    assertThat(backend.getReceivedBodies("PATCH", PATH)).isEmpty();
   }
 
   @SonarQubeMcpServerTest
@@ -110,10 +168,11 @@ class ArchitectureIntendedResourceTests {
     backend.stubFor(delete(PATH + "/" + ID).inScenario("lost-delete").willSetStateTo("hidden").willReturn(aResponse().withStatus(500)));
     backend.stubFor(get(READ).inScenario("lost-delete").whenScenarioStateIs("hidden").willReturn(okJson("{\"intendedArchitectures\":[]}")));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
-      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false));
+      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false, "revision", IntendedRevision.of(List.of())));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("could not be confirmed", "No automatic rollback");
+    assertThat(textOf(result)).contains("could not be confirmed", "No automatic rollback", "No intended architecture resource was visible on readback");
     assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).hasSize(1);
+    assertThat(backend.countRequestsContaining(READ)).isEqualTo(3);
   }
 
   @SonarQubeMcpServerTest
@@ -123,7 +182,7 @@ class ArchitectureIntendedResourceTests {
     backend.stubFor(get(READ).willReturn(okJson(EMPTY_RESOURCE)));
     backend.stubFor(delete(PATH + "/" + ID).willReturn(aResponse().withStatus(204)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureSetTool.TOOL_NAME,
-      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false));
+      Map.of("target", "intended", "projectKey", "my_project", "model", "{\"models\":[]}", "dryRun", false, "revision", IntendedRevision.of(List.of())));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("could not be confirmed", "No automatic rollback");
     assertThat(backend.getReceivedBodies("DELETE", PATH + "/" + ID)).hasSize(1);
