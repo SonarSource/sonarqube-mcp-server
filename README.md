@@ -1470,16 +1470,17 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 **Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. On Server, intended architecture, directives and writes require an MCP build containing [#678](https://github.com/SonarSource/sonarqube-mcp-server/pull/678) and compatible public APIs; builds without it expose current reads only.** See [architecture workflows and recovery](docs/architecture.md).
 
-- **architecture_get** - Read current dependencies, intended architecture, or project directives.
-  - `target` - `current`, `intended` or `directives`; availability depends on the MCP and Server build - _Required Enum_
+- **architecture_get** - Read current dependencies, intended architecture, project directives, or Findings (deviations, flaws and smells).
+  - `target` - `current`, `intended`, `directives` or `findings`; availability depends on the MCP and Server build - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
   - `component` - Exact current node key or intended group path; top level when omitted - _String_
   - `depth` - Current/intended only: levels below the start; default 1 for current, all for intended - _Number_
-  - `language` - Current/intended only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
+  - `language` - Current/intended/findings only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
   - `directiveId` - Full directive by UUID, including description; use instead of paging - _String_
-  - `pageIndex` - Directives only: 1-based page index (default: 1) - _Number_
-  - `pageSize` - Directives only: entries per page, descriptions omitted (default/maximum: 50) - _Number_
+  - `category` / `type` - Findings only: filter deviations, flaws or smells by their advertised type - _Enum_
+  - `pageIndex` - Directives/Findings: 1-based page index (default: 1) - _Number_
+  - `pageSize` - Directives: summaries, default/maximum 50. Findings: default 50, maximum 1000; 0 counts only - _Number_
 
 - **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available on supported Cloud and Server builds when writes are enabled.
   - `target` - `intended` or `directives` - _Required Enum_
@@ -1487,7 +1488,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
   - `model` - JSON string: complete intended export or `models` array (omitted content is removed), or directive changes with `create`, `update` and `delete` arrays - _Required String_
   - `dryRun` - `true` to preview, `false` to apply - _Required Boolean_
-  - `revision` - Intended only: revision from `architecture_get`; defaults to the complete export's revision - _String_
+  - `revision` - Intended only: revision from `architecture_get`; defaults to the complete export's revision. Required when applying a clear - _String_
 
 ## Example Prompts
 
