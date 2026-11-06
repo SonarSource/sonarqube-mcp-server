@@ -170,8 +170,19 @@ final class GraphSlicer {
       + "Omitted siblings have no continuation token and may remain undiscoverable; this is not a complete graph export.";
   }
 
+  /**
+   * What SonarQube joins a node's children to it with, as its architecture pages build node keys: the node's own separator, or one inferred
+   * from its kind when the response leaves it out ({@code module:package.Class}, {@code dir/file}).
+   */
   static String childSeparator(StructureGraph.Node node) {
-    return IndexedGraph.childSeparator(node);
+    if (node.separator() != null && !node.separator().isEmpty()) {
+      return node.separator();
+    }
+    return switch (node.kind()) {
+      case "module" -> ":";
+      case "directory", "folder" -> "/";
+      default -> ".";
+    };
   }
 
   private static final class IndexedGraph {
@@ -193,21 +204,6 @@ final class GraphSlicer {
         rootIds.add(root.id());
         add(root, null);
       }
-    }
-
-    /**
-     * What SonarQube joins a node's children to it with, as its architecture pages build node keys: the node's own separator, or one inferred
-     * from its kind when the response leaves it out ({@code module:package.Class}, {@code dir/file}).
-     */
-    private static String childSeparator(StructureGraph.Node node) {
-      if (node.separator() != null && !node.separator().isEmpty()) {
-        return node.separator();
-      }
-      return switch (node.kind()) {
-        case "module" -> ":";
-        case "directory", "folder" -> "/";
-        default -> ".";
-      };
     }
 
     private int add(StructureGraph.Node node, @Nullable Integer parentId) {
