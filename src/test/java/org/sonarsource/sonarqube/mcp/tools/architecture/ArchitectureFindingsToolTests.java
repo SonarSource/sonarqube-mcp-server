@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.JsonParser;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -67,8 +68,8 @@ class ArchitectureFindingsToolTests {
     harness.getMockSonarQubeServer().stubFor(get(PATH + SCOPE + "&pageIndex=1&pageSize=50").willReturn(okJson(page(finding, 1, 50, 1))));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isFalse();
-    var output = com.google.gson.JsonParser.parseString(textOf(result)).getAsJsonObject();
-    assertThat(output.getAsJsonArray("findings").get(0)).isEqualTo(com.google.gson.JsonParser.parseString(finding));
+    var output = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(output.getAsJsonArray("findings").get(0)).isEqualTo(JsonParser.parseString(finding));
     assertThat(output.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(1);
   }
 
@@ -80,7 +81,7 @@ class ArchitectureFindingsToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project", "category", "deviation", "type", "structuralDeviation", "language", "java"));
     assertThat(result.isError()).isFalse();
-    var output = com.google.gson.JsonParser.parseString(textOf(result)).getAsJsonObject();
+    var output = JsonParser.parseString(textOf(result)).getAsJsonObject();
     assertThat(output.getAsJsonArray("findings")).hasSize(2);
   }
 
@@ -115,7 +116,7 @@ class ArchitectureFindingsToolTests {
     assertThat(result.isError()).isFalse();
     assertResultEquals(result, """
       {"projectKey":"my_project","findings":[],"page":{"pageIndex":200,"pageSize":50,"total":144},
-        "message":"No findings on page 200; total is 144."}
+        "message":"Requested page 200 is past the last page (3). Use pageIndex=3."}
       """);
   }
 
@@ -183,10 +184,11 @@ class ArchitectureFindingsToolTests {
 
   static java.util.stream.Stream<String> invalidFindings() {
     return java.util.stream.Stream.of(
-      DEVIATION.replace("structuralDeviation", "unknown"),
       DEVIATION.replace("deviation", "flaw"),
-      DEVIATION.replace("java", "unknown"),
-      DEVIATION.replace("misplacedComponent", "other"),
+      DEVIATION.replace("structuralDeviation", ""),
+      DEVIATION.replace("java", " "),
+      DEVIATION.replace("misplacedComponent", ""),
+      DEVIATION.replace("misplacedComponent", "interfaceViolation"),
       DEVIATION.replace("app:web", "" ).replace("\"nodeKey\":\"\"", "\"nodeKey\":3"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":-1"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":2.5"),
@@ -228,6 +230,82 @@ class ArchitectureFindingsToolTests {
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/organizations/organizations")).hasSize(orgRequests);
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/api/project_branches/list")).isEmpty();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_skip_future_values_and_preserve_backend_totals(boolean cloud) {
+    stubMainBranch(harness);
+    var rows = String.join(",", DEVIATION, DEVIATION.replace("structuralDeviation", "futureType"),
+      DEVIATION.replace("java", "futureLanguage"), DEVIATION.replace("misplacedComponent", "futureReason"));
+    var organization = cloud ? CLOUD_ORGANIZATION_ID : ArchitectureApi.SERVER_ORGANIZATION_ID;
+    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + PATH + "?organizationId=" + organization
+      + "&branchId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=50";
+    harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson(page(rows, 1, 50, 4))));
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var output = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(output.getAsJsonArray("findings")).hasSize(1);
+    assertThat(output.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(4);
+    assertThat(output.get("skippedFindings").getAsInt()).isEqualTo(3);
+    assertThat(output.get("message").getAsString()).contains("Skipped 3", "backend total is unchanged");
+  }
+
+  @Test
+  void it_should_reject_incompatible_finding_filters_before_requests() {
+    var client = harness.newClient(CLOUD_ENV);
+    var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "category", "smell", "type", "tangle"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("belongs to category flaw, not smell");
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/api/project_branches/list")).isEmpty();
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
+  }
+
+  @Test
+  void it_should_explain_filtered_zero_results() {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + SCOPE + "&category=smell&type=weakTangle&language=java&pageIndex=1&pageSize=50")
+      .willReturn(okJson(page("", 1, 50, 0))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "category", "smell", "type", "weakTangle", "language", "java"));
+    assertThat(result.isError()).isFalse();
+    assertThat(textOf(result)).contains("No findings match category=smell, type=weakTangle, language=java").doesNotContain("Check project access");
+  }
+
+  @Test
+  void it_should_report_an_all_unsupported_page_without_claiming_zero_findings() {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + SCOPE + "&pageIndex=1&pageSize=50")
+      .willReturn(okJson(page(DEVIATION.replace("structuralDeviation", "futureType"), 1, 50, 1))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    assertThat(textOf(result)).contains("Skipped 1", "backend total is unchanged").doesNotContain("No findings are visible", "No findings on page");
+  }
+
+  @Test
+  void it_should_reject_oversized_pages_even_when_future_rows_are_skipped() {
+    stubMainBranch(harness);
+    var future = DEVIATION.replace("structuralDeviation", "futureType");
+    harness.getMockSonarQubeServer().stubFor(get(PATH + SCOPE + "&pageIndex=1&pageSize=1")
+      .willReturn(okJson(page(future + "," + future, 1, 1, 2))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "pageSize", 1));
+    assertThat(result.isError()).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_refuse_findings_for_an_unanalyzed_main_branch(boolean cloud) {
+    harness.getMockSonarQubeServer().stubFor(get("/api/project_branches/list?project=my_project")
+      .willReturn(okJson("{\"branches\":[{\"name\":\"main\",\"isMain\":true,\"branchId\":\"unanalysed-id\"}]}")));
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("has no analyzed main branch");
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", ArchitectureApi.SERVER_API_PREFIX + PATH)).isEmpty();
   }
 
   private void stubEmptyPage(boolean cloud, int pageIndex, int pageSize, int total) {
