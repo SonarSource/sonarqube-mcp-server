@@ -184,7 +184,7 @@ public class ArchitectureGetTool extends Tool {
     if (page.page().total() == 0) {
       var activeFilters = activeFindingFilters(filters);
       messages.add(activeFilters.isEmpty() ? "No findings are visible. Check project access and whether the project has been analyzed."
-        : "No findings match " + String.join(", ", activeFilters) + ".");
+        : ("No findings match " + String.join(", ", activeFilters) + "."));
     } else if (page.page().pageSize() > 0) {
       var last = (int) Math.ceil((double) page.page().total() / page.page().pageSize());
       if (page.page().pageIndex() > last) {
@@ -226,7 +226,8 @@ public class ArchitectureGetTool extends Tool {
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page, @Nullable String message, @Nullable Integer skippedFindings) {
+  private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,
+    @Nullable String message, @Nullable Integer skippedFindings) {
   }
 
   private Result readCurrent(ServerApi serverApi, String projectKey, @Nullable String component, @Nullable Integer depth, @Nullable String language) {

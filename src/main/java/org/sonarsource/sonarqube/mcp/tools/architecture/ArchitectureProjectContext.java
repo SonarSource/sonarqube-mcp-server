@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.branches.response.BranchesListResponse.Branch;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 
 final class ArchitectureProjectContext {
@@ -49,7 +50,7 @@ final class ArchitectureProjectContext {
   static String analyzedMainBranchId(ServerApi serverApi, String projectKey) {
     var response = serverApi.projectBranchesApi().listBranches(projectKey);
     if (response != null && response.branches() != null) {
-      var branch = response.branches().stream().filter(value -> value.isMain()).findFirst();
+      var branch = response.branches().stream().filter(Branch::isMain).findFirst();
       if (branch.isPresent()) {
         var selected = branch.get();
         return requireAnalyzedBranch(projectKey, selected.branchId(), selected.analysisDate());
