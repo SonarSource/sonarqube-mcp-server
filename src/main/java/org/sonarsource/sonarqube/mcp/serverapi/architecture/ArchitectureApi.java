@@ -356,7 +356,7 @@ public class ArchitectureApi {
     var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
       .addParam("category", filters.category()).addParam("type", filters.type()).addParam("language", filters.language())
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
-    var response = read(projectKey, () -> findingsJson(get(path), pageSize));
+    var response = read(projectKey, () -> findingsJson(get(path), pageSize, filters));
     if (response == null || response.findings() == null || response.page() == null
       || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
       || response.page().total() == null || response.page().total() < 0 || response.findings().size() > pageSize) {
@@ -369,7 +369,7 @@ public class ArchitectureApi {
   }
 
   @Nullable
-  private FindingPage findingsJson(HttpClient.Response response, int pageSize) {
+  private FindingPage findingsJson(HttpClient.Response response, int pageSize, FindingFilters filters) {
     try {
       var page = fromJson(response, RawFindingPage.class);
       if (page == null || page.findings() == null) {
@@ -377,6 +377,9 @@ public class ArchitectureApi {
       }
       if (page.findings().size() > pageSize) {
         throw new IllegalStateException("Invalid public findings page.");
+      }
+      if (page.findings().stream().anyMatch(row -> !filters.matchesRaw(row))) {
+        throw incompatibleResponse("The public findings response does not match the requested filters.");
       }
       var findings = page.findings().stream().map(ProjectFinding::parse).filter(Objects::nonNull).toList();
       var skipped = page.findings().size() - findings.size();
@@ -419,6 +422,21 @@ public class ArchitectureApi {
       if (type != null && category != null && !ProjectFinding.categoryOf(type).equals(category)) {
         throw new IllegalArgumentException("Finding type " + type + " belongs to category " + ProjectFinding.categoryOf(type) + ", not " + category + ".");
       }
+    }
+
+    private boolean matchesRaw(@Nullable JsonElement finding) {
+      if (category == null && type == null && language == null) {
+        return true;
+      }
+      if (finding == null || !finding.isJsonObject()) {
+        return false;
+      }
+      var row = finding.getAsJsonObject();
+      return matchesRawField(row.get("category"), category) && matchesRawField(row.get("type"), type) && matchesRawField(row.get("language"), language);
+    }
+
+    private static boolean matchesRawField(@Nullable JsonElement field, @Nullable String filter) {
+      return filter == null || (field != null && field.isJsonPrimitive() && field.getAsJsonPrimitive().isString() && filter.equals(field.getAsString()));
     }
 
     private boolean matches(ProjectFinding finding) {

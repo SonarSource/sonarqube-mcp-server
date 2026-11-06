@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
@@ -48,14 +49,20 @@ final class ArchitectureProjectContext {
   static String analyzedMainBranchId(ServerApi serverApi, String projectKey) {
     var response = serverApi.projectBranchesApi().listBranches(projectKey);
     if (response != null && response.branches() != null) {
-      var branchId = response.branches().stream()
-        .filter(branch -> branch.isMain() && branch.analysisDate() != null && !branch.analysisDate().isBlank())
-        .map(branch -> branch.branchId()).filter(id -> id != null && !id.isBlank()).findFirst();
-      if (branchId.isPresent()) {
-        return branchId.get();
+      var branch = response.branches().stream().filter(value -> value.isMain()).findFirst();
+      if (branch.isPresent()) {
+        var selected = branch.get();
+        return requireAnalyzedBranch(projectKey, selected.branchId(), selected.analysisDate());
       }
     }
-    throw new IllegalStateException("Project '" + projectKey + "' has no analyzed main branch. Analyze the main branch before requesting findings.");
+    throw new IllegalStateException("Project '" + projectKey + "' has no main branch. Analyze the main branch before requesting findings.");
+  }
+
+  static String requireAnalyzedBranch(String projectKey, @Nullable String branchId, @Nullable String analysisDate) {
+    if (branchId == null || branchId.isBlank() || analysisDate == null || analysisDate.isBlank()) {
+      throw new IllegalStateException("The selected branch for project '" + projectKey + "' has not been analyzed. Analyze it before requesting findings.");
+    }
+    return branchId;
   }
 
   static String projectId(ServerApi serverApi, String projectKey) {
