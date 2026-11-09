@@ -91,6 +91,19 @@ final class IntendedModels {
     return revision.getAsString();
   }
 
+  static void checkProject(String json, String projectKey) {
+    var element = JsonParser.parseString(json);
+    if (!element.isJsonObject()) {
+      return;
+    }
+    for (var property : List.of("projectKey", "project")) {
+      var value = element.getAsJsonObject().get(property);
+      if (value != null && (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString() || !projectKey.equals(value.getAsString()))) {
+        throw new IllegalArgumentException("The intended architecture export belongs to a different project than '" + projectKey + "'. Nothing was changed.");
+      }
+    }
+  }
+
   private static void rejectPartialView(JsonElement element) {
     if (element.isJsonArray()) {
       element.getAsJsonArray().forEach(IntendedModels::rejectPartialView);

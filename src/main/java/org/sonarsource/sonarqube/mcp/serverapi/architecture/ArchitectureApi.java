@@ -17,9 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
+import com.google.gson.GsonBuilder;
 import jakarta.annotation.Nullable;
 import java.net.HttpURLConnection;
 import java.util.HashSet;
@@ -42,7 +40,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 
-/** Public architecture HTTP requests, response validation and Cloud/Server routing. */
+/** Public architecture HTTP requests and Cloud/Server routing. */
 public class ArchitectureApi {
 
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
@@ -56,6 +54,7 @@ public class ArchitectureApi {
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
   private static final String LANGUAGE_PARAM = "language";
+  private static final String INVALID_FINDINGS_PAGE = "Invalid public findings page.";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
   public static final int MAX_PERSPECTIVES = 50;
@@ -72,15 +71,15 @@ public class ArchitectureApi {
 
   private static final String API_RESPONSE_ERROR = "The Architecture API returned an unexpected response.";
 
-  private static IllegalStateException unexpectedResponse(String message) {
-    return new IllegalStateException(message + " " + API_RESPONSE_ERROR);
-  }
-
   private final ServerApiHelper helper;
-  private final Gson gson = new Gson();
+  private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFinding.Deserializer()).create();
 
   public ArchitectureApi(ServerApiHelper helper) {
     this.helper = helper;
+  }
+
+  private static IllegalStateException unexpectedResponse(String message) {
+    return new IllegalStateException(message + " " + API_RESPONSE_ERROR);
   }
 
   /**
@@ -103,9 +102,6 @@ public class ArchitectureApi {
       }
       throw new IllegalStateException("A known SonarQube Server issue currently blocks current architecture reads (HTTP 400).", e);
     }
-    if (response == null || response.currentArchitectures() == null) {
-      throw new IllegalStateException("The public architecture API did not return currentArchitectures. No complete graph was read.");
-    }
     return response.currentArchitectures();
   }
 
@@ -119,7 +115,7 @@ public class ArchitectureApi {
   public IntendedState getIntendedState(String projectKey, String projectId) {
     var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH).addParam(PROJECT_ID_PARAM, projectId).build();
     var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
-    if (response == null || response.intendedArchitectures() == null || response.intendedArchitectures().size() > 1) {
+    if (response.intendedArchitectures().size() > 1) {
       throw incompleteModel();
     }
     return response.intendedArchitectures().isEmpty() ? new IntendedState(null, List.of()) : exportedResource(response.intendedArchitectures().getFirst());
@@ -164,7 +160,7 @@ public class ArchitectureApi {
 
   private IntendedState writeModels(String path, String body, boolean patch) {
     var result = fromJson(request(path, body, patch), IntendedResource.class);
-    if (result == null || result.perspectives() == null || result.perspectives().isEmpty()) {
+    if (result.perspectives().isEmpty()) {
       throw unexpectedResponse("The public architecture API did not return the written intended perspectives.");
     }
     return exportedResource(result);
@@ -181,7 +177,7 @@ public class ArchitectureApi {
 
   private static List<IntendedArchitecture> validateModels(List<IntendedArchitecture> models) {
     for (var model : models) {
-      if (model == null || model.type() == null || model.language() == null || model.groups() == null || model.constraints() == null) {
+      if (model.type() == null || model.language() == null || model.groups() == null || model.constraints() == null) {
         throw incompleteModel();
       }
       validateGroups(model.groups());
@@ -260,19 +256,13 @@ public class ArchitectureApi {
     var path = new UrlBuilder(PROJECT_DIRECTIVES_PATH).addParam(PROJECT_ID_PARAM, projectId)
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var response = fromJson(get(path), DirectivePage.class);
-    if (response == null || response.projectDirectives() == null || response.page() == null
-      || response.page().pageIndex() == null || response.page().pageIndex() != pageIndex
-      || response.page().pageSize() == null || response.page().pageSize() != pageSize
-      || response.page().total() == null || response.page().total() < 0
+    if (response.page().pageIndex() != pageIndex || response.page().pageSize() != pageSize || response.page().total() < 0
       || response.projectDirectives().size() > pageSize) {
       throw new IllegalStateException("Invalid public directives page; no complete page was read.");
     }
     var ids = new HashSet<String>();
     for (var directive : response.projectDirectives()) {
-      if (directive == null) {
-        throw new IllegalStateException("The public directives response contains an incomplete directive.");
-      }
-      directive.validateStored();
+      validateStoredDirective(directive);
       if (!ids.add(directive.id().toLowerCase(Locale.ROOT))) {
         throw new IllegalStateException("The public directives page returned duplicate ids.");
       }
@@ -288,10 +278,7 @@ public class ArchitectureApi {
     return write(projectKey, () -> {
       var body = gson.toJson(directive.forProject(projectId));
       var response = fromJson(request(PROJECT_DIRECTIVES_PATH, body, false), ProjectDirective.class);
-      if (response == null) {
-        throw new IllegalStateException("The directive write returned no directive. Inspect the current list before retrying.");
-      }
-      response.validateStored();
+      validateStoredDirective(response);
       if (!projectId.equals(response.projectId())) {
         throw new IllegalStateException("The directive write returned a different project. Inspect the current list before retrying.");
       }
@@ -344,17 +331,26 @@ public class ArchitectureApi {
     return PROJECT_DIRECTIVES_PATH + "/" + id;
   }
 
-  private static void validateDirectiveResource(@Nullable ProjectDirective directive, String projectId, String id) {
-    if (directive == null) {
-      throw unexpectedResponse("The public directive response is empty.");
+  private static void validateStoredDirective(ProjectDirective directive) {
+    try {
+      directive.validateStored();
+    } catch (IllegalArgumentException invalid) {
+      throw new IllegalStateException(invalid.getMessage() + " " + API_RESPONSE_ERROR, invalid);
     }
-    directive.validateStored();
+  }
+
+  private static void validateDirectiveResource(ProjectDirective directive, String projectId, String id) {
+    validateStoredDirective(directive);
     if (!projectId.equals(directive.projectId()) || !id.equalsIgnoreCase(directive.id())) {
       throw new IllegalStateException("The public directive response returned a different id or project.");
     }
   }
 
   public record DirectivePage(List<ProjectDirective> projectDirectives, DirectivePageInfo page) {
+    public DirectivePage {
+      projectDirectives = List.copyOf(projectDirectives);
+      Objects.requireNonNull(page);
+    }
   }
 
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
@@ -362,59 +358,24 @@ public class ArchitectureApi {
     var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
       .addParam("category", filters.category()).addParam("type", filters.type()).addParam(LANGUAGE_PARAM, filters.language())
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
-    var response = read(projectKey, () -> findingsJson(get(path), pageSize, filters));
-    if (response == null || response.findings() == null || response.page() == null
-      || !Integer.valueOf(pageIndex).equals(response.page().pageIndex()) || !Integer.valueOf(pageSize).equals(response.page().pageSize())
-      || response.page().total() == null || response.page().total() < 0 || response.findings().size() > pageSize) {
-      throw new IllegalStateException("Invalid public findings page.");
+    var page = read(projectKey, () -> fromJson(get(path), FindingPageResponse.class));
+    if (!Integer.valueOf(pageIndex).equals(page.page().pageIndex()) || !Integer.valueOf(pageSize).equals(page.page().pageSize())
+      || page.page().total() < 0 || page.findings().size() > pageSize) {
+      throw new IllegalStateException(INVALID_FINDINGS_PAGE);
     }
-    if (response.findings().stream().anyMatch(finding -> !filters.matches(finding))) {
-      throw new IllegalStateException("The public findings response does not match the requested filters.");
+    if (page.findings().stream().anyMatch(finding -> !filters.matches(finding))) {
+      throw unexpectedResponse("The public findings response does not match the requested filters.");
     }
-    return response;
+    var findings = page.findings().stream().filter(ProjectFinding::supported).toList();
+    var skipped = page.findings().size() - findings.size();
+    return new FindingPage(findings, page.page(), skipped == 0 ? null : skipped);
   }
 
-  @Nullable
-  private FindingPage findingsJson(HttpClient.Response response, int pageSize, FindingFilters filters) {
-    try {
-      var page = fromJson(response, RawFindingPage.class);
-      if (page == null || page.findings() == null) {
-        return null;
-      }
-      if (page.findings().size() > pageSize) {
-        throw new IllegalStateException("Invalid public findings page.");
-      }
-      if (page.findings().stream().anyMatch(row -> !filters.matchesRaw(row))) {
-        throw unexpectedResponse("The public findings response does not match the requested filters.");
-      }
-      var findings = page.findings().stream().map(ProjectFinding::parse).filter(Objects::nonNull).toList();
-      var skipped = page.findings().size() - findings.size();
-      return new FindingPage(findings, findingPageInfo(page.page()), skipped == 0 ? null : skipped);
-    } catch (JsonParseException e) {
-      throw new IllegalStateException("Invalid public findings response.", e);
+  private record FindingPageResponse(List<ProjectFinding> findings, DirectivePageInfo page) {
+    private FindingPageResponse {
+      findings = List.copyOf(findings);
+      Objects.requireNonNull(page);
     }
-  }
-
-  private static DirectivePageInfo findingPageInfo(@Nullable JsonObject page) {
-    if (page == null) {
-      throw new IllegalStateException("Invalid public findings page.");
-    }
-    return new DirectivePageInfo(findingPageNumber(page, PAGE_INDEX_PARAM), findingPageNumber(page, PAGE_SIZE_PARAM), findingPageNumber(page, "total"));
-  }
-
-  private static int findingPageNumber(JsonObject page, String name) {
-    var value = page.get(name);
-    try {
-      if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
-        throw new IllegalStateException("Invalid public findings page number.");
-      }
-      return value.getAsBigDecimal().intValueExact();
-    } catch (ArithmeticException | NumberFormatException e) {
-      throw new IllegalStateException("Invalid public findings page number.", e);
-    }
-  }
-
-  private record RawFindingPage(List<JsonElement> findings, JsonObject page) {
   }
 
   public static void validateFindingPage(int pageIndex, int pageSize) {
@@ -430,21 +391,6 @@ public class ArchitectureApi {
       }
     }
 
-    private boolean matchesRaw(@Nullable JsonElement finding) {
-      if (category == null && type == null && language == null) {
-        return true;
-      }
-      if (finding == null || !finding.isJsonObject()) {
-        return false;
-      }
-      var row = finding.getAsJsonObject();
-      return matchesRawField(row.get("category"), category) && matchesRawField(row.get("type"), type) && matchesRawField(row.get(LANGUAGE_PARAM), language);
-    }
-
-    private static boolean matchesRawField(@Nullable JsonElement field, @Nullable String filter) {
-      return filter == null || (field != null && field.isJsonPrimitive() && field.getAsJsonPrimitive().isString() && filter.equals(field.getAsString()));
-    }
-
     private boolean matches(ProjectFinding finding) {
       return (category == null || category.equals(finding.category())) && (type == null || type.equals(finding.type()))
         && (language == null || language.equals(finding.language()));
@@ -455,6 +401,11 @@ public class ArchitectureApi {
   }
 
   public record DirectivePageInfo(Integer pageIndex, Integer pageSize, Integer total) {
+    public DirectivePageInfo {
+      Objects.requireNonNull(pageIndex);
+      Objects.requireNonNull(pageSize);
+      Objects.requireNonNull(total);
+    }
   }
 
   private HttpClient.Response delete(String path) {
@@ -465,22 +416,24 @@ public class ArchitectureApi {
     return helper.isSonarQubeCloud() ? helper.getApiSubdomain(path) : helper.get(SERVER_API_PREFIX + path);
   }
 
-  @Nullable
   private <T> T fromJson(HttpClient.Response toBeClosed, Class<T> type) {
     try (var response = toBeClosed) {
-      return gson.fromJson(response.bodyAsString(), type);
-    } catch (JsonParseException invalid) {
+      return Objects.requireNonNull(gson.fromJson(response.bodyAsString(), type));
+    } catch (RuntimeException invalid) {
       throw new IllegalStateException("Invalid public architecture response. " + API_RESPONSE_ERROR, invalid);
     }
   }
 
-  private record CurrentArchitectures(@Nullable List<StructureGraph> currentArchitectures) {
+  private record CurrentArchitectures(List<StructureGraph> currentArchitectures) {
+    private CurrentArchitectures {
+      currentArchitectures = List.copyOf(currentArchitectures);
+    }
   }
 
-  private static IntendedState exportedResource(@Nullable IntendedResource response) {
+  private static IntendedState exportedResource(IntendedResource response) {
     try {
-      if (response == null || response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())
-        || response.perspectives() == null || response.perspectives().size() > MAX_PERSPECTIVES) {
+      if (response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())
+        || response.perspectives().size() > MAX_PERSPECTIVES) {
         throw incompleteModel();
       }
     } catch (IllegalArgumentException invalid) {
@@ -488,7 +441,7 @@ public class ArchitectureApi {
     }
     var identities = new HashSet<String>();
     var models = validateModels(response.perspectives().stream().map(model -> {
-      if (model == null || !identities.add(model.qualifiers() + "/" + model.language())) {
+      if (!identities.add(model.qualifiers() + "/" + model.language())) {
         throw incompleteModel();
       }
       return new IntendedArchitecture(response.id(), model.qualifiers(), model.language(), model.groups(), model.constraints(), model.label(), model.description());
@@ -503,10 +456,16 @@ public class ArchitectureApi {
     List<IntendedArchitecture.Constraint> constraints, @Nullable String label, @Nullable String description) {
   }
 
-  private record IntendedResource(@Nullable String id, @Nullable List<PublicIntendedExport> perspectives) {
+  private record IntendedResource(@Nullable String id, List<PublicIntendedExport> perspectives) {
+    private IntendedResource {
+      perspectives = List.copyOf(perspectives);
+    }
   }
 
-  private record IntendedArchitectures(@Nullable List<IntendedResource> intendedArchitectures) {
+  private record IntendedArchitectures(List<IntendedResource> intendedArchitectures) {
+    private IntendedArchitectures {
+      intendedArchitectures = List.copyOf(intendedArchitectures);
+    }
   }
 
 }

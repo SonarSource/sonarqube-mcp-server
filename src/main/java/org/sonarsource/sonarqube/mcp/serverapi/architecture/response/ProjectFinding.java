@@ -16,125 +16,148 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.architecture.response;
 
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 import jakarta.annotation.Nullable;
+import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.StreamSupport;
-import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import java.util.Objects;
 
-public record ProjectFinding(String type, String category, String language, Details details, List<String> files) {
-  private static final String STRUCTURAL_DEVIATION = "structuralDeviation";
-  private static final String RELATIONSHIP_DEVIATION = "relationshipDeviation";
+public sealed interface ProjectFinding {
+  String type();
 
-  public sealed interface Details permits StructuralDetails, RelationshipDetails, TangleDetails, ComponentDetails {
+  @Nullable
+  String category();
+
+  @Nullable
+  String language();
+
+  default boolean supported() {
+    return true;
   }
 
-  public record StructuralDetails(String reason, String nodeKey, @Nullable Integer misplacedComponentCount) implements Details {
+  record Finding<D extends Details>(String type, String category, String language, D details, List<String> files) implements ProjectFinding {
+    public Finding {
+      Objects.requireNonNull(type);
+      Objects.requireNonNull(language);
+      Objects.requireNonNull(details);
+      files = List.copyOf(files);
+      if (!categoryOf(type).equals(category)) {
+        throw new IllegalStateException("Invalid public finding category.");
+      }
+    }
   }
 
-  public record RelationshipDetails(String reason, String fromNodeKey, String toNodeKey, @Nullable Integer dependencyCount) implements Details {
+  sealed interface Details {
   }
 
-  public record TangleDetails(List<String> nodeKeys, int nodeCount) implements Details {
+  record StructuralDetails(String reason, String nodeKey, @Nullable BigDecimal misplacedComponentCount) implements Details {
+    public StructuralDetails {
+      Objects.requireNonNull(nodeKey);
+      requireReason(reason, List.of("misplacedComponent", "unimplementedComponent"));
+      misplacedComponentCount = integerCount(misplacedComponentCount);
+    }
   }
 
-  public record ComponentDetails(String nodeKey, @Nullable Integer leafArtifactCount, @Nullable Integer fragmentCount) implements Details {
+  record RelationshipDetails(String reason, String fromNodeKey, String toNodeKey, @Nullable BigDecimal dependencyCount) implements Details {
+    public RelationshipDetails {
+      Objects.requireNonNull(fromNodeKey);
+      Objects.requireNonNull(toNodeKey);
+      requireReason(reason, List.of("disallowedDependency", "interfaceViolation"));
+      dependencyCount = integerCount(dependencyCount);
+    }
+  }
+
+  record TangleDetails(List<String> nodeKeys, BigDecimal nodeCount) implements Details {
+    public TangleDetails {
+      nodeKeys = List.copyOf(nodeKeys);
+      Objects.requireNonNull(nodeCount);
+      nodeCount = integerCount(nodeCount);
+    }
+  }
+
+  record ComponentDetails(String nodeKey, @Nullable BigDecimal leafArtifactCount, @Nullable BigDecimal fragmentCount) implements Details {
+    public ComponentDetails {
+      Objects.requireNonNull(nodeKey);
+      leafArtifactCount = integerCount(leafArtifactCount);
+      fragmentCount = integerCount(fragmentCount);
+    }
+  }
+
+  record UnsupportedFinding(String type, @Nullable String category, @Nullable String language) implements ProjectFinding {
+    @Override
+    public boolean supported() {
+      return false;
+    }
+  }
+
+  /** Selects the documented details variant; Gson decodes the complete finding DTO once. */
+  final class Deserializer implements JsonDeserializer<ProjectFinding> {
+    private static final List<String> LANGUAGES = List.of("java", "cs", "js", "ts", "py");
+    private static final List<String> REASONS = List.of("misplacedComponent", "unimplementedComponent", "disallowedDependency", "interfaceViolation");
+
+    @Override
+    public ProjectFinding deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) {
+      var object = json.getAsJsonObject();
+      var type = required(context.deserialize(object.get("type"), String.class));
+      var detailsType = switch (type) {
+        case "structuralDeviation" -> StructuralDetails.class;
+        case "relationshipDeviation" -> RelationshipDetails.class;
+        case "tangle", "weakTangle" -> TangleDetails.class;
+        case "oversizedComponent", "splitResponsibility" -> ComponentDetails.class;
+        default -> null;
+      };
+      // Preserve unsupported metadata for filter checks and skipped-row counts without decoding an unknown payload.
+      if (detailsType == null) {
+        return context.deserialize(json, UnsupportedFinding.class);
+      }
+      var language = required(context.deserialize(object.get("language"), String.class));
+      if (!LANGUAGES.contains(language)) {
+        return context.deserialize(json, UnsupportedFinding.class);
+      }
+      if (detailsType == StructuralDetails.class || detailsType == RelationshipDetails.class) {
+        var reason = required(context.deserialize(object.getAsJsonObject("details").get("reason"), String.class));
+        if (!REASONS.contains(reason)) {
+          return context.deserialize(json, UnsupportedFinding.class);
+        }
+      }
+      return context.deserialize(json, TypeToken.getParameterized(Finding.class, detailsType).getType());
+    }
+
+    private static String required(String value) {
+      if (Objects.requireNonNull(value).isBlank()) {
+        throw new IllegalStateException("Missing public finding discriminator.");
+      }
+      return value;
+    }
+  }
+
+  private static void requireReason(String reason, List<String> reasons) {
+    if (!reasons.contains(Objects.requireNonNull(reason))) {
+      throw new IllegalStateException("Invalid public finding reason for type.");
+    }
   }
 
   @Nullable
-  public static ProjectFinding parse(JsonElement value) {
-    var row = objectValue(value);
-    var type = stringValue(row.get("type"));
-    if (type.isBlank()) {
-      throw new IllegalStateException("Invalid public finding type.");
-    }
-    if (!ArchitectureApi.FINDING_TYPES.contains(type)) {
+  private static BigDecimal integerCount(@Nullable BigDecimal count) {
+    if (count == null) {
       return null;
     }
-    var category = stringValue(row.get("category"));
-    if (!categoryOf(type).equals(category)) {
-      throw new IllegalStateException("Invalid public finding category.");
+    var value = count.intValueExact();
+    if (value < 0) {
+      throw new IllegalStateException("Finding counts must be nonnegative.");
     }
-    var language = stringValue(row.get("language"));
-    if (language.isBlank()) {
-      throw new IllegalStateException("Invalid public finding language.");
-    }
-    if (!ArchitectureApi.LANGUAGES.contains(language)) {
-      return null;
-    }
-    var details = objectValue(row.get("details"));
-    if (type.equals(STRUCTURAL_DEVIATION) || type.equals(RELATIONSHIP_DEVIATION)) {
-      var reason = stringValue(details.get("reason"));
-      if (!reason.isBlank() && !List.of("misplacedComponent", "unimplementedComponent", "disallowedDependency", "interfaceViolation").contains(reason)) {
-        return null;
-      }
-    }
-    return new ProjectFinding(type, category, language, parseDetails(type, details), strings(row.get("files")));
+    return BigDecimal.valueOf(value);
   }
 
-  private static Details parseDetails(String type, JsonObject details) {
+  static String categoryOf(String type) {
     return switch (type) {
-      case STRUCTURAL_DEVIATION -> new StructuralDetails(reason(details, List.of("misplacedComponent", "unimplementedComponent")),
-        stringValue(details.get("nodeKey")), optionalCount(details, "misplacedComponentCount"));
-      case RELATIONSHIP_DEVIATION -> new RelationshipDetails(reason(details, List.of("disallowedDependency", "interfaceViolation")),
-        stringValue(details.get("fromNodeKey")), stringValue(details.get("toNodeKey")), optionalCount(details, "dependencyCount"));
-      case "tangle", "weakTangle" -> new TangleDetails(strings(details.get("nodeKeys")), count(details.get("nodeCount")));
-      default -> new ComponentDetails(stringValue(details.get("nodeKey")), optionalCount(details, "leafArtifactCount"), optionalCount(details, "fragmentCount"));
-    };
-  }
-
-  public static String categoryOf(String type) {
-    return switch (type) {
-      case STRUCTURAL_DEVIATION, RELATIONSHIP_DEVIATION -> "deviation";
+      case "structuralDeviation", "relationshipDeviation" -> "deviation";
       case "tangle", "oversizedComponent" -> "flaw";
       default -> "smell";
     };
-  }
-
-  private static JsonObject objectValue(@Nullable JsonElement value) {
-    if (value == null || !value.isJsonObject()) {
-      throw new IllegalStateException("Invalid public finding object.");
-    }
-    return value.getAsJsonObject();
-  }
-
-  private static String stringValue(@Nullable JsonElement value) {
-    if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
-      throw new IllegalStateException("Invalid public finding string.");
-    }
-    return value.getAsString();
-  }
-
-  private static List<String> strings(@Nullable JsonElement value) {
-    if (value == null || !value.isJsonArray()) {
-      throw new IllegalStateException("Invalid public finding string array.");
-    }
-    return StreamSupport.stream(value.getAsJsonArray().spliterator(), false).map(ProjectFinding::stringValue).toList();
-  }
-
-  private static String reason(JsonObject details, List<String> reasons) {
-    var reason = stringValue(details.get("reason"));
-    if (!reasons.contains(reason)) {
-      throw new IllegalStateException("Invalid public finding reason.");
-    }
-    return reason;
-  }
-
-  @Nullable
-  private static Integer optionalCount(JsonObject details, String name) {
-    var value = details.get(name);
-    return value == null || value.isJsonNull() ? null : count(value);
-  }
-
-  private static int count(@Nullable JsonElement value) {
-    try {
-      if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber() || value.getAsBigDecimal().signum() < 0) {
-        throw new IllegalStateException("Invalid public finding count.");
-      }
-      return value.getAsBigDecimal().intValueExact();
-    } catch (ArithmeticException | NumberFormatException e) {
-      throw new IllegalStateException("Invalid public finding count.", e);
-    }
   }
 }
