@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import java.util.Map;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -54,9 +55,10 @@ class ArchitectureCompatibilityTests {
   void it_should_explain_incompatible_response_envelopes_without_writing(boolean cloud) {
     project();
     var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
-    var paths = Map.of("current", "current-architectures", "intended", "intended-architectures", "directives", "project-directives", "findings", "project-findings");
+    var paths = Map.of("current", ArchitectureApi.CURRENT_ARCHITECTURES_PATH, "intended", ArchitectureApi.INTENDED_ARCHITECTURES_PATH,
+      "directives", ArchitectureApi.PROJECT_DIRECTIVES_PATH, "findings", ArchitectureApi.PROJECT_FINDINGS_PATH);
     for (var target : paths.keySet()) {
-      harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo((cloud ? "" : "/api/v2") + "/architecture/" + paths.get(target)))
+      harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo((cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + paths.get(target)))
         .willReturn(okJson("{}")));
       var arguments = new java.util.HashMap<String, Object>(Map.of("target", target, "projectKey", "my_project"));
       if (!target.equals("directives")) {
@@ -77,15 +79,16 @@ class ArchitectureCompatibilityTests {
     project();
     var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
     var cases = new String[][] {
-      {"current", "current-architectures", "{\"currentArchitectures\":\"x\"}"},
-      {"intended", "intended-architectures", "not JSON"},
-      {"directives", "project-directives", "{\"projectDirectives\":[],\"page\":{}}"},
-      {"directives", "project-directives", "{\"projectDirectives\":[{}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"},
-      {"findings", "project-findings", "{\"findings\":[],\"page\":{}}"},
-      {"findings", "project-findings", "{\"findings\":[{}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"}
+      {"current", ArchitectureApi.CURRENT_ARCHITECTURES_PATH, "{\"currentArchitectures\":\"x\"}"},
+      {"current", ArchitectureApi.CURRENT_ARCHITECTURES_PATH, "{\"currentArchitectures\":[null]}"},
+      {"intended", ArchitectureApi.INTENDED_ARCHITECTURES_PATH, "not JSON"},
+      {"directives", ArchitectureApi.PROJECT_DIRECTIVES_PATH, "{\"projectDirectives\":[],\"page\":{}}"},
+      {"directives", ArchitectureApi.PROJECT_DIRECTIVES_PATH, "{\"projectDirectives\":[{}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"},
+      {"findings", ArchitectureApi.PROJECT_FINDINGS_PATH, "{\"findings\":[],\"page\":{}}"},
+      {"findings", ArchitectureApi.PROJECT_FINDINGS_PATH, "{\"findings\":[{}],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":1}}"}
     };
     for (var fixture : cases) {
-      harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo((cloud ? "" : "/api/v2") + "/architecture/" + fixture[1]))
+      harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo((cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + fixture[1]))
         .willReturn(okJson(fixture[2])));
       var arguments = new java.util.HashMap<String, Object>(Map.of("target", fixture[0], "projectKey", "my_project"));
       if (!fixture[0].equals("directives")) {
@@ -95,7 +98,7 @@ class ArchitectureCompatibilityTests {
       assertThat(result.isError()).isTrue();
       assertThat(textOf(result)).as(fixture[2]).contains(API_RESPONSE_ERROR).doesNotContain(UPGRADE_RECOMMENDATION, "compatible API versions");
     }
-    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo((cloud ? "" : "/api/v2") + "/architecture/project-directives"))
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo((cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + ArchitectureApi.PROJECT_DIRECTIVES_PATH))
       .willReturn(okJson("{\"projectDirectives\":[],\"page\":{\"pageIndex\":2,\"pageSize\":50,\"total\":0}}")));
     var mismatched = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "directives", "projectKey", "my_project"));
     assertThat(mismatched.isError()).isTrue();
@@ -107,7 +110,7 @@ class ArchitectureCompatibilityTests {
   void it_should_report_a_null_directive_detail_as_an_api_error(boolean cloud) {
     project();
     var id = "11111111-1111-4111-8111-111111111111";
-    var path = (cloud ? "" : "/api/v2") + "/architecture/project-directives/" + id;
+    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + ArchitectureApi.PROJECT_DIRECTIVES_PATH + "/" + id;
     harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson("null")));
     var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "directiveId", id));
@@ -123,7 +126,7 @@ class ArchitectureCompatibilityTests {
   void it_should_reconcile_malformed_write_responses_without_replay(boolean cloud, boolean patchWrite, boolean committed) {
     project();
     var backend = harness.getMockSonarQubeServer();
-    var path = (cloud ? "" : "/api/v2") + "/architecture/intended-architectures";
+    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + ArchitectureApi.INTENDED_ARCHITECTURES_PATH;
     var next = INTENDED_JAVA_MODEL.replace("domain", "infra");
     var previous = patchWrite ? intendedArchitectures(INTENDED_JAVA_MODEL) : "{\"intendedArchitectures\":[]}";
     backend.stubFor(get(urlPathEqualTo(path)).inScenario("malformed-write").whenScenarioStateIs("Started").willReturn(okJson(previous)));
@@ -152,7 +155,7 @@ class ArchitectureCompatibilityTests {
   void it_should_explain_gateway_endpoint_refusals_without_inferring_an_upgrade(boolean cloud) {
     project();
     var backend = harness.getMockSonarQubeServer();
-    var path = (cloud ? "" : "/api/v2") + "/architecture/project-findings";
+    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + ArchitectureApi.PROJECT_FINDINGS_PATH;
     var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
     var arguments = Map.<String, Object>of("target", "findings", "projectKey", "my_project");
     backend.stubFor(get(urlPathEqualTo(path)).willReturn(aResponse().withStatus(403)
@@ -178,7 +181,7 @@ class ArchitectureCompatibilityTests {
   void it_should_not_relabel_http_errors_or_empty_results_as_version_incompatibility(boolean cloud) {
     project();
     var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
-    var path = (cloud ? "" : "/api/v2") + "/architecture/current-architectures";
+    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + ArchitectureApi.CURRENT_ARCHITECTURES_PATH;
     var arguments = Map.<String, Object>of("target", "current", "projectKey", "my_project", "language", "java");
     for (var status : new int[] {401, 403, 404, 500}) {
       harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(path)).willReturn(aResponse().withStatus(status).withBody("{\"message\":\"Request refused\"}")));

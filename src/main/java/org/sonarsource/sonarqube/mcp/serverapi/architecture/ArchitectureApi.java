@@ -107,6 +107,9 @@ public class ArchitectureApi {
     if (response == null || response.currentArchitectures() == null) {
       throw unexpectedResponse("The public architecture API did not return currentArchitectures. No complete graph was read.");
     }
+    if (response.currentArchitectures().stream().anyMatch(Objects::isNull)) {
+      throw unexpectedResponse("The public architecture response contains an incomplete current graph.");
+    }
     return response.currentArchitectures();
   }
 
