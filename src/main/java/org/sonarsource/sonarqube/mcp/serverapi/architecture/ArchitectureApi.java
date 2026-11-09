@@ -34,6 +34,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.UrlBuilder;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFindingDeserializer;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
@@ -72,7 +73,7 @@ public class ArchitectureApi {
   private static final String API_RESPONSE_ERROR = "The Architecture API returned an unexpected response.";
 
   private final ServerApiHelper helper;
-  private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFinding.Deserializer()).create();
+  private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFindingDeserializer()).create();
 
   public ArchitectureApi(ServerApiHelper helper) {
     this.helper = helper;

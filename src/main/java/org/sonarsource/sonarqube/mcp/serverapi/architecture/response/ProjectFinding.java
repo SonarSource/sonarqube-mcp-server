@@ -16,12 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.architecture.response;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.reflect.TypeToken;
 import jakarta.annotation.Nullable;
-import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
@@ -91,47 +86,6 @@ public sealed interface ProjectFinding {
     @Override
     public boolean supported() {
       return false;
-    }
-  }
-
-  /** Selects the documented details variant; Gson decodes the complete finding DTO once. */
-  final class Deserializer implements JsonDeserializer<ProjectFinding> {
-    private static final List<String> LANGUAGES = List.of("java", "cs", "js", "ts", "py");
-    private static final List<String> REASONS = List.of("misplacedComponent", "unimplementedComponent", "disallowedDependency", "interfaceViolation");
-
-    @Override
-    public ProjectFinding deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) {
-      var object = json.getAsJsonObject();
-      var type = required(context.deserialize(object.get("type"), String.class));
-      var detailsType = switch (type) {
-        case "structuralDeviation" -> StructuralDetails.class;
-        case "relationshipDeviation" -> RelationshipDetails.class;
-        case "tangle", "weakTangle" -> TangleDetails.class;
-        case "oversizedComponent", "splitResponsibility" -> ComponentDetails.class;
-        default -> null;
-      };
-      // Preserve unsupported metadata for filter checks and skipped-row counts without decoding an unknown payload.
-      if (detailsType == null) {
-        return context.deserialize(json, UnsupportedFinding.class);
-      }
-      var language = required(context.deserialize(object.get("language"), String.class));
-      if (!LANGUAGES.contains(language)) {
-        return context.deserialize(json, UnsupportedFinding.class);
-      }
-      if (detailsType == StructuralDetails.class || detailsType == RelationshipDetails.class) {
-        var reason = required(context.deserialize(object.getAsJsonObject("details").get("reason"), String.class));
-        if (!REASONS.contains(reason)) {
-          return context.deserialize(json, UnsupportedFinding.class);
-        }
-      }
-      return context.deserialize(json, TypeToken.getParameterized(Finding.class, detailsType).getType());
-    }
-
-    private static String required(String value) {
-      if (Objects.requireNonNull(value).isBlank()) {
-        throw new IllegalStateException("Missing public finding discriminator.");
-      }
-      return value;
     }
   }
 

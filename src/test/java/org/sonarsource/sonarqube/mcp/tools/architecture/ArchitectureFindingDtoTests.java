@@ -23,12 +23,13 @@ import com.google.gson.JsonNull;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFindingDeserializer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ArchitectureFindingDtoTests {
-  private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFinding.Deserializer()).create();
+  private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFindingDeserializer()).create();
 
   @ParameterizedTest
   @ValueSource(strings = {
