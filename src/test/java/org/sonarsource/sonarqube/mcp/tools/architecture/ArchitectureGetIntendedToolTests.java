@@ -58,7 +58,11 @@ class ArchitectureGetIntendedToolTests {
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
 
       assertThat(result.isError()).isTrue();
-      assertThat(textOf(result)).contains("incomplete intended architecture", "No complete model was read");
+      if (model.equals("null")) {
+        assertThat(textOf(result)).contains("Invalid public architecture response", "The Architecture API returned an unexpected response.");
+      } else {
+        assertThat(textOf(result)).contains("incomplete intended architecture", "No complete model was read");
+      }
     }
   }
 
@@ -235,7 +239,7 @@ class ArchitectureGetIntendedToolTests {
     harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED).willReturn(okJson("{}")));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
-    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("No complete model was read");
+    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("Invalid public architecture response", "The Architecture API returned an unexpected response.");
   }
 
   @SonarQubeMcpServerTest

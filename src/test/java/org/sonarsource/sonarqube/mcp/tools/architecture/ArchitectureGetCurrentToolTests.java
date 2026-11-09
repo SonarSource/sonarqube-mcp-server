@@ -520,7 +520,7 @@ class ArchitectureGetCurrentToolTests {
     var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "current", "projectKey", "my_project", "language", "java"));
     assertThat(result.isError()).isTrue();
-    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("No complete graph was read");
+    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("Invalid public architecture response", "The Architecture API returned an unexpected response.");
   }
 
   private static void stubEmptyCurrent(SonarQubeMcpServerTestHarness harness) {
