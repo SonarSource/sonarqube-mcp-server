@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.JsonParser;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -42,6 +43,70 @@ class ArchitectureIntendedResourceTests {
   private static final String ID = "11111111-1111-4111-8111-111111111111";
   private static final String READ = PATH + "?projectId=" + MAIN_BRANCH_ID;
   private static final String EMPTY_RESOURCE = "{\"intendedArchitectures\":[{\"id\":\"" + ID + "\",\"perspectives\":[]}]}";
+
+  @SonarQubeMcpServerTest
+  void it_should_reject_foreign_exports_before_preview_update_or_clear_on_cloud_and_server(SonarQubeMcpServerTestHarness harness) {
+    var revision = IntendedRevision.of(IntendedModels.parse(INTENDED_JAVA_MODEL));
+    for (var baseEnvironment : List.of(CLOUD_ENV, Map.<String, String>of())) {
+      for (var projectArgument : List.of(Map.<String, Object>of("projectKey", "my_project"), Map.<String, Object>of())) {
+        var environment = new HashMap<>(baseEnvironment);
+        if (projectArgument.isEmpty()) {
+          environment.put("SONARQUBE_PROJECT_KEY", "my_project");
+        }
+        var client = harness.newClient(environment);
+        for (var dryRun : List.of(true, false)) {
+          for (var models : List.of("[]", INTENDED_JAVA_MODEL.replace("domain", "infra"))) {
+            var model = "{\"projectKey\":\"other_project\",\"revision\":\"" + revision + "\",\"models\":" + models + "}";
+            var args = new HashMap<>(projectArgument);
+            args.putAll(Map.of("target", "intended", "model", model, "dryRun", dryRun));
+            var result = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
+            assertThat(result.isError()).isTrue();
+            assertThat(textOf(result)).contains("different project than 'my_project'", "Nothing was changed");
+          }
+        }
+      }
+    }
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_reject_invalid_or_conflicting_project_markers_before_backend_reads(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient(CLOUD_ENV);
+    for (var marker : List.of("null", "42", "true", "\"\"", "\" \"", "\"other_project\"")) {
+      for (var property : List.of("projectKey", "project")) {
+        var model = "{\"" + property + "\":" + marker + ",\"models\":[]}";
+        var result = client.callTool(ArchitectureSetTool.TOOL_NAME,
+          Map.of("target", "intended", "projectKey", "my_project", "model", model, "dryRun", false));
+        assertThat(result.isError()).isTrue();
+        assertThat(textOf(result)).contains("different project", "Nothing was changed");
+      }
+    }
+    var conflicting = client.callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model",
+        "{\"projectKey\":\"my_project\",\"project\":\"other_project\",\"models\":[]}", "dryRun", false));
+    assertThat(conflicting.isError()).isTrue();
+    assertThat(textOf(conflicting)).contains("different project", "Nothing was changed");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_keep_matching_exports_and_untagged_templates_supported(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(READ).willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
+    var client = harness.newClient(CLOUD_ENV);
+    for (var prefix : List.of("", "\"projectKey\":\"my_project\",", "\"project\":\"my_project\",",
+      "\"projectKey\":\"my_project\",\"project\":\"my_project\",")) {
+      var model = "{" + prefix + "\"models\":" + INTENDED_JAVA_MODEL + "}";
+      var result = client.callTool(ArchitectureSetTool.TOOL_NAME,
+        Map.of("target", "intended", "projectKey", "my_project", "model", model, "dryRun", false));
+      assertThat(result.isError()).as(textOf(result)).isFalse();
+      assertThat(textOf(result)).contains("unchanged");
+    }
+    var bare = client.callTool(ArchitectureSetTool.TOOL_NAME,
+      Map.of("target", "intended", "projectKey", "my_project", "model", INTENDED_JAVA_MODEL, "dryRun", true));
+    assertThat(bare.isError()).as(textOf(bare)).isFalse();
+    assertThat(textOf(bare)).contains("dry-run");
+  }
 
   @SonarQubeMcpServerTest
   void it_should_refuse_a_full_clear_without_a_revision(SonarQubeMcpServerTestHarness harness) {

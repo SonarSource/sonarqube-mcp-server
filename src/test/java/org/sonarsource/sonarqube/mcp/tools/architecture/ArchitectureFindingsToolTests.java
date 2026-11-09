@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.JsonParser;
+import com.google.gson.JsonNull;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -27,10 +28,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.CLOUD_ENV;
@@ -180,6 +183,8 @@ class ArchitectureFindingsToolTests {
     harness.getMockSonarQubeServer().stubFor(get(PATH + SCOPE + "&pageIndex=1&pageSize=50").willReturn(okJson(page(finding, 1, 50, 1))));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
+      .doesNotContain("Cannot invoke", "NullPointerException");
   }
 
   static java.util.stream.Stream<String> invalidFindings() {
@@ -189,12 +194,82 @@ class ArchitectureFindingsToolTests {
       DEVIATION.replace("java", " "),
       DEVIATION.replace("misplacedComponent", ""),
       DEVIATION.replace("misplacedComponent", "interfaceViolation"),
-      DEVIATION.replace("app:web", "" ).replace("\"nodeKey\":\"\"", "\"nodeKey\":3"),
+      DEVIATION.replace("app:web", "" ).replace("\"nodeKey\":\"\"", "\"nodeKey\":{}"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":-1"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":2.5"),
-      DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":\"2\""),
-      DEVIATION.replace("\"src/App.java\"", "3"),
+      DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":\"invalid\""),
+      DEVIATION.replace("\"src/App.java\"", "{}"),
       DEVIATION.replace("\"src/App.java\"", "null"));
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true,type,false", "false,type,false", "true,language,false", "false,language,false", "true,reason,false", "false,reason,false",
+    "true,type,true", "false,type,true", "true,language,true", "false,language,true", "true,reason,true", "false,reason,true"})
+  void it_should_report_missing_or_null_metadata_as_a_neutral_api_error(boolean cloud, String field, boolean missing) {
+    var finding = JsonParser.parseString(DEVIATION).getAsJsonObject();
+    var owner = field.equals("reason") ? finding.getAsJsonObject("details") : finding;
+    if (missing) {
+      owner.remove(field);
+    } else {
+      owner.add(field, JsonNull.INSTANCE);
+    }
+    stubFindingResponse(cloud, finding.toString());
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
+      .doesNotContain("Cannot invoke", "NullPointerException");
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true,structuralDeviation,nodeKey", "false,structuralDeviation,nodeKey", "true,relationshipDeviation,fromNodeKey",
+    "false,relationshipDeviation,toNodeKey", "true,tangle,nodeKeys", "false,tangle,nodeCount", "true,weakTangle,nodeKeys", "false,weakTangle,nodeCount",
+    "true,oversizedComponent,nodeKey",
+    "false,splitResponsibility,nodeKey"})
+  void it_should_reject_missing_required_details_at_the_dto_boundary(boolean cloud, String type, String field) {
+    var details = JsonParser.parseString("{\"reason\":\"disallowedDependency\",\"nodeKey\":\"app\",\"fromNodeKey\":\"a\","
+      + "\"toNodeKey\":\"b\",\"nodeKeys\":[\"a\",\"b\"],\"nodeCount\":2}").getAsJsonObject();
+    if (type.equals("structuralDeviation")) {
+      details.addProperty("reason", "misplacedComponent");
+    }
+    details.remove(field);
+    var finding = JsonParser.parseString(DEVIATION).getAsJsonObject();
+    finding.addProperty("type", type);
+    finding.addProperty("category", ProjectFinding.categoryOf(type));
+    finding.add("details", details);
+    stubFindingResponse(cloud, finding.toString());
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.");
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_skip_future_rows_before_deserializing_their_payloads(boolean cloud) {
+    var futureRows = "{\"type\":\"futureType\"},"
+      + "{\"type\":\"futureType\",\"details\":{\"nodeCount\":{}},\"files\":{}},"
+      + "{\"type\":\"structuralDeviation\",\"category\":\"deviation\",\"language\":\"futureLanguage\"},"
+      + "{\"type\":\"structuralDeviation\",\"category\":\"deviation\",\"language\":\"java\","
+      + "\"details\":{\"reason\":\"futureReason\",\"nodeCount\":{}},\"files\":{}}";
+    stubMainBranch(harness);
+    var prefix = cloud ? "" : ArchitectureApi.SERVER_API_PREFIX;
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(prefix + PATH))
+      .willReturn(okJson(page(DEVIATION + "," + futureRows, 1, 50, 5))));
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var output = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(output.getAsJsonArray("findings")).hasSize(1);
+    assertThat(output.get("skippedFindings").getAsInt()).isEqualTo(4);
+    assertThat(output.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(5);
+  }
+
+  private void stubFindingResponse(boolean cloud, String finding) {
+    stubMainBranch(harness);
+    var prefix = cloud ? "" : ArchitectureApi.SERVER_API_PREFIX;
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(prefix + PATH))
+      .willReturn(okJson(page(finding, 1, 50, 1))));
   }
 
   @Test
@@ -275,9 +350,20 @@ class ArchitectureFindingsToolTests {
       {"language", "java", future.replace("\"language\":\"java\",", "")},
       {"category", "deviation", future.replace("\"category\":\"deviation\"", "\"category\":false")},
       {"category", "deviation", future.replace("\"category\":\"deviation\",", "")},
-      {"type", "structuralDeviation", DEVIATION.replace("\"type\":\"structuralDeviation\"", "\"type\":5").replace("java", "futureLanguage")},
-      {"type", "structuralDeviation", DEVIATION.replace("\"type\":\"structuralDeviation\",", "").replace("java", "futureLanguage")}
+      {"type", "structuralDeviation", DEVIATION.replace("\"type\":\"structuralDeviation\"", "\"type\":5").replace("java", "futureLanguage")}
     };
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_reject_a_missing_discriminator_before_applying_filters(boolean cloud) {
+    var row = DEVIATION.replace("\"type\":\"structuralDeviation\",", "").replace("java", "futureLanguage");
+    stubFindingResponse(cloud, row);
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "type", "structuralDeviation"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
+      .doesNotContain("Cannot invoke", "NullPointerException");
   }
 
   @ParameterizedTest
