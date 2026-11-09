@@ -69,7 +69,7 @@ class ArchitectureCurrentApiTests {
 
     var thrown = assertThatThrownBy(() -> api.getStructure("my_project", "org", "branch", "java"));
     if (error instanceof ForbiddenException) {
-      thrown.isInstanceOf(ForbiddenException.class).hasMessageContaining("Insufficient permissions").hasMessageNotContaining("language-binding");
+      thrown.isInstanceOf(ForbiddenException.class).hasMessageContaining("Insufficient permissions").hasMessageNotContaining("language-binding").hasCause(error);
     } else {
       thrown.isSameAs(error);
     }
