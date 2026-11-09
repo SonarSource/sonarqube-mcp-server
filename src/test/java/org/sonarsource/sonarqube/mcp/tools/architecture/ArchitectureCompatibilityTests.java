@@ -115,7 +115,7 @@ class ArchitectureCompatibilityTests {
     var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "directiveId", id));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("public directive response is empty", API_RESPONSE_ERROR)
+    assertThat(textOf(result)).contains("Invalid public architecture response", API_RESPONSE_ERROR)
       .doesNotContain(UPGRADE_RECOMMENDATION, "supports the same", "Check compatible API versions");
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining(path)).isEqualTo(1);
   }

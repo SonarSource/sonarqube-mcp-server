@@ -189,11 +189,11 @@ class ArchitectureFindingsToolTests {
       DEVIATION.replace("java", " "),
       DEVIATION.replace("misplacedComponent", ""),
       DEVIATION.replace("misplacedComponent", "interfaceViolation"),
-      DEVIATION.replace("app:web", "" ).replace("\"nodeKey\":\"\"", "\"nodeKey\":3"),
+      DEVIATION.replace("app:web", "" ).replace("\"nodeKey\":\"\"", "\"nodeKey\":{}"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":-1"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":2.5"),
-      DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":\"2\""),
-      DEVIATION.replace("\"src/App.java\"", "3"),
+      DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":\"invalid\""),
+      DEVIATION.replace("\"src/App.java\"", "{}"),
       DEVIATION.replace("\"src/App.java\"", "null"));
   }
 
