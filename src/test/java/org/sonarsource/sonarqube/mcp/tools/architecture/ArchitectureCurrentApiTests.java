@@ -17,12 +17,17 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import java.util.stream.Stream;
+import java.util.List;
+import com.google.gson.JsonParseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
@@ -30,6 +35,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -69,10 +75,40 @@ class ArchitectureCurrentApiTests {
 
     var thrown = assertThatThrownBy(() -> api.getStructure("my_project", "org", "branch", "java"));
     if (error instanceof ForbiddenException) {
-      thrown.isInstanceOf(ForbiddenException.class).hasMessageContaining("Insufficient permissions").hasMessageNotContaining("language-binding");
+      thrown.isInstanceOf(ForbiddenException.class).hasMessageContaining("Insufficient permissions").hasMessageNotContaining("language-binding").hasCause(error);
     } else {
       thrown.isSameAs(error);
     }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"false,false", "false,true", "true,false", "true,true"})
+  void it_should_preserve_the_parser_cause_for_malformed_write_responses(boolean cloud, boolean patch) {
+    var helper = mock(ServerApiHelper.class);
+    var response = mock(HttpClient.Response.class);
+    when(response.bodyAsString()).thenReturn("not JSON");
+    when(helper.isSonarQubeCloud()).thenReturn(cloud);
+    var path = ArchitectureApi.INTENDED_ARCHITECTURES_PATH;
+    var patchPath = path + "/11111111-1111-4111-8111-111111111111";
+    if (patch) {
+      if (cloud) {
+        when(helper.patchApiSubdomain(eq(patchPath), eq(HttpClient.MERGE_PATCH_CONTENT_TYPE), anyString())).thenReturn(response);
+      } else {
+        when(helper.patch(eq(ArchitectureApi.SERVER_API_PREFIX + patchPath), eq(HttpClient.MERGE_PATCH_CONTENT_TYPE), anyString())).thenReturn(response);
+      }
+    } else if (cloud) {
+      when(helper.postApiSubdomain(eq(path), eq(HttpClient.JSON_CONTENT_TYPE), anyString())).thenReturn(response);
+    } else {
+      when(helper.post(eq(ArchitectureApi.SERVER_API_PREFIX + path), eq(HttpClient.JSON_CONTENT_TYPE), anyString())).thenReturn(response);
+    }
+    var api = new ArchitectureApi(helper);
+    List<IntendedArchitecture> models = List.of();
+    var thrown = patch
+      ? assertThatThrownBy(() -> api.patchIntended("my-project", "11111111-1111-4111-8111-111111111111", models))
+      : assertThatThrownBy(() -> api.createIntended("my-project", "project-id", models));
+    thrown.isInstanceOf(IllegalStateException.class).hasMessageContaining("The Architecture API returned an unexpected response.")
+      .hasCauseInstanceOf(JsonParseException.class).hasMessageNotContaining("Update the MCP server");
+    verify(response).close();
   }
 
   private static Stream<Arguments> otherCurrentFailures() {
