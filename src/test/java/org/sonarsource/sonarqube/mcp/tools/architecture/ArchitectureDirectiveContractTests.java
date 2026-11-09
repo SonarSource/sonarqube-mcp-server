@@ -63,11 +63,11 @@ class ArchitectureDirectiveContractTests {
   void it_should_advertise_the_complete_cloud_read_contract() {
     var read = cloudTool(ArchitectureGetTool.TOOL_NAME);
     var readProperties = (Map<String, Map<String, Object>>) read.inputSchema().get("properties");
-    assertThat(readProperties).containsOnlyKeys("organization", "target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category");
+    assertThat(readProperties).containsOnlyKeys("organization", "target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category", "from", "to");
     assertThat(read.inputSchema()).containsEntry("required", List.of("target", "projectKey")).containsEntry("additionalProperties", false);
     assertThat(readProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
     assertThat(readProperties.get("language")).containsEntry("enum", List.of("java", "cs", "js", "ts", "py"));
-    for (var name : List.of("organization", "target", "projectKey", "component", "language", "directiveId", "type", "category")) {
+    for (var name : List.of("organization", "target", "projectKey", "component", "language", "directiveId", "type", "category", "from", "to")) {
       assertThat(readProperties.get(name)).containsEntry("type", "string");
     }
     for (var name : List.of("depth", "pageIndex", "pageSize")) {
@@ -107,7 +107,7 @@ class ArchitectureDirectiveContractTests {
     assertThat(serverTools).extracting(Tool::name).contains(ArchitectureSetTool.TOOL_NAME);
     var serverRead = serverTools.stream().filter(tool -> tool.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     var serverProperties = (Map<String, Map<String, Object>>) serverRead.inputSchema().get("properties");
-    assertThat(serverProperties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category");
+    assertThat(serverProperties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category", "from", "to");
     assertThat(serverProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
     assertThat(serverRead.inputSchema()).containsEntry("required", List.of("target", "projectKey")).containsEntry("additionalProperties", false);
     assertThat(serverRead.annotations().readOnlyHint()).isTrue();
