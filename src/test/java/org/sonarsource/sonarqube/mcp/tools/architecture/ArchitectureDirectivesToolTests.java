@@ -600,23 +600,25 @@ class ArchitectureDirectivesToolTests {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {
-    "null", "{}", "{\"projectDirectives\":[]}",
-    "{\"projectDirectives\":[],\"page\":{}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":2,\"pageSize\":50,\"total\":0}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"total\":0}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50}}",
-    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":-1}}"
+  @CsvSource(delimiter = '|', value = {
+    "null|Invalid public architecture response",
+    "{}|Invalid public architecture response",
+    "{\"projectDirectives\":[]}|Invalid public architecture response",
+    "{\"projectDirectives\":[],\"page\":{}}|Invalid public architecture response",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":2,\"pageSize\":50,\"total\":0}}|Invalid public directives page",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"total\":0}}|Invalid public architecture response",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":100,\"total\":0}}|Invalid public directives page",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50}}|Invalid public architecture response",
+    "{\"projectDirectives\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":-1}}|Invalid public directives page"
   })
-  void it_should_reject_incomplete_page_metadata(String response) {
+  void it_should_reject_incomplete_page_metadata(String response, String message) {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH + "?projectId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=50")
       .willReturn(okJson(response)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "pageSize", 50));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("Invalid public directives page");
+    assertThat(textOf(result)).contains(message);
   }
 
   @ParameterizedTest
@@ -635,7 +637,7 @@ class ArchitectureDirectivesToolTests {
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains(switch (kind) {
       case "duplicate" -> "duplicate ids";
-      case "null" -> "incomplete directive";
+      case "null" -> "Invalid public architecture response";
       default -> "different project";
     });
   }
