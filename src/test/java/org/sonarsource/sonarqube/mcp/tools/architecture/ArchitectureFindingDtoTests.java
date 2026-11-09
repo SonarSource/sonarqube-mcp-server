@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonNull;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -24,9 +25,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ArchitectureFindingDtoTests {
-  private final Gson gson = new Gson();
+  private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFinding.Deserializer()).create();
 
   @ParameterizedTest
   @ValueSource(strings = {
@@ -53,4 +55,21 @@ class ArchitectureFindingDtoTests {
     var response = gson.fromJson(payload, ProjectFinding.class);
     assertThat(gson.toJsonTree(response)).isEqualTo(expected);
   }
+  @ParameterizedTest
+  @ValueSource(strings = {"2.5", "-1", "2147483648", "1e30"})
+  void it_should_reject_non_integer_or_out_of_range_counts(String count) {
+    var json = "{\"type\":\"tangle\",\"category\":\"flaw\",\"language\":\"java\","
+      + "\"details\":{\"nodeKeys\":[],\"nodeCount\":" + count + "},\"files\":[]}";
+    assertThatThrownBy(() -> gson.fromJson(json, ProjectFinding.class)).isInstanceOf(RuntimeException.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"2", "2.0", "2e0"})
+  void it_should_preserve_integer_count_output(String count) {
+    var json = "{\"type\":\"tangle\",\"category\":\"flaw\",\"language\":\"java\","
+      + "\"details\":{\"nodeKeys\":[],\"nodeCount\":" + count + "},\"files\":[]}";
+    var finding = gson.fromJson(json, ProjectFinding.class);
+    assertThat(gson.toJson(finding)).contains("\"nodeCount\":2}");
+  }
+
 }

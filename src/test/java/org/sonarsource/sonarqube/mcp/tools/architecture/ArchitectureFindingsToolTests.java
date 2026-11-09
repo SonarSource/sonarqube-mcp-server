@@ -350,9 +350,20 @@ class ArchitectureFindingsToolTests {
       {"language", "java", future.replace("\"language\":\"java\",", "")},
       {"category", "deviation", future.replace("\"category\":\"deviation\"", "\"category\":false")},
       {"category", "deviation", future.replace("\"category\":\"deviation\",", "")},
-      {"type", "structuralDeviation", DEVIATION.replace("\"type\":\"structuralDeviation\"", "\"type\":5").replace("java", "futureLanguage")},
-      {"type", "structuralDeviation", DEVIATION.replace("\"type\":\"structuralDeviation\",", "").replace("java", "futureLanguage")}
+      {"type", "structuralDeviation", DEVIATION.replace("\"type\":\"structuralDeviation\"", "\"type\":5").replace("java", "futureLanguage")}
     };
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_reject_a_missing_discriminator_before_applying_filters(boolean cloud) {
+    var row = DEVIATION.replace("\"type\":\"structuralDeviation\",", "").replace("java", "futureLanguage");
+    stubFindingResponse(cloud, row);
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "type", "structuralDeviation"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
+      .doesNotContain("Cannot invoke", "NullPointerException");
   }
 
   @ParameterizedTest
