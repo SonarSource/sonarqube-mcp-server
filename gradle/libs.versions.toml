@@ -3,7 +3,7 @@ sonarlint-core = "12.3.0.87938"
 
 sonarqube = "7.5.0.8588"
 
-spotless = "8.10.4"
+spotless = "8.11.0"
 artifactory-plugin = "6.0.4"
 cyclonedx-plugin = "3.5.1"
 
