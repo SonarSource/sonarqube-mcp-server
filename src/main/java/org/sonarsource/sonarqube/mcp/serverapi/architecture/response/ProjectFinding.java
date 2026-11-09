@@ -20,31 +20,45 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
-import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 
 public record ProjectFinding(String type, String category, String language, Details details, List<String> files) {
   private static final String STRUCTURAL_DEVIATION = "structuralDeviation";
   private static final String RELATIONSHIP_DEVIATION = "relationshipDeviation";
-  private static final List<String> DEVIATION_REASONS = List.of(
+  public static final List<String> DEVIATION_REASONS = List.of(
     "misplacedComponent", "unimplementedComponent", "disallowedDependency", "interfaceViolation");
 
   public ProjectFinding {
     Objects.requireNonNull(details);
     files = List.copyOf(files);
+    switch (type) {
+      case STRUCTURAL_DEVIATION, "oversizedComponent", "splitResponsibility" -> Objects.requireNonNull(details.nodeKey());
+      case RELATIONSHIP_DEVIATION -> {
+        Objects.requireNonNull(details.fromNodeKey());
+        Objects.requireNonNull(details.toNodeKey());
+      }
+      case "tangle", "weakTangle" -> {
+        Objects.requireNonNull(details.nodeKeys());
+        Objects.requireNonNull(details.nodeCount());
+      }
+      default -> { }
+    }
   }
 
   public record Details(@Nullable String reason, @Nullable String nodeKey, @Nullable String fromNodeKey, @Nullable String toNodeKey,
     @Nullable List<String> nodeKeys, @Nullable Integer nodeCount, @Nullable Integer misplacedComponentCount, @Nullable Integer dependencyCount,
     @Nullable Integer leafArtifactCount, @Nullable Integer fragmentCount) {
+    public Details {
+      if (nodeKeys != null) {
+        nodeKeys = List.copyOf(nodeKeys);
+      }
+    }
   }
 
-  public boolean supported() {
-    if (type.isBlank() || language.isBlank()) {
-      throw new IllegalStateException("Invalid public finding type or language.");
-    }
-    if (!ArchitectureApi.FINDING_TYPES.contains(type) || !ArchitectureApi.LANGUAGES.contains(language)) {
-      return false;
-    }
+  public static boolean isDeviation(String type) {
+    return List.of(STRUCTURAL_DEVIATION, RELATIONSHIP_DEVIATION).contains(type);
+  }
+
+  public void validateSemantics() {
     if (!categoryOf(type).equals(category)) {
       throw new IllegalStateException("Invalid public finding category.");
     }
@@ -52,22 +66,15 @@ public record ProjectFinding(String type, String category, String language, Deta
       .filter(Objects::nonNull).anyMatch(count -> count < 0)) {
       throw new IllegalStateException("Finding counts must be nonnegative.");
     }
-    if (!List.of(STRUCTURAL_DEVIATION, RELATIONSHIP_DEVIATION).contains(type)) {
-      return true;
+    if (!isDeviation(type)) {
+      return;
     }
     var reason = details.reason();
-    if (reason.isBlank()) {
-      throw new IllegalStateException("Invalid public finding reason.");
-    }
-    if (!DEVIATION_REASONS.contains(reason)) {
-      return false;
-    }
     var reasons = type.equals(STRUCTURAL_DEVIATION) ? List.of("misplacedComponent", "unimplementedComponent")
       : List.of("disallowedDependency", "interfaceViolation");
     if (!reasons.contains(reason)) {
       throw new IllegalStateException("Invalid public finding reason for type.");
     }
-    return true;
   }
 
   public static String categoryOf(String type) {

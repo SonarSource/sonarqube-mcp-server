@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import jakarta.annotation.Nullable;
 import java.net.HttpURLConnection;
 import java.util.HashSet;
@@ -346,14 +347,56 @@ public class ArchitectureApi {
       throw new IllegalStateException(INVALID_FINDINGS_PAGE);
     }
     if (page.findings().stream().anyMatch(finding -> !filters.matches(finding))) {
-      throw new IllegalStateException("The public findings response does not match the requested filters.");
+      throw unexpectedResponse("The public findings response does not match the requested filters.");
     }
-    var findings = page.findings().stream().filter(ProjectFinding::supported).toList();
+    var findings = page.findings().stream().map(this::decodeFinding).filter(Objects::nonNull).toList();
     var skipped = page.findings().size() - findings.size();
     return new FindingPage(findings, page.page(), skipped == 0 ? null : skipped);
   }
 
-  private record FindingPageResponse(List<ProjectFinding> findings, DirectivePageInfo page) {
+  @Nullable
+  private ProjectFinding decodeFinding(FindingEnvelope envelope) {
+    try {
+      var type = Objects.requireNonNull(envelope.type());
+      if (type.isBlank()) {
+        throw new IllegalStateException("Invalid public finding type.");
+      }
+      if (!FINDING_TYPES.contains(type)) {
+        return null;
+      }
+      var language = Objects.requireNonNull(envelope.language());
+      if (language.isBlank()) {
+        throw new IllegalStateException("Invalid public finding language.");
+      }
+      if (!LANGUAGES.contains(language)) {
+        return null;
+      }
+      if (ProjectFinding.isDeviation(type)) {
+        var reason = Objects.requireNonNull(Objects.requireNonNull(gson.fromJson(envelope.details(), FindingReason.class)).reason());
+        if (reason.isBlank()) {
+          throw new IllegalStateException("Invalid public finding reason.");
+        }
+        if (!ProjectFinding.DEVIATION_REASONS.contains(reason)) {
+          return null;
+        }
+      }
+      var finding = gson.fromJson(gson.toJson(envelope), ProjectFinding.class);
+      finding.validateSemantics();
+      return finding;
+    } catch (RuntimeException invalid) {
+      throw new IllegalStateException("Invalid public finding. " + API_RESPONSE_ERROR, invalid);
+    }
+  }
+
+  // Future kinds are skipped before their polymorphic details and files are decoded.
+  private record FindingEnvelope(@Nullable String type, @Nullable String category, @Nullable String language,
+    @Nullable JsonElement details, @Nullable JsonElement files) {
+  }
+
+  private record FindingReason(@Nullable String reason) {
+  }
+
+  private record FindingPageResponse(List<FindingEnvelope> findings, DirectivePageInfo page) {
     private FindingPageResponse {
       findings = List.copyOf(findings);
       Objects.requireNonNull(page);
@@ -373,7 +416,7 @@ public class ArchitectureApi {
       }
     }
 
-    private boolean matches(ProjectFinding finding) {
+    private boolean matches(FindingEnvelope finding) {
       return (category == null || category.equals(finding.category())) && (type == null || type.equals(finding.type()))
         && (language == null || language.equals(finding.language()));
     }
