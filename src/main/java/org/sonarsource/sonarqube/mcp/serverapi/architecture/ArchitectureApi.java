@@ -44,7 +44,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerApiException;
 public class ArchitectureApi {
 
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
-  public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/intended-architectures";
+  public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/project-intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
   public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
   public static final List<String> FINDING_CATEGORIES = List.of("deviation", "flaw", "smell");
@@ -109,22 +109,39 @@ public class ArchitectureApi {
    * Returns all publicly exported intended perspectives, or an empty list when none is visible.
    */
   public List<IntendedArchitecture> getIntended(String projectKey, String projectId) {
-    var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH)
-      .addParam(PROJECT_ID_PARAM, projectId)
-      .build();
-    var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
-    return exportedModels(response);
+    return getIntendedState(projectKey, projectId).models();
   }
 
-  public List<IntendedArchitecture> createIntended(String projectKey, String projectId, List<IntendedArchitecture> models) {
+  public IntendedState getIntendedState(String projectKey, String projectId) {
+    var path = new UrlBuilder(INTENDED_ARCHITECTURES_PATH).addParam(PROJECT_ID_PARAM, projectId).build();
+    var response = readProjectResource(projectKey, () -> fromJson(get(path), IntendedArchitectures.class));
+    if (response.intendedArchitectures().size() > 1) {
+      throw incompleteModel();
+    }
+    return response.intendedArchitectures().isEmpty() ? new IntendedState(null, List.of()) : exportedResource(response.intendedArchitectures().getFirst());
+  }
+
+  public IntendedState createIntended(String projectKey, String projectId, List<IntendedArchitecture> models) {
     var body = gson.toJson(new CreateModels(projectId, publicModels(models)));
     return write(projectKey, () -> writeModels(INTENDED_ARCHITECTURES_PATH, body, false));
   }
 
-  public List<IntendedArchitecture> patchIntended(String projectKey, String id, List<IntendedArchitecture> models) {
+  public IntendedState patchIntended(String projectKey, String id, List<IntendedArchitecture> models) {
     var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
     var body = gson.toJson(new PatchModels(publicModels(models)));
     return write(projectKey, () -> writeModels(path, body, true));
+  }
+
+  public void deleteIntended(String projectKey, String id) {
+    var path = new URIBuilder().setPath(INTENDED_ARCHITECTURES_PATH).appendPathSegments(id).toString();
+    write(projectKey, () -> {
+      try (var response = helper.isSonarQubeCloud() ? helper.deleteApiSubdomain(path) : helper.delete(SERVER_API_PREFIX + path)) {
+        if (response.code() != 204) {
+          throw unexpectedResponse("The public intended architecture DELETE did not return HTTP 204. Inspect the current model before retrying.");
+        }
+      }
+      return null;
+    });
   }
 
   private static List<PublicIntendedModel> publicModels(List<IntendedArchitecture> models) {
@@ -141,12 +158,12 @@ public class ArchitectureApi {
     }
   }
 
-  private List<IntendedArchitecture> writeModels(String path, String body, boolean patch) {
-    var result = fromJson(request(path, body, patch), IntendedArchitectures.class);
-    if (result.intendedArchitectures().isEmpty()) {
-      throw unexpectedResponse("The public architecture API did not return the written intendedArchitectures.");
+  private IntendedState writeModels(String path, String body, boolean patch) {
+    var result = fromJson(request(path, body, patch), IntendedResource.class);
+    if (result.perspectives().isEmpty()) {
+      throw unexpectedResponse("The public architecture API did not return the written intended perspectives.");
     }
-    return exportedModels(result);
+    return exportedResource(result);
   }
 
   private HttpClient.Response request(String path, String body, boolean patch) {
@@ -188,10 +205,10 @@ public class ArchitectureApi {
     return unexpectedResponse("The public architecture API returned an incomplete intended architecture. No complete model was read.");
   }
 
-  private record CreateModels(String projectId, List<PublicIntendedModel> intendedArchitectures) {
+  private record CreateModels(String projectId, List<PublicIntendedModel> perspectives) {
   }
 
-  private record PatchModels(List<PublicIntendedModel> intendedArchitectures) {
+  private record PatchModels(List<PublicIntendedModel> perspectives) {
   }
 
   private record PublicIntendedModel(String qualifiers, String language, @Nullable String label, @Nullable String description, List<IntendedArchitecture.Group> groups,
@@ -455,27 +472,39 @@ public class ArchitectureApi {
     }
   }
 
-  private static List<IntendedArchitecture> exportedModels(IntendedArchitectures response) {
-    if (!response.intendedArchitectures().isEmpty()) {
-      try {
-        if (response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())) {
-          throw incompleteModel();
-        }
-      } catch (IllegalArgumentException e) {
+  private static IntendedState exportedResource(IntendedResource response) {
+    try {
+      if (response.id() == null || !UUID.fromString(response.id()).toString().equalsIgnoreCase(response.id())
+        || response.perspectives().size() > MAX_PERSPECTIVES) {
         throw incompleteModel();
       }
+    } catch (IllegalArgumentException invalid) {
+      throw incompleteModel();
     }
-    return validateModels(response.intendedArchitectures().stream().map(model -> {
-      return new IntendedArchitecture(response.id(), model.qualifiers(), model.language(),
-      model.groups(), model.constraints(), model.label(), model.description());
+    var identities = new HashSet<String>();
+    var models = validateModels(response.perspectives().stream().map(model -> {
+      if (!identities.add(model.qualifiers() + "/" + model.language())) {
+        throw incompleteModel();
+      }
+      return new IntendedArchitecture(response.id(), model.qualifiers(), model.language(), model.groups(), model.constraints(), model.label(), model.description());
     }).toList());
+    return new IntendedState(response.id(), models);
+  }
+
+  public record IntendedState(@Nullable String id, List<IntendedArchitecture> models) {
   }
 
   private record PublicIntendedExport(String qualifiers, String language, List<IntendedArchitecture.Group> groups,
     List<IntendedArchitecture.Constraint> constraints, @Nullable String label, @Nullable String description) {
   }
 
-  private record IntendedArchitectures(@Nullable String id, List<PublicIntendedExport> intendedArchitectures) {
+  private record IntendedResource(@Nullable String id, List<PublicIntendedExport> perspectives) {
+    private IntendedResource {
+      perspectives = List.copyOf(perspectives);
+    }
+  }
+
+  private record IntendedArchitectures(List<IntendedResource> intendedArchitectures) {
     private IntendedArchitectures {
       intendedArchitectures = List.copyOf(intendedArchitectures);
     }

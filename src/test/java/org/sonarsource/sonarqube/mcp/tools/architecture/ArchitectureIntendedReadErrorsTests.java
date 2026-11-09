@@ -44,7 +44,7 @@ class ArchitectureIntendedReadErrorsTests {
     }
     var api = new ArchitectureApi(helper);
 
-    var actual = catchThrowable(() -> api.getIntended("my-project", "project-id"));
+    var actual = catchThrowable(() -> api.getIntendedState("my-project", "project-id"));
 
     assertThat(actual).isInstanceOf(NotFoundException.class).hasMessageContaining("Error 404");
     if (cloud) {
@@ -70,7 +70,7 @@ class ArchitectureIntendedReadErrorsTests {
       when(helper.get(ArchitectureApi.SERVER_API_PREFIX + path)).thenThrow(failure);
     }
     var api = new ArchitectureApi(helper);
-    var actual = catchThrowable(() -> api.getIntended("my-project", "project-id"));
+    var actual = catchThrowable(() -> api.getIntendedState("my-project", "project-id"));
     assertThat(actual).isInstanceOf(ForbiddenException.class).hasMessageContaining(reason).hasCause(failure)
       .hasMessageNotContaining("Update the MCP server").hasMessageNotContaining("version mismatch");
     if (gateway) {
