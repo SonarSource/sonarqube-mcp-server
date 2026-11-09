@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonNull;
 import java.util.HashMap;
@@ -28,6 +29,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -197,7 +199,8 @@ class ArchitectureFindingsToolTests {
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":-1"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":2.5"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":\"invalid\""),
-      DEVIATION.replace("\"src/App.java\"", "{}"));
+      DEVIATION.replace("\"src/App.java\"", "{}"),
+      DEVIATION.replace("\"src/App.java\"", "null"));
   }
 
   @ParameterizedTest
@@ -217,6 +220,85 @@ class ArchitectureFindingsToolTests {
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
       .doesNotContain("Cannot invoke", "NullPointerException");
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true,structuralDeviation,nodeKey", "false,structuralDeviation,nodeKey",
+    "true,relationshipDeviation,fromNodeKey", "false,relationshipDeviation,fromNodeKey",
+    "true,relationshipDeviation,toNodeKey", "false,relationshipDeviation,toNodeKey",
+    "true,tangle,nodeKeys", "false,tangle,nodeKeys", "true,tangle,nodeCount", "false,tangle,nodeCount",
+    "true,weakTangle,nodeKeys", "false,weakTangle,nodeKeys", "true,weakTangle,nodeCount", "false,weakTangle,nodeCount",
+    "true,oversizedComponent,nodeKey", "false,oversizedComponent,nodeKey", "true,splitResponsibility,nodeKey", "false,splitResponsibility,nodeKey"})
+  void it_should_reject_missing_or_null_required_details(boolean cloud, String type, String field) {
+    stubMainBranch(harness);
+    var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
+    for (var missing : new boolean[] {true, false}) {
+      var finding = completeFinding(type);
+      var details = finding.getAsJsonObject("details");
+      if (missing) {
+        details.remove(field);
+      } else {
+        details.add(field, JsonNull.INSTANCE);
+      }
+      stubFindingResponse(cloud, finding.toString());
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
+      assertThat(result.isError()).as("%s: %s missing=%s", type, field, missing).isTrue();
+      assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
+        .doesNotContain("Cannot invoke", "NullPointerException");
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true,structuralDeviation", "false,structuralDeviation", "true,relationshipDeviation", "false,relationshipDeviation",
+    "true,tangle", "false,tangle", "true,weakTangle", "false,weakTangle",
+    "true,oversizedComponent", "false,oversizedComponent", "true,splitResponsibility", "false,splitResponsibility"})
+  void it_should_reject_missing_or_null_details_and_files(boolean cloud, String type) {
+    stubMainBranch(harness);
+    var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
+    for (var field : new String[] {"details", "files"}) {
+      for (var missing : new boolean[] {true, false}) {
+        var finding = completeFinding(type);
+        if (missing) {
+          finding.remove(field);
+        } else {
+          finding.add(field, JsonNull.INSTANCE);
+        }
+        stubFindingResponse(cloud, finding.toString());
+        var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
+        assertThat(result.isError()).as("%s: %s missing=%s", type, field, missing).isTrue();
+        assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
+          .doesNotContain("Cannot invoke", "NullPointerException");
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true,structuralDeviation,files", "false,structuralDeviation,files",
+    "true,tangle,nodeKeys", "false,tangle,nodeKeys", "true,weakTangle,nodeKeys", "false,weakTangle,nodeKeys"})
+  void it_should_reject_null_list_elements(boolean cloud, String type, String field) {
+    var finding = completeFinding(type);
+    var owner = field.equals("files") ? finding : finding.getAsJsonObject("details");
+    owner.add(field, JsonParser.parseString("[\"app:web\",null]"));
+    stubFindingResponse(cloud, finding.toString());
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
+      .doesNotContain("Cannot invoke", "NullPointerException");
+  }
+
+  private static JsonObject completeFinding(String type) {
+    var finding = JsonParser.parseString(DEVIATION).getAsJsonObject();
+    finding.addProperty("type", type);
+    finding.addProperty("category", ProjectFinding.categoryOf(type));
+    finding.add("details", JsonParser.parseString("""
+      {"reason":"misplacedComponent","nodeKey":"app:web","fromNodeKey":"app:web","toNodeKey":"app:db",
+        "nodeKeys":["app:web","app:db"],"nodeCount":2}
+      """));
+    if (type.equals("relationshipDeviation")) {
+      finding.getAsJsonObject("details").addProperty("reason", "disallowedDependency");
+    }
+    return finding;
   }
 
   @ParameterizedTest

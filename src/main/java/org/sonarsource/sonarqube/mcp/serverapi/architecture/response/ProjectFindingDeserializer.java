@@ -23,7 +23,9 @@ import com.google.gson.reflect.TypeToken;
 import jakarta.annotation.Nullable;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.Objects;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding.ComponentDetails;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding.Details;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding.Finding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding.RelationshipDetails;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding.StructuralDetails;
@@ -71,7 +73,24 @@ public final class ProjectFindingDeserializer implements JsonDeserializer<Projec
     if (!ProjectFinding.categoryOf(type).equals(finding.category())) {
       throw new IllegalStateException("Invalid public finding category.");
     }
+    if (!hasRequiredDetails(finding.details()) || !isCompleteList(finding.files())) {
+      throw new IllegalStateException("Incomplete public finding.");
+    }
     return finding;
+  }
+
+  private static boolean hasRequiredDetails(@Nullable Details details) {
+    return switch (details) {
+      case null -> false;
+      case StructuralDetails value -> value.nodeKey() != null;
+      case RelationshipDetails value -> value.fromNodeKey() != null && value.toNodeKey() != null;
+      case TangleDetails(var nodeKeys, var nodeCount) -> nodeCount != null && isCompleteList(nodeKeys);
+      case ComponentDetails value -> value.nodeKey() != null;
+    };
+  }
+
+  private static boolean isCompleteList(@Nullable List<String> values) {
+    return values != null && values.stream().allMatch(Objects::nonNull);
   }
 
   private static String required(@Nullable String value) {
