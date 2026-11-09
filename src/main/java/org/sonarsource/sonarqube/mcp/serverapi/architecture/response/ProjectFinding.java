@@ -40,7 +40,9 @@ public record ProjectFinding(String type, String category, String language, Deta
         Objects.requireNonNull(details.nodeKeys());
         Objects.requireNonNull(details.nodeCount());
       }
-      default -> { }
+      default -> {
+        // The decoder skips unsupported types before constructing a finding.
+      }
     }
   }
 
