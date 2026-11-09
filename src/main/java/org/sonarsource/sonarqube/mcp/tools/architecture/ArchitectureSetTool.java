@@ -93,6 +93,7 @@ public class ArchitectureSetTool extends Tool {
     }
 
     var next = IntendedModels.parse(model);
+    IntendedModels.checkProject(model, projectKey);
     var revision = revision(arguments, model);
     var invalidReason = IntendedModels.invalidReason(next);
     if (invalidReason != null) {
