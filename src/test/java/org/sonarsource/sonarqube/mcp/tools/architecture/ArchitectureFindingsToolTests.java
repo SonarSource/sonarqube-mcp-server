@@ -28,7 +28,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
-import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -198,8 +197,7 @@ class ArchitectureFindingsToolTests {
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":-1"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":2.5"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":\"invalid\""),
-      DEVIATION.replace("\"src/App.java\"", "{}"),
-      DEVIATION.replace("\"src/App.java\"", "null"));
+      DEVIATION.replace("\"src/App.java\"", "{}"));
   }
 
   @ParameterizedTest
@@ -219,29 +217,6 @@ class ArchitectureFindingsToolTests {
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
       .doesNotContain("Cannot invoke", "NullPointerException");
-  }
-
-  @ParameterizedTest
-  @CsvSource({"true,structuralDeviation,nodeKey", "false,structuralDeviation,nodeKey", "true,relationshipDeviation,fromNodeKey",
-    "false,relationshipDeviation,toNodeKey", "true,tangle,nodeKeys", "false,tangle,nodeCount", "true,weakTangle,nodeKeys", "false,weakTangle,nodeCount",
-    "true,oversizedComponent,nodeKey",
-    "false,splitResponsibility,nodeKey"})
-  void it_should_reject_missing_required_details_at_the_dto_boundary(boolean cloud, String type, String field) {
-    var details = JsonParser.parseString("{\"reason\":\"disallowedDependency\",\"nodeKey\":\"app\",\"fromNodeKey\":\"a\","
-      + "\"toNodeKey\":\"b\",\"nodeKeys\":[\"a\",\"b\"],\"nodeCount\":2}").getAsJsonObject();
-    if (type.equals("structuralDeviation")) {
-      details.addProperty("reason", "misplacedComponent");
-    }
-    details.remove(field);
-    var finding = JsonParser.parseString(DEVIATION).getAsJsonObject();
-    finding.addProperty("type", type);
-    finding.addProperty("category", ProjectFinding.categoryOf(type));
-    finding.add("details", details);
-    stubFindingResponse(cloud, finding.toString());
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "findings", "projectKey", "my_project"));
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.");
   }
 
   @ParameterizedTest

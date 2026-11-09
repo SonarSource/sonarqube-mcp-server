@@ -21,6 +21,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonNull;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFindingDeserializer;
@@ -56,6 +57,31 @@ class ArchitectureFindingDtoTests {
     var response = gson.fromJson(payload, ProjectFinding.class);
     assertThat(gson.toJsonTree(response)).isEqualTo(expected);
   }
+
+  @ParameterizedTest
+  @CsvSource({"structuralDeviation,interfaceViolation", "relationshipDeviation,misplacedComponent"})
+  void it_should_reject_a_known_reason_for_a_different_finding_type(String type, String reason) {
+    var json = """
+      {"type":"%s","category":"deviation","language":"java",
+        "details":{"reason":"%s","nodeKey":"app:web","fromNodeKey":"app:web","toNodeKey":"app:db"},"files":[]}
+      """.formatted(type, reason);
+    assertThatThrownBy(() -> gson.fromJson(json, ProjectFinding.class))
+      .hasRootCauseInstanceOf(IllegalStateException.class).hasRootCauseMessage("Invalid public finding reason for type.");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"structuralDeviation", "relationshipDeviation"})
+  void it_should_preserve_metadata_for_an_unsupported_reason_without_decoding_details(String type) {
+    var json = """
+      {"type":"%s","category":"deviation","language":"java",
+        "details":{"reason":"futureReason","nodeKey":{},"fromNodeKey":{}},"files":{}}
+      """.formatted(type);
+    var finding = gson.fromJson(json, ProjectFinding.class);
+    assertThat(finding.supported()).isFalse();
+    assertThat(finding).extracting(ProjectFinding::type, ProjectFinding::category, ProjectFinding::language)
+      .containsExactly(type, "deviation", "java");
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"2.5", "-1", "2147483648", "1e30"})
   void it_should_reject_non_integer_or_out_of_range_counts(String count) {
