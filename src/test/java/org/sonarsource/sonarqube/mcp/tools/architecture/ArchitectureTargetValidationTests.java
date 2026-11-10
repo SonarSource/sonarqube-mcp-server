@@ -40,4 +40,82 @@ class ArchitectureTargetValidationTests {
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/project_branches/")).isFalse();
   }
 
+  @SonarQubeMcpServerTest
+  void it_should_reject_unsupported_server_targets_and_parameters_before_network(SonarQubeMcpServerTestHarness harness) {
+    var client = harness.newClient();
+
+    for (var target : List.of("current", "directives", "findings", "patterns", "unsupported")) {
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", target, "projectKey", "my_project"));
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains("intended");
+    }
+    for (var target : List.of("current", "directives", "findings", "patterns", "unsupported")) {
+      var result = client.callTool(ArchitectureSetTool.TOOL_NAME,
+        Map.of("target", target, "projectKey", "my_project", "model", "[]", "dryRun", true));
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains("intended");
+    }
+    for (var unsupportedParam : List.of(
+      Map.<String, Object>of("from", "app", "to", "other"),
+      Map.<String, Object>of("pageIndex", 1),
+      Map.<String, Object>of("pageSize", 10),
+      Map.<String, Object>of("directiveId", "00000000-0000-4000-8000-000000000001"),
+      Map.<String, Object>of("type", "tangle"),
+      Map.<String, Object>of("category", "flaw"),
+      Map.<String, Object>of("findingId", "old-id"))) {
+      var args = new java.util.HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project"));
+      args.putAll(unsupportedParam);
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, args);
+      assertThat(result.isError()).isTrue();
+    }
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/project_branches/")).isFalse();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/v2/components/projects")).isFalse();
+  }
+
+  @org.junit.jupiter.api.Test
+  void it_should_enforce_server_target_and_parameter_restrictions_at_execution() {
+    var api = org.mockito.Mockito.mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApi.class);
+    var getTool = new ArchitectureGetTool(() -> api, false, null);
+    var setTool = new ArchitectureSetTool(() -> api, false, null);
+
+    for (var target : List.of("current", "directives", "findings")) {
+      org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+        getTool.execute(new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(Map.of("target", target, "projectKey", "my_project"), null)))
+        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Possible values: intended");
+      org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+        setTool.execute(new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(Map.of("target", target, "projectKey", "my_project", "model", "[]", "dryRun", true), null)))
+        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Possible values: intended");
+    }
+    for (var unsupportedParam : List.of(
+      Map.<String, Object>of("from", "app", "to", "other"),
+      Map.<String, Object>of("pageIndex", 1),
+      Map.<String, Object>of("pageSize", 10),
+      Map.<String, Object>of("directiveId", "00000000-0000-4000-8000-000000000001"),
+      Map.<String, Object>of("type", "tangle"),
+      Map.<String, Object>of("category", "flaw"),
+      Map.<String, Object>of("findingId", "old-id"))) {
+      var args = new java.util.HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project"));
+      args.putAll(unsupportedParam);
+      org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+        getTool.execute(new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(args, null)))
+        .isInstanceOf(IllegalArgumentException.class);
+    }
+    org.mockito.Mockito.verifyNoInteractions(api);
+  }
+
+  @org.junit.jupiter.api.Test
+  void it_should_reject_depth_outside_1_to_64_at_execution() {
+    var api = org.mockito.Mockito.mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApi.class);
+    var getTool = new ArchitectureGetTool(() -> api, true, null);
+
+    for (var depth : List.of(0, 65)) {
+      org.assertj.core.api.Assertions.assertThatThrownBy(() -> getTool.execute(new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(
+        Map.of("target", "current", "projectKey", "my_project", "depth", depth), null)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("depth must be between 1 and 64.");
+    }
+    org.mockito.Mockito.verifyNoInteractions(api);
+  }
+
 }

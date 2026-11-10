@@ -126,8 +126,16 @@ public abstract class Tool {
     public Integer getOptionalInteger(String argumentName) {
       var arg = argumentsMap.get(argumentName);
       return switch (arg) {
+        case null -> null;
         case Integer integer -> integer;
-        case String string when !string.isBlank() -> Integer.parseInt(string);
+        case String string when string.isBlank() -> null;
+        case String string -> {
+          try {
+            yield Integer.parseInt(string);
+          } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(argumentName + " must be a 32-bit integer", e);
+          }
+        }
         case Number number -> {
           try {
             yield new BigDecimal(number.toString()).intValueExact();
@@ -135,7 +143,7 @@ public abstract class Tool {
             throw new IllegalArgumentException(argumentName + " must be a 32-bit integer", e);
           }
         }
-        case null, default -> null;
+        default -> throw new IllegalArgumentException(argumentName + " must be a 32-bit integer");
       };
     }
 

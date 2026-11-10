@@ -70,9 +70,9 @@ class ArchitectureDirectiveContractTests {
     for (var name : List.of("organization", "target", "projectKey", "component", "language", "directiveId", "type", "category", "from", "to")) {
       assertThat(readProperties.get(name)).containsEntry("type", "string");
     }
-    for (var name : List.of("depth", "pageIndex", "pageSize")) {
-      assertThat(readProperties.get(name)).containsEntry("type", "number");
-    }
+    assertThat(readProperties.get("depth")).containsEntry("type", "integer").containsEntry("minimum", 1).containsEntry("maximum", 64);
+    assertThat(readProperties.get("pageIndex")).containsEntry("type", "integer").containsEntry("minimum", 1).doesNotContainKey("maximum");
+    assertThat(readProperties.get("pageSize")).containsEntry("type", "integer").containsEntry("minimum", 0).containsEntry("maximum", 1000);
     assertThat(readProperties.get("pageSize").get("description").toString()).contains("default and maximum 50");
     assertThat(read.annotations().readOnlyHint()).isTrue();
     assertThat(read.annotations().openWorldHint()).isTrue();
@@ -107,8 +107,8 @@ class ArchitectureDirectiveContractTests {
     assertThat(serverTools).extracting(Tool::name).contains(ArchitectureSetTool.TOOL_NAME);
     var serverRead = serverTools.stream().filter(tool -> tool.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     var serverProperties = (Map<String, Map<String, Object>>) serverRead.inputSchema().get("properties");
-    assertThat(serverProperties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category", "from", "to");
-    assertThat(serverProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
+    assertThat(serverProperties).containsOnlyKeys("target", "projectKey", "component", "depth", "language");
+    assertThat(serverProperties.get("target")).containsEntry("enum", List.of("intended"));
     assertThat(serverRead.inputSchema()).containsEntry("required", List.of("target", "projectKey")).containsEntry("additionalProperties", false);
     assertThat(serverRead.annotations().readOnlyHint()).isTrue();
     assertThat(serverRead.annotations().openWorldHint()).isTrue();
@@ -118,7 +118,7 @@ class ArchitectureDirectiveContractTests {
     var writeProperties = (Map<String, Map<String, Object>>) serverWrite.inputSchema().get("properties");
     assertThat(writeProperties).containsOnlyKeys("projectKey", "target", "model", "dryRun", "revision");
     assertThat(serverWrite.inputSchema()).containsEntry("required", List.of("projectKey", "target", "model", "dryRun")).containsEntry("additionalProperties", false);
-    assertThat(writeProperties.get("target")).containsEntry("enum", List.of("intended", "directives"));
+    assertThat(writeProperties.get("target")).containsEntry("enum", List.of("intended"));
     for (var name : List.of("projectKey", "target", "model", "revision")) {
       assertThat(writeProperties.get(name)).containsEntry("type", "string");
     }
