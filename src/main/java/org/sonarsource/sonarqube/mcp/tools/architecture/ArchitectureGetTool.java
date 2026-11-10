@@ -93,8 +93,8 @@ public class ArchitectureGetTool extends Tool {
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, isSonarQubeCloud
         ? ("Exact key from this tool, not a wildcard (Java current: module:package). "
-          + "Intended: group labels joined by /. Top level when omitted. "
-          + "Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective.")
+          + "Intended: group labels joined by /. Findings: nodeKey, fromNodeKey, toNodeKey or one tangle nodeKey; returns the full lists. "
+          + "Top level when omitted. Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective.")
         : "Exact group key from this tool (labels joined by /), not a wildcard. Top level when omitted.")
       .addIntegerProperty(DEPTH_PROPERTY, isSonarQubeCloud
         ? ("Levels below the start to return (1.." + MAX_DEPTH + "). Default 1 for current, all for intended.")
@@ -102,11 +102,13 @@ public class ArchitectureGetTool extends Tool {
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
     if (isSonarQubeCloud) {
-      builder.addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
-        .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
+      builder        .addStringProperty(FROM_PROPERTY, "Current: source key including descendants; requires to and excludes component. "
+          + "Findings: relationship source; requires to and returns the full file list.")
+        .addStringProperty(TO_PROPERTY, "Current: destination key including descendants; requires from. Findings: relationship destination; requires from.")
         .addIntegerProperty(ToolParameters.PAGE_INDEX, "Page from 1; directives, findings or current from/to queries.", 1, null)
         .addIntegerProperty(ToolParameters.PAGE_SIZE, "Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE
-          + "; directives: default and maximum " + MAX_DIRECTIVE_PAGE_SIZE + "; findings: default 50, maximum 1000 (0 counts only).", 0, 1000)
+          + "; directives: default and maximum " + MAX_DIRECTIVE_PAGE_SIZE
+          + "; findings: default and maximum " + ArchitectureApi.MAX_FINDING_PAGE_SIZE + " (0 counts only).", 0, 1000)
         .addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.")
         .addEnumProperty(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new), "only findings of this type.")
         .addEnumProperty(CATEGORY_PROPERTY, CATEGORIES, "only findings of this category.");
@@ -125,7 +127,7 @@ public class ArchitectureGetTool extends Tool {
       throw new IllegalArgumentException("depth must be between 1 and " + MAX_DEPTH + ".");
     }
 
-    var selection = dependencySelection(arguments, target, component);
+    var selection = FINDINGS.equals(target) ? null : dependencySelection(arguments, target, component);
     rejectParametersForOtherTargets(arguments, target, selection);
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     if (!serverApi.isSonarQubeCloud() && !INTENDED.equals(target)) {
@@ -187,14 +189,23 @@ public class ArchitectureGetTool extends Tool {
 
   private static Result findings(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
     @Nullable String language) {
-    if (component != null || depth != null) {
-      throw new IllegalArgumentException("Findings reads do not accept component or depth filters.");
+    if (depth != null) {
+      throw new IllegalArgumentException("Findings reads do not accept a depth filter.");
     }
     if (arguments.toMap().containsKey("findingId")) {
       throw new IllegalArgumentException("Findings have no ids. Use category, type or language to filter the list.");
     }
+    var from = exactKey(arguments, FROM_PROPERTY);
+    var to = exactKey(arguments, TO_PROPERTY);
+    if ((from == null) != (to == null)) {
+      throw new IllegalArgumentException("Use both from and to to read one relationship finding.");
+    }
+    if (component != null && from != null) {
+      throw new IllegalArgumentException("Use either component or from and to to read finding details.");
+    }
+    var detail = component != null || from != null;
     var pageIndex = arguments.getPageIndexOrDefault(1);
-    var pageSize = arguments.getPageSizeOrDefault(50);
+    var pageSize = arguments.getPageSizeOrDefault(ArchitectureApi.MAX_FINDING_PAGE_SIZE);
     ArchitectureApi.validateFindingPage(pageIndex, pageSize);
     var category = arguments.getOptionalEnumValue(CATEGORY_PROPERTY, CATEGORIES);
     var type = arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new));
@@ -202,7 +213,32 @@ public class ArchitectureGetTool extends Tool {
     var organizationId = ArchitectureProjectContext.organizationId(serverApi);
     var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
     var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, filters, pageIndex, pageSize);
-    return Result.success(new FindingsView(projectKey, page.findings(), page.page(), findingPageMessage(page, filters), page.skippedFindings()));
+    var findings = page.findings().stream()
+      .filter(finding -> !detail || FindingResponses.matches(finding, component, from, to))
+      .map(finding -> FindingResponses.present(finding, !detail))
+      .toList();
+    var truncated = findings.stream().anyMatch(FindingResponses::truncated);
+    var message = findingPageMessage(page, filters);
+    if (truncated) {
+      message = join(message, "Some findings list at most " + FindingResponses.MAX_LISTED
+        + " files or node keys. Call architecture_get with target findings and component, or from and to, to read the full lists.");
+    } else if (detail && findings.isEmpty()) {
+      message = join(message, "No finding on this page matches the requested component or dependency.");
+    }
+    return Result.success(new FindingsView(projectKey, findings, page.page(), truncated ? true : null, message, page.skippedFindings()));
+  }
+
+  @Nullable
+  private static String exactKey(Arguments arguments, String name) {
+    var value = arguments.getOptionalString(name);
+    if (value != null && !value.equals(value.strip())) {
+      throw new IllegalArgumentException(name + " must be an exact component key without surrounding whitespace.");
+    }
+    return value;
+  }
+
+  private static String join(@Nullable String current, String addition) {
+    return current == null ? addition : current + " " + addition;
   }
 
   @Nullable
@@ -256,7 +292,7 @@ public class ArchitectureGetTool extends Tool {
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,
+  private record FindingsView(String projectKey, List<Object> findings, ArchitectureApi.DirectivePageInfo page, @Nullable Boolean truncated,
     @Nullable String message, @Nullable Integer skippedFindings) {
   }
 
