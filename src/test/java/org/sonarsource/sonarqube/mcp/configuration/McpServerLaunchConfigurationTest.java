@@ -502,6 +502,21 @@ class McpServerLaunchConfigurationTest {
   }
 
   @Test
+  void isSonarQubeCloudUrl_should_return_true_for_sonarqube_au() {
+    assertThat(McpServerLaunchConfiguration.isSonarQubeCloudUrl("https://sonarqube.au")).isTrue();
+  }
+
+  @Test
+  void isSonarQubeCloudUrl_should_return_true_for_subdomain_of_sonarqube_au() {
+    assertThat(McpServerLaunchConfiguration.isSonarQubeCloudUrl("https://api.sonarqube.au")).isTrue();
+  }
+
+  @Test
+  void isSonarQubeCloudUrl_should_return_false_for_lookalike_of_sonarqube_au() {
+    assertThat(McpServerLaunchConfiguration.isSonarQubeCloudUrl("https://notsonarqube.au")).isFalse();
+  }
+
+  @Test
   void isSonarQubeCloudUrl_should_return_false_for_custom_server_url() {
     assertThat(McpServerLaunchConfiguration.isSonarQubeCloudUrl("https://my-sonarqube.example.com")).isFalse();
   }
@@ -544,6 +559,63 @@ class McpServerLaunchConfigurationTest {
 
     assertThat(configuration.isSonarQubeCloud()).isTrue();
     assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.us");
+  }
+
+  @Test
+  void should_detect_sonarcloud_from_sonarqube_au_url(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_URL", "https://sonarqube.au"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.au");
+    assertThat(configuration.getSonarqubeOrg()).isNull();
+  }
+
+  @Test
+  void should_use_sonarqube_au_url_when_org_and_url_are_both_set(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_ORG", "my-org",
+      "SONARQUBE_URL", "https://sonarqube.au"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://sonarqube.au");
+    assertThat(configuration.getSonarqubeOrg()).isEqualTo("my-org");
+  }
+
+  @Test
+  void should_support_au_staging_host_with_cloud_flag_and_api_url_override(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_URL", "https://au-sc-staging.io",
+      "SONARQUBE_IS_CLOUD", "true",
+      "SONARQUBE_CLOUD_API_URL", "https://api.au-sc-staging.io"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarQubeCloud()).isTrue();
+    assertThat(configuration.getSonarQubeUrl()).isEqualTo("https://au-sc-staging.io");
+    assertThat(configuration.getSonarQubeCloudApiUrl()).isEqualTo("https://api.au-sc-staging.io");
+  }
+
+  @Test
+  void should_not_detect_au_staging_host_as_cloud_without_cloud_flag(@TempDir Path tempDir) {
+    var arg = Map.of(
+      "STORAGE_PATH", tempDir.toString(),
+      "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_URL", "https://au-sc-staging.io"
+    );
+    var configuration = new McpServerLaunchConfiguration(arg);
+
+    assertThat(configuration.isSonarQubeCloud()).isFalse();
   }
 
   @Test
