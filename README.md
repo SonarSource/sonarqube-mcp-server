@@ -1474,14 +1474,14 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
   - `target` - Cloud: `current`, `intended`, `directives` or `findings`; Server: `intended` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
-  - `component` - Exact current node key or intended group path; top level when omitted - _String_
+  - `component` - Exact current node key, intended group path, or findings node key (`nodeKey`, `fromNodeKey`, `toNodeKey`, or one tangle node key) for the full file and node-key lists; top level when omitted - _String_
   - `depth` - Current/intended only: integer levels below the start, from 1 to 64; default 1 for current, all for intended - _Integer_
   - `language` - Current/intended/findings only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
-  - `from` / `to` - Current only (Cloud only): exact source/destination keys including descendants; supply both without `component` - _String_
+  - `from` / `to` - Current (Cloud only): exact source/destination keys including descendants; supply both without `component`. Findings: one relationship, returning its full file list - _String_
   - `directiveId` - Directives only (Cloud only): full directive by UUID, including description; use instead of paging - _String_
   - `category` / `type` - Findings only (Cloud only): filter deviations, flaws or smells by their advertised type - _Enum_
   - `pageIndex` - Directives/Findings/Current `from`+`to` (Cloud only): integer page index starting at 1 (default: 1) - _Integer_
-  - `pageSize` - Cloud only, integer: current `from`+`to` default/maximum 20; directives summaries default/maximum 50; findings default 50, maximum 1000 (0 counts only) - _Integer_
+  - `pageSize` - Cloud only, integer: current `from`+`to` default/maximum 20; directives summaries default/maximum 50; findings default and maximum 50 (0 counts only) - _Integer_
 
 - **architecture_set** - Replace the whole intended architecture (Cloud and Server) or create, update and delete project directives (Cloud only). Hidden when `SONARQUBE_READ_ONLY=true`.
   - `target` - Cloud: `intended` or `directives`; Server: `intended` - _Required Enum_
