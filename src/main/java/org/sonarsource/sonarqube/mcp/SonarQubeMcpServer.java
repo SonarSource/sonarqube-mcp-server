@@ -450,6 +450,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
       new ListPullRequestsTool(this, configuredProjectKey),
       new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
+    // Community Build uses short-year versions and does not include Architecture.
     if (mcpConfiguration.isSonarQubeCloud() || sonarQubeVersionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2026.6")) {
       supportedTools.addAll(ArchitectureTools.create(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey));
     }

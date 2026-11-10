@@ -51,4 +51,11 @@ class ArchitectureVersionAvailabilityTest {
       .listTools().stream().map(McpSchema.Tool::name).toList();
     assertThat(names).doesNotContain("architecture_get", "architecture_set");
   }
+
+  @SonarQubeMcpServerTest
+  void community_build_hides_architecture(SonarQubeMcpServerTestHarness harness) {
+    var names = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "architecture", "SONARQUBE_VERSION", "26.11"))
+      .listTools().stream().map(McpSchema.Tool::name).toList();
+    assertThat(names).doesNotContain("architecture_get", "architecture_set");
+  }
 }
