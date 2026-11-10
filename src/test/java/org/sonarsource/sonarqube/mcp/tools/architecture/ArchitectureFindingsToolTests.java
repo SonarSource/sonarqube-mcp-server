@@ -162,7 +162,7 @@ class ArchitectureFindingsToolTests {
   }
 
   @ParameterizedTest
-  @CsvSource({"findings,category,FLAW", "findings,type,other", "findings,findingId,old-id", "findings,component,app",
+  @CsvSource({"findings,category,FLAW", "findings,type,other", "findings,findingId,old-id", "findings,depth,1",
     "findings,directiveId,id", "current,category,flaw", "intended,type,tangle", "directives,type,tangle"})
   void it_should_reject_invalid_arguments_before_reading(String target, String name, String value) {
     var arguments = new HashMap<String, Object>(Map.of("target", target, "projectKey", "my_project", name, value));
@@ -478,6 +478,59 @@ class ArchitectureFindingsToolTests {
       Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("selected branch", "has not been analyzed");
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
+  }
+
+  @Test
+  void it_should_cap_finding_lists_and_return_the_full_lists_for_a_matching_detail() {
+    stubMainBranch(harness);
+    var files = java.util.stream.IntStream.range(0, 12).mapToObj(i -> "\"src/F" + i + ".java\"").collect(java.util.stream.Collectors.joining(","));
+    var keys = java.util.stream.IntStream.range(0, 12).mapToObj(i -> "\"node-" + i + "\"").collect(java.util.stream.Collectors.joining(","));
+    var structural = "{\"type\":\"structuralDeviation\",\"category\":\"deviation\",\"language\":\"java\",\"details\":"
+      + "{\"reason\":\"misplacedComponent\",\"nodeKey\":\"app:web\"},\"files\":[" + files + "]}";
+    var tangle = "{\"type\":\"tangle\",\"category\":\"flaw\",\"language\":\"java\",\"details\":{\"nodeKeys\":[" + keys + "],\"nodeCount\":12},\"files\":[\"src/Tangle.java\"]}";
+    var relationship = "{\"type\":\"relationshipDeviation\",\"category\":\"deviation\",\"language\":\"java\",\"details\":"
+      + "{\"reason\":\"disallowedDependency\",\"fromNodeKey\":\"app:web\",\"toNodeKey\":\"app:db\"},\"files\":[" + files + "]}";
+    harness.getMockSonarQubeServer().stubFor(get(PATH + SCOPE + "&pageIndex=1&pageSize=50")
+      .willReturn(okJson(page(String.join(",", structural, tangle, relationship), 1, 50, 3))));
+    var client = harness.newClient(CLOUD_ENV);
+
+    var listed = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
+    assertThat(listed.isError()).isFalse();
+    var page = JsonParser.parseString(textOf(listed)).getAsJsonObject();
+    assertThat(page.get("truncated").getAsBoolean()).isTrue();
+    assertThat(page.get("message").getAsString()).contains("at most 10", "component");
+    var findings = page.getAsJsonArray("findings");
+    assertThat(findings.get(0).getAsJsonObject().getAsJsonArray("files")).hasSize(10);
+    assertThat(findings.get(0).getAsJsonObject().get("fileCount").getAsInt()).isEqualTo(12);
+    assertThat(findings.get(0).getAsJsonObject().get("filesTruncated").getAsBoolean()).isTrue();
+    var tangleDetails = findings.get(1).getAsJsonObject().getAsJsonObject("details");
+    assertThat(tangleDetails.getAsJsonArray("nodeKeys")).hasSize(10);
+    assertThat(tangleDetails.get("nodeKeyCount").getAsInt()).isEqualTo(12);
+    assertThat(tangleDetails.get("nodeKeysTruncated").getAsBoolean()).isTrue();
+
+    var byComponent = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "component", "app:web"));
+    var componentJson = JsonParser.parseString(textOf(byComponent)).getAsJsonObject();
+    assertThat(byComponent.isError()).isFalse();
+    assertThat(componentJson.has("truncated")).isFalse();
+    assertThat(componentJson.getAsJsonArray("findings")).hasSize(2);
+    componentJson.getAsJsonArray("findings").forEach(finding -> assertThat(finding.getAsJsonObject().getAsJsonArray("files")).hasSize(12));
+
+    var byDependency = client.callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "from", "app:web", "to", "app:db"));
+    var dependencyJson = JsonParser.parseString(textOf(byDependency)).getAsJsonObject();
+    assertThat(byDependency.isError()).isFalse();
+    assertThat(dependencyJson.getAsJsonArray("findings")).hasSize(1);
+    assertThat(dependencyJson.getAsJsonArray("findings").get(0).getAsJsonObject().getAsJsonArray("files")).hasSize(12);
+  }
+
+  @Test
+  void it_should_reject_a_findings_page_above_50_before_network() {
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "pageSize", 51));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("page size must be between 0 and 50");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
   }
 

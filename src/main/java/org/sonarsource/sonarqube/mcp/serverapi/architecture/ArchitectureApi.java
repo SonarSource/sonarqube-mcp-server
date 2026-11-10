@@ -103,7 +103,7 @@ public class ArchitectureApi {
       }
       throw new IllegalStateException("A known SonarQube Server issue currently blocks current architecture reads (HTTP 400).", e);
     }
-    return response.currentArchitectures();
+    return validateCurrent(response.currentArchitectures());
   }
 
   /**
@@ -205,6 +205,66 @@ public class ArchitectureApi {
 
   private static IllegalStateException incompleteModel() {
     return unexpectedResponse("The public architecture API returned an incomplete intended architecture. No complete model was read.");
+  }
+
+  private static List<StructureGraph> validateCurrent(List<StructureGraph> graphs) {
+    if (graphs == null) {
+      throw unexpectedResponse("The public current architecture response has no graph list.");
+    }
+    graphs.forEach(ArchitectureApi::validateGraph);
+    return graphs;
+  }
+
+  private static void validateGraph(StructureGraph graph) {
+    if (graph == null || graph.nodeCount() < 0 || graph.edgeCount() < 0 || graph.nodes() == null || (graph.nodeCount() > 0 && graph.nodes().isEmpty())) {
+      throw unexpectedResponse("The public current architecture is missing nodes for a non-empty graph.");
+    }
+    var ids = new HashSet<Integer>();
+    var keys = new HashSet<String>();
+    var edges = new java.util.ArrayList<StructureGraph.Edge>();
+    var nodes = countNodes(graph.nodes(), null, "", ids, keys, edges);
+    if (nodes != graph.nodeCount() || edges.size() != graph.edgeCount()) {
+      throw unexpectedResponse("The public current architecture returned inconsistent node or edge counts.");
+    }
+    for (var edge : edges) {
+      if (edge == null || edge.weight() < 0 || !ids.contains(edge.toId())) {
+        throw unexpectedResponse("The public current architecture returned an edge that does not connect existing nodes.");
+      }
+    }
+  }
+
+  private static int countNodes(List<StructureGraph.Node> nodes, @Nullable String parentKey, String separator, HashSet<Integer> ids, HashSet<String> keys,
+    List<StructureGraph.Edge> edges) {
+    var count = 0;
+    for (var node : nodes) {
+      if (node == null || node.name() == null || node.name().isBlank() || node.kind() == null || node.kind().isBlank() || !ids.add(node.id())) {
+        throw unexpectedResponse("The public current architecture returned a node with a missing or duplicate id.");
+      }
+      var key = parentKey == null ? node.name() : parentKey + separator + node.name();
+      if (!keys.add(key)) {
+        throw unexpectedResponse("The public current architecture returned duplicate node keys.");
+      }
+      var children = node.nodes() == null ? List.<StructureGraph.Node>of() : node.nodes();
+      if ("file".equals(node.kind()) && !children.isEmpty() && (node.separator() == null || node.separator().isEmpty())) {
+        throw unexpectedResponse("The public current architecture returned a file with children and no separator.");
+      }
+      if (node.edges() != null) {
+        edges.addAll(node.edges());
+      }
+      count += 1 + countNodes(children, key, childSeparator(node), ids, keys, edges);
+    }
+    return count;
+  }
+
+  private static String childSeparator(StructureGraph.Node node) {
+    if (node.separator() != null && !node.separator().isEmpty()) {
+      return node.separator();
+    }
+    return switch (node.kind()) {
+      case "module" -> ":";
+      case "directory", "folder" -> "/";
+      default -> ".";
+    };
   }
 
   private record CreateModels(String projectId, List<PublicIntendedModel> perspectives) {
@@ -380,9 +440,11 @@ public class ArchitectureApi {
     }
   }
 
+  public static final int MAX_FINDING_PAGE_SIZE = 50;
+
   public static void validateFindingPage(int pageIndex, int pageSize) {
-    if (pageIndex < 1 || pageSize < 0 || pageSize > 1000) {
-      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 0 and 1000.");
+    if (pageIndex < 1 || pageSize < 0 || pageSize > MAX_FINDING_PAGE_SIZE) {
+      throw new IllegalArgumentException("Page must be >= 1 and page size must be between 0 and " + MAX_FINDING_PAGE_SIZE + ".");
     }
   }
 
