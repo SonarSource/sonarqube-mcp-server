@@ -105,4 +105,19 @@ class ArchitectureTargetValidationTests {
     org.mockito.Mockito.verifyNoInteractions(api);
   }
 
+  @org.junit.jupiter.api.Test
+  void it_should_reject_depth_outside_1_to_64_at_execution() {
+    var api = org.mockito.Mockito.mock(org.sonarsource.sonarqube.mcp.serverapi.ServerApi.class);
+    var getTool = new ArchitectureGetTool(() -> api, true, null);
+
+    for (var depth : List.of(0, 65)) {
+      var readArguments = new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(
+        Map.of("target", "current", "projectKey", "my_project", "depth", depth), null);
+      org.assertj.core.api.Assertions.assertThatThrownBy(() -> getTool.execute(readArguments))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("depth must be between 1 and 64.");
+    }
+    org.mockito.Mockito.verifyNoInteractions(api);
+  }
+
 }
