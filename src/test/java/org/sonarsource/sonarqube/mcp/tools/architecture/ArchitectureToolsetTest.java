@@ -67,9 +67,17 @@ class ArchitectureToolsetTest {
     var read = tools.stream().filter(tool -> tool.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) read.inputSchema().get("properties");
-    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
-    assertThat(read.description()).contains("intended");
-    assertThat(read.inputSchema().toString()).contains("directiveId");
+    assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language");
+    assertThat(properties.get("target")).containsEntry("enum", List.of("intended"));
+    assertThat(read.description()).isEqualTo("Read intended architecture.");
+    assertThat(read.inputSchema().toString()).doesNotContain("directiveId", "pageIndex", "pageSize", "category", "findings", "directives");
+    var write = tools.stream().filter(tool -> tool.name().equals(ArchitectureSetTool.TOOL_NAME)).findFirst().orElseThrow();
+    @SuppressWarnings("unchecked")
+    var writeProperties = (Map<String, Map<String, Object>>) write.inputSchema().get("properties");
+    assertThat(writeProperties).containsOnlyKeys("projectKey", "target", "model", "dryRun", "revision");
+    assertThat(writeProperties.get("target")).containsEntry("enum", List.of("intended"));
+    assertThat(write.description()).isEqualTo("Replace intended architecture (omitted content is removed).");
+    assertThat(write.inputSchema().toString()).doesNotContain("directives", "REMOVE_EDGE", "RENAME_NODE", "MOVE_NODE");
     assertThat(toolNames(harness, Map.of("SONARQUBE_TOOLSETS", "architecture", "SONARQUBE_READ_ONLY", "true")))
       .contains(ArchitectureGetTool.TOOL_NAME).doesNotContain(ArchitectureSetTool.TOOL_NAME);
   }

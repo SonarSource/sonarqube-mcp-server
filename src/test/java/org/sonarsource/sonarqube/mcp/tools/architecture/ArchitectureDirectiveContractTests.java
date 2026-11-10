@@ -107,8 +107,8 @@ class ArchitectureDirectiveContractTests {
     assertThat(serverTools).extracting(Tool::name).contains(ArchitectureSetTool.TOOL_NAME);
     var serverRead = serverTools.stream().filter(tool -> tool.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     var serverProperties = (Map<String, Map<String, Object>>) serverRead.inputSchema().get("properties");
-    assertThat(serverProperties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category", "from", "to");
-    assertThat(serverProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
+    assertThat(serverProperties).containsOnlyKeys("target", "projectKey", "component", "depth", "language");
+    assertThat(serverProperties.get("target")).containsEntry("enum", List.of("intended"));
     assertThat(serverRead.inputSchema()).containsEntry("required", List.of("target", "projectKey")).containsEntry("additionalProperties", false);
     assertThat(serverRead.annotations().readOnlyHint()).isTrue();
     assertThat(serverRead.annotations().openWorldHint()).isTrue();
@@ -118,7 +118,7 @@ class ArchitectureDirectiveContractTests {
     var writeProperties = (Map<String, Map<String, Object>>) serverWrite.inputSchema().get("properties");
     assertThat(writeProperties).containsOnlyKeys("projectKey", "target", "model", "dryRun", "revision");
     assertThat(serverWrite.inputSchema()).containsEntry("required", List.of("projectKey", "target", "model", "dryRun")).containsEntry("additionalProperties", false);
-    assertThat(writeProperties.get("target")).containsEntry("enum", List.of("intended", "directives"));
+    assertThat(writeProperties.get("target")).containsEntry("enum", List.of("intended"));
     for (var name : List.of("projectKey", "target", "model", "revision")) {
       assertThat(writeProperties.get(name)).containsEntry("type", "string");
     }

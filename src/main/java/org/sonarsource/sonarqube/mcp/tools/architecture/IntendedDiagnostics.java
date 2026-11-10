@@ -33,7 +33,7 @@ final class IntendedDiagnostics {
 
   static List<String> inspect(ServerApi api, String projectKey, List<IntendedArchitecture> models, CurrentGraphReads currentReads) {
     var languages = models.stream().filter(model -> !groups(model).isEmpty()).map(IntendedArchitecture::language).distinct().toList();
-    if (languages.isEmpty()) {
+    if (languages.isEmpty() || !api.isSonarQubeCloud()) {
       return List.of();
     }
     try {
