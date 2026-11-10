@@ -1475,19 +1475,19 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
   - `component` - Exact current node key or intended group path; top level when omitted - _String_
-  - `depth` - Current/intended only: levels below the start; default 1 for current, all for intended - _Number_
+  - `depth` - Current/intended only: integer levels below the start, from 1 to 64; default 1 for current, all for intended - _Integer_
   - `language` - Current/intended/findings only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
   - `from` / `to` - Current only (Cloud only): exact source/destination keys including descendants; supply both without `component` - _String_
   - `directiveId` - Directives only (Cloud only): full directive by UUID, including description; use instead of paging - _String_
   - `category` / `type` - Findings only (Cloud only): filter deviations, flaws or smells by their advertised type - _Enum_
-  - `pageIndex` - Directives/Findings/Current `from`+`to` (Cloud only): 1-based page index (default: 1) - _Number_
-  - `pageSize` - Cloud only: current `from`+`to` default/maximum 20; directives summaries default/maximum 50; findings default 50, maximum 1000 (0 counts only) - _Number_
+  - `pageIndex` - Directives/Findings/Current `from`+`to` (Cloud only): integer page index starting at 1 (default: 1) - _Integer_
+  - `pageSize` - Cloud only, integer: current `from`+`to` default/maximum 20; directives summaries default/maximum 50; findings default 50, maximum 1000 (0 counts only) - _Integer_
 
 - **architecture_set** - Replace the whole intended architecture (Cloud and Server) or create, update and delete project directives (Cloud only). Hidden when `SONARQUBE_READ_ONLY=true`.
   - `target` - Cloud: `intended` or `directives`; Server: `intended` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
-  - `model` - JSON string: complete intended export or `models` array (omitted content is removed), or directive changes with `create`, `update` and `delete` arrays (Cloud only) - _Required String_
+  - `model` - JSON string: complete intended export or `models` array (unknown fields rejected; labels unique and without `/`; constraints join existing sibling groups, or imported-pattern descendants; omitted content is removed), or directive changes with `create`, `update` and `delete` arrays (Cloud only) - _Required String_
   - `dryRun` - `true` to preview, `false` to apply - _Required Boolean_
   - `revision` - Intended only: revision from `architecture_get`; defaults to the complete export's revision. Required when applying a clear - _String_
 

@@ -57,6 +57,7 @@ public class ArchitectureGetTool extends Tool {
   private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
   private static final String[] CLOUD_TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
   private static final String[] SERVER_TARGETS = {INTENDED};
+  static final int MAX_DEPTH = 64;
   private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
   private final CurrentGraphReads currentReads;
 
@@ -95,17 +96,17 @@ public class ArchitectureGetTool extends Tool {
           + "Intended: group labels joined by /. Top level when omitted. "
           + "Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective."
         : "Exact group key from this tool (labels joined by /), not a wildcard. Top level when omitted.")
-      .addNumberProperty(DEPTH_PROPERTY, isSonarQubeCloud
-        ? "Levels below the start to return. Default 1 for current, all for intended."
-        : "Levels below the start to return. All levels when omitted.")
+      .addIntegerProperty(DEPTH_PROPERTY, isSonarQubeCloud
+        ? "Levels below the start to return (1.." + MAX_DEPTH + "). Default 1 for current, all for intended."
+        : "Levels below the start to return (1.." + MAX_DEPTH + "). All levels when omitted.", 1, MAX_DEPTH)
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .setReadOnlyHint();
     if (isSonarQubeCloud) {
       builder.addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
         .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
-        .addNumberProperty(ToolParameters.PAGE_INDEX, "Page from 1; directives, findings or current from/to queries.")
-        .addNumberProperty(ToolParameters.PAGE_SIZE, "Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE
-          + "; directives: default and maximum " + MAX_DIRECTIVE_PAGE_SIZE + "; findings: default 50, maximum 1000 (0 counts only).")
+        .addIntegerProperty(ToolParameters.PAGE_INDEX, "Page from 1; directives, findings or current from/to queries.", 1, null)
+        .addIntegerProperty(ToolParameters.PAGE_SIZE, "Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE
+          + "; directives: default and maximum " + MAX_DIRECTIVE_PAGE_SIZE + "; findings: default 50, maximum 1000 (0 counts only).", 0, 1000)
         .addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.")
         .addEnumProperty(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new), "only findings of this type.")
         .addEnumProperty(CATEGORY_PROPERTY, CATEGORIES, "only findings of this category.");
@@ -120,8 +121,8 @@ public class ArchitectureGetTool extends Tool {
     var component = arguments.getOptionalString(COMPONENT_PROPERTY);
     var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);
     var language = arguments.getOptionalEnumValue(LANGUAGE_PROPERTY, LANGUAGES);
-    if (depth != null && depth < 1) {
-      throw new IllegalArgumentException("depth must be 1 or more.");
+    if (depth != null && (depth < 1 || depth > MAX_DEPTH)) {
+      throw new IllegalArgumentException("depth must be between 1 and " + MAX_DEPTH + ".");
     }
 
     var selection = dependencySelection(arguments, target, component);
@@ -351,24 +352,16 @@ public class ArchitectureGetTool extends Tool {
 
   @Nullable
   private static IntendedArchitecture.Group findGroup(List<IntendedArchitecture.Group> groups, String key, @Nullable String parentKey) {
-    IntendedArchitecture.Group found = null;
     for (var group : groups) {
       var groupKey = parentKey == null ? group.label() : (parentKey + "/" + group.label());
-      IntendedArchitecture.Group match = null;
       if (key.equals(groupKey)) {
-        match = group;
-      } else if (key.startsWith(groupKey + "/")) {
-        match = findGroup(nullToEmpty(group.groups()), key, groupKey);
+        return group;
       }
-      if (match != null) {
-        if (found != null) {
-          throw new IllegalArgumentException("Group key '" + key + "' matches multiple groups because labels contain '/'. "
-            + "Read the complete intended model without component to inspect their hierarchy.");
-        }
-        found = match;
+      if (key.startsWith(groupKey + "/")) {
+        return findGroup(nullToEmpty(group.groups()), key, groupKey);
       }
     }
-    return found;
+    return null;
   }
 
   private static List<Group> toGroups(List<IntendedArchitecture.Group> groups, int levels) {
