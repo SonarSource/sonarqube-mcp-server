@@ -221,7 +221,7 @@ public class SonarQubeMcpServerTestHarness extends TypeBasedParameterResolver<So
 
   public void prepareMockWebServer(Map<String, String> environment) {
     if (!environment.containsKey("SONARQUBE_ORG")) {
-      var version = "2025.4";
+      var version = "2026.6";
       if (environment.containsKey("SONARQUBE_VERSION")) {
         version = environment.get("SONARQUBE_VERSION");
       }

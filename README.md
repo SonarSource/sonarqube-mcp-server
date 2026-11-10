@@ -1468,7 +1468,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. On Server, intended architecture, directives and writes require an MCP build containing [#678](https://github.com/SonarSource/sonarqube-mcp-server/pull/678) and compatible public APIs; builds without it expose current reads only.** See [architecture workflows and recovery](docs/architecture.md).
+**Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server requires version 2026.6 or later and a Developer edition or higher; the tools are not available on older versions or Community Build.** See [architecture workflows and recovery](docs/architecture.md).
 
 - **architecture_get** - Read current dependencies, intended architecture, project directives, or Findings (deviations, flaws and smells).
   - `target` - `current`, `intended`, `directives` or `findings`; availability depends on the MCP and Server build - _Required Enum_
