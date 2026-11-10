@@ -181,7 +181,7 @@ public class ArchitectureApi {
       if (model.type() == null || model.language() == null || model.groups() == null || model.constraints() == null) {
         throw incompleteModel();
       }
-      validateGroups(model.groups());
+      validateGroups(model.groups(), new HashSet<>());
       for (var constraint : model.constraints()) {
         if (constraint == null || constraint.from() == null || constraint.to() == null) {
           throw incompleteModel();
@@ -191,13 +191,14 @@ public class ArchitectureApi {
     return models;
   }
 
-  private static void validateGroups(List<IntendedArchitecture.Group> groups) {
+  private static void validateGroups(List<IntendedArchitecture.Group> groups, HashSet<String> labels) {
     for (var group : groups) {
-      if (group == null || group.label() == null || (group.patterns() != null && group.patterns().contains(null))) {
+      if (group == null || group.label() == null || group.label().isBlank() || group.label().contains("/")
+        || !labels.add(group.label()) || (group.patterns() != null && group.patterns().contains(null))) {
         throw incompleteModel();
       }
       if (group.groups() != null) {
-        validateGroups(group.groups());
+        validateGroups(group.groups(), labels);
       }
     }
   }

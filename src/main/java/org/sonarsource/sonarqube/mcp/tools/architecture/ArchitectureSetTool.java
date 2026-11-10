@@ -61,13 +61,19 @@ public class ArchitectureSetTool extends Tool {
       .addRequiredEnumProperty("target", isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS,
         isSonarQubeCloud ? "intended: replace model; directives: explicit CRUD operations." : "intended: replace model.")
       .addRequiredStringProperty(MODEL_PROPERTY, isSonarQubeCloud
-        ? ("Intended: full response or models array; an empty complete model deletes it. Directives: "
+        ? ("Intended: {projectKey?, revision?, models: [perspective]} or [perspective]; an empty complete model deletes it. "
+          + "Perspective: {type: file|namespace, language: java|cs|js|ts|py, label?, description?, groups: [group], constraints: [{from, to}]}. "
+          + "Group: {label (unique in perspective, no /), patterns?: [string], groups?: [group], interface?: boolean, interfaceAccess?: boolean, description?, patternId?: uuid}. "
+          + "Constraints connect existing sibling groups (or imported-pattern descendants). Directives: "
           + "{create: [directives], update: [{id, ...changed directive fields}], delete: [{id}]}; updates are flat objects. "
           + "Directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
           + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current. "
           + "toNodeKey for MOVE_NODE: existing destination container; for RENAME_NODE: new complete key. "
           + "graphPerspective defaults to default_perspective, optional description.")
-        : "Intended: full response or models array; an empty complete model deletes it.")
+        : ("Intended: {projectKey?, revision?, models: [perspective]} or [perspective]; an empty complete model deletes it. "
+          + "Perspective: {type: file|namespace, language: java|cs|js|ts|py, label?, description?, groups: [group], constraints: [{from, to}]}. "
+          + "Group: {label (unique in perspective, no /), patterns?: [string], groups?: [group], interface?: boolean, interfaceAccess?: boolean, description?, patternId?: uuid}. "
+          + "Constraints connect existing sibling groups (or imported-pattern descendants)."))
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get intended; defaults to the model response revision. "
         + "Required to clear the whole model; a mismatch prevents writing.")
