@@ -49,13 +49,13 @@ class ArchitectureVersionAvailabilityTest {
   void oldest_supported_server_hides_architecture(SonarQubeMcpServerTestHarness harness) {
     var names = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "architecture", "SONARQUBE_VERSION", "2025.1"))
       .listTools().stream().map(McpSchema.Tool::name).toList();
-    assertThat(names).doesNotContain("architecture_get", "architecture_set");
+    assertThat(names).isNotEmpty().doesNotContain("architecture_get", "architecture_set");
   }
 
   @SonarQubeMcpServerTest
   void community_build_hides_architecture(SonarQubeMcpServerTestHarness harness) {
     var names = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "architecture", "SONARQUBE_VERSION", "26.11"))
       .listTools().stream().map(McpSchema.Tool::name).toList();
-    assertThat(names).doesNotContain("architecture_get", "architecture_set");
+    assertThat(names).isNotEmpty().doesNotContain("architecture_get", "architecture_set");
   }
 }
