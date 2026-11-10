@@ -16,6 +16,7 @@
  */
 package org.sonarsource.sonarqube.mcp;
 
+import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.Version;
 
@@ -30,13 +31,16 @@ public class SonarQubeVersionChecker {
     this.serverApi = serverApi;
   }
 
-  public void failIfSonarQubeServerVersionIsNotSupported() {
+  @Nullable
+  public Version failIfSonarQubeServerVersionIsNotSupported() {
     if (!serverApi.isSonarQubeCloud()) {
       var version = Version.create(serverApi.systemApi().getStatus().version());
       if (!version.isSupportedSonarQubeServerVersion()) {
         throw new IllegalStateException(UNSUPPORTED_SERVER_VERSION_MESSAGE);
       }
+      return version;
     }
+    return null;
   }
 
   public boolean isSonarQubeServerVersionHigherOrEqualsThan(String minVersion) {
