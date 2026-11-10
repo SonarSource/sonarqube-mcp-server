@@ -128,7 +128,7 @@ public class ServerApiHelper {
   }
 
   /**
-   * Execute GET using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
+   * Execute GET using the API subdomain (api.sonarcloud.io / api.sonarqube.us / api.sonarqube.au)
    */
   public HttpClient.Response getApiSubdomain(String path) {
     var response = rawGetApiSubdomain(path);
@@ -139,14 +139,14 @@ public class ServerApiHelper {
   }
 
   /**
-   * Execute raw GET using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
+   * Execute raw GET using the API subdomain (api.sonarcloud.io / api.sonarqube.us / api.sonarqube.au)
    */
   public HttpClient.Response rawGetApiSubdomain(String relativePath) {
     return awaitResponse(client.getAsync(buildApiSubdomainUrl(relativePath)));
   }
 
   /**
-   * Execute POST using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
+   * Execute POST using the API subdomain (api.sonarcloud.io / api.sonarqube.us / api.sonarqube.au)
    */
   public HttpClient.Response postApiSubdomain(String path, String contentType, String body) {
     var response = rawPostApiSubdomain(path, contentType, body);
@@ -157,14 +157,14 @@ public class ServerApiHelper {
   }
 
   /**
-   * Execute raw POST using the API subdomain (api.sonarcloud.io / api.sonarqube.us)
+   * Execute raw POST using the API subdomain (api.sonarcloud.io / api.sonarqube.us / api.sonarqube.au)
    */
   public HttpClient.Response rawPostApiSubdomain(String relativePath, String contentType, String body) {
     return awaitResponse(client.postAsync(buildApiSubdomainUrl(relativePath), contentType, body));
   }
 
   /**
-   * Execute PATCH using the API subdomain (api.sonarcloud.io / api.sonarqube.us).
+   * Execute PATCH using the API subdomain (api.sonarcloud.io / api.sonarqube.us / api.sonarqube.au).
    */
   public HttpClient.Response patchApiSubdomain(String path, String contentType, String body) {
     var response = awaitResponse(client.patchAsync(buildApiSubdomainUrl(path), contentType, body));
@@ -210,12 +210,12 @@ public class ServerApiHelper {
   }
 
   /**
-   * Build URL using the API subdomain (api.sonarcloud.io / api.sonarqube.us).
+   * Build URL using the API subdomain (api.sonarcloud.io / api.sonarqube.us / api.sonarqube.au).
    * When an explicit {@code apiBaseUrl} override is set on the endpoint params (via
    * {@code SONARQUBE_CLOUD_API_URL}), it is used directly and takes priority over everything else.
    * For SonarQube Server ({@code isSonarQubeCloud == false}), falls back to the base URL.
    * For SonarQube Cloud, derives the api.* subdomain automatically for known hosts
-   * (sonarcloud.io, sonarqube.us), or uses the base URL as-is for unknown hosts.
+   * (sonarcloud.io, sonarqube.us, sonarqube.au), or uses the base URL as-is for unknown hosts.
    */
   @VisibleForTesting
   String buildApiSubdomainUrl(String relativePath) {
@@ -232,10 +232,8 @@ public class ServerApiHelper {
     try {
       var uri = URI.create(baseUrl);
       var host = uri.getHost();
-      if ("sonarcloud.io".equals(host)) {
-        baseUrl = uri.toString().replace("://" + host, "://api.sonarcloud.io");
-      } else if ("sonarqube.us".equals(host)) {
-        baseUrl = uri.toString().replace("://" + host, "://api.sonarqube.us");
+      if (host != null && SonarQubeCloudDomains.DOMAINS.contains(host)) {
+        baseUrl = uri.toString().replace("://" + host, "://api." + host);
       }
     } catch (IllegalArgumentException e) {
       // Malformed base URL – fall through and use it as-is

@@ -288,6 +288,12 @@ class ServerApiTests {
       // SQC - known hosts: api.* subdomain is derived automatically
       arguments("https://sonarcloud.io", "my-org", null, true, "https://api.sonarcloud.io/api/test"),
       arguments("https://sonarqube.us", "my-org", null, true, "https://api.sonarqube.us/api/test"),
+      // SQC - AU: with and without org (the IDEs generate org + URL)
+      arguments("https://sonarqube.au", "my-org", null, true, "https://api.sonarqube.au/api/test"),
+      arguments("https://sonarqube.au", null, null, true, "https://api.sonarqube.au/api/test"),
+      // SQC - AU staging host: only the explicit override applies
+      arguments("https://au-sc-staging.io", null, "https://api.au-sc-staging.io", true, "https://api.au-sc-staging.io/api/test"),
+      arguments("https://au-sc-staging.io", "my-org", null, true, "https://au-sc-staging.io/api/test"),
       // SQC - no org (e.g. SONARQUBE_IS_CLOUD=true without SONARQUBE_ORG): subdomain is still derived
       arguments("https://sonarcloud.io", null, null, true, "https://api.sonarcloud.io/api/test"),
       // SQS - no isSonarQubeCloud: always falls back to the base URL
@@ -295,6 +301,8 @@ class ServerApiTests {
       // explicit override wins regardless of org or isSonarQubeCloud
       arguments("https://test.sc-test.io", "my-org", "https://api.sc-test.io", true, "https://api.sc-test.io/api/test"),
       arguments("https://test.sc-test.io", null, "https://api.sc-test.io", true, "https://api.sc-test.io/api/test"),
+      // SQC - base URL without a host: used as-is, no failure
+      arguments("relative/path", "my-org", null, true, "relative/path/api/test"),
       // SQC - unknown host without override: base URL is used as-is
       arguments("https://test.sc-test.io", "my-org", null, true, "https://test.sc-test.io/api/test")
     );
