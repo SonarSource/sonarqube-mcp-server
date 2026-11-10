@@ -20,17 +20,24 @@ Server support requires a separately validated released API contract and compati
   - `target` - `current`, `intended`, `directives` or `findings` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current` and `findings` - _Optional String_
-  - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
+  - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); findings: a node key filter within this page; no wildcards; top level when omitted - _String_
   - `depth` - Levels below the start (1–64); default 1 for `current`, all levels when omitted for `intended` - _Integer_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended/findings only - _String_
   - `directiveId` - Directives only: full record, including description, by UUID; cannot be combined with paging - _String_
   - `category` - Findings only: `deviation`, `flaw` or `smell` - _Enum_
   - `type` - Findings only: `structuralDeviation`, `relationshipDeviation`, `tangle`, `oversizedComponent`, `weakTangle` or `splitResponsibility` - _Enum_
-  - `from` / `to` - Current only: exact source/destination keys including descendants; supply both without `component` - _String_
-  - `pageIndex` - Directives, findings or current from/to queries; starts at 1, default 1 - _Number_
-  - `pageSize` - Current from/to: default/maximum 20; directives: default/maximum 50; findings: default 50, maximum 1000, or 0 for count only - _Number_
+  - `from` / `to` - Current: exact source/destination keys including descendants. Findings: exact relationship keys on this page. Supply both without `component` - _String_
+  - `cursor` - Findings only: continuation from `nextCursor`; excludes filters, selectors and pagination - _String_
+  - `pageIndex` - Directives, findings or current from/to queries; starts at 1, default 1 - _Integer_
+  - `pageSize` - Current from/to: default/maximum 20; directives: default/maximum 50; findings: default/maximum 50, or 0 for count only - _Number_
 
-  Findings filters combine with AND. Each row contains `type`, `category`, `language`, `details` and `files`; no finding ID or detail lookup is available. Empty results mean no findings are visible, rather than proof that a project is healthy. Findings use Cloud organization and main-branch context. The pending follow-up in [#693](https://github.com/SonarSource/sonarqube-mcp-server/pull/693) rejects incompatible category/type pairs before backend requests, refuses Findings reads before main-branch analysis, validates returned rows against active filters, identifies active filters for zero results, and gives a last-page hint. With #693, unsupported future types, languages and deviation reasons are omitted with an explicit `skippedFindings` count only when they match any active filters; backend totals stay unchanged. Malformed known findings still fail, so omitted future rows do not imply a clean or complete analysis.
+  Findings filters combine with AND. Each row contains `type`, `category`, `language`, `details` and `files`; no persistent finding ID is available. Empty results mean no findings are visible, rather than proof that a project is healthy. Findings use Cloud organization and main-branch context. The pending follow-up in [#693](https://github.com/SonarSource/sonarqube-mcp-server/pull/693) rejects incompatible category/type pairs before backend requests, refuses Findings reads before main-branch analysis, validates returned rows against active filters, identifies active filters for zero results, and gives a last-page hint. With #693, unsupported future types, languages and deviation reasons are omitted with an explicit `skippedFindings` count only when they match any active filters; backend totals stay unchanged. Malformed known findings still fail, so omitted future rows do not imply a clean or complete analysis.
+
+  Finding previews include at most 10 file paths and 10 tangle node keys. `component` and `from`/`to` filter only the requested page; `page.total` remains the backend-filtered total. Truncated findings include counts, zero-based offsets and `nextCursor`. Call `architecture_get` with `target: findings`, `projectKey`, `cursor: <nextCursor>` and organization when needed; omit filters, selectors and pagination. Each continuation returns one finding with at most 100 files and 100 node keys. Append entries at their offsets, preserving order and duplicates, until `nextCursor` is absent. These limits bound entries, not bytes or tokens.
+
+  Selectors that would produce a cursor longer than 4096 characters are rejected. List the same backend page without `component` or `from`/`to` to retrieve its findings through continuation.
+
+  Cursors retain the backend page and filters and are bound to the project, organization and main branch. Every call rereads with the current caller's credentials. If the finding changes or leaves that page, the cursor is rejected: refresh the listing rather than combining different versions. Cursors are navigation tokens, not authorization or permanent finding IDs.
 
 - **architecture_set** - Replace the whole intended model or create, update and delete explicit project directives. For intended models, start from an unfiltered `architecture_get` response. Use `dryRun: true` to review changes. Hidden when `SONARQUBE_READ_ONLY=true`. OAuth requires both read and write scopes.
 
