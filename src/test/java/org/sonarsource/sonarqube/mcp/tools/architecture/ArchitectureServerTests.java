@@ -27,7 +27,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.delete;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.patch;
@@ -41,10 +40,8 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 
 class ArchitectureServerTests {
   private static final String LOOKUP = "/api/v2/components/projects?keys=my_project&pageSize=1";
-  private static final String DIRECTIVES = "/api/v2/architecture/project-directives";
   private static final String INTENDED = "/api/v2/architecture/project-intended-architectures";
   private static final String ID = "00000000-0000-4000-8000-000000000001";
-  private static final String INPUT = "{\"type\":\"REMOVE_EDGE\",\"ecosystem\":\"java\",\"graphType\":\"namespace_graph\",\"fromNodeKey\":\"app:a\",\"toNodeKey\":\"app:b\"}";
   private static final String MODEL = "[{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{\"label\":\"app\",\"patterns\":[\"app:**\"]}],\"constraints\":[]}]";
   private static final String SAVED_MODEL = "{\"id\":\"" + ID + "\",\"perspectives\":" + MODEL.replace("\"type\"", "\"qualifiers\"") + "}";
   @RegisterExtension
@@ -52,11 +49,6 @@ class ArchitectureServerTests {
 
   private void lookup() {
     harness.getMockSonarQubeServer().stubFor(get(LOOKUP).willReturn(okJson("{\"projects\":[{\"key\":\"my_project\",\"id\":\"opaque-project-id\"}],\"page\":{\"total\":1}}")));
-  }
-
-  private String saved() {
-    return INPUT.substring(0, INPUT.length() - 1) + ",\"id\":\"" + ID + "\",\"projectId\":\"opaque-project-id\","
-      + "\"origin\":\"sonarqube-mcp-server\",\"graphPerspective\":\"default_perspective\"}";
   }
 
   @Test

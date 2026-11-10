@@ -86,14 +86,14 @@ public class ArchitectureGetTool extends Tool {
         : "Read intended architecture.")
       .addRequiredEnumProperty(TARGET_PROPERTY, isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS,
         isSonarQubeCloud
-          ? "current: dependencies; intended: model; directives: project directives (directiveId); "
-            + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings or current from/to queries."
+          ? ("current: dependencies; intended: model; directives: project directives (directiveId); "
+            + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings or current from/to queries.")
           : "intended: model.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, isSonarQubeCloud
-        ? "Exact key from this tool, not a wildcard (Java current: module:package). "
+        ? ("Exact key from this tool, not a wildcard (Java current: module:package). "
           + "Intended: group labels joined by /. Top level when omitted. "
-          + "Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective."
+          + "Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective.")
         : "Exact group key from this tool (labels joined by /), not a wildcard. Top level when omitted.")
       .addNumberProperty(DEPTH_PROPERTY, isSonarQubeCloud
         ? "Levels below the start to return. Default 1 for current, all for intended."
@@ -125,20 +125,7 @@ public class ArchitectureGetTool extends Tool {
     }
 
     var selection = dependencySelection(arguments, target, component);
-    var parameters = arguments.toMap();
-    if ((INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
-      && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
-      throw new IllegalArgumentException("Pagination parameters are only used for directives, findings or current from/to queries.");
-    }
-    if (!DIRECTIVES.equals(target) && parameters.get(DIRECTIVE_ID_PROPERTY) != null) {
-      throw new IllegalArgumentException("directiveId is only used for directives.");
-    }
-    if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
-      throw new IllegalArgumentException("type and category are only used for findings.");
-    }
-    if (!FINDINGS.equals(target) && parameters.containsKey("findingId")) {
-      throw new IllegalArgumentException("Findings have no ids. Use category, type or language to filter the list.");
-    }
+    rejectParametersForOtherTargets(arguments, target, selection);
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
     if (!serverApi.isSonarQubeCloud() && !INTENDED.equals(target)) {
       throw new IllegalArgumentException("SonarQube Server supports only target intended.");
@@ -153,6 +140,23 @@ public class ArchitectureGetTool extends Tool {
       return readCurrent(serverApi, projectKey, component, depth, language, selection);
     }
     return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.projectId(serverApi, projectKey), component, depth, language);
+  }
+
+  private static void rejectParametersForOtherTargets(Arguments arguments, String target, @Nullable DependencyQuery.Selection selection) {
+    var parameters = arguments.toMap();
+    if ((INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
+      && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
+      throw new IllegalArgumentException("Pagination parameters are only used for directives, findings or current from/to queries.");
+    }
+    if (!DIRECTIVES.equals(target) && parameters.get(DIRECTIVE_ID_PROPERTY) != null) {
+      throw new IllegalArgumentException("directiveId is only used for directives.");
+    }
+    if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
+      throw new IllegalArgumentException("type and category are only used for findings.");
+    }
+    if (!FINDINGS.equals(target) && parameters.containsKey("findingId")) {
+      throw new IllegalArgumentException("Findings have no ids. Use category, type or language to filter the list.");
+    }
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,

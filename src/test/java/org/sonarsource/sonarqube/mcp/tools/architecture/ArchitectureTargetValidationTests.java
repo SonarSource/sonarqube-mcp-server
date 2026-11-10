@@ -80,11 +80,12 @@ class ArchitectureTargetValidationTests {
     var setTool = new ArchitectureSetTool(() -> api, false, null);
 
     for (var target : List.of("current", "directives", "findings")) {
-      org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-        getTool.execute(new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(Map.of("target", target, "projectKey", "my_project"), null)))
+      var readArguments = new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(Map.of("target", target, "projectKey", "my_project"), null);
+      org.assertj.core.api.Assertions.assertThatThrownBy(() -> getTool.execute(readArguments))
         .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Possible values: intended");
-      org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-        setTool.execute(new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(Map.of("target", target, "projectKey", "my_project", "model", "[]", "dryRun", true), null)))
+      var writeArguments = new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(
+        Map.of("target", target, "projectKey", "my_project", "model", "[]", "dryRun", true), null);
+      org.assertj.core.api.Assertions.assertThatThrownBy(() -> setTool.execute(writeArguments))
         .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Possible values: intended");
     }
     for (var unsupportedParam : List.of(
@@ -97,8 +98,8 @@ class ArchitectureTargetValidationTests {
       Map.<String, Object>of("findingId", "old-id"))) {
       var args = new java.util.HashMap<String, Object>(Map.of("target", "intended", "projectKey", "my_project"));
       args.putAll(unsupportedParam);
-      org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-        getTool.execute(new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(args, null)))
+      var readArguments = new org.sonarsource.sonarqube.mcp.tools.Tool.Arguments(args, null);
+      org.assertj.core.api.Assertions.assertThatThrownBy(() -> getTool.execute(readArguments))
         .isInstanceOf(IllegalArgumentException.class);
     }
     org.mockito.Mockito.verifyNoInteractions(api);
