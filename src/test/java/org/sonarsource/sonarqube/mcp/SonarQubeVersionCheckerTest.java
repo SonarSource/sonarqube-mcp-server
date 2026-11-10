@@ -22,12 +22,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.system.SystemApi;
+import org.sonarsource.sonarqube.mcp.serverapi.system.Version;
 import org.sonarsource.sonarqube.mcp.serverapi.system.response.StatusResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SonarQubeVersionCheckerTest {
@@ -99,6 +101,25 @@ class SonarQubeVersionCheckerTest {
     var result = versionChecker.isSonarQubeServerVersionHigherOrEqualsThan("2025.3");
 
     assertThat(result).isFalse();
+  }
+
+  @Test
+  void it_should_return_the_checked_version_for_startup_availability_without_another_request() {
+    when(systemApi.getStatus()).thenReturn(new StatusResponse("id", "2026.6", "UP"));
+
+    var version = versionChecker.failIfSonarQubeServerVersionIsNotSupported();
+
+    assertThat(version).isNotNull();
+    assertThat(version.satisfiesMinRequirement(Version.create("2026.6"))).isTrue();
+    verify(systemApi).getStatus();
+  }
+
+  @Test
+  void it_should_propagate_a_failure_to_read_the_server_version() {
+    when(systemApi.getStatus()).thenThrow(new IllegalStateException("status unavailable"));
+
+    assertThat(catchThrowable(versionChecker::failIfSonarQubeServerVersionIsNotSupported))
+      .isInstanceOf(IllegalStateException.class).hasMessage("status unavailable");
   }
 
 }
