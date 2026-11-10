@@ -1468,25 +1468,26 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. On Server, intended architecture, directives and writes require an MCP build containing [#678](https://github.com/SonarSource/sonarqube-mcp-server/pull/678) and compatible public APIs; builds without it expose current reads only.** See [architecture workflows and recovery](docs/architecture.md).
+**Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode (not enabled by default). SonarQube Cloud requires a Team or Enterprise plan and exposes all targets (`current`, `intended`, `directives`, and `findings` for `architecture_get`; `intended` and `directives` for `architecture_set`). SonarQube Server exposes only `intended` on `architecture_get` and `architecture_set`, and requires the public project lookup (`/api/v2/components/projects`) and public `/api/v2/architecture/project-intended-architectures` API.** See [architecture workflows and recovery](docs/architecture.md).
 
-- **architecture_get** - Read current dependencies, intended architecture, project directives, or Findings (deviations, flaws and smells).
-  - `target` - `current`, `intended`, `directives` or `findings`; availability depends on the MCP and Server build - _Required Enum_
+- **architecture_get** - Read current dependencies, intended architecture, project directives, or Findings (deviations, flaws and smells) on Cloud; read intended architecture on Server.
+  - `target` - Cloud: `current`, `intended`, `directives` or `findings`; Server: `intended` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
   - `component` - Exact current node key or intended group path; top level when omitted - _String_
   - `depth` - Current/intended only: levels below the start; default 1 for current, all for intended - _Number_
   - `language` - Current/intended/findings only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
-  - `directiveId` - Full directive by UUID, including description; use instead of paging - _String_
-  - `category` / `type` - Findings only: filter deviations, flaws or smells by their advertised type - _Enum_
-  - `pageIndex` - Directives/Findings: 1-based page index (default: 1) - _Number_
-  - `pageSize` - Directives: summaries, default/maximum 50. Findings: default 50, maximum 1000; 0 counts only - _Number_
+  - `from` / `to` - Current only (Cloud only): exact source/destination keys including descendants; supply both without `component` - _String_
+  - `directiveId` - Directives only (Cloud only): full directive by UUID, including description; use instead of paging - _String_
+  - `category` / `type` - Findings only (Cloud only): filter deviations, flaws or smells by their advertised type - _Enum_
+  - `pageIndex` - Directives/Findings/Current `from`+`to` (Cloud only): 1-based page index (default: 1) - _Number_
+  - `pageSize` - Cloud only: current `from`+`to` default/maximum 20; directives summaries default/maximum 50; findings default 50, maximum 1000 (0 counts only) - _Number_
 
-- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available on supported Cloud and Server builds when writes are enabled.
-  - `target` - `intended` or `directives` - _Required Enum_
+- **architecture_set** - Replace the whole intended architecture (Cloud and Server) or create, update and delete project directives (Cloud only). Hidden when `SONARQUBE_READ_ONLY=true`.
+  - `target` - Cloud: `intended` or `directives`; Server: `intended` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
-  - `model` - JSON string: complete intended export or `models` array (omitted content is removed), or directive changes with `create`, `update` and `delete` arrays - _Required String_
+  - `model` - JSON string: complete intended export or `models` array (omitted content is removed), or directive changes with `create`, `update` and `delete` arrays (Cloud only) - _Required String_
   - `dryRun` - `true` to preview, `false` to apply - _Required Boolean_
   - `revision` - Intended only: revision from `architecture_get`; defaults to the complete export's revision. Required when applying a clear - _String_
 

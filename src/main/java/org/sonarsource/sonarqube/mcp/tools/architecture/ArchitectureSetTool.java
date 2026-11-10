@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
@@ -35,7 +36,11 @@ public class ArchitectureSetTool extends Tool {
   public static final String DRY_RUN_PROPERTY = "dryRun";
   public static final String REVISION_PROPERTY = "revision";
 
+  private static final String[] CLOUD_TARGETS = {ArchitectureGetTool.INTENDED, ArchitectureGetTool.DIRECTIVES};
+  private static final String[] SERVER_TARGETS = {ArchitectureGetTool.INTENDED};
+
   private final ServerApiProvider serverApiProvider;
+  private final boolean isSonarQubeCloud;
   private final CurrentGraphReads currentReads;
   @Nullable
   private final String configuredProjectKey;
@@ -49,15 +54,20 @@ public class ArchitectureSetTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Set Architecture")
       .setDestructiveHint()
-      .setDescription("Replace intended architecture (omitted content is removed), or create, update or delete explicit project directives.")
+      .setDescription(isSonarQubeCloud
+        ? "Replace intended architecture (omitted content is removed), or create, update or delete explicit project directives."
+        : "Replace intended architecture (omitted content is removed).")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
-      .addRequiredEnumProperty("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES}, "intended: replace model; directives: explicit CRUD operations.")
-      .addRequiredStringProperty(MODEL_PROPERTY, "Intended: full response or models array; an empty complete model deletes it. Directives: "
-        + "{create: [directives], update: [{id, ...changed directive fields}], delete: [{id}]}; updates are flat objects. "
-        + "Directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
-        + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current. "
-        + "toNodeKey for MOVE_NODE: existing destination container; for RENAME_NODE: new complete key. "
-        + "graphPerspective defaults to default_perspective, optional description.")
+      .addRequiredEnumProperty("target", isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS,
+        isSonarQubeCloud ? "intended: replace model; directives: explicit CRUD operations." : "intended: replace model.")
+      .addRequiredStringProperty(MODEL_PROPERTY, isSonarQubeCloud
+        ? ("Intended: full response or models array; an empty complete model deletes it. Directives: "
+          + "{create: [directives], update: [{id, ...changed directive fields}], delete: [{id}]}; updates are flat objects. "
+          + "Directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
+          + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current. "
+          + "toNodeKey for MOVE_NODE: existing destination container; for RENAME_NODE: new complete key. "
+          + "graphPerspective defaults to default_perspective, optional description.")
+        : "Intended: full response or models array; an empty complete model deletes it.")
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get intended; defaults to the model response revision. "
         + "Required to clear the whole model; a mismatch prevents writing.")
@@ -65,6 +75,7 @@ public class ArchitectureSetTool extends Tool {
       ToolCategory.ARCHITECTURE);
     this.currentReads = currentReads;
     this.serverApiProvider = serverApiProvider;
+    this.isSonarQubeCloud = isSonarQubeCloud;
     this.configuredProjectKey = configuredProjectKey;
   }
 
@@ -78,18 +89,12 @@ public class ArchitectureSetTool extends Tool {
     if (arguments.toMap().containsKey("operation")) {
       throw new IllegalArgumentException("operation is not supported. Use the model schema for the selected target.");
     }
-    var target = arguments.getEnumOrThrow("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES});
+    var target = arguments.getEnumOrThrow("target", isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS);
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     boolean dryRun = arguments.getBooleanOrThrow(DRY_RUN_PROPERTY);
     var model = arguments.getStringOrThrow(MODEL_PROPERTY);
     if (ArchitectureGetTool.DIRECTIVES.equals(target)) {
-      if (arguments.toMap().get(REVISION_PROPERTY) != null) {
-        throw new IllegalArgumentException("Revision is only used for intended architecture.");
-      }
-      var directives = ProjectDirectives.parse(model, projectKey);
-      var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-      var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
-      return Result.success(DirectiveResponses.of(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun)));
+      return replaceDirectives(arguments, projectKey, dryRun, model);
     }
 
     var next = IntendedModels.parse(model);
@@ -113,6 +118,36 @@ public class ArchitectureSetTool extends Tool {
     }
     var current = stored;
     var diff = IntendedModels.diff(current, next);
+    var warnings = intendedWarnings(serverApi, projectKey, next, diff, clearingStoredResource, revision);
+    if (dryRun) {
+      return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));
+    }
+    if (diff.isEmpty() && !clearingStoredResource) {
+      return Result.success(new ArchitectureSetToolResponse(projectKey, "unchanged", diff, warnings));
+    }
+    try {
+      new IntendedArchitectureReplacement(api).replace(projectKey, projectId, storedState, next);
+    } catch (IntendedArchitectureReplacement.IntendedRecoveryException failure) {
+      return Result.failure(failure.callerMessage());
+    }
+    return Result.success(new ArchitectureSetToolResponse(projectKey, replacementStatus(next.isEmpty(), storedState.id()), diff, warnings));
+  }
+
+  private Result replaceDirectives(Arguments arguments, String projectKey, boolean dryRun, String model) {
+    if (arguments.toMap().get(REVISION_PROPERTY) != null) {
+      throw new IllegalArgumentException("Revision is only used for intended architecture.");
+    }
+    var directives = ProjectDirectives.parse(model, projectKey);
+    var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
+    if (!serverApi.isSonarQubeCloud()) {
+      throw new IllegalArgumentException("SonarQube Server supports only target intended.");
+    }
+    var projectId = ArchitectureProjectContext.projectId(serverApi, projectKey);
+    return Result.success(DirectiveResponses.of(ProjectDirectives.apply(serverApi.architectureApi(), projectKey, projectId, directives, dryRun)));
+  }
+
+  private List<String> intendedWarnings(ServerApi serverApi, String projectKey, List<IntendedArchitecture> next, ArchitectureSetToolResponse.Diff diff,
+    boolean clearingStoredResource, @Nullable String revision) {
     var warnings = new ArrayList<String>();
     warnings.add(ArchitectureApi.EXPORT_WARNING);
     if (clearingStoredResource) {
@@ -127,18 +162,7 @@ public class ArchitectureSetTool extends Tool {
     if (!diff.isEmpty()) {
       warnings.addAll(IntendedDiagnostics.inspect(serverApi, projectKey, next, currentReads));
     }
-    if (dryRun) {
-      return Result.success(new ArchitectureSetToolResponse(projectKey, "dry-run", diff, warnings));
-    }
-    if (diff.isEmpty() && !clearingStoredResource) {
-      return Result.success(new ArchitectureSetToolResponse(projectKey, "unchanged", diff, warnings));
-    }
-    try {
-      new IntendedArchitectureReplacement(api).replace(projectKey, projectId, storedState, next);
-    } catch (IntendedArchitectureReplacement.IntendedRecoveryException failure) {
-      return Result.failure(failure.callerMessage());
-    }
-    return Result.success(new ArchitectureSetToolResponse(projectKey, replacementStatus(next.isEmpty(), storedState.id()), diff, warnings));
+    return warnings;
   }
 
   private static void checkRevision(String projectKey, @Nullable String revision, List<IntendedArchitecture> stored) {
