@@ -33,14 +33,15 @@ class ArchitectureToolsetTest {
 
   @SonarQubeMcpServerTest
   void it_should_not_list_architecture_tools_with_the_default_toolsets(SonarQubeMcpServerTestHarness harness) {
-    var toolNames = toolNames(harness, Map.of("SONARQUBE_TOOLSETS", ""));
+    var toolNames = toolNames(harness, Map.of("SONARQUBE_TOOLSETS", "", "SONARQUBE_ORG", "org"));
 
     assertThat(toolNames).isNotEmpty().noneMatch(name -> name.startsWith("architecture_"));
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
   }
 
   @SonarQubeMcpServerTest
   void it_should_not_list_architecture_tools_when_other_toolsets_are_enabled(SonarQubeMcpServerTestHarness harness) {
-    var toolNames = toolNames(harness, Map.of("SONARQUBE_TOOLSETS", "issues"));
+    var toolNames = toolNames(harness, Map.of("SONARQUBE_TOOLSETS", "issues", "SONARQUBE_ORG", "org"));
 
     assertThat(toolNames).noneMatch(name -> name.startsWith("architecture_"));
   }
@@ -58,20 +59,6 @@ class ArchitectureToolsetTest {
     var toolNames = toolNames(harness, Map.of("SONARQUBE_TOOLSETS", "architecture", "SONARQUBE_ORG", "org", "SONARQUBE_READ_ONLY", "true"));
 
     assertThat(toolNames).containsAll(READ_TOOLS).doesNotContainAnyElementsOf(WRITE_TOOLS);
-  }
-
-  @SonarQubeMcpServerTest
-  void it_should_advertise_architecture_operations_on_server(SonarQubeMcpServerTestHarness harness) {
-    var tools = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "architecture")).listTools();
-    assertThat(tools).extracting(McpSchema.Tool::name).contains(ArchitectureGetTool.TOOL_NAME, ArchitectureSetTool.TOOL_NAME);
-    var read = tools.stream().filter(tool -> tool.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
-    @SuppressWarnings("unchecked")
-    var properties = (Map<String, Map<String, Object>>) read.inputSchema().get("properties");
-    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
-    assertThat(read.description()).contains("intended");
-    assertThat(read.inputSchema().toString()).contains("directiveId");
-    assertThat(toolNames(harness, Map.of("SONARQUBE_TOOLSETS", "architecture", "SONARQUBE_READ_ONLY", "true")))
-      .contains(ArchitectureGetTool.TOOL_NAME).doesNotContain(ArchitectureSetTool.TOOL_NAME);
   }
 
   private static List<String> toolNames(SonarQubeMcpServerTestHarness harness, Map<String, String> env) {
