@@ -35,6 +35,21 @@ public class ArchitectureSetTool extends Tool {
   public static final String DRY_RUN_PROPERTY = "dryRun";
   public static final String REVISION_PROPERTY = "revision";
 
+  private static final String INTENDED_MODEL_DESCRIPTION = """
+    Intended: full response or perspectives array; an empty complete model deletes it.
+    Perspective: {type: file|namespace, language: java|cs|js|ts|py, label?, description?, groups, constraints: [{from,to}]}.
+    Nonblank perspective labels are unique within a language and contain no /.
+    Group: {label (unique among siblings, no /), patterns?: [string], groups?, interface?, interfaceAccess?, description?, patternId?: uuid}.
+    Constraints connect exact sibling paths; imported descendants cannot be referenced.
+    """;
+  private static final String DIRECTIVE_MODEL_DESCRIPTION = """
+    Directives: {create: [directives], update: [{id, ...changed directive fields}], delete: [{id}]}; updates are flat objects.
+    Directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, graphType file_graph|namespace_graph,
+    fromNodeKey/toNodeKey from architecture_get current.
+    toNodeKey for MOVE_NODE: existing destination container; for RENAME_NODE: new complete key.
+    graphPerspective defaults to default_perspective, optional description.
+    """;
+
   private final ServerApiProvider serverApiProvider;
   private final CurrentGraphReads currentReads;
   @Nullable
@@ -52,12 +67,7 @@ public class ArchitectureSetTool extends Tool {
       .setDescription("Replace intended architecture (omitted content is removed), or create, update or delete explicit project directives.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addRequiredEnumProperty("target", new String[] {"intended", ArchitectureGetTool.DIRECTIVES}, "intended: replace model; directives: explicit CRUD operations.")
-      .addRequiredStringProperty(MODEL_PROPERTY, "Intended: full response or models array; an empty complete model deletes it. Directives: "
-        + "{create: [directives], update: [{id, ...changed directive fields}], delete: [{id}]}; updates are flat objects. "
-        + "Directive: type REMOVE_EDGE|RENAME_NODE|MOVE_NODE, ecosystem java|cs|js|ts|py, "
-        + "graphType file_graph|namespace_graph, fromNodeKey/toNodeKey from architecture_get current. "
-        + "toNodeKey for MOVE_NODE: existing destination container; for RENAME_NODE: new complete key. "
-        + "graphPerspective defaults to default_perspective, optional description.")
+      .addRequiredStringProperty(MODEL_PROPERTY, INTENDED_MODEL_DESCRIPTION + DIRECTIVE_MODEL_DESCRIPTION)
       .addRequiredBooleanProperty(DRY_RUN_PROPERTY, "true to only validate and list the changes, false to write them.")
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get intended; defaults to the model response revision. "
         + "Required to clear the whole model; a mismatch prevents writing.")
