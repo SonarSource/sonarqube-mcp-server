@@ -50,7 +50,11 @@ class ArchitectureGetIntendedToolTests {
       "{\"type\":\"namespace\",\"language\":\"java\",\"constraints\":[]}",
       "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[]}",
       "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{}],\"constraints\":[]}",
-      "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[],\"constraints\":[{\"from\":\"A\"}]}"
+      "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[],\"constraints\":[{\"from\":\"A\"}]}",
+      "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{\"label\":\" \"}],\"constraints\":[]}",
+      "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{\"label\":\"UI/API\"}],\"constraints\":[]}",
+      "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{\"label\":\"UI\"},{\"label\":\"UI\"}],\"constraints\":[]}",
+      "{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{\"label\":\"UI\",\"patterns\":[null]}],\"constraints\":[]}"
     }) {
       harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED)
         .willReturn(okJson("{\"intendedArchitectures\":[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"perspectives\":[" + model.replace("\"type\"", "\"qualifiers\"") + "]}]}")));
@@ -252,27 +256,19 @@ class ArchitectureGetIntendedToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_refuse_ambiguous_component_keys_without_losing_groups_in_the_full_read(SonarQubeMcpServerTestHarness harness) {
+  void it_should_reject_slash_labels_in_a_public_model_without_writing(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    var models = JsonParser.parseString("""
-      [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED).willReturn(okJson(intendedArchitectures("""
+      [{"type":"namespace","language":"java","groups":[
         {"label":"UI","groups":[{"label":"API","patterns":["nested:**"]}]},
         {"label":"UI/API","patterns":["literal:**"]}],"constraints":[]}]
-      """).getAsJsonArray();
-    var groups = models.get(0).getAsJsonObject().getAsJsonArray("groups");
+      """))));
     var client = harness.newClient(CLOUD_ENV);
-    for (var order = 0; order < 2; order++) {
-      harness.getMockSonarQubeServer().stubFor(get(CLOUD_INTENDED).willReturn(okJson(intendedArchitectures(models.toString()))));
-      var full = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
-      assertThat(full.isError()).isFalse();
-      assertThat(JsonParser.parseString(textOf(full)).getAsJsonObject().getAsJsonArray("models").get(0).getAsJsonObject().getAsJsonArray("groups"))
-        .isEqualTo(groups);
-      var partial = client.callTool(ArchitectureGetTool.TOOL_NAME,
-        Map.of("target", "intended", "projectKey", "my_project", "component", "UI/API"));
-      assertThat(partial.isError()).isTrue();
-      assertThat(textOf(partial)).contains("matches multiple groups", "Read the complete intended model without component");
-      groups.add(groups.remove(0));
-    }
+
+    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
+
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("incomplete intended architecture", "No complete model was read");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("PATCH", "/architecture/")).isEmpty();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("POST", "/architecture/")).isEmpty();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", "/architecture/")).isEmpty();

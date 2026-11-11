@@ -324,7 +324,7 @@ class ArchitectureDirectivesToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "directives", "projectKey", "my_project", "pageSize", pageSize));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("page size must be between 1 and 50");
+    assertThat(textOf(result)).contains(pageSize == 0 ? "page size must be between 1 and 50" : "input validation failed");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
   }
 
