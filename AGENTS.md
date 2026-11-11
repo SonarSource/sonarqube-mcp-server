@@ -1,164 +1,29 @@
 # SonarQube MCP Server
 
-Java 21 Gradle application that exposes SonarQube Cloud and SonarQube Server to AI agents through the [Model Context Protocol](https://modelcontextprotocol.io/). Entry point: `org.sonarsource.sonarqube.mcp.SonarQubeMcpServer`.
+Java 21 / Gradle server exposing SonarQube Cloud and Server through MCP.
 
-## Principles
+## Working and delivery
 
-- Read surrounding code before editing; match existing patterns and naming.
-- Keep changes minimal and scoped to the task — no drive-by refactors.
-- Provide unit tests for every code change.
-- Do not commit secrets, tokens, or credentials.
-- External pull requests are not accepted; this guide supports internal development and forks.
+- Start new work from the latest intended base. Inspect the checkout first; preserve unrelated changes and use an isolated branch when needed.
+- Keep one purpose per PR. Aim for **400 added lines or fewer**, including tests and docs. Split independently testable changes; explain an inseparable exception in the PR.
+- Squash your WIP/fixup commits into one coherent commit per PR before handoff, unless requested otherwise. Do not rewrite collaborators' commits. Keep stacked PR dependencies explicit.
+- Use `task/<initials>/<ticket>-<description>`, `feature/...`, or `bug/...` branches. Prefix commits and PR titles with the Jira key when available; omit it when none exists. Commit messages contain a title only.
+- Read surrounding code and follow existing abstractions. Keep unrelated cleanup out of the change. Never commit credentials or put tokens, private source, or recovery exports in logs or telemetry.
+- For substantial architecture or design changes, update the relevant document under `docs/` in the same PR, or add a focused document if none exists. Capture the resulting design, key decisions, tradeoffs, and compatibility constraints.
 
-## Prerequisites
+## Verification
 
-- JDK 21
-- Docker (only for `its` integration tests)
+- Add regression coverage for code changes. Run the relevant Gradle tests and `./gradlew spotlessCheck`; use the [development guide](docs/development/README.md) for build, integration tests, and dependency locks.
+- Fix new test or analysis failures; verify claims of pre-existing failures against the base.
+- Inspect the final diff for scope, code style, schema size, and compatibility. Report checks actually run and any remaining limitations; green mocks do not prove a remote API is available.
 
-## Build & Verify
+## Read before editing the relevant area
 
-```bash
-./gradlew clean build          # compile + unit tests
-./gradlew test                 # unit tests only
-./gradlew test --tests "org.sonarsource.sonarqube.mcp.tools.branches.ListBranchesToolTests"
-./gradlew :its:integrationTest # integration tests (requires Docker; not part of default build)
-./gradlew :its:integrationTest --tests "org.sonarsource.sonarqube.mcp.its.StdioTransportITest"
-```
+Paths below are explicit routes: read the applicable files even when your agent does not automatically load nested instructions.
 
-After adding or updating dependencies, regenerate lock files (requires Artifactory credentials locally):
-
-```bash
-./gradlew :dependencies --write-locks
-./gradlew :its:dependencies --write-locks
-```
-
-Dependencies are declared in `gradle/libs.versions.toml` and locked in `gradle.lockfile`.
-
-SonarQube Cloud project key: `SonarSource_sonarqube-mcp-server`.
-
-## Code Style
-
-- Use one blank line between members and logical sections; remove consecutive empty lines left by edits.
-- Import Java types instead of fully qualifying them inline. Keep constants grouped by visibility, with related property constants together.
-
-- Follow [SonarSource/sonar-developer-toolset](https://github.com/SonarSource/sonar-developer-toolset#code-style).
-- Every `.java` file must include the SSAL license header from `HEADER`.
-- Commits and PRs should start with the Jira ticket ID when available (e.g. `MCP-1234`).
-
-## Project Layout
-
-```
-src/main/java/org/sonarsource/sonarqube/mcp/
-├── tools/           # MCP tool implementations, grouped by domain
-├── serverapi/       # SonarQube REST API clients (*Api) and response records
-├── transport/       # Stdio and HTTP (Streamable HTTP) MCP transports
-├── slcore/          # SLCORE backend for local code analysis
-├── configuration/   # Launch configuration from environment variables
-├── client/          # Proxied MCP server loading (Context Augmentation)
-├── authentication/  # HTTP transport authentication
-├── bridge/          # SonarQube for IDE integration
-└── SonarQubeMcpServer.java   # startup, tool registration, ServerApiProvider
-
-src/test/java/.../harness/      # SonarQubeMcpServerTestHarness, WireMock, MCP test client
-its/                            # Docker-based integration tests (Testcontainers)
-docs/                           # Architecture and design documents
-```
-
-On startup, REST-based tools are registered immediately; SLCORE analyzer plugins download in the background and the backend restarts when ready (`docs/tool-loading.md`).
-
-## SonarQube Cloud vs Server
-
-The server connects to **SonarQube Cloud** when `SONARQUBE_ORG` is set, otherwise to **SonarQube Server** via `SONARQUBE_URL`. Many tools work on both; some are environment-specific:
-
-| Area                                                         | Cloud                                                      | Server                       |
-|--------------------------------------------------------------|------------------------------------------------------------|------------------------------|
-| System tools (`system` toolset)                              | Not available                                              | Available                    |
-| Enterprises                                                  | Available                                                  | Not available                |
-| Dependency risks (SCA)                                       | Org entitlement                                            | Feature flag + version check |
-| Vortex (CAG + SQAA / A3S)                                    | Combined org entitlement; stdio only                       | Both hubs entitled; stdio only; nil UUID org for SQAA |
-| Agentic readiness                                            | Org feature flag                                           | Not available                |
-
-On Cloud and Server, Vortex is one product: CAG (context) and SQAA/A3S (analysis) share a single entitlement check. Both must be entitled or neither registers. Cloud uses `OrgFeatureEntitlements` against the org UUID. Server AND-merges `GET /api/v2/cag/cag-entitlement/{nil-uuid}` and `GET /api/v2/a3s/org-entitlement/{nil-uuid}`: a 404 from either hub is quiet (pre-LTA / hub absent); `hasEntitlement: false` logs a licence line; 503 is a failed check. Over-consumption (`hasEntitlement: true`, `allowed: false`) still starts the proxied CAG engine and registers `run_advanced_code_analysis` (POST `/api/v2/a3s/analyses` with the nil UUID as organization). When Vortex is on, local snippet analysis (`analyze_code_snippet`) and IDE-bridge tools (`analyze_file_list`, `toggle_automatic_analysis`) are not registered. `run_advanced_code_analysis` needs a workspace mount. `CAG`/`A3S` naming is deprecated in favor of `Vortex`; the existing toolset keys (`cag`, `analysis`) and tool names (e.g. `run_advanced_code_analysis`) are unchanged for backward compatibility.
-
-When adding or changing tools, check whether behavior or registration must differ between Cloud and Server. Look at existing tools in the same domain for the established pattern (constructor flags, conditional registration in `SonarQubeMcpServer`, separate tool definitions).
-
-## Adding an MCP Tool
-
-**Schema bloat is a first-class concern.** MCP clients load the full tool list (names, descriptions, input schemas) into the agent's context. Every tool description, parameter description, and title adds tokens on every session. Write the minimum text that still disambiguates usage — prefer one short sentence over a paragraph, and omit parameters that callers rarely need. Tools do not advertise an output schema; `Tool.Result.success` returns the response record once, as JSON text.
-
-1. Create `FooTool.java` extending `Tool` in `tools/<domain>/`.
-2. Add `package-info.java` if creating a new package.
-3. Define `public static final String TOOL_NAME = "foo_action"` — snake_case, max 64 chars, MCP SEP-986 charset (`ToolNameValidator`).
-4. Build the input schema with `ToolDefinitionBuilder.builder()`:
-   - `.setTitle()` and `.setDescription()` — one or two short sentences: what the tool does and when to use it. No tutorials, examples, or repeated parameter detail (put that in parameter descriptions only).
-   - Parameter descriptions (`.addStringProperty()`, etc.) — same rule: shortest text that clarifies format, valid values, or which other tool to call first.
-   - `.addProjectKeyProperty()` when a project key is needed (respects `SONARQUBE_PROJECT_KEY` config).
-   - `.addBranchAndPullRequestProperties()` when branch/PR-aware; use `BranchPullRequestContext` in `execute()` for validation.
-   - `.setReadOnlyHint()` for tools that do not mutate SonarQube state.
-   - Do not add optional parameters "for completeness" if they are rarely used — fewer parameters means a smaller schema.
-5. Create `FooToolResponse` as a Java `record`. Field names are the JSON keys. Null fields are omitted. Do not add `@JsonPropertyDescription`; tools do not publish an output schema.
-6. Implement `execute()` — call SonarQube via `ServerApiProvider.get()`, return `Tool.Result.success(response)`.
-7. Assign a `ToolCategory` (controls `SONARQUBE_TOOLSETS` filtering; `projects` is always enabled). See **Tool categories** below.
-8. Register in `SonarQubeMcpServer` — `loadBackendIndependentTools()` for REST tools, or the backend-dependent section for analysis tools.
-9. Override `isEnabledFor()` only when per-request feature gating is needed.
-10. Add `FooToolTests.java` (see Testing below).
-
-Reference implementation: `tools/branches/ListBranchesTool.java`.
-
-### Tool categories
-
-Each tool belongs to exactly one `ToolCategory` (defined in `tools/ToolCategory.java`). The enum constant is passed to the `Tool` constructor; its `key` string is what users set in `SONARQUBE_TOOLSETS`.
-
-Pick the category that matches the tool's domain. Only add a new enum value when no existing category fits — that also requires updating `ToolCategory`, default toolsets, and the README toolset table.
-
-### Server API Client
-
-When a tool needs a new SonarQube endpoint:
-
-1. Add `*Api.java` under `serverapi/<domain>/` with a `public static final String ..._PATH`.
-2. Build URLs with `UrlBuilder`; parse responses with Gson into `response/` records.
-3. Expose the API through the `ServerApi` facade.
-4. Use try-with-resources on `helper.get(url)` / `helper.post(url, body)` responses.
-5. Let `ServerApiHelper` exceptions (`UnauthorizedException`, `ForbiddenException`, etc.) propagate — `ToolExecutor` maps them to agent-friendly errors.
-
-## Testing
-
-Unit tests exercise the full MCP stack (server + client) against a WireMock SonarQube instance.
-
-```java
-@SonarQubeMcpServerTest
-void it_should_list_branches(SonarQubeMcpServerTestHarness harness) {
-  harness.getMockSonarQubeServer().stubFor(
-    get(ProjectBranchesApi.BRANCHES_LIST_PATH + "?project=my_project")
-      .willReturn(aResponse().withResponseBody(Body.fromJsonBytes(...))));
-  var result = harness.newClient().callTool(
-    ListBranchesTool.TOOL_NAME, Map.of("projectKey", "my_project"));
-  assertResultEquals(result, """{ "projectKey": "my_project", ... }""");
-}
-```
-
-Conventions:
-
-- Annotate test classes/methods with `@SonarQubeMcpServerTest`; inject `SonarQubeMcpServerTestHarness`.
-- Name tests `it_should_<behavior>`.
-- For each tool, test at minimum: annotations (`readOnlyHint`, `openWorldHint`), happy path via `assertResultEquals` (JSON text content), and relevant error paths (403, 500, empty results).
-- Test Cloud vs Server differences when the tool behaves differently.
-- `TELEMETRY_DISABLED=true` is set automatically by the harness.
-
-Integration tests in `its/` use Testcontainers and are not run by `./gradlew test` or `./gradlew build`. Run a single class or method the same way as unit tests, on the `:its:integrationTest` task:
-
-```bash
-./gradlew :its:integrationTest --tests "org.sonarsource.sonarqube.mcp.its.HttpTransportITest"
-./gradlew :its:integrationTest --tests "org.sonarsource.sonarqube.mcp.its.StdioTransportITest.should_start_server_with_stdio_transport"
-```
-
-## Key Docs
-
-| Document                                   | Topic                                             |
-|--------------------------------------------|---------------------------------------------------|
-| `docs/tool-loading.md`                     | Startup phases and analyzer synchronization       |
-| `docs/stdio-transport-architecture.md`     | Stdio MCP transport                               |
-| `docs/http-authentication-architecture.md` | HTTP transport and authentication                 |
-| `docs/proxied-mcp-servers.md`              | Proxied MCP servers (Context Augmentation)        |
-| `docs/contributing.md`                     | Contribution policy                               |
-| `README.md`                                | End-user setup, configuration, and tool reference |
+- Java and source conventions: [src/AGENTS.md](src/AGENTS.md). Production code, startup, configuration, auth, and transports: [src/main/AGENTS.md](src/main/AGENTS.md).
+- MCP tools and schemas: [tools/AGENTS.md](src/main/java/org/sonarsource/sonarqube/mcp/tools/AGENTS.md). Architecture operations: [architecture/AGENTS.md](src/main/java/org/sonarsource/sonarqube/mcp/tools/architecture/AGENTS.md).
+- SonarQube APIs and DTOs: [serverapi/AGENTS.md](src/main/java/org/sonarsource/sonarqube/mcp/serverapi/AGENTS.md).
+- Unit tests and harness: [src/test/AGENTS.md](src/test/AGENTS.md). Docker integration tests: [its/AGENTS.md](its/AGENTS.md). Read test guidance when adding tests for production changes.
+- Documentation: [docs/AGENTS.md](docs/AGENTS.md). Build and dependency changes: [development guide](docs/development/README.md).
+- Instruction changes: [instruction policy](docs/development/agent-instructions.md). Keep one canonical rule per concern; ordinary feature work does not require adding rules.
