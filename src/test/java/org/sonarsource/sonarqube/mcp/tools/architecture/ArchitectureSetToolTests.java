@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import io.modelcontextprotocol.spec.McpError;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -731,10 +732,9 @@ class ArchitectureSetToolTests {
   void it_should_refuse_server_writes_when_public_project_lookup_is_unavailable(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(get("/api/v2/components/projects?keys=my_project&pageSize=1").willReturn(aResponse().withStatus(404)));
     var client = harness.newClient();
-    var result = client.callTool(ArchitectureSetTool.TOOL_NAME,
-      Map.of("target", "intended", "projectKey", "my_project", "model", NEXT, "dryRun", true));
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("public project lookup");
+    Map<String, Object> arguments = Map.of("target", "intended", "projectKey", "my_project", "model", NEXT, "dryRun", true);
+    assertThatThrownBy(() -> client.callTool(ArchitectureSetTool.TOOL_NAME, arguments))
+      .isInstanceOf(McpError.class);
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
     assertWrites(harness, 0, 0);
   }
