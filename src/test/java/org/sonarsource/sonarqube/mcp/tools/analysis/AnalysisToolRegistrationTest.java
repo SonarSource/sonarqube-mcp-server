@@ -49,6 +49,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 class AnalysisToolRegistrationTest {
 
@@ -129,10 +130,12 @@ class AnalysisToolRegistrationTest {
       assertThat(mock.countRequestsContaining(PluginsApi.INSTALLED_PLUGINS_PATH)).isEqualTo(advanced ? 0 : 1);
       // Startup discovery supplies UUIDs, and no second organization listing is needed for analysis selection.
       assertThat(mock.countRequestsContaining(OrganizationsApi.ORGANIZATIONS_PATH)).isEqualTo(1);
-      assertThat(mock.countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH + "first-uuid"))
-        .isEqualTo(mounted && !forceLocal ? 1 : 0);
-      assertThat(mock.countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH + "second-uuid"))
-        .isEqualTo(mounted && !forceLocal && !firstEntitled ? 1 : 0);
+      await().untilAsserted(() -> {
+        assertThat(mock.countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH + "first-uuid"))
+          .isEqualTo(mounted && !forceLocal ? 1 : 0);
+        assertThat(mock.countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH + "second-uuid"))
+          .isEqualTo(mounted && !forceLocal ? 1 : 0);
+      });
     } finally {
       System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
     }
