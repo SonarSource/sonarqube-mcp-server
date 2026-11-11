@@ -45,24 +45,22 @@ class ArchitectureIntendedResourceTests {
   private static final String EMPTY_RESOURCE = "{\"intendedArchitectures\":[{\"id\":\"" + ID + "\",\"perspectives\":[]}]}";
 
   @SonarQubeMcpServerTest
-  void it_should_reject_foreign_exports_before_preview_update_or_clear_on_cloud_and_server(SonarQubeMcpServerTestHarness harness) {
+  void it_should_reject_foreign_exports_before_preview_update_or_clear_on_cloud(SonarQubeMcpServerTestHarness harness) {
     var revision = IntendedRevision.of(IntendedModels.parse(INTENDED_JAVA_MODEL));
-    for (var baseEnvironment : List.of(CLOUD_ENV, Map.<String, String>of())) {
-      for (var projectArgument : List.of(Map.<String, Object>of("projectKey", "my_project"), Map.<String, Object>of())) {
-        var environment = new HashMap<>(baseEnvironment);
-        if (projectArgument.isEmpty()) {
-          environment.put("SONARQUBE_PROJECT_KEY", "my_project");
-        }
-        var client = harness.newClient(environment);
-        for (var dryRun : List.of(true, false)) {
-          for (var models : List.of("[]", INTENDED_JAVA_MODEL.replace("domain", "infra"))) {
-            var model = "{\"projectKey\":\"other_project\",\"revision\":\"" + revision + "\",\"models\":" + models + "}";
-            var args = new HashMap<>(projectArgument);
-            args.putAll(Map.of("target", "intended", "model", model, "dryRun", dryRun));
-            var result = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
-            assertThat(result.isError()).isTrue();
-            assertThat(textOf(result)).contains("different project than 'my_project'", "Nothing was changed");
-          }
+    for (var projectArgument : List.of(Map.<String, Object>of("projectKey", "my_project"), Map.<String, Object>of())) {
+      var environment = new HashMap<>(CLOUD_ENV);
+      if (projectArgument.isEmpty()) {
+        environment.put("SONARQUBE_PROJECT_KEY", "my_project");
+      }
+      var client = harness.newClient(environment);
+      for (var dryRun : List.of(true, false)) {
+        for (var models : List.of("[]", INTENDED_JAVA_MODEL.replace("domain", "infra"))) {
+          var model = "{\"projectKey\":\"other_project\",\"revision\":\"" + revision + "\",\"models\":" + models + "}";
+          var args = new HashMap<>(projectArgument);
+          args.putAll(Map.of("target", "intended", "model", model, "dryRun", dryRun));
+          var result = client.callTool(ArchitectureSetTool.TOOL_NAME, args);
+          assertThat(result.isError()).isTrue();
+          assertThat(textOf(result)).contains("different project than 'my_project'", "Nothing was changed");
         }
       }
     }

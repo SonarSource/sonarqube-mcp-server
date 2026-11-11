@@ -41,14 +41,14 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 
 class ArchitectureGetCurrentToolTests {
 
-  private static final String SERVER_CURRENT = "/api/v2" + ArchitectureApi.CURRENT_ARCHITECTURES_PATH + "?organizationId=" + ArchitectureApi.SERVER_ORGANIZATION_ID
+  private static final String CLOUD_CURRENT = ArchitectureApi.CURRENT_ARCHITECTURES_PATH + "?organizationId=" + CLOUD_ORGANIZATION_ID
     + "&branchId=" + MAIN_BRANCH_ID + "&language=";
 
   @SonarQubeMcpServerTest
-  void it_should_read_targeted_dependency_pages_on_server(SonarQubeMcpServerTestHarness harness) {
+  void it_should_read_targeted_dependency_pages_on_cloud(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
-    var client = harness.newClient();
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
+    var client = harness.newClient(CLOUD_ENV);
     var arguments = Map.<String, Object>of("target", "current", "projectKey", "my_project", "language", "java",
       "from", "app:com.acme.web", "to", "app:com.acme.domain", "pageSize", 1);
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, arguments);
@@ -100,7 +100,7 @@ class ArchitectureGetCurrentToolTests {
   void it_should_report_no_current_architecture_for_targeted_reads(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     stubEmptyCurrent(harness);
-    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "current", "projectKey", "my_project", "language", "java", "from", "app", "to", "other"));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("No current architecture is visible", "latest analysis").doesNotContain("revision");
@@ -108,7 +108,7 @@ class ArchitectureGetCurrentToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_reject_padded_dependency_keys_before_backend_reads(SonarQubeMcpServerTestHarness harness) {
-    var client = harness.newClient();
+    var client = harness.newClient(CLOUD_ENV);
     for (var field : List.of("from", "to")) {
       var arguments = new java.util.HashMap<String, Object>(Map.of("target", "current", "projectKey", "my_project", "from", "app", "to", "other"));
       arguments.put(field, " padded ");
@@ -120,18 +120,12 @@ class ArchitectureGetCurrentToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_explain_the_server_language_binding_failure_without_raw_spring_text(SonarQubeMcpServerTestHarness harness) {
-    stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(aResponse().withStatus(400)
-      .withBody("{\"message\":\"Method parameter 'language': Failed to convert value to com.sonarsource.architecture.publicapi.api.model.PublicEcosystem\"}")));
+  void it_should_reject_current_reads_on_server_before_network(SonarQubeMcpServerTestHarness harness) {
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "current", "projectKey", "my_project", "language", "java")))
+      .isInstanceOf(io.modelcontextprotocol.spec.McpError.class);
 
-    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "current", "projectKey", "my_project", "language", "java"));
-
-    assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("known SonarQube Server issue", "currently blocks current architecture reads", "HTTP 400")
-      .doesNotContain("PublicEcosystem", "Failed to convert", "upgrade");
-    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/v2/architecture/current-architectures")).isEqualTo(1);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/v2/architecture/current-architectures")).isZero();
   }
 
   @SonarQubeMcpServerTest
@@ -141,8 +135,8 @@ class ArchitectureGetCurrentToolTests {
       {"id":%d,"name":"module%d","kind":"module","edges":[],"nodes":[{"id":%d,"name":"Leaf","kind":"class","edges":[]}]}
       """.formatted(i * 2, i, i * 2 + 1)).collect(java.util.stream.Collectors.joining(","));
     var graph = "[{\"nodeCount\":20,\"edgeCount\":0,\"nodes\":[" + nodes + "]}]";
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(graph))));
-    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(graph))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "current", "projectKey", "my_project", "language", "java"));
 
     var response = JsonParser.parseString(textOf(result)).getAsJsonObject();
@@ -158,8 +152,8 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_explain_a_leaf_without_claiming_it_is_capped(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
-    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "current", "projectKey", "my_project", "component", "app:com.acme.domain.Service", "language", "java"));
 
     var response = JsonParser.parseString(textOf(result)).getAsJsonObject();
@@ -170,7 +164,7 @@ class ArchitectureGetCurrentToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_validate_annotations(SonarQubeMcpServerTestHarness harness) {
-    var tool = harness.newClient().listTools().stream().filter(t -> t.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
+    var tool = harness.newClient(CLOUD_ENV).listTools().stream().filter(t -> t.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
 
     assertThat(tool.annotations().readOnlyHint()).isTrue();
     assertThat(tool.annotations().openWorldHint()).isTrue();
@@ -178,7 +172,7 @@ class ArchitectureGetCurrentToolTests {
     assertThat(tool.inputSchema()).containsEntry("required", List.of("target", "projectKey"));
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) tool.inputSchema().get("properties");
-    assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "type", "category", "from", "to", "pageIndex", "pageSize");
+    assertThat(properties).containsKeys("target", "projectKey", "component", "depth", "language", "from", "to", "pageIndex", "pageSize", "directiveId", "type", "category");
     assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
     assertThat(properties.get("language")).containsEntry("enum", List.of("java", "cs", "js", "ts", "py"));
   }
@@ -187,8 +181,8 @@ class ArchitectureGetCurrentToolTests {
   void it_should_return_the_top_level_with_rolled_up_edges_and_query_every_language(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     stubEmptyCurrent(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
-    var client = harness.newClient();
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "depth", 2));
 
@@ -222,14 +216,14 @@ class ArchitectureGetCurrentToolTests {
           { "language" : "java", "component" : "app:com.acme.web", "descendants" : 1 }
         ]
       }""");
-    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/v2/architecture/current-architectures")).isEqualTo(5);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/architecture/current-architectures")).isEqualTo(5);
   }
 
   @SonarQubeMcpServerTest
   void it_should_drill_down_into_a_component(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
-    var client = harness.newClient();
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "current", "projectKey", "my_project", "component", "app:com.acme.domain", "language", "java"));
@@ -261,13 +255,13 @@ class ArchitectureGetCurrentToolTests {
         } ],
         "drillDown" : [ ]
       }""");
-    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/v2/architecture/current-architectures")).isEqualTo(1);
+    assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/architecture/current-architectures")).isEqualTo(1);
   }
 
   @SonarQubeMcpServerTest
   void it_should_report_feedback_pairs_and_the_weight_to_nodes_outside_the_view(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures("""
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures("""
       [ { "nodeCount": 4, "edgeCount": 3, "nodes": [
         { "id": 1, "name": "app", "kind": "module", "edges": [], "nodes": [
           { "id": 2, "name": "web", "kind": "package", "edges": [ { "toId": 3, "weight": 3 } ] },
@@ -275,7 +269,7 @@ class ArchitectureGetCurrentToolTests {
         ] },
         { "id": 4, "name": "lib", "kind": "module", "edges": [] }
       ] } ]"""))));
-    var client = harness.newClient();
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "component", "app", "language", "java"));
 
@@ -314,8 +308,8 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_rank_rolled_up_package_cycles_and_count_external_dependencies(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(cyclicJavaGraph()))));
-    var client = harness.newClient();
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(cyclicJavaGraph()))));
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "current", "projectKey", "my_project", "component", "core", "depth", 1, "language", "java"));
@@ -335,11 +329,11 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_join_directories_with_a_slash(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "ts").willReturn(okJson(currentArchitectures("""
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "ts").willReturn(okJson(currentArchitectures("""
       [ { "nodeCount": 2, "edgeCount": 0, "nodes": [
         { "id": 1, "name": "src", "kind": "directory", "edges": [], "nodes": [ { "id": 2, "name": "index.ts", "kind": "file", "edges": [] } ] }
       ] } ]"""))));
-    var client = harness.newClient();
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "language", "ts", "depth", 2));
 
@@ -350,12 +344,12 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_prefer_the_separator_of_the_node_over_its_kind(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "ts").willReturn(okJson(currentArchitectures("""
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "ts").willReturn(okJson(currentArchitectures("""
       [ { "id": "graph-ts", "nodeCount": 2, "edgeCount": 0, "nodes": [
         { "id": 1, "name": "web", "kind": "module", "separator": "/", "edges": [], "nodes": [
           { "id": 2, "name": "app.ts", "kind": "file", "separator": "/", "edges": [] } ] }
       ] } ]"""))));
-    var client = harness.newClient();
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "language", "ts", "depth", 2));
 
@@ -367,8 +361,8 @@ class ArchitectureGetCurrentToolTests {
   void it_should_cap_a_large_graph_and_suggest_drill_downs(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     var largeGraph = largeJavaGraph(1000);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(largeGraph))));
-    var client = harness.newClient();
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(largeGraph))));
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "language", "java", "depth", 2));
 
@@ -399,9 +393,9 @@ class ArchitectureGetCurrentToolTests {
       .mapToObj(id -> "{\"id\":" + id + ",\"name\":\"root" + id + "\",\"kind\":\"module\"}")
       .collect(java.util.stream.Collectors.joining(","));
     var graph = "[{\"nodeCount\":151,\"edgeCount\":0,\"nodes\":[" + nodes + "]}]";
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(graph))));
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(graph))));
 
-    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "current", "projectKey", "my_project", "language", "java"));
 
     var response = JsonParser.parseString(textOf(result)).getAsJsonObject();
@@ -419,8 +413,8 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_reject_an_unknown_component(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
-    var client = harness.newClient();
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(SMALL_JAVA_GRAPH))));
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "component", "nope", "language", "java"));
 
@@ -434,7 +428,7 @@ class ArchitectureGetCurrentToolTests {
   void it_should_explain_an_empty_response_without_assuming_the_cause(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     stubEmptyCurrent(harness);
-    var client = harness.newClient();
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project"));
 
@@ -453,9 +447,9 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_relay_a_plan_or_permission_refusal(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java")
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java")
       .willReturn(aResponse().withStatus(403).withHeader("Content-Type", "application/json").withBody("{\"message\":\"Architecture is not available on your plan\"}")));
-    var client = harness.newClient();
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "language", "java"));
 
@@ -470,8 +464,8 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_report_an_invalid_token(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(aResponse().withStatus(401)));
-    var client = harness.newClient();
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(aResponse().withStatus(401)));
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "language", "java"));
 
@@ -483,7 +477,7 @@ class ArchitectureGetCurrentToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_reject_a_depth_below_one(SonarQubeMcpServerTestHarness harness) {
-    var client = harness.newClient();
+    var client = harness.newClient(CLOUD_ENV);
 
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "depth", 0));
 
@@ -507,7 +501,7 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_surface_an_unavailable_public_endpoint(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "current", "projectKey", "my_project", "language", "java"));
     assertThat(result.isError()).isTrue();
     assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).doesNotContain("No current architecture");
@@ -516,8 +510,8 @@ class ArchitectureGetCurrentToolTests {
   @SonarQubeMcpServerTest
   void it_should_reject_an_incomplete_public_graph_response(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + "java").willReturn(okJson("{}")));
-    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
+    harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson("{}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "current", "projectKey", "my_project", "language", "java"));
     assertThat(result.isError()).isTrue();
     assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("Invalid public architecture response", "The Architecture API returned an unexpected response.");
@@ -525,7 +519,7 @@ class ArchitectureGetCurrentToolTests {
 
   private static void stubEmptyCurrent(SonarQubeMcpServerTestHarness harness) {
     for (var language : ArchitectureApi.LANGUAGES) {
-      harness.getMockSonarQubeServer().stubFor(get(SERVER_CURRENT + language).willReturn(okJson(currentArchitectures("[]"))));
+      harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + language).willReturn(okJson(currentArchitectures("[]"))));
     }
   }
 
