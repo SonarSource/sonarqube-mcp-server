@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.patch;
@@ -46,8 +47,10 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.textOf;
 
 class ArchitectureSetToolTests {
+  private static final String UNCONSTRAINED_MODEL = INTENDED_JAVA_MODEL.replace("[ { \"from\": \"app/web\", \"to\": \"app/domain\" } ]", "[]");
+
   private static final String COLLIDING_CONSTRAINT_MODEL = """
-    [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[{"label":"A -> B"},{"label":"C"},{"label":"A"},{"label":"B -> C"}],
+    [{"type":"namespace","language":"java","groups":[{"label":"A -> B"},{"label":"C"},{"label":"A"},{"label":"B -> C"}],
     "constraints":[{"from":"A -> B","to":"C"}]}]""";
 
   @SonarQubeMcpServerTest
@@ -271,13 +274,12 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_accept_group_patterns_in_a_whole_export_dry_run(SonarQubeMcpServerTestHarness harness) {
+  void it_should_reject_wildcard_constraint_endpoints_before_any_backend_request(SonarQubeMcpServerTestHarness harness) {
     var models = INTENDED_JAVA_MODEL.replace("\"from\": \"app/web\"", "\"from\": \"app/*\"");
-    stored(harness, models);
-    var exportedRevision = IntendedRevision.of(IntendedModels.parse(models));
-    var result = set(harness, "{\"revision\":\"" + exportedRevision + "\",\"models\":" + models + "}", true, null);
-    assertThat(result.isError()).isFalse();
-    assertThat(textOf(result)).contains("dry-run");
+    var result = set(harness, models, true, null);
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("does not name a unique group");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
     assertWrites(harness, 0, 0);
   }
 
@@ -302,16 +304,45 @@ class ArchitectureSetToolTests {
   }
 
   @Test
-  void it_should_accept_public_constraint_strings_and_reject_duplicate_constraints() {
-    for (var endpoint : new String[] {"app/web", "app/*"}) {
-      var models = JsonParser.parseString(INTENDED_JAVA_MODEL).getAsJsonArray();
-      models.get(0).getAsJsonObject().getAsJsonArray("constraints").get(0).getAsJsonObject().addProperty("from", endpoint);
-      assertThat(IntendedModels.invalidReason(IntendedModels.parse(models.toString()))).isNull();
-    }
-    var models = JsonParser.parseString(INTENDED_JAVA_MODEL.replace("\"from\": \"app/web\"", "\"from\": \"app/*\"")).getAsJsonArray();
+  void it_should_accept_exact_sibling_constraints_and_reject_wildcards_and_duplicates() {
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(INTENDED_JAVA_MODEL))).isNull();
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(INTENDED_JAVA_MODEL.replace("\"from\": \"app/web\"", "\"from\": \"app/*\""))))
+      .contains("does not name a unique group");
+
+    var models = JsonParser.parseString(INTENDED_JAVA_MODEL).getAsJsonArray();
     var constraints = models.get(0).getAsJsonObject().getAsJsonArray("constraints");
     constraints.add(constraints.get(0).deepCopy());
     assertThat(IntendedModels.invalidReason(IntendedModels.parse(models.toString()))).contains("appears more than once");
+  }
+
+  @Test
+  void it_should_reject_unknown_fields_duplicate_labels_slashes_and_non_sibling_constraints() {
+    var perspectiveWithId = INTENDED_JAVA_MODEL.replace("\"type\":", "\"id\":\"11111111-1111-4111-8111-111111111111\",\"type\":");
+    assertThatThrownBy(() -> IntendedModels.parse(perspectiveWithId))
+      .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("unknown perspective field 'id'");
+    var groupWithExtraField = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"label\": \"app\",\"extra\":true");
+    assertThatThrownBy(() -> IntendedModels.parse(groupWithExtraField))
+      .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("unknown group field 'extra'");
+    var constraintWithWeight = INTENDED_JAVA_MODEL.replace("\"from\": \"app/web\"", "\"from\": \"app/web\",\"weight\":1");
+    assertThatThrownBy(() -> IntendedModels.parse(constraintWithWeight))
+      .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("unknown constraint field 'weight'");
+
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(INTENDED_JAVA_MODEL.replace("\"label\": \"domain\"", "\"label\": \"web\""))))
+      .contains("appears more than once");
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(INTENDED_JAVA_MODEL.replace("\"label\": \"domain\"", "\"label\": \"UI/API\""))))
+      .contains("must not contain '/'");
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(INTENDED_JAVA_MODEL.replace("\"from\": \"app/web\"", "\"from\": \"app\""))))
+      .contains("must connect sibling groups");
+
+    var imported = """
+      [{"type":"namespace","language":"java","groups":[
+        {"label":"app","groups":[
+          {"label":"web"},
+          {"label":"Shared","patternId":"33333333-3333-4333-8333-333333333333","groups":[{"label":"Hidden"}]}
+        ]}],
+       "constraints":[{"from":"app/web","to":"app/Shared/Hidden"}]}]
+      """;
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(imported))).contains("does not name a unique group");
   }
 
   @Test
@@ -382,41 +413,47 @@ class ArchitectureSetToolTests {
     assertWrites(harness, 0, 1);
   }
 
-  private static final String FLAT_SLASH_MODEL = """
-    [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[{"label":"UI"},{"label":"UI/API","patterns":["app:**"]}],"constraints":[]}]""";
-  private static final String NESTED_SLASH_MODEL = """
-    [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[{"label":"UI","groups":[{"label":"API","patterns":["app:**"]}]}],"constraints":[]}]""";
+  private static final String NESTED_API_MODEL = """
+    [{"type":"namespace","language":"java","groups":[{"label":"UI","groups":[{"label":"API","patterns":["app:**"]}]}],"constraints":[]}]""";
+  private static final String NESTED_SERVICE_MODEL = """
+    [{"type":"namespace","language":"java","groups":[{"label":"UI","groups":[{"label":"Service","patterns":["app:**"]}]}],"constraints":[]}]""";
 
   @SonarQubeMcpServerTest
-  void it_should_write_when_a_slash_label_becomes_a_nested_group(SonarQubeMcpServerTestHarness harness) {
-    assertHierarchyReplacement(harness, FLAT_SLASH_MODEL, NESTED_SLASH_MODEL);
+  void it_should_reject_slash_labels_before_any_backend_request(SonarQubeMcpServerTestHarness harness) {
+    var slash = """
+      [{"type":"namespace","language":"java","groups":[{"label":"UI"},{"label":"UI/API","patterns":["app:**"]}],"constraints":[]}]""";
+    var result = set(harness, slash, false, null);
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("must not contain '/'");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
+    assertWrites(harness, 0, 0);
   }
 
   @SonarQubeMcpServerTest
-  void it_should_write_when_a_nested_group_becomes_a_slash_label(SonarQubeMcpServerTestHarness harness) {
-    assertHierarchyReplacement(harness, NESTED_SLASH_MODEL, FLAT_SLASH_MODEL);
+  void it_should_write_when_a_nested_group_is_renamed(SonarQubeMcpServerTestHarness harness) {
+    assertHierarchyReplacement(harness, NESTED_API_MODEL, NESTED_SERVICE_MODEL);
   }
 
   @SonarQubeMcpServerTest
   void it_should_preview_hierarchy_and_settings_changes_together_without_writes(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, FLAT_SLASH_MODEL);
-    var next = NESTED_SLASH_MODEL.replace("\"patterns\":[\"app:**\"]", "\"patterns\":[\"api:**\"],\"interface\":true,\"interfaceAccess\":true");
+    stored(harness, NESTED_API_MODEL);
+    var next = NESTED_SERVICE_MODEL.replace("\"patterns\":[\"app:**\"]", "\"patterns\":[\"api:**\"],\"interface\":true,\"interfaceAccess\":true");
 
-    var result = set(harness, next, true, IntendedRevision.of(IntendedModels.parse(FLAT_SLASH_MODEL)));
+    var result = set(harness, next, true, IntendedRevision.of(IntendedModels.parse(NESTED_API_MODEL)));
 
     assertThat(result.isError()).as(textOf(result)).isFalse();
     assertThat(textOf(result)).contains("dry-run");
     var diff = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("diff");
     assertThat(diff.getAsJsonArray("removed").toString()).contains("java group UI/API");
-    assertThat(diff.getAsJsonArray("added").toString()).contains("java group UI/API");
+    assertThat(diff.getAsJsonArray("added").toString()).contains("java group UI/Service");
     assertWrites(harness, 0, 0);
   }
 
   @SonarQubeMcpServerTest
-  void it_should_not_write_for_unchanged_slash_label_hierarchy(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, FLAT_SLASH_MODEL);
+  void it_should_not_write_for_an_unchanged_nested_hierarchy(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, NESTED_API_MODEL);
 
-    var result = set(harness, FLAT_SLASH_MODEL, false, IntendedRevision.of(IntendedModels.parse(FLAT_SLASH_MODEL)));
+    var result = set(harness, NESTED_API_MODEL, false, IntendedRevision.of(IntendedModels.parse(NESTED_API_MODEL)));
 
     assertThat(result.isError()).isFalse();
     assertThat(textOf(result)).contains("unchanged");
@@ -430,11 +467,11 @@ class ArchitectureSetToolTests {
     var result = set(harness, after, false, IntendedRevision.of(IntendedModels.parse(before)));
 
     assertThat(result.isError()).as(textOf(result)).isFalse();
-    assertThat(textOf(result)).contains("java group UI/API");
+    assertThat(textOf(result)).contains("java group UI/API", "java group UI/Service");
     assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().get("mode").getAsString()).isEqualTo("replaced");
     var diff = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("diff");
     assertThat(diff.getAsJsonArray("removed").toString()).contains("java group UI/API");
-    assertThat(diff.getAsJsonArray("added").toString()).contains("java group UI/API");
+    assertThat(diff.getAsJsonArray("added").toString()).contains("java group UI/Service");
     assertWrites(harness, 1, 0);
     var expected = JsonParser.parseString(created(after)).getAsJsonObject();
     expected.remove("id");
@@ -444,7 +481,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_round_trip_an_unchanged_imported_expansion(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = UNCONSTRAINED_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     stored(harness, before);
     var read = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
     for (var dryRun : List.of(true, false)) {
@@ -457,7 +494,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_edit_a_sibling_while_preserving_an_imported_expansion(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"description\":\"Imported group\",\"label\": \"app\"");
+    var before = UNCONSTRAINED_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"description\":\"Imported group\",\"label\": \"app\"");
     stored(harness, before);
     var read = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
     var exported = JsonParser.parseString(textOf(read)).getAsJsonObject();
@@ -480,7 +517,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_report_stale_revisions_before_imported_content_edits(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = UNCONSTRAINED_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     stored(harness, before);
     var result = set(harness, before.replace("app:com.acme.domain.**", "ignored:**"), true, "stale");
     assertThat(result.isError()).isTrue();
@@ -490,7 +527,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_restore_writable_recovery_fields_after_an_imported_pattern_changes(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = UNCONSTRAINED_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     stored(harness, before);
     harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).willReturn(aResponse().withStatus(500)));
     var failure = set(harness, withoutImportedChildren(before).replace("app:**", "proposed:**"), false, null);
@@ -513,7 +550,7 @@ class ArchitectureSetToolTests {
   @SonarQubeMcpServerTest
   void it_should_accept_nullable_public_fields_and_an_unchanged_linked_leaf_in_a_complete_export(SonarQubeMcpServerTestHarness harness) {
     var before = """
-      [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","label":null,"description":null,
+      [{"type":"namespace","language":"java","label":null,"description":null,
       "groups":[{"label":"Imported","groups":[],"description":null,"patterns":null,"interface":null,"interfaceAccess":false,
       "patternId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}],"constraints":[]}]
       """;
@@ -538,7 +575,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_refuse_edits_to_an_imported_expansion_without_writing(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = UNCONSTRAINED_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     stored(harness, before);
     var next = before.replace("app:com.acme.domain.**", "ignored:**");
     for (var dryRun : List.of(true, false)) {
@@ -573,12 +610,12 @@ class ArchitectureSetToolTests {
   @Test
   void it_should_compare_all_imported_descendants_with_semantic_defaults() {
     var before = """
-      [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[
+      [{"type":"namespace","language":"java","groups":[
         {"label":"Parent","groups":[{"label":"Imported","patternId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","groups":[
           {"label":"Nested import","patternId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","patterns":["a:**","b:**"],"groups":[
             {"label":"Derived","description":"Stored description"}]}]}]}],"constraints":[]}]
       """;
-    var previous = IntendedModels.parse(before);
+    var previous = withResourceId(IntendedModels.parse(before));
     var equivalent = IntendedModels.parse(before.replace("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA")
       .replace("\"a:**\",\"b:**\"", "\"b:**\",\"a:**\"")
       .replace("\"description\":\"Stored description\"", "\"description\":\"Stored description\",\"patterns\":[],\"groups\":[],\"interface\":false,\"interfaceAccess\":null"));
@@ -594,17 +631,17 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_distinguish_import_paths_from_literal_slashes(SonarQubeMcpServerTestHarness harness) {
+  void it_should_keep_distinct_imported_paths_when_labels_are_unique(SonarQubeMcpServerTestHarness harness) {
     var before = """
-      [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[
+      [{"type":"namespace","language":"java","groups":[
         {"label":"UI","groups":[{"label":"API","patternId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","groups":[{"label":"Nested"}]}]},
-        {"label":"UI/API","patternId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","groups":[{"label":"Literal"}]}],"constraints":[]}]
+        {"label":"Gateway","groups":[{"label":"Edge","patternId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","groups":[{"label":"Literal"}]}]}],"constraints":[]}]
       """;
     stored(harness, before);
     var unchanged = set(harness, before, true, null);
     assertThat(unchanged.isError()).as(textOf(unchanged)).isFalse();
     for (var dryRun : List.of(true, false)) {
-      var changed = set(harness, before.replace("Nested", "Literal"), dryRun, null);
+      var changed = set(harness, before.replace("Nested", "Edited"), dryRun, null);
       assertThat(changed.isError()).isTrue();
       assertThat(textOf(changed)).contains("Group 'API' imports a pattern and cannot declare child groups");
     }
@@ -619,7 +656,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_verify_a_changed_import_link_using_its_writable_fields(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = UNCONSTRAINED_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     var next = withoutImportedChildren(before).replace("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444");
     var resolved = before.replace("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444")
       .replace("app:com.acme.domain.**", "resolved:new.**");
@@ -633,7 +670,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_preserve_public_metadata_and_apply_metadata_only_changes(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"type\": \"namespace\"", "\"label\":\"Perspective\",\"description\":\"Before\",\"type\": \"namespace\"")
+    var before = UNCONSTRAINED_MODEL.replace("\"type\": \"namespace\"", "\"label\":\"Perspective\",\"description\":\"Before\",\"type\": \"namespace\"")
       .replace("\"label\": \"app\"", "\"description\":\"Group description\",\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     var next = withoutImportedChildren(before).replace("Before", "After");
     stored(harness, before);
@@ -652,11 +689,11 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_keep_literal_slash_and_nested_group_identities_distinct(SonarQubeMcpServerTestHarness harness) {
+  void it_should_keep_nested_group_paths_distinct_from_sibling_labels(SonarQubeMcpServerTestHarness harness) {
     var before = """
-      [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[
+      [{"type":"namespace","language":"java","groups":[
         {"label":"UI","groups":[{"label":"API","patterns":["nested:**"]}]},
-        {"label":"UI/API","patterns":["literal:**"]}],"constraints":[]}]
+        {"label":"Gateway","patterns":["literal:**"]}],"constraints":[]}]
       """;
     var next = before.replace("nested:**", "changed:**");
     assertThat(IntendedModels.invalidReason(IntendedModels.parse(before))).isNull();
@@ -666,7 +703,7 @@ class ArchitectureSetToolTests {
     var result = set(harness, next, false, IntendedRevision.of(IntendedModels.parse(before)));
 
     assertThat(result.isError()).as(textOf(result)).isFalse();
-    assertThat(textOf(result)).contains("replaced", "patterns [nested:**] -> patterns [changed:**]");
+    assertThat(textOf(result)).contains("replaced", "patterns [nested:**] -> patterns [changed:**]", "java group UI/API");
     assertWrites(harness, 1, 0);
     var expected = JsonParser.parseString(next).getAsJsonArray().get(0).getAsJsonObject();
     expected.remove("id");
@@ -849,7 +886,10 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_refuse_missing_or_invalid_server_id_before_patch(SonarQubeMcpServerTestHarness harness) {
-    stored(harness, INTENDED_JAVA_MODEL.replace("11111111-1111-4111-8111-111111111111", "unknown/id"));
+    stored(harness, INTENDED_JAVA_MODEL);
+    var response = JsonParser.parseString(intendedArchitectures(INTENDED_JAVA_MODEL)).getAsJsonObject();
+    response.getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject().addProperty("id", "unknown/id");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson(response.toString())));
     assertThat(textOf(set(harness, NEXT, false, null))).contains("incomplete intended architecture");
     assertWrites(harness, 0, 0);
   }
@@ -880,8 +920,10 @@ class ArchitectureSetToolTests {
     stored(harness, INTENDED_JAVA_MODEL);
     harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("changed-id").whenScenarioStateIs("Started")
       .willSetStateTo("changed").willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL))));
+    var changedId = JsonParser.parseString(intendedArchitectures(INTENDED_JAVA_MODEL)).getAsJsonObject();
+    changedId.getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject().addProperty("id", "22222222-2222-4222-8222-222222222222");
     harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("changed-id").whenScenarioStateIs("changed")
-      .willReturn(okJson(intendedArchitectures(INTENDED_JAVA_MODEL.replace("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222")))));
+      .willReturn(okJson(changedId.toString())));
     assertThat(textOf(set(harness, NEXT, false, null))).contains("changed before replacement");
     assertWrites(harness, 0, 0);
   }
@@ -915,9 +957,10 @@ class ArchitectureSetToolTests {
     stored(harness, INTENDED_JAVA_MODEL);
     harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).inScenario("recreated").whenScenarioStateIs("Started")
       .willSetStateTo("new-id").willReturn(aResponse().withStatus(500)));
-    var recreated = NEXT.replace("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222");
+    var recreated = JsonParser.parseString(intendedArchitectures(NEXT)).getAsJsonObject();
+    recreated.getAsJsonArray("intendedArchitectures").get(0).getAsJsonObject().addProperty("id", "22222222-2222-4222-8222-222222222222");
     harness.getMockSonarQubeServer().stubFor(get(PATH).inScenario("recreated").whenScenarioStateIs("new-id")
-      .willReturn(okJson(intendedArchitectures(recreated))));
+      .willReturn(okJson(recreated.toString())));
 
     var result = set(harness, NEXT, false, revision());
 
@@ -983,6 +1026,11 @@ class ArchitectureSetToolTests {
     assertThat(diff.added()).anyMatch(value -> value.startsWith("java/file"));
     assertThat(diff.isEmpty()).isFalse();
     assertThat(IntendedModels.invalidReason(IntendedModels.parse(before))).contains("Perspective java/namespace appears more than once");
+  }
+
+  private static List<IntendedArchitecture> withResourceId(List<IntendedArchitecture> models) {
+    return models.stream().map(model -> new IntendedArchitecture(
+      "11111111-1111-4111-8111-111111111111", model.type(), model.language(), model.groups(), model.constraints(), model.label(), model.description())).toList();
   }
 
   private static String created(String models) {
