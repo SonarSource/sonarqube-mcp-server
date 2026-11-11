@@ -32,10 +32,10 @@ class ArchitectureVersionAvailabilityTest {
   }
 
   @SonarQubeMcpServerTest
-  void supported_server_exposes_architecture(SonarQubeMcpServerTestHarness harness) {
+  void future_server_hides_architecture(SonarQubeMcpServerTestHarness harness) {
     var names = harness.newClient(Map.of("SONARQUBE_TOOLSETS", "architecture", "SONARQUBE_VERSION", "2026.6"))
       .listTools().stream().map(McpSchema.Tool::name).toList();
-    assertThat(names).contains("architecture_get", "architecture_set");
+    assertThat(names).isNotEmpty().doesNotContain("architecture_get", "architecture_set");
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining("/api/system/status")).isEqualTo(1);
   }
 
