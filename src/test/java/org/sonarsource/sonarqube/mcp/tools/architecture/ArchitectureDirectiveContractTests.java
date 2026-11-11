@@ -63,16 +63,16 @@ class ArchitectureDirectiveContractTests {
   void it_should_advertise_the_complete_cloud_read_contract() {
     var read = cloudTool(ArchitectureGetTool.TOOL_NAME);
     var readProperties = (Map<String, Map<String, Object>>) read.inputSchema().get("properties");
-    assertThat(readProperties).containsOnlyKeys("organization", "target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category", "from", "to");
+    assertThat(readProperties).containsOnlyKeys("organization", "target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category", "from", "to", "cursor");
     assertThat(read.inputSchema()).containsEntry("required", List.of("target", "projectKey")).containsEntry("additionalProperties", false);
     assertThat(readProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
     assertThat(readProperties.get("language")).containsEntry("enum", List.of("java", "cs", "js", "ts", "py"));
-    for (var name : List.of("organization", "target", "projectKey", "component", "language", "directiveId", "type", "category", "from", "to")) {
+    for (var name : List.of("organization", "target", "projectKey", "component", "language", "directiveId", "type", "category", "from", "to", "cursor")) {
       assertThat(readProperties.get(name)).containsEntry("type", "string");
     }
     assertThat(readProperties.get("depth")).containsEntry("type", "integer").containsEntry("minimum", 1).containsEntry("maximum", 64);
     assertThat(readProperties.get("pageIndex")).containsEntry("type", "integer").containsEntry("minimum", 1).doesNotContainKey("maximum");
-    assertThat(readProperties.get("pageSize")).containsEntry("type", "integer").containsEntry("minimum", 0).containsEntry("maximum", 1000);
+    assertThat(readProperties.get("pageSize")).containsEntry("type", "integer").containsEntry("minimum", 0).containsEntry("maximum", 50);
     assertThat(readProperties.get("pageSize").get("description").toString()).contains("default and maximum 50");
     assertThat(read.annotations().readOnlyHint()).isTrue();
     assertThat(read.annotations().openWorldHint()).isTrue();
