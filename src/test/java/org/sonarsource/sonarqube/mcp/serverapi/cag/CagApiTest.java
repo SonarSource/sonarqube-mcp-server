@@ -166,7 +166,7 @@ class CagApiTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  void it_should_distinguish_unsupported_server_endpoint_from_cloud_lookup_failure(boolean cloud) {
+  void it_should_distinguish_missing_server_endpoint_from_cloud_lookup_failure(boolean cloud) {
     var path = cloud ? CAG_ENTITLEMENT_PUBLIC_PATH : CAG_ENTITLEMENT_SERVER_PATH;
     sonarqubeMock.stubFor(get(urlPathEqualTo(path)).willReturn(aResponse().withStatus(404)));
     var logger = (Logger) LoggerFactory.getLogger(McpLogger.class);
@@ -187,12 +187,12 @@ class CagApiTest {
           if (cloud) {
             assertThat(event.getLevel()).isEqualTo(Level.WARN);
             assertThat(event.getFormattedMessage()).contains("Could not retrieve CAG entitlement for organization '" + ORG_UUID + "'")
-              .doesNotContain("unsupported");
+              .doesNotContain("SonarQube Server");
           } else {
             assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
             assertThat(event.getFormattedMessage()).isEqualTo(
-              "CAG entitlement is unsupported on this SonarQube Server: endpoint not found. "
-                + "A Server edition and version with the CAG Hub extension is required.");
+              "CAG entitlement endpoint was not found on this SonarQube Server. "
+                + "Check whether your Server version and edition support Vortex.");
           }
         });
     } finally {

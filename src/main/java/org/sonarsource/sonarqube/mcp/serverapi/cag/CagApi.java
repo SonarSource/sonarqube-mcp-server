@@ -51,8 +51,8 @@ public class CagApi {
       if (helper.isSonarQubeCloud()) {
         LOG.warn("Could not retrieve CAG entitlement for organization '" + organizationUuidV4 + "': " + e.getMessage());
       } else {
-        LOG.debug("CAG entitlement is unsupported on this SonarQube Server: endpoint not found. "
-          + "A Server edition and version with the CAG Hub extension is required.");
+        LOG.debug("CAG entitlement endpoint was not found on this SonarQube Server. "
+          + "Check whether your Server version and edition support Vortex.");
       }
       return null;
     } catch (Exception e) {
