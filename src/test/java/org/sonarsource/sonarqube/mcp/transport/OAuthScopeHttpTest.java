@@ -97,6 +97,7 @@ class OAuthScopeHttpTest {
       }
     };
     mcp = McpServer.sync(filtering).serverInfo("scope-tests", "1")
+      .addToolFilter(PerRequestToolFilteringHandler.toolFilter(tools))
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
       .tools(tools.stream().map(tool -> new McpStatelessServerFeatures.SyncToolSpecification.Builder().tool(tool.definition())
         .callHandler((context, request) -> tool.execute(new Tool.Arguments(request.arguments(), null)).toCallToolResult()).build())
