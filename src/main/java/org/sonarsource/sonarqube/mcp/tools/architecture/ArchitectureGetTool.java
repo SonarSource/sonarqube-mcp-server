@@ -56,6 +56,7 @@ public class ArchitectureGetTool extends Tool {
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
   private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
+  static final int MAX_DEPTH = 64;
   private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
   private final CurrentGraphReads currentReads;
 
@@ -88,11 +89,11 @@ public class ArchitectureGetTool extends Tool {
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
         + "Intended: group labels joined by /. Top level when omitted."
         + (isSonarQubeCloud ? " Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective." : ""))
-      .addNumberProperty(DEPTH_PROPERTY, "Levels below the start to return. Default 1 for current, all for intended.")
+      .addIntegerProperty(DEPTH_PROPERTY, "Levels below the start (1..64). Default 1 for current; all levels for intended when omitted.", 1, MAX_DEPTH)
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
-      .addNumberProperty(ToolParameters.PAGE_INDEX, "Page from 1; directives, findings or current from/to queries.")
-      .addNumberProperty(ToolParameters.PAGE_SIZE, "Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE
-        + "; directives: default and maximum " + MAX_DIRECTIVE_PAGE_SIZE + "; findings: default 50, maximum 1000 (0 counts only).")
+      .addIntegerProperty(ToolParameters.PAGE_INDEX, "Page from 1; directives, findings or current from/to queries.", 1, null)
+      .addIntegerProperty(ToolParameters.PAGE_SIZE, "Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE
+        + "; directives: default and maximum " + MAX_DIRECTIVE_PAGE_SIZE + "; findings: default 50, maximum 1000 (0 counts only).", 0, 1000)
       .setReadOnlyHint();
     builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.")
       .addEnumProperty(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new), "only findings of this type.")
@@ -102,13 +103,14 @@ public class ArchitectureGetTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
+    arguments = new ArchitectureArguments(arguments);
     var target = arguments.getEnumOrThrow(TARGET_PROPERTY, TARGETS);
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     var component = arguments.getOptionalString(COMPONENT_PROPERTY);
     var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);
     var language = arguments.getOptionalEnumValue(LANGUAGE_PROPERTY, LANGUAGES);
-    if (depth != null && depth < 1) {
-      throw new IllegalArgumentException("depth must be 1 or more.");
+    if (depth != null && (depth < 1 || depth > MAX_DEPTH)) {
+      throw new IllegalArgumentException("depth must be between 1 and " + MAX_DEPTH + ".");
     }
 
     var selection = dependencySelection(arguments, target, component);
@@ -304,7 +306,10 @@ public class ArchitectureGetTool extends Tool {
       throw new IllegalArgumentException("No group '" + component + "' in the intended architecture. Call " + TOOL_NAME
         + " with target intended and without component to list the group keys.");
     }
-    return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, views, partial ? true : null, null));
+    var warning = IntendedModels.invalidReason(stored) == null ? null
+      : "Stored intended architecture contains values that must be corrected before saving. "
+        + "Constraints require exact sibling group paths and cannot reference imported descendants.";
+    return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, views, partial ? true : null, warning));
   }
 
   /**

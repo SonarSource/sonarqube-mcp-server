@@ -58,7 +58,7 @@ class ArchitecturePatchRecoveryTest {
   private static final String PATCH_URL = "https://api.sonarcloud.io/architecture/project-intended-architectures/11111111-1111-4111-8111-111111111111";
   private static final String SENTINEL = "private-patch-recovery-pattern-sentinel";
   private static final String PREVIOUS = """
-    {"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java",
+    {"type":"namespace","language":"java",
      "groups":[{"label":"app","patterns":["private-patch-recovery-pattern-sentinel"]}],"constraints":[]}
     """;
   private static final String NEXT = PREVIOUS.replace(SENTINEL, "proposed-pattern");
