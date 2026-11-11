@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParser;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -25,6 +26,8 @@ import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.io.TempDir;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -158,7 +161,7 @@ class ArchitectureHttpTest {
       var beforeOversizedRead = backend.getReceivedRequests().size();
       var oversizedRead = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
         Map.of("target", "directives", "projectKey", "my_project", "pageSize", 1000)));
-      assertThat(oversizedRead).contains("between 1 and 50", "Restart at pageIndex=1");
+      assertThat(oversizedRead).contains("pageSize");
       assertThat(backend.getReceivedRequests()).hasSize(beforeOversizedRead);
       var preview = send(client, port, "a", false, "tools/call", Map.of("name", "architecture_set", "arguments",
         Map.of("target", "directives", "projectKey", "my_project", "model", model, "dryRun", true)));
@@ -186,7 +189,9 @@ class ArchitectureHttpTest {
       .withHeader("Authorization", equalTo("Bearer token-a"))
       .willReturn(okJson("[{\"id\":\"org\",\"uuidV4\":\"" + ArchitectureFixtures.CLOUD_ORGANIZATION_ID + "\"}]")));
 
-    var finding = "{\"type\":\"tangle\",\"category\":\"flaw\",\"language\":\"java\",\"details\":{\"nodeKeys\":[\"a\",\"b\"],\"nodeCount\":2},\"files\":[\"src/App.java\"]}";
+    var files = IntStream.range(0, 120).mapToObj(i -> "\"src/F" + i + ".java\"")
+      .collect(Collectors.joining(","));
+    var finding = "{\"type\":\"tangle\",\"category\":\"flaw\",\"language\":\"java\",\"details\":{\"nodeKeys\":[\"a\",\"b\"],\"nodeCount\":2},\"files\":[" + files + "]}";
     var path = ArchitectureApi.PROJECT_FINDINGS_PATH + "?organizationId=" + ArchitectureFixtures.CLOUD_ORGANIZATION_ID
       + "&branchId=" + ArchitectureFixtures.MAIN_BRANCH_ID + "&category=flaw&type=tangle&language=java&pageIndex=1&pageSize=50";
     harness.getMockSonarQubeServer().stubFor(get(path).withHeader("Authorization", equalTo("Bearer token-a"))
@@ -197,11 +202,17 @@ class ArchitectureHttpTest {
       server.start();
       var read = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
         Map.of("target", "findings", "projectKey", "my_project", "organization", "org", "category", "flaw", "type", "tangle", "language", "java")));
-      assertThat(read).contains("tangle", "nodeKeys", "src/App.java").doesNotContain("isError\":true");
+      assertThat(read).contains("tangle", "nodeKeys", "src/F0.java").doesNotContain("isError\":true");
+      var result = JsonParser.parseString(read).getAsJsonObject().getAsJsonObject("result");
+      var text = result.getAsJsonArray("content").get(0).getAsJsonObject().get("text").getAsString();
+      var cursor = JsonParser.parseString(text).getAsJsonObject().getAsJsonArray("findings").get(0).getAsJsonObject()
+        .get("nextCursor").getAsString();
+      var continuation = Map.of("name", "architecture_get", "arguments",
+        Map.of("target", "findings", "projectKey", "my_project", "organization", "org", "cursor", cursor));
+      assertThat(send(client, port, "a", true, "tools/call", continuation)).contains("src/F10.java").doesNotContain("isError\":true");
       harness.getMockSonarQubeServer().stubFor(get(path).withHeader("Authorization", equalTo("Bearer token-a"))
         .willReturn(aResponse().withStatus(403)));
-      var denied = send(client, port, "a", true, "tools/call", Map.of("name", "architecture_get", "arguments",
-        Map.of("target", "findings", "projectKey", "my_project", "organization", "org", "category", "flaw", "type", "tangle", "language", "java")));
+      var denied = send(client, port, "a", true, "tools/call", continuation);
       assertThat(denied).contains("isError\":true", "refusal to read the architecture");
     } finally {
       server.shutdown();
