@@ -18,20 +18,26 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import jakarta.annotation.Nullable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
+import java.util.stream.Stream;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureSetToolResponse.Diff;
@@ -42,6 +48,13 @@ import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureSetToolRespo
  */
 final class IntendedModels {
 
+  private static final String DESCRIPTION_PROPERTY = "description";
+  private static final String HIDDEN_SUBGROUPS_PROPERTY = "hiddenSubgroups";
+  private static final String LANGUAGE_PROPERTY = "language";
+  private static final String PARTIAL_PROPERTY = "partial";
+  private static final String CONSTRAINT_PREFIX = "Constraint ";
+  private static final String REVISION_PROPERTY = "revision";
+  private static final String LABEL_PROPERTY = "label";
   private static final String MODELS_PROPERTY = "models";
   private static final String GROUPS_PROPERTY = "groups";
   private static final String PATTERNS_PROPERTY = "patterns";
@@ -53,6 +66,12 @@ final class IntendedModels {
   private static final int MAX_DEPTH = 64;
   private static final int MAX_GROUPS = 50_000;
   private static final Set<String> TYPES = Set.of("file", "namespace");
+  private static final Set<String> ENVELOPE_FIELDS = Set.of(MODELS_PROPERTY, "projectKey", "project", REVISION_PROPERTY, "message",
+    PARTIAL_PROPERTY, "component", "depth", LANGUAGE_PROPERTY);
+  private static final Set<String> PERSPECTIVE_FIELDS = Set.of("type", LANGUAGE_PROPERTY, LABEL_PROPERTY, DESCRIPTION_PROPERTY, GROUPS_PROPERTY, "constraints", PARTIAL_PROPERTY);
+  private static final Set<String> GROUP_FIELDS = Set.of(LABEL_PROPERTY, PATTERNS_PROPERTY, GROUPS_PROPERTY, "interface", "interfaceAccess", DESCRIPTION_PROPERTY,
+    PATTERN_ID_PROPERTY, HIDDEN_SUBGROUPS_PROPERTY);
+  private static final Set<String> CONSTRAINT_FIELDS = Set.of("from", "to");
 
   private IntendedModels() {
     // static only
@@ -61,12 +80,23 @@ final class IntendedModels {
   static List<IntendedArchitecture> parse(String json) {
     try {
       var element = JsonParser.parseString(json);
-      var models = element.isJsonObject() && element.getAsJsonObject().has(MODELS_PROPERTY) ? element.getAsJsonObject().get(MODELS_PROPERTY) : element;
+      rejectPartialView(element);
+      JsonElement models;
+      if (element.isJsonObject()) {
+        var object = element.getAsJsonObject();
+        rejectUnknownFields(object, ENVELOPE_FIELDS, "model envelope");
+        if (!object.has(MODELS_PROPERTY)) {
+          throw new JsonParseException("expected an array");
+        }
+        optionalString(object, "message");
+        models = object.get(MODELS_PROPERTY);
+      } else {
+        models = element;
+      }
       if (!models.isJsonArray()) {
         throw new JsonParseException("expected an array");
       }
       validateShape(models);
-      rejectPartialView(element);
       var parsed = Arrays.asList(new Gson().fromJson(models, IntendedArchitecture[].class));
       if (parsed.contains(null)) {
         throw new JsonParseException("an entry is null");
@@ -81,10 +111,10 @@ final class IntendedModels {
   @Nullable
   static String embeddedRevision(String json) {
     var element = JsonParser.parseString(json);
-    if (!element.isJsonObject() || !element.getAsJsonObject().has("revision")) {
+    if (!element.isJsonObject() || !element.getAsJsonObject().has(REVISION_PROPERTY)) {
       return null;
     }
-    var revision = element.getAsJsonObject().get("revision");
+    var revision = element.getAsJsonObject().get(REVISION_PROPERTY);
     if (!revision.isJsonPrimitive() || !revision.getAsJsonPrimitive().isString() || revision.getAsString().isBlank()) {
       throw new IllegalArgumentException("The model's revision must be a nonblank string. Nothing was changed.");
     }
@@ -105,41 +135,64 @@ final class IntendedModels {
   }
 
   private static void rejectPartialView(JsonElement element) {
-    if (element.isJsonArray()) {
-      element.getAsJsonArray().forEach(IntendedModels::rejectPartialView);
-    } else if (element.isJsonObject()) {
-      var object = element.getAsJsonObject();
-      for (var property : List.of("component", "depth", "language")) {
-        if (object.has(MODELS_PROPERTY) && object.has(property) && !object.get(property).isJsonNull()) {
-          throw new IllegalArgumentException("This is a partial architecture view. "
-            + "Read the complete model without component, depth or language before editing it. Nothing was changed.");
-        }
+    var pending = new ArrayDeque<JsonElement>();
+    pending.add(element);
+    while (!pending.isEmpty()) {
+      var next = pending.removeLast();
+      if (next.isJsonArray()) {
+        pending.addAll(next.getAsJsonArray().asList());
+      } else if (next.isJsonObject()) {
+        var object = next.getAsJsonObject();
+        rejectPartialObject(object);
+        object.entrySet().forEach(entry -> pending.add(entry.getValue()));
       }
-      var partial = object.get("partial");
-      if ((partial != null && !partial.isJsonNull()
-        && (!partial.isJsonPrimitive() || !partial.getAsJsonPrimitive().isBoolean() || partial.getAsBoolean()))
-        || (object.has("hiddenSubgroups") && !object.get("hiddenSubgroups").isJsonNull())) {
-        throw new IllegalArgumentException("This is a partial architecture view. "
-            + "Read the complete model without component, depth or language before editing it. Nothing was changed.");
-      }
-      object.entrySet().forEach(entry -> rejectPartialView(entry.getValue()));
     }
+  }
+
+  private static void rejectPartialObject(JsonObject object) {
+    for (var property : List.of("component", "depth", LANGUAGE_PROPERTY)) {
+      if (object.has(MODELS_PROPERTY) && object.has(property) && !object.get(property).isJsonNull()) {
+        throw partialView();
+      }
+    }
+    var partial = object.get(PARTIAL_PROPERTY);
+    if ((partial != null && !partial.isJsonNull()
+      && (!partial.isJsonPrimitive() || !partial.getAsJsonPrimitive().isBoolean() || partial.getAsBoolean()))
+      || (object.has(HIDDEN_SUBGROUPS_PROPERTY) && !object.get(HIDDEN_SUBGROUPS_PROPERTY).isJsonNull())) {
+      throw partialView();
+    }
+  }
+
+  private static IllegalArgumentException partialView() {
+    return new IllegalArgumentException("This is a partial architecture view. "
+      + "Read the complete model without component, depth or language before editing it. Nothing was changed.");
   }
 
   private static void validateShape(JsonElement models) {
     var count = new int[] {0};
     for (var model : models.getAsJsonArray()) {
       requireObject(model);
+      var object = model.getAsJsonObject();
+      rejectUnknownFields(object, PERSPECTIVE_FIELDS, "perspective");
       requireString(model, "type");
-      requireString(model, "language");
-      optionalString(model.getAsJsonObject(), "label");
-      optionalString(model.getAsJsonObject(), "description");
+      requireString(model, LANGUAGE_PROPERTY);
+      optionalString(object, LABEL_PROPERTY);
+      optionalString(object, DESCRIPTION_PROPERTY);
       var groups = requireArray(model, GROUPS_PROPERTY, true);
       validateGroups(groups, 1, count);
       for (var constraint : requireArray(model, "constraints", true).getAsJsonArray()) {
         requireObject(constraint);
+        rejectUnknownFields(constraint.getAsJsonObject(), CONSTRAINT_FIELDS, "constraint");
         requireString(constraint, "from");
         requireString(constraint, "to");
+      }
+    }
+  }
+
+  private static void rejectUnknownFields(JsonObject object, Set<String> allowed, String kind) {
+    for (var field : object.keySet()) {
+      if (!allowed.contains(field)) {
+        throw new JsonParseException("unknown " + kind + " field '" + field + "'");
       }
     }
   }
@@ -159,9 +212,10 @@ final class IntendedModels {
 
   private static void validateGroup(JsonElement group, int depth, int[] count) {
     requireObject(group);
-    requireString(group, "label");
     var object = group.getAsJsonObject();
-    optionalString(object, "description");
+    rejectUnknownFields(object, GROUP_FIELDS, "group");
+    requireString(group, LABEL_PROPERTY);
+    optionalString(object, DESCRIPTION_PROPERTY);
     validatePatternId(object);
     validatePatterns(group, object);
     validateInterfaceFlags(object);
@@ -170,17 +224,17 @@ final class IntendedModels {
     }
   }
 
-  private static void validatePatternId(com.google.gson.JsonObject object) {
+  private static void validatePatternId(JsonObject object) {
     optionalString(object, PATTERN_ID_PROPERTY);
     if (object.has(PATTERN_ID_PROPERTY) && !object.get(PATTERN_ID_PROPERTY).isJsonNull()) {
       var id = object.get(PATTERN_ID_PROPERTY).getAsString();
-      if (!java.util.UUID.fromString(id).toString().equalsIgnoreCase(id)) {
+      if (!UUID.fromString(id).toString().equalsIgnoreCase(id)) {
         throw new JsonParseException("patternId must be a UUID");
       }
     }
   }
 
-  private static void validatePatterns(JsonElement group, com.google.gson.JsonObject object) {
+  private static void validatePatterns(JsonElement group, JsonObject object) {
     if (object.has(PATTERNS_PROPERTY) && !object.get(PATTERNS_PROPERTY).isJsonNull()) {
       for (var pattern : requireArray(group, PATTERNS_PROPERTY, false).getAsJsonArray()) {
         if (!pattern.isJsonPrimitive() || !pattern.getAsJsonPrimitive().isString()) {
@@ -190,7 +244,7 @@ final class IntendedModels {
     }
   }
 
-  private static void validateInterfaceFlags(com.google.gson.JsonObject object) {
+  private static void validateInterfaceFlags(JsonObject object) {
     for (var property : List.of("interface", "interfaceAccess")) {
       if (object.has(property) && !object.get(property).isJsonNull() && (!object.get(property).isJsonPrimitive() || !object.get(property).getAsJsonPrimitive().isBoolean())) {
         throw new JsonParseException(property + " must be a boolean");
@@ -198,7 +252,7 @@ final class IntendedModels {
     }
   }
 
-  private static void optionalString(com.google.gson.JsonObject object, String property) {
+  private static void optionalString(JsonObject object, String property) {
     var value = object.get(property);
     if (value != null && !value.isJsonNull() && (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString())) {
       throw new JsonParseException(property + " must be a string");
@@ -247,6 +301,7 @@ final class IntendedModels {
   private static List<String> problems(List<IntendedArchitecture> models) {
     var problems = new ArrayList<String>();
     var perspectives = new HashSet<List<String>>();
+    var perspectiveLabels = new HashSet<List<String>>();
     var groupCount = new int[] {0};
     for (var model : models) {
       var language = model.language();
@@ -260,9 +315,10 @@ final class IntendedModels {
       if (!perspectives.add(Arrays.asList(language, model.type()))) {
         problems.add("Perspective " + language + "/" + model.type() + DUPLICATE_SUFFIX);
       }
-      var groupKeys = new HashSet<List<String>>();
-      checkGroups(language, nullToEmpty(model.groups()), List.of(), 1, groupKeys, groupCount, problems);
-      checkConstraints(language, nullToEmpty(model.constraints()), groupKeys, importedKeys(nullToEmpty(model.groups()), ""), problems);
+      checkPerspectiveLabel(model, perspectiveLabels, problems);
+      var parentByKey = new HashMap<String, String>();
+      checkGroups(language, nullToEmpty(model.groups()), List.of(), 1, parentByKey, groupCount, problems);
+      checkConstraints(language, nullToEmpty(model.constraints()), parentByKey, importedKeys(nullToEmpty(model.groups()), ""), problems);
     }
     if (models.size() > ArchitectureApi.MAX_PERSPECTIVES) {
       problems.add("The model has more than " + ArchitectureApi.MAX_PERSPECTIVES + " perspectives.");
@@ -273,31 +329,47 @@ final class IntendedModels {
     return problems;
   }
 
-  private static void checkGroups(String language, List<IntendedArchitecture.Group> groups, List<String> parentPath, int depth, Set<List<String>> keys,
-    int[] groupCount, List<String> problems) {
+  private static void checkPerspectiveLabel(IntendedArchitecture model, Set<List<String>> labels, List<String> problems) {
+    var label = model.label();
+    if (label == null || label.isBlank()) {
+      return;
+    }
+    if (label.contains("/")) {
+      problems.add("Perspective label '" + label + "' must not contain '/'.");
+    }
+    if (!labels.add(List.of(model.language(), label))) {
+      problems.add("Perspective label '" + label + LANGUAGE_SEPARATOR + model.language() + DUPLICATE_SUFFIX);
+    }
+  }
+
+  private static void checkGroups(String language, List<IntendedArchitecture.Group> groups, List<String> parentPath, int depth,
+    Map<String, String> parentByKey, int[] groupCount, List<String> problems) {
     if (depth > MAX_DEPTH) {
       problems.add("Groups of " + language + " are nested more than " + MAX_DEPTH + " levels deep.");
       return;
     }
+    var parentKey = String.join("/", parentPath);
     for (var group : groups) {
       groupCount[0]++;
       if (group == null || group.label() == null || group.label().isBlank()) {
-        problems.add("A group of " + language + (parentPath.isEmpty() ? "" : (" under '" + String.join("/", parentPath) + "'")) + " has no label.");
+        problems.add("A group of " + language + (parentPath.isEmpty() ? "" : (" under '" + parentKey + "'")) + " has no label.");
         continue;
+      }
+      if (group.label().contains("/")) {
+        problems.add("Group label '" + group.label() + LANGUAGE_SEPARATOR + language + " must not contain '/'.");
       }
       var key = new ArrayList<>(parentPath);
       key.add(group.label());
-      if (!keys.add(key)) {
-        problems.add("Group '" + key + LANGUAGE_SEPARATOR + language + DUPLICATE_SUFFIX);
+      var fullKey = String.join("/", key);
+      if (parentByKey.putIfAbsent(fullKey, parentKey) != null) {
+        problems.add("Group '" + fullKey + LANGUAGE_SEPARATOR + language + DUPLICATE_SUFFIX);
       }
-      checkGroups(language, nullToEmpty(group.groups()), key, depth + 1, keys, groupCount, problems);
+      checkGroups(language, nullToEmpty(group.groups()), key, depth + 1, parentByKey, groupCount, problems);
     }
   }
 
-  private static void checkConstraints(String language, List<IntendedArchitecture.Constraint> constraints, Set<List<String>> groupKeys,
+  private static void checkConstraints(String language, List<IntendedArchitecture.Constraint> constraints, Map<String, String> parentByKey,
     List<String> importedKeys, List<String> problems) {
-    var endpointCounts = new java.util.HashMap<String, Integer>();
-    groupKeys.forEach(key -> endpointCounts.merge(String.join("/", key), 1, Integer::sum));
     var seen = new HashSet<IntendedArchitecture.Constraint>();
     for (var constraint : constraints) {
       if (constraint == null) {
@@ -305,33 +377,36 @@ final class IntendedModels {
       } else if (constraint.from() == null || constraint.to() == null) {
         problems.add("Constraint endpoints of " + language + " must be strings.");
       } else {
-        checkConstraintEndpoints(language, constraint, endpointCounts, importedKeys, problems);
+        checkConstraintEndpoints(language, constraint, parentByKey, importedKeys, problems);
         if (!seen.add(constraint)) {
-          problems.add("Constraint " + describe(constraint) + " of " + language + DUPLICATE_SUFFIX);
+          problems.add(CONSTRAINT_PREFIX + describe(constraint) + " of " + language + DUPLICATE_SUFFIX);
         }
       }
     }
   }
 
-  private static void checkConstraintEndpoints(String language, IntendedArchitecture.Constraint constraint, Map<String, Integer> endpointCounts,
+  private static void checkConstraintEndpoints(String language, IntendedArchitecture.Constraint constraint, Map<String, String> parentByKey,
     List<String> importedKeys, List<String> problems) {
-    for (var endpoint : List.of(constraint.from(), constraint.to())) {
-      if (!knownConstraintEnd(endpoint, endpointCounts, importedKeys)) {
-        problems.add("Constraint endpoint '" + endpoint + LANGUAGE_SEPARATOR + language + " does not name a unique group.");
-      }
+    var fromImported = isImportedDescendant(constraint.from(), importedKeys);
+    var toImported = isImportedDescendant(constraint.to(), importedKeys);
+    var fromKnown = parentByKey.containsKey(constraint.from()) && !fromImported;
+    var toKnown = parentByKey.containsKey(constraint.to()) && !toImported;
+    if (!fromKnown) {
+      problems.add("Constraint endpoint '" + constraint.from() + LANGUAGE_SEPARATOR + language + " does not name a unique group.");
     }
-    if (constraint.from().equals(constraint.to()) && !constraint.from().contains("*") && !constraint.from().contains("?")) {
-      problems.add("Constraint " + describe(constraint) + " of " + language + " refers to itself.");
+    if (!toKnown) {
+      problems.add("Constraint endpoint '" + constraint.to() + LANGUAGE_SEPARATOR + language + " does not name a unique group.");
+    }
+    if (constraint.from().equals(constraint.to())) {
+      problems.add(CONSTRAINT_PREFIX + describe(constraint) + " of " + language + " refers to itself.");
+    } else if (fromKnown && toKnown
+      && !Objects.equals(parentByKey.get(constraint.from()), parentByKey.get(constraint.to()))) {
+      problems.add(CONSTRAINT_PREFIX + describe(constraint) + " of " + language + " must connect sibling groups.");
     }
   }
 
-  private static boolean knownConstraintEnd(String endpoint, Map<String, Integer> keys, List<String> importedKeys) {
-    // Wildcard selectors and server-resolved imported descendants keep their public semantics.
-    if (keys.containsKey(endpoint)) {
-      return keys.get(endpoint) == 1;
-    }
-    return endpoint.contains("*") || endpoint.contains("?")
-      || importedKeys.stream().anyMatch(key -> endpoint.startsWith(key + "/"));
+  private static boolean isImportedDescendant(String endpoint, List<String> importedKeys) {
+    return importedKeys.stream().anyMatch(key -> endpoint.startsWith(key + "/"));
   }
 
   private static List<String> importedKeys(List<IntendedArchitecture.Group> groups, String prefix) {
@@ -367,7 +442,7 @@ final class IntendedModels {
 
   private static String perspectiveLabel(List<String> perspective, Map<List<String>, IndexedModel> before,
     Map<List<String>, IndexedModel> after) {
-    var qualifiers = java.util.stream.Stream.concat(before.keySet().stream(), after.keySet().stream())
+    var qualifiers = Stream.concat(before.keySet().stream(), after.keySet().stream())
       .filter(key -> key.getFirst().equals(perspective.getFirst())).map(key -> key.get(1)).distinct().count();
     return qualifiers > 1 ? String.join("/", perspective) : perspective.getFirst();
   }
@@ -446,7 +521,7 @@ final class IntendedModels {
       var path = new ArrayList<>(parentPath);
       path.add(group.label());
       index.put(List.copyOf(path), new GroupSettings(new TreeSet<>(nullToEmpty(group.patterns())), Boolean.TRUE.equals(group.isInterface()),
-        Boolean.TRUE.equals(group.interfaceAccess()), group.description(), group.patternId() == null ? null : group.patternId().toLowerCase(java.util.Locale.ROOT)));
+        Boolean.TRUE.equals(group.interfaceAccess()), group.description(), group.patternId() == null ? null : group.patternId().toLowerCase(Locale.ROOT)));
       if (group.patternId() == null) {
         indexGroups(nullToEmpty(group.groups()), path, index);
       }
