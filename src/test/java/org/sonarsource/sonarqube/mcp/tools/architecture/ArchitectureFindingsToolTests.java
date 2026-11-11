@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonNull;
+import io.modelcontextprotocol.spec.McpError;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.CLOUD_ENV;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.CLOUD_ORGANIZATION_ID;
@@ -100,10 +102,10 @@ class ArchitectureFindingsToolTests {
   }
 
   @ParameterizedTest
-  @CsvSource({"true,1", "false,1", "true,200", "false,200"})
-  void it_should_support_count_only_without_reporting_an_empty_analysis(boolean cloud, int pageIndex) {
-    stubEmptyPage(cloud, pageIndex, 0, 8);
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+  @ValueSource(ints = {1, 200})
+  void it_should_support_count_only_without_reporting_an_empty_analysis(int pageIndex) {
+    stubEmptyPage(pageIndex, 0, 8);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project", "pageIndex", pageIndex, "pageSize", 0));
     assertThat(result.isError()).isFalse();
     assertResultEquals(result, """
@@ -111,11 +113,10 @@ class ArchitectureFindingsToolTests {
       """.formatted(pageIndex));
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void it_should_explain_an_empty_later_page(boolean cloud) {
-    stubEmptyPage(cloud, 200, 50, 144);
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+  @Test
+  void it_should_explain_an_empty_later_page() {
+    stubEmptyPage(200, 50, 144);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project", "pageIndex", 200));
     assertThat(result.isError()).isFalse();
     assertResultEquals(result, """
@@ -124,25 +125,22 @@ class ArchitectureFindingsToolTests {
       """);
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void it_should_explain_no_visible_findings_without_claiming_a_clean_analysis(boolean cloud) {
-    stubEmptyPage(cloud, 1, 50, 0);
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
+  @Test
+  void it_should_explain_no_visible_findings_without_claiming_a_clean_analysis() {
+    stubEmptyPage(1, 50, 0);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isFalse();
     assertThat(textOf(result)).contains("No findings are visible").doesNotContain("clean", "healthy", "complete");
   }
 
   @Test
-  void it_should_use_the_main_branch_on_server_without_a_project_uuid_lookup() {
-    stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.SERVER_API_PREFIX + PATH + "?organizationId="
-      + ArchitectureApi.SERVER_ORGANIZATION_ID + "&branchId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=50")
-      .willReturn(okJson(page(DEVIATION, 1, 50, 1))));
-    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
-    assertThat(result.isError()).isFalse();
-    assertThat(textOf(result)).contains("misplacedComponent", "src/App.java");
+  void it_should_reject_findings_on_server_without_requests() {
+    var client = harness.newClient();
+    Map<String, Object> arguments = Map.of("target", "findings", "projectKey", "my_project");
+    assertThatThrownBy(() -> client.callTool(ArchitectureGetTool.TOOL_NAME, arguments))
+      .isInstanceOf(McpError.class);
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/api/v2/components/projects")).isFalse();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
   }
 
   @ParameterizedTest
@@ -204,18 +202,19 @@ class ArchitectureFindingsToolTests {
   }
 
   @ParameterizedTest
-  @CsvSource({"true,type,false", "false,type,false", "true,language,false", "false,language,false", "true,reason,false", "false,reason,false",
-    "true,type,true", "false,type,true", "true,language,true", "false,language,true", "true,reason,true", "false,reason,true"})
-  void it_should_report_missing_or_null_metadata_as_a_neutral_api_error(boolean cloud, String field, boolean missing) {
+  @CsvSource({"structuralDeviation,false", "language,false", "reason,false", "type,false",
+    "type,true", "language,true", "reason,true"})
+  void it_should_report_missing_or_null_metadata_as_a_neutral_api_error(String field, boolean missing) {
+    var targetField = field.equals("structuralDeviation") ? "type" : field;
     var finding = JsonParser.parseString(DEVIATION).getAsJsonObject();
-    var owner = field.equals("reason") ? finding.getAsJsonObject("details") : finding;
+    var owner = targetField.equals("reason") ? finding.getAsJsonObject("details") : finding;
     if (missing) {
-      owner.remove(field);
+      owner.remove(targetField);
     } else {
-      owner.add(field, JsonNull.INSTANCE);
+      owner.add(targetField, JsonNull.INSTANCE);
     }
-    stubFindingResponse(cloud, finding.toString());
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+    stubFindingResponse(finding.toString());
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
@@ -223,15 +222,12 @@ class ArchitectureFindingsToolTests {
   }
 
   @ParameterizedTest
-  @CsvSource({"true,structuralDeviation,nodeKey", "false,structuralDeviation,nodeKey",
-    "true,relationshipDeviation,fromNodeKey", "false,relationshipDeviation,fromNodeKey",
-    "true,relationshipDeviation,toNodeKey", "false,relationshipDeviation,toNodeKey",
-    "true,tangle,nodeKeys", "false,tangle,nodeKeys", "true,tangle,nodeCount", "false,tangle,nodeCount",
-    "true,weakTangle,nodeKeys", "false,weakTangle,nodeKeys", "true,weakTangle,nodeCount", "false,weakTangle,nodeCount",
-    "true,oversizedComponent,nodeKey", "false,oversizedComponent,nodeKey", "true,splitResponsibility,nodeKey", "false,splitResponsibility,nodeKey"})
-  void it_should_reject_missing_or_null_required_details(boolean cloud, String type, String field) {
+  @CsvSource({"structuralDeviation,nodeKey", "relationshipDeviation,fromNodeKey", "relationshipDeviation,toNodeKey",
+    "tangle,nodeKeys", "tangle,nodeCount", "weakTangle,nodeKeys", "weakTangle,nodeCount",
+    "oversizedComponent,nodeKey", "splitResponsibility,nodeKey"})
+  void it_should_reject_missing_or_null_required_details(String type, String field) {
     stubMainBranch(harness);
-    var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
+    var client = harness.newClient(CLOUD_ENV);
     for (var missing : new boolean[] {true, false}) {
       var finding = completeFinding(type);
       var details = finding.getAsJsonObject("details");
@@ -240,7 +236,7 @@ class ArchitectureFindingsToolTests {
       } else {
         details.add(field, JsonNull.INSTANCE);
       }
-      stubFindingResponse(cloud, finding.toString());
+      stubFindingResponse(finding.toString());
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
       assertThat(result.isError()).as("%s: %s missing=%s", type, field, missing).isTrue();
       assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
@@ -249,12 +245,10 @@ class ArchitectureFindingsToolTests {
   }
 
   @ParameterizedTest
-  @CsvSource({"true,structuralDeviation", "false,structuralDeviation", "true,relationshipDeviation", "false,relationshipDeviation",
-    "true,tangle", "false,tangle", "true,weakTangle", "false,weakTangle",
-    "true,oversizedComponent", "false,oversizedComponent", "true,splitResponsibility", "false,splitResponsibility"})
-  void it_should_reject_missing_or_null_details_and_files(boolean cloud, String type) {
+  @ValueSource(strings = {"structuralDeviation", "relationshipDeviation", "tangle", "weakTangle", "oversizedComponent", "splitResponsibility"})
+  void it_should_reject_missing_or_null_details_and_files(String type) {
     stubMainBranch(harness);
-    var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
+    var client = harness.newClient(CLOUD_ENV);
     for (var field : new String[] {"details", "files"}) {
       for (var missing : new boolean[] {true, false}) {
         var finding = completeFinding(type);
@@ -263,7 +257,7 @@ class ArchitectureFindingsToolTests {
         } else {
           finding.add(field, JsonNull.INSTANCE);
         }
-        stubFindingResponse(cloud, finding.toString());
+        stubFindingResponse(finding.toString());
         var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "findings", "projectKey", "my_project"));
         assertThat(result.isError()).as("%s: %s missing=%s", type, field, missing).isTrue();
         assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
@@ -273,14 +267,13 @@ class ArchitectureFindingsToolTests {
   }
 
   @ParameterizedTest
-  @CsvSource({"true,structuralDeviation,files", "false,structuralDeviation,files",
-    "true,tangle,nodeKeys", "false,tangle,nodeKeys", "true,weakTangle,nodeKeys", "false,weakTangle,nodeKeys"})
-  void it_should_reject_null_list_elements(boolean cloud, String type, String field) {
+  @CsvSource({"structuralDeviation,files", "tangle,nodeKeys", "weakTangle,nodeKeys"})
+  void it_should_reject_null_list_elements(String type, String field) {
     var finding = completeFinding(type);
     var owner = field.equals("files") ? finding : finding.getAsJsonObject("details");
     owner.add(field, JsonParser.parseString("[\"app:web\",null]"));
-    stubFindingResponse(cloud, finding.toString());
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+    stubFindingResponse(finding.toString());
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
@@ -301,19 +294,17 @@ class ArchitectureFindingsToolTests {
     return finding;
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void it_should_skip_future_rows_before_deserializing_their_payloads(boolean cloud) {
+  @Test
+  void it_should_skip_future_rows_before_deserializing_their_payloads() {
     var futureRows = "{\"type\":\"futureType\"},"
       + "{\"type\":\"futureType\",\"details\":{\"nodeCount\":{}},\"files\":{}},"
       + "{\"type\":\"structuralDeviation\",\"category\":\"deviation\",\"language\":\"futureLanguage\"},"
       + "{\"type\":\"structuralDeviation\",\"category\":\"deviation\",\"language\":\"java\","
       + "\"details\":{\"reason\":\"futureReason\",\"nodeCount\":{}},\"files\":{}}";
     stubMainBranch(harness);
-    var prefix = cloud ? "" : ArchitectureApi.SERVER_API_PREFIX;
-    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(prefix + PATH))
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(PATH))
       .willReturn(okJson(page(DEVIATION + "," + futureRows, 1, 50, 5))));
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isFalse();
     var output = JsonParser.parseString(textOf(result)).getAsJsonObject();
@@ -322,10 +313,9 @@ class ArchitectureFindingsToolTests {
     assertThat(output.getAsJsonObject("page").get("total").getAsInt()).isEqualTo(5);
   }
 
-  private void stubFindingResponse(boolean cloud, String finding) {
+  private void stubFindingResponse(String finding) {
     stubMainBranch(harness);
-    var prefix = cloud ? "" : ArchitectureApi.SERVER_API_PREFIX;
-    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(prefix + PATH))
+    harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(PATH))
       .willReturn(okJson(page(finding, 1, 50, 1))));
   }
 
@@ -364,17 +354,15 @@ class ArchitectureFindingsToolTests {
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void it_should_skip_future_values_and_preserve_backend_totals(boolean cloud) {
+  @Test
+  void it_should_skip_future_values_and_preserve_backend_totals() {
     stubMainBranch(harness);
     var rows = String.join(",", DEVIATION, DEVIATION.replace("structuralDeviation", "futureType"),
       DEVIATION.replace("java", "futureLanguage"), DEVIATION.replace("misplacedComponent", "futureReason"));
-    var organization = cloud ? CLOUD_ORGANIZATION_ID : ArchitectureApi.SERVER_ORGANIZATION_ID;
-    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + PATH + "?organizationId=" + organization
+    var path = PATH + "?organizationId=" + CLOUD_ORGANIZATION_ID
       + "&branchId=" + MAIN_BRANCH_ID + "&pageIndex=1&pageSize=50";
     harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson(page(rows, 1, 50, 4))));
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isFalse();
     var output = JsonParser.parseString(textOf(result)).getAsJsonObject();
@@ -411,12 +399,11 @@ class ArchitectureFindingsToolTests {
     };
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void it_should_reject_a_missing_discriminator_before_applying_filters(boolean cloud) {
+  @Test
+  void it_should_reject_a_missing_discriminator_before_applying_filters() {
     var row = DEVIATION.replace("\"type\":\"structuralDeviation\",", "").replace("java", "futureLanguage");
-    stubFindingResponse(cloud, row);
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+    stubFindingResponse(row);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project", "type", "structuralDeviation"));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.")
@@ -424,19 +411,18 @@ class ArchitectureFindingsToolTests {
   }
 
   @ParameterizedTest
-  @CsvSource({"true,false", "false,false", "true,true", "false,true"})
-  void it_should_skip_future_values_that_match_active_filters(boolean cloud, boolean futureReason) {
+  @ValueSource(booleans = {false, true})
+  void it_should_skip_future_values_that_match_active_filters(boolean futureReason) {
     stubMainBranch(harness);
     var row = futureReason ? DEVIATION.replace("misplacedComponent", "futureReason") : DEVIATION.replace("structuralDeviation", "futureType");
-    var organization = cloud ? CLOUD_ORGANIZATION_ID : ArchitectureApi.SERVER_ORGANIZATION_ID;
-    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + PATH + "?organizationId=" + organization
+    var path = PATH + "?organizationId=" + CLOUD_ORGANIZATION_ID
       + "&branchId=" + MAIN_BRANCH_ID + "&category=deviation" + (futureReason ? "&type=structuralDeviation" : "") + "&language=java&pageIndex=1&pageSize=50";
     harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson(page(row, 1, 50, 1))));
     var arguments = new HashMap<String, Object>(Map.of("target", "findings", "projectKey", "my_project", "category", "deviation", "language", "java"));
     if (futureReason) {
       arguments.put("type", "structuralDeviation");
     }
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, arguments);
     assertThat(result.isError()).as(textOf(result)).isFalse();
     var output = JsonParser.parseString(textOf(result)).getAsJsonObject();
     assertThat(output.getAsJsonArray("findings")).isEmpty();
@@ -487,23 +473,20 @@ class ArchitectureFindingsToolTests {
     assertThat(result.isError()).isTrue();
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void it_should_refuse_findings_for_an_unanalyzed_main_branch(boolean cloud) {
+  @Test
+  void it_should_refuse_findings_for_an_unanalyzed_main_branch() {
     harness.getMockSonarQubeServer().stubFor(get("/api/project_branches/list?project=my_project")
       .willReturn(okJson("{\"branches\":[{\"name\":\"main\",\"isMain\":true,\"branchId\":\"unanalysed-id\"}]}")));
-    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME,
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("selected branch", "has not been analyzed");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
-    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", ArchitectureApi.SERVER_API_PREFIX + PATH)).isEmpty();
   }
 
-  private void stubEmptyPage(boolean cloud, int pageIndex, int pageSize, int total) {
+  private void stubEmptyPage(int pageIndex, int pageSize, int total) {
     stubMainBranch(harness);
-    var organization = cloud ? CLOUD_ORGANIZATION_ID : ArchitectureApi.SERVER_ORGANIZATION_ID;
-    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + PATH + "?organizationId=" + organization
+    var path = PATH + "?organizationId=" + CLOUD_ORGANIZATION_ID
       + "&branchId=" + MAIN_BRANCH_ID + "&pageIndex=" + pageIndex + "&pageSize=" + pageSize;
     harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson(page("", pageIndex, pageSize, total))));
   }
