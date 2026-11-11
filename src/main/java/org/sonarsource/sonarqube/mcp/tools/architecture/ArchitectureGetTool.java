@@ -21,13 +21,13 @@ import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
-import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -50,6 +50,7 @@ public class ArchitectureGetTool extends Tool {
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
   public static final String FINDINGS = "findings";
+  static final String CURSOR_PROPERTY = "cursor";
   private static final String TYPE_PROPERTY = "type";
   private static final String CATEGORY_PROPERTY = "category";
 
@@ -83,19 +84,20 @@ public class ArchitectureGetTool extends Tool {
       .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
         "current: dependencies; intended: model; directives: project directives (directiveId); "
           + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings or current from/to queries.")
-      .addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
-      .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
+      .addStringProperty(FROM_PROPERTY, "Current: source including descendants. Findings: relationship source. Requires to; excludes component.")
+      .addStringProperty(TO_PROPERTY, "Destination key; requires from. Current includes descendants.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
       .addStringProperty(COMPONENT_PROPERTY, "Exact key from this tool, not a wildcard (Java current: module:package). "
-        + "Intended: group labels joined by /. Top level when omitted."
+        + "Intended: group labels joined by /. Findings: node key filter on this page. Top level when omitted."
         + (isSonarQubeCloud ? " Current keys: Java/C# namespace_graph; JS/TS/Python file_graph; default_perspective." : ""))
       .addIntegerProperty(DEPTH_PROPERTY, "Levels below the start (1..64). Default 1 for current; all levels for intended when omitted.", 1, MAX_DEPTH)
       .addEnumProperty(LANGUAGE_PROPERTY, LANGUAGES, "Language to read. All languages when omitted.")
       .addIntegerProperty(ToolParameters.PAGE_INDEX, "Page from 1; directives, findings or current from/to queries.", 1, null)
       .addIntegerProperty(ToolParameters.PAGE_SIZE, "Current from/to: default/max " + DependencyQuery.MAX_PAGE_SIZE
-        + "; directives: default and maximum " + MAX_DIRECTIVE_PAGE_SIZE + "; findings: default 50, maximum 1000 (0 counts only).", 0, 1000)
+        + "; directives: default and maximum " + MAX_DIRECTIVE_PAGE_SIZE + "; findings: default 50, maximum 50 (0 counts only).", 0, 50)
       .setReadOnlyHint();
-    builder.addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.")
+    builder.addStringProperty(CURSOR_PROPERTY, "Finding nextCursor; use with target findings and projectKey, without filters or pagination.")
+      .addStringProperty(DIRECTIVE_ID_PROPERTY, "Full directive by UUID; pages omit descriptions.")
       .addEnumProperty(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new), "only findings of this type.")
       .addEnumProperty(CATEGORY_PROPERTY, CATEGORIES, "only findings of this category.");
     return builder.build();
@@ -113,19 +115,10 @@ public class ArchitectureGetTool extends Tool {
       throw new IllegalArgumentException("depth must be between 1 and " + MAX_DEPTH + ".");
     }
 
-    var selection = dependencySelection(arguments, target, component);
-    var parameters = arguments.toMap();
-    if ((INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
-      && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
-      throw new IllegalArgumentException("Pagination parameters are only used for directives, findings or current from/to queries.");
-    }
+    validateCursorArguments(arguments, target);
+    var selection = FINDINGS.equals(target) ? null : dependencySelection(arguments, target, component);
+    rejectParametersForOtherTargets(arguments, target, selection);
     var serverApi = serverApiProvider.get(arguments.getOptionalString(ToolParameters.ORGANIZATION));
-    if (!DIRECTIVES.equals(target) && parameters.get(DIRECTIVE_ID_PROPERTY) != null) {
-      throw new IllegalArgumentException("directiveId is only used for directives.");
-    }
-    if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
-      throw new IllegalArgumentException("type and category are only used for findings.");
-    }
     if (DIRECTIVES.equals(target)) {
       return directives(serverApi, projectKey, arguments, component, depth, language);
     }
@@ -136,6 +129,20 @@ public class ArchitectureGetTool extends Tool {
       return readCurrent(serverApi, projectKey, component, depth, language, selection);
     }
     return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.projectId(serverApi, projectKey), component, depth, language);
+  }
+
+  private static void rejectParametersForOtherTargets(Arguments arguments, String target, @Nullable DependencyQuery.Selection selection) {
+    var parameters = arguments.toMap();
+    if ((INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
+      && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
+      throw new IllegalArgumentException("Pagination parameters are only used for directives, findings or current from/to queries.");
+    }
+    if (!DIRECTIVES.equals(target) && parameters.get(DIRECTIVE_ID_PROPERTY) != null) {
+      throw new IllegalArgumentException("directiveId is only used for directives.");
+    }
+    if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
+      throw new IllegalArgumentException("type and category are only used for findings.");
+    }
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
@@ -165,22 +172,89 @@ public class ArchitectureGetTool extends Tool {
 
   private static Result findings(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
     @Nullable String language) {
-    if (component != null || depth != null) {
-      throw new IllegalArgumentException("Findings reads do not accept component or depth filters.");
+    if (arguments.toMap().containsKey(CURSOR_PROPERTY)) {
+      return continueFinding(serverApi, projectKey, arguments.getStringOrThrow(CURSOR_PROPERTY));
+    }
+    if (depth != null) {
+      throw new IllegalArgumentException("Findings reads do not accept a depth filter.");
     }
     if (arguments.toMap().containsKey("findingId")) {
       throw new IllegalArgumentException("Findings have no ids. Use category, type or language to filter the list.");
     }
+    var from = exactFindingKey(arguments, FROM_PROPERTY);
+    var to = exactFindingKey(arguments, TO_PROPERTY);
+    if ((from == null) != (to == null) || (from != null && component != null)) {
+      throw new IllegalArgumentException("Use either component or both from and to to filter finding previews.");
+    }
     var pageIndex = arguments.getPageIndexOrDefault(1);
-    var pageSize = arguments.getPageSizeOrDefault(50);
+    var pageSize = arguments.getPageSizeOrDefault(ArchitectureApi.MAX_FINDING_PAGE_SIZE);
     ArchitectureApi.validateFindingPage(pageIndex, pageSize);
-    var category = arguments.getOptionalEnumValue(CATEGORY_PROPERTY, CATEGORIES);
-    var type = arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new));
-    var filters = new ArchitectureApi.FindingFilters(category, type, language);
+    var filters = new ArchitectureApi.FindingFilters(arguments.getOptionalEnumValue(CATEGORY_PROPERTY, CATEGORIES),
+      arguments.getOptionalEnumValue(TYPE_PROPERTY, ArchitectureApi.FINDING_TYPES.toArray(String[]::new)), language);
     var organizationId = ArchitectureProjectContext.organizationId(serverApi);
     var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
     var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, filters, pageIndex, pageSize);
-    return Result.success(new FindingsView(projectKey, page.findings(), page.page(), findingPageMessage(page, filters), page.skippedFindings()));
+    var binding = FindingCursor.binding(projectKey, organizationId, branchId);
+    // Count-only pages cannot produce findings or cursors.
+    var query = pageSize == 0 ? null : new FindingCursor.Query(pageIndex, pageSize, filters.category(), filters.type(), filters.language(), component, from, to);
+    var findings = page.findings().stream()
+      .filter(finding -> (component == null && from == null) || FindingResponses.matches(finding, component, from, to))
+      .map(finding -> FindingResponses.preview(finding, binding, Objects.requireNonNull(query))).toList();
+    var truncated = findings.stream().anyMatch(FindingResponses::truncated);
+    var message = findingPageMessage(page, filters);
+    if (truncated) {
+      message = join(message, "Use a finding's nextCursor with target findings and projectKey to continue its files and node keys.");
+    }
+    if (component != null || from != null) {
+      message = join(message, "Selectors filter this page only; page.total is the backend total before selectors.");
+    }
+    return Result.success(new FindingsView(projectKey, findings, page.page(), truncated ? true : null, message, page.skippedFindings()));
+  }
+
+  private static Result continueFinding(ServerApi serverApi, String projectKey, String encoded) {
+    var cursor = FindingCursor.decode(encoded);
+    var organizationId = ArchitectureProjectContext.organizationId(serverApi);
+    var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
+    var binding = FindingCursor.binding(projectKey, organizationId, branchId);
+    if (!binding.equals(cursor.binding())) {
+      throw FindingCursor.invalid();
+    }
+    var query = cursor.query();
+    var page = serverApi.architectureApi().getFindingPage(projectKey, organizationId, branchId, query.filters(), query.pageIndex(), query.pageSize());
+    var finding = FindingResponses.continueFinding(page.findings().stream()
+      .filter(candidate -> (query.component() == null && query.from() == null)
+        || FindingResponses.matches(candidate, query.component(), query.from(), query.to()))
+      .toList(), binding, cursor);
+    return Result.success(new FindingsView(projectKey, List.of(finding), page.page(), FindingResponses.truncated(finding) ? true : null,
+      findingPageMessage(page, query.filters()), page.skippedFindings()));
+  }
+
+  private static void validateCursorArguments(Arguments arguments, String target) {
+    if (!arguments.toMap().containsKey(CURSOR_PROPERTY)) {
+      return;
+    }
+    var allowed = Set.of(TARGET_PROPERTY, ToolParameters.PROJECT_KEY, ToolParameters.ORGANIZATION, CURSOR_PROPERTY);
+    if (!FINDINGS.equals(target) || !allowed.containsAll(arguments.toMap().keySet())) {
+      throw new IllegalArgumentException("Use cursor only with target findings, projectKey and organization when required. Omit filters and pagination.");
+    }
+    var value = arguments.toMap().get(CURSOR_PROPERTY);
+    if (!(value instanceof String encoded)) {
+      throw FindingCursor.invalid();
+    }
+    FindingCursor.decode(encoded);
+  }
+
+  @Nullable
+  private static String exactFindingKey(Arguments arguments, String name) {
+    var key = arguments.getOptionalString(name);
+    if (key != null && !key.equals(key.strip())) {
+      throw new IllegalArgumentException(name + " must be an exact component key without surrounding whitespace.");
+    }
+    return key;
+  }
+
+  private static String join(@Nullable String message, String addition) {
+    return message == null ? addition : (message + " " + addition);
   }
 
   @Nullable
@@ -234,7 +308,7 @@ public class ArchitectureGetTool extends Tool {
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,
+  private record FindingsView(String projectKey, List<Object> findings, ArchitectureApi.DirectivePageInfo page, @Nullable Boolean truncated,
     @Nullable String message, @Nullable Integer skippedFindings) {
   }
 
@@ -307,8 +381,8 @@ public class ArchitectureGetTool extends Tool {
         + " with target intended and without component to list the group keys.");
     }
     var warning = IntendedModels.invalidReason(stored) == null ? null
-      : "Stored intended architecture contains values that must be corrected before saving. "
-        + "Constraints require exact sibling group paths and cannot reference imported descendants.";
+      : ("Stored intended architecture contains values that must be corrected before saving. "
+        + "Constraints require exact sibling group paths and cannot reference imported descendants.");
     return Result.success(new ArchitectureGetIntendedToolResponse(projectKey, revision, component, depth, views, partial ? true : null, warning));
   }
 
