@@ -1468,10 +1468,10 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 ### Architecture
 
-**Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server requires version 2026.6 or later and a Developer edition or higher; the tools are not available on older versions or Community Build.** See [architecture workflows and recovery](docs/architecture.md).
+**Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. Architecture tools are available only on SonarQube Cloud, including intended architecture reads and writes. SonarQube Server and Community Build are not supported.** See [architecture workflows and recovery](docs/architecture.md).
 
 - **architecture_get** - Read current dependencies, intended architecture, project directives, or Findings (deviations, flaws and smells).
-  - `target` - `current`, `intended`, `directives` or `findings`; availability depends on the MCP and Server build - _Required Enum_
+  - `target` - `current`, `intended`, `directives` or `findings` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
   - `component` - Exact current node key or intended group path; top level when omitted - _String_
@@ -1482,7 +1482,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
   - `pageIndex` - Directives/Findings: 1-based page index (default: 1) - _Number_
   - `pageSize` - Directives: summaries, default/maximum 50. Findings: default 50, maximum 1000; 0 counts only - _Number_
 
-- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available on supported Cloud and Server builds when writes are enabled.
+- **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available on Cloud when writes are enabled.
   - `target` - `intended` or `directives` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_

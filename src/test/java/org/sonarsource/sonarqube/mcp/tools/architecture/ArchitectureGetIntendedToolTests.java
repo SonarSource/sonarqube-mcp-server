@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
+import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
@@ -28,6 +29,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.CLOUD_ENV;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.INTENDED_JAVA_MODEL;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.intendedArchitectures;
@@ -201,9 +203,9 @@ class ArchitectureGetIntendedToolTests {
   void it_should_stop_before_architecture_requests_when_public_project_lookup_is_unavailable(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(get("/api/v2/components/projects?keys=my_project&pageSize=1").willReturn(aResponse().withStatus(404)));
     var client = harness.newClient();
-    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
-    assertThat(result.isError()).isTrue();
-    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("public project lookup").doesNotContain("No intended architecture is visible");
+    Map<String, Object> arguments = Map.of("target", "intended", "projectKey", "my_project");
+    assertThatThrownBy(() -> client.callTool(ArchitectureGetTool.TOOL_NAME, arguments))
+      .isInstanceOf(McpError.class);
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
   }
 
