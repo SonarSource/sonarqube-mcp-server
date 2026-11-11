@@ -201,9 +201,8 @@ class ArchitectureGetIntendedToolTests {
   void it_should_stop_before_architecture_requests_when_public_project_lookup_is_unavailable(SonarQubeMcpServerTestHarness harness) {
     harness.getMockSonarQubeServer().stubFor(get("/api/v2/components/projects?keys=my_project&pageSize=1").willReturn(aResponse().withStatus(404)));
     var client = harness.newClient();
-    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
-    assertThat(result.isError()).isTrue();
-    assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("public project lookup").doesNotContain("No intended architecture is visible");
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project")))
+      .isInstanceOf(io.modelcontextprotocol.spec.McpError.class);
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
   }
 
