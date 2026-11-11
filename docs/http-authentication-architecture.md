@@ -64,7 +64,7 @@ This document focuses on the **HTTP/HTTPS Transport**. Authentication is automat
                  ▼
 ┌─────────────────────────────────────────────────────┐
 │       PerRequestToolFilteringHandler                │
-│  (tools/list and tools/call authorization)          │
+│  (list schema adjustment and call authorization)          │
 └────────────────┬────────────────────────────────────┘
                  │
                  ▼
@@ -91,7 +91,7 @@ This document focuses on the **HTTP/HTTPS Transport**. Authentication is automat
 
 #### `PerRequestToolFilteringHandler`
 - **Location**: `org.sonarsource.sonarqube.mcp.transport.PerRequestToolFilteringHandler`
-- **Purpose**: Enforces request tool preferences and verified OAuth scopes on both `tools/list` and `tools/call`. Insufficient-scope calls mark a request-local `OAuthScopeContext`; `OAuthScopeResponseWrapper` converts the SDK response into an HTTP 403 challenge without dispatching the tool.
+- **Purpose**: Supplies the SDK discovery filter for request tool preferences and verified OAuth scopes. Adjusts organization schemas in list responses and enforces direct-call authorization. Insufficient-scope calls mark a request-local `OAuthScopeContext`; `OAuthScopeResponseWrapper` converts the SDK response into an HTTP 403 challenge without dispatching the tool.
 
 #### `SonarQubeMcpServer` (ServerApiProvider)
 - **Location**: `org.sonarsource.sonarqube.mcp.SonarQubeMcpServer`
@@ -154,7 +154,7 @@ For SonarQube tokens, clients configure the HTTP endpoint using the preferred `A
 
 5. PerRequestToolFilteringHandler
    ├─> Read SONARQUBE_TOOLSETS and SONARQUBE_READ_ONLY from McpTransportContext
-   ├─> Filter tools/list and reject disallowed tools/call requests
+   ├─> Delegate tools/list to SDK filtering and reject disallowed tools/call requests
    └─> Preserve organization-aware schemas when no organization header is set
 
 6. Tool execution - tools/call (ServerApiProvider.get())
@@ -246,7 +246,7 @@ The SDK passes the context to the tool handler. `SonarQubeMcpServer.toStatelessS
 
 2. PerRequestToolFilteringHandler
    └─> Reads request preferences and, for OAuth requests, verified scopes
-   └─> Filters tools/list and authorizes tools/call before dispatch
+   └─> Adjusts organization schemas after SDK discovery and authorizes tools/call before dispatch
 
 3. SonarQubeMcpServer tool wrapper (tools/call)
    └─> Sets its ThreadLocal for tool execution and cleans it up in finally
@@ -281,7 +281,7 @@ In HTTP(S) mode, clients can **narrow** the set of visible tools on a per-reques
 
 ### Filtering
 
-`PerRequestToolFilteringHandler` applies the same restrictions to **`tools/list` and direct `tools/call` requests**. Checks run in this order: tool existence and ordinary category/read-only restrictions, OAuth scopes, per-tool enablement, then dispatch. Unknown or ordinarily filtered tools retain their existing errors.
+The HTTP server registers an SDK `addToolFilter` that evaluates discovery visibility from each request's `McpTransportContext`. `PerRequestToolFilteringHandler` adjusts organization-specific schemas in the SDK list response and enforces the same restrictions on direct `tools/call` requests. The SDK filter controls discovery only; direct-call authorization remains required. Checks run in this order: tool existence and ordinary category/read-only restrictions, OAuth scopes, per-tool enablement, then dispatch. Unknown or ordinarily filtered tools retain their existing errors.
 
 OAuth scopes are independent of the `SONARQUBE_READ_ONLY` preference and are not client-supplied headers or published tool-schema fields. Tool requirements use Token B's Cloud scope names internally:
 
