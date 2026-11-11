@@ -192,8 +192,10 @@ public class ArchitectureApi {
   }
 
   private static void validateGroups(List<IntendedArchitecture.Group> groups) {
+    var labels = new HashSet<String>();
     for (var group : groups) {
-      if (group == null || group.label() == null || (group.patterns() != null && group.patterns().contains(null))) {
+      if (group == null || group.label() == null || group.label().isBlank() || group.label().contains("/")
+        || !labels.add(group.label()) || (group.patterns() != null && group.patterns().contains(null))) {
         throw incompleteModel();
       }
       if (group.groups() != null) {

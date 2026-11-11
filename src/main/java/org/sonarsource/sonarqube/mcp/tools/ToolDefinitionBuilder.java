@@ -33,6 +33,7 @@ public class ToolDefinitionBuilder {
 
   private static final String ARRAY_TYPE = "array";
   private static final String BOOLEAN_TYPE = "boolean";
+  private static final String INTEGER_TYPE = "integer";
   private static final String NUMBER_TYPE = "number";
   private static final String OBJECT_TYPE = "object";
   private static final String STRING_TYPE = "string";
@@ -129,6 +130,20 @@ public class ToolDefinitionBuilder {
   public ToolDefinitionBuilder addNumberProperty(String propertyName, String description) {
     var content = Map.of(TYPE_PROPERTY_NAME, NUMBER_TYPE, DESCRIPTION_KEY_NAME, description);
     properties.put(propertyName, content);
+    return this;
+  }
+
+  public ToolDefinitionBuilder addIntegerProperty(String propertyName, String description, @Nullable Integer minimum, @Nullable Integer maximum) {
+    var content = new HashMap<String, Object>();
+    content.put(TYPE_PROPERTY_NAME, INTEGER_TYPE);
+    content.put(DESCRIPTION_KEY_NAME, description);
+    if (minimum != null) {
+      content.put("minimum", minimum);
+    }
+    if (maximum != null) {
+      content.put("maximum", maximum);
+    }
+    properties.put(propertyName, Map.copyOf(content));
     return this;
   }
 
