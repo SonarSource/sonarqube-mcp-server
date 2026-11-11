@@ -21,7 +21,7 @@ Server support requires a separately validated released API contract and compati
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current` and `findings` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
-  - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
+  - `depth` - Levels below the start (1–64); default 1 for `current`, all levels when omitted for `intended` - _Integer_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended/findings only - _String_
   - `directiveId` - Directives only: full record, including description, by UUID; cannot be combined with paging - _String_
   - `category` - Findings only: `deviation`, `flaw` or `smell` - _Enum_
@@ -44,7 +44,7 @@ Server support requires a separately validated released API contract and compati
 
   Directive fields: `type` (`REMOVE_EDGE`, `RENAME_NODE`, `MOVE_NODE`), `ecosystem`, `graphType` (`file_graph`, `namespace_graph`), `fromNodeKey`, `toNodeKey`; optional `graphPerspective` (defaults to `default_perspective`) and `description`. Creation sets origin to `sonarqube-mcp-server`; updates preserve the stored origin. Identity comparisons normalize equivalent default perspectives without rewriting supplied values. For `MOVE_NODE`, `toNodeKey` is an existing destination container; for `RENAME_NODE`, it is the new complete key.
 
-  **Validation:** Exact constraint endpoints must name unambiguous groups in the same perspective; self-references are rejected. Wildcard selectors and imported descendants retain their public semantics. A changed model is also checked against available discovery data: exact container patterns and skipped physical parents produce warnings, without rewriting patterns or moving groups. Failed or missing discovery is reported as unchecked, not as a missing match. Exact leaf patterns and logical groupings remain valid.
+  **Validation:** Group labels must be unique among siblings and cannot contain `/`. Nonblank perspective labels must be unique within a language and cannot contain `/`. Constraint endpoints must name existing sibling groups using exact paths; wildcards, self-references and imported descendants are rejected. Invalid stored constraints remain visible with a warning and must be corrected before saving. Inputs reject unknown fields, partial exports, more than 64 group levels or more than 50,000 groups. A changed model is also checked against available discovery data: exact container patterns and skipped physical parents produce warnings, without rewriting patterns or moving groups. Failed or missing discovery is reported as unchecked, not as a missing match. Exact leaf patterns and logical groupings remain valid.
 
   For physical models, read bounded current slices first and keep intermediate parents. For example, in a GCToolkit-style layout under `gctoolkit-parser`, nest `jvm` and `unified` inside `com.microsoft.gctoolkit.parser` and use `gctoolkit-parser:com.microsoft.gctoolkit.parser.**` for that subtree. Follow a single-child artifact chain to its branching point. Keep exact patterns for leaves and preserve discovery-binding patterns when moving or renaming groups. Do not infer physical structure from labels alone or replace user-requested logical groupings.
 
