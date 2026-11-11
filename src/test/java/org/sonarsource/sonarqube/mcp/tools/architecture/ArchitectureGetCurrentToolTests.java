@@ -476,13 +476,20 @@ class ArchitectureGetCurrentToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_reject_a_depth_below_one(SonarQubeMcpServerTestHarness harness) {
+  void it_should_reject_paging_and_depth_values_outside_their_integer_bounds(SonarQubeMcpServerTestHarness harness) {
     var client = harness.newClient(CLOUD_ENV);
-
-    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "depth", 0));
-
-    assertThat(result).isEqualTo(McpSchema.CallToolResult.builder().isError(true)
-      .addTextContent("An error occurred during the tool execution: depth must be 1 or more.").build());
+    for (var arguments : List.of(
+      Map.<String, Object>of("target", "current", "projectKey", "my_project", "depth", 0),
+      Map.<String, Object>of("target", "current", "projectKey", "my_project", "depth", 65),
+      Map.<String, Object>of("target", "current", "projectKey", "my_project", "depth", 1.5),
+      Map.<String, Object>of("target", "directives", "projectKey", "my_project", "pageIndex", 0),
+      Map.<String, Object>of("target", "findings", "projectKey", "my_project", "pageSize", 1001),
+      Map.<String, Object>of("target", "findings", "projectKey", "my_project", "pageSize", -1))) {
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains("input validation failed");
+    }
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("/architecture/")).isFalse();
   }
 
   @SonarQubeMcpServerTest
