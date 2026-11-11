@@ -1474,13 +1474,15 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
   - `target` - `current`, `intended`, `directives` or `findings` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
-  - `component` - Exact current node key or intended group path; top level when omitted - _String_
+  - `component` - Exact current node key or intended group path; findings: node key filter within this page; top level when omitted - _String_
   - `depth` - Current/intended only: levels below the start (1–64); default 1 for current, all levels when omitted for intended - _Integer_
   - `language` - Current/intended/findings only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
   - `directiveId` - Full directive by UUID, including description; use instead of paging - _String_
+  - `cursor` - Findings only: `nextCursor` from a preview or detail chunk; omit filters, selectors and pagination - _String_
   - `category` / `type` - Findings only: filter deviations, flaws or smells by their advertised type - _Enum_
-  - `pageIndex` - Directives/Findings: 1-based page index (default: 1) - _Number_
-  - `pageSize` - Directives: summaries, default/maximum 50. Findings: default 50, maximum 1000; 0 counts only - _Number_
+  - `from` / `to` - Current dependency keys including descendants, or finding relationship keys on this page; requires both, excludes `component` - _String_
+  - `pageIndex` - Directives, findings or current from/to queries: 1-based page index (default: 1) - _Integer_
+  - `pageSize` - Current from/to: default/maximum 20. Directives/findings: default/maximum 50; findings accept 0 to count only - _Integer_
 
 - **architecture_set** - Replace the whole intended architecture or create, update and delete project directives. Available on Cloud when writes are enabled.
   - `target` - `intended` or `directives` - _Required Enum_
