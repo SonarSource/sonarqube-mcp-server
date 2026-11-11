@@ -41,6 +41,7 @@ class SonarCloudCdnPluginsApiTest {
     return Stream.of(
       arguments("https://sonarcloud.io", "java", LOWERCASE_MD5, "https://scanner.sonarcloud.io/plugins/java/versions/" + LOWERCASE_MD5 + ".jar"),
       arguments("https://sonarqube.us", "python", UPPERCASE_MD5, "https://scanner.sonarqube.us/plugins/python/versions/" + UPPERCASE_MD5 + ".jar"),
+      arguments("https://sonarqube.au", "java", LOWERCASE_MD5, "https://scanner.sonarqube.au/plugins/java/versions/" + LOWERCASE_MD5 + ".jar"),
       arguments("https://cloud.example.com/context?query=value#fragment", "js", LOWERCASE_MD5,
         "https://scanner.cloud.example.com/plugins/js/versions/" + LOWERCASE_MD5 + ".jar"),
       arguments("http://user:password@cloud.example.com:9000/context", "go", LOWERCASE_MD5,

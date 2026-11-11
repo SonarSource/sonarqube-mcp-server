@@ -30,6 +30,7 @@ import java.util.UUID;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthConfiguration;
+import org.sonarsource.sonarqube.mcp.serverapi.SonarQubeCloudDomains;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static java.util.Objects.requireNonNull;
@@ -48,6 +49,7 @@ public final class McpServerLaunchConfiguration {
 
   public static final String SONARCLOUD_IO_URL = "https://sonarcloud.io";
   public static final String SONARQUBE_US_URL = "https://sonarqube.us";
+  public static final String SONARQUBE_AU_URL = "https://sonarqube.au";
 
   private static final String STORAGE_PATH = "STORAGE_PATH";
   @Deprecated(forRemoval = true)
@@ -474,7 +476,7 @@ public final class McpServerLaunchConfiguration {
    * Signal priority (highest to lowest):
    *   1. SONARQUBE_IS_CLOUD=true → explicit override
    *   2. SONARQUBE_ORG set → org implies SQC
-   *   3. SONARQUBE_URL is a known SQC hostname (sonarcloud.io, sonarqube.us, …)
+   *   3. SONARQUBE_URL is a known SQC hostname (sonarcloud.io, sonarqube.us, sonarqube.au, …)
    *   4. No SONARQUBE_URL → Cloud (defaults to sonarcloud.io)
    *   5. SONARQUBE_URL is unknown host → SQS
    */
@@ -506,8 +508,7 @@ public final class McpServerLaunchConfiguration {
     }
     try {
       var host = URI.create(url).getHost();
-      return "sonarcloud.io".equals(host) || (host != null && host.endsWith(".sonarcloud.io"))
-        || "sonarqube.us".equals(host) || (host != null && host.endsWith(".sonarqube.us"));
+      return host != null && SonarQubeCloudDomains.DOMAINS.stream().anyMatch(domain -> host.equals(domain) || host.endsWith("." + domain));
     } catch (IllegalArgumentException e) {
       return false;
     }
