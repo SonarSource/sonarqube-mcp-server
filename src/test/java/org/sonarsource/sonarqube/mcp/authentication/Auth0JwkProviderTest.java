@@ -41,10 +41,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.LogCapture;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthTestSupport.MutableClock;
 import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
+import org.sonarsource.sonarqube.mcp.log.LogCapture;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.absent;
