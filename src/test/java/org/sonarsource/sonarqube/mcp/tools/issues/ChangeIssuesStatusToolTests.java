@@ -17,12 +17,12 @@
 package org.sonarsource.sonarqube.mcp.tools.issues;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.sonarsource.sonarqube.mcp.harness.ReceivedRequest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
@@ -35,26 +35,17 @@ import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.asser
 class ChangeIssuesStatusToolTests {
 
   @SonarQubeMcpServerTest
-  void it_should_validate_input_schema(SonarQubeMcpServerTestHarness harness) {
+  void it_should_validate_input_schema(SonarQubeMcpServerTestHarness harness) throws Exception {
     var mcpClient = harness.newClient();
 
     var tool = mcpClient.listTools().stream().filter(t -> t.name().equals(ChangeIssueStatusTool.TOOL_NAME)).findFirst().orElseThrow();
 
-    assertThat(tool.inputSchema()).isEqualTo(Map.of(
-      "type", "object",
-      "properties", Map.of(
-        "key", Map.of(
-          "description", "The key of the issue which status should be changed",
-          "type", "string"),
-        "status", Map.of(
-          "type", "string",
-          "description", "The new status of the issue",
-          "enum", List.of("accept", "falsepositive", "reopen")),
-        "comment", Map.of(
-          "description", "An optional comment explaining the status change",
-          "type", "string")),
-      "required", List.of("key", "status"),
-      "additionalProperties", false));
+    assertThat(McpJsonMappers.DEFAULT.writeValueAsString(tool.inputSchema())).isEqualTo(
+      "{\"additionalProperties\":false,\"properties\":{"
+        + "\"comment\":{\"description\":\"An optional comment explaining the status change\",\"type\":\"string\"},"
+        + "\"key\":{\"description\":\"The key of the issue which status should be changed\",\"type\":\"string\"},"
+        + "\"status\":{\"description\":\"The new status of the issue\",\"enum\":[\"accept\",\"falsepositive\",\"reopen\"],\"type\":\"string\"}},"
+        + "\"required\":[\"key\",\"status\"],\"type\":\"object\"}");
   }
 
   @SonarQubeMcpServerTest

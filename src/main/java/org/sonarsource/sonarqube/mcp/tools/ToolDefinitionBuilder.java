@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import jakarta.annotation.Nullable;
@@ -71,8 +72,8 @@ public class ToolDefinitionBuilder {
     if (!(definition.inputSchema().get(PROPERTIES_PROPERTY_NAME) instanceof Map<?, ?> properties) || !properties.containsKey(ToolParameters.ORGANIZATION)) {
       return definition;
     }
-    var inputSchema = new HashMap<>(definition.inputSchema());
-    var remainingProperties = new HashMap<>(properties);
+    var inputSchema = new LinkedHashMap<>(definition.inputSchema());
+    var remainingProperties = new LinkedHashMap<>(properties);
     remainingProperties.remove(ToolParameters.ORGANIZATION);
     inputSchema.put(PROPERTIES_PROPERTY_NAME, remainingProperties);
     if (inputSchema.get(REQUIRED_PROPERTY_NAME) instanceof List<?> required) {

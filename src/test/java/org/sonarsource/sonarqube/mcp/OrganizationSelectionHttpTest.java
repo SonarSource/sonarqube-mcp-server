@@ -157,6 +157,15 @@ class OrganizationSelectionHttpTest {
     var projectTool = tools.asList().stream().map(JsonElement::getAsJsonObject)
       .filter(tool -> tool.get("name").getAsString().equals("search_my_sonarqube_projects")).findFirst().orElseThrow();
     assertThat(projectTool.getAsJsonObject("inputSchema").getAsJsonObject("properties").has("organization")).isEqualTo(expected);
+    var organizationProperty = expected
+      ? "\"organization\":{\"description\":\"Organization key. Use only when SONARQUBE_ORG is unset; call list_organizations if ambiguous.\",\"type\":\"string\"},"
+      : "";
+    assertThat(projectTool.getAsJsonObject("inputSchema")).hasToString(
+      "{\"additionalProperties\":false,\"properties\":{" + organizationProperty
+        + "\"pageIndex\":{\"description\":\"An optional 1-based page index. Defaults to 1.\",\"type\":\"number\"},"
+        + "\"pageSize\":{\"description\":\"An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 500.\",\"type\":\"number\"},"
+        + "\"q\":{\"description\":\"An optional search query to filter projects by name (partial match) or key (exact match).\",\"type\":\"string\"}},"
+        + "\"required\":[],\"type\":\"object\"}");
   }
 
   private static Map<String, String> httpEnvironment(SonarQubeMcpServerTestHarness harness, Path storage, int port) {
