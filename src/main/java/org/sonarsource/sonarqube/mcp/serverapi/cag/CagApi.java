@@ -48,12 +48,11 @@ public class CagApi {
     try (var response = helper.isSonarQubeCloud() ? helper.getApiSubdomain(path) : helper.get("/api/v2" + path)) {
       return GSON.fromJson(response.bodyAsString(), CagEntitlementResponse.class);
     } catch (NotFoundException e) {
-      // A Server 404 means the CAG Hub is not on this instance (pre-LTA). Stay silent.
-      // Cloud 404 is a failed check, same as any other transport error.
       if (helper.isSonarQubeCloud()) {
         LOG.warn("Could not retrieve CAG entitlement for organization '" + organizationUuidV4 + "': " + e.getMessage());
       } else {
-        LOG.debug("CAG entitlement endpoint not found for organization '" + organizationUuidV4 + "': " + e.getMessage());
+        LOG.debug("CAG entitlement is unsupported on this SonarQube Server: endpoint not found. "
+          + "A Server edition and version with the CAG Hub extension is required.");
       }
       return null;
     } catch (Exception e) {

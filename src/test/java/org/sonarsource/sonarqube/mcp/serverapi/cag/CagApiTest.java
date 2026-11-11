@@ -16,12 +16,20 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.cag;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
+import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
@@ -140,5 +148,62 @@ class CagApiTest {
 
     assertThat(entitlement).isNotNull();
     assertThat(entitlement.hasEntitlement()).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_preserve_server_entitlement_when_consumption_is_not_allowed(boolean hasEntitlement) {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_SERVER_PATH))
+      .willReturn(jsonResponse("""
+        {"allowed":false,"hasEntitlement":%s,"featureKey":"cag"}
+        """.formatted(hasEntitlement), 200)));
+
+    var entitlement = serverCagApi.getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.hasEntitlement()).isEqualTo(hasEntitlement);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_distinguish_unsupported_server_endpoint_from_cloud_lookup_failure(boolean cloud) {
+    var path = cloud ? CAG_ENTITLEMENT_PUBLIC_PATH : CAG_ENTITLEMENT_SERVER_PATH;
+    sonarqubeMock.stubFor(get(urlPathEqualTo(path)).willReturn(aResponse().withStatus(404)));
+    var logger = (Logger) LoggerFactory.getLogger(McpLogger.class);
+    var originalLevel = logger.getLevel();
+    var originalDebug = System.getProperty("SONARQUBE_DEBUG_ENABLED");
+    var appender = new ListAppender<ILoggingEvent>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    System.setProperty("SONARQUBE_DEBUG_ENABLED", "true");
+    try {
+      var entitlement = cloud ? cagApi.getCagEntitlement(ORG_UUID)
+        : serverCagApi.getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+      assertThat(entitlement).isNull();
+      assertThat(appender.list).filteredOn(event -> event.getFormattedMessage().contains("CAG entitlement"))
+        .singleElement().satisfies(event -> {
+          if (cloud) {
+            assertThat(event.getLevel()).isEqualTo(Level.WARN);
+            assertThat(event.getFormattedMessage()).contains("Could not retrieve CAG entitlement for organization '" + ORG_UUID + "'")
+              .doesNotContain("unsupported");
+          } else {
+            assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
+            assertThat(event.getFormattedMessage()).isEqualTo(
+              "CAG entitlement is unsupported on this SonarQube Server: endpoint not found. "
+                + "A Server edition and version with the CAG Hub extension is required.");
+          }
+        });
+    } finally {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(originalLevel);
+      if (originalDebug == null) {
+        System.clearProperty("SONARQUBE_DEBUG_ENABLED");
+      } else {
+        System.setProperty("SONARQUBE_DEBUG_ENABLED", originalDebug);
+      }
+    }
   }
 }
