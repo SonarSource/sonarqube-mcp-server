@@ -96,4 +96,18 @@ class ToolDefinitionBuilderTest {
     assertThat(definition.inputSchema().get("properties")).asInstanceOf(MAP).containsKey(ToolParameters.ORGANIZATION);
     assertThat(ToolDefinitionBuilder.withoutOrganization(fixed)).isSameAs(fixed);
   }
+
+  @Test
+  void it_should_advertise_integer_bounds_when_provided() {
+    var definition = ToolDefinitionBuilder.builder()
+      .setName("bounded_tool")
+      .setDescription("Bounded tool")
+      .addIntegerProperty("depth", "Levels", 1, 64)
+      .addIntegerProperty("pageIndex", "Page", 1, null)
+      .build();
+
+    assertThat(definition.inputSchema().get("properties")).asInstanceOf(MAP)
+      .containsEntry("depth", Map.of("type", "integer", "description", "Levels", "minimum", 1, "maximum", 64))
+      .containsEntry("pageIndex", Map.of("type", "integer", "description", "Page", "minimum", 1));
+  }
 }

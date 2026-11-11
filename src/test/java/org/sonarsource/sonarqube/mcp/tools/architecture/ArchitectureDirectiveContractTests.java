@@ -70,9 +70,9 @@ class ArchitectureDirectiveContractTests {
     for (var name : List.of("organization", "target", "projectKey", "component", "language", "directiveId", "type", "category", "from", "to")) {
       assertThat(readProperties.get(name)).containsEntry("type", "string");
     }
-    for (var name : List.of("depth", "pageIndex", "pageSize")) {
-      assertThat(readProperties.get(name)).containsEntry("type", "number");
-    }
+    assertThat(readProperties.get("depth")).containsEntry("type", "integer").containsEntry("minimum", 1).containsEntry("maximum", 64);
+    assertThat(readProperties.get("pageIndex")).containsEntry("type", "integer").containsEntry("minimum", 1).doesNotContainKey("maximum");
+    assertThat(readProperties.get("pageSize")).containsEntry("type", "integer").containsEntry("minimum", 0).containsEntry("maximum", 1000);
     assertThat(readProperties.get("pageSize").get("description").toString()).contains("default and maximum 50");
     assertThat(read.annotations().readOnlyHint()).isTrue();
     assertThat(read.annotations().openWorldHint()).isTrue();
