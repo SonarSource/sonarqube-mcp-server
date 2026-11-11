@@ -165,7 +165,7 @@ final class IntendedArchitectureReplacement {
   }
 
   private static List<IntendedArchitecture> writableModels(List<IntendedArchitecture> models) {
-    return models.stream().map(model -> new IntendedArchitecture(model.id(), model.type(), model.language(),
+    return models.stream().map(model -> new IntendedArchitecture(null, model.type(), model.language(),
       writableGroups(model.groups()), model.constraints(), model.label(), model.description())).toList();
   }
 

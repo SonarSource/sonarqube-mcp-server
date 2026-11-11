@@ -348,7 +348,7 @@ class ArchitectureFindingsToolTests {
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "missing-project", name, value));
     assertThat(result.isError()).isTrue();
-    assertThat(textOf(result)).contains("Page must be >= 1 and page size must be between 0 and 1000.");
+    assertThat(textOf(result)).contains("input validation failed");
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/organizations/organizations")).hasSize(orgRequests);
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", "/api/project_branches/list")).isEmpty();
     assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
