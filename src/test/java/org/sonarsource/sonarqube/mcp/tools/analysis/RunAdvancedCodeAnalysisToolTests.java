@@ -40,6 +40,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class RunAdvancedCodeAnalysisToolTests {
@@ -473,14 +474,13 @@ class RunAdvancedCodeAnalysisToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_reuse_discovered_uuid_and_cache_entitlement_for_unprobed_org(SonarQubeMcpServerTestHarness harness) {
+  void it_should_reuse_discovered_uuid_and_cache_entitlement(SonarQubeMcpServerTestHarness harness) {
     stubStartupOrganizations(harness, true);
     stubSelectedOrganization(harness, true, true);
     stubAnalysisResponse(harness, SIMPLE_RESPONSE);
     var client = harness.newClient(Map.of("SONARQUBE_IS_CLOUD", "true", "SONARQUBE_TOOLSETS", "analysis"));
 
-    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH + "selected-uuid")).isZero();
-    // Startup already discovered this UUID, even though the entitlement scan stopped at the first org.
+    // Startup discovery supplies the UUID, including when its entitlement check is still in flight.
     harness.getMockSonarQubeServer().stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH))
       .withQueryParam("organizationKey", equalTo("selected-org")).willReturn(aResponse().withStatus(500)));
 
@@ -506,8 +506,9 @@ class RunAdvancedCodeAnalysisToolTests {
     harness.getMockSonarQubeServer().stubFor(get(CagApi.CAG_ENTITLEMENT_PATH + "selected-uuid").willReturn(aResponse().withStatus(503)));
     stubAnalysisResponse(harness, SIMPLE_RESPONSE);
     var client = harness.newClient(Map.of("SONARQUBE_IS_CLOUD", "true", "SONARQUBE_TOOLSETS", "analysis"));
-    // The HTTP client retries a 503 once before the failed startup check returns.
-    assertThat(harness.getMockSonarQubeServer().countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH + "selected-uuid")).isEqualTo(2);
+    // The HTTP client retries a 503 once; selection can finish before that background retry.
+    await().untilAsserted(() ->
+      assertThat(harness.getMockSonarQubeServer().countRequestsContaining(CagApi.CAG_ENTITLEMENT_PATH + "selected-uuid")).isEqualTo(2));
     stubSelectedOrganization(harness, true, true);
 
     assertThat(client.callTool(RunAdvancedCodeAnalysisTool.TOOL_NAME, selectedArguments()).isError()).isFalse();

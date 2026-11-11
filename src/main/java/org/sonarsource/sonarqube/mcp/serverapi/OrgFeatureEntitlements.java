@@ -16,8 +16,13 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.function.BiPredicate;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -33,7 +38,7 @@ public class OrgFeatureEntitlements {
   private static final McpLogger LOG = McpLogger.getInstance();
 
   private final ServerApi api;
-  private final ConcurrentMap<String, Boolean> vortexEntitlements = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, FutureTask<Boolean>> vortexEntitlements = new ConcurrentHashMap<>();
 
   public OrgFeatureEntitlements(ServerApi api) {
     this.api = api;
@@ -52,7 +57,60 @@ public class OrgFeatureEntitlements {
       return false;
     }
     // Only confirmed decisions are cached; a failed lookup returns null and is retried later.
-    return Boolean.TRUE.equals(vortexEntitlements.computeIfAbsent(org.key(), key -> checkCloudVortexEntitlement(org)));
+    var created = new FutureTask<Boolean>(() -> checkCloudVortexEntitlement(org));
+    var existing = vortexEntitlements.putIfAbsent(org.key(), created);
+    var check = existing != null ? existing : created;
+    // Run network calls outside map locks, while sharing in-flight checks for the same key.
+    check.run();
+    try {
+      var result = check.get();
+      if (result == null) {
+        vortexEntitlements.remove(org.key(), check);
+      }
+      return Boolean.TRUE.equals(result);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted while awaiting organization entitlement", e);
+    } catch (ExecutionException e) {
+      vortexEntitlements.remove(org.key(), check);
+      throw new IllegalStateException("Organization entitlement check failed", e.getCause());
+    }
+  }
+
+  public boolean isVortexEnabledForAnyOrganization(List<ResolvedOrganization> organizations) {
+    var executor = Executors.newFixedThreadPool(4, Thread.ofPlatform().name("vortex-entitlement-", 0).factory());
+    var completions = new ExecutorCompletionService<Boolean>(executor);
+    var remaining = organizations.iterator();
+    int pending = 0;
+    try {
+      while (pending < 4 && remaining.hasNext()) {
+        var org = remaining.next();
+        completions.submit(() -> isVortexEnabledForOrg(org));
+        pending++;
+      }
+      while (pending > 0) {
+        if (Boolean.TRUE.equals(completions.take().get())) {
+          return true;
+        }
+        pending--;
+        if (remaining.hasNext()) {
+          var org = remaining.next();
+          completions.submit(() -> isVortexEnabledForOrg(org));
+          pending++;
+        }
+      }
+      return false;
+    } catch (InterruptedException e) {
+      executor.shutdownNow();
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted while checking organization entitlements", e);
+    } catch (ExecutionException e) {
+      executor.shutdownNow();
+      throw new IllegalStateException("Organization entitlement check failed", e.getCause());
+    } finally {
+      // Do not await active checks: they finish populating the session cache after selection.
+      executor.shutdown();
+    }
   }
 
   @Nullable
