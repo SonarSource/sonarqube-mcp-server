@@ -17,10 +17,12 @@
 package org.sonarsource.sonarqube.mcp.serverapi;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import com.google.common.base.Ticker;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.AfterEach;
@@ -39,6 +41,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.UnauthorizedException;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
+import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.delete;
@@ -52,7 +56,10 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -341,6 +348,93 @@ class ServerApiTests {
         }
       });
     assertThat(exception).hasMessage(expectedMessage);
+  }
+
+  @Test
+  void it_should_expire_organization_uuids_after_write_without_extending_on_reads() {
+    var nanos = new AtomicLong();
+    var api = apiWithTicker(nanos);
+    var organizations = mock(OrganizationsApi.class);
+    doReturn(organizations).when(api).organizationsApi();
+    var org = ResolvedOrganization.fromKey("org");
+    when(organizations.getOrganizationUuidV4("org")).thenReturn("first", "refreshed");
+
+    assertThat(api.resolveOrganizationUuid(org)).isEqualTo("first");
+    nanos.set(Duration.ofMinutes(9).toNanos());
+    assertThat(api.withOrganization("org").resolveOrganizationUuid(org)).isEqualTo("first");
+    nanos.set(Duration.ofMinutes(10).toNanos());
+    assertThat(api.resolveOrganizationUuid(org)).isEqualTo("refreshed");
+    verify(organizations, times(2)).getOrganizationUuidV4("org");
+  }
+
+  @Test
+  void it_should_expire_primed_organization_uuids_without_refreshing_on_repeated_priming() {
+    var nanos = new AtomicLong();
+    var api = apiWithTicker(nanos);
+    var organizations = mock(OrganizationsApi.class);
+    doReturn(organizations).when(api).organizationsApi();
+    var known = new ResolvedOrganization("org", "primed");
+    api.cacheOrganizationUuid(known);
+    nanos.set(Duration.ofMinutes(9).toNanos());
+    api.cacheOrganizationUuid(known);
+    assertThat(api.resolveOrganizationUuid(ResolvedOrganization.fromKey("org"))).isEqualTo("primed");
+    nanos.set(Duration.ofMinutes(10).toNanos());
+    when(organizations.getOrganizationUuidV4("org")).thenReturn("refreshed");
+    assertThat(api.resolveOrganizationUuid(ResolvedOrganization.fromKey("org"))).isEqualTo("refreshed");
+  }
+
+  @Test
+  void it_should_evict_organization_uuids_when_capacity_is_exceeded() {
+    var api = spy(new ServerApi(serverApiHelper, true));
+    doReturn(mock(OrganizationsApi.class)).when(api).organizationsApi();
+    for (int i = 0; i < 256; i++) {
+      api.cacheOrganizationUuid(new ResolvedOrganization("org-" + i, "uuid-" + i));
+    }
+    var retained = 0;
+    for (int i = 0; i < 256; i++) {
+      // Missing lookups return null and do not replace other entries.
+      if (api.resolveOrganizationUuid(ResolvedOrganization.fromKey("org-" + i)) != null) {
+        retained++;
+      }
+    }
+    assertThat(retained).isBetween(1, 128);
+  }
+
+  @Test
+  void it_should_retry_failed_and_missing_organization_uuids() {
+    var api = spy(new ServerApi(serverApiHelper, true));
+    var organizations = mock(OrganizationsApi.class);
+    doReturn(organizations).when(api).organizationsApi();
+    var org = ResolvedOrganization.fromKey("org");
+    when(organizations.getOrganizationUuidV4("org")).thenThrow(new IllegalStateException("temporary"))
+      .thenReturn(null, " ", "recovered");
+
+    assertThrows(IllegalStateException.class, () -> api.resolveOrganizationUuid(org));
+    assertThat(api.resolveOrganizationUuid(org)).isNull();
+    assertThat(api.resolveOrganizationUuid(org)).isNull();
+    assertThat(api.resolveOrganizationUuid(org)).isEqualTo("recovered");
+    assertThat(api.withOrganization("org").resolveOrganizationUuid(org)).isEqualTo("recovered");
+    verify(organizations, times(4)).getOrganizationUuidV4("org");
+  }
+
+  @Test
+  void it_should_keep_organization_cache_scoped_to_each_session_or_request() {
+    var first = new ServerApi(serverApiHelper, true);
+    first.cacheOrganizationUuid(new ResolvedOrganization("org", "first-session"));
+    var restarted = new ServerApi(serverApiHelper, true);
+    restarted.cacheOrganizationUuid(new ResolvedOrganization("org", "new-session"));
+
+    assertThat(first.withOrganization("org").resolveOrganizationUuid(ResolvedOrganization.fromKey("org"))).isEqualTo("first-session");
+    assertThat(restarted.withOrganization("org").resolveOrganizationUuid(ResolvedOrganization.fromKey("org"))).isEqualTo("new-session");
+  }
+
+  private ServerApi apiWithTicker(AtomicLong nanos) {
+    return spy(new ServerApi(serverApiHelper, true, new Ticker() {
+      @Override
+      public long read() {
+        return nanos.get();
+      }
+    }));
   }
 
 }
