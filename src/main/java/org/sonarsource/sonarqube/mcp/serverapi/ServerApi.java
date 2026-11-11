@@ -16,9 +16,11 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import com.google.common.base.Ticker;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.Nullable;
+import java.time.Duration;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.A3sAnalysisApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
@@ -50,20 +52,31 @@ import org.sonarsource.sonarqube.mcp.serverapi.webhooks.WebhooksApi;
 
 public class ServerApi {
 
+  private static final int ORGANIZATION_CACHE_SIZE = 128;
+  private static final Duration ORGANIZATION_CACHE_TTL = Duration.ofMinutes(10);
+
   private final ServerApiHelper helper;
   private final boolean isSonarQubeCloud;
   private final OrgFeatureEntitlements orgFeatureEntitlements;
-  private final ConcurrentMap<String, String> organizationUuids;
+  private final Cache<String, String> organizationUuids;
   private final UsersApi usersApi;
 
   public ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud) {
-    this(helper, isSonarQubeCloud, null);
+    this(helper, isSonarQubeCloud, Ticker.systemTicker());
   }
 
-  private ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud, @Nullable ServerApi sessionApi) {
+  ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud, Ticker ticker) {
+    this(helper, isSonarQubeCloud, null, ticker);
+  }
+
+  private ServerApi(ServerApiHelper helper, boolean isSonarQubeCloud, @Nullable ServerApi sessionApi, Ticker ticker) {
     this.helper = helper;
     this.isSonarQubeCloud = isSonarQubeCloud;
-    this.organizationUuids = sessionApi == null ? new ConcurrentHashMap<>() : sessionApi.organizationUuids;
+    this.organizationUuids = sessionApi == null ? CacheBuilder.newBuilder()
+      .maximumSize(ORGANIZATION_CACHE_SIZE)
+      .expireAfterWrite(ORGANIZATION_CACHE_TTL)
+      .ticker(ticker)
+      .build() : sessionApi.organizationUuids;
     this.usersApi = sessionApi == null ? new UsersApi(helper) : sessionApi.usersApi;
     this.orgFeatureEntitlements = sessionApi == null ? new OrgFeatureEntitlements(this) : sessionApi.orgFeatureEntitlements;
   }
@@ -183,14 +196,18 @@ public class ServerApi {
   public void cacheOrganizationUuid(ResolvedOrganization org) {
     var uuid = org.uuidV4();
     if (uuid != null && !uuid.isBlank()) {
-      organizationUuids.putIfAbsent(org.key(), uuid);
+      organizationUuids.asMap().putIfAbsent(org.key(), uuid);
     }
   }
 
-  /** Shares successful lookups within a stdio session or HTTP request; failures remain retryable. */
+  /** Shares successful lookups for up to ten minutes within a stdio session or HTTP request; failures remain retryable. */
   @Nullable
   public String resolveOrganizationUuid(ResolvedOrganization org) {
-    return organizationUuids.computeIfAbsent(org.key(), key -> {
+    var cached = organizationUuids.getIfPresent(org.key());
+    if (cached != null) {
+      return cached;
+    }
+    return organizationUuids.asMap().computeIfAbsent(org.key(), key -> {
       var uuid = org.uuidV4() != null ? org.uuidV4() : organizationsApi().getOrganizationUuidV4(key);
       return uuid == null || uuid.isBlank() ? null : uuid;
     });
@@ -198,7 +215,7 @@ public class ServerApi {
 
   public ServerApi withOrganization(String organization) {
     // Selections share stdio session caches. HTTP starts with a fresh ServerApi for every request.
-    return isSonarQubeCloud ? new ServerApi(helper.withOrganization(organization), true, this) : this;
+    return isSonarQubeCloud ? new ServerApi(helper.withOrganization(organization), true, this, Ticker.systemTicker()) : this;
   }
 
   public void requireOrganization() {
