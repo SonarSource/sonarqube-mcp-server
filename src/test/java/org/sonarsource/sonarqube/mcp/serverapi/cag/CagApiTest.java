@@ -16,12 +16,16 @@
  */
 package org.sonarsource.sonarqube.mcp.serverapi.cag;
 
+import ch.qos.logback.classic.Level;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
+import org.sonarsource.sonarqube.mcp.log.LogCapture;
 import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 
@@ -140,5 +144,45 @@ class CagApiTest {
 
     assertThat(entitlement).isNotNull();
     assertThat(entitlement.hasEntitlement()).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_preserve_server_entitlement_when_consumption_is_not_allowed(boolean hasEntitlement) {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CAG_ENTITLEMENT_SERVER_PATH))
+      .willReturn(jsonResponse("""
+        {"allowed":false,"hasEntitlement":%s,"featureKey":"cag"}
+        """.formatted(hasEntitlement), 200)));
+
+    var entitlement = serverCagApi.getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+    assertThat(entitlement).isNotNull();
+    assertThat(entitlement.hasEntitlement()).isEqualTo(hasEntitlement);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void it_should_distinguish_missing_server_endpoint_from_cloud_lookup_failure(boolean cloud) {
+    var path = cloud ? CAG_ENTITLEMENT_PUBLIC_PATH : CAG_ENTITLEMENT_SERVER_PATH;
+    sonarqubeMock.stubFor(get(urlPathEqualTo(path)).willReturn(aResponse().withStatus(404)));
+    try (var logs = new LogCapture()) {
+      var entitlement = cloud ? cagApi.getCagEntitlement(ORG_UUID)
+        : serverCagApi.getCagEntitlement(CagApi.SERVER_ORGANIZATION_ID_PLACEHOLDER);
+
+      assertThat(entitlement).isNull();
+      assertThat(logs.events()).filteredOn(event -> event.getFormattedMessage().contains("CAG entitlement"))
+        .singleElement().satisfies(event -> {
+          if (cloud) {
+            assertThat(event.getLevel()).isEqualTo(Level.WARN);
+            assertThat(event.getFormattedMessage()).contains("Could not retrieve CAG entitlement for organization '" + ORG_UUID + "'")
+              .doesNotContain("SonarQube Server");
+          } else {
+            assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
+            assertThat(event.getFormattedMessage()).isEqualTo(
+              "CAG entitlement endpoint was not found on this SonarQube Server. "
+                + "Check whether your Server version and edition support Vortex.");
+          }
+        });
+    }
   }
 }
