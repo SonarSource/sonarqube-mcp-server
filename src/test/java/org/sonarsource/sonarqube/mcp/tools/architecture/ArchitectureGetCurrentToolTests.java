@@ -393,7 +393,7 @@ class ArchitectureGetCurrentToolTests {
   void it_should_report_undiscoverable_omitted_siblings_in_a_flat_capped_view(SonarQubeMcpServerTestHarness harness) {
     stubMainBranch(harness);
     var nodes = java.util.stream.IntStream.range(0, GraphSlicer.MAX_NODES + 1)
-      .mapToObj(id -> "{\"id\":" + id + ",\"name\":\"root" + id + "\",\"kind\":\"module\"}")
+      .mapToObj(id -> "{\"id\":" + id + ",\"name\":\"root" + id + "\",\"kind\":\"module\",\"edges\":[]}")
       .collect(java.util.stream.Collectors.joining(","));
     var graph = "[{\"nodeCount\":151,\"edgeCount\":0,\"nodes\":[" + nodes + "]}]";
     harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(graph))));
@@ -525,6 +525,24 @@ class ArchitectureGetCurrentToolTests {
       Map.of("target", "current", "projectKey", "my_project", "language", "java"));
     assertThat(result.isError()).isTrue();
     assertThat(((McpSchema.TextContent) result.content().getFirst()).text()).contains("Invalid public architecture response", "The Architecture API returned an unexpected response.");
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_reject_malformed_current_graphs_instead_of_reporting_an_empty_architecture(SonarQubeMcpServerTestHarness harness) {
+    stubMainBranch(harness);
+    var client = harness.newClient(CLOUD_ENV);
+    for (var graph : List.of(
+      "[{\"nodeCount\":3,\"edgeCount\":0,\"nodes\":[]}]",
+      "[{\"nodeCount\":1,\"edgeCount\":1,\"nodes\":[{\"id\":0,\"name\":\"a\",\"kind\":\"class\",\"edges\":[{\"toId\":0,\"weight\":-1}]}]}]",
+      "[{\"nodeCount\":2,\"edgeCount\":0,\"nodes\":[{\"id\":1,\"name\":\"a\",\"kind\":\"class\",\"edges\":[]},{\"id\":1,\"name\":\"b\",\"kind\":\"class\",\"edges\":[]}]}]",
+      "[{\"nodeCount\":2,\"edgeCount\":0,\"nodes\":[{\"id\":1,\"name\":\"a\",\"kind\":\"class\",\"edges\":[]},{\"id\":2,\"name\":\"a\",\"kind\":\"class\",\"edges\":[]}]}]",
+      "[{\"nodeCount\":1,\"edgeCount\":1,\"nodes\":[{\"id\":1,\"name\":\"a\",\"kind\":\"class\",\"edges\":[{\"toId\":9,\"weight\":1}]}]}]",
+      "[{\"nodeCount\":2,\"edgeCount\":0,\"nodes\":[{\"id\":1,\"name\":\"dir\",\"kind\":\"file\",\"edges\":[],\"nodes\":[{\"id\":2,\"name\":\"child\",\"kind\":\"file\",\"edges\":[]}]}]}]")) {
+      harness.getMockSonarQubeServer().stubFor(get(CLOUD_CURRENT + "java").willReturn(okJson(currentArchitectures(graph))));
+      var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "current", "projectKey", "my_project", "language", "java"));
+      assertThat(result.isError()).isTrue();
+      assertThat(textOf(result)).contains("The Architecture API returned an unexpected response.").doesNotContain("No current architecture is visible");
+    }
   }
 
   private static void stubEmptyCurrent(SonarQubeMcpServerTestHarness harness) {
