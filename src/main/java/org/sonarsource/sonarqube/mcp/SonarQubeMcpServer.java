@@ -62,7 +62,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPluginsApi;
-import org.sonarsource.sonarqube.mcp.serverapi.system.Version;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -316,10 +315,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     var orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
     organizations.forEach(serverApi::cacheOrganizationUuid);
-    var serverVersion = sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
-    var architectureSupported = mcpConfiguration.isSonarQubeCloud()
-      || (serverVersion != null && serverVersion.satisfiesMinRequirement(Version.create("2026.6")));
-    loadBackendIndependentTools(serverApi, architectureSupported);
+    sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
+    loadBackendIndependentTools(serverApi);
 
     // Initialize backend immediately with empty analyzers so we can check IDE bridge availability
     backendService.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
@@ -413,7 +410,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    * These can be loaded BEFORE plugin synchronization (which is slow).
    * This makes most tools available to users within seconds instead of minutes.
    */
-  private void loadBackendIndependentTools(ServerApi serverApi, boolean architectureSupported) {
+  private void loadBackendIndependentTools(ServerApi serverApi) {
     if (mcpConfiguration.isSonarQubeCloud()) {
       supportedTools.add(new ListEnterprisesTool(this));
       supportedTools.add(new ListOrganizationsTool(this));
@@ -452,8 +449,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
       new ListPullRequestsTool(this, configuredProjectKey),
       new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
-    // Community Build uses short-year versions and does not include Architecture.
-    if (architectureSupported) {
+    if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isToolCategoryEnabled(ToolCategory.ARCHITECTURE)) {
       supportedTools.addAll(ArchitectureTools.create(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey));
     }
 
