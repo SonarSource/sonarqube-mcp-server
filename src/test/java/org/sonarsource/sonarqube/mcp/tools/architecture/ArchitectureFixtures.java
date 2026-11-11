@@ -55,7 +55,7 @@ final class ArchitectureFixtures {
     ] } ]""";
 
   static final String INTENDED_JAVA_MODEL = """
-    [ { "id": "11111111-1111-4111-8111-111111111111", "type": "namespace", "language": "java",
+    [ { "type": "namespace", "language": "java",
         "groups": [ { "label": "app", "patterns": [ "app:**" ], "groups": [
           { "label": "web", "patterns": [ "app:com.acme.web.**" ] },
           { "label": "domain", "patterns": [ "app:com.acme.domain.**" ], "interface": true }
