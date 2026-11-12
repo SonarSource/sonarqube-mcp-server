@@ -18,6 +18,8 @@ package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import jakarta.annotation.Nullable;
 import java.net.HttpURLConnection;
 import java.util.HashSet;
@@ -47,6 +49,7 @@ public class ArchitectureApi {
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/project-intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
+  public static final String PROJECT_SUMMARIES_PATH = "/architecture/project-summaries";
   public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
   public static final List<String> FINDING_CATEGORIES = List.of("deviation", "flaw", "smell");
   public static final List<String> FINDING_TYPES = List.of("structuralDeviation", "relationshipDeviation", "tangle", "oversizedComponent", "weakTangle", "splitResponsibility");
@@ -352,6 +355,65 @@ public class ArchitectureApi {
       projectDirectives = List.copyOf(projectDirectives);
       Objects.requireNonNull(page);
     }
+  }
+
+  public List<ProjectSummary> getProjectSummaries(String projectKey, String organizationId, String branchId, @Nullable String language) {
+    var path = new UrlBuilder(PROJECT_SUMMARIES_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
+      .addParam(LANGUAGE_PARAM, language).build();
+    var response = read(projectKey, () -> fromJson(get(path), JsonObject.class));
+    if (response == null || !response.has("projectSummaries") || !response.get("projectSummaries").isJsonArray()) {
+      throw unexpectedResponse("Invalid project summaries.");
+    }
+    var seen = new HashSet<String>();
+    var summaries = new java.util.ArrayList<ProjectSummary>();
+    for (var element : response.getAsJsonArray("projectSummaries")) {
+      if (!element.isJsonObject()) {
+        throw unexpectedResponse("Invalid project summary.");
+      }
+      var item = element.getAsJsonObject();
+      var lang = item.get("language");
+      if (lang == null || !lang.isJsonPrimitive() || !lang.getAsJsonPrimitive().isString() || !LANGUAGES.contains(lang.getAsString())
+        || (language != null && !language.equals(lang.getAsString())) || !seen.add(lang.getAsString())) {
+        throw unexpectedResponse("Invalid project summary language.");
+      }
+      summaries.add(new ProjectSummary(lang.getAsString(), readCounts(item, "deviations", "structuralDeviation", "relationshipDeviation"),
+        readCounts(item, "flaws", "tangle", "oversizedComponent"), readCounts(item, "smells", "weakTangle", "splitResponsibility")));
+    }
+    return List.copyOf(summaries);
+  }
+
+  private static java.util.Map<String, Long> readCounts(JsonObject summary, String category, String first, String second) {
+    var element = summary.get(category);
+    if (element == null || !element.isJsonObject()) {
+      throw unexpectedResponse("Invalid project summary counts.");
+    }
+    var counts = element.getAsJsonObject();
+    long total = readCount(counts.get("total"));
+    long firstCount = readCount(counts.get(first));
+    long secondCount = readCount(counts.get(second));
+    if (firstCount > Long.MAX_VALUE - secondCount || total != firstCount + secondCount) {
+      throw unexpectedResponse("Inconsistent project summary counts.");
+    }
+    return java.util.Map.of("total", total, first, firstCount, second, secondCount);
+  }
+
+  private static long readCount(@Nullable JsonElement element) {
+    try {
+      if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+        throw unexpectedResponse("Invalid project summary count.");
+      }
+      long count = element.getAsBigDecimal().longValueExact();
+      if (count < 0 || count > 9007199254740991L) {
+        throw unexpectedResponse("Invalid project summary count.");
+      }
+      return count;
+    } catch (ArithmeticException | NumberFormatException e) {
+      throw unexpectedResponse("Invalid project summary count.");
+    }
+  }
+
+  public record ProjectSummary(String language, java.util.Map<String, Long> deviations, java.util.Map<String, Long> flaws,
+    java.util.Map<String, Long> smells) {
   }
 
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
