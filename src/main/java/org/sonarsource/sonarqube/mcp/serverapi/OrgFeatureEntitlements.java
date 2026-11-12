@@ -78,7 +78,7 @@ public class OrgFeatureEntitlements {
   }
 
   public boolean isVortexEnabledForAnyOrganization(List<ResolvedOrganization> organizations) {
-    var executor = Executors.newFixedThreadPool(4, Thread.ofPlatform().name("vortex-entitlement-", 0).factory());
+    var executor = Executors.newFixedThreadPool(4, Thread.ofPlatform().daemon(true).name("vortex-entitlement-", 0).factory());
     var completions = new ExecutorCompletionService<Boolean>(executor);
     var remaining = organizations.iterator();
     int pending = 0;

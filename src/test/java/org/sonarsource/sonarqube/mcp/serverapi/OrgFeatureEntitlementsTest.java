@@ -448,6 +448,7 @@ class OrgFeatureEntitlementsTest {
         calls.incrementAndGet();
         started.countDown();
         try {
+          assertThat(Thread.currentThread().isDaemon()).isTrue();
           assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
           if (org.key().equals("org-3")) {
             return true;
