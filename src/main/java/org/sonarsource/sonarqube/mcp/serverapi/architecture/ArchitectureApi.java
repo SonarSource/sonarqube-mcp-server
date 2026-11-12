@@ -18,8 +18,6 @@ package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import jakarta.annotation.Nullable;
 import java.net.HttpURLConnection;
 import java.util.HashSet;
@@ -38,6 +36,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDire
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFindingDeserializer;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.SummaryCountAdapter;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
@@ -57,8 +56,6 @@ public class ArchitectureApi {
   private static final String PROJECT_ID_PARAM = "projectId";
   private static final String ORGANIZATION_ID_PARAM = "organizationId";
   private static final String BRANCH_ID_PARAM = "branchId";
-  private static final String PROJECT_SUMMARIES = "projectSummaries";
-  private static final String INVALID_SUMMARY_COUNT = "Invalid project summary count.";
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
   private static final String LANGUAGE_PARAM = "language";
@@ -81,6 +78,7 @@ public class ArchitectureApi {
 
   private final ServerApiHelper helper;
   private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFindingDeserializer()).create();
+  private final Gson summaryGson = new GsonBuilder().registerTypeAdapter(Long.class, new SummaryCountAdapter().nullSafe()).create();
 
   public ArchitectureApi(ServerApiHelper helper) {
     this.helper = helper;
@@ -364,60 +362,45 @@ public class ArchitectureApi {
   public List<ProjectSummary> getProjectSummaries(String projectKey, String organizationId, String branchId, @Nullable String language) {
     var path = new UrlBuilder(PROJECT_SUMMARIES_PATH).addParam(ORGANIZATION_ID_PARAM, organizationId).addParam(BRANCH_ID_PARAM, branchId)
       .addParam(LANGUAGE_PARAM, language).build();
-    var response = read(projectKey, () -> fromJson(get(path), JsonObject.class));
-    if (response == null || !response.has(PROJECT_SUMMARIES) || !response.get(PROJECT_SUMMARIES).isJsonArray()) {
+    var response = read(projectKey, () -> fromJson(get(path), ProjectSummaries.class, summaryGson));
+    if (response.projectSummaries() == null) {
       throw unexpectedResponse("Invalid project summaries.");
     }
     var seen = new HashSet<String>();
-    var summaries = new java.util.ArrayList<ProjectSummary>();
-    for (var element : response.getAsJsonArray(PROJECT_SUMMARIES)) {
-      if (!element.isJsonObject()) {
-        throw unexpectedResponse("Invalid project summary.");
-      }
-      var item = element.getAsJsonObject();
-      var lang = item.get(LANGUAGE_PARAM);
-      if (lang == null || !lang.isJsonPrimitive() || !lang.getAsJsonPrimitive().isString() || !LANGUAGES.contains(lang.getAsString())
-        || (language != null && !language.equals(lang.getAsString())) || !seen.add(lang.getAsString())) {
+    for (var item : response.projectSummaries()) {
+      if (item == null || item.language() == null || !LANGUAGES.contains(item.language())
+        || (language != null && !language.equals(item.language())) || !seen.add(item.language())) {
         throw unexpectedResponse("Invalid project summary language.");
       }
-      summaries.add(new ProjectSummary(lang.getAsString(), readCounts(item, "deviations", "structuralDeviation", "relationshipDeviation"),
-        readCounts(item, "flaws", "tangle", "oversizedComponent"), readCounts(item, "smells", "weakTangle", "splitResponsibility")));
-    }
-    return List.copyOf(summaries);
-  }
-
-  private static java.util.Map<String, Long> readCounts(JsonObject summary, String category, String first, String second) {
-    var element = summary.get(category);
-    if (element == null || !element.isJsonObject()) {
-      throw unexpectedResponse("Invalid project summary counts.");
-    }
-    var counts = element.getAsJsonObject();
-    long total = readCount(counts.get("total"));
-    long firstCount = readCount(counts.get(first));
-    long secondCount = readCount(counts.get(second));
-    if (firstCount > Long.MAX_VALUE - secondCount || total != firstCount + secondCount) {
-      throw unexpectedResponse("Inconsistent project summary counts.");
-    }
-    return java.util.Map.of("total", total, first, firstCount, second, secondCount);
-  }
-
-  private static long readCount(@Nullable JsonElement element) {
-    try {
-      if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
-        throw unexpectedResponse(INVALID_SUMMARY_COUNT);
+      if (item.deviations() == null || item.flaws() == null || item.smells() == null) {
+        throw unexpectedResponse("Invalid project summary counts.");
       }
-      long count = element.getAsBigDecimal().longValueExact();
-      if (count < 0 || count > 9_007_199_254_740_991L) {
-        throw unexpectedResponse(INVALID_SUMMARY_COUNT);
-      }
-      return count;
-    } catch (ArithmeticException | NumberFormatException e) {
-      throw unexpectedResponse(INVALID_SUMMARY_COUNT);
+      validateCounts(item.deviations().total(), item.deviations().structuralDeviation(), item.deviations().relationshipDeviation());
+      validateCounts(item.flaws().total(), item.flaws().tangle(), item.flaws().oversizedComponent());
+      validateCounts(item.smells().total(), item.smells().weakTangle(), item.smells().splitResponsibility());
+    }
+    return List.copyOf(response.projectSummaries());
+  }
+
+  private static void validateCounts(@Nullable Long total, @Nullable Long first, @Nullable Long second) {
+    if (total == null || first == null || second == null || first > Long.MAX_VALUE - second || total != first + second) {
+      throw unexpectedResponse("Invalid or inconsistent project summary counts.");
     }
   }
 
-  public record ProjectSummary(String language, java.util.Map<String, Long> deviations, java.util.Map<String, Long> flaws,
-    java.util.Map<String, Long> smells) {
+  private record ProjectSummaries(List<ProjectSummary> projectSummaries) {
+  }
+
+  public record DeviationCounts(Long total, Long structuralDeviation, Long relationshipDeviation) {
+  }
+
+  public record FlawCounts(Long total, Long tangle, Long oversizedComponent) {
+  }
+
+  public record SmellCounts(Long total, Long weakTangle, Long splitResponsibility) {
+  }
+
+  public record ProjectSummary(String language, DeviationCounts deviations, FlawCounts flaws, SmellCounts smells) {
   }
 
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
@@ -484,8 +467,12 @@ public class ArchitectureApi {
   }
 
   private <T> T fromJson(HttpClient.Response toBeClosed, Class<T> type) {
+    return fromJson(toBeClosed, type, gson);
+  }
+
+  private static <T> T fromJson(HttpClient.Response toBeClosed, Class<T> type, Gson decoder) {
     try (var response = toBeClosed) {
-      return Objects.requireNonNull(gson.fromJson(response.bodyAsString(), type));
+      return Objects.requireNonNull(decoder.fromJson(response.bodyAsString(), type));
     } catch (RuntimeException invalid) {
       throw new IllegalStateException("Invalid public architecture response. " + API_RESPONSE_ERROR, invalid);
     }

@@ -58,6 +58,18 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
+  void preserves_largest_exact_count() {
+    stubMainBranch(harness);
+    var largeSummary = SUMMARY.replace("\"total\":3", "\"total\":9007199254740991")
+      .replace("\"structuralDeviation\":1", "\"structuralDeviation\":9007199254740990")
+      .replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":1");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + largeSummary + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("summaries").get(0)).isEqualTo(JsonParser.parseString(largeSummary));
+  }
+
+  @Test
   void reads_multiple_languages_without_a_language_filter() {
     stubMainBranch(harness);
     var pythonSummary = SUMMARY.replace("\"java\"", "\"py\"");
@@ -70,6 +82,12 @@ class ArchitectureSummaryToolTests {
   static java.util.stream.Stream<String> invalidCounts() {
     return java.util.stream.Stream.of(
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":3.5") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":\"3\"") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":null") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":true") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3,", "") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":-3") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":9007199254740992") + "]}",
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":4") + "]}",
       "{\"projectSummaries\":[" + SUMMARY + "," + SUMMARY + "]}",
       "{}", "{\"projectSummaries\":[null]}", "{\"projectSummaries\":[{\"language\":\"java\"}]}");
