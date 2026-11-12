@@ -50,12 +50,13 @@ public class ArchitectureGetTool extends Tool {
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
   public static final String FINDINGS = "findings";
+  public static final String SUMMARY = "summary";
   private static final String TYPE_PROPERTY = "type";
   private static final String CATEGORY_PROPERTY = "category";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
-  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
+  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS, SUMMARY};
   private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
   private final CurrentGraphReads currentReads;
 
@@ -78,10 +79,10 @@ public class ArchitectureGetTool extends Tool {
     var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
-      .setDescription("Read current graphs, intended architecture, project directives or findings.")
+      .setDescription("Read current graphs, intended architecture, directives, findings or summary counts.")
       .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
         "current: dependencies; intended: model; directives: project directives (directiveId); "
-          + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings or current from/to queries.")
+          + "findings: deviations, flaws and smells (category, type, language); summary: counts by language; pageIndex/pageSize apply to directives and findings or current from/to queries.")
       .addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
       .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
@@ -113,7 +114,7 @@ public class ArchitectureGetTool extends Tool {
 
     var selection = dependencySelection(arguments, target, component);
     var parameters = arguments.toMap();
-    if ((INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
+    if ((SUMMARY.equals(target) || INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
       && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
       throw new IllegalArgumentException("Pagination parameters are only used for directives, findings or current from/to queries.");
     }
@@ -123,6 +124,16 @@ public class ArchitectureGetTool extends Tool {
     }
     if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
       throw new IllegalArgumentException("type and category are only used for findings.");
+    }
+    if (SUMMARY.equals(target)) {
+      if (component != null || depth != null) {
+        throw new IllegalArgumentException("Summary reads do not accept component or depth filters.");
+      }
+      var organizationId = ArchitectureProjectContext.organizationId(serverApi);
+      var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
+      var summaries = serverApi.architectureApi().getProjectSummaries(projectKey, organizationId, branchId, language);
+      return Result.success(new SummaryView(projectKey, summaries,
+        summaries.isEmpty() ? "No architecture summaries are visible. Check project access and analysis." : null));
     }
     if (DIRECTIVES.equals(target)) {
       return directives(serverApi, projectKey, arguments, component, depth, language);
@@ -230,6 +241,9 @@ public class ArchitectureGetTool extends Tool {
   }
 
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
+  }
+
+  private record SummaryView(String project, List<ArchitectureApi.ProjectSummary> summaries, @Nullable String message) {
   }
 
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,
