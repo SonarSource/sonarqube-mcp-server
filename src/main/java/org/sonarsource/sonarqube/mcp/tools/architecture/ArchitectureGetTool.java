@@ -56,9 +56,11 @@ public class ArchitectureGetTool extends Tool {
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
-  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS, SUMMARY};
+  private static final String[] CLOUD_TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS, SUMMARY};
+  private static final String[] SERVER_TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
   private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
   private final CurrentGraphReads currentReads;
+  private final String[] targets;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
@@ -71,6 +73,7 @@ public class ArchitectureGetTool extends Tool {
   ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
     super(definition(isSonarQubeCloud, configuredProjectKey), ToolCategory.ARCHITECTURE);
     this.currentReads = currentReads;
+    this.targets = isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }
@@ -79,10 +82,12 @@ public class ArchitectureGetTool extends Tool {
     var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
-      .setDescription("Read current graphs, intended architecture, directives, findings or summary counts.")
-      .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
+      .setDescription("Read current graphs, intended architecture, directives or findings" + (isSonarQubeCloud ? " and summary counts." : "."))
+      .addRequiredEnumProperty(TARGET_PROPERTY, isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS,
         "current: dependencies; intended: model; directives: project directives (directiveId); "
-          + "findings: deviations, flaws and smells (category, type, language); summary: counts by language; pageIndex/pageSize apply to directives and findings or current from/to queries.")
+          + "findings: deviations, flaws and smells (category, type, language)"
+          + (isSonarQubeCloud ? "; summary: counts by language" : "")
+          + "; pageIndex/pageSize apply to directives and findings or current from/to queries.")
       .addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
       .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
@@ -103,7 +108,7 @@ public class ArchitectureGetTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
-    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, TARGETS);
+    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, targets);
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     var component = arguments.getOptionalString(COMPONENT_PROPERTY);
     var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);
@@ -243,7 +248,7 @@ public class ArchitectureGetTool extends Tool {
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private record SummaryView(String project, List<ArchitectureApi.ProjectSummary> summaries, @Nullable String message) {
+  private record SummaryView(String projectKey, List<ArchitectureApi.ProjectSummary> summaries, @Nullable String message) {
   }
 
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,

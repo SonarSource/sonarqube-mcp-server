@@ -49,6 +49,7 @@ class ArchitectureSummaryToolTests {
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + SUMMARY + "]}")));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
     assertThat(result.isError()).isFalse();
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().get("projectKey").getAsString()).isEqualTo("my_project");
     assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("summaries").get(0)).isEqualTo(JsonParser.parseString(SUMMARY));
   }
 
@@ -79,15 +80,13 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void reads_server_summary_using_the_public_server_route() {
-    stubMainBranch(harness);
-    var path = ArchitectureApi.SERVER_API_PREFIX + ArchitectureApi.PROJECT_SUMMARIES_PATH + "?organizationId="
-      + ArchitectureApi.SERVER_ORGANIZATION_ID + "&branchId=" + MAIN_BRANCH_ID + "&language=java";
-    harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson("{\"projectSummaries\":[" + SUMMARY + "]}")));
-    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME,
-      Map.of("target", "summary", "projectKey", "my_project", "language", "java"));
-    assertThat(result.isError()).isFalse();
-    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("summaries").get(0)).isEqualTo(JsonParser.parseString(SUMMARY));
+  void does_not_advertise_or_dispatch_summary_on_server() {
+    var client = harness.newClient();
+    var tool = client.listTools().stream().filter(t -> t.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
+    assertThat(tool.inputSchema().toString()).doesNotContain("summary");
+    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isTrue();
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("project-summaries")).isFalse();
   }
 
   @Test
@@ -108,12 +107,16 @@ class ArchitectureSummaryToolTests {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"component", "pageIndex", "category"})
+  @ValueSource(strings = {"component", "depth", "pageIndex", "category"})
   void rejects_parameters_that_do_not_apply_to_summary(String parameter) {
-    var value = parameter.equals("pageIndex") ? 1 : parameter.equals("category") ? "flaw" : "a";
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + SUMMARY + "]}")));
+    var value = parameter.equals("pageIndex") || parameter.equals("depth") ? 1 : parameter.equals("category") ? "flaw" : "a";
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "summary", "projectKey", "my_project", parameter, value));
     assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains(parameter.equals("category") ? "only used for findings" : parameter.equals("pageIndex") ? "Pagination parameters" : "Summary reads do not accept component or depth");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("project-summaries")).isFalse();
   }
 
   @ParameterizedTest
