@@ -24,7 +24,7 @@ The Server build must expose the public `/api/v2/components/projects` lookup and
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current`, `findings` and `summary` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
-  - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended/findings only - _String_
+  - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended/findings/summary only - _String_
   - `directiveId` - Directives only: full record, including description, by UUID; cannot be combined with paging - _String_
   - `category` - Findings only: `deviation`, `flaw` or `smell` - _Enum_
   - `type` - Findings only: `structuralDeviation`, `relationshipDeviation`, `tangle`, `oversizedComponent`, `weakTangle` or `splitResponsibility` - _Enum_
