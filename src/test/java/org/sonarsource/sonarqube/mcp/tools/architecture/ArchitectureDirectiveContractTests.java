@@ -65,7 +65,7 @@ class ArchitectureDirectiveContractTests {
     var readProperties = (Map<String, Map<String, Object>>) read.inputSchema().get("properties");
     assertThat(readProperties).containsOnlyKeys("organization", "target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category", "from", "to");
     assertThat(read.inputSchema()).containsEntry("required", List.of("target", "projectKey")).containsEntry("additionalProperties", false);
-    assertThat(readProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
+    assertThat(readProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings", "summary"));
     assertThat(readProperties.get("language")).containsEntry("enum", List.of("java", "cs", "js", "ts", "py"));
     for (var name : List.of("organization", "target", "projectKey", "component", "language", "directiveId", "type", "category", "from", "to")) {
       assertThat(readProperties.get(name)).containsEntry("type", "string");
