@@ -8,6 +8,8 @@ The Server build must expose the public `/api/v2/components/projects` lookup and
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, project directives, or deviations, flaws and smells with their details. Findings are read from the latest main-branch analysis. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export. `omittedNodes` counts nodes excluded by limits within the requested component/depth, not deeper descendants. Every returned node includes `descendants` and `truncated` navigation metadata; the five `drillDown` entries are suggestions. Selecting a leaf returns an explanatory message.
 
+  For per-language finding counts, use `target: summary` with an optional `language`. The response includes totals and counts by type for deviations, flaws and smells. An empty list means no summary is visible; it does not prove there are no findings. Numeric coverage is not included.
+
   Directive pages return `view: "summary"`: all matching page entries and their exact operation keys, origin and IDs, without descriptions. `descriptionOmitted` indicates whether a description is stored; use `directiveId` for the complete record. Summaries are not full exports. The default remains 50; pages are limited to 50 entries. Requests above 50 fail instead of being silently clamped. When reducing `pageSize`, restart at `pageIndex: 1` and continue paging. Backend totals are unchanged. This limit applies only to MCP list reads; write preflight and CLI pagination are unchanged. Backend pages still contain full records; this reduces tool output, not API transfer. Long keys and large pages can still produce large responses.
 
   For a focused dependency query, supply both `from` and `to` with exact current keys, without `component`. The query includes descendants and preserves direction. `depth` defaults to 1 (direct children, retaining leaves); use a returned pair or increase depth for detail. Matching leaf-level dependencies are aggregated before pagination, independent of the overview node cap. Ancestor/descendant aggregate rows are omitted; increase depth to inspect internal dependencies. Each page returns dependency keys/weights, `paging` metadata including the total, and `revision`; compare revisions before combining pages and restart if changed. Specify `language` if the pair matches multiple graphs. Container-level relationships overlapping both selected subtrees are rejected in this mode. Unrelated relationships are ignored. Matching graphs reject duplicate node IDs or ambiguous keys because complete dependency pages require unambiguous edge identities; the overview is best-effort. Counts limit rows, not bytes or tokens.
@@ -17,9 +19,9 @@ The Server build must expose the public `/api/v2/components/projects` lookup and
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
-  - `target` - `current`, `intended`, `directives` or `findings` - _Required Enum_
+  - `target` - `current`, `intended`, `directives`, `findings` or `summary` - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `organization` - SonarQube Cloud organization key when none is configured; required for `current` and `findings` - _Optional String_
+  - `organization` - SonarQube Cloud organization key when none is configured; required for `current`, `findings` and `summary` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
   - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended/findings only - _String_
