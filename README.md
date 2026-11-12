@@ -1475,7 +1475,7 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
   - `component` - Exact current node key or intended group path; top level when omitted - _String_
-  - `depth` - Current/intended only: levels below the start; default 1 for current, all for intended - _Number_
+  - `depth` - Current/intended only: levels below the start (1–64); default 1 for current, all levels when omitted for intended - _Integer_
   - `language` - Current/intended/findings only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
   - `directiveId` - Full directive by UUID, including description; use instead of paging - _String_
   - `category` / `type` - Findings only: filter deviations, flaws or smells by their advertised type - _Enum_
