@@ -86,8 +86,11 @@ class ArchitectureSummaryToolTests {
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":null") + "]}",
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":true") + "]}",
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3,", "") + "]}",
-      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":-3") + "]}",
-      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":9007199254740992") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"structuralDeviation\":1", "\"structuralDeviation\":-1")
+        .replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":4") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":9007199254740992")
+        .replace("\"structuralDeviation\":1", "\"structuralDeviation\":9007199254740992")
+        .replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":0") + "]}",
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":4") + "]}",
       "{\"projectSummaries\":[" + SUMMARY + "," + SUMMARY + "]}",
       "{}", "{\"projectSummaries\":[null]}", "{\"projectSummaries\":[{\"language\":\"java\"}]}");
