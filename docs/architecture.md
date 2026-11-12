@@ -8,7 +8,7 @@ The Server build must expose the public `/api/v2/components/projects` lookup and
 
 - **architecture_get** - Read current dependencies, intended groups and constraints, project directives, or deviations, flaws and smells with their details. Findings are read from the latest main-branch analysis. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export. `omittedNodes` counts nodes excluded by limits within the requested component/depth, not deeper descendants. Every returned node includes `descendants` and `truncated` navigation metadata; the five `drillDown` entries are suggestions. Selecting a leaf returns an explanatory message.
 
-  For per-language finding counts, use `target: summary` with an optional `language`. The response includes totals and counts by type for deviations, flaws and smells. An empty list means no summary is visible; it does not prove there are no findings. Numeric coverage is not included.
+  For per-language finding counts on Cloud, use `target: summary` with an optional `language`. The response includes totals and counts by type for deviations, flaws and smells. An empty list means no summary is visible; it does not prove there are no findings. Numeric coverage is not included.
 
   Directive pages return `view: "summary"`: all matching page entries and their exact operation keys, origin and IDs, without descriptions. `descriptionOmitted` indicates whether a description is stored; use `directiveId` for the complete record. Summaries are not full exports. The default remains 50; pages are limited to 50 entries. Requests above 50 fail instead of being silently clamped. When reducing `pageSize`, restart at `pageIndex: 1` and continue paging. Backend totals are unchanged. This limit applies only to MCP list reads; write preflight and CLI pagination are unchanged. Backend pages still contain full records; this reduces tool output, not API transfer. Long keys and large pages can still produce large responses.
 
@@ -19,7 +19,7 @@ The Server build must expose the public `/api/v2/components/projects` lookup and
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
-  - `target` - `current`, `intended`, `directives`, `findings` or `summary` - _Required Enum_
+  - `target` - `current`, `intended`, `directives`, `findings` or `summary` (Cloud only) - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured; required for `current`, `findings` and `summary` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
