@@ -28,6 +28,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.ProjectBranchesApi;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -95,6 +96,9 @@ class IntendedDiagnosticsTests {
     var api = mock(ServerApi.class);
     var architecture = mock(ArchitectureApi.class);
     var branches = mock(ProjectBranchesApi.class);
+    when(api.isSonarQubeCloud()).thenReturn(true);
+    when(api.getOrganization()).thenReturn("org");
+    when(api.resolveOrganizationUuid(any())).thenReturn(ArchitectureApi.SERVER_ORGANIZATION_ID);
     when(api.architectureApi()).thenReturn(architecture);
     when(api.projectBranchesApi()).thenReturn(branches);
     when(branches.getProjectId("project")).thenReturn(Optional.of("branch"));
@@ -124,6 +128,9 @@ class IntendedDiagnosticsTests {
     var api = mock(ServerApi.class);
     var architecture = mock(ArchitectureApi.class);
     var branches = mock(ProjectBranchesApi.class);
+    when(api.isSonarQubeCloud()).thenReturn(true);
+    when(api.getOrganization()).thenReturn("org");
+    when(api.resolveOrganizationUuid(any())).thenReturn(ArchitectureApi.SERVER_ORGANIZATION_ID);
     when(api.architectureApi()).thenReturn(architecture);
     when(api.projectBranchesApi()).thenReturn(branches);
     when(branches.getProjectId("project")).thenReturn(Optional.of("branch"));
@@ -141,6 +148,9 @@ class IntendedDiagnosticsTests {
     var api = mock(ServerApi.class);
     var architecture = mock(ArchitectureApi.class);
     var branches = mock(ProjectBranchesApi.class);
+    when(api.isSonarQubeCloud()).thenReturn(true);
+    when(api.getOrganization()).thenReturn("org");
+    when(api.resolveOrganizationUuid(any())).thenReturn(ArchitectureApi.SERVER_ORGANIZATION_ID);
     when(api.projectBranchesApi()).thenReturn(branches);
     when(branches.getProjectId("project")).thenThrow(new IllegalStateException("Branch lookup failed"));
     var groups = List.of(new IntendedArchitecture.Group("group", List.of("app/**"), null, null, null));
@@ -154,6 +164,16 @@ class IntendedDiagnosticsTests {
     assertThat(warnings.getLast()).startsWith("ts:");
     verify(branches).getProjectId("project");
     verifyNoInteractions(architecture);
+  }
+
+  @Test
+  void it_should_skip_discovery_on_server() {
+    var api = mock(ServerApi.class);
+    var reads = mock(CurrentGraphReads.class);
+    when(api.isSonarQubeCloud()).thenReturn(false);
+
+    assertThat(IntendedDiagnostics.inspect(api, "project", IntendedModels.parse(MODEL), reads)).isEmpty();
+    verifyNoInteractions(reads);
   }
 
 }
