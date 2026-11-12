@@ -20,15 +20,6 @@
         ],
         "executionMode": "branch"
       }
-    },
-    {
-      "matchUpdateTypes": [
-        "major",
-        "minor"
-      ],
-      "addLabels": [
-        "renovate-major-minor"
-      ]
     }
   ]
 }
