@@ -18,9 +18,13 @@ package org.sonarsource.sonarqube.mcp.serverapi;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +51,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.jsonResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrgFeatureEntitlementsTest {
@@ -389,6 +396,195 @@ class OrgFeatureEntitlementsTest {
   @Test
   void sara_should_stay_disabled_on_server_without_an_organization() {
     assertThat(serverOrgFeatureEntitlements.isSaraEnabledForOrg(null)).isFalse();
+  }
+
+  @Test
+  void it_should_bound_parallel_checks_and_scan_all_organizations() throws Exception {
+    var active = new AtomicInteger();
+    var maximum = new AtomicInteger();
+    var calls = new AtomicInteger();
+    var firstBatch = new CountDownLatch(4);
+    var release = new CountDownLatch(1);
+    var checks = new OrgFeatureEntitlements(cloudApi) {
+      @Override
+      public boolean isVortexEnabledForOrg(ResolvedOrganization org) {
+        maximum.accumulateAndGet(active.incrementAndGet(), Math::max);
+        calls.incrementAndGet();
+        firstBatch.countDown();
+        try {
+          assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+          return false;
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new AssertionError(e);
+        } finally {
+          active.decrementAndGet();
+        }
+      }
+    };
+    try (var caller = Executors.newSingleThreadExecutor()) {
+      var result = caller.submit(() -> checks.isVortexEnabledForAnyOrganization(organizations(40)));
+      try {
+        assertThat(firstBatch.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(calls.get()).isEqualTo(4);
+      } finally {
+        release.countDown();
+      }
+      assertThat(result.get(5, TimeUnit.SECONDS)).isFalse();
+    }
+    assertThat(maximum.get()).isEqualTo(4);
+    assertThat(calls.get()).isEqualTo(40);
+  }
+
+  @Test
+  void it_should_select_a_completed_success_without_waiting_or_scheduling_more() throws Exception {
+    var started = new CountDownLatch(4);
+    var release = new CountDownLatch(1);
+    var finished = new CountDownLatch(4);
+    var calls = new AtomicInteger();
+    var checks = new OrgFeatureEntitlements(cloudApi) {
+      @Override
+      public boolean isVortexEnabledForOrg(ResolvedOrganization org) {
+        calls.incrementAndGet();
+        started.countDown();
+        try {
+          assertThat(Thread.currentThread().isDaemon()).isTrue();
+          assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+          if (org.key().equals("org-3")) {
+            return true;
+          }
+          assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+          return false;
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new AssertionError(e);
+        } finally {
+          finished.countDown();
+        }
+      }
+    };
+    try (var caller = Executors.newSingleThreadExecutor()) {
+      var result = caller.submit(() -> checks.isVortexEnabledForAnyOrganization(organizations(40)));
+      try {
+        assertThat(result.get(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(calls.get()).isEqualTo(4);
+        assertThat(finished.getCount()).isEqualTo(3);
+      } finally {
+        release.countDown();
+      }
+      assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();
+    }
+  }
+
+  @Test
+  void it_should_find_a_late_entitled_organization_and_cache_completed_checks() {
+    var organizations = organizations(12);
+    for (var org : organizations) {
+      sonarqubeMock.stubFor(get(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + org.uuidV4()))
+        .willReturn(jsonResponse("{\"hasEntitlement\":%s}".formatted(org.key().equals("org-11")), 200)));
+    }
+    sonarqubeMock.stubFor(get(urlPathEqualTo(A3sAnalysisApi.A3S_ORG_CONFIG_PATH + "uuid-11"))
+      .willReturn(jsonResponse("{\"enabled\":true}", 200)));
+
+    assertThat(orgFeatureEntitlements.isVortexEnabledForAnyOrganization(organizations)).isTrue();
+    assertThat(orgFeatureEntitlements.isVortexEnabledForOrg(organizations.getLast())).isTrue();
+    sonarqubeMock.verify(1, getRequestedFor(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + "uuid-11")));
+  }
+
+  @Test
+  void it_should_reduce_scan_latency_with_delayed_responses() {
+    var organizations = organizations(12);
+    for (var org : organizations) {
+      sonarqubeMock.stubFor(get(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + org.uuidV4()))
+        .willReturn(jsonResponse("{\"hasEntitlement\":false}", 200).withFixedDelay(100)));
+    }
+    var sequential = new ServerApi(cloudHelper, true).orgFeatureEntitlements();
+    long start = System.nanoTime();
+    assertThat(organizations.stream().anyMatch(sequential::isVortexEnabledForOrg)).isFalse();
+    long sequentialNanos = System.nanoTime() - start;
+    start = System.nanoTime();
+    assertThat(orgFeatureEntitlements.isVortexEnabledForAnyOrganization(organizations)).isFalse();
+    long parallelNanos = System.nanoTime() - start;
+    assertThat(parallelNanos).isLessThan(sequentialNanos * 3 / 4);
+  }
+
+  @Test
+  void it_should_retry_failed_parallel_checks() {
+    sonarqubeMock.stubFor(get(urlPathEqualTo(CagApi.CAG_ENTITLEMENT_PATH + ORG_UUID))
+      .willReturn(aResponse().withStatus(500)));
+    assertThat(orgFeatureEntitlements.isVortexEnabledForAnyOrganization(List.of(ORG_WITH_KNOWN_UUID))).isFalse();
+    stubCagEntitlement(true);
+    stubA3sConfig(true);
+    assertThat(orgFeatureEntitlements.isVortexEnabledForAnyOrganization(List.of(ORG_WITH_KNOWN_UUID))).isTrue();
+    verifyLookupCounts(0, 2, 1);
+    assertThat(orgFeatureEntitlements.isVortexEnabledForAnyOrganization(List.of())).isFalse();
+  }
+
+  @Test
+  void it_should_check_colliding_organization_keys_without_holding_map_locks() throws Exception {
+    var api = spy(cloudApi);
+    var started = new CountDownLatch(2);
+    var release = new CountDownLatch(1);
+    var organizations = List.of(new ResolvedOrganization("Aa", "first"), new ResolvedOrganization("BB", "second"));
+    assertThat(organizations.getFirst().key()).hasSameHashCodeAs(organizations.getLast().key());
+    for (var org : organizations) {
+      doAnswer(invocation -> {
+        started.countDown();
+        assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+        return null;
+      }).when(api).resolveOrganizationUuid(org);
+    }
+    var checks = new OrgFeatureEntitlements(api);
+    try (var caller = Executors.newSingleThreadExecutor()) {
+      var result = caller.submit(() -> checks.isVortexEnabledForAnyOrganization(organizations));
+      try {
+        assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+      } finally {
+        release.countDown();
+      }
+      assertThat(result.get(5, TimeUnit.SECONDS)).isFalse();
+    }
+  }
+
+  @Test
+  void it_should_interrupt_active_checks_when_the_caller_is_interrupted() throws Exception {
+    var started = new CountDownLatch(4);
+    var interrupted = new CountDownLatch(4);
+    var release = new CountDownLatch(1);
+    var checks = new OrgFeatureEntitlements(cloudApi) {
+      @Override
+      public boolean isVortexEnabledForOrg(ResolvedOrganization org) {
+        started.countDown();
+        try {
+          release.await();
+          return false;
+        } catch (InterruptedException e) {
+          interrupted.countDown();
+          Thread.currentThread().interrupt();
+          return false;
+        }
+      }
+    };
+    try (var caller = Executors.newSingleThreadExecutor()) {
+      var organizations = organizations(8);
+      var result = caller.submit(() -> {
+        assertThatThrownBy(() -> checks.isVortexEnabledForAnyOrganization(organizations))
+          .isInstanceOf(IllegalStateException.class).hasCauseInstanceOf(InterruptedException.class);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      });
+      try {
+        assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+        caller.shutdownNow();
+        result.get(5, TimeUnit.SECONDS);
+        assertThat(interrupted.await(5, TimeUnit.SECONDS)).isTrue();
+      } finally {
+        release.countDown();
+      }
+    }
+  }
+
+  private static List<ResolvedOrganization> organizations(int count) {
+    return IntStream.range(0, count).mapToObj(i -> new ResolvedOrganization("org-" + i, "uuid-" + i)).toList();
   }
 
   private void stubCagEntitlement(boolean hasEntitlement) {
