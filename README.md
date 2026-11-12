@@ -1470,13 +1470,13 @@ The feature flag is checked at startup in stdio mode. Over HTTP/HTTPS, add `agen
 
 **Note: Enable these tools with `SONARQUBE_TOOLSETS=architecture` in stdio or HTTP/HTTPS mode. SonarQube Cloud requires a Team or Enterprise plan. SonarQube Server requires version 2026.6 or later and a Developer edition or higher; the tools are not available on older versions or Community Build.** See [architecture workflows and recovery](docs/architecture.md).
 
-- **architecture_get** - Read current dependencies, intended architecture, project directives, or Findings (deviations, flaws and smells).
-  - `target` - `current`, `intended`, `directives` or `findings`; availability depends on the MCP and Server build - _Required Enum_
+- **architecture_get** - Read current dependencies, intended architecture, project directives, findings, or per-language finding counts.
+  - `target` - `current`, `intended`, `directives`, `findings` or `summary` (Cloud only); availability depends on the MCP build - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
   - `organization` - SonarQube Cloud organization key when none is configured - _Optional String, Cloud only_
   - `component` - Exact current node key or intended group path; top level when omitted - _String_
   - `depth` - Current/intended only: levels below the start; default 1 for current, all for intended - _Number_
-  - `language` - Current/intended/findings only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
+  - `language` - Current/intended/findings/summary only: `java`, `cs`, `js`, `ts` or `py` - _Enum_
   - `directiveId` - Full directive by UUID, including description; use instead of paging - _String_
   - `category` / `type` - Findings only: filter deviations, flaws or smells by their advertised type - _Enum_
   - `pageIndex` - Directives/Findings: 1-based page index (default: 1) - _Number_
