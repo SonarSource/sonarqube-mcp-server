@@ -24,12 +24,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
+import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.CLOUD_ENV;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.CLOUD_ORGANIZATION_ID;
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.MAIN_BRANCH_ID;
@@ -67,7 +71,8 @@ class ArchitectureSummaryToolTests {
     return java.util.stream.Stream.of(
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":3.5") + "]}",
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":4") + "]}",
-      "{\"projectSummaries\":[" + SUMMARY + "," + SUMMARY + "]}");
+      "{\"projectSummaries\":[" + SUMMARY + "," + SUMMARY + "]}",
+      "{}", "{\"projectSummaries\":[null]}", "{\"projectSummaries\":[{\"language\":\"java\"}]}");
   }
 
   @ParameterizedTest
@@ -77,6 +82,17 @@ class ArchitectureSummaryToolTests {
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson(response)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"branch", "pullRequest"})
+  void rejects_non_main_scope_instead_of_returning_main_counts(String parameter) {
+    var api = mock(ServerApi.class);
+    var tool = new ArchitectureGetTool(() -> api, true, null);
+    var arguments = new Tool.Arguments(Map.of("target", "summary", "projectKey", "my_project", parameter, "other"), null);
+    assertThatThrownBy(() -> tool.execute(arguments))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("Summary reads support the main branch only");
   }
 
   @Test
@@ -119,12 +135,5 @@ class ArchitectureSummaryToolTests {
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("project-summaries")).isFalse();
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"{}", "{\"projectSummaries\":[null]}", "{\"projectSummaries\":[{\"language\":\"java\"}]}"})
-  void rejects_invalid_response(String response) {
-    stubMainBranch(harness);
-    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson(response)));
-    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
-    assertThat(result.isError()).isTrue();
-  }
+
 }

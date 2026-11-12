@@ -55,6 +55,10 @@ public class ArchitectureApi {
   public static final List<String> FINDING_TYPES = List.of("structuralDeviation", "relationshipDeviation", "tangle", "oversizedComponent", "weakTangle", "splitResponsibility");
   public static final String SERVER_API_PREFIX = "/api/v2";
   private static final String PROJECT_ID_PARAM = "projectId";
+  private static final String ORGANIZATION_ID_PARAM = "organizationId";
+  private static final String BRANCH_ID_PARAM = "branchId";
+  private static final String PROJECT_SUMMARIES = "projectSummaries";
+  private static final String INVALID_SUMMARY_COUNT = "Invalid project summary count.";
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
   private static final String LANGUAGE_PARAM = "language";
@@ -91,8 +95,8 @@ public class ArchitectureApi {
    */
   public List<StructureGraph> getStructure(String projectKey, String organizationId, String branchId, String language) {
     var path = new UrlBuilder(CURRENT_ARCHITECTURES_PATH)
-      .addParam("organizationId", organizationId)
-      .addParam("branchId", branchId)
+      .addParam(ORGANIZATION_ID_PARAM, organizationId)
+      .addParam(BRANCH_ID_PARAM, branchId)
       .addParam(LANGUAGE_PARAM, language)
       .build();
     CurrentArchitectures response;
@@ -358,20 +362,20 @@ public class ArchitectureApi {
   }
 
   public List<ProjectSummary> getProjectSummaries(String projectKey, String organizationId, String branchId, @Nullable String language) {
-    var path = new UrlBuilder(PROJECT_SUMMARIES_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
+    var path = new UrlBuilder(PROJECT_SUMMARIES_PATH).addParam(ORGANIZATION_ID_PARAM, organizationId).addParam(BRANCH_ID_PARAM, branchId)
       .addParam(LANGUAGE_PARAM, language).build();
     var response = read(projectKey, () -> fromJson(get(path), JsonObject.class));
-    if (response == null || !response.has("projectSummaries") || !response.get("projectSummaries").isJsonArray()) {
+    if (response == null || !response.has(PROJECT_SUMMARIES) || !response.get(PROJECT_SUMMARIES).isJsonArray()) {
       throw unexpectedResponse("Invalid project summaries.");
     }
     var seen = new HashSet<String>();
     var summaries = new java.util.ArrayList<ProjectSummary>();
-    for (var element : response.getAsJsonArray("projectSummaries")) {
+    for (var element : response.getAsJsonArray(PROJECT_SUMMARIES)) {
       if (!element.isJsonObject()) {
         throw unexpectedResponse("Invalid project summary.");
       }
       var item = element.getAsJsonObject();
-      var lang = item.get("language");
+      var lang = item.get(LANGUAGE_PARAM);
       if (lang == null || !lang.isJsonPrimitive() || !lang.getAsJsonPrimitive().isString() || !LANGUAGES.contains(lang.getAsString())
         || (language != null && !language.equals(lang.getAsString())) || !seen.add(lang.getAsString())) {
         throw unexpectedResponse("Invalid project summary language.");
@@ -400,15 +404,15 @@ public class ArchitectureApi {
   private static long readCount(@Nullable JsonElement element) {
     try {
       if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
-        throw unexpectedResponse("Invalid project summary count.");
+        throw unexpectedResponse(INVALID_SUMMARY_COUNT);
       }
       long count = element.getAsBigDecimal().longValueExact();
-      if (count < 0 || count > 9007199254740991L) {
-        throw unexpectedResponse("Invalid project summary count.");
+      if (count < 0 || count > 9_007_199_254_740_991L) {
+        throw unexpectedResponse(INVALID_SUMMARY_COUNT);
       }
       return count;
     } catch (ArithmeticException | NumberFormatException e) {
-      throw unexpectedResponse("Invalid project summary count.");
+      throw unexpectedResponse(INVALID_SUMMARY_COUNT);
     }
   }
 
@@ -418,7 +422,7 @@ public class ArchitectureApi {
 
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
     validateFindingPage(pageIndex, pageSize);
-    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
+    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam(ORGANIZATION_ID_PARAM, organizationId).addParam(BRANCH_ID_PARAM, branchId)
       .addParam("category", filters.category()).addParam("type", filters.type()).addParam(LANGUAGE_PARAM, filters.language())
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var page = read(projectKey, () -> fromJson(get(path), FindingPageResponse.class));

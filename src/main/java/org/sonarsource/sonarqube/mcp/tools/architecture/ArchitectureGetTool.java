@@ -131,14 +131,7 @@ public class ArchitectureGetTool extends Tool {
       throw new IllegalArgumentException("type and category are only used for findings.");
     }
     if (SUMMARY.equals(target)) {
-      if (component != null || depth != null) {
-        throw new IllegalArgumentException("Summary reads do not accept component or depth filters.");
-      }
-      var organizationId = ArchitectureProjectContext.organizationId(serverApi);
-      var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
-      var summaries = serverApi.architectureApi().getProjectSummaries(projectKey, organizationId, branchId, language);
-      return Result.success(new SummaryView(projectKey, summaries,
-        summaries.isEmpty() ? "No architecture summaries are visible. Check project access and analysis." : null));
+      return summary(serverApi, projectKey, arguments, component, depth, language);
     }
     if (DIRECTIVES.equals(target)) {
       return directives(serverApi, projectKey, arguments, component, depth, language);
@@ -150,6 +143,20 @@ public class ArchitectureGetTool extends Tool {
       return readCurrent(serverApi, projectKey, component, depth, language, selection);
     }
     return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.projectId(serverApi, projectKey), component, depth, language);
+  }
+
+  private static Result summary(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
+    if (arguments.toMap().get("branch") != null || arguments.toMap().get("pullRequest") != null) {
+      throw new IllegalArgumentException("Summary reads support the main branch only.");
+    }
+    if (component != null || depth != null) {
+      throw new IllegalArgumentException("Summary reads do not accept component or depth filters.");
+    }
+    var organizationId = ArchitectureProjectContext.organizationId(serverApi);
+    var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
+    var summaries = serverApi.architectureApi().getProjectSummaries(projectKey, organizationId, branchId, language);
+    return Result.success(new SummaryView(projectKey, summaries,
+      summaries.isEmpty() ? "No architecture summaries are visible. Check project access and analysis." : null));
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
@@ -172,7 +179,7 @@ public class ArchitectureGetTool extends Tool {
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
     var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(MAX_DIRECTIVE_PAGE_SIZE));
-    return Result.success(new DirectivesView(projectKey, "summary",
+    return Result.success(new DirectivesView(projectKey, SUMMARY,
       page.projectDirectives().stream().map(DirectiveResponses::summary).toList(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
