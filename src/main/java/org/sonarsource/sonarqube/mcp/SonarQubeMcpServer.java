@@ -494,7 +494,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     return !mcpConfiguration.isHttpEnabled() && !mcpConfiguration.isForceLocalAnalysis() && mcpConfiguration.getWorkspacePath() != null
       && vortexRelevantToolsetEnabled && (resolvedOrganization != null ? vortexEnabledForOrg
-        : organizations.stream().anyMatch(org -> serverApi.orgFeatureEntitlements().isVortexEnabledForOrg(org)));
+        : serverApi.orgFeatureEntitlements().isVortexEnabledForAnyOrganization(organizations));
   }
 
   private void loadAnalysisTools(boolean vortexAnalysisEnabled) {
