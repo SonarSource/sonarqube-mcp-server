@@ -146,6 +146,8 @@ class ArchitectureSummaryToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
     assertThat(result.isError()).isFalse();
     assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().get("skippedSummaries").getAsInt()).isEqualTo(1);
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().get("message").getAsString())
+      .isEqualTo("Skipped 1 summary result(s) with unsupported languages.");
   }
 
   @ParameterizedTest

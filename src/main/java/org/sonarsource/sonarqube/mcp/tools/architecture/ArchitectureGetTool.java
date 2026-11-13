@@ -155,8 +155,13 @@ public class ArchitectureGetTool extends Tool {
     var organizationId = ArchitectureProjectContext.organizationId(serverApi);
     var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
     var result = serverApi.architectureApi().getProjectSummaries(projectKey, organizationId, branchId, language);
-    return Result.success(new SummaryView(projectKey, result.summaries(), result.skippedSummaries(),
-      result.summaries().isEmpty() && result.skippedSummaries() == null ? "No architecture summaries are visible. Check project access and analysis." : null));
+    String message = null;
+    if (result.skippedSummaries() != null) {
+      message = "Skipped %d summary result(s) with unsupported languages.".formatted(result.skippedSummaries());
+    } else if (result.summaries().isEmpty()) {
+      message = "No architecture summaries are visible. Check project access and analysis.";
+    }
+    return Result.success(new SummaryView(projectKey, result.summaries(), result.skippedSummaries(), message));
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
