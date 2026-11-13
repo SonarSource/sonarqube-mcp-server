@@ -326,6 +326,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     backendService.notifyTransportModeUsed();
 
     setBaseInstructions();
+    if (architectureSupported && mcpConfiguration.isToolCategoryEnabled(ToolCategory.ARCHITECTURE)) {
+      composedInstructions += ArchitectureTools.INSTRUCTIONS;
+    }
 
     // Vortex is one product (CAG + SQAA). Stdio only. Both hubs entitled → load all Vortex tools.
     var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
