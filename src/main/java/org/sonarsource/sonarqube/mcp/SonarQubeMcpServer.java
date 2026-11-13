@@ -73,6 +73,7 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
 import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
@@ -326,7 +327,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     backendService.notifyTransportModeUsed();
 
     setBaseInstructions();
-    if (architectureSupported && mcpConfiguration.isToolCategoryEnabled(ToolCategory.ARCHITECTURE)) {
+    if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.ARCHITECTURE) && supportedTools.stream().anyMatch(ArchitectureGetTool.class::isInstance)) {
       composedInstructions += ArchitectureTools.INSTRUCTIONS;
     }
 
