@@ -24,6 +24,18 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 
 public final class ArchitectureTools {
 
+  public static final String INSTRUCTIONS = """
+
+    ## Architecture
+    When architecture_get is available, call it with target intended before your first code edit in a task. \
+    The project can have an intended architecture in SonarQube that says which parts of the code may depend on which.
+    1. Before you add a dependency between folders, packages or modules, or create a new one, call architecture_get \
+    with target intended and follow its constraints. A dependency that no constraint allows is a deviation. \
+    Call it again with component set to each group you change to get only the constraints that involve it. \
+    If it reports that a file manages the intended architecture, read the constraints from that file instead.
+    2. Before you finish a code change, compare every dependency you added with those constraints and fix any that are not allowed.
+    Do not change the intended architecture unless the user asks.""";
+
   private ArchitectureTools() {
   }
 
