@@ -28,6 +28,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummary;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -73,9 +74,13 @@ public class ArchitectureGetTool extends Tool {
   ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
     super(definition(isSonarQubeCloud, configuredProjectKey), ToolCategory.ARCHITECTURE);
     this.currentReads = currentReads;
-    this.targets = isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS;
+    this.targets = targets(isSonarQubeCloud);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
+  }
+
+  private static String[] targets(boolean cloud) {
+    return cloud ? CLOUD_TARGETS : SERVER_TARGETS;
   }
 
   private static McpSchema.Tool definition(boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
@@ -83,10 +88,10 @@ public class ArchitectureGetTool extends Tool {
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
       .setDescription("Read current graphs, intended architecture, directives or findings" + (isSonarQubeCloud ? " and summary counts." : "."))
-      .addRequiredEnumProperty(TARGET_PROPERTY, isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS,
+      .addRequiredEnumProperty(TARGET_PROPERTY, targets(isSonarQubeCloud),
         "current: dependencies; intended: model; directives: project directives (directiveId); "
           + "findings: deviations, flaws and smells (category, type, language)"
-          + (isSonarQubeCloud ? "; summary: counts by language" : "")
+          + (isSonarQubeCloud ? "; summary: deviation, flaw and smell counts per language (main branch)" : "")
           + "; pageIndex/pageSize apply to directives and findings or current from/to queries.")
       .addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
       .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
@@ -159,7 +164,8 @@ public class ArchitectureGetTool extends Tool {
     if (result.skippedSummaries() != null) {
       message = "Skipped %d summary result(s) with unsupported languages.".formatted(result.skippedSummaries());
     } else if (result.summaries().isEmpty()) {
-      message = "No architecture summaries are visible. Check project access and analysis.";
+      message = language == null ? "No architecture summaries are visible. Check project access and analysis."
+        : "No architecture summaries match language=" + language + ". Check project access and analysis.";
     }
     return Result.success(new SummaryView(projectKey, result.summaries(), result.skippedSummaries(), message));
   }
@@ -184,7 +190,7 @@ public class ArchitectureGetTool extends Tool {
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
     var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(MAX_DIRECTIVE_PAGE_SIZE));
-    return Result.success(new DirectivesView(projectKey, SUMMARY,
+    return Result.success(new DirectivesView(projectKey, "summary",
       page.projectDirectives().stream().map(DirectiveResponses::summary).toList(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
@@ -260,7 +266,7 @@ public class ArchitectureGetTool extends Tool {
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private record SummaryView(String projectKey, List<ArchitectureApi.ProjectSummary> summaries, @Nullable Integer skippedSummaries, @Nullable String message) {
+  private record SummaryView(String projectKey, List<ProjectSummary> summaries, @Nullable Integer skippedSummaries, @Nullable String message) {
   }
 
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,

@@ -24,6 +24,8 @@ import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
 
+import static org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureNumbers.MAX_SAFE_INTEGER;
+
 /** Reads summary counts without Gson's numeric coercion. */
 public final class SummaryCountAdapter extends TypeAdapter<Long> {
   @Override
@@ -33,7 +35,7 @@ public final class SummaryCountAdapter extends TypeAdapter<Long> {
     }
     try {
       long count = new BigDecimal(reader.nextString()).longValueExact();
-      if (count < 0 || count > 9_007_199_254_740_991L) {
+      if (count < 0 || count > MAX_SAFE_INTEGER) {
         throw new JsonParseException("Invalid project summary count.");
       }
       return count;

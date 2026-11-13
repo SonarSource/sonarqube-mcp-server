@@ -18,10 +18,14 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import com.google.gson.JsonParser;
 import java.util.Map;
+import java.util.List;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
@@ -48,7 +52,7 @@ class ArchitectureSummaryToolTests {
   final SonarQubeMcpServerTestHarness harness = new SonarQubeMcpServerTestHarness();
 
   @Test
-  void reads_public_summary() {
+  void it_should_reads_public_summary() {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + SUMMARY + "]}")));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
@@ -58,7 +62,7 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void preserves_largest_exact_count() {
+  void it_should_preserves_largest_exact_count() {
     stubMainBranch(harness);
     var largeSummary = SUMMARY.replace("\"total\":3", "\"total\":9007199254740991")
       .replace("\"structuralDeviation\":1", "\"structuralDeviation\":9007199254740990")
@@ -70,7 +74,7 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void reads_multiple_languages_without_a_language_filter() {
+  void it_should_reads_multiple_languages_without_a_language_filter() {
     stubMainBranch(harness);
     var pythonSummary = SUMMARY.replace("\"java\"", "\"py\"");
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + SUMMARY + "," + pythonSummary + "]}")));
@@ -79,8 +83,8 @@ class ArchitectureSummaryToolTests {
     assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("summaries")).hasSize(2);
   }
 
-  static java.util.stream.Stream<String> invalidCounts() {
-    return java.util.stream.Stream.of(
+  static Stream<Arguments> invalidCounts() {
+    var responses = List.of(
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":3.5") + "]}",
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":\"3\"") + "]}",
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":null") + "]}",
@@ -93,20 +97,28 @@ class ArchitectureSummaryToolTests {
         .replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":0") + "]}",
       "{\"projectSummaries\":[" + SUMMARY + "," + SUMMARY + "]}",
       "{}", "{\"projectSummaries\":[null]}", "{\"projectSummaries\":[{\"language\":\"java\"}]}");
+    var expected = List.of("Invalid public architecture response", "Invalid public architecture response",
+      "Invalid or inconsistent project summary counts", "Invalid public architecture response",
+      "Invalid or inconsistent project summary counts", "Invalid public architecture response",
+      "Invalid public architecture response", "Invalid project summary language", "Invalid project summaries",
+      "Invalid project summary language", "Invalid project summary counts");
+    return IntStream.range(0, responses.size()).mapToObj(i -> Arguments.of(responses.get(i), expected.get(i)));
   }
 
   @ParameterizedTest
   @MethodSource("invalidCounts")
-  void rejects_invalid_counts_and_duplicate_languages(String response) {
+  void it_should_rejects_invalid_counts_and_duplicate_languages(String response, String expectedMessage) {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson(response)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains(expectedMessage);
+    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("project-summaries")).isTrue();
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"branch", "pullRequest"})
-  void rejects_non_main_scope_instead_of_returning_main_counts(String parameter) {
+  void it_should_rejects_non_main_scope_instead_of_returning_main_counts(String parameter) {
     var api = mock(ServerApi.class);
     var tool = new ArchitectureGetTool(() -> api, true, null);
     var arguments = new Tool.Arguments(Map.of("target", "summary", "projectKey", "my_project", parameter, "other"), null);
@@ -116,7 +128,7 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void does_not_advertise_or_dispatch_summary_on_server() {
+  void it_should_does_not_advertise_or_dispatch_summary_on_server() {
     var client = harness.newClient();
     var tool = client.listTools().stream().filter(t -> t.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     assertThat(tool.inputSchema().toString()).doesNotContain("summary");
@@ -126,7 +138,7 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void skips_future_languages_and_preserves_backend_totals() {
+  void it_should_skips_future_languages_and_preserves_backend_totals() {
     stubMainBranch(harness);
     var inconsistent = SUMMARY.replace("\"total\":3", "\"total\":4");
     var future = SUMMARY.replace("\"java\"", "\"go\"");
@@ -139,7 +151,7 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void skips_unknown_language_without_decoding_its_evolving_counts() {
+  void it_should_skips_unknown_language_without_decoding_its_evolving_counts() {
     stubMainBranch(harness);
     var future = "{\"language\":\"go\",\"deviations\":{\"total\":\"future\"}}";
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + future + "]}")));
@@ -152,7 +164,7 @@ class ArchitectureSummaryToolTests {
 
   @ParameterizedTest
   @ValueSource(strings = {"123", "true"})
-  void rejects_non_string_languages(String language) {
+  void it_should_rejects_non_string_languages(String language) {
     stubMainBranch(harness);
     var invalid = SUMMARY.replace("\"java\"", language);
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + invalid + "]}")));
@@ -161,7 +173,7 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void empty_summary_is_not_a_zero_measurement() {
+  void it_should_empty_summary_is_not_a_zero_measurement() {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[]}")));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
@@ -170,7 +182,34 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void reports_permission_errors() {
+  void it_should_filter_summaries_by_language() {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "&language=java").willReturn(okJson("{\"projectSummaries\":[" + SUMMARY + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project", "language", "java"));
+    assertThat(result.isError()).isFalse();
+    assertThat(textOf(result)).contains("java");
+  }
+
+  @Test
+  void it_should_describe_an_empty_language_filter() {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "&language=ts").willReturn(okJson("{\"projectSummaries\":[]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project", "language", "ts"));
+    assertThat(result.isError()).isFalse();
+    assertThat(textOf(result)).contains("No architecture summaries match language=ts");
+  }
+
+  @Test
+  void it_should_reject_a_mismatched_language() {
+    stubMainBranch(harness);
+    harness.getMockSonarQubeServer().stubFor(get(PATH + "&language=ts").willReturn(okJson("{\"projectSummaries\":[" + SUMMARY + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project", "language", "ts"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Invalid project summary language");
+  }
+
+  @Test
+  void it_should_reports_permission_errors() {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(aResponse().withStatus(403)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
@@ -179,7 +218,7 @@ class ArchitectureSummaryToolTests {
 
   @ParameterizedTest
   @ValueSource(strings = {"component", "depth", "pageIndex", "category"})
-  void rejects_parameters_that_do_not_apply_to_summary(String parameter) {
+  void it_should_rejects_parameters_that_do_not_apply_to_summary(String parameter) {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + SUMMARY + "]}")));
     var value = parameter.equals("pageIndex") || parameter.equals("depth") ? 1 : parameter.equals("category") ? "flaw" : "a";
@@ -189,6 +228,5 @@ class ArchitectureSummaryToolTests {
     assertThat(textOf(result)).contains(parameter.equals("category") ? "only used for findings" : parameter.equals("pageIndex") ? "Pagination parameters" : "Summary reads do not accept component or depth");
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("project-summaries")).isFalse();
   }
-
 
 }

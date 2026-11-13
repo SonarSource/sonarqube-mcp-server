@@ -20,6 +20,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import jakarta.annotation.Nullable;
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -36,7 +37,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDire
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFindingDeserializer;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
-import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.SummaryCountAdapter;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummary;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummaryDeserializer;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
@@ -79,8 +80,7 @@ public class ArchitectureApi {
 
   private final ServerApiHelper helper;
   private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFindingDeserializer()).create();
-  private final Gson summaryGson = new GsonBuilder().registerTypeAdapter(Long.class, new SummaryCountAdapter().nullSafe())
-    .registerTypeAdapter(ProjectSummary.class, new ProjectSummaryDeserializer()).create();
+  private final Gson summaryGson = new GsonBuilder().registerTypeAdapter(ProjectSummary.class, new ProjectSummaryDeserializer()).create();
 
   public ArchitectureApi(ServerApiHelper helper) {
     this.helper = helper;
@@ -369,7 +369,7 @@ public class ArchitectureApi {
       throw unexpectedResponse("Invalid project summaries.");
     }
     var seen = new HashSet<String>();
-    var summaries = new java.util.ArrayList<ProjectSummary>();
+    var summaries = new ArrayList<ProjectSummary>();
     int skipped = 0;
     for (var item : response.projectSummaries()) {
       if (item == null || item.language() == null
@@ -401,18 +401,6 @@ public class ArchitectureApi {
   }
 
   private record ProjectSummaries(List<ProjectSummary> projectSummaries) {
-  }
-
-  public record DeviationCounts(Long total, Long structuralDeviation, Long relationshipDeviation) {
-  }
-
-  public record FlawCounts(Long total, Long tangle, Long oversizedComponent) {
-  }
-
-  public record SmellCounts(Long total, Long weakTangle, Long splitResponsibility) {
-  }
-
-  public record ProjectSummary(String language, @Nullable DeviationCounts deviations, @Nullable FlawCounts flaws, @Nullable SmellCounts smells) {
   }
 
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
