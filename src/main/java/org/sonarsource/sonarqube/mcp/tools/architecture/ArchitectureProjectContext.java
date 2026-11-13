@@ -56,12 +56,12 @@ final class ArchitectureProjectContext {
         return requireAnalyzedBranch(projectKey, selected.branchId(), selected.analysisDate());
       }
     }
-    throw new IllegalStateException("Project '" + projectKey + "' has no main branch. Analyze the main branch before requesting findings.");
+    throw new IllegalStateException("Project '" + projectKey + "' has no main branch. Analyze the main branch before requesting architecture data.");
   }
 
   static String requireAnalyzedBranch(String projectKey, @Nullable String branchId, @Nullable String analysisDate) {
     if (branchId == null || branchId.isBlank() || analysisDate == null || analysisDate.isBlank()) {
-      throw new IllegalStateException("The selected branch for project '" + projectKey + "' has not been analyzed. Analyze it before requesting findings.");
+      throw new IllegalStateException("The selected branch for project '" + projectKey + "' has not been analyzed. Analyze it before requesting architecture data.");
     }
     return branchId;
   }

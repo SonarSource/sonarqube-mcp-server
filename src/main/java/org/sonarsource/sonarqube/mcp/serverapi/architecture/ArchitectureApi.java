@@ -20,6 +20,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import jakarta.annotation.Nullable;
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +37,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDire
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFindingDeserializer;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummary;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummaryDeserializer;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
@@ -47,11 +50,14 @@ public class ArchitectureApi {
   public static final String CURRENT_ARCHITECTURES_PATH = "/architecture/current-architectures";
   public static final String INTENDED_ARCHITECTURES_PATH = "/architecture/project-intended-architectures";
   public static final String PROJECT_DIRECTIVES_PATH = "/architecture/project-directives";
+  public static final String PROJECT_SUMMARIES_PATH = "/architecture/project-summaries";
   public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
   public static final List<String> FINDING_CATEGORIES = List.of("deviation", "flaw", "smell");
   public static final List<String> FINDING_TYPES = List.of("structuralDeviation", "relationshipDeviation", "tangle", "oversizedComponent", "weakTangle", "splitResponsibility");
   public static final String SERVER_API_PREFIX = "/api/v2";
   private static final String PROJECT_ID_PARAM = "projectId";
+  private static final String ORGANIZATION_ID_PARAM = "organizationId";
+  private static final String BRANCH_ID_PARAM = "branchId";
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
   private static final String LANGUAGE_PARAM = "language";
@@ -74,6 +80,7 @@ public class ArchitectureApi {
 
   private final ServerApiHelper helper;
   private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFindingDeserializer()).create();
+  private final Gson summaryGson = new GsonBuilder().registerTypeAdapter(ProjectSummary.class, new ProjectSummaryDeserializer()).create();
 
   public ArchitectureApi(ServerApiHelper helper) {
     this.helper = helper;
@@ -88,8 +95,8 @@ public class ArchitectureApi {
    */
   public List<StructureGraph> getStructure(String projectKey, String organizationId, String branchId, String language) {
     var path = new UrlBuilder(CURRENT_ARCHITECTURES_PATH)
-      .addParam("organizationId", organizationId)
-      .addParam("branchId", branchId)
+      .addParam(ORGANIZATION_ID_PARAM, organizationId)
+      .addParam(BRANCH_ID_PARAM, branchId)
       .addParam(LANGUAGE_PARAM, language)
       .build();
     CurrentArchitectures response;
@@ -354,9 +361,51 @@ public class ArchitectureApi {
     }
   }
 
+  public SummaryResult getProjectSummaries(String projectKey, String organizationId, String branchId, @Nullable String language) {
+    var path = new UrlBuilder(PROJECT_SUMMARIES_PATH).addParam(ORGANIZATION_ID_PARAM, organizationId).addParam(BRANCH_ID_PARAM, branchId)
+      .addParam(LANGUAGE_PARAM, language).build();
+    var response = read(projectKey, () -> fromJson(get(path), ProjectSummaries.class, summaryGson));
+    if (response.projectSummaries() == null) {
+      throw unexpectedResponse("Invalid project summaries.");
+    }
+    var seen = new HashSet<String>();
+    var summaries = new ArrayList<ProjectSummary>();
+    int skipped = 0;
+    for (var item : response.projectSummaries()) {
+      if (item == null || item.language() == null
+        || (language != null && !language.equals(item.language())) || !seen.add(item.language())) {
+        throw unexpectedResponse("Invalid project summary language.");
+      }
+      if (!LANGUAGES.contains(item.language())) {
+        skipped++;
+        continue;
+      }
+      if (item.deviations() == null || item.flaws() == null || item.smells() == null) {
+        throw unexpectedResponse("Invalid project summary counts.");
+      }
+      validateCounts(item.deviations().total(), item.deviations().structuralDeviation(), item.deviations().relationshipDeviation());
+      validateCounts(item.flaws().total(), item.flaws().tangle(), item.flaws().oversizedComponent());
+      validateCounts(item.smells().total(), item.smells().weakTangle(), item.smells().splitResponsibility());
+      summaries.add(item);
+    }
+    return new SummaryResult(List.copyOf(summaries), skipped == 0 ? null : skipped);
+  }
+
+  private static void validateCounts(@Nullable Long total, @Nullable Long first, @Nullable Long second) {
+    if (total == null || first == null || second == null) {
+      throw unexpectedResponse("Invalid or inconsistent project summary counts.");
+    }
+  }
+
+  public record SummaryResult(List<ProjectSummary> summaries, @Nullable Integer skippedSummaries) {
+  }
+
+  private record ProjectSummaries(List<ProjectSummary> projectSummaries) {
+  }
+
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
     validateFindingPage(pageIndex, pageSize);
-    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam("organizationId", organizationId).addParam("branchId", branchId)
+    var path = new UrlBuilder(PROJECT_FINDINGS_PATH).addParam(ORGANIZATION_ID_PARAM, organizationId).addParam(BRANCH_ID_PARAM, branchId)
       .addParam("category", filters.category()).addParam("type", filters.type()).addParam(LANGUAGE_PARAM, filters.language())
       .addParam(PAGE_INDEX_PARAM, Integer.toString(pageIndex)).addParam(PAGE_SIZE_PARAM, Integer.toString(pageSize)).build();
     var page = read(projectKey, () -> fromJson(get(path), FindingPageResponse.class));
@@ -418,8 +467,12 @@ public class ArchitectureApi {
   }
 
   private <T> T fromJson(HttpClient.Response toBeClosed, Class<T> type) {
+    return fromJson(toBeClosed, type, gson);
+  }
+
+  private static <T> T fromJson(HttpClient.Response toBeClosed, Class<T> type, Gson decoder) {
     try (var response = toBeClosed) {
-      return Objects.requireNonNull(gson.fromJson(response.bodyAsString(), type));
+      return Objects.requireNonNull(decoder.fromJson(response.bodyAsString(), type));
     } catch (RuntimeException invalid) {
       throw new IllegalStateException("Invalid public architecture response. " + API_RESPONSE_ERROR, invalid);
     }

@@ -30,7 +30,6 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGr
 
 final class DependencyQuery {
   static final int MAX_PAGE_SIZE = 20;
-  private static final long MAX_SAFE_WEIGHT = 9_007_199_254_740_991L;
 
   private DependencyQuery() {
   }
@@ -221,7 +220,7 @@ final class DependencyQuery {
       }
       var pair = new Pair(from, to);
       var weight = Math.addExact(weights.getOrDefault(pair, 0L), edge.weight());
-      if (weight > MAX_SAFE_WEIGHT) {
+      if (weight > org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureNumbers.MAX_SAFE_INTEGER) {
         throw new IllegalStateException("Aggregated dependency weight exceeds the supported integer range.");
       }
       weights.put(pair, weight);
