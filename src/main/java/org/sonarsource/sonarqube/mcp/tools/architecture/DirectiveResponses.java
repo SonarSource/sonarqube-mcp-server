@@ -24,6 +24,8 @@ import java.util.Map;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDirective;
 
 final class DirectiveResponses {
+  static final String SUMMARY_VIEW = "summary";
+
   private DirectiveResponses() {
   }
 
