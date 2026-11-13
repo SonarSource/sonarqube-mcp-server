@@ -412,7 +412,7 @@ public class ArchitectureApi {
   public record SmellCounts(Long total, Long weakTangle, Long splitResponsibility) {
   }
 
-  public record ProjectSummary(String language, DeviationCounts deviations, FlawCounts flaws, SmellCounts smells) {
+  public record ProjectSummary(String language, @Nullable DeviationCounts deviations, @Nullable FlawCounts flaws, @Nullable SmellCounts smells) {
   }
 
   public FindingPage getFindingPage(String projectKey, String organizationId, String branchId, FindingFilters filters, int pageIndex, int pageSize) {
