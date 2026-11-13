@@ -50,14 +50,17 @@ public class ArchitectureGetTool extends Tool {
   public static final String INTENDED = "intended";
   public static final String DIRECTIVES = "directives";
   public static final String FINDINGS = "findings";
+  public static final String SUMMARY = "summary";
   private static final String TYPE_PROPERTY = "type";
   private static final String CATEGORY_PROPERTY = "category";
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
-  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
+  private static final String[] CLOUD_TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS, SUMMARY};
+  private static final String[] SERVER_TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
   private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
   private final CurrentGraphReads currentReads;
+  private final String[] targets;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
@@ -70,6 +73,7 @@ public class ArchitectureGetTool extends Tool {
   ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
     super(definition(isSonarQubeCloud, configuredProjectKey), ToolCategory.ARCHITECTURE);
     this.currentReads = currentReads;
+    this.targets = isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }
@@ -78,10 +82,12 @@ public class ArchitectureGetTool extends Tool {
     var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
-      .setDescription("Read current graphs, intended architecture, project directives or findings.")
-      .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
+      .setDescription("Read current graphs, intended architecture, directives or findings" + (isSonarQubeCloud ? " and summary counts." : "."))
+      .addRequiredEnumProperty(TARGET_PROPERTY, isSonarQubeCloud ? CLOUD_TARGETS : SERVER_TARGETS,
         "current: dependencies; intended: model; directives: project directives (directiveId); "
-          + "findings: deviations, flaws and smells (category, type, language); pageIndex/pageSize apply to directives and findings or current from/to queries.")
+          + "findings: deviations, flaws and smells (category, type, language)"
+          + (isSonarQubeCloud ? "; summary: counts by language" : "")
+          + "; pageIndex/pageSize apply to directives and findings or current from/to queries.")
       .addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
       .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
@@ -102,7 +108,7 @@ public class ArchitectureGetTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
-    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, TARGETS);
+    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, targets);
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     var component = arguments.getOptionalString(COMPONENT_PROPERTY);
     var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);
@@ -113,7 +119,7 @@ public class ArchitectureGetTool extends Tool {
 
     var selection = dependencySelection(arguments, target, component);
     var parameters = arguments.toMap();
-    if ((INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
+    if ((SUMMARY.equals(target) || INTENDED.equals(target) || (CURRENT.equals(target) && selection == null))
       && (parameters.get(ToolParameters.PAGE_INDEX) != null || parameters.get(ToolParameters.PAGE_SIZE) != null)) {
       throw new IllegalArgumentException("Pagination parameters are only used for directives, findings or current from/to queries.");
     }
@@ -123,6 +129,9 @@ public class ArchitectureGetTool extends Tool {
     }
     if (!FINDINGS.equals(target) && (parameters.get(TYPE_PROPERTY) != null || parameters.get(CATEGORY_PROPERTY) != null)) {
       throw new IllegalArgumentException("type and category are only used for findings.");
+    }
+    if (SUMMARY.equals(target)) {
+      return summary(serverApi, projectKey, arguments, component, depth, language);
     }
     if (DIRECTIVES.equals(target)) {
       return directives(serverApi, projectKey, arguments, component, depth, language);
@@ -134,6 +143,20 @@ public class ArchitectureGetTool extends Tool {
       return readCurrent(serverApi, projectKey, component, depth, language, selection);
     }
     return intended(serverApi.architectureApi(), projectKey, ArchitectureProjectContext.projectId(serverApi, projectKey), component, depth, language);
+  }
+
+  private static Result summary(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth, @Nullable String language) {
+    if (arguments.toMap().get("branch") != null || arguments.toMap().get("pullRequest") != null) {
+      throw new IllegalArgumentException("Summary reads support the main branch only.");
+    }
+    if (component != null || depth != null) {
+      throw new IllegalArgumentException("Summary reads do not accept component or depth filters.");
+    }
+    var organizationId = ArchitectureProjectContext.organizationId(serverApi);
+    var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
+    var result = serverApi.architectureApi().getProjectSummaries(projectKey, organizationId, branchId, language);
+    return Result.success(new SummaryView(projectKey, result.summaries(), result.skippedSummaries(),
+      result.summaries().isEmpty() && result.skippedSummaries() == null ? "No architecture summaries are visible. Check project access and analysis." : null));
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
@@ -156,7 +179,7 @@ public class ArchitectureGetTool extends Tool {
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
     var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(MAX_DIRECTIVE_PAGE_SIZE));
-    return Result.success(new DirectivesView(projectKey, "summary",
+    return Result.success(new DirectivesView(projectKey, SUMMARY,
       page.projectDirectives().stream().map(DirectiveResponses::summary).toList(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
@@ -230,6 +253,9 @@ public class ArchitectureGetTool extends Tool {
   }
 
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
+  }
+
+  private record SummaryView(String projectKey, List<ArchitectureApi.ProjectSummary> summaries, @Nullable Integer skippedSummaries, @Nullable String message) {
   }
 
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,
