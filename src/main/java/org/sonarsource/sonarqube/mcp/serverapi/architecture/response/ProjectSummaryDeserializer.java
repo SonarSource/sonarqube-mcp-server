@@ -23,7 +23,6 @@ import com.google.gson.JsonParseException;
 import java.lang.reflect.Type;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummary.DeviationCounts;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummary.FlawCounts;
-import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummary;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummary.SmellCounts;
 
 import static org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi.LANGUAGES;

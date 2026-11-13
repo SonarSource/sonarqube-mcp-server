@@ -165,7 +165,7 @@ public class ArchitectureGetTool extends Tool {
       message = "Skipped %d summary result(s) with unsupported languages.".formatted(result.skippedSummaries());
     } else if (result.summaries().isEmpty()) {
       message = language == null ? "No architecture summaries are visible. Check project access and analysis."
-        : "No architecture summaries match language=" + language + ". Check project access and analysis.";
+        : ("No architecture summaries match language=" + language + ". Check project access and analysis.");
     }
     return Result.success(new SummaryView(projectKey, result.summaries(), result.skippedSummaries(), message));
   }
@@ -190,7 +190,7 @@ public class ArchitectureGetTool extends Tool {
       return Result.success(new DirectiveView(projectKey, serverApi.architectureApi().getDirective(projectKey, projectId, id)));
     }
     var page = serverApi.architectureApi().getDirectivePage(projectKey, projectId, arguments.getPageIndexOrDefault(1), arguments.getPageSizeOrDefault(MAX_DIRECTIVE_PAGE_SIZE));
-    return Result.success(new DirectivesView(projectKey, "summary",
+    return Result.success(new DirectivesView(projectKey, DirectiveResponses.SUMMARY_VIEW,
       page.projectDirectives().stream().map(DirectiveResponses::summary).toList(), page.page(), page.projectDirectives().isEmpty() && page.page().total() == 0
       ? "No directives are visible. Check project access and whether any directives are defined." : null));
   }
