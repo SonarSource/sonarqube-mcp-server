@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.tools.exception.MissingRequiredArgumentException;
 
@@ -38,8 +39,26 @@ public abstract class Tool {
   private final Set<ToolCategory> categories;
 
   protected Tool(McpSchema.Tool definition, ToolCategory... categories) {
-    this.definition = definition;
+    this.definition = new McpSchema.Tool(definition.name(), definition.title(), definition.description(), normalizeSchema(definition.inputSchema()),
+      definition.outputSchema(), definition.annotations(), definition.meta(), definition.icons());
     this.categories = Set.of(categories);
+  }
+
+  private static Map<String, Object> normalizeSchema(Map<?, ?> schema) {
+    var sorted = new TreeMap<String, Object>();
+    schema.forEach((key, value) -> sorted.put((String) key, normalizeSchemaValue(value)));
+    return sorted;
+  }
+
+  @Nullable
+  private static Object normalizeSchemaValue(@Nullable Object value) {
+    if (value instanceof Map<?, ?> map) {
+      return normalizeSchema(map);
+    }
+    if (value instanceof List<?> list) {
+      return list.stream().map(Tool::normalizeSchemaValue).toList();
+    }
+    return value;
   }
 
   public McpSchema.Tool definition() {
