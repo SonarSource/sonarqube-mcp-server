@@ -18,10 +18,13 @@ package org.sonarsource.sonarqube.mcp.transport;
 
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.server.McpStatelessServerHandler;
+import io.modelcontextprotocol.server.McpSyncListFilter;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -45,10 +48,8 @@ import reactor.core.publisher.Mono;
  *       was launched with.</li>
  * </ul>
  *
- * <p>The SDK's built-in {@code toolsListRequestHandler} ignores the {@link McpTransportContext},
- * so it always returns all registered tools. When a per-request filter is active, this handler
- * short-circuits the delegate and directly returns only the subset the client is allowed to see,
- * without consulting the SDK handler at all.
+ * <p>The SDK applies {@link #toolFilter(List)} to discovery. This wrapper only adjusts
+ * organization-specific schemas in the SDK response and enforces direct-call authorization.
  *
  * <p>For {@code tools/call}, if a per-request filter is active and the requested tool is not in
  * the allowed set, a {@code METHOD_NOT_FOUND} error is returned immediately without delegating
@@ -86,9 +87,7 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
   @Override
   public Mono<McpSchema.JSONRPCResponse> handleRequest(McpTransportContext transportContext, McpSchema.JSONRPCRequest request) {
     if (McpSchema.METHOD_TOOLS_LIST.equals(request.method())) {
-      var filteredTools = filterTools(transportContext);
-      var result = new McpSchema.ListToolsResult(filteredTools, null);
-      return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), result, null));
+      return delegate.handleRequest(transportContext, request).map(response -> adjustOrganizationSchema(transportContext, response));
     }
     if (McpSchema.METHOD_TOOLS_CALL.equals(request.method())) {
       return handleToolCall(transportContext, request);
@@ -128,18 +127,26 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
     return delegate.handleRequest(transportContext, request);
   }
 
-  private List<McpSchema.Tool> filterTools(McpTransportContext ctx) {
-    var authorization = (OAuthScopeContext) ctx.get(OAuthScopeContext.CONTEXT_KEY);
-    var organization = ctx.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
-    var organizationFixed = organization instanceof String key && !key.isBlank();
+  public static McpSyncListFilter<McpSchema.Tool> toolFilter(List<Tool> enabledTools) {
+    var toolsByName = enabledTools.stream().collect(Collectors.toUnmodifiableMap(tool -> tool.definition().name(), Function.identity()));
+    return (context, definition) -> {
+      var tool = toolsByName.get(definition.name());
+      var authorization = (OAuthScopeContext) context.get(OAuthScopeContext.CONTEXT_KEY);
+      return tool != null && matchesRequestFilters(tool, context)
+        && (authorization == null || authorization.permits(tool.requiredAccessMode()))
+        && tool.isEnabledFor(context);
+    };
+  }
 
-    return allTools.stream()
-      .filter(tool -> matchesRequestFilters(tool, ctx))
-      .filter(tool -> authorization == null || authorization.permits(tool.requiredAccessMode()))
-      .filter(tool -> tool.isEnabledFor(ctx))
-      .map(Tool::definition)
-      .map(definition -> organizationFixed ? ToolDefinitionBuilder.withoutOrganization(definition) : definition)
-      .toList();
+  private static McpSchema.JSONRPCResponse adjustOrganizationSchema(McpTransportContext context, McpSchema.JSONRPCResponse response) {
+    var organization = context.get(HttpServerTransportProvider.CONTEXT_ORG_KEY);
+    if (response.error() != null || !(organization instanceof String key) || key.isBlank()
+      || !(response.result() instanceof McpSchema.ListToolsResult(var definitions, var nextCursor, var meta))) {
+      return response;
+    }
+    var tools = definitions.stream().map(ToolDefinitionBuilder::withoutOrganization).toList();
+    return new McpSchema.JSONRPCResponse(response.jsonrpc(), response.id(),
+      new McpSchema.ListToolsResult(tools, nextCursor, meta), response.error());
   }
 
   private static boolean matchesRequestFilters(Tool tool, McpTransportContext ctx) {
