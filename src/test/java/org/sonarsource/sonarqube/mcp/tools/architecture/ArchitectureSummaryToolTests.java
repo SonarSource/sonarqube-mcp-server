@@ -91,14 +91,13 @@ class ArchitectureSummaryToolTests {
       "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":9007199254740992")
         .replace("\"structuralDeviation\":1", "\"structuralDeviation\":9007199254740992")
         .replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":0") + "]}",
-      "{\"projectSummaries\":[" + SUMMARY.replace("\"total\":3", "\"total\":4") + "]}",
       "{\"projectSummaries\":[" + SUMMARY + "," + SUMMARY + "]}",
       "{}", "{\"projectSummaries\":[null]}", "{\"projectSummaries\":[{\"language\":\"java\"}]}");
   }
 
   @ParameterizedTest
   @MethodSource("invalidCounts")
-  void rejects_fractional_or_inconsistent_counts_and_duplicate_languages(String response) {
+  void rejects_invalid_counts_and_duplicate_languages(String response) {
     stubMainBranch(harness);
     harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson(response)));
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
@@ -124,6 +123,39 @@ class ArchitectureSummaryToolTests {
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
     assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("project-summaries")).isFalse();
+  }
+
+  @Test
+  void skips_future_languages_and_preserves_backend_totals() {
+    stubMainBranch(harness);
+    var inconsistent = SUMMARY.replace("\"total\":3", "\"total\":4");
+    var future = SUMMARY.replace("\"java\"", "\"go\"");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + inconsistent + "," + future + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(json.get("skippedSummaries").getAsInt()).isEqualTo(1);
+    assertThat(json.getAsJsonArray("summaries").get(0)).isEqualTo(JsonParser.parseString(inconsistent));
+  }
+
+  @Test
+  void skips_unknown_language_without_decoding_its_evolving_counts() {
+    stubMainBranch(harness);
+    var future = "{\"language\":\"go\",\"deviations\":{\"total\":\"future\"}}";
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + future + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().get("skippedSummaries").getAsInt()).isEqualTo(1);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"123", "true"})
+  void rejects_non_string_languages(String language) {
+    stubMainBranch(harness);
+    var invalid = SUMMARY.replace("\"java\"", language);
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + invalid + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isTrue();
   }
 
   @Test

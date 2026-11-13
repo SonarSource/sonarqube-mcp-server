@@ -37,6 +37,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFind
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFindingDeserializer;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.StructureGraph;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.SummaryCountAdapter;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummaryDeserializer;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ClientErrorException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.ForbiddenException;
 import org.sonarsource.sonarqube.mcp.serverapi.exception.NotFoundException;
@@ -78,7 +79,8 @@ public class ArchitectureApi {
 
   private final ServerApiHelper helper;
   private final Gson gson = new GsonBuilder().registerTypeAdapter(ProjectFinding.class, new ProjectFindingDeserializer()).create();
-  private final Gson summaryGson = new GsonBuilder().registerTypeAdapter(Long.class, new SummaryCountAdapter().nullSafe()).create();
+  private final Gson summaryGson = new GsonBuilder().registerTypeAdapter(Long.class, new SummaryCountAdapter().nullSafe())
+    .registerTypeAdapter(ProjectSummary.class, new ProjectSummaryDeserializer()).create();
 
   public ArchitectureApi(ServerApiHelper helper) {
     this.helper = helper;
@@ -359,7 +361,7 @@ public class ArchitectureApi {
     }
   }
 
-  public List<ProjectSummary> getProjectSummaries(String projectKey, String organizationId, String branchId, @Nullable String language) {
+  public SummaryResult getProjectSummaries(String projectKey, String organizationId, String branchId, @Nullable String language) {
     var path = new UrlBuilder(PROJECT_SUMMARIES_PATH).addParam(ORGANIZATION_ID_PARAM, organizationId).addParam(BRANCH_ID_PARAM, branchId)
       .addParam(LANGUAGE_PARAM, language).build();
     var response = read(projectKey, () -> fromJson(get(path), ProjectSummaries.class, summaryGson));
@@ -367,10 +369,16 @@ public class ArchitectureApi {
       throw unexpectedResponse("Invalid project summaries.");
     }
     var seen = new HashSet<String>();
+    var summaries = new java.util.ArrayList<ProjectSummary>();
+    int skipped = 0;
     for (var item : response.projectSummaries()) {
-      if (item == null || item.language() == null || !LANGUAGES.contains(item.language())
+      if (item == null || item.language() == null
         || (language != null && !language.equals(item.language())) || !seen.add(item.language())) {
         throw unexpectedResponse("Invalid project summary language.");
+      }
+      if (!LANGUAGES.contains(item.language())) {
+        skipped++;
+        continue;
       }
       if (item.deviations() == null || item.flaws() == null || item.smells() == null) {
         throw unexpectedResponse("Invalid project summary counts.");
@@ -378,14 +386,18 @@ public class ArchitectureApi {
       validateCounts(item.deviations().total(), item.deviations().structuralDeviation(), item.deviations().relationshipDeviation());
       validateCounts(item.flaws().total(), item.flaws().tangle(), item.flaws().oversizedComponent());
       validateCounts(item.smells().total(), item.smells().weakTangle(), item.smells().splitResponsibility());
+      summaries.add(item);
     }
-    return List.copyOf(response.projectSummaries());
+    return new SummaryResult(List.copyOf(summaries), skipped == 0 ? null : skipped);
   }
 
   private static void validateCounts(@Nullable Long total, @Nullable Long first, @Nullable Long second) {
-    if (total == null || first == null || second == null || first > Long.MAX_VALUE - second || total != first + second) {
+    if (total == null || first == null || second == null) {
       throw unexpectedResponse("Invalid or inconsistent project summary counts.");
     }
+  }
+
+  public record SummaryResult(List<ProjectSummary> summaries, @Nullable Integer skippedSummaries) {
   }
 
   private record ProjectSummaries(List<ProjectSummary> projectSummaries) {

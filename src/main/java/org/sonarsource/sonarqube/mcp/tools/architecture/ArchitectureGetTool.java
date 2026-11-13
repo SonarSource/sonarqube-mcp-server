@@ -154,9 +154,9 @@ public class ArchitectureGetTool extends Tool {
     }
     var organizationId = ArchitectureProjectContext.organizationId(serverApi);
     var branchId = ArchitectureProjectContext.analyzedMainBranchId(serverApi, projectKey);
-    var summaries = serverApi.architectureApi().getProjectSummaries(projectKey, organizationId, branchId, language);
-    return Result.success(new SummaryView(projectKey, summaries,
-      summaries.isEmpty() ? "No architecture summaries are visible. Check project access and analysis." : null));
+    var result = serverApi.architectureApi().getProjectSummaries(projectKey, organizationId, branchId, language);
+    return Result.success(new SummaryView(projectKey, result.summaries(), result.skippedSummaries(),
+      result.summaries().isEmpty() && result.skippedSummaries() == null ? "No architecture summaries are visible. Check project access and analysis." : null));
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
@@ -255,7 +255,7 @@ public class ArchitectureGetTool extends Tool {
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private record SummaryView(String projectKey, List<ArchitectureApi.ProjectSummary> summaries, @Nullable String message) {
+  private record SummaryView(String projectKey, List<ArchitectureApi.ProjectSummary> summaries, @Nullable Integer skippedSummaries, @Nullable String message) {
   }
 
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,
