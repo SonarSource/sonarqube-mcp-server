@@ -73,6 +73,7 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
 import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
 import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
@@ -326,6 +327,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     backendService.notifyTransportModeUsed();
 
     setBaseInstructions();
+    if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.ARCHITECTURE) && supportedTools.stream().anyMatch(ArchitectureGetTool.class::isInstance)) {
+      composedInstructions += ArchitectureTools.INSTRUCTIONS;
+    }
 
     // Vortex is one product (CAG + SQAA). Stdio only. Both hubs entitled → load all Vortex tools.
     var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)

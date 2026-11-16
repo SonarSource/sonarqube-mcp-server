@@ -39,6 +39,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
@@ -523,6 +525,66 @@ class SonarQubeMcpServerGenericTest {
     assertThat(server.getComposedInstructions())
       .as("SARA instructions should not be present when the agentic-readiness toolset is disabled")
       .doesNotContain("## Agentic Readiness Assessment");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_add_architecture_instructions_when_the_toolset_is_enabled(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "architecture");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
+    server.start();
+
+    assertThat(server.getComposedInstructions()).endsWith(ArchitectureTools.INSTRUCTIONS);
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_add_architecture_instructions_over_http(SonarQubeMcpServerTestHarness harness) {
+    var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "architecture");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(environment);
+    server.start();
+
+    assertThat(server.getComposedInstructions()).contains(ArchitectureTools.INSTRUCTIONS);
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_not_add_architecture_instructions_when_the_toolset_is_not_enabled(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
+    server.start();
+
+    assertThat(server.getComposedInstructions()).doesNotContain("## Architecture");
+
+    server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_not_add_architecture_instructions_when_the_server_does_not_support_architecture(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_TOOLSETS", "architecture");
+    environment.put("SONARQUBE_VERSION", "2026.5.4");
+    harness.prepareMockWebServer(environment);
+
+    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
+    server.start();
+
+    assertThat(server.getSupportedTools()).noneMatch(ArchitectureGetTool.class::isInstance);
+    assertThat(server.getComposedInstructions()).doesNotContain("## Architecture");
 
     server.shutdown();
   }
