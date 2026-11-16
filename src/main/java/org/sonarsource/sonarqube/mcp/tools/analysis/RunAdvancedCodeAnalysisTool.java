@@ -50,7 +50,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private final Path configuredWorkspacePath;
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath, boolean isSonarQubeCloud) {
-    super(buildToolDefinition(configuredProjectKey, isSonarQubeCloud), ToolCategory.VORTEX);
+    super(buildToolDefinition(configuredProjectKey, isSonarQubeCloud), ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;

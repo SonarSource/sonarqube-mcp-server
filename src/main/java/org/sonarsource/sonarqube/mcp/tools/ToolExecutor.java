@@ -112,7 +112,7 @@ public class ToolExecutor {
     var callToolResult = result.toCallToolResult();
     var responseSizeBytes = computeResponseSizeBytes(callToolResult);
     var matchingToolsets = selectedToolsetsSupplier.get().stream()
-      .filter(selector -> selector.includes(tool.getCategory()))
+      .filter(tool.getCategories()::contains)
       .map(ToolCategory::getKey)
       .sorted()
       .toList();

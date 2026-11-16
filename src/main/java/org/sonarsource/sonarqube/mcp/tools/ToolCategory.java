@@ -24,8 +24,8 @@ import java.util.stream.Collectors;
 import jakarta.annotation.Nullable;
 
 /**
- * Canonical tool categories and configurable toolset selectors.
- * Each tool belongs to one category; legacy selectors can include several categories.
+ * Categories of tools that can be selectively enabled or disabled.
+ * A tool may belong to one or more categories.
  */
 public enum ToolCategory {
   ANALYSIS("analysis"),
@@ -57,14 +57,6 @@ public enum ToolCategory {
 
   public String getKey() {
     return key;
-  }
-
-  public boolean includes(ToolCategory category) {
-    return switch (this) {
-      case ANALYSIS -> category == ANALYSIS || category == IDE || category == VORTEX;
-      case CAG -> category == VORTEX;
-      default -> this == category;
-    };
   }
 
   @Nullable

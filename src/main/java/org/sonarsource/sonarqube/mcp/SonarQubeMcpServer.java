@@ -331,7 +331,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
 
     // Vortex is one product (CAG + SQAA). Stdio only. Both hubs entitled → load all Vortex tools.
-    var vortexRelevantToolsetEnabled = mcpConfiguration.getEnabledToolsets().stream().anyMatch(selector -> selector.includes(ToolCategory.VORTEX));
+    var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
+      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)
+      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS);
     var vortexEnabledForOrg = !mcpConfiguration.isHttpEnabled()
       && vortexRelevantToolsetEnabled
       && orgFeatureEntitlements.isVortexEnabledForOrg(resolvedOrganization);
