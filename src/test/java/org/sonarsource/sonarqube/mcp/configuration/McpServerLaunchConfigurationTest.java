@@ -23,6 +23,9 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -278,34 +281,66 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.CAG)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.VORTEX)).isFalse();
-    assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isFalse();
   }
 
-  @Test
-  void it_should_not_treat_blank_toolsets_as_explicit(@TempDir Path tempDir) {
-    for (var toolsets : List.of("", " \t ")) {
-      var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token",
-        "SONARQUBE_ORG", "org", "SONARQUBE_TOOLSETS", toolsets));
+  @ParameterizedTest
+  @ValueSource(strings = {"stdio", "http", "https"})
+  void it_should_use_transport_defaults_for_unset_or_blank_toolsets(String transport, @TempDir Path tempDir) {
+    var environment = new HashMap<>(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_TRANSPORT", transport));
+    var transportMode = "stdio".equals(transport) ? TransportMode.STDIO : TransportMode.HTTP;
+    assertThat(new McpServerLaunchConfiguration(environment).getEnabledToolsets()).isEqualTo(ToolCategory.defaultEnabled(transportMode));
 
-      assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
-      assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isFalse();
+    for (var toolsets : List.of("", " \t ")) {
+      environment.put("SONARQUBE_TOOLSETS", toolsets);
+      var configuration = new McpServerLaunchConfiguration(environment);
+      assertThat(configuration.getEnabledToolsets()).isEqualTo(ToolCategory.defaultEnabled(transportMode));
+      assertThat(configuration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isEqualTo("stdio".equals(transport));
     }
   }
 
-  @Test
-  void it_should_respect_property_toolsets_and_environment_precedence(@TempDir Path tempDir) {
-    var environment = new HashMap<>(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_ORG", "org",
-      "SONARQUBE_TOOLSETS", " \t "));
-    System.setProperty("SONARQUBE_TOOLSETS", "issues");
+  @ParameterizedTest
+  @ValueSource(strings = {"stdio", "http", "https"})
+  void it_should_respect_property_toolsets_and_environment_precedence(String transport, @TempDir Path tempDir) {
+    var environment = new HashMap<>(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_TRANSPORT", transport));
+    System.setProperty("SONARQUBE_TOOLSETS", "agentic-readiness");
     try {
-      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isTrue();
+      assertThat(new McpServerLaunchConfiguration(environment).getEnabledToolsets()).containsExactly(ToolCategory.AGENTIC_READINESS);
+      environment.put("SONARQUBE_TOOLSETS", " \t ");
+      assertThat(new McpServerLaunchConfiguration(environment).getEnabledToolsets()).containsExactly(ToolCategory.AGENTIC_READINESS);
 
       environment.put("SONARQUBE_TOOLSETS", "rules");
-      var configuration = new McpServerLaunchConfiguration(environment);
-      assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isFalse();
-      assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.RULES)).isTrue();
+      assertThat(new McpServerLaunchConfiguration(environment).getEnabledToolsets()).containsExactly(ToolCategory.RULES);
     } finally {
       System.clearProperty("SONARQUBE_TOOLSETS");
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"stdio", "http", "https"})
+  void it_should_replace_defaults_with_explicit_toolsets(String transport, @TempDir Path tempDir) {
+    var environment = new HashMap<>(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token", "SONARQUBE_TRANSPORT", transport,
+      "SONARQUBE_TOOLSETS", "agentic-readiness"));
+    var configuration = new McpServerLaunchConfiguration(environment);
+    assertThat(configuration.getEnabledToolsets()).containsExactly(ToolCategory.AGENTIC_READINESS);
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
+
+    environment.put("SONARQUBE_TOOLSETS", "invalid");
+    configuration = new McpServerLaunchConfiguration(environment);
+    assertThat(configuration.getEnabledToolsets()).isEmpty();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isFalse();
+    assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
+  }
+
+  @Test
+  void it_should_use_the_resolved_transport_for_defaults(@TempDir Path tempDir) {
+    var environment = new HashMap<>(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token"));
+    System.setProperty("SONARQUBE_TRANSPORT", "https");
+    try {
+      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isFalse();
+      environment.put("SONARQUBE_TRANSPORT", "stdio");
+      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isTrue();
+    } finally {
+      System.clearProperty("SONARQUBE_TRANSPORT");
     }
   }
 
@@ -322,8 +357,6 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.QUALITY_GATES)).isTrue();
-    assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isTrue();
-    assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.PROJECTS)).isFalse();
     // PROJECTS is always enabled as it's required to find project keys
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isFalse();
