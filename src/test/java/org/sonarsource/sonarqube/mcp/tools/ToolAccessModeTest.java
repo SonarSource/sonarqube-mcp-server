@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -31,7 +32,7 @@ class ToolAccessModeTest {
 
   @ParameterizedTest
   @MethodSource("accessModes")
-  void it_should_derive_default_access_from_the_read_only_hint(McpSchema.ToolAnnotations annotations, ToolAccessMode expectedAccess) {
+  void it_should_apply_the_explicit_read_only_hint_to_access_and_filters(McpSchema.ToolAnnotations annotations, ToolAccessMode expectedAccess) {
     var definition = McpSchema.Tool.builder("access_test", Map.of("type", "object")).annotations(annotations).build();
     var tool = new Tool(definition, ToolCategory.ISSUES) {
       @Override
@@ -41,6 +42,18 @@ class ToolAccessModeTest {
     };
 
     assertThat(tool.requiredAccessMode()).isEqualTo(expectedAccess);
+    assertThat(tool.matchesFilters(null, false)).isTrue();
+    assertThat(tool.matchesFilters(Set.of(ToolCategory.ISSUES), true)).isEqualTo(expectedAccess == READ);
+    assertThat(tool.matchesFilters(Set.of(), false)).isFalse();
+    assertThat(tool.matchesFilters(null, true)).isEqualTo(expectedAccess == READ);
+    var projectTool = new Tool(definition, ToolCategory.PROJECTS) {
+      @Override
+      public Result execute(Tool.Arguments arguments) {
+        return Result.failure("unused");
+      }
+    };
+    assertThat(projectTool.matchesFilters(Set.of(), false)).isTrue();
+    assertThat(projectTool.matchesFilters(Set.of(), true)).isEqualTo(expectedAccess == READ);
   }
 
   private static Stream<Arguments> accessModes() {

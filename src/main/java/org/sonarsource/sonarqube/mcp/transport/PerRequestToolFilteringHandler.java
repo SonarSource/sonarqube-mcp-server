@@ -40,9 +40,9 @@ import reactor.core.publisher.Mono;
  * <ul>
  *   <li>If the server started with {@code SONARQUBE_READ_ONLY=true}, write tools are absent
  *       from {@code allTools} and cannot be re-enabled per-request.</li>
- *   <li>If the server started with a restricted {@code SONARQUBE_TOOLSETS}, per-request headers
- *       can select a subset of those toolsets, but cannot add toolsets beyond what the server
- *       was launched with.</li>
+ *   <li>Per-request {@code SONARQUBE_TOOLSETS} headers select from registered tools by membership.
+ *       A tool registered via {@code analysis} can match a request for {@code ide} when it belongs
+ *       to both toolsets; headers cannot enable unregistered tools.</li>
  * </ul>
  *
  * <p>The SDK's built-in {@code toolsListRequestHandler} ignores the {@link McpTransportContext},
@@ -144,10 +144,9 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
 
   private static boolean matchesRequestFilters(Tool tool, McpTransportContext ctx) {
     @SuppressWarnings("unchecked")
-    var allowedCategories = (Set<ToolCategory>) ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
+    var selectedToolsets = (Set<ToolCategory>) ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
     var readOnly = Boolean.TRUE.equals(ctx.get(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY));
-    var annotations = tool.definition().annotations();
-    return isCategoryAllowed(tool, allowedCategories) && (!readOnly || (annotations != null && Boolean.TRUE.equals(annotations.readOnlyHint())));
+    return tool.matchesFilters(selectedToolsets, readOnly);
   }
 
   private static Mono<McpSchema.JSONRPCResponse> toolNotFound(McpSchema.JSONRPCRequest request, String name) {
@@ -162,16 +161,6 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
       return name instanceof String s ? s : null;
     }
     return null;
-  }
-
-  private static boolean isCategoryAllowed(Tool tool, @Nullable Set<ToolCategory> allowedCategories) {
-    if (tool.getCategories().contains(ToolCategory.PROJECTS)) {
-      return true;
-    }
-    if (allowedCategories == null) {
-      return true;
-    }
-    return tool.getCategories().stream().anyMatch(allowedCategories::contains);
   }
 
 }

@@ -50,6 +50,12 @@ public abstract class Tool {
     return categories;
   }
 
+  public boolean matchesFilters(@Nullable Set<ToolCategory> selectedToolsets, boolean readOnly) {
+    var categoryAllowed = categories.contains(ToolCategory.PROJECTS) || selectedToolsets == null
+      || categories.stream().anyMatch(selectedToolsets::contains);
+    return categoryAllowed && (!readOnly || (definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint())));
+  }
+
   /**
    * Returns whether this tool should be visible and callable for the given request context.
    * The default implementation always returns {@code true}. Tools that require per-request

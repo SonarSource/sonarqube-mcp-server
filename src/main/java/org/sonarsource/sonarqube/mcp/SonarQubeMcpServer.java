@@ -38,7 +38,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarlint.core.rpc.protocol.common.Language;
 import org.sonarsource.sonarqube.mcp.analytics.AnalyticsClient;
@@ -306,7 +305,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     // Capture the invocation API for analytics; stdio reuses session identity, HTTP resolves identity per call.
     this.toolExecutor = new ToolExecutor(backendService, analyticsService,
       mcpConfiguration.isHttpEnabled() ? null : connectionContext, this,
-      mcpConfiguration.getMcpServerId(), this::resolveEnabledToolsets);
+      mcpConfiguration.getMcpServerId(), this::resolveSelectedToolsets);
 
     var configuredOrgKey = mcpConfiguration.getSonarqubeOrg();
     if (configuredOrgKey != null) {
@@ -604,8 +603,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   @VisibleForTesting
   List<Tool> filterForEnabledTools(List<Tool> toolsToFilter) {
     return toolsToFilter.stream()
-      .filter(tool -> tool.getCategories().stream().anyMatch(mcpConfiguration::isToolCategoryEnabled))
-      .filter(tool -> !mcpConfiguration.isReadOnlyMode() || (tool.definition().annotations() != null && Boolean.TRUE.equals(tool.definition().annotations().readOnlyHint())))
+      .filter(tool -> tool.matchesFilters(mcpConfiguration.getEnabledToolsets(), mcpConfiguration.isReadOnlyMode()))
       .toList();
   }
 
@@ -644,21 +642,16 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     return toolExecutor.execute(tool, request);
   }
 
+  /** Raw selector names for telemetry only. Registration and request authorization are filtered separately. */
   @VisibleForTesting
-  Set<ToolCategory> resolveEnabledToolsets() {
-    var enabledToolsets = ToolCategory.all().stream()
-      .filter(mcpConfiguration::isToolCategoryEnabled)
-      .collect(Collectors.toCollection(() -> EnumSet.noneOf(ToolCategory.class)));
-
+  Set<ToolCategory> resolveSelectedToolsets() {
+    var selectedToolsets = EnumSet.noneOf(ToolCategory.class);
     var transportContext = currentTransportContext.get();
-    if (transportContext != null) {
-      var requestToolsets = transportContext.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
-      if (requestToolsets instanceof Set<?> toolsets) {
-        enabledToolsets.retainAll(toolsets);
-        enabledToolsets.add(ToolCategory.PROJECTS);
-      }
-    }
-    return enabledToolsets;
+    @SuppressWarnings("unchecked")
+    var requestToolsets = transportContext == null ? null : (Set<ToolCategory>) transportContext.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
+    selectedToolsets.addAll(requestToolsets == null ? mcpConfiguration.getEnabledToolsets() : requestToolsets);
+    selectedToolsets.add(ToolCategory.PROJECTS);
+    return selectedToolsets;
   }
 
   private void captureCallingAgent(McpSyncServerExchange exchange) {
