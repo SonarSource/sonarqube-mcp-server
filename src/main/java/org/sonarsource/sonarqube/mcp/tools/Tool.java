@@ -36,12 +36,16 @@ import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.WRITE;
 
 public abstract class Tool {
   private final McpSchema.Tool definition;
-  private final Set<ToolCategory> categories;
+  private final ToolPolicy policy;
 
   protected Tool(McpSchema.Tool definition, ToolCategory... categories) {
+    this(definition, ToolPolicy.of(categories));
+  }
+
+  protected Tool(McpSchema.Tool definition, ToolPolicy policy) {
     this.definition = new McpSchema.Tool(definition.name(), definition.title(), definition.description(), normalizeSchema(definition.inputSchema()),
       definition.outputSchema(), definition.annotations(), definition.meta(), definition.icons());
-    this.categories = Set.of(categories);
+    this.policy = policy;
   }
 
   private static Map<String, Object> normalizeSchema(Map<?, ?> schema) {
@@ -71,7 +75,7 @@ public abstract class Tool {
   }
 
   public Set<ToolCategory> getCategories() {
-    return categories;
+    return policy.categories();
   }
 
   /**
