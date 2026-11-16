@@ -20,7 +20,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.issues.Transition;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class ChangeIssueStatusTool extends Tool {
 
@@ -45,7 +45,7 @@ public class ChangeIssueStatusTool extends Tool {
       .addRequiredEnumProperty(STATUS_PROPERTY, VALID_STATUSES, "The new status of the issue")
       .addStringProperty(COMMENT_PROPERTY, "An optional comment explaining the status change")
       .build(),
-      ToolCategory.ISSUES);
+      ToolDescriptor.CHANGE_ISSUE_STATUS);
     this.serverApiProvider = serverApiProvider;
   }
 

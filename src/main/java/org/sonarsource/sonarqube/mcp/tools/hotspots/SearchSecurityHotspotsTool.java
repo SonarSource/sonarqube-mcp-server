@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.hotspots.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchSecurityHotspotsTool extends Tool {
@@ -64,7 +64,7 @@ public class SearchSecurityHotspotsTool extends Tool {
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SECURITY_HOTSPOTS);
+      ToolDescriptor.SEARCH_SECURITY_HOTSPOTS);
     this.serverApiProvider = serverApiProvider;
   }
 

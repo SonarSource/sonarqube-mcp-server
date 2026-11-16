@@ -20,7 +20,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class CreateWebhookTool extends Tool {
@@ -35,7 +35,7 @@ public class CreateWebhookTool extends Tool {
 
   public CreateWebhookTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      ToolCategory.WEBHOOKS);
+      ToolDescriptor.CREATE_WEBHOOK);
     this.serverApiProvider = serverApiProvider;
   }
 

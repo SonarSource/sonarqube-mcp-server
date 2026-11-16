@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.issues.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchIssuesTool extends Tool {
@@ -51,7 +51,7 @@ public class SearchIssuesTool extends Tool {
 
   public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      ToolCategory.ISSUES);
+      ToolDescriptor.SEARCH_ISSUES);
     this.serverApiProvider = serverApiProvider;
   }
 

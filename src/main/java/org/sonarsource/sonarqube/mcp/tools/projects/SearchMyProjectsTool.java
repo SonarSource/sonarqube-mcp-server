@@ -21,7 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchMyProjectsTool extends Tool {
@@ -36,7 +36,7 @@ public class SearchMyProjectsTool extends Tool {
 
   public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      ToolCategory.PROJECTS);
+      ToolDescriptor.SEARCH_MY_PROJECTS);
     this.serverApiProvider = serverApiProvider;
   }
 

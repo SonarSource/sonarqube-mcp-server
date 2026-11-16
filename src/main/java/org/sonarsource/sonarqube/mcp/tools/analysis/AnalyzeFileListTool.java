@@ -20,7 +20,7 @@ import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class AnalyzeFileListTool extends Tool {
   private static final McpLogger LOG = McpLogger.getInstance();
@@ -39,7 +39,7 @@ public class AnalyzeFileListTool extends Tool {
       .addArrayProperty(FILE_ABSOLUTE_PATHS_PROPERTY, "string", "List of absolute file paths to analyze")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.ANALYSIS, ToolCategory.IDE);
+      ToolDescriptor.ANALYZE_FILE_LIST);
     this.bridgeClient = bridgeClient;
   }
 

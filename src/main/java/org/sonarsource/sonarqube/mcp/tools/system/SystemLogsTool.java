@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class SystemLogsTool extends Tool {
 
@@ -37,7 +37,7 @@ public class SystemLogsTool extends Tool {
       .addEnumProperty(NAME_PROPERTY, VALID_LOG_NAMES, "Name of the logs to get. Default: app")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SYSTEM);
+      ToolDescriptor.SYSTEM_LOGS);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -20,7 +20,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.sources.response.ScmResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class GetScmInfoTool extends Tool {
 
@@ -43,7 +43,7 @@ public class GetScmInfoTool extends Tool {
       .addNumberProperty(TO_PROPERTY, "Last line to return (inclusive)")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SOURCES);
+      ToolDescriptor.GET_SCM_INFO);
     this.serverApiProvider = serverApiProvider;
   }
 

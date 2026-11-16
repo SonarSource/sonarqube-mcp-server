@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ_WRITE;
@@ -49,7 +49,7 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
       .addStringProperty(BRANCH_PROPERTY, "Branch to assess. Omit to use the project's default branch.")
       .build(),
-      ToolCategory.AGENTIC_READINESS);
+      ToolDescriptor.START_AGENTIC_READINESS_ASSESSMENT);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

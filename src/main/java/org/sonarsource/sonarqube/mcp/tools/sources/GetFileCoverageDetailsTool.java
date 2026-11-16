@@ -22,7 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.sources.response.SourceLinesRespo
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class GetFileCoverageDetailsTool extends Tool {
 
@@ -45,7 +45,7 @@ public class GetFileCoverageDetailsTool extends Tool {
         .addBranchAndPullRequestProperties()
         .setReadOnlyHint()
         .build(),
-      ToolCategory.COVERAGE);
+      ToolDescriptor.GET_FILE_COVERAGE_DETAILS);
     this.serverApiProvider = serverApiProvider;
   }
 

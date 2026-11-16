@@ -24,7 +24,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureApi;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArchitecture;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
@@ -62,7 +62,7 @@ public class ArchitectureSetTool extends Tool {
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get intended; defaults to the model response revision. "
         + "Required to clear the whole model; a mismatch prevents writing.")
       .build(),
-      ToolCategory.ARCHITECTURE);
+      ToolDescriptor.ARCHITECTURE_SET);
     this.currentReads = currentReads;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
