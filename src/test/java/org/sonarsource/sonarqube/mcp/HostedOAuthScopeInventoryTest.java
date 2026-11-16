@@ -67,7 +67,7 @@ class HostedOAuthScopeInventoryTest {
       expected.put("start_agentic_readiness_assessment", READ_WRITE);
       expected.put("architecture_set", READ_WRITE);
 
-      var actual = server.getSupportedTools().stream().collect(Collectors.toMap(tool -> tool.definition().name(), Tool::requiredAccessMode));
+      var actual = server.getRegisteredTools().stream().collect(Collectors.toMap(tool -> tool.definition().name(), Tool::requiredAccessMode));
       assertThat(actual).containsExactlyInAnyOrderEntriesOf(expected);
     } finally {
       server.shutdown();

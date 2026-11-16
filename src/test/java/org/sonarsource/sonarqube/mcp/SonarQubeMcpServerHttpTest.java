@@ -124,7 +124,7 @@ class SonarQubeMcpServerHttpTest {
     try {
       stdioServer.start();
       stdioServer.waitForInitialization();
-      var stdioTools = stdioServer.getSupportedTools().stream()
+      var stdioTools = stdioServer.getRegisteredTools().stream()
         .map(tool -> tool.definition().name())
         .sorted()
         .toList();
@@ -132,7 +132,7 @@ class SonarQubeMcpServerHttpTest {
       httpServer.start();
       httpServer.waitForInitialization();
       assertThat(URI.create(httpServer.getHttpServerUrl()).getPort()).isBetween(1024, 65535);
-      var httpTools = httpServer.getSupportedTools().stream()
+      var httpTools = httpServer.getRegisteredTools().stream()
         .map(tool -> tool.definition().name())
         .sorted()
         .toList();
