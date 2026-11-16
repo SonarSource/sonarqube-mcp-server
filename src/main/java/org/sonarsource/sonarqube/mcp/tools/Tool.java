@@ -35,19 +35,25 @@ import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.WRITE;
 
 public abstract class Tool {
   private final McpSchema.Tool definition;
-  private final Set<ToolCategory> categories;
+  private final ToolCategory category;
 
-  protected Tool(McpSchema.Tool definition, ToolCategory... categories) {
+  protected Tool(McpSchema.Tool definition, ToolCategory category) {
     this.definition = definition;
-    this.categories = Set.of(categories);
+    this.category = category;
   }
 
   public McpSchema.Tool definition() {
     return definition;
   }
 
-  public Set<ToolCategory> getCategories() {
-    return categories;
+  public ToolCategory getCategory() {
+    return category;
+  }
+
+  public boolean matchesFilters(@Nullable Set<ToolCategory> selectedToolsets, boolean readOnly) {
+    var categoryAllowed = category == ToolCategory.PROJECTS || selectedToolsets == null
+      || selectedToolsets.stream().anyMatch(selector -> selector.includes(category));
+    return categoryAllowed && (!readOnly || (definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint())));
   }
 
   /**
