@@ -62,11 +62,13 @@ class SonarQubeMcpServerIdeBridgeTest {
     server.start();
     server.waitForInitialization();
 
-    var supportedTools = server.getSupportedTools();
-    assertThat(supportedTools)
+    var registeredTools = server.getRegisteredTools();
+    assertThat(registeredTools)
       .noneMatch(AnalyzeCodeSnippetTool.class::isInstance)
       .anyMatch(AnalyzeFileListTool.class::isInstance)
       .anyMatch(ToggleAutomaticAnalysisTool.class::isInstance);
+    assertThat(server.getComposedInstructions()).doesNotContain("Analyzers are being downloaded");
+    assertThat(harness.getMockSonarQubeServer().hasReceivedInstalledPluginsRequest()).isFalse();
   }
 
   @SonarQubeMcpServerTest
@@ -82,8 +84,8 @@ class SonarQubeMcpServerIdeBridgeTest {
     server.start();
     server.waitForInitialization();
 
-    var supportedTools = server.getSupportedTools();
-    assertThat(supportedTools)
+    var registeredTools = server.getRegisteredTools();
+    assertThat(registeredTools)
       .anyMatch(AnalyzeCodeSnippetTool.class::isInstance)
       .noneMatch(AnalyzeFileListTool.class::isInstance)
       .noneMatch(ToggleAutomaticAnalysisTool.class::isInstance);
