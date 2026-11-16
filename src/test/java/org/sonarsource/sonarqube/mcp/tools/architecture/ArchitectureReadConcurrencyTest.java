@@ -288,7 +288,7 @@ class ArchitectureReadConcurrencyTest {
     };
     try {
       server.start();
-      var registered = server.getSupportedTools();
+      var registered = server.getRegisteredTools();
       tool = (ArchitectureGetTool) registered.stream().filter(value -> value.definition().name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
       setTool = (ArchitectureSetTool) registered.stream().filter(value -> value.definition().name().equals(ArchitectureSetTool.TOOL_NAME)).findFirst().orElseThrow();
       assertSharedCapacity(diagnosticsFirst, false);

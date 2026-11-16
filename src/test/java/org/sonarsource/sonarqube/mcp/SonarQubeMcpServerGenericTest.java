@@ -36,8 +36,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.components.ComponentsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.PluginsApi;
-import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.GetAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
 import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
@@ -60,32 +60,6 @@ import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.asser
 class SonarQubeMcpServerGenericTest {
 
   // No per-test teardown needed — the stateless HTTP mode has no global session state.
-
-  @SonarQubeMcpServerTest
-  void should_filter_optional_proxy_annotations_in_read_only_mode(SonarQubeMcpServerTestHarness harness) {
-    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("SONARQUBE_READ_ONLY", "true");
-    harness.prepareMockWebServer(environment);
-    var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
-
-    var noAnnotations = projectToolWithAnnotations("no_annotations", null);
-    var emptyAnnotations = projectToolWithAnnotations("empty_annotations", new McpSchema.ToolAnnotations(null, null, null, null, null, null));
-    var falseHint = projectToolWithAnnotations("false_hint", new McpSchema.ToolAnnotations(null, false, null, null, null, null));
-    var trueHint = projectToolWithAnnotations("true_hint", new McpSchema.ToolAnnotations(null, true, null, null, null, null));
-
-    assertThat(server.filterForEnabledTools(List.of(noAnnotations, emptyAnnotations, falseHint, trueHint)))
-      .containsExactly(trueHint);
-  }
-
-  private static Tool projectToolWithAnnotations(String name, McpSchema.ToolAnnotations annotations) {
-    var definition = McpSchema.Tool.builder(name, Map.of("type", "object")).annotations(annotations).build();
-    return new Tool(definition, ToolCategory.PROJECTS) {
-      @Override
-      public Result execute(Arguments arguments) {
-        return Result.failure("unused");
-      }
-    };
-  }
 
   @SonarQubeMcpServerTest
   void get_should_return_server_api_in_stdio_mode(SonarQubeMcpServerTestHarness harness) {
@@ -224,7 +198,7 @@ class SonarQubeMcpServerGenericTest {
       environment);
     server.start();
 
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .noneMatch(ProxiedMcpTool.class::isInstance);
 
     server.shutdown();
@@ -243,7 +217,7 @@ class SonarQubeMcpServerGenericTest {
       environment);
     server.start();
 
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("Should not load proxied CAG tools when org doesn't have CAG entitlement")
       .noneMatch(ProxiedMcpTool.class::isInstance);
 
@@ -263,7 +237,7 @@ class SonarQubeMcpServerGenericTest {
       environment);
     server.start();
 
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("Should not load proxied CAG tools when CAG API fails (fail-safe)")
       .noneMatch(ProxiedMcpTool.class::isInstance);
 
@@ -280,7 +254,7 @@ class SonarQubeMcpServerGenericTest {
     var server = new SonarQubeMcpServer(environment);
     server.start();
 
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("Should not load proxied CAG tools in HTTP mode (only stdio supported)")
       .noneMatch(ProxiedMcpTool.class::isInstance);
 
@@ -304,7 +278,7 @@ class SonarQubeMcpServerGenericTest {
     assertThat(server.getComposedInstructions())
       .as("No proxied instructions should be appended when the CAG binary is not on PATH")
       .doesNotContain("## Context Augmentation");
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("No proxied CAG tools should be loaded when the CAG binary is not on PATH")
       .noneMatch(ProxiedMcpTool.class::isInstance);
 
@@ -461,9 +435,10 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void should_register_sara_tools_and_instructions_when_flag_enabled_for_org(SonarQubeMcpServerTestHarness harness) {
+  void it_should_keep_read_only_sara_tools_and_instructions_when_flag_enabled_for_org(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_READ_ONLY", "true");
     harness.prepareMockWebServer(environment);
     harness.stubSaraEnabled();
 
@@ -473,9 +448,10 @@ class SonarQubeMcpServerGenericTest {
       environment);
     server.start();
 
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("SARA tools should be loaded when the feature flag is enabled for the org")
-      .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+      .anyMatch(GetAgenticReadinessAssessmentTool.class::isInstance)
+      .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
       .as("SARA instructions should be appended when the feature flag is enabled for the org")
       .contains("## Agentic Readiness Assessment");
@@ -496,7 +472,7 @@ class SonarQubeMcpServerGenericTest {
       environment);
     server.start();
 
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("SARA tools require the feature flag in STDIO")
       .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
@@ -519,7 +495,7 @@ class SonarQubeMcpServerGenericTest {
       environment);
     server.start();
 
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("SARA tools should not be loaded when the agentic-readiness toolset is disabled")
       .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
@@ -530,16 +506,19 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_add_architecture_instructions_when_the_toolset_is_enabled(SonarQubeMcpServerTestHarness harness) {
+  void it_should_keep_read_only_architecture_tools_and_instructions(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     environment.put("SONARQUBE_TOOLSETS", "architecture");
+    environment.put("SONARQUBE_READ_ONLY", "true");
     harness.prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
     server.start();
 
     assertThat(server.getComposedInstructions()).endsWith(ArchitectureTools.INSTRUCTIONS);
+    assertThat(server.getRegisteredTools()).extracting(tool -> tool.definition().name())
+      .contains("architecture_get").doesNotContain("architecture_set");
 
     server.shutdown();
   }
@@ -583,7 +562,7 @@ class SonarQubeMcpServerGenericTest {
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
     server.start();
 
-    assertThat(server.getSupportedTools()).noneMatch(ArchitectureGetTool.class::isInstance);
+    assertThat(server.getRegisteredTools()).noneMatch(ArchitectureGetTool.class::isInstance);
     assertThat(server.getComposedInstructions()).doesNotContain("## Architecture");
 
     server.shutdown();
@@ -628,7 +607,7 @@ class SonarQubeMcpServerGenericTest {
     var server = new SonarQubeMcpServer(environment);
     server.start();
 
-    assertThat(server.getSupportedTools()).noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
+    assertThat(server.getRegisteredTools()).noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions()).doesNotContain("## Agentic Readiness Assessment");
     assertThat(harness.getMockSonarQubeServer().countRequestsContaining(WasFeatureFlagsApi.FEATURE_FLAGS_PATH)).isZero();
 
@@ -647,7 +626,7 @@ class SonarQubeMcpServerGenericTest {
 
     // In HTTP mode the org is resolved per request, so the startup flag is not probed: the tools are
     // registered after explicit opt-in and the backend enforces entitlement on each call.
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("SARA tools should be loaded in HTTP mode regardless of the startup feature flag")
       .anyMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
@@ -668,7 +647,7 @@ class SonarQubeMcpServerGenericTest {
     var server = new SonarQubeMcpServer(environment);
     server.start();
 
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("SARA tools should not be loaded in HTTP mode when the agentic-readiness toolset is disabled")
       .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
 
@@ -687,7 +666,7 @@ class SonarQubeMcpServerGenericTest {
     assertThat(server.getMcpConfiguration().isSonarQubeCloud())
       .as("Test precondition: server should be running in SonarQube Server mode")
       .isFalse();
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("SARA tools should not be loaded on SonarQube Server even in HTTP mode (Cloud-only feature)")
       .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
 
@@ -709,7 +688,7 @@ class SonarQubeMcpServerGenericTest {
     assertThat(server.getMcpConfiguration().isSonarQubeCloud())
       .as("Test precondition: server should be running in SonarQube Server mode")
       .isFalse();
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("SARA tools should not be loaded on SonarQube Server (Cloud-only feature)")
       .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
@@ -774,7 +753,7 @@ class SonarQubeMcpServerGenericTest {
       environment);
     server.start();
 
-    assertThat(server.getSupportedTools())
+    assertThat(server.getRegisteredTools())
       .as("SARA tools are hidden when feature availability cannot be confirmed")
       .noneMatch(StartAgenticReadinessAssessmentTool.class::isInstance);
     assertThat(server.getComposedInstructions())
@@ -799,10 +778,9 @@ class SonarQubeMcpServerGenericTest {
 
     // Verify that no analyzer synchronization was attempted
     assertThat(harness.getMockSonarQubeServer().hasReceivedInstalledPluginsRequest()).isFalse();
+    assertThat(server.getComposedInstructions()).doesNotContain("Analyzers are being downloaded");
 
-    var config = server.getMcpConfiguration();
-    var enabledToolNames = server.getSupportedTools().stream()
-      .filter(tool -> tool.matchesFilters(config.getEnabledToolsets(), config.isReadOnlyMode()))
+    var enabledToolNames = server.getRegisteredTools().stream()
       .map(tool -> tool.definition().name())
       .toList();
     assertThat(enabledToolNames)
@@ -857,10 +835,9 @@ class SonarQubeMcpServerGenericTest {
 
     // Verify that analyzer synchronization was attempted
     assertThat(harness.getMockSonarQubeServer().hasReceivedInstalledPluginsRequest()).isTrue();
+    assertThat(server.getComposedInstructions()).contains("Analyzers are being downloaded");
 
-    var config = server.getMcpConfiguration();
-    var enabledToolNames = server.getSupportedTools().stream()
-      .filter(tool -> tool.matchesFilters(config.getEnabledToolsets(), config.isReadOnlyMode()))
+    var enabledToolNames = server.getRegisteredTools().stream()
       .map(tool -> tool.definition().name())
       .toList();
     assertThat(enabledToolNames)
