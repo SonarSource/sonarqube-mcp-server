@@ -23,13 +23,35 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
+import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
+import org.sonarsource.sonarqube.mcp.serverapi.exception.ServerInternalErrorException;
+import org.sonarsource.sonarqube.mcp.serverapi.features.FeaturesApi;
+import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class SonarQubeMcpServerStartupFailureTest {
 
   private static final String INITIALIZE = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}\n";
+
+  @SonarQubeMcpServerTest
+  void it_should_not_initialize_backend_when_sca_startup_probe_fails(SonarQubeMcpServerTestHarness harness) {
+    harness.getMockSonarQubeServer().stubFor(get(FeaturesApi.FEATURES_LIST_PATH).willReturn(aResponse().withStatus(500)));
+    var environment = Map.of("SONARQUBE_TOOLSETS", "dependency-risks");
+    try (var backends = mockConstruction(BackendService.class)) {
+      assertThatThrownBy(() -> harness.newClient(environment))
+        .isInstanceOf(ServerInternalErrorException.class);
+      assertThat(backends.constructed()).hasSize(1);
+      verifyNoInteractions(backends.constructed().getFirst());
+    }
+  }
 
   @Test
   void should_not_write_to_stdout_when_http_transport_is_enabled() {

@@ -55,9 +55,12 @@ public abstract class Tool {
   }
 
   public boolean matchesFilters(@Nullable Set<ToolCategory> selectedToolsets, boolean readOnly) {
-    var categoryAllowed = categories.contains(ToolCategory.PROJECTS) || selectedToolsets == null
-      || categories.stream().anyMatch(selectedToolsets::contains);
-    return categoryAllowed && (!readOnly || (definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint())));
+    return matchesCategories(categories, selectedToolsets)
+      && (!readOnly || (definition.annotations() != null && Boolean.TRUE.equals(definition.annotations().readOnlyHint())));
+  }
+
+  static boolean matchesCategories(Set<ToolCategory> categories, @Nullable Set<ToolCategory> selectedToolsets) {
+    return categories.contains(ToolCategory.PROJECTS) || selectedToolsets == null || categories.stream().anyMatch(selectedToolsets::contains);
   }
 
   /**
