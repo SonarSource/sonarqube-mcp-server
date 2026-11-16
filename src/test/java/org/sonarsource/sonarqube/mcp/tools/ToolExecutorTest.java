@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
@@ -278,15 +279,16 @@ class ToolExecutorTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"VORTEX,analysis;vortex;issues;cag,analysis;cag;vortex", "VORTEX,cag,cag", "VORTEX,analysis,analysis",
-    "IDE,analysis,analysis", "IDE,cag,none", "ANALYSIS,vortex,none"})
-  void it_should_report_raw_selectors_including_the_canonical_category(ToolCategory category, String selected, String expected) {
+  @CsvSource({"analysis;cag;vortex,analysis;vortex;issues;cag,analysis;cag;vortex", "analysis;cag;vortex,cag,cag",
+    "analysis;cag;vortex,analysis,analysis", "analysis;ide,analysis,analysis", "ide,analysis,none", "vortex,analysis,none",
+    "analysis;ide,cag,none", "analysis,vortex,none"})
+  void it_should_report_raw_selected_keys_in_the_tool_memberships(String memberships, String selected, String expected) {
     var analyticsService = syncAnalyticsService();
     var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null,
       () -> ToolCategory.parseCategories(selected.replace(';', ',')));
     record TestResponse(String value) {}
     var tool = new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(),
-      category) {
+      ToolCategory.parseCategories(memberships.replace(';', ',')).toArray(ToolCategory[]::new)) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.success(new TestResponse("ok"));
@@ -567,7 +569,7 @@ class ToolExecutorTest {
     var toolDefinition = McpSchema.Tool.builder("test_tool", EMPTY_INPUT_SCHEMA).title("desc").description("").build();
     record DummyResponse(String message) {}
     when(tool.definition()).thenReturn(toolDefinition);
-    when(tool.getCategory()).thenReturn(ToolCategory.ANALYSIS);
+    when(tool.getCategories()).thenReturn(Set.of(ToolCategory.ANALYSIS));
     when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
 
     var toolRequest = McpSchema.CallToolRequest.builder("test_tool")
@@ -602,7 +604,7 @@ class ToolExecutorTest {
     var toolDefinition = McpSchema.Tool.builder("test_tool", EMPTY_INPUT_SCHEMA).title("desc").description("").build();
     record DummyResponse(String message) {}
     when(tool.definition()).thenReturn(toolDefinition);
-    when(tool.getCategory()).thenReturn(ToolCategory.ANALYSIS);
+    when(tool.getCategories()).thenReturn(Set.of(ToolCategory.ANALYSIS));
     when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
 
     var toolRequest = McpSchema.CallToolRequest.builder("test_tool")

@@ -31,10 +31,10 @@ class ToolRegistrarTest {
   @Test
   void it_should_accept_selected_tools_in_registration_order() {
     var registrar = new ToolRegistrar(Set.of(ToolCategory.ANALYSIS), false);
-    var project = tool("project", ToolCategory.PROJECTS, null);
-    var vortex = tool("vortex", ToolCategory.VORTEX, null);
-    var ide = tool("ide", ToolCategory.IDE, null);
-    var rejected = tool("issues", ToolCategory.ISSUES, null);
+    var project = tool("project", null, ToolCategory.PROJECTS);
+    var vortex = tool("vortex", null, ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
+    var ide = tool("ide", null, ToolCategory.ANALYSIS, ToolCategory.IDE);
+    var rejected = tool("issues", null, ToolCategory.ISSUES);
 
     assertThat(registrar.register(rejected)).isFalse();
     assertThat(registrar.register(project)).isTrue();
@@ -47,10 +47,10 @@ class ToolRegistrarTest {
   @Test
   void it_should_require_an_explicit_read_only_hint_including_projects() {
     var registrar = new ToolRegistrar(Set.of(), true);
-    var noAnnotations = tool("no_annotations", ToolCategory.PROJECTS, null);
-    var emptyAnnotations = tool("empty_annotations", ToolCategory.PROJECTS, new McpSchema.ToolAnnotations(null, null, null, null, null, null));
-    var falseHint = tool("false_hint", ToolCategory.PROJECTS, new McpSchema.ToolAnnotations(null, false, null, null, null, null));
-    var trueHint = tool("true_hint", ToolCategory.PROJECTS, new McpSchema.ToolAnnotations(null, true, null, null, null, null));
+    var noAnnotations = tool("no_annotations", null, ToolCategory.PROJECTS);
+    var emptyAnnotations = tool("empty_annotations", new McpSchema.ToolAnnotations(null, null, null, null, null, null), ToolCategory.PROJECTS);
+    var falseHint = tool("false_hint", new McpSchema.ToolAnnotations(null, false, null, null, null, null), ToolCategory.PROJECTS);
+    var trueHint = tool("true_hint", new McpSchema.ToolAnnotations(null, true, null, null, null, null), ToolCategory.PROJECTS);
 
     assertThat(registrar.registerAll(List.of(noAnnotations, emptyAnnotations, falseHint, trueHint))).isTrue();
     assertThat(registrar.getRegisteredTools()).containsExactly(trueHint);
@@ -59,8 +59,8 @@ class ToolRegistrarTest {
   @Test
   void it_should_return_immutable_independent_snapshots() {
     var registrar = new ToolRegistrar(Set.of(ToolCategory.PROJECTS), false);
-    var first = tool("first", ToolCategory.PROJECTS, null);
-    var second = tool("second", ToolCategory.PROJECTS, null);
+    var first = tool("first", null, ToolCategory.PROJECTS);
+    var second = tool("second", null, ToolCategory.PROJECTS);
     registrar.register(first);
     var snapshot = registrar.getRegisteredTools();
     registrar.register(second);
@@ -70,9 +70,9 @@ class ToolRegistrarTest {
     assertThatThrownBy(() -> snapshot.add(second)).isInstanceOf(UnsupportedOperationException.class);
   }
 
-  private static Tool tool(String name, ToolCategory category, @Nullable McpSchema.ToolAnnotations annotations) {
+  private static Tool tool(String name, @Nullable McpSchema.ToolAnnotations annotations, ToolCategory... categories) {
     var definition = McpSchema.Tool.builder(name, Map.of("type", "object")).annotations(annotations).build();
-    return new Tool(definition, category) {
+    return new Tool(definition, categories) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.failure("unused");

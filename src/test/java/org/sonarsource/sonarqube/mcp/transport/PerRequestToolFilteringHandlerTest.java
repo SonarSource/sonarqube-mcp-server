@@ -79,9 +79,11 @@ class PerRequestToolFilteringHandlerTest {
     "analysis,vortex,vortex", "vortex,analysis,vortex", "cag,vortex,vortex", "vortex,cag,vortex",
     "analysis,ide,ide", "ide,analysis,ide", "analysis,cag,vortex", "cag,analysis,vortex", "issues,analysis,none"
   })
-  void it_should_narrow_registered_tools_with_aliases_for_discovery_and_calls(String startup, String request, String expected) {
-    var candidates = List.of(mockTool("analysis", ToolCategory.ANALYSIS, true), mockTool("ide", ToolCategory.IDE, true),
-      mockTool("vortex", ToolCategory.VORTEX, true));
+  void it_should_match_explicit_memberships_separately_at_startup_and_per_request(String startup, String request, String expected) {
+    var candidates = List.of(mockTool("analysis", ToolCategory.ANALYSIS, true),
+      mockTool("ide", true, ToolCategory.ANALYSIS, ToolCategory.IDE),
+      mockTool("vortex", true, ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX),
+      mockTool("standalone_ide", ToolCategory.IDE, true));
     var registered = candidates.stream().filter(tool -> tool.matchesFilters(ToolCategory.parseCategories(startup), false)).toList();
     var delegate = mock(McpStatelessServerHandler.class);
     when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
@@ -437,7 +439,15 @@ class PerRequestToolFilteringHandlerTest {
     return mockTool(name, category, new McpSchema.ToolAnnotations(null, readOnly, null, null, null, null));
   }
 
+  private static Tool mockTool(String name, boolean readOnly, ToolCategory... categories) {
+    return mockTool(name, new McpSchema.ToolAnnotations(null, readOnly, null, null, null, null), categories);
+  }
+
   private static Tool mockTool(String name, ToolCategory category, McpSchema.ToolAnnotations annotations) {
+    return mockTool(name, annotations, category);
+  }
+
+  private static Tool mockTool(String name, McpSchema.ToolAnnotations annotations, ToolCategory... categories) {
     var toolDef = McpSchema.Tool.builder(name, Map.of(
         "type", "object",
         "properties", Map.of(),
@@ -446,7 +456,7 @@ class PerRequestToolFilteringHandlerTest {
       .description(name + " description")
       .annotations(annotations)
       .build();
-    return spy(new Tool(toolDef, category) {
+    return spy(new Tool(toolDef, categories) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.failure("unused");

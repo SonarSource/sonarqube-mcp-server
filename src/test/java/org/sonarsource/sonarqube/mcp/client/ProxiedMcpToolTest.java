@@ -69,10 +69,10 @@ class ProxiedMcpToolTest {
   }
 
   @Test
-  void getCategory_should_return_vortex() {
+  void getCategories_should_return_analysis_cag_and_vortex() {
     var tool = new ProxiedMcpTool("weather", "get_weather", originalTool, clientManager);
 
-    assertThat(tool.getCategory()).isEqualTo(ToolCategory.VORTEX);
+    assertThat(tool.getCategories()).containsExactlyInAnyOrder(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
   }
 
   @Test
