@@ -17,7 +17,7 @@ The server initializes the backend immediately with empty analyzers, loads all t
 **Phase 1: Immediate Startup (synchronous)**
 - Initialize backend with empty analyzers
 - Check IDE bridge availability (requires backend)
-- Load and register ALL tools
+- Load eligible tools and register those accepted by the configured toolsets and read-only mode
 - Start MCP server with full tool list
 
 **Phase 2: Analyzer Download (background)**
@@ -97,6 +97,16 @@ Cloud and Server HTTP/HTTPS register `analyze_code_snippet` and download analyze
 Each tool declares all of its toolset memberships explicitly. IDE tools belong to `analysis` and `ide`; Vortex tools belong to `analysis`, `cag`, and `vortex`. Startup and HTTP requests use the same category/read-only filter: any selected membership matches. Projects remain available subject to read-only and authorization checks.
 
 HTTP headers filter the already registered inventory. A tool can match different memberships at startup and per request; the two selected sets are never intersected. Headers cannot enable absent tools. OAuth scopes and per-request eligibility checks apply separately. Telemetry records the raw selected keys present in the tool's memberships; these keys do not authorize tools.
+
+## Accepted Tool Inventory
+
+Eligible tools pass through `ToolRegistrar` once during synchronous startup. It applies the shared toolset and read-only matching rules;
+existing loaders retain their deployment, version, entitlement, and feature checks. The server keeps one immutable accepted inventory for both
+transports, HTTP request filtering, logging, and analyzer startup. HTTP request preferences can further narrow this inventory.
+
+Architecture and agentic readiness instructions are included only when their group registers at least one tool, including read-only subsets.
+Runtime instructions from connected proxied servers are forwarded independently, preserving each provider's guidance.
+The analyzer download notice and background downloads are enabled only when `analyze_code_snippet` is actually registered.
 
 ## Backend Restart
 
