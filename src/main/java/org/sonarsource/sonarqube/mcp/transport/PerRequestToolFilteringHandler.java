@@ -40,9 +40,9 @@ import reactor.core.publisher.Mono;
  * <ul>
  *   <li>If the server started with {@code SONARQUBE_READ_ONLY=true}, write tools are absent
  *       from {@code allTools} and cannot be re-enabled per-request.</li>
- *   <li>If the server started with a restricted {@code SONARQUBE_TOOLSETS}, per-request headers
- *       can select a subset of those toolsets, but cannot add toolsets beyond what the server
- *       was launched with.</li>
+ *   <li>Per-request {@code SONARQUBE_TOOLSETS} headers select from registered tools by membership.
+ *       A tool registered via {@code analysis} can match a request for {@code ide} when it belongs
+ *       to both toolsets; headers cannot enable unregistered tools.</li>
  * </ul>
  *
  * <p>The SDK's built-in {@code toolsListRequestHandler} ignores the {@link McpTransportContext},
