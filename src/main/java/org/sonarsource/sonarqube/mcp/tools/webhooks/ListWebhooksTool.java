@@ -22,7 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListWebhooksTool extends Tool {
@@ -34,7 +34,7 @@ public class ListWebhooksTool extends Tool {
 
   public ListWebhooksTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      ToolCategory.WEBHOOKS);
+      ToolDescriptor.LIST_WEBHOOKS);
     this.serverApiProvider = serverApiProvider;
   }
 

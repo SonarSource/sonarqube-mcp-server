@@ -30,7 +30,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectDire
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummary;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetIntendedToolResponse.Constraint;
@@ -72,7 +72,7 @@ public class ArchitectureGetTool extends Tool {
   }
 
   ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
-    super(definition(isSonarQubeCloud, configuredProjectKey), ToolCategory.ARCHITECTURE);
+    super(definition(isSonarQubeCloud, configuredProjectKey), ToolDescriptor.ARCHITECTURE_GET);
     this.currentReads = currentReads;
     this.targets = targets(isSonarQubeCloud);
     this.serverApiProvider = serverApiProvider;

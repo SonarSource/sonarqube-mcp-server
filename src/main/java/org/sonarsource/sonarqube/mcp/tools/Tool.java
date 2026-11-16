@@ -37,6 +37,10 @@ public abstract class Tool {
   private final McpSchema.Tool definition;
   private final Set<ToolCategory> categories;
 
+  protected Tool(McpSchema.Tool definition, ToolDescriptor descriptor) {
+    this(definition, descriptor.getCategories().toArray(ToolCategory[]::new));
+  }
+
   protected Tool(McpSchema.Tool definition, ToolCategory... categories) {
     this.definition = definition;
     this.categories = Set.of(categories);

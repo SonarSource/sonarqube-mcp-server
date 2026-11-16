@@ -27,7 +27,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentTreeRe
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchFilesByCoverageTool extends Tool {
@@ -62,7 +62,7 @@ public class SearchFilesByCoverageTool extends Tool {
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size (default: 100, max: 500)")
         .setReadOnlyHint()
         .build(),
-      ToolCategory.COVERAGE);
+      ToolDescriptor.SEARCH_FILES_BY_COVERAGE);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

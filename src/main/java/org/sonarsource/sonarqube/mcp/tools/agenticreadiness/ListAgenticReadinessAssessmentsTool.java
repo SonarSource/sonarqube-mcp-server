@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadiness
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListAgenticReadinessAssessmentsTool extends Tool {
@@ -55,7 +55,7 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
       .addNumberProperty(PAGE_SIZE_PROPERTY, "Number of items per page, max 100 (default: 50).")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.AGENTIC_READINESS);
+      ToolDescriptor.LIST_AGENTIC_READINESS_ASSESSMENTS);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

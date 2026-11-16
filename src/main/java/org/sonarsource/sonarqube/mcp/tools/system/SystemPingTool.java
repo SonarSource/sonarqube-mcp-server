@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.system;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class SystemPingTool extends Tool {
 
@@ -34,7 +34,7 @@ public class SystemPingTool extends Tool {
       .setDescription("Ping the SonarQube Server system to check if it's alive. Returns 'pong' as plain text.")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SYSTEM);
+      ToolDescriptor.SYSTEM_PING);
     this.serverApiProvider = serverApiProvider;
   }
 

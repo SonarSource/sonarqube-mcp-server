@@ -26,7 +26,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.measures.response.ComponentTreeRe
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchDuplicatedFilesTool extends Tool {
@@ -69,7 +69,7 @@ public class SearchDuplicatedFilesTool extends Tool {
           "If not specified, auto-fetches all duplicated files.")
         .setReadOnlyHint()
         .build(),
-      ToolCategory.DUPLICATIONS);
+      ToolDescriptor.SEARCH_DUPLICATED_FILES);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

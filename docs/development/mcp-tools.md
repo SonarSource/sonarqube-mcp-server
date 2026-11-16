@@ -16,8 +16,12 @@ The startup gate applies to both HTTP and stdio. HTTP adds caller-specific permi
 2. Add a `Tool` subclass under its domain, plus `package-info.java` for a new package. Use a snake_case `TOOL_NAME` of at most 64 characters, accepted by `ToolNameValidator`.
 3. Build the schema with `ToolDefinitionBuilder`; reuse configured-project, organization, and branch/pull-request handling. Use `BranchPullRequestContext` where applicable.
 4. Return a typed record through `Tool.Result.success`. Null fields are omitted; the payload is serialized once as JSON text. Tools do not advertise output schemas.
-5. Register through the existing startup path and category filtering. Use `isEnabledFor()` for caller-specific checks when needed, not as a substitute for known startup gates.
+5. Add one `ToolDescriptor` entry with its categories, supported transports, and named `ToolAvailability` rule; pass that descriptor to the `Tool` constructor. HTTP includes HTTPS. Proxied Vortex tools share the `VORTEX_PROXY` descriptor; tool names remain in their implementation. Register through the startup path, preserving its availability checks and shared category filtering. Use `isEnabledFor()` for caller-specific checks when needed, not as a substitute for known startup gates.
 6. Add regression coverage through the MCP harness and update the user reference.
+
+`ToolDescriptor` is the category source for production tools. Its transport and availability metadata describes the existing gates; startup selection still enforces those gates. The category-varargs constructor remains for synthetic test tools.
+
+Invocation checks remain with the operation that has the caller's credentials and arguments: `SearchDependencyRisksTool.execute()` checks SCA availability and Server version, `RunAdvancedCodeAnalysisTool.execute()` checks the selected Cloud organization, and SARA relies on backend enforcement. Descriptors do not issue entitlement requests or authorize HTTP calls.
 
 ## Input and output budgets
 

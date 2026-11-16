@@ -22,7 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.branches.response.BranchesListResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.BRANCH_TYPES_FILTER_VALUES;
@@ -52,7 +52,7 @@ public class ListBranchesTool extends Tool {
 
   public ListBranchesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
     super(buildToolDefinition(isSonarQubeCloud, configuredProjectKey),
-      ToolCategory.PROJECTS);
+      ToolDescriptor.LIST_BRANCHES);
     this.serverApiProvider = serverApiProvider;
     this.isSonarQubeCloud = isSonarQubeCloud;
     this.configuredProjectKey = configuredProjectKey;

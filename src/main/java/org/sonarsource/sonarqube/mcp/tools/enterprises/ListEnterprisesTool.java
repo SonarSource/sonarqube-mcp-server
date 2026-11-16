@@ -21,7 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class ListEnterprisesTool extends Tool {
 
@@ -31,7 +31,7 @@ public class ListEnterprisesTool extends Tool {
   private final ServerApiProvider serverApiProvider;
 
   public ListEnterprisesTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(), ToolCategory.PORTFOLIOS);
+    super(buildToolDefinition(), ToolDescriptor.LIST_ENTERPRISES);
     this.serverApiProvider = serverApiProvider;
   }
 
