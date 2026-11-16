@@ -6,7 +6,9 @@
 
 The Server build must expose the public `/api/v2/components/projects` lookup and the public Architecture APIs, and accept lowercase language values (backend fix SONARCH-3426). Adding the project lookup alone does not enable these operations. Unavailable endpoints fail when called; use the tool schema advertised by the running MCP build.
 
-- **architecture_get** - Read current dependencies, intended groups and constraints, project directives, or deviations, flaws and smells with their details. Findings are read from the latest main-branch analysis. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export. `omittedNodes` counts nodes excluded by limits within the requested component/depth, not deeper descendants. Every returned node includes `descendants` and `truncated` navigation metadata; the five `drillDown` entries are suggestions. Selecting a leaf returns an explanatory message.
+- **architecture_get** - Read current dependencies, intended groups and constraints, project directives, findings and per-language finding counts. Findings are read from the latest main-branch analysis. Current views show at most 150 nodes; narrow the view with `component` or `language`. Omitted siblings may remain undiscoverable, so a capped view is not a complete graph export. `omittedNodes` counts nodes excluded by limits within the requested component/depth, not deeper descendants. Every returned node includes `descendants` and `truncated` navigation metadata; the five `drillDown` entries are suggestions. Selecting a leaf returns an explanatory message.
+
+  For per-language finding counts on Cloud, use `target: summary` with an optional `language`. Counts come from the latest main-branch analysis; `component`, `depth`, paging, `category`, `type` and `directiveId` are rejected. The response includes totals and counts by type for deviations, flaws and smells. Unsupported languages are skipped and counted in `skippedSummaries`. An empty list with no skipped languages means no summary is visible; it does not prove there are no findings. Numeric coverage is not included.
 
   Directive pages return `view: "summary"`: all matching page entries and their exact operation keys, origin and IDs, without descriptions. `descriptionOmitted` indicates whether a description is stored; use `directiveId` for the complete record. Summaries are not full exports. The default remains 50; pages are limited to 50 entries. Requests above 50 fail instead of being silently clamped. When reducing `pageSize`, restart at `pageIndex: 1` and continue paging. Backend totals are unchanged. This limit applies only to MCP list reads; write preflight and CLI pagination are unchanged. Backend pages still contain full records; this reduces tool output, not API transfer. Long keys and large pages can still produce large responses.
 
@@ -17,12 +19,12 @@ The Server build must expose the public `/api/v2/components/projects` lookup and
   Current graph reads are limited to two concurrent calls per tool instance. Additional calls wait up to five seconds for capacity before returning a busy error. Each accepted call still downloads and processes the full selected graph.
 
   Parameters:
-  - `target` - `current`, `intended`, `directives` or `findings` - _Required Enum_
+  - `target` - `current`, `intended`, `directives`, `findings` or `summary` (Cloud only) - _Required Enum_
   - `projectKey` - The project key - _Required String_ _(Ignored when `SONARQUBE_PROJECT_KEY` is defined)_
-  - `organization` - SonarQube Cloud organization key when none is configured; required for `current` and `findings` - _Optional String_
+  - `organization` - SonarQube Cloud organization key when none is configured; required for `current`, `findings` and `summary` - _Optional String_
   - `component` - Exact returned current node key (Java: `module:package`) or intended group key (labels joined by `/`); no wildcards; top level when omitted - _String_
   - `depth` - Levels below the start (default: 1 for `current`, all for `intended`) - _Number_
-  - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended/findings only - _String_
+  - `language` - `java`, `cs`, `js`, `ts` or `py`; current/intended/findings/summary only - _String_
   - `directiveId` - Directives only: full record, including description, by UUID; cannot be combined with paging - _String_
   - `category` - Findings only: `deviation`, `flaw` or `smell` - _Enum_
   - `type` - Findings only: `structuralDeviation`, `relationshipDeviation`, `tangle`, `oversizedComponent`, `weakTangle` or `splitResponsibility` - _Enum_
