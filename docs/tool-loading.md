@@ -72,6 +72,10 @@ Initialization Complete
 
 ## Tool Availability
 
+`ToolCategory` declares which transports enable each toolset by default. Launch configuration resolves unset or blank `SONARQUBE_TOOLSETS` using those defaults; an explicit list replaces them, with `projects` always enabled. HTTPS uses HTTP defaults. Selection remains separate from deployment, version and feature checks during tool loading.
+
+Agentic readiness is selected by default only in stdio, where registration requires a confirmed organization feature flag. HTTP/HTTPS requires explicit server-side `agentic-readiness` selection and relies on backend entitlement enforcement on each call. Request headers can only narrow the registered tools.
+
 All tools are registered at startup:
 
 **REST API Tools** - Work immediately
