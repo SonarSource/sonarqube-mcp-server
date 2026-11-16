@@ -101,7 +101,7 @@ HTTP headers filter the already registered inventory. A tool can match different
 ## Accepted Tool Inventory
 
 Eligible tools pass through `ToolRegistrar` once during synchronous startup. It applies the shared toolset and read-only matching rules;
-`ToolAvailability` resolves deployment, version, entitlement, and feature facts once for the existing loaders. It skips feature probes for disabled
+`ToolAvailability` resolves deployment, version, entitlement, and feature facts before backend initialization. It skips feature probes for disabled
 toolsets and leaves HTTP caller-specific checks in the tools or backend. `AnalysisToolSelection` chooses local, IDE, Vortex, or no analysis and prepares
 the IDE bridge before tool construction. The server retains service lifecycle and tool construction, and keeps one immutable accepted inventory for both
 transports, HTTP request filtering, logging, and analyzer startup. HTTP request preferences can further narrow this inventory.

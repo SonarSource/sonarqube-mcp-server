@@ -316,11 +316,12 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
     organizations.forEach(serverApi::cacheOrganizationUuid);
     var serverVersion = sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
+    var availability = ToolAvailability.resolve(mcpConfiguration, serverApi, serverVersion, resolvedOrganization, organizations);
+
     // Initialize backend immediately with empty analyzers so we can check IDE bridge availability
     backendService.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
     backendService.notifyTransportModeUsed();
 
-    var availability = ToolAvailability.resolve(mcpConfiguration, serverApi, serverVersion, resolvedOrganization, organizations);
     loadBackendIndependentTools(availability, registrar);
 
     if ((availability.vortexProxy() || availability.vortexAnalysis()) && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
