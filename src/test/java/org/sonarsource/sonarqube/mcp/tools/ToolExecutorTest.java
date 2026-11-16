@@ -278,14 +278,16 @@ class ToolExecutorTest {
     verify(analyticsService).notifyToolInvoked(any(ToolInvocationResult.class));
   }
 
-  @Test
-  void it_should_report_the_intersection_of_enabled_toolsets_and_tool_categories() {
+  @ParameterizedTest
+  @CsvSource({"VORTEX,analysis;vortex;issues;cag,analysis;cag;vortex", "VORTEX,cag,cag", "VORTEX,analysis,analysis",
+    "IDE,analysis,analysis", "IDE,cag,none", "ANALYSIS,vortex,none"})
+  void it_should_report_raw_selectors_including_the_canonical_category(ToolCategory category, String selected, String expected) {
     var analyticsService = syncAnalyticsService();
     var executor = new ToolExecutor(mockBackendService, analyticsService, ConnectionContext.empty(), null, null,
-      () -> Set.of(ToolCategory.VORTEX, ToolCategory.ISSUES, ToolCategory.ANALYSIS));
+      () -> ToolCategory.parseCategories(selected.replace(';', ',')));
     record TestResponse(String value) {}
     var tool = new Tool(McpSchema.Tool.builder("tool_name", EMPTY_INPUT_SCHEMA).title("test description").description("").build(),
-      ToolCategory.ANALYSIS, ToolCategory.VORTEX) {
+      category) {
       @Override
       public Result execute(Arguments arguments) {
         return Result.success(new TestResponse("ok"));
@@ -296,7 +298,8 @@ class ToolExecutorTest {
 
     var resultCaptor = ArgumentCaptor.forClass(ToolInvocationResult.class);
     verify(analyticsService).notifyToolInvoked(resultCaptor.capture());
-    assertThat(resultCaptor.getValue().matchingToolsets()).containsExactly("analysis", "vortex");
+    assertThat(resultCaptor.getValue().matchingToolsets())
+      .containsExactlyElementsOf(expected.equals("none") ? List.of() : List.of(expected.split(";")));
   }
 
   @Test
@@ -565,7 +568,7 @@ class ToolExecutorTest {
     var toolDefinition = McpSchema.Tool.builder("test_tool", EMPTY_INPUT_SCHEMA).title("desc").description("").build();
     record DummyResponse(String message) {}
     when(tool.definition()).thenReturn(toolDefinition);
-    when(tool.getCategories()).thenReturn(Set.of(ToolCategory.ANALYSIS));
+    when(tool.getCategory()).thenReturn(ToolCategory.ANALYSIS);
     when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
 
     var toolRequest = McpSchema.CallToolRequest.builder("test_tool")
@@ -600,7 +603,7 @@ class ToolExecutorTest {
     var toolDefinition = McpSchema.Tool.builder("test_tool", EMPTY_INPUT_SCHEMA).title("desc").description("").build();
     record DummyResponse(String message) {}
     when(tool.definition()).thenReturn(toolDefinition);
-    when(tool.getCategories()).thenReturn(Set.of(ToolCategory.ANALYSIS));
+    when(tool.getCategory()).thenReturn(ToolCategory.ANALYSIS);
     when(tool.execute(any())).thenReturn(Tool.Result.success(new DummyResponse("ok")));
 
     var toolRequest = McpSchema.CallToolRequest.builder("test_tool")

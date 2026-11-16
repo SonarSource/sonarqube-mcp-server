@@ -81,12 +81,18 @@ All tools are registered at startup:
 
 **Analysis Tools** - Available immediately, fully functional after Phase 2
 - `analyze_code_snippet` - Analyzes code using SonarLint backend. **Deprecated** in favor of `analyze_file_list` and Vortex toolset, will be removed in a future release
-- `analyze_file_list` - Uses IDE bridge (if available); also tagged under the `ide` toolset alongside `analysis`
+- `analyze_file_list` - Uses IDE bridge (if available); categorized as `ide`, selected by either `ide` or the legacy `analysis` selector
 - Analysis works once analyzers are downloaded
 
 Cloud stdio registers either Vortex analysis (when the workspace is mounted and at least one accessible organization is entitled) or local analysis, preserving an explicitly configured IDE bridge. `SONARQUBE_FORCE_LOCAL_ANALYSIS=true` selects snippet analysis even for entitled organizations in Cloud stdio only. Confirmed entitlements are cached for the session; the advanced tool still validates the selected organization.
 
 Cloud and Server HTTP/HTTPS register `analyze_code_snippet` and download analyzers when a startup `SONARQUBE_TOKEN` is provided and the `analysis` toolset is enabled. The startup token is required for analyzer initialization; Cloud plugin downloads remain anonymous, while Server downloads use the startup token. Analysis calls retrieve quality profiles and active rules with the caller’s credentials and, on Cloud, the organization selected for the request. No Vortex entitlement is required. Without a startup token or with the `analysis` toolset disabled, snippet analysis and analyzer downloads are unavailable. `SONARQUBE_FORCE_LOCAL_ANALYSIS` cannot bypass the startup token requirement.
+
+## Categories and toolset selection
+
+Each tool has one canonical category. Startup and HTTP requests use the same category/read-only filter: `analysis` selects snippet analysis, IDE, and Vortex categories; the legacy `cag` selector selects Vortex only. Other selectors match their own category. Projects remain available subject to read-only and authorization checks.
+
+HTTP headers filter the already registered inventory, so compatible selector names work in either direction without enabling absent tools. OAuth scopes and per-request eligibility checks apply separately. Telemetry records the raw selected keys that include the tool's category; these keys do not authorize tools.
 
 ## Backend Restart
 

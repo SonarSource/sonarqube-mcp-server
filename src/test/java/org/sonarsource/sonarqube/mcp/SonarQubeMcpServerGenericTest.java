@@ -55,8 +55,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
 class SonarQubeMcpServerGenericTest {
@@ -70,21 +68,23 @@ class SonarQubeMcpServerGenericTest {
     harness.prepareMockWebServer(environment);
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
 
-    var noAnnotations = mockToolWithAnnotations("no_annotations", null);
-    var emptyAnnotations = mockToolWithAnnotations("empty_annotations", new McpSchema.ToolAnnotations(null, null, null, null, null, null));
-    var falseHint = mockToolWithAnnotations("false_hint", new McpSchema.ToolAnnotations(null, false, null, null, null, null));
-    var trueHint = mockToolWithAnnotations("true_hint", new McpSchema.ToolAnnotations(null, true, null, null, null, null));
+    var noAnnotations = projectToolWithAnnotations("no_annotations", null);
+    var emptyAnnotations = projectToolWithAnnotations("empty_annotations", new McpSchema.ToolAnnotations(null, null, null, null, null, null));
+    var falseHint = projectToolWithAnnotations("false_hint", new McpSchema.ToolAnnotations(null, false, null, null, null, null));
+    var trueHint = projectToolWithAnnotations("true_hint", new McpSchema.ToolAnnotations(null, true, null, null, null, null));
 
     assertThat(server.filterForEnabledTools(List.of(noAnnotations, emptyAnnotations, falseHint, trueHint)))
       .containsExactly(trueHint);
   }
 
-  private static Tool mockToolWithAnnotations(String name, McpSchema.ToolAnnotations annotations) {
+  private static Tool projectToolWithAnnotations(String name, McpSchema.ToolAnnotations annotations) {
     var definition = McpSchema.Tool.builder(name, Map.of("type", "object")).annotations(annotations).build();
-    var tool = mock(Tool.class);
-    when(tool.getCategories()).thenReturn(Set.of(ToolCategory.PROJECTS));
-    when(tool.definition()).thenReturn(definition);
-    return tool;
+    return new Tool(definition, ToolCategory.PROJECTS) {
+      @Override
+      public Result execute(Arguments arguments) {
+        return Result.failure("unused");
+      }
+    };
   }
 
   @SonarQubeMcpServerTest
@@ -802,7 +802,7 @@ class SonarQubeMcpServerGenericTest {
 
     var config = server.getMcpConfiguration();
     var enabledToolNames = server.getSupportedTools().stream()
-      .filter(tool -> tool.getCategories().stream().anyMatch(config::isToolCategoryEnabled))
+      .filter(tool -> tool.matchesFilters(config.getEnabledToolsets(), config.isReadOnlyMode()))
       .map(tool -> tool.definition().name())
       .toList();
     assertThat(enabledToolNames)
@@ -860,7 +860,7 @@ class SonarQubeMcpServerGenericTest {
 
     var config = server.getMcpConfiguration();
     var enabledToolNames = server.getSupportedTools().stream()
-      .filter(tool -> tool.getCategories().stream().anyMatch(config::isToolCategoryEnabled))
+      .filter(tool -> tool.matchesFilters(config.getEnabledToolsets(), config.isReadOnlyMode()))
       .map(tool -> tool.definition().name())
       .toList();
     assertThat(enabledToolNames)
@@ -885,9 +885,9 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void resolve_enabled_toolsets_should_apply_http_request_narrowing(SonarQubeMcpServerTestHarness harness) {
+  void resolve_selected_toolsets_should_preserve_raw_http_selectors_for_telemetry(SonarQubeMcpServerTestHarness harness) {
     var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
-    environment.put("SONARQUBE_TOOLSETS", "issues,rules");
+    environment.put("SONARQUBE_TOOLSETS", "analysis,rules");
     harness.prepareMockWebServer(environment);
 
     var server = new SonarQubeMcpServer(environment);
@@ -895,14 +895,14 @@ class SonarQubeMcpServerGenericTest {
 
     var contextWithoutOverride = McpTransportContext.create(Map.of());
     server.withTransportContext(contextWithoutOverride, () ->
-      assertThat(server.resolveEnabledToolsets()).containsExactlyInAnyOrder(
-        ToolCategory.ISSUES, ToolCategory.RULES, ToolCategory.PROJECTS));
+      assertThat(server.resolveSelectedToolsets()).containsExactlyInAnyOrder(
+        ToolCategory.ANALYSIS, ToolCategory.RULES, ToolCategory.PROJECTS));
 
-    var narrowedContext = McpTransportContext.create(Map.of(
-      HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.ISSUES)));
-    server.withTransportContext(narrowedContext, () ->
-      assertThat(server.resolveEnabledToolsets()).containsExactlyInAnyOrder(
-        ToolCategory.ISSUES, ToolCategory.PROJECTS));
+    var requestContext = McpTransportContext.create(Map.of(
+      HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, Set.of(ToolCategory.VORTEX, ToolCategory.CAG)));
+    server.withTransportContext(requestContext, () ->
+      assertThat(server.resolveSelectedToolsets()).containsExactlyInAnyOrder(
+        ToolCategory.VORTEX, ToolCategory.CAG, ToolCategory.PROJECTS));
 
     server.shutdown();
   }

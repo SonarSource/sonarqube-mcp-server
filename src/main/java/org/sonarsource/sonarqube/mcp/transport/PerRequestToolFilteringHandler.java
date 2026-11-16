@@ -144,10 +144,9 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
 
   private static boolean matchesRequestFilters(Tool tool, McpTransportContext ctx) {
     @SuppressWarnings("unchecked")
-    var allowedCategories = (Set<ToolCategory>) ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
+    var selectedToolsets = (Set<ToolCategory>) ctx.get(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY);
     var readOnly = Boolean.TRUE.equals(ctx.get(HttpServerTransportProvider.CONTEXT_READ_ONLY_KEY));
-    var annotations = tool.definition().annotations();
-    return isCategoryAllowed(tool, allowedCategories) && (!readOnly || (annotations != null && Boolean.TRUE.equals(annotations.readOnlyHint())));
+    return tool.matchesFilters(selectedToolsets, readOnly);
   }
 
   private static Mono<McpSchema.JSONRPCResponse> toolNotFound(McpSchema.JSONRPCRequest request, String name) {
@@ -162,16 +161,6 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
       return name instanceof String s ? s : null;
     }
     return null;
-  }
-
-  private static boolean isCategoryAllowed(Tool tool, @Nullable Set<ToolCategory> allowedCategories) {
-    if (tool.getCategories().contains(ToolCategory.PROJECTS)) {
-      return true;
-    }
-    if (allowedCategories == null) {
-      return true;
-    }
-    return tool.getCategories().stream().anyMatch(allowedCategories::contains);
   }
 
 }
