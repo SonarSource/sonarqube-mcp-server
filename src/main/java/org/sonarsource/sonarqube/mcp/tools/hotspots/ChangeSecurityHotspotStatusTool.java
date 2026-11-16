@@ -19,7 +19,7 @@ package org.sonarsource.sonarqube.mcp.tools.hotspots;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class ChangeSecurityHotspotStatusTool extends Tool {
 
@@ -51,7 +51,7 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
       .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "The resolution when status is REVIEWED. Required if status is REVIEWED")
       .addStringProperty(COMMENT_PROPERTY, "An optional comment explaining the review decision")
       .build(),
-      ToolCategory.SECURITY_HOTSPOTS);
+      ToolDescriptor.CHANGE_SECURITY_HOTSPOT_STATUS);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -22,7 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.hotspots.response.ShowResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class ShowSecurityHotspotTool extends Tool {
 
@@ -39,7 +39,7 @@ public class ShowSecurityHotspotTool extends Tool {
       .addRequiredStringProperty(HOTSPOT_KEY_PROPERTY, "The key of the Security Hotspot to retrieve")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SECURITY_HOTSPOTS);
+      ToolDescriptor.SHOW_SECURITY_HOTSPOT);
     this.serverApiProvider = serverApiProvider;
   }
 

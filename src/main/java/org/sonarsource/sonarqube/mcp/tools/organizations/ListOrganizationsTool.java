@@ -18,7 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.organizations;
 
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 
 public class ListOrganizationsTool extends Tool {
@@ -32,7 +32,7 @@ public class ListOrganizationsTool extends Tool {
       .setTitle("List Your SonarQube Cloud Organizations")
       .setDescription("List SonarQube Cloud organizations that a user is a member of.")
       .setReadOnlyHint()
-      .build(), ToolCategory.PROJECTS);
+      .build(), ToolDescriptor.LIST_ORGANIZATIONS);
     this.serverApiProvider = serverApiProvider;
   }
 

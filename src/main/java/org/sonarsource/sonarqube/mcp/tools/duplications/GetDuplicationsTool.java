@@ -21,7 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.duplications.response.Duplication
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class GetDuplicationsTool extends Tool {
 
@@ -41,7 +41,7 @@ public class GetDuplicationsTool extends Tool {
       .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
       .build(),
-      ToolCategory.DUPLICATIONS);
+      ToolDescriptor.GET_DUPLICATIONS);
     this.serverApiProvider = serverApiProvider;
   }
 

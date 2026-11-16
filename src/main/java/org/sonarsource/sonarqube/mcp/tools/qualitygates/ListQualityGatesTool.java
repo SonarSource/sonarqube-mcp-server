@@ -20,7 +20,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListQualityGatesTool extends Tool {
@@ -36,7 +36,7 @@ public class ListQualityGatesTool extends Tool {
       .setDescription("List all quality gates.")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.QUALITY_GATES);
+      ToolDescriptor.LIST_QUALITY_GATES);
     this.serverApiProvider = serverApiProvider;
   }
 

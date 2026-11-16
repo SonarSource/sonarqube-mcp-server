@@ -29,7 +29,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.cag.CagApi;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class RunAdvancedCodeAnalysisTool extends Tool {
@@ -50,7 +50,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private final Path configuredWorkspacePath;
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath, boolean isSonarQubeCloud) {
-    super(buildToolDefinition(configuredProjectKey, isSonarQubeCloud), ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
+    super(buildToolDefinition(configuredProjectKey, isSonarQubeCloud), ToolDescriptor.RUN_ADVANCED_CODE_ANALYSIS);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;

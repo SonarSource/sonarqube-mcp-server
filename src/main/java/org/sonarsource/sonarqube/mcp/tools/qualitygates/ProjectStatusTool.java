@@ -21,7 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ProjectStat
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ProjectStatusTool extends Tool {
@@ -50,7 +50,7 @@ public class ProjectStatusTool extends Tool {
       .addStringProperty(PROJECT_KEY_PROPERTY, "The optional project key to get the status for, for example 'my_project'")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.QUALITY_GATES);
+      ToolDescriptor.PROJECT_STATUS);
     this.serverApiProvider = serverApiProvider;
   }
 

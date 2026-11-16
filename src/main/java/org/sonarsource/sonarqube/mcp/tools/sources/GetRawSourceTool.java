@@ -20,7 +20,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class GetRawSourceTool extends Tool {
 
@@ -40,7 +40,7 @@ public class GetRawSourceTool extends Tool {
       .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SOURCES);
+      ToolDescriptor.GET_RAW_SOURCE);
     this.serverApiProvider = serverApiProvider;
   }
 

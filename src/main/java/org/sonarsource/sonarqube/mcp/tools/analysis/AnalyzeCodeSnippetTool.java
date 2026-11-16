@@ -39,7 +39,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.rules.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 import static java.util.stream.Collectors.toMap;
@@ -84,7 +84,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
     CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath,
     boolean isSonarQubeCloud) {
-    super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud), ToolCategory.ANALYSIS);
+    super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud), ToolDescriptor.ANALYZE_CODE_SNIPPET);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
     this.initializationFuture = initializationFuture;

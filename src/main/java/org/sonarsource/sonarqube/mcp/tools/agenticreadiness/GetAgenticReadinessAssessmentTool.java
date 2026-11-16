@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.AgenticReadinessApi;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
-import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolDescriptor;
 
 public class GetAgenticReadinessAssessmentTool extends Tool {
 
@@ -42,7 +42,7 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
       .addRequiredStringProperty("assessmentId", "The assessment ID returned by start_agentic_readiness_assessment.")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.AGENTIC_READINESS);
+      ToolDescriptor.GET_AGENTIC_READINESS_ASSESSMENT);
     this.serverApiProvider = serverApiProvider;
   }
 
