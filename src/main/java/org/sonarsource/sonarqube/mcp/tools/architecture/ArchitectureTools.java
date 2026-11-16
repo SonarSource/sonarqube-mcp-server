@@ -36,14 +36,21 @@ public final class ArchitectureTools {
     2. Before you finish a code change, compare every dependency you added with those constraints and fix any that are not allowed.
     Do not change the intended architecture unless the user asks.""";
 
-  private ArchitectureTools() {
+  private final CurrentGraphReads currentReads = new CurrentGraphReads();
+
+  public ArchitectureGetTool createGet(ServerApiProvider provider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
+    return new ArchitectureGetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads);
+  }
+
+  public ArchitectureSetTool createSet(ServerApiProvider provider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
+    return new ArchitectureSetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads);
   }
 
   public static List<Tool> create(ServerApiProvider provider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
     var tools = new ArrayList<Tool>();
-    var currentReads = new CurrentGraphReads();
-    tools.add(new ArchitectureGetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
-    tools.add(new ArchitectureSetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
+    var factory = new ArchitectureTools();
+    tools.add(factory.createGet(provider, isSonarQubeCloud, configuredProjectKey));
+    tools.add(factory.createSet(provider, isSonarQubeCloud, configuredProjectKey));
     return tools;
   }
 }

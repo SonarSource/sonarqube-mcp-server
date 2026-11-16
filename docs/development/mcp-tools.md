@@ -16,8 +16,29 @@ The startup gate applies to both HTTP and stdio. HTTP adds caller-specific permi
 2. Add a `Tool` subclass under its domain, plus `package-info.java` for a new package. Use a snake_case `TOOL_NAME` of at most 64 characters, accepted by `ToolNameValidator`.
 3. Build the schema with `ToolDefinitionBuilder`; reuse configured-project, organization, and branch/pull-request handling. Use `BranchPullRequestContext` where applicable.
 4. Return a typed record through `Tool.Result.success`. Null fields are omitted; the payload is serialized once as JSON text. Tools do not advertise output schemas.
-5. Register through the existing startup path and category filtering. Use `isEnabledFor()` for caller-specific checks when needed, not as a substitute for known startup gates.
+5. Declare a `public static final ToolPolicy POLICY` on the tool and pass it to `super` with the definition. Add a policy/factory pair in `ToolCatalog`; factories only wire dependencies. Use `isEnabledFor()` for caller-specific checks when needed, not as a substitute for known startup gates.
 6. Add regression coverage through the MCP harness and update the user reference.
+
+## Registration policy
+
+Ordinary tools need only their categories:
+
+```java
+public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.ISSUES);
+```
+
+Both transports are supported by default. Restrict transport and declare a named startup requirement when needed:
+
+```java
+public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX)
+  .stdioOnly().requires(ToolCapabilities::vortexAnalysis);
+```
+
+`ToolCapabilitiesResolver` resolves shared startup decisions through the existing API clients. Policies read the immutable `ToolCapabilities` snapshot and perform no network calls. Add a capability here when a tool needs a new startup condition; keep the declaration on the tool and dependency construction in `ToolCatalog`.
+
+The catalog checks transport and capability requirements before invoking a factory. It then filters supported tools by configured categories and read-only mode. A match on any category enables a tool; `projects` remains always enabled. Keep existing aliases and defaults intact.
+
+Startup registration and caller authorization are separate. Retain HTTP request filtering, OAuth scope enforcement, and execution-time entitlement checks for the selected organization. A startup entitlement cannot authorize an HTTP caller.
 
 ## Input and output budgets
 

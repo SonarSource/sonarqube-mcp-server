@@ -35,11 +35,15 @@ import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.WRITE;
 
 public abstract class Tool {
   private final McpSchema.Tool definition;
-  private final Set<ToolCategory> categories;
+  private final ToolPolicy policy;
 
   protected Tool(McpSchema.Tool definition, ToolCategory... categories) {
+    this(definition, ToolPolicy.of(categories));
+  }
+
+  protected Tool(McpSchema.Tool definition, ToolPolicy policy) {
     this.definition = definition;
-    this.categories = Set.of(categories);
+    this.policy = policy;
   }
 
   public McpSchema.Tool definition() {
@@ -47,7 +51,7 @@ public abstract class Tool {
   }
 
   public Set<ToolCategory> getCategories() {
-    return categories;
+    return policy.categories();
   }
 
   /**

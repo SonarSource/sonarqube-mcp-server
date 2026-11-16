@@ -22,11 +22,13 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ProjectStatusTool extends Tool {
 
   public static final String TOOL_NAME = "get_project_quality_gate_status";
+  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.QUALITY_GATES);
   public static final String ANALYSIS_ID_PROPERTY = "analysisId";
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String PROJECT_ID_PROPERTY = "projectId";
@@ -50,7 +52,7 @@ public class ProjectStatusTool extends Tool {
       .addStringProperty(PROJECT_KEY_PROPERTY, "The optional project key to get the status for, for example 'my_project'")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.QUALITY_GATES);
+      POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 
