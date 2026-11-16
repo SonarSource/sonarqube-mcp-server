@@ -75,10 +75,10 @@ class ToolAvailabilityTest {
   void it_should_keep_http_entitlements_at_invocation_and_require_sara_opt_in() {
     when(configuration.isHttpEnabled()).thenReturn(true);
     when(configuration.isSonarQubeCloud()).thenReturn(true);
-    when(configuration.getEnabledToolsets()).thenReturn(ToolCategory.all());
+    when(configuration.getEnabledToolsets()).thenReturn(Set.of(ToolCategory.DEPENDENCY_RISKS, ToolCategory.VORTEX));
 
     assertThat(ToolAvailability.resolve(configuration, api, null, null, List.of()).sara()).isFalse();
-    when(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.AGENTIC_READINESS)).thenReturn(true);
+    when(configuration.getEnabledToolsets()).thenReturn(ToolCategory.all());
     var facts = ToolAvailability.resolve(configuration, api, null, null, List.of());
 
     assertThat(facts.sara()).isTrue();

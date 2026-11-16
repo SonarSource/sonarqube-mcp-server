@@ -88,7 +88,7 @@ public enum ToolAvailability {
     }
     // HTTP has no organization at startup. The SARA backend enforces entitlement with the invocation credentials.
     if (configuration.isHttpEnabled()) {
-      return configuration.isToolCategoryExplicitlyEnabled(ToolCategory.AGENTIC_READINESS);
+      return true;
     }
     for (var candidate : organization == null ? organizations : List.of(organization)) {
       try {

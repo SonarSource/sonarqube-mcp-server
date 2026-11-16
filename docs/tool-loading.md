@@ -72,6 +72,10 @@ Initialization Complete
 
 ## Tool Availability
 
+`ToolCategory` declares which transports enable each toolset by default. Launch configuration resolves unset or blank `SONARQUBE_TOOLSETS` using those defaults; an explicit list replaces them, with `projects` always enabled. HTTPS uses HTTP defaults. Selection remains separate from deployment, version and feature checks during tool loading.
+
+Agentic readiness is selected by default only in stdio, where registration requires a confirmed organization feature flag. HTTP/HTTPS requires explicit server-side `agentic-readiness` selection and relies on backend entitlement enforcement on each call. Request headers can only narrow the registered tools.
+
 All tools are registered at startup:
 
 **REST API Tools** - Work immediately
@@ -98,7 +102,7 @@ HTTP headers filter the already registered inventory. A tool can match different
 
 `SonarQubeMcpServer` initializes services, resolves organizations and the Server version, then delegates tool loading:
 
-- `ToolAvailability` resolves startup facts once: Architecture version support, Server SCA, SARA flags, and combined Vortex entitlement. Disabled optional toolsets skip their probes. HTTP SARA requires explicit server opt-in and retains backend entitlement enforcement on each call; HTTP SCA also defers caller checks to invocation. No startup entitlement or feature check substitutes for caller authorization.
+- `ToolAvailability` resolves startup facts once, before backend initialization: Architecture version support, Server SCA, SARA flags, and combined Vortex entitlement. Disabled optional toolsets skip their probes. HTTP SARA requires explicit server opt-in and retains backend entitlement enforcement on each call; HTTP SCA also defers caller checks to invocation. No startup entitlement or feature check substitutes for caller authorization.
 - `AnalysisToolSelection` selects none, local, IDE, or Vortex after backend initialization. It constructs no tools. HTTP without a startup token has no analysis; Cloud force-local selects snippets while leaving Vortex proxy eligibility independent. An entitled Server Vortex installation without a workspace has no analysis tool and does not fall back to IDE or snippets.
 - `ToolCatalog` contains the ordered, lazy tool factories paired with their canonical descriptors. It checks transport, selected categories, and resolved availability before construction. Architecture's factory runs once so get/set tools share their current-graph state. `ToolRegistrar` applies the shared category/read-only filter to those instances and returns one immutable accepted inventory.
 

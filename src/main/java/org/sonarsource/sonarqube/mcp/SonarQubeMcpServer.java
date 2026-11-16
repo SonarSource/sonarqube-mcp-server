@@ -257,11 +257,11 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     var versionChecker = new SonarQubeVersionChecker(serverApi);
     organizations.forEach(serverApi::cacheOrganizationUuid);
     var serverVersion = versionChecker.failIfSonarQubeServerVersionIsNotSupported();
+    var availability = ToolAvailability.resolve(mcpConfiguration, serverApi, serverVersion, resolvedOrganization, organizations);
 
     backendService.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
     backendService.notifyTransportModeUsed();
 
-    var availability = ToolAvailability.resolve(mcpConfiguration, serverApi, serverVersion, resolvedOrganization, organizations);
     var proxiedTools = availability.vortexProxy() ? initializeProxiedServers() : List.<Tool>of();
     var analysis = AnalysisToolSelection.resolve(mcpConfiguration, availability, backendService,
       () -> initializeBridgeClient(mcpConfiguration));
