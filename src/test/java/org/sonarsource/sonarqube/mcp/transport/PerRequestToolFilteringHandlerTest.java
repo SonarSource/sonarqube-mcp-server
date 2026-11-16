@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,6 +72,39 @@ class PerRequestToolFilteringHandlerTest {
     assertThat(result.tools())
       .extracting(McpSchema.Tool::name)
       .containsExactlyInAnyOrder("search_issues", "search_projects"); // PROJECTS always included
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "analysis,vortex,vortex", "vortex,analysis,vortex", "cag,vortex,vortex", "vortex,cag,vortex",
+    "analysis,ide,ide", "ide,analysis,ide", "analysis,cag,vortex", "cag,analysis,vortex", "issues,analysis,none"
+  })
+  void it_should_match_explicit_memberships_separately_at_startup_and_per_request(String startup, String request, String expected) {
+    var candidates = List.of(mockTool("analysis", ToolCategory.ANALYSIS, true),
+      mockTool("ide", true, ToolCategory.ANALYSIS, ToolCategory.IDE),
+      mockTool("vortex", true, ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX),
+      mockTool("standalone_ide", ToolCategory.IDE, true));
+    var registered = candidates.stream().filter(tool -> tool.matchesFilters(ToolCategory.parseCategories(startup), false)).toList();
+    var delegate = mock(McpStatelessServerHandler.class);
+    when(delegate.handleRequest(any(), any())).thenReturn(Mono.just(
+      new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, REQUEST_ID, Map.of(), null)));
+    var handler = new PerRequestToolFilteringHandler(delegate, registered);
+    var context = contextWith(Map.of(HttpServerTransportProvider.CONTEXT_TOOLSETS_KEY, ToolCategory.parseCategories(request)));
+
+    var listed = (McpSchema.ListToolsResult) handler.handleRequest(context, toolsListRequest()).block().result();
+
+    assertThat(listed.tools()).extracting(McpSchema.Tool::name).containsExactlyElementsOf(expected.equals("none") ? List.of() : List.of(expected));
+    for (var candidate : candidates) {
+      var call = toolsCallRequest(candidate.definition().name());
+      var response = handler.handleRequest(context, call).block();
+      if (candidate.definition().name().equals(expected)) {
+        assertThat(response.error()).isNull();
+        verify(delegate).handleRequest(context, call);
+      } else {
+        assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
+        verify(delegate, never()).handleRequest(context, call);
+      }
+    }
   }
 
   @Test
@@ -404,7 +439,15 @@ class PerRequestToolFilteringHandlerTest {
     return mockTool(name, category, new McpSchema.ToolAnnotations(null, readOnly, null, null, null, null));
   }
 
+  private static Tool mockTool(String name, boolean readOnly, ToolCategory... categories) {
+    return mockTool(name, new McpSchema.ToolAnnotations(null, readOnly, null, null, null, null), categories);
+  }
+
   private static Tool mockTool(String name, ToolCategory category, McpSchema.ToolAnnotations annotations) {
+    return mockTool(name, annotations, category);
+  }
+
+  private static Tool mockTool(String name, McpSchema.ToolAnnotations annotations, ToolCategory... categories) {
     var toolDef = McpSchema.Tool.builder(name, Map.of(
         "type", "object",
         "properties", Map.of(),
@@ -413,11 +456,12 @@ class PerRequestToolFilteringHandlerTest {
       .description(name + " description")
       .annotations(annotations)
       .build();
-    var tool = mock(Tool.class);
-    when(tool.definition()).thenReturn(toolDef);
-    when(tool.getCategories()).thenReturn(Set.of(category));
-    when(tool.isEnabledFor(any())).thenReturn(true);
-    return tool;
+    return spy(new Tool(toolDef, categories) {
+      @Override
+      public Result execute(Arguments arguments) {
+        return Result.failure("unused");
+      }
+    });
   }
 
   private static McpSchema.JSONRPCRequest toolsListRequest() {

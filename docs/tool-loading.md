@@ -72,6 +72,10 @@ Initialization Complete
 
 ## Tool Availability
 
+`ToolCategory` declares which transports enable each toolset by default. Launch configuration resolves unset or blank `SONARQUBE_TOOLSETS` using those defaults; an explicit list replaces them, with `projects` always enabled. HTTPS uses HTTP defaults. Selection remains separate from deployment, version and feature checks during tool loading.
+
+Agentic readiness is selected by default only in stdio, where registration requires a confirmed organization feature flag. HTTP/HTTPS requires explicit server-side `agentic-readiness` selection and relies on backend entitlement enforcement on each call. Request headers can only narrow the registered tools.
+
 All tools are registered at startup:
 
 **REST API Tools** - Work immediately
@@ -81,12 +85,18 @@ All tools are registered at startup:
 
 **Analysis Tools** - Available immediately, fully functional after Phase 2
 - `analyze_code_snippet` - Analyzes code using SonarLint backend. **Deprecated** in favor of `analyze_file_list` and Vortex toolset, will be removed in a future release
-- `analyze_file_list` - Uses IDE bridge (if available); also tagged under the `ide` toolset alongside `analysis`
+- `analyze_file_list` - Uses IDE bridge (if available); belongs to both the `analysis` and `ide` toolsets
 - Analysis works once analyzers are downloaded
 
 Cloud stdio registers either Vortex analysis (when the workspace is mounted and at least one accessible organization is entitled) or local analysis, preserving an explicitly configured IDE bridge. `SONARQUBE_FORCE_LOCAL_ANALYSIS=true` selects snippet analysis even for entitled organizations in Cloud stdio only. Confirmed entitlements are cached for the session; the advanced tool still validates the selected organization.
 
 Cloud and Server HTTP/HTTPS register `analyze_code_snippet` and download analyzers when a startup `SONARQUBE_TOKEN` is provided and the `analysis` toolset is enabled. The startup token is required for analyzer initialization; Cloud plugin downloads remain anonymous, while Server downloads use the startup token. Analysis calls retrieve quality profiles and active rules with the caller’s credentials and, on Cloud, the organization selected for the request. No Vortex entitlement is required. Without a startup token or with the `analysis` toolset disabled, snippet analysis and analyzer downloads are unavailable. `SONARQUBE_FORCE_LOCAL_ANALYSIS` cannot bypass the startup token requirement.
+
+## Categories and toolset selection
+
+Each tool declares all of its toolset memberships explicitly. IDE tools belong to `analysis` and `ide`; Vortex tools belong to `analysis`, `cag`, and `vortex`. Startup and HTTP requests use the same category/read-only filter: any selected membership matches. Projects remain available subject to read-only and authorization checks.
+
+HTTP headers filter the already registered inventory. A tool can match different memberships at startup and per request; the two selected sets are never intersected. Headers cannot enable absent tools. OAuth scopes and per-request eligibility checks apply separately. Telemetry records the raw selected keys present in the tool's memberships; these keys do not authorize tools.
 
 ## Backend Restart
 

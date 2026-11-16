@@ -66,19 +66,19 @@ public class ToolExecutor {
   private final String mcpServerId;
 
   /**
-   * Supplies the toolsets enabled for the current request.
+   * Supplies raw selected toolsets for telemetry attribution only; never used for authorization.
    */
-  private final Supplier<Set<ToolCategory>> enabledToolsetsSupplier;
+  private final Supplier<Set<ToolCategory>> selectedToolsetsSupplier;
 
   public ToolExecutor(BackendService backendService, @Nullable AnalyticsService analyticsService,
     @Nullable ConnectionContext stdioContext, @Nullable Supplier<ServerApi> invocationApiSupplier, @Nullable String mcpServerId,
-    Supplier<Set<ToolCategory>> enabledToolsetsSupplier) {
+    Supplier<Set<ToolCategory>> selectedToolsetsSupplier) {
     this.backendService = backendService;
     this.analyticsService = analyticsService;
     this.stdioContext = stdioContext;
     this.invocationApiSupplier = invocationApiSupplier;
     this.mcpServerId = mcpServerId;
-    this.enabledToolsetsSupplier = enabledToolsetsSupplier;
+    this.selectedToolsetsSupplier = selectedToolsetsSupplier;
   }
 
   public McpSchema.CallToolResult execute(Tool tool, McpSchema.CallToolRequest toolRequest) {
@@ -111,9 +111,8 @@ public class ToolExecutor {
     var successful = !result.isError();
     var callToolResult = result.toCallToolResult();
     var responseSizeBytes = computeResponseSizeBytes(callToolResult);
-    var enabledToolsets = enabledToolsetsSupplier.get();
-    var matchingToolsets = tool.getCategories().stream()
-      .filter(enabledToolsets::contains)
+    var matchingToolsets = selectedToolsetsSupplier.get().stream()
+      .filter(tool.getCategories()::contains)
       .map(ToolCategory::getKey)
       .sorted()
       .toList();
