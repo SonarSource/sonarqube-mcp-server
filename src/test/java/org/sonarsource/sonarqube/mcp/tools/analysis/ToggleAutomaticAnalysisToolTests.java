@@ -44,7 +44,7 @@ class ToggleAutomaticAnalysisToolTests {
 
   @Test
   void it_should_validate_annotations() {
-    assertThat(underTest.getCategories()).containsExactlyInAnyOrder(ToolCategory.ANALYSIS, ToolCategory.IDE);
+    assertThat(underTest.getCategory()).isEqualTo(ToolCategory.IDE);
 
     assertThat(underTest.definition().annotations()).isNotNull();
     assertThat(underTest.definition().annotations().readOnlyHint()).isFalse();
