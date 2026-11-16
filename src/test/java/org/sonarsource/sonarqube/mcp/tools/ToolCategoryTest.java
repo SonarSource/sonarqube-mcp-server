@@ -17,6 +17,9 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -104,19 +107,30 @@ class ToolCategoryTest {
     );
   }
 
-  @Test
-  void should_return_default_enabled_categories_for_null_or_empty_string() {
-    var defaultCategories = ToolCategory.defaultEnabled();
+  @ParameterizedTest
+  @EnumSource(TransportMode.class)
+  void should_return_transport_defaults_for_null_or_blank_string(TransportMode transportMode) {
+    var defaultCategories = ToolCategory.defaultEnabled(transportMode);
 
-    assertThat(ToolCategory.parseCategories(null)).isEqualTo(defaultCategories);
-    assertThat(ToolCategory.parseCategories("")).isEqualTo(defaultCategories);
-    assertThat(ToolCategory.parseCategories("   ")).isEqualTo(defaultCategories);
+    assertThat(ToolCategory.parseCategories(null, transportMode)).isEqualTo(defaultCategories);
+    assertThat(ToolCategory.parseCategories("", transportMode)).isEqualTo(defaultCategories);
+    assertThat(ToolCategory.parseCategories("   ", transportMode)).isEqualTo(defaultCategories);
+  }
+
+  @ParameterizedTest
+  @EnumSource(TransportMode.class)
+  void should_use_only_explicit_categories_regardless_of_transport(TransportMode transportMode) {
+    assertThat(ToolCategory.parseCategories("agentic-readiness,rules,invalid", transportMode))
+      .containsExactlyInAnyOrder(ToolCategory.AGENTIC_READINESS, ToolCategory.RULES);
+    assertThat(ToolCategory.parseCategories("invalid,badkey", transportMode)).isEmpty();
   }
 
   @Test
   void should_return_default_enabled_categories() {
-    var defaultCategories = ToolCategory.defaultEnabled();
+    var defaultCategories = ToolCategory.defaultEnabled(TransportMode.STDIO);
 
+    assertThat(ToolCategory.defaultEnabled()).isEqualTo(defaultCategories);
+    assertThat(ToolCategory.parseCategories(null)).isEqualTo(defaultCategories);
     assertThat(defaultCategories).containsExactlyInAnyOrder(
       ToolCategory.ANALYSIS,
       ToolCategory.IDE,
@@ -131,6 +145,24 @@ class ToolCategoryTest {
       ToolCategory.COVERAGE,
       ToolCategory.CAG,
       ToolCategory.AGENTIC_READINESS
+    );
+  }
+
+  @Test
+  void should_exclude_agentic_readiness_from_http_defaults() {
+    assertThat(ToolCategory.defaultEnabled(TransportMode.HTTP)).containsExactlyInAnyOrder(
+      ToolCategory.ANALYSIS,
+      ToolCategory.IDE,
+      ToolCategory.ISSUES,
+      ToolCategory.PROJECTS,
+      ToolCategory.QUALITY_GATES,
+      ToolCategory.RULES,
+      ToolCategory.DUPLICATIONS,
+      ToolCategory.MEASURES,
+      ToolCategory.SECURITY_HOTSPOTS,
+      ToolCategory.DEPENDENCY_RISKS,
+      ToolCategory.COVERAGE,
+      ToolCategory.CAG
     );
   }
 
