@@ -44,13 +44,18 @@ class ProxiedServerITest {
   private static final String BINARY_PATH = "binaries/sonar-context-augmentation";
 
   @Container
-  private static final GenericContainer<?> stdioServerContainer = createStdioServerContainer();
+  private static final GenericContainer<?> stdioServerContainer = createStdioServerContainer("DEFAULT-TOOLSETS-Container");
+
+  @Container
+  private static final GenericContainer<?> additionalToolsetsServerContainer = createStdioServerContainer("ADDITIONAL-TOOLSETS-Container")
+    .withEnv("SONARQUBE_TOOLSETS", "analysis,ide,coverage,issues,projects,quality-gates,rules,duplications,measures,"
+      + "dependency-risks,security-hotspots,cag,agentic-readiness,sources,languages,portfolios,webhooks,architecture");
 
   @Container
   private static final GenericContainer<?> missingBinaryContainer = createMissingBinaryContainer();
 
   @Test
-  void should_successfully_connect_to_cag_proxied_server_when_given_enough_time() {
+  void should_load_default_toolsets_with_proxied_tools() {
     assertThat(stdioServerContainer.isRunning()).isTrue();
 
     assertThat(stdioServerContainer.getLogs())
@@ -65,7 +70,16 @@ class ProxiedServerITest {
       .contains("Forwarded instructions from 1 proxied server(s)")
       .contains("Proxied instructions: ")
       .contains("## Context Augmentation")
-      .contains("All tools loaded: 43 supported, 34 enabled after category filtering");
+      .contains("All tools loaded: 34 tools after category filtering");
+  }
+
+  @Test
+  void should_load_additional_toolsets_with_proxied_tools() {
+    assertThat(additionalToolsetsServerContainer.isRunning()).isTrue();
+
+    assertThat(additionalToolsetsServerContainer.getLogs())
+      .contains("Loaded 11 proxied tool(s) from 1/1 server(s)")
+      .contains("All tools loaded: 43 tools after category filtering");
   }
 
   @Test
@@ -78,14 +92,14 @@ class ProxiedServerITest {
       .contains("SonarQube MCP Server Started");
   }
 
-  private static GenericContainer<?> createStdioServerContainer() {
+  private static GenericContainer<?> createStdioServerContainer(String logPrefix) {
     return McpServerTestContainers.builder()
       .withProxiedServersConfig("proxied-mcp-servers-its.json")
       .withCopyFileToContainer(BINARY_PATH, "/app/binaries/sonar-context-augmentation", 0755)
       .withWorkspaceMount()
       .withEnv("SONARQUBE_DEBUG_ENABLED", "true")
       .withStartupTimeout(Duration.ofMinutes(3))
-      .withLogPrefix("STDIO-Container")
+      .withLogPrefix(logPrefix)
       .build();
   }
 
