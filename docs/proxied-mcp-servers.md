@@ -11,7 +11,7 @@ The list of proxied servers cannot be modified at runtime, this is only used for
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ SonarQubeMcpServer                                          │
+│ ToolCatalog (loaded by SonarQubeMcpServer)                   │
 │  ├─ Built-in Tools (analysis, projects, issues, etc.)      │
 │  └─ Proxied Tools (from proxied MCP servers)               │
 │      └─ ProxiedToolsLoader                                  │
