@@ -65,7 +65,7 @@ class ProxiedServerITest {
       .contains("Forwarded instructions from 1 proxied server(s)")
       .contains("Proxied instructions: ")
       .contains("## Context Augmentation")
-      .contains("All tools loaded: 34 tools after category filtering");
+      .contains("All tools loaded: 43 supported, 34 enabled after category filtering");
   }
 
   @Test
