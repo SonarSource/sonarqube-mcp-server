@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 class ToolSchemaTest {
@@ -72,6 +74,19 @@ class ToolSchemaTest {
 
     assertThat(McpJsonMappers.DEFAULT.writeValueAsString(original.inputSchema())).isEqualTo(originalJson);
     assertThat(McpJsonMappers.DEFAULT.writeValueAsString(equivalent.inputSchema())).isEqualTo(expectedJson);
+  }
+
+  @Test
+  void it_should_reject_schema_maps_with_non_string_keys() {
+    for (var key : Arrays.asList(1, null)) {
+      var properties = new LinkedHashMap<Object, Object>();
+      properties.put(key, Map.of("type", "string"));
+      var definition = McpSchema.Tool.builder("invalid", Map.of("properties", properties)).build();
+
+      assertThatThrownBy(() -> tool(definition))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Tool input schema keys must be strings");
+    }
   }
 
   @Test

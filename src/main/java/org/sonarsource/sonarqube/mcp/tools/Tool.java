@@ -46,7 +46,12 @@ public abstract class Tool {
 
   private static Map<String, Object> normalizeSchema(Map<?, ?> schema) {
     var sorted = new TreeMap<String, Object>();
-    schema.forEach((key, value) -> sorted.put((String) key, normalizeSchemaValue(value)));
+    schema.forEach((key, value) -> {
+      if (!(key instanceof String stringKey)) {
+        throw new IllegalArgumentException("Tool input schema keys must be strings");
+      }
+      sorted.put(stringKey, normalizeSchemaValue(value));
+    });
     return sorted;
   }
 
