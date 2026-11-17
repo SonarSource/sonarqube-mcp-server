@@ -30,6 +30,7 @@ import java.util.UUID;
 import jakarta.annotation.Nullable;
 import org.sonarsource.sonarqube.mcp.SonarQubeMcpServer;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthConfiguration;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.serverapi.SonarQubeCloudDomains;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 
@@ -139,7 +140,6 @@ public final class McpServerLaunchConfiguration {
 
   // Tool category configuration
   private final Set<ToolCategory> enabledToolsets;
-  private final boolean toolsetsExplicitlyConfigured;
   private final boolean isReadOnlyMode;
   
   // Default project key configuration
@@ -234,8 +234,7 @@ public final class McpServerLaunchConfiguration {
 
     // Parse tool category configuration
     var toolsetsStr = getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_TOOLSETS, null);
-    this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr);
-    this.toolsetsExplicitlyConfigured = !isNullOrBlank(toolsetsStr);
+    this.enabledToolsets = ToolCategory.parseCategories(toolsetsStr, getTransportMode());
 
     this.isReadOnlyMode = Boolean.parseBoolean(getValueViaEnvOrPropertyOrDefault(environment, SONARQUBE_READ_ONLY, "false"));
 
@@ -561,11 +560,8 @@ public final class McpServerLaunchConfiguration {
     return enabledToolsets.contains(category);
   }
 
-  /**
-   * Returns whether the category was explicitly selected through SONARQUBE_TOOLSETS.
-   */
-  public boolean isToolCategoryExplicitlyEnabled(ToolCategory category) {
-    return toolsetsExplicitlyConfigured && enabledToolsets.contains(category);
+  public TransportMode getTransportMode() {
+    return isHttpEnabled ? TransportMode.HTTP : TransportMode.STDIO;
   }
 
   public Set<ToolCategory> getEnabledToolsets() {

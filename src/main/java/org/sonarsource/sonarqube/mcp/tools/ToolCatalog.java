@@ -16,21 +16,18 @@
  */
 package org.sonarsource.sonarqube.mcp.tools;
 
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
-import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
-import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
 import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilitiesResolver.Resolution;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.GetAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.ListAgenticReadinessAssessmentsTool;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
@@ -56,7 +53,6 @@ import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
 import org.sonarsource.sonarqube.mcp.tools.organizations.ListOrganizationsTool;
 import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
-import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.tools.pullrequests.ListPullRequestsTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
 import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
@@ -76,78 +72,34 @@ import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 public final class ToolCatalog {
 
   private static final McpLogger LOG = McpLogger.getInstance();
-  private static final String AGENTIC_READINESS_INSTRUCTIONS = """
-
-    ## Agentic Readiness Assessment
-
-    Tools to assess how well a SonarQube Cloud project's codebase supports AI agents, scored per pillar \
-    (Documentation, Workflow, Dev Environment, Build, Testing, Code Quality, Security, Observability) from \
-    L1 (pre-agentic, implicit conventions) to L5 (agent-native, self-describing).
-
-    Workflow:
-    1. Call list_agentic_readiness_assessments (filtered by branch) and reuse a recent COMPLETED result if \
-    one exists — assessments take ~10 minutes.
-    2. Otherwise call start_agentic_readiness_assessment; it returns PENDING with an assessmentId. Do not poll immediately.
-    3. After a few minutes, poll get_agentic_readiness_assessment until status is COMPLETED, FAILED, or INTERRUPTED.
-    4. Present overallLevel and the per-pillar breakdown, including each pillar's recommended actions and the evidence behind them.
-
-    To measure the impact of changes, compare a baseline assessment of the default branch against a new \
-    assessment of your feature branch. Always filter the list by branch — unfiltered results mix branches.""";
-  private static final String VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS =
-    "\nNote: the `cag`/`analysis` toolset names for Vortex tools are deprecated; use `vortex` instead.";
-
   private final McpServerLaunchConfiguration configuration;
   private final ToolCapabilities capabilities;
   private final TransportMode transport;
-  private final ProxiedToolsLoader proxiedToolsLoader;
   private final List<Tool> supportedTools = new ArrayList<>();
-  private String instructions = "";
-  @Nullable
-  private Tool localAnalysisTool;
-  private boolean advancedAnalysisRegistered;
+  private final List<Tool> enabledTools;
 
-  public ToolCatalog(McpServerLaunchConfiguration configuration, ToolCapabilities capabilities) {
-    this(configuration, capabilities, new ProxiedToolsLoader());
-  }
-
-  ToolCatalog(McpServerLaunchConfiguration configuration, ToolCapabilities capabilities, ProxiedToolsLoader proxiedToolsLoader) {
+  public ToolCatalog(McpServerLaunchConfiguration configuration, Resolution resolution, ServerApiProvider provider,
+    SonarQubeVersionChecker versionChecker, BackendService backendService, CompletableFuture<Void> initializationFuture, List<Tool> proxiedTools) {
     this.configuration = configuration;
-    this.capabilities = capabilities;
-    this.proxiedToolsLoader = proxiedToolsLoader;
-    this.transport = configuration.isHttpEnabled() ? TransportMode.HTTP : TransportMode.STDIO;
-  }
-
-  public void load(ServerApiProvider provider, SonarQubeVersionChecker versionChecker, BackendService backendService,
-    CompletableFuture<Void> initializationFuture, @Nullable SonarQubeIdeBridgeClient bridgeClient, @Nullable ResolvedOrganization organization) {
+    this.capabilities = resolution.capabilities();
+    this.transport = configuration.getTransportMode();
     loadRestTools(provider, versionChecker);
-    if (configuration.isToolCategoryEnabled(ToolCategory.ARCHITECTURE) && capabilities.architecture()) {
-      instructions += ArchitectureTools.INSTRUCTIONS;
-    }
-    if ((capabilities.vortexProxy() || capabilities.vortexAnalysis()) && !configuration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
-      LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
-      instructions += VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS;
-    }
-    loadProxiedTools(organization);
+    proxiedTools.forEach(this::register);
 
     var projectKey = configuration.getProjectKey();
     var cloud = configuration.isSonarQubeCloud();
     register(new StartAgenticReadinessAssessmentTool(provider, projectKey));
     register(new GetAgenticReadinessAssessmentTool(provider));
     register(new ListAgenticReadinessAssessmentsTool(provider, projectKey));
-    if (capabilities.agenticReadiness()) {
-      instructions += AGENTIC_READINESS_INSTRUCTIONS;
-    }
-    advancedAnalysisRegistered = register(RunAdvancedCodeAnalysisTool.POLICY,
-      () -> new RunAdvancedCodeAnalysisTool(provider, projectKey, Objects.requireNonNull(configuration.getWorkspacePath()), cloud)) != null;
-    if (advancedAnalysisRegistered) {
-      LOG.info("Advanced analysis tool registered");
-    }
-    register(AnalyzeFileListTool.POLICY, () -> new AnalyzeFileListTool(Objects.requireNonNull(bridgeClient)));
-    register(ToggleAutomaticAnalysisTool.POLICY, () -> new ToggleAutomaticAnalysisTool(Objects.requireNonNull(bridgeClient)));
-    localAnalysisTool = register(new AnalyzeCodeSnippetTool(backendService, provider, initializationFuture, projectKey, configuration.getWorkspacePath(), cloud));
+    register(RunAdvancedCodeAnalysisTool.POLICY,
+      () -> new RunAdvancedCodeAnalysisTool(provider, projectKey, Objects.requireNonNull(configuration.getWorkspacePath()), cloud));
+    register(AnalyzeFileListTool.POLICY, () -> new AnalyzeFileListTool(Objects.requireNonNull(resolution.bridgeClient())));
+    register(ToggleAutomaticAnalysisTool.POLICY, () -> new ToggleAutomaticAnalysisTool(Objects.requireNonNull(resolution.bridgeClient())));
+    register(new AnalyzeCodeSnippetTool(backendService, provider, initializationFuture, projectKey, configuration.getWorkspacePath(), cloud));
+    enabledTools = filterEnabled(supportedTools);
 
     var filterReason = configuration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
-    LOG.info("All tools loaded: " + supportedTools.size() + " tools after " + filterReason);
+    LOG.info("All tools loaded: " + enabledTools.size() + " tools after " + filterReason);
   }
 
   private void loadRestTools(ServerApiProvider provider, SonarQubeVersionChecker versionChecker) {
@@ -187,33 +139,16 @@ public final class ToolCatalog {
     register(new SearchDependencyRisksTool(provider, versionChecker, projectKey, cloud));
   }
 
-  @Nullable
-  Tool register(Tool tool) {
-    if (!tool.policy().isSupported(transport, capabilities)) {
-      return null;
+  private void register(Tool tool) {
+    if (tool.policy().isSupported(transport, capabilities)) {
+      supportedTools.add(tool);
     }
-    supportedTools.add(tool);
-    return tool;
   }
 
-  @Nullable
-  Tool register(ToolPolicy policy, Supplier<? extends Tool> factory) {
-    if (!policy.isSupported(transport, capabilities)) {
-      return null;
+  private void register(ToolPolicy policy, Supplier<? extends Tool> factory) {
+    if (policy.isSupported(transport, capabilities)) {
+      register(factory.get());
     }
-    return register(factory.get());
-  }
-
-  private void loadProxiedTools(@Nullable ResolvedOrganization organization) {
-    if (!ProxiedMcpTool.POLICY.isSupported(transport, capabilities)) {
-      return;
-    }
-    LOG.info("Vortex is enabled");
-    supportedTools.addAll(proxiedToolsLoader.loadProxiedTools(transport, configuration.getMcpServerId(), organization != null ? organization.key() : null));
-    var proxiedInstructions = proxiedToolsLoader.getProxiedInstructions();
-    instructions = ProxiedToolsLoader.composeInstructions(instructions, proxiedInstructions);
-    LOG.debug("Forwarded instructions from " + proxiedInstructions.size() + " proxied server(s)");
-    proxiedInstructions.forEach(s -> LOG.debug("Proxied instructions: {}", s));
   }
 
   public List<Tool> supportedTools() {
@@ -221,7 +156,7 @@ public final class ToolCatalog {
   }
 
   public List<Tool> enabledTools() {
-    return filterEnabled(supportedTools);
+    return enabledTools;
   }
 
   public List<Tool> filterEnabled(List<Tool> tools) {
@@ -231,19 +166,11 @@ public final class ToolCatalog {
       .toList();
   }
 
-  public String instructions() {
-    return instructions;
-  }
-
   public boolean needsLocalAnalyzers() {
-    return localAnalysisTool != null && enabledTools().contains(localAnalysisTool);
+    return enabledTools.stream().anyMatch(AnalyzeCodeSnippetTool.class::isInstance);
   }
 
   public boolean advancedAnalysisRegistered() {
-    return advancedAnalysisRegistered;
-  }
-
-  public void shutdown() {
-    proxiedToolsLoader.shutdown();
+    return supportedTools.stream().anyMatch(RunAdvancedCodeAnalysisTool.class::isInstance);
   }
 }

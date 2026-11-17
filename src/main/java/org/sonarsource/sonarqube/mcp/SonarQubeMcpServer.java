@@ -46,6 +46,7 @@ import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.authentication.Auth0OAuthAuthenticationService;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter.OAuthSupport;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
+import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -59,12 +60,18 @@ import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganizatio
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPluginsApi;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
 import org.sonarsource.sonarqube.mcp.tools.ToolCapabilitiesResolver;
 import org.sonarsource.sonarqube.mcp.tools.ToolCatalog;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.ListAgenticReadinessAssessmentsTool;
+import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
+import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
 import org.sonarsource.sonarqube.mcp.transport.StdioInitializeErrorReporter;
@@ -109,6 +116,9 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.";
   private static final String BASE_INSTRUCTIONS_WITHOUT_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
     "Monitor project health, investigate issues, and understand quality gates.";
+  private static final String VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS =
+    "\nNote: the `cag`/`analysis` toolset names for Vortex tools are deprecated; use `vortex` instead.";
+
   private BackendService backendService;
   private ToolExecutor toolExecutor;
   private final HttpServerTransportProvider httpServerManager;
@@ -146,6 +156,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
   private final AtomicReference<Thread> backgroundInitializationThread = new AtomicReference<>();
   private ToolCatalog toolCatalog;
+  private final ProxiedToolsLoader proxiedToolsLoader = new ProxiedToolsLoader();
 
   public static void main(String[] args) {
     try {
@@ -256,14 +267,24 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     backendService.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
     backendService.notifyTransportModeUsed();
     var resolver = new ToolCapabilitiesResolver(mcpConfiguration, serverApi, httpClientProvider, serverVersion);
-    var capabilities = resolver.resolve(resolvedOrganization, organizations);
+    var resolution = resolver.resolve(resolvedOrganization, organizations);
+    var capabilities = resolution.capabilities();
     if (capabilities.ideAnalysis()) {
       backendService.notifySonarQubeIdeIntegration();
     }
-    toolCatalog = new ToolCatalog(mcpConfiguration, capabilities);
-    toolCatalog.load(this, versionChecker, backendService, initializationFuture, resolver.bridgeClient(), resolvedOrganization);
-    setBaseInstructions();
-    composedInstructions += toolCatalog.instructions();
+    var proxiedTools = loadProxiedTools(capabilities);
+    toolCatalog = new ToolCatalog(mcpConfiguration, resolution, this, versionChecker, backendService, initializationFuture, proxiedTools);
+    setInstructions(capabilities);
+  }
+
+  private List<Tool> loadProxiedTools(ToolCapabilities capabilities) {
+    var transport = mcpConfiguration.getTransportMode();
+    if (!ProxiedMcpTool.POLICY.isSupported(transport, capabilities)) {
+      return List.of();
+    }
+    LOG.info("Vortex is enabled");
+    return proxiedToolsLoader.loadProxiedTools(transport, mcpConfiguration.getMcpServerId(),
+      resolvedOrganization != null ? resolvedOrganization.key() : null);
   }
 
   /**
@@ -313,7 +334,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  private void setBaseInstructions() {
+  private void setInstructions(ToolCapabilities capabilities) {
     composedInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
       ? BASE_INSTRUCTIONS_WITH_ANALYSIS
       : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
@@ -326,6 +347,17 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (mcpConfiguration.getProjectKey() == null) {
       composedInstructions += "\n" + PROJECT_KEY_INSTRUCTIONS;
+    }
+    if (toolCatalog.enabledTools().stream().anyMatch(ArchitectureGetTool.class::isInstance)) {
+      composedInstructions += ArchitectureTools.INSTRUCTIONS;
+    }
+    if ((capabilities.vortexProxy() || capabilities.vortexAnalysis()) && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
+      LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
+      composedInstructions += VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS;
+    }
+    composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, proxiedToolsLoader.getProxiedInstructions());
+    if (toolCatalog.enabledTools().stream().anyMatch(ListAgenticReadinessAssessmentsTool.class::isInstance)) {
+      composedInstructions += StartAgenticReadinessAssessmentTool.INSTRUCTIONS;
     }
   }
 
@@ -534,7 +566,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     isShutdown = true;
 
     stopBackgroundInitialization();
-    shutdownProxiedServers();
+    proxiedToolsLoader.shutdown();
     shutdownHttpServer();
     shutdownHttpClient();
     shutdownMcpServer();
@@ -545,12 +577,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void shutdownAnalytics() {
     if (analyticsService != null) {
       analyticsService.shutdown();
-    }
-  }
-
-  private void shutdownProxiedServers() {
-    if (toolCatalog != null) {
-      toolCatalog.shutdown();
     }
   }
 

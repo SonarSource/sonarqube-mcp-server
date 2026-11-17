@@ -8,7 +8,7 @@ Establish the public API contract before implementing the client. Capture exact 
 
 Cloud, Server, and Community Build can expose different capabilities. Availability may also depend on release version, edition, entitlement, feature flags, transport, and configuration. A draft Swagger change or snapshot build is provisional evidence. Keep unsupported operations out of the advertised schema and protect execution as well.
 
-The startup gate applies to both HTTP and stdio. HTTP adds caller-specific permissions and filtering; it cannot expand the startup tool set. Keep a new optional category out of `ToolCategory.defaultEnabled()` unless the task explicitly calls for a default change. Preserve unrelated tool behavior and avoid extra startup requests for disabled features.
+The startup gate applies to both HTTP and stdio. HTTP adds caller-specific permissions and filtering; it cannot expand the startup tool set. A new optional `ToolCategory` declares no default transports unless the task explicitly calls for a default change. Preserve unrelated tool behavior and avoid extra startup requests for disabled features.
 
 ## Implementation
 
@@ -34,9 +34,11 @@ public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.ANALYSIS, Too
   .stdioOnly().requires(ToolCapabilities::vortexAnalysis);
 ```
 
-`ToolCapabilitiesResolver` resolves shared startup decisions through the existing API clients. Policies read the immutable `ToolCapabilities` snapshot and perform no network calls. Add a capability here when a tool needs a new startup condition; keep the declaration on the tool and dependency construction in `ToolCatalog`.
+`ToolCapabilitiesResolver` resolves shared startup decisions through the existing API clients and returns the capabilities together with the available IDE bridge client. Policies read the immutable `ToolCapabilities` snapshot and perform no network calls. Add a capability here when a tool needs a new startup condition; keep the declaration on the tool and dependency construction in `ToolCatalog`.
 
-The catalog checks each instance's policy for transport and capability requirements. Use the `register(POLICY, () -> new FooTool(...))` overload only when construction requires dependencies that may be absent; it checks eligibility before invoking the factory. The catalog then filters supported tools by configured categories and read-only mode. A match on any category enables a tool; `projects` remains always enabled. Keep existing aliases and defaults intact.
+The catalog checks each instance's policy for transport and capability requirements. Use the `register(POLICY, () -> new FooTool(...))` overload only when construction requires dependencies that may be absent; it checks eligibility before invoking the factory. Its constructor produces the supported tools and the enabled subset after category and read-only filtering. A match on any category enables a tool; `projects` remains always enabled. Default transports are declared beside each `ToolCategory` key: omitted transports mean opt-in, and agentic readiness defaults to stdio only. These are selection defaults, not transport support restrictions. Keep existing aliases and defaults intact.
+
+Proxy startup and shutdown belong to `SonarQubeMcpServer`, which supplies discovered tools to the catalog and composes server instructions. Keep feature workflow text beside the feature, as in `ArchitectureTools.INSTRUCTIONS` and `StartAgenticReadinessAssessmentTool.INSTRUCTIONS`.
 
 Startup registration and caller authorization are separate. Retain HTTP request filtering, OAuth scope enforcement, and execution-time entitlement checks for the selected organization. A startup entitlement cannot authorize an HTTP caller.
 
