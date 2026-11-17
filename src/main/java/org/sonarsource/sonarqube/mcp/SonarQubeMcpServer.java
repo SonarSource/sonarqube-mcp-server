@@ -355,7 +355,10 @@ public class SonarQubeMcpServer implements ServerApiProvider {
       LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
       composedInstructions += VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS;
     }
-    composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, proxiedToolsLoader.getProxiedInstructions());
+    var proxiedInstructions = proxiedToolsLoader.getProxiedInstructions();
+    composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, proxiedInstructions);
+    LOG.debug("Forwarded instructions from " + proxiedInstructions.size() + " proxied server(s)");
+    proxiedInstructions.forEach(s -> LOG.debug("Proxied instructions: {}", s));
     if (toolCatalog.enabledTools().stream().anyMatch(ListAgenticReadinessAssessmentsTool.class::isInstance)) {
       composedInstructions += StartAgenticReadinessAssessmentTool.INSTRUCTIONS;
     }
