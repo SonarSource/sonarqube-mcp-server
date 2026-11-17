@@ -24,11 +24,13 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class GetComponentMeasuresTool extends Tool {
 
   public static final String TOOL_NAME = "get_component_measures";
+  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.MEASURES);
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String METRIC_KEYS_PROPERTY = "metricKeys";
@@ -48,7 +50,7 @@ public class GetComponentMeasuresTool extends Tool {
       .addArrayProperty(METRIC_KEYS_PROPERTY, "string", "The metric keys to retrieve (e.g. ncloc, complexity, violations, coverage)")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.MEASURES);
+      POLICY);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

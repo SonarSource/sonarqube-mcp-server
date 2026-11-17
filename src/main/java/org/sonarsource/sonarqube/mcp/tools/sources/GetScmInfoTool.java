@@ -21,10 +21,12 @@ import org.sonarsource.sonarqube.mcp.serverapi.sources.response.ScmResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 
 public class GetScmInfoTool extends Tool {
 
   public static final String TOOL_NAME = "get_scm_info";
+  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.SOURCES);
   public static final String KEY_PROPERTY = "key";
   public static final String COMMITS_BY_LINE_PROPERTY = "commits_by_line";
   public static final String FROM_PROPERTY = "from";
@@ -43,7 +45,7 @@ public class GetScmInfoTool extends Tool {
       .addNumberProperty(TO_PROPERTY, "Last line to return (inclusive)")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SOURCES);
+      POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 
