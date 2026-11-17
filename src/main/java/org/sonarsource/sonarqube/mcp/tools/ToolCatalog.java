@@ -99,7 +99,7 @@ public final class ToolCatalog {
     enabledTools = filterEnabled(supportedTools);
 
     var filterReason = configuration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
-    LOG.info("All tools loaded: " + enabledTools.size() + " tools after " + filterReason);
+    LOG.info("All tools loaded: " + supportedTools.size() + " supported, " + enabledTools.size() + " enabled after " + filterReason);
   }
 
   private void loadRestTools(ServerApiProvider provider, SonarQubeVersionChecker versionChecker) {

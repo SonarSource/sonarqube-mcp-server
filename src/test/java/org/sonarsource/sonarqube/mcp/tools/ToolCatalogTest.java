@@ -18,15 +18,18 @@ package org.sonarsource.sonarqube.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.SonarQubeVersionChecker;
+import org.sonarsource.sonarqube.mcp.client.McpClientManager;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
@@ -38,6 +41,7 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
 import org.sonarsource.sonarqube.mcp.tools.organizations.ListOrganizationsTool;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
+import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
 import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
 
@@ -48,6 +52,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.sonarsource.sonarqube.mcp.tools.ToolCapabilities.AnalysisMode.IDE;
 import static org.sonarsource.sonarqube.mcp.tools.ToolCapabilities.AnalysisMode.LOCAL;
 import static org.sonarsource.sonarqube.mcp.tools.ToolCapabilities.AnalysisMode.NONE;
+import static org.sonarsource.sonarqube.mcp.tools.ToolCapabilities.AnalysisMode.VORTEX;
 
 class ToolCatalogTest {
 
@@ -82,6 +87,37 @@ class ToolCatalogTest {
     var enabled = catalog.enabledTools();
     assertThatThrownBy(supported::clear).isInstanceOf(UnsupportedOperationException.class);
     assertThatThrownBy(enabled::clear).isInstanceOf(UnsupportedOperationException.class);
+  }
+
+  @Test
+  void it_should_keep_every_proxied_tool_with_default_cloud_toolsets() {
+    var manager = mock(McpClientManager.class);
+    var proxiedTools = new ArrayList<Tool>();
+    for (var i = 0; i < 11; i++) {
+      var name = "proxied_" + i;
+      var definition = McpSchema.Tool.builder(name, Map.of("type", "object")).build();
+      proxiedTools.add(new ProxiedMcpTool("vortex", name, definition, manager));
+    }
+    var capabilities = new ToolCapabilities(true, true, true, true, true, VORTEX);
+    System.setProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY, storage.toString());
+    try {
+      var defaults = catalog(Map.of("SONARQUBE_IS_CLOUD", "true"), capabilities, proxiedTools);
+
+      assertThat(defaults.supportedTools()).hasSize(43).containsAll(proxiedTools);
+      assertThat(defaults.enabledTools()).hasSize(34).containsAll(proxiedTools);
+      assertThat(defaults.supportedTools()).filteredOn(tool -> !defaults.enabledTools().contains(tool))
+        .extracting(tool -> tool.definition().name())
+        .containsExactlyInAnyOrder("architecture_get", "architecture_set", "get_raw_source", "get_scm_info",
+          "list_enterprises", "list_portfolios", "list_languages", "create_webhook", "list_webhooks");
+
+      var toolsets = ToolCategory.all().stream().map(ToolCategory::getKey).collect(Collectors.joining(","));
+      var all = catalog(Map.of("SONARQUBE_IS_CLOUD", "true", "SONARQUBE_TOOLSETS", toolsets), capabilities, proxiedTools);
+      assertThat(all.enabledTools()).hasSize(43).containsExactlyElementsOf(all.supportedTools());
+      assertThat(all.enabledTools()).containsAll(proxiedTools);
+    } finally {
+      System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
+    }
+    verifyNoInteractions(provider, backend, manager);
   }
 
   @ParameterizedTest
