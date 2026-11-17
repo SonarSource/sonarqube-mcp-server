@@ -25,12 +25,13 @@ import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
-import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class GetAgenticReadinessAssessmentTool extends Tool {
 
   public static final String TOOL_NAME = "get_agentic_readiness_assessment";
-  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.AGENTIC_READINESS).requires(ToolCapabilities::agenticReadiness);
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.AGENTIC_READINESS).requires(ToolCapabilities::agenticReadiness);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -45,7 +46,7 @@ public class GetAgenticReadinessAssessmentTool extends Tool {
       .addRequiredStringProperty("assessmentId", "The assessment ID returned by start_agentic_readiness_assessment.")
       .setReadOnlyHint()
       .build(),
-      REGISTRATION_POLICY);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

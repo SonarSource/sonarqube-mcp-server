@@ -22,14 +22,15 @@ import org.sonarsource.sonarqube.mcp.serverapi.rules.response.ShowResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ShowRuleTool extends Tool {
 
   public static final String TOOL_NAME = "show_rule";
-  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.RULES);
   public static final String KEY_PROPERTY = "key";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.RULES);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -41,7 +42,7 @@ public class ShowRuleTool extends Tool {
       .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)")
       .setReadOnlyHint()
       .build(),
-      REGISTRATION_POLICY);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

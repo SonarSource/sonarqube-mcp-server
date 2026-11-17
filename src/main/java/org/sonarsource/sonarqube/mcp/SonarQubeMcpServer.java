@@ -279,7 +279,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
 
   private List<Tool> loadProxiedTools(ToolCapabilities capabilities) {
     var transport = mcpConfiguration.getTransportMode();
-    if (!ProxiedMcpTool.REGISTRATION_POLICY.isSupported(transport, capabilities)) {
+    if (!ProxiedMcpTool.REGISTRATION_AVAILABILITY.isAvailable(transport, capabilities)) {
       return List.of();
     }
     LOG.info("Vortex is enabled");

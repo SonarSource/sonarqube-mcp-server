@@ -63,7 +63,7 @@ class ToolCatalogTest {
   Path storage;
 
   @Test
-  void it_should_apply_transport_and_deployment_policies_before_constructing_missing_dependencies() {
+  void it_should_apply_transport_and_deployment_availability_before_constructing_missing_dependencies() {
     var capabilities = new ToolCapabilities(false, true, false, false, false, IDE);
     var catalog = catalog(Map.of("SONARQUBE_TRANSPORT", "http"), capabilities, List.of());
 
@@ -123,7 +123,7 @@ class ToolCatalogTest {
   @ParameterizedTest
   @ValueSource(strings = {"analysis", "cag", "vortex"})
   void it_should_enable_discovered_tools_through_any_category_alias(String toolset) {
-    var aliases = ToolPolicy.of(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
+    var aliases = ToolAvailability.inCategories(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
     var tool = tool("vortex_tool", aliases, true);
     var catalog = catalog(Map.of("SONARQUBE_TOOLSETS", toolset), SERVER, List.of(tool));
 
@@ -132,11 +132,11 @@ class ToolCatalogTest {
 
   @Test
   void it_should_preserve_defaults_and_fail_closed_for_discovered_tool_annotations() {
-    var issues = ToolPolicy.of(ToolCategory.ISSUES);
+    var issues = ToolAvailability.inCategory(ToolCategory.ISSUES);
     var read = tool("read", issues, true);
     var write = tool("write", issues, false);
     var unknown = tool("unknown", issues, null);
-    var optional = tool("sources", ToolPolicy.of(ToolCategory.SOURCES), true);
+    var optional = tool("sources", ToolAvailability.inCategory(ToolCategory.SOURCES), true);
     var catalog = catalog(Map.of("SONARQUBE_READ_ONLY", "true"), SERVER, List.of(read, write, unknown, optional));
 
     assertThat(catalog.enabledTools()).contains(read).doesNotContain(write, unknown, optional);
@@ -144,9 +144,9 @@ class ToolCatalogTest {
   }
 
   @Test
-  void it_should_apply_declared_policies_to_discovered_tools() {
-    var stdio = tool("stdio", ToolPolicy.of(ToolCategory.ISSUES).stdioOnly(), true);
-    var cloud = tool("cloud", ToolPolicy.of(ToolCategory.ISSUES).requires(ToolCapabilities::cloud), true);
+  void it_should_apply_declared_availability_to_discovered_tools() {
+    var stdio = tool("stdio", ToolAvailability.inCategory(ToolCategory.ISSUES).stdioOnly(), true);
+    var cloud = tool("cloud", ToolAvailability.inCategory(ToolCategory.ISSUES).cloudOnly(), true);
     var catalog = catalog(Map.of("SONARQUBE_TRANSPORT", "http"), SERVER, List.of(stdio, cloud));
 
     assertThat(catalog.supportedTools()).doesNotContain(stdio, cloud);
@@ -171,10 +171,10 @@ class ToolCatalogTest {
       mock(SonarQubeVersionChecker.class), backend, CompletableFuture.completedFuture(null), proxiedTools);
   }
 
-  private static Tool tool(String name, ToolPolicy policy, Boolean readOnly) {
+  private static Tool tool(String name, ToolAvailability availability, Boolean readOnly) {
     var annotations = readOnly == null ? null : new McpSchema.ToolAnnotations(null, readOnly, null, null, null, null);
     var definition = McpSchema.Tool.builder(name, Map.of("type", "object")).annotations(annotations).build();
-    return new Tool(definition, policy) {
+    return new Tool(definition, availability) {
       @Override
       public Result execute(Arguments arguments) {
         throw new UnsupportedOperationException();

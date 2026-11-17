@@ -24,13 +24,12 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchSecurityHotspotsTool extends Tool {
 
   public static final String TOOL_NAME = "search_security_hotspots";
-  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.SECURITY_HOTSPOTS);
 
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String HOTSPOT_KEYS_PROPERTY = "hotspotKeys";
@@ -43,6 +42,8 @@ public class SearchSecurityHotspotsTool extends Tool {
   public static final String ONLY_MINE_PROPERTY = "onlyMine";
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
   public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.SECURITY_HOTSPOTS);
   
   private static final String[] VALID_STATUSES = {"TO_REVIEW", "REVIEWED"};
   private static final String[] VALID_RESOLUTIONS = {"FIXED", "SAFE", "ACKNOWLEDGED"};
@@ -66,7 +67,7 @@ public class SearchSecurityHotspotsTool extends Tool {
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
       .build(),
-      REGISTRATION_POLICY);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

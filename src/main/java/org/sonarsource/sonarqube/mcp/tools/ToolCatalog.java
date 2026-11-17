@@ -68,7 +68,7 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 
-/** Explicit construction wiring; each tool owns its registration policy. */
+/** Constructs tools and applies their declared startup availability. */
 public final class ToolCatalog {
 
   private static final McpLogger LOG = McpLogger.getInstance();
@@ -83,26 +83,15 @@ public final class ToolCatalog {
     this.configuration = configuration;
     this.capabilities = resolution.capabilities();
     this.transport = configuration.getTransportMode();
-    loadRestTools(provider, versionChecker);
-    proxiedTools.forEach(this::register);
-
-    var projectKey = configuration.getProjectKey();
-    var cloud = configuration.isSonarQubeCloud();
-    register(new StartAgenticReadinessAssessmentTool(provider, projectKey));
-    register(new GetAgenticReadinessAssessmentTool(provider));
-    register(new ListAgenticReadinessAssessmentsTool(provider, projectKey));
-    register(RunAdvancedCodeAnalysisTool.REGISTRATION_POLICY,
-      () -> new RunAdvancedCodeAnalysisTool(provider, projectKey, Objects.requireNonNull(configuration.getWorkspacePath()), cloud));
-    register(AnalyzeFileListTool.REGISTRATION_POLICY, () -> new AnalyzeFileListTool(Objects.requireNonNull(resolution.bridgeClient())));
-    register(ToggleAutomaticAnalysisTool.REGISTRATION_POLICY, () -> new ToggleAutomaticAnalysisTool(Objects.requireNonNull(resolution.bridgeClient())));
-    register(new AnalyzeCodeSnippetTool(backendService, provider, initializationFuture, projectKey, configuration.getWorkspacePath(), cloud));
+    registerTools(resolution, provider, versionChecker, backendService, initializationFuture, proxiedTools);
     enabledTools = filterEnabled(supportedTools);
 
     var filterReason = configuration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
     LOG.info("All tools loaded: " + enabledTools.size() + " tools after " + filterReason);
   }
 
-  private void loadRestTools(ServerApiProvider provider, SonarQubeVersionChecker versionChecker) {
+  private void registerTools(Resolution resolution, ServerApiProvider provider, SonarQubeVersionChecker versionChecker,
+    BackendService backendService, CompletableFuture<Void> initializationFuture, List<Tool> proxiedTools) {
     var projectKey = configuration.getProjectKey();
     var cloud = configuration.isSonarQubeCloud();
     register(new ListEnterprisesTool(provider));
@@ -137,16 +126,27 @@ public final class ToolCatalog {
     register(new ListBranchesTool(provider, cloud, projectKey));
     ArchitectureTools.create(provider, cloud, projectKey).forEach(this::register);
     register(new SearchDependencyRisksTool(provider, versionChecker, projectKey, cloud));
+    proxiedTools.forEach(this::register);
+
+    register(new StartAgenticReadinessAssessmentTool(provider, projectKey));
+    register(new GetAgenticReadinessAssessmentTool(provider));
+    register(new ListAgenticReadinessAssessmentsTool(provider, projectKey));
+    // These tools require a workspace or IDE bridge that may be absent when the tool is unavailable.
+    register(RunAdvancedCodeAnalysisTool.REGISTRATION_AVAILABILITY,
+      () -> new RunAdvancedCodeAnalysisTool(provider, projectKey, Objects.requireNonNull(configuration.getWorkspacePath()), cloud));
+    register(AnalyzeFileListTool.REGISTRATION_AVAILABILITY, () -> new AnalyzeFileListTool(Objects.requireNonNull(resolution.bridgeClient())));
+    register(ToggleAutomaticAnalysisTool.REGISTRATION_AVAILABILITY, () -> new ToggleAutomaticAnalysisTool(Objects.requireNonNull(resolution.bridgeClient())));
+    register(new AnalyzeCodeSnippetTool(backendService, provider, initializationFuture, projectKey, configuration.getWorkspacePath(), cloud));
   }
 
   private void register(Tool tool) {
-    if (tool.policy().isSupported(transport, capabilities)) {
+    if (tool.availability().isAvailable(transport, capabilities)) {
       supportedTools.add(tool);
     }
   }
 
-  private void register(ToolPolicy policy, Supplier<? extends Tool> factory) {
-    if (policy.isSupported(transport, capabilities)) {
+  private void register(ToolAvailability availability, Supplier<? extends Tool> factory) {
+    if (availability.isAvailable(transport, capabilities)) {
       register(factory.get());
     }
   }

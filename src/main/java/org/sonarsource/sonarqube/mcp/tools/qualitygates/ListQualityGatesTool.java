@@ -21,13 +21,14 @@ import org.sonarsource.sonarqube.mcp.serverapi.qualitygates.response.ListRespons
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListQualityGatesTool extends Tool {
 
   public static final String TOOL_NAME = "list_quality_gates";
-  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.QUALITY_GATES);
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.QUALITY_GATES);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -38,7 +39,7 @@ public class ListQualityGatesTool extends Tool {
       .setDescription("List all quality gates.")
       .setReadOnlyHint()
       .build(),
-      REGISTRATION_POLICY);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -16,27 +16,27 @@ The startup gate applies to both HTTP and stdio. HTTP adds caller-specific permi
 2. Add a `Tool` subclass under its domain, plus `package-info.java` for a new package. Use a snake_case `TOOL_NAME` of at most 64 characters, accepted by `ToolNameValidator`.
 3. Build the schema with `ToolDefinitionBuilder`; reuse configured-project, organization, and branch/pull-request handling. Use `BranchPullRequestContext` where applicable.
 4. Return a typed record through `Tool.Result.success`. Null fields are omitted; the payload is serialized once as JSON text. Tools do not advertise output schemas.
-5. Declare a `public static final ToolPolicy REGISTRATION_POLICY` on the tool and pass it to `super` with the definition. Register the instance in `ToolCatalog` with `register(new FooTool(...))`; the catalog reads its policy. Use `isEnabledFor()` for caller-specific checks when needed, not as a substitute for known startup gates.
+5. Declare a `private static final ToolAvailability REGISTRATION_AVAILABILITY` on the tool and pass it to `super` with the definition. Register the instance in `ToolCatalog` with `register(new FooTool(...))`; the catalog reads its availability. Use `isEnabledFor()` for caller-specific checks when needed, not as a substitute for known startup gates.
 6. Add regression coverage through the MCP harness and update the user reference.
 
-## Registration policy
+## Registration availability
 
 Ordinary tools need only their categories:
 
 ```java
-public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.ISSUES);
+private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.ISSUES);
 ```
 
-Both transports are supported by default. Restrict transport and declare a named startup requirement when needed:
+Both transports are supported by default. Use `.cloudOnly()`, `.serverOnly()`, or `.requiresIdeAnalysis()` for common startup restrictions. Other capabilities use `.requires(...)`:
 
 ```java
-public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX)
+private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategories(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX)
   .stdioOnly().requires(ToolCapabilities::vortexAnalysis);
 ```
 
-`ToolCapabilitiesResolver` resolves shared startup decisions through the existing API clients and returns the capabilities together with the available IDE bridge client. Policies read the immutable `ToolCapabilities` snapshot and perform no network calls. Add a capability here when a tool needs a new startup condition; keep the declaration on the tool and dependency construction in `ToolCatalog`.
+`ToolCapabilitiesResolver` resolves shared startup decisions through the existing API clients and returns the capabilities together with the available IDE bridge client. `ToolAvailability` reads the immutable `ToolCapabilities` snapshot and performs no network calls. Add a capability here when a tool needs a new startup condition; keep the declaration on the tool and dependency construction in `ToolCatalog`.
 
-The catalog checks each instance's policy for transport and capability requirements. Use the `register(REGISTRATION_POLICY, () -> new FooTool(...))` overload only when construction requires dependencies that may be absent; it checks eligibility before invoking the factory. Its constructor produces the supported tools and the enabled subset after category and read-only filtering. A match on any category enables a tool; `projects` remains always enabled. Default transports are declared beside each `ToolCategory` key: omitted transports mean opt-in, and agentic readiness defaults to stdio only. These are selection defaults, not transport support restrictions. Keep existing aliases and defaults intact.
+The catalog checks each instance's `availability().isAvailable(...)` for startup transport and capability requirements. Use the `register(REGISTRATION_AVAILABILITY, () -> new FooTool(...))` overload only when construction requires dependencies that may be absent; it checks availability before invoking the factory. Make the constant public only when another package needs to check it before construction or proxy startup. The catalog constructor produces the supported tools and the enabled subset after category and read-only filtering. A match on any category enables a tool; `projects` remains always enabled. Default transports are declared beside each `ToolCategory` key: omitted transports mean opt-in, and agentic readiness defaults to stdio only. These are selection defaults, not transport support restrictions. Keep existing aliases and defaults intact.
 
 Proxy startup and shutdown belong to `SonarQubeMcpServer`, which supplies discovered tools to the catalog and composes server instructions. Keep feature workflow text beside the feature, as in `ArchitectureTools.INSTRUCTIONS` and `StartAgenticReadinessAssessmentTool.INSTRUCTIONS`.
 

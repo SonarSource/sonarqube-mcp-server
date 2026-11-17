@@ -19,14 +19,14 @@ package org.sonarsource.sonarqube.mcp.tools.organizations;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
-import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 
 public class ListOrganizationsTool extends Tool {
 
   public static final String TOOL_NAME = "list_organizations";
-  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.PROJECTS).requires(ToolCapabilities::cloud);
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.PROJECTS).cloudOnly();
   private final ServerApiProvider serverApiProvider;
 
   public ListOrganizationsTool(ServerApiProvider serverApiProvider) {
@@ -35,7 +35,7 @@ public class ListOrganizationsTool extends Tool {
       .setTitle("List Your SonarQube Cloud Organizations")
       .setDescription("List SonarQube Cloud organizations that a user is a member of.")
       .setReadOnlyHint()
-      .build(), REGISTRATION_POLICY);
+      .build(), REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -23,20 +23,21 @@ import org.sonarsource.sonarqube.mcp.serverapi.webhooks.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListWebhooksTool extends Tool {
 
   public static final String TOOL_NAME = "list_webhooks";
-  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.WEBHOOKS);
   public static final String PROJECT_PROPERTY = ToolParameters.PROJECT_KEY;
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.WEBHOOKS);
 
   private final ServerApiProvider serverApiProvider;
 
   public ListWebhooksTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      REGISTRATION_POLICY);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

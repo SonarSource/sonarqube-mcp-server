@@ -23,7 +23,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.branches.response.BranchesListRes
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.BRANCH_TYPES_FILTER_VALUES;
@@ -34,9 +34,10 @@ import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.parseQual
 public class ListBranchesTool extends Tool {
 
   public static final String TOOL_NAME = "list_branches";
-  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.PROJECTS);
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String BRANCH_TYPES_PROPERTY = "branchTypes";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.PROJECTS);
 
   private static final String CLOUD_DESCRIPTION = "List analyzed branches for a SonarQube Cloud project (long-lived and short-lived). " +
     "Use returned branch names as the branch parameter on other tools (e.g. get_project_quality_gate_status, get_component_measures). " +
@@ -54,7 +55,7 @@ public class ListBranchesTool extends Tool {
 
   public ListBranchesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
     super(buildToolDefinition(isSonarQubeCloud, configuredProjectKey),
-      REGISTRATION_POLICY);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
     this.isSonarQubeCloud = isSonarQubeCloud;
     this.configuredProjectKey = configuredProjectKey;

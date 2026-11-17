@@ -21,14 +21,13 @@ import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
-import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class AnalyzeFileListTool extends Tool {
   private static final McpLogger LOG = McpLogger.getInstance();
 
   public static final String TOOL_NAME = "analyze_file_list";
-  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.ANALYSIS, ToolCategory.IDE).stdioOnly().requires(ToolCapabilities::ideAnalysis);
+  public static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategories(ToolCategory.ANALYSIS, ToolCategory.IDE).stdioOnly().requiresIdeAnalysis();
   public static final String FILE_ABSOLUTE_PATHS_PROPERTY = "file_absolute_paths";
 
   private final SonarQubeIdeBridgeClient bridgeClient;
@@ -42,7 +41,7 @@ public class AnalyzeFileListTool extends Tool {
       .addArrayProperty(FILE_ABSOLUTE_PATHS_PROPERTY, "string", "List of absolute file paths to analyze")
       .setReadOnlyHint()
       .build(),
-      REGISTRATION_POLICY);
+      REGISTRATION_AVAILABILITY);
     this.bridgeClient = bridgeClient;
   }
 

@@ -23,13 +23,14 @@ import org.sonarsource.sonarqube.mcp.serverapi.hotspots.response.ShowResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
-import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class ShowSecurityHotspotTool extends Tool {
 
   public static final String TOOL_NAME = "show_security_hotspot";
-  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.SECURITY_HOTSPOTS);
   public static final String HOTSPOT_KEY_PROPERTY = "hotspotKey";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.SECURITY_HOTSPOTS);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -41,7 +42,7 @@ public class ShowSecurityHotspotTool extends Tool {
       .addRequiredStringProperty(HOTSPOT_KEY_PROPERTY, "The key of the Security Hotspot to retrieve")
       .setReadOnlyHint()
       .build(),
-      REGISTRATION_POLICY);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

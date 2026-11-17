@@ -31,7 +31,7 @@ import static org.sonarsource.sonarqube.mcp.client.TransportMode.STDIO;
  * Categories of tools that can be selectively enabled or disabled.
  * A tool may belong to one or more categories.
  * Each declaration lists the transports that select it by default; no transports means opt-in.
- * ToolPolicy separately determines whether a tool supports the selected transport.
+ * ToolAvailability separately determines whether a tool supports the selected transport.
  */
 public enum ToolCategory {
   ANALYSIS("analysis", STDIO, HTTP),
