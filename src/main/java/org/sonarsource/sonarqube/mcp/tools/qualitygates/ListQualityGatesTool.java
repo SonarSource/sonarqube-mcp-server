@@ -27,7 +27,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 public class ListQualityGatesTool extends Tool {
 
   public static final String TOOL_NAME = "list_quality_gates";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.QUALITY_GATES);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.QUALITY_GATES);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -38,7 +38,7 @@ public class ListQualityGatesTool extends Tool {
       .setDescription("List all quality gates.")
       .setReadOnlyHint()
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

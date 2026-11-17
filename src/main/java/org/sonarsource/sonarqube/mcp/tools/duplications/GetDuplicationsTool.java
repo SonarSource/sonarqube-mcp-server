@@ -27,7 +27,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 public class GetDuplicationsTool extends Tool {
 
   public static final String TOOL_NAME = "get_duplications";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.DUPLICATIONS);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.DUPLICATIONS);
   public static final String KEY_PROPERTY = "key";
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
@@ -43,7 +43,7 @@ public class GetDuplicationsTool extends Tool {
       .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -33,7 +33,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 public class SearchDuplicatedFilesTool extends Tool {
 
   public static final String TOOL_NAME = "search_duplicated_files";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.DUPLICATIONS);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.DUPLICATIONS);
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
@@ -71,7 +71,7 @@ public class SearchDuplicatedFilesTool extends Tool {
           "If not specified, auto-fetches all duplicated files.")
         .setReadOnlyHint()
         .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

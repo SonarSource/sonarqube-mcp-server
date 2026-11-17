@@ -33,7 +33,7 @@ import static org.sonarsource.sonarqube.mcp.tools.ToolAccessMode.READ_WRITE;
 public class StartAgenticReadinessAssessmentTool extends Tool {
 
   public static final String TOOL_NAME = "start_agentic_readiness_assessment";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.AGENTIC_READINESS).requires(ToolCapabilities::agenticReadiness);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.AGENTIC_READINESS).requires(ToolCapabilities::agenticReadiness);
   public static final String INSTRUCTIONS = """
 
     ## Agentic Readiness Assessment
@@ -69,7 +69,7 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
       .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
       .addStringProperty(BRANCH_PROPERTY, "Branch to assess. Omit to use the project's default branch.")
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

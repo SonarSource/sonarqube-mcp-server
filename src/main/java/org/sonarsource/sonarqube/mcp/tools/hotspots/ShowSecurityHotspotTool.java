@@ -28,7 +28,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 public class ShowSecurityHotspotTool extends Tool {
 
   public static final String TOOL_NAME = "show_security_hotspot";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.SECURITY_HOTSPOTS);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.SECURITY_HOTSPOTS);
   public static final String HOTSPOT_KEY_PROPERTY = "hotspotKey";
 
   private final ServerApiProvider serverApiProvider;
@@ -41,7 +41,7 @@ public class ShowSecurityHotspotTool extends Tool {
       .addRequiredStringProperty(HOTSPOT_KEY_PROPERTY, "The key of the Security Hotspot to retrieve")
       .setReadOnlyHint()
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

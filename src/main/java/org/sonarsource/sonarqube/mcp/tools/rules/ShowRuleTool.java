@@ -28,7 +28,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 public class ShowRuleTool extends Tool {
 
   public static final String TOOL_NAME = "show_rule";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.RULES);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.RULES);
   public static final String KEY_PROPERTY = "key";
 
   private final ServerApiProvider serverApiProvider;
@@ -41,7 +41,7 @@ public class ShowRuleTool extends Tool {
       .addRequiredStringProperty(KEY_PROPERTY, "The rule key (e.g. javascript:EmptyBlock)")
       .setReadOnlyHint()
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

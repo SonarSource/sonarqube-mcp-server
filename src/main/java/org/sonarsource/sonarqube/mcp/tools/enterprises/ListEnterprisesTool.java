@@ -28,13 +28,13 @@ import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 public class ListEnterprisesTool extends Tool {
 
   public static final String TOOL_NAME = "list_enterprises";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.PORTFOLIOS).requires(ToolCapabilities::cloud);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.PORTFOLIOS).requires(ToolCapabilities::cloud);
   public static final String ENTERPRISE_KEY_PROPERTY = "enterpriseKey";
 
   private final ServerApiProvider serverApiProvider;
 
   public ListEnterprisesTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(), POLICY);
+    super(buildToolDefinition(), REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

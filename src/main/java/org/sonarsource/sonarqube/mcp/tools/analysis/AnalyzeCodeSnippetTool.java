@@ -61,7 +61,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
   }
 
   public static final String TOOL_NAME = "analyze_code_snippet";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.ANALYSIS).requires(ToolCapabilities::localAnalysis);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.ANALYSIS).requires(ToolCapabilities::localAnalysis);
   public static final String DEPRECATION_NOTICE = "analyze_code_snippet is deprecated and will be removed in a future release. " +
     "Connect SonarQube for IDE for analyze_file_list, or enable Vortex analysis for run_advanced_code_analysis, for more accurate, cross-file results.";
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
@@ -87,7 +87,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
     CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath,
     boolean isSonarQubeCloud) {
-    super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud), POLICY);
+    super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud), REGISTRATION_POLICY);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
     this.initializationFuture = initializationFuture;

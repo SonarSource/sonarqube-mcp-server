@@ -28,7 +28,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 public class SearchMyProjectsTool extends Tool {
 
   public static final String TOOL_NAME = "search_my_sonarqube_projects";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.PROJECTS);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.PROJECTS);
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
   public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
   public static final String SEARCH_QUERY_PROPERTY = "q";
@@ -38,7 +38,7 @@ public class SearchMyProjectsTool extends Tool {
 
   public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

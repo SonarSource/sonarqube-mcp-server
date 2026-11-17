@@ -32,7 +32,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 public class SearchDependencyRisksTool extends Tool {
 
   public static final String TOOL_NAME = "search_dependency_risks";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.DEPENDENCY_RISKS).requires(ToolCapabilities::dependencyRisks);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.DEPENDENCY_RISKS).requires(ToolCapabilities::dependencyRisks);
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
@@ -57,7 +57,7 @@ public class SearchDependencyRisksTool extends Tool {
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
     this.sonarQubeVersionChecker = sonarQubeVersionChecker;
     this.configuredProjectKey = configuredProjectKey;

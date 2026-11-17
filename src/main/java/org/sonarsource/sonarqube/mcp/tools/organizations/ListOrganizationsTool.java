@@ -26,7 +26,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 public class ListOrganizationsTool extends Tool {
 
   public static final String TOOL_NAME = "list_organizations";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.PROJECTS).requires(ToolCapabilities::cloud);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.PROJECTS).requires(ToolCapabilities::cloud);
   private final ServerApiProvider serverApiProvider;
 
   public ListOrganizationsTool(ServerApiProvider serverApiProvider) {
@@ -35,7 +35,7 @@ public class ListOrganizationsTool extends Tool {
       .setTitle("List Your SonarQube Cloud Organizations")
       .setDescription("List SonarQube Cloud organizations that a user is a member of.")
       .setReadOnlyHint()
-      .build(), POLICY);
+      .build(), REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 
