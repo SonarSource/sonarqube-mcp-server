@@ -39,12 +39,12 @@ public final class ProjectSummaryDeserializer implements JsonDeserializer<Projec
       throw new JsonParseException("Invalid project summary language.");
     }
     if (!LANGUAGES.contains(language.getAsString())) {
-      return new ProjectSummary(language.getAsString(), null, null, null);
+      return new ProjectSummary(language.getAsString(), null, null, null, null);
     }
     SummaryData value = context.deserialize(json, SummaryData.class);
-    return new ProjectSummary(value.language(), value.deviations(), value.flaws(), value.smells());
+    return new ProjectSummary(value.language(), value.deviations(), value.flaws(), value.smells(), value.coverage());
   }
 
-  private record SummaryData(String language, DeviationCounts deviations, FlawCounts flaws, SmellCounts smells) {
+  private record SummaryData(String language, DeviationCounts deviations, FlawCounts flaws, SmellCounts smells, @com.google.gson.annotations.JsonAdapter(CoverageDeserializer.class) ProjectSummary.Coverage coverage) {
   }
 }
