@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import jakarta.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -36,21 +35,13 @@ public final class ArchitectureTools {
     2. Before you finish a code change, compare every dependency you added with those constraints and fix any that are not allowed.
     Do not change the intended architecture unless the user asks.""";
 
-  private final CurrentGraphReads currentReads = new CurrentGraphReads();
-
-  public ArchitectureGetTool createGet(ServerApiProvider provider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
-    return new ArchitectureGetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads);
-  }
-
-  public ArchitectureSetTool createSet(ServerApiProvider provider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
-    return new ArchitectureSetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads);
+  private ArchitectureTools() {
   }
 
   public static List<Tool> create(ServerApiProvider provider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
-    var tools = new ArrayList<Tool>();
-    var factory = new ArchitectureTools();
-    tools.add(factory.createGet(provider, isSonarQubeCloud, configuredProjectKey));
-    tools.add(factory.createSet(provider, isSonarQubeCloud, configuredProjectKey));
-    return tools;
+    var currentReads = new CurrentGraphReads();
+    return List.of(
+      new ArchitectureGetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads),
+      new ArchitectureSetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
   }
 }

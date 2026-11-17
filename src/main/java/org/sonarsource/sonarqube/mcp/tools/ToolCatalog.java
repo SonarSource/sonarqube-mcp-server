@@ -183,9 +183,7 @@ public final class ToolCatalog {
     register(new ListPortfoliosTool(provider, cloud));
     register(new ListPullRequestsTool(provider, projectKey));
     register(new ListBranchesTool(provider, cloud, projectKey));
-    var architectureTools = new ArchitectureTools();
-    register(architectureTools.createGet(provider, cloud, projectKey));
-    register(architectureTools.createSet(provider, cloud, projectKey));
+    ArchitectureTools.create(provider, cloud, projectKey).forEach(this::register);
     register(new SearchDependencyRisksTool(provider, versionChecker, projectKey, cloud));
   }
 
