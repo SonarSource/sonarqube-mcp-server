@@ -22,16 +22,19 @@ import org.sonarsource.sonarqube.mcp.serverapi.enterprises.response.ListResponse
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class ListEnterprisesTool extends Tool {
 
   public static final String TOOL_NAME = "list_enterprises";
   public static final String ENTERPRISE_KEY_PROPERTY = "enterpriseKey";
 
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.PORTFOLIOS).cloudOnly();
+
   private final ServerApiProvider serverApiProvider;
 
   public ListEnterprisesTool(ServerApiProvider serverApiProvider) {
-    super(buildToolDefinition(), ToolCategory.PORTFOLIOS);
+    super(buildToolDefinition(), REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

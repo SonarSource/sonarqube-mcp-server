@@ -24,6 +24,8 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListAgenticReadinessAssessmentsTool extends Tool {
@@ -34,6 +36,8 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
   public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.AGENTIC_READINESS).requires(ToolCapabilities::agenticReadiness);
 
   static final int MAX_PAGE_SIZE = 100;
 
@@ -55,7 +59,7 @@ public class ListAgenticReadinessAssessmentsTool extends Tool {
       .addNumberProperty(PAGE_SIZE_PROPERTY, "Number of items per page, max 100 (default: 50).")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.AGENTIC_READINESS);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

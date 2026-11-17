@@ -24,6 +24,7 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchIssuesTool extends Tool {
@@ -42,6 +43,8 @@ public class SearchIssuesTool extends Tool {
   public static final String ISSUE_KEY_PROPERTY = "issueKey";
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
   public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.ISSUES);
   
   private static final String[] VALID_SEVERITIES = {"INFO", "LOW", "MEDIUM", "HIGH", "BLOCKER"};
   private static final String[] VALID_IMPACT_SOFTWARE_QUALITIES = {"MAINTAINABILITY", "RELIABILITY", "SECURITY"};
@@ -51,7 +54,7 @@ public class SearchIssuesTool extends Tool {
 
   public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      ToolCategory.ISSUES);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -27,6 +27,18 @@ The server initializes the backend immediately with empty analyzers, loads all t
 
 This approach makes all tools available immediately. The slow analyzer download happens in the background without blocking users.
 
+## Registration responsibilities
+
+- Each `Tool` declares a `ToolAvailability`: categories, supported transports, and a predicate over startup capabilities. The predicate performs no network calls.
+- `ToolCategory` declares default selection per transport. Categories without default transports are opt-in; `projects` is always enabled. Agentic readiness is selected by default on stdio and requires explicit opt-in on HTTP. Explicit toolset selection replaces defaults, and a tool is selected when any of its categories matches.
+- `ToolCapabilitiesResolver` resolves deployment, version, entitlement, feature-flag, and IDE availability decisions once during startup. It returns the immutable `ToolCapabilities` snapshot together with the available bridge client. The snapshot distinguishes local, IDE, Vortex, and unavailable analysis; the resolver retains no mutable result state.
+- `ToolCatalog` constructs and selects tools in its constructor. It defers construction when required dependencies may be absent, checking availability before invoking the factory. It also checks availability for the discovered proxy tools supplied by the server. Its supported and enabled lists are read-only. Architecture read and write tools share the same read limiter.
+- `SonarQubeMcpServer` owns service and proxy lifecycle, resolves capabilities, constructs the catalog, and wires enabled tools into the MCP transport. It composes base, feature, and proxy instructions; feature workflow text lives beside the feature. Background analyzer downloads depend on the catalog's enabled tools.
+
+The catalog retains two views: **supported tools**, admitted by transport and capability, and **enabled tools**, narrowed by startup category/read-only configuration. Opt-in behavior comes from per-transport category defaults rather than capability checks. HTTP requests can only narrow enabled tools further; OAuth scopes and execution-time checks remain request-specific.
+
+Vortex proxy discovery and advanced analysis have different requirements. Cloud advanced analysis also requires a workspace and can use an entitled accessible organization when no single organization is selected; proxy discovery needs a selected entitled organization. On Server, entitlement without a workspace keeps both advanced and local analysis absent. Forced-local analysis applies only on Cloud. HTTP local analysis still requires a startup token.
+
 ## Architecture Flow
 
 ```
@@ -124,7 +136,9 @@ The test harness calls `server.waitForInitialization()` to ensure both phases co
 ---
 
 **Related Files:**
-- `src/main/java/org/sonarsource/sonarqube/mcp/SonarQubeMcpServer.java` - Main implementation
+- `src/main/java/org/sonarsource/sonarqube/mcp/SonarQubeMcpServer.java` - Service lifecycle and MCP wiring
+- `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolCatalog.java` - Tool construction and selection
+- `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolCapabilitiesResolver.java` - Shared startup capability checks
 - `src/main/java/org/sonarsource/sonarqube/mcp/slcore/BackendService.java` - Backend restart logic
 - `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolExecutor.java` - Waits for initialization
 - `src/test/java/org/sonarsource/sonarqube/mcp/harness/SonarQubeMcpServerTestHarness.java` - Test synchronization

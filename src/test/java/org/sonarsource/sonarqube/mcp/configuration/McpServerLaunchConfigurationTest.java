@@ -278,17 +278,16 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.CAG)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.VORTEX)).isFalse();
-    assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isFalse();
   }
 
   @Test
-  void it_should_not_treat_blank_toolsets_as_explicit(@TempDir Path tempDir) {
+  void it_should_use_defaults_for_blank_toolsets(@TempDir Path tempDir) {
     for (var toolsets : List.of("", " \t ")) {
       var configuration = new McpServerLaunchConfiguration(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token",
         "SONARQUBE_ORG", "org", "SONARQUBE_TOOLSETS", toolsets));
 
       assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
-      assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isFalse();
+      assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isTrue();
     }
   }
 
@@ -298,15 +297,39 @@ class McpServerLaunchConfigurationTest {
       "SONARQUBE_TOOLSETS", " \t "));
     System.setProperty("SONARQUBE_TOOLSETS", "issues");
     try {
-      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isTrue();
+      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
 
       environment.put("SONARQUBE_TOOLSETS", "rules");
       var configuration = new McpServerLaunchConfiguration(environment);
-      assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isFalse();
-      assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.RULES)).isTrue();
+      assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isFalse();
+      assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isTrue();
     } finally {
       System.clearProperty("SONARQUBE_TOOLSETS");
     }
+  }
+
+  @Test
+  void it_should_apply_transport_defaults_and_preserve_http_opt_in(@TempDir Path tempDir) {
+    var environment = new HashMap<>(Map.of("STORAGE_PATH", tempDir.toString(), "SONARQUBE_TOKEN", "token",
+      "SONARQUBE_IS_CLOUD", "true", "SONARQUBE_TRANSPORT", "http"));
+    assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isFalse();
+    environment.put("SONARQUBE_TOOLSETS", " \t ");
+    assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isFalse();
+
+    System.setProperty("SONARQUBE_TOOLSETS", "agentic-readiness");
+    try {
+      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isTrue();
+      environment.put("SONARQUBE_TOOLSETS", "issues");
+      assertThat(new McpServerLaunchConfiguration(environment).isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isFalse();
+    } finally {
+      System.clearProperty("SONARQUBE_TOOLSETS");
+    }
+
+    environment.put("SONARQUBE_TOOLSETS", "agentic-readiness");
+    var explicit = new McpServerLaunchConfiguration(environment);
+    assertThat(explicit.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)).isTrue();
+    assertThat(explicit.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
+    assertThat(explicit.isToolCategoryEnabled(ToolCategory.ISSUES)).isFalse();
   }
 
   @Test
@@ -322,8 +345,6 @@ class McpServerLaunchConfigurationTest {
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ANALYSIS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.ISSUES)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.QUALITY_GATES)).isTrue();
-    assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.ISSUES)).isTrue();
-    assertThat(configuration.isToolCategoryExplicitlyEnabled(ToolCategory.PROJECTS)).isFalse();
     // PROJECTS is always enabled as it's required to find project keys
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.PROJECTS)).isTrue();
     assertThat(configuration.isToolCategoryEnabled(ToolCategory.RULES)).isFalse();

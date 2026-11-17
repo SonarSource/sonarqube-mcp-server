@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class CreateWebhookTool extends Tool {
@@ -31,11 +32,13 @@ public class CreateWebhookTool extends Tool {
   public static final String PROJECT_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String SECRET_PROPERTY = "secret";
 
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.WEBHOOKS);
+
   private final ServerApiProvider serverApiProvider;
 
   public CreateWebhookTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      ToolCategory.WEBHOOKS);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

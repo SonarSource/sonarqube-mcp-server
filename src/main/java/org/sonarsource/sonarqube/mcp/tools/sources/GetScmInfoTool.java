@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.sources.response.ScmResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class GetScmInfoTool extends Tool {
 
@@ -29,6 +30,8 @@ public class GetScmInfoTool extends Tool {
   public static final String COMMITS_BY_LINE_PROPERTY = "commits_by_line";
   public static final String FROM_PROPERTY = "from";
   public static final String TO_PROPERTY = "to";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.SOURCES);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -43,7 +46,7 @@ public class GetScmInfoTool extends Tool {
       .addNumberProperty(TO_PROPERTY, "Last line to return (inclusive)")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SOURCES);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

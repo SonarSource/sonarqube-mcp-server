@@ -22,6 +22,7 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ProjectStatusTool extends Tool {
@@ -32,6 +33,8 @@ public class ProjectStatusTool extends Tool {
   public static final String PROJECT_ID_PROPERTY = "projectId";
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.QUALITY_GATES);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -50,7 +53,7 @@ public class ProjectStatusTool extends Tool {
       .addStringProperty(PROJECT_KEY_PROPERTY, "The optional project key to get the status for, for example 'my_project'")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.QUALITY_GATES);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

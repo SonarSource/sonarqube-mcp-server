@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.metrics.response.SearchMetricsRes
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchMetricsTool extends Tool {
@@ -28,6 +29,8 @@ public class SearchMetricsTool extends Tool {
   public static final String TOOL_NAME = "search_metrics";
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
   public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.MEASURES);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -40,7 +43,7 @@ public class SearchMetricsTool extends Tool {
       .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size. Must be greater than 0 and less than or equal to 500 (default: 100)")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.MEASURES);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

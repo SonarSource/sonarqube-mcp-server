@@ -20,10 +20,13 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class SystemPingTool extends Tool {
 
   public static final String TOOL_NAME = "ping_system";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.SYSTEM).serverOnly();
 
   private final ServerApiProvider serverApiProvider;
 
@@ -34,7 +37,7 @@ public class SystemPingTool extends Tool {
       .setDescription("Ping the SonarQube Server system to check if it's alive. Returns 'pong' as plain text.")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SYSTEM);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

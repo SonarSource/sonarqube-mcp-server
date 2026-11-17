@@ -20,11 +20,14 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class SystemLogsTool extends Tool {
 
   public static final String TOOL_NAME = "get_system_logs";
   public static final String NAME_PROPERTY = "name";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.SYSTEM).serverOnly();
   private static final String[] VALID_LOG_NAMES = {"access", "app", "ce", "deprecation", "es", "web"};
 
   private final ServerApiProvider serverApiProvider;
@@ -37,7 +40,7 @@ public class SystemLogsTool extends Tool {
       .addEnumProperty(NAME_PROPERTY, VALID_LOG_NAMES, "Name of the logs to get. Default: app")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SYSTEM);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 
