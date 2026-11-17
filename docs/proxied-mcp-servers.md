@@ -11,14 +11,14 @@ The list of proxied servers cannot be modified at runtime, this is only used for
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ SonarQubeMcpServer                                          │
-│  ├─ Built-in Tools (analysis, projects, issues, etc.)      │
-│  └─ Proxied Tools (from proxied MCP servers)               │
-│      └─ ProxiedToolsLoader                                  │
-│          ├─ ProxiedServerConfigParser                      │
-│          ├─ McpClientManager                                │
-│          │   └─ Multiple McpSyncClients                     │
-│          └─ ProxiedMcpTool wrappers                         │
+│ SonarQubeMcpServer (startup, instructions, shutdown)         │
+│  ├─ ProxiedToolsLoader                                     │
+│  │   ├─ ProxiedServerConfigParser                          │
+│  │   └─ McpClientManager → McpSyncClients                   │
+│  │       └─ Discovered ProxiedMcpTool wrappers              │
+│  └─ ToolCatalog                                           │
+│      ├─ Built-in tools                                    │
+│      └─ Discovered proxy tools supplied by the server      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -67,7 +67,7 @@ If a proxied server exposes a tool with an invalid name, it will be automaticall
 
 ### Production Behavior
 
-The server **always attempts to load all configured proxied servers** at startup:
+In stdio mode, when a Vortex toolset is selected and the startup organization is entitled, the server attempts to load all configured proxied servers:
 
 1. Parse `proxied-mcp-servers.json`
 2. Validate configuration

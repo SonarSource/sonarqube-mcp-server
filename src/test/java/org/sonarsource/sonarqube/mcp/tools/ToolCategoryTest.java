@@ -19,6 +19,8 @@ package org.sonarsource.sonarqube.mcp.tools;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarsource.sonarqube.mcp.client.TransportMode.HTTP;
+import static org.sonarsource.sonarqube.mcp.client.TransportMode.STDIO;
 
 class ToolCategoryTest {
 
@@ -132,6 +134,16 @@ class ToolCategoryTest {
       ToolCategory.CAG,
       ToolCategory.AGENTIC_READINESS
     );
+  }
+
+  @Test
+  void it_should_require_agentic_readiness_opt_in_on_http() {
+    assertThat(ToolCategory.defaultEnabled(HTTP))
+      .containsExactlyInAnyOrderElementsOf(ToolCategory.defaultEnabled(STDIO).stream()
+        .filter(category -> category != ToolCategory.AGENTIC_READINESS).toList());
+    assertThat(ToolCategory.parseCategories(null, HTTP)).doesNotContain(ToolCategory.AGENTIC_READINESS);
+    assertThat(ToolCategory.parseCategories(" \t ", HTTP)).doesNotContain(ToolCategory.AGENTIC_READINESS);
+    assertThat(ToolCategory.parseCategories("agentic-readiness", HTTP)).containsExactly(ToolCategory.AGENTIC_READINESS);
   }
 
   @Test
