@@ -50,6 +50,10 @@ public abstract class Tool {
     return definition;
   }
 
+  public ToolPolicy policy() {
+    return policy;
+  }
+
   public Set<ToolCategory> getCategories() {
     return policy.categories();
   }

@@ -66,14 +66,35 @@ class ToolCatalogTest {
   }
 
   @Test
+  void it_should_reject_tools_using_their_declared_transport_and_capability_requirements() {
+    var catalog = new ToolCatalog(configuration(Map.of("SONARQUBE_TRANSPORT", "http")), SERVER);
+    var stdioOnly = tool("stdio", ToolPolicy.of(ToolCategory.ANALYSIS).stdioOnly(), true);
+    var cloudOnly = tool("cloud", ToolPolicy.of(ToolCategory.PORTFOLIOS).requires(ToolCapabilities::cloud), true);
+
+    assertThat(catalog.register(stdioOnly)).isNull();
+    assertThat(catalog.register(cloudOnly)).isNull();
+    assertThat(catalog.supportedTools()).isEmpty();
+  }
+
+  @Test
+  void it_should_register_supported_factories() {
+    var catalog = new ToolCatalog(configuration(Map.of()), SERVER);
+    var policy = ToolPolicy.of(ToolCategory.ISSUES);
+    var tool = tool("issue", policy, true);
+
+    assertThat(catalog.register(policy, () -> tool)).isSameAs(tool);
+    assertThat(catalog.supportedTools()).containsExactly(tool);
+  }
+
+  @Test
   void it_should_keep_supported_tools_separate_from_enabled_tools() {
     var catalog = new ToolCatalog(configuration(Map.of("SONARQUBE_TOOLSETS", "issues")), SERVER);
     var issue = tool("issue", ToolPolicy.of(ToolCategory.ISSUES), true);
     var source = tool("source", ToolPolicy.of(ToolCategory.SOURCES), true);
     var project = tool("project", ToolPolicy.of(ToolCategory.PROJECTS), true);
-    catalog.register(ToolPolicy.of(ToolCategory.ISSUES), () -> issue);
-    catalog.register(ToolPolicy.of(ToolCategory.SOURCES), () -> source);
-    catalog.register(ToolPolicy.of(ToolCategory.PROJECTS), () -> project);
+    catalog.register(issue);
+    catalog.register(source);
+    catalog.register(project);
 
     assertThat(catalog.supportedTools()).containsExactly(issue, source, project);
     assertThat(catalog.enabledTools()).containsExactly(issue, project);
@@ -87,7 +108,7 @@ class ToolCatalogTest {
     var catalog = new ToolCatalog(configuration(Map.of("SONARQUBE_TOOLSETS", toolset)), SERVER);
     var aliases = ToolPolicy.of(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
     var tool = tool("vortex_tool", aliases, true);
-    catalog.register(aliases, () -> tool);
+    catalog.register(tool);
 
     assertThat(catalog.enabledTools()).containsExactly(tool);
   }
@@ -100,10 +121,10 @@ class ToolCatalogTest {
     var write = tool("write", issues, false);
     var unknown = tool("unknown", issues, null);
     var optional = tool("sources", ToolPolicy.of(ToolCategory.SOURCES), true);
-    catalog.register(issues, () -> read);
-    catalog.register(issues, () -> write);
-    catalog.register(issues, () -> unknown);
-    catalog.register(ToolPolicy.of(ToolCategory.SOURCES), () -> optional);
+    catalog.register(read);
+    catalog.register(write);
+    catalog.register(unknown);
+    catalog.register(optional);
 
     assertThat(catalog.enabledTools()).containsExactly(read);
     assertThat(catalog.supportedTools()).hasSize(4);

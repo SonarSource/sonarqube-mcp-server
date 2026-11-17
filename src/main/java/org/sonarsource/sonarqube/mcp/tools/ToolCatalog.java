@@ -38,8 +38,6 @@ import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
 import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureSetTool;
 import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
 import org.sonarsource.sonarqube.mcp.tools.branches.ListBranchesTool;
 import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
@@ -74,7 +72,7 @@ import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
 import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
 
-/** Explicit construction wiring; each tool owns the policy checked before its factory runs. */
+/** Explicit construction wiring; each tool owns its registration policy. */
 public final class ToolCatalog {
 
   private static final McpLogger LOG = McpLogger.getInstance();
@@ -133,9 +131,9 @@ public final class ToolCatalog {
 
     var projectKey = configuration.getProjectKey();
     var cloud = configuration.isSonarQubeCloud();
-    register(StartAgenticReadinessAssessmentTool.POLICY, () -> new StartAgenticReadinessAssessmentTool(provider, projectKey));
-    register(GetAgenticReadinessAssessmentTool.POLICY, () -> new GetAgenticReadinessAssessmentTool(provider));
-    register(ListAgenticReadinessAssessmentsTool.POLICY, () -> new ListAgenticReadinessAssessmentsTool(provider, projectKey));
+    register(new StartAgenticReadinessAssessmentTool(provider, projectKey));
+    register(new GetAgenticReadinessAssessmentTool(provider));
+    register(new ListAgenticReadinessAssessmentsTool(provider, projectKey));
     if (capabilities.agenticReadiness()) {
       instructions += AGENTIC_READINESS_INSTRUCTIONS;
     }
@@ -146,8 +144,7 @@ public final class ToolCatalog {
     }
     register(AnalyzeFileListTool.POLICY, () -> new AnalyzeFileListTool(Objects.requireNonNull(bridgeClient)));
     register(ToggleAutomaticAnalysisTool.POLICY, () -> new ToggleAutomaticAnalysisTool(Objects.requireNonNull(bridgeClient)));
-    localAnalysisTool = register(AnalyzeCodeSnippetTool.POLICY,
-      () -> new AnalyzeCodeSnippetTool(backendService, provider, initializationFuture, projectKey, configuration.getWorkspacePath(), cloud));
+    localAnalysisTool = register(new AnalyzeCodeSnippetTool(backendService, provider, initializationFuture, projectKey, configuration.getWorkspacePath(), cloud));
 
     var filterReason = configuration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
     LOG.info("All tools loaded: " + supportedTools.size() + " tools after " + filterReason);
@@ -156,40 +153,49 @@ public final class ToolCatalog {
   private void loadRestTools(ServerApiProvider provider, SonarQubeVersionChecker versionChecker) {
     var projectKey = configuration.getProjectKey();
     var cloud = configuration.isSonarQubeCloud();
-    register(ListEnterprisesTool.POLICY, () -> new ListEnterprisesTool(provider));
-    register(ListOrganizationsTool.POLICY, () -> new ListOrganizationsTool(provider));
-    register(SystemHealthTool.POLICY, () -> new SystemHealthTool(provider));
-    register(SystemInfoTool.POLICY, () -> new SystemInfoTool(provider));
-    register(SystemLogsTool.POLICY, () -> new SystemLogsTool(provider));
-    register(SystemPingTool.POLICY, () -> new SystemPingTool(provider));
-    register(SystemStatusTool.POLICY, () -> new SystemStatusTool(provider));
-    register(ChangeIssueStatusTool.POLICY, () -> new ChangeIssueStatusTool(provider));
-    register(SearchMyProjectsTool.POLICY, () -> new SearchMyProjectsTool(provider, cloud));
-    register(SearchIssuesTool.POLICY, () -> new SearchIssuesTool(provider, cloud));
-    register(SearchSecurityHotspotsTool.POLICY, () -> new SearchSecurityHotspotsTool(provider));
-    register(ShowSecurityHotspotTool.POLICY, () -> new ShowSecurityHotspotTool(provider));
-    register(ChangeSecurityHotspotStatusTool.POLICY, () -> new ChangeSecurityHotspotStatusTool(provider));
-    register(ProjectStatusTool.POLICY, () -> new ProjectStatusTool(provider));
-    register(ShowRuleTool.POLICY, () -> new ShowRuleTool(provider, cloud));
-    register(ListQualityGatesTool.POLICY, () -> new ListQualityGatesTool(provider, cloud));
-    register(ListLanguagesTool.POLICY, () -> new ListLanguagesTool(provider));
-    register(GetComponentMeasuresTool.POLICY, () -> new GetComponentMeasuresTool(provider, projectKey));
-    register(SearchFilesByCoverageTool.POLICY, () -> new SearchFilesByCoverageTool(provider, projectKey));
-    register(GetFileCoverageDetailsTool.POLICY, () -> new GetFileCoverageDetailsTool(provider));
-    register(SearchMetricsTool.POLICY, () -> new SearchMetricsTool(provider));
-    register(GetScmInfoTool.POLICY, () -> new GetScmInfoTool(provider));
-    register(GetRawSourceTool.POLICY, () -> new GetRawSourceTool(provider));
-    register(CreateWebhookTool.POLICY, () -> new CreateWebhookTool(provider, cloud));
-    register(ListWebhooksTool.POLICY, () -> new ListWebhooksTool(provider, cloud));
-    register(GetDuplicationsTool.POLICY, () -> new GetDuplicationsTool(provider));
-    register(SearchDuplicatedFilesTool.POLICY, () -> new SearchDuplicatedFilesTool(provider, projectKey));
-    register(ListPortfoliosTool.POLICY, () -> new ListPortfoliosTool(provider, cloud));
-    register(ListPullRequestsTool.POLICY, () -> new ListPullRequestsTool(provider, projectKey));
-    register(ListBranchesTool.POLICY, () -> new ListBranchesTool(provider, cloud, projectKey));
+    register(new ListEnterprisesTool(provider));
+    register(new ListOrganizationsTool(provider));
+    register(new SystemHealthTool(provider));
+    register(new SystemInfoTool(provider));
+    register(new SystemLogsTool(provider));
+    register(new SystemPingTool(provider));
+    register(new SystemStatusTool(provider));
+    register(new ChangeIssueStatusTool(provider));
+    register(new SearchMyProjectsTool(provider, cloud));
+    register(new SearchIssuesTool(provider, cloud));
+    register(new SearchSecurityHotspotsTool(provider));
+    register(new ShowSecurityHotspotTool(provider));
+    register(new ChangeSecurityHotspotStatusTool(provider));
+    register(new ProjectStatusTool(provider));
+    register(new ShowRuleTool(provider, cloud));
+    register(new ListQualityGatesTool(provider, cloud));
+    register(new ListLanguagesTool(provider));
+    register(new GetComponentMeasuresTool(provider, projectKey));
+    register(new SearchFilesByCoverageTool(provider, projectKey));
+    register(new GetFileCoverageDetailsTool(provider));
+    register(new SearchMetricsTool(provider));
+    register(new GetScmInfoTool(provider));
+    register(new GetRawSourceTool(provider));
+    register(new CreateWebhookTool(provider, cloud));
+    register(new ListWebhooksTool(provider, cloud));
+    register(new GetDuplicationsTool(provider));
+    register(new SearchDuplicatedFilesTool(provider, projectKey));
+    register(new ListPortfoliosTool(provider, cloud));
+    register(new ListPullRequestsTool(provider, projectKey));
+    register(new ListBranchesTool(provider, cloud, projectKey));
     var architectureTools = new ArchitectureTools();
-    register(ArchitectureGetTool.POLICY, () -> architectureTools.createGet(provider, cloud, projectKey));
-    register(ArchitectureSetTool.POLICY, () -> architectureTools.createSet(provider, cloud, projectKey));
-    register(SearchDependencyRisksTool.POLICY, () -> new SearchDependencyRisksTool(provider, versionChecker, projectKey, cloud));
+    register(architectureTools.createGet(provider, cloud, projectKey));
+    register(architectureTools.createSet(provider, cloud, projectKey));
+    register(new SearchDependencyRisksTool(provider, versionChecker, projectKey, cloud));
+  }
+
+  @Nullable
+  Tool register(Tool tool) {
+    if (!tool.policy().isSupported(transport, capabilities)) {
+      return null;
+    }
+    supportedTools.add(tool);
+    return tool;
   }
 
   @Nullable
@@ -197,9 +203,7 @@ public final class ToolCatalog {
     if (!policy.isSupported(transport, capabilities)) {
       return null;
     }
-    var tool = factory.get();
-    supportedTools.add(tool);
-    return tool;
+    return register(factory.get());
   }
 
   private void loadProxiedTools(@Nullable ResolvedOrganization organization) {

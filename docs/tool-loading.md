@@ -31,7 +31,7 @@ This approach makes all tools available immediately. The slow analyzer download 
 
 - Each `Tool` declares a `ToolPolicy`: categories, supported transports, and a predicate over startup capabilities. The predicate performs no network calls.
 - `ToolCapabilitiesResolver` resolves deployment, version, entitlement, feature-flag, and IDE availability decisions once during startup. The resulting `ToolCapabilities` snapshot distinguishes local, IDE, Vortex, and unavailable analysis. The resolver retains the probed bridge client for construction.
-- `ToolCatalog` checks each policy before constructing its tool, owns proxy discovery and shutdown, and contributes feature and proxy instructions. Architecture read and write tools share the same read limiter.
+- `ToolCatalog` constructs ordinary tools directly and checks their declared policies before registration. It defers construction when required dependencies may be absent, checking the policy before invoking the factory. It owns proxy discovery and shutdown and contributes feature and proxy instructions. Architecture read and write tools share the same read limiter.
 - `SonarQubeMcpServer` initializes services, resolves capabilities, loads the catalog, and wires enabled tools into the MCP transport. Background analyzer downloads use the catalog's `needsLocalAnalyzers()` result.
 
 The catalog retains two views: **supported tools**, admitted by transport and capability, and **enabled tools**, narrowed by startup category/read-only configuration. Some capabilities already depend on explicit toolset selection, preserving existing behavior. HTTP requests can only narrow enabled tools further; OAuth scopes and execution-time checks remain request-specific.
