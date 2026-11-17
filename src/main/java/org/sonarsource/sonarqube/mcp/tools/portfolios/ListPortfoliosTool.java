@@ -24,11 +24,13 @@ import org.sonarsource.sonarqube.mcp.serverapi.views.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListPortfoliosTool extends Tool {
 
   public static final String TOOL_NAME = "list_portfolios";
+  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.PORTFOLIOS);
   public static final String ENTERPRISE_ID_PROPERTY = "enterpriseId";
   public static final String QUERY_PROPERTY = "q";
   public static final String FAVORITE_PROPERTY = "favorite";
@@ -40,7 +42,7 @@ public class ListPortfoliosTool extends Tool {
   private final boolean isSonarQubeCloud;
 
   public ListPortfoliosTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
-    super(buildToolDefinition(isSonarQubeCloud), ToolCategory.PORTFOLIOS);
+    super(buildToolDefinition(isSonarQubeCloud), POLICY);
     this.serverApiProvider = serverApiProvider;
     this.isSonarQubeCloud = isSonarQubeCloud;
   }

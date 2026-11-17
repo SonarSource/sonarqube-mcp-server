@@ -24,10 +24,13 @@ import org.sonarsource.sonarqube.mcp.serverapi.system.response.InfoResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
+import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 
 public class SystemInfoTool extends Tool {
 
   public static final String TOOL_NAME = "get_system_info";
+  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.SYSTEM).requires(ToolCapabilities::server);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -39,7 +42,7 @@ public class SystemInfoTool extends Tool {
         "Requires 'Administer' permissions.")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SYSTEM);
+      POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

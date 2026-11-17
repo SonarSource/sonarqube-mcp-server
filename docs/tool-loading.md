@@ -27,6 +27,17 @@ The server initializes the backend immediately with empty analyzers, loads all t
 
 This approach makes all tools available immediately. The slow analyzer download happens in the background without blocking users.
 
+## Registration responsibilities
+
+- Each `Tool` declares a `ToolPolicy`: categories, supported transports, and a predicate over startup capabilities. The predicate performs no network calls.
+- `ToolCapabilitiesResolver` resolves deployment, version, entitlement, feature-flag, and IDE availability decisions once during startup. The resulting `ToolCapabilities` snapshot distinguishes local, IDE, Vortex, and unavailable analysis. The resolver retains the probed bridge client for construction.
+- `ToolCatalog` constructs ordinary tools directly and checks their declared policies before registration. It defers construction when required dependencies may be absent, checking the policy before invoking the factory. It owns proxy discovery and shutdown and contributes feature and proxy instructions. Architecture read and write tools share the same read limiter.
+- `SonarQubeMcpServer` initializes services, resolves capabilities, loads the catalog, and wires enabled tools into the MCP transport. Background analyzer downloads use the catalog's `needsLocalAnalyzers()` result.
+
+The catalog retains two views: **supported tools**, admitted by transport and capability, and **enabled tools**, narrowed by startup category/read-only configuration. Some capabilities already depend on explicit toolset selection, preserving existing behavior. HTTP requests can only narrow enabled tools further; OAuth scopes and execution-time checks remain request-specific.
+
+Vortex proxy discovery and advanced analysis have different requirements. Cloud advanced analysis also requires a workspace and can use an entitled accessible organization when no single organization is selected; proxy discovery needs a selected entitled organization. On Server, entitlement without a workspace keeps both advanced and local analysis absent. Forced-local analysis applies only on Cloud. HTTP local analysis still requires a startup token.
+
 ## Architecture Flow
 
 ```
@@ -124,7 +135,9 @@ The test harness calls `server.waitForInitialization()` to ensure both phases co
 ---
 
 **Related Files:**
-- `src/main/java/org/sonarsource/sonarqube/mcp/SonarQubeMcpServer.java` - Main implementation
+- `src/main/java/org/sonarsource/sonarqube/mcp/SonarQubeMcpServer.java` - Service lifecycle and MCP wiring
+- `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolCatalog.java` - Tool construction, selection, instructions, and proxy lifecycle
+- `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolCapabilitiesResolver.java` - Shared startup capability checks
 - `src/main/java/org/sonarsource/sonarqube/mcp/slcore/BackendService.java` - Backend restart logic
 - `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolExecutor.java` - Waits for initialization
 - `src/test/java/org/sonarsource/sonarqube/mcp/harness/SonarQubeMcpServerTestHarness.java` - Test synchronization
