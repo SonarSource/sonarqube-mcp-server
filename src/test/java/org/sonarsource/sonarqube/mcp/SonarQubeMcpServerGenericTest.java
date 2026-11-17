@@ -29,6 +29,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import org.sonarsource.sonarqube.mcp.client.McpClientManager;
+import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
+import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTest;
 import org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpServerTestHarness;
 import org.sonarsource.sonarqube.mcp.serverapi.agenticreadiness.WasFeatureFlagsApi;
@@ -55,7 +58,11 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.sonarsource.sonarqube.mcp.harness.SonarQubeMcpTestClient.assertResultEquals;
 
@@ -458,6 +465,40 @@ class SonarQubeMcpServerGenericTest {
       .doesNotContain("toolset names for Vortex tools are deprecated");
 
     server.shutdown();
+  }
+
+  @SonarQubeMcpServerTest
+  void it_should_own_proxy_lifecycle_and_compose_feature_instructions(SonarQubeMcpServerTestHarness harness) {
+    var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
+    environment.put("SONARQUBE_ORG", "org");
+    environment.put("SONARQUBE_TOOLSETS", "architecture,cag,agentic-readiness");
+    environment.put("SONARQUBE_READ_ONLY", "true");
+    harness.prepareMockWebServer(environment);
+    harness.stubCagEntitlement(true);
+    harness.stubA3sEnabled(true);
+    harness.stubSaraEnabled();
+    var definition = McpSchema.Tool.builder("proxy_tool", Map.of("type", "object"))
+      .annotations(new McpSchema.ToolAnnotations(null, true, null, null, null, null)).build();
+    var proxyTool = new ProxiedMcpTool("vortex", "proxy_tool", definition, mock(McpClientManager.class));
+
+    try (var loaders = mockConstruction(ProxiedToolsLoader.class, (loader, context) -> {
+      when(loader.loadProxiedTools(eq(TransportMode.STDIO), anyString(), eq("org"))).thenReturn(List.of(proxyTool));
+      when(loader.getProxiedInstructions()).thenReturn(List.of("Proxy instructions"));
+    })) {
+      var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
+      try {
+        assertThat(server.getSupportedTools()).contains(proxyTool);
+        assertThat(server.getComposedInstructions()).endsWith(ArchitectureTools.INSTRUCTIONS
+          + "\nNote: the `cag`/`analysis` toolset names for Vortex tools are deprecated; use `vortex` instead."
+          + "\n\nProxy instructions" + StartAgenticReadinessAssessmentTool.INSTRUCTIONS);
+        assertThat(loaders.constructed()).hasSize(1);
+        verify(loaders.constructed().getFirst()).loadProxiedTools(eq(TransportMode.STDIO), anyString(), eq("org"));
+      } finally {
+        server.shutdown();
+      }
+      server.shutdown();
+      verify(loaders.constructed().getFirst()).shutdown();
+    }
   }
 
   @SonarQubeMcpServerTest

@@ -44,7 +44,7 @@ class StdioTransportITest {
 
     await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(stdioServerContainer.getLogs())
       .contains("Transport: stdio", "SonarQube MCP Server Started:")
-      .contains("Advanced analysis tool registered")
+      .contains("Advanced analysis tool registered: true")
       .contains("Local analysis tool is not enabled - skipping analyzers download")
       .doesNotContain("Downloading analyzers in background"));
   }
@@ -52,6 +52,7 @@ class StdioTransportITest {
   private static GenericContainer<?> createStdioServerContainer() {
     return McpServerTestContainers.builder()
       .withWorkspaceMount()
+      .withEnv("SONARQUBE_DEBUG_ENABLED", "true")
       .withLogPrefix("STDIO-Container")
       .build();
   }
