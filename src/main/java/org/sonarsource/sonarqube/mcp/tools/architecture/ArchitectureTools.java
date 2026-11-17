@@ -17,7 +17,6 @@
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import jakarta.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.List;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
@@ -40,10 +39,9 @@ public final class ArchitectureTools {
   }
 
   public static List<Tool> create(ServerApiProvider provider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
-    var tools = new ArrayList<Tool>();
     var currentReads = new CurrentGraphReads();
-    tools.add(new ArchitectureGetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
-    tools.add(new ArchitectureSetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
-    return tools;
+    return List.of(
+      new ArchitectureGetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads),
+      new ArchitectureSetTool(provider, isSonarQubeCloud, configuredProjectKey, currentReads));
   }
 }
