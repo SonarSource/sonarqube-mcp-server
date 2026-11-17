@@ -37,7 +37,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 public class RunAdvancedCodeAnalysisTool extends Tool {
 
   public static final String TOOL_NAME = "run_advanced_code_analysis";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX)
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX)
     .stdioOnly().requires(ToolCapabilities::vortexAnalysis);
 
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
@@ -54,7 +54,7 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
   private final Path configuredWorkspacePath;
 
   public RunAdvancedCodeAnalysisTool(ServerApiProvider serverApiProvider, @Nullable String configuredProjectKey, Path configuredWorkspacePath, boolean isSonarQubeCloud) {
-    super(buildToolDefinition(configuredProjectKey, isSonarQubeCloud), POLICY);
+    super(buildToolDefinition(configuredProjectKey, isSonarQubeCloud), REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
     this.configuredWorkspacePath = configuredWorkspacePath;

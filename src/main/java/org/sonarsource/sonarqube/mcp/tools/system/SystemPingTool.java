@@ -26,7 +26,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 public class SystemPingTool extends Tool {
 
   public static final String TOOL_NAME = "ping_system";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.SYSTEM).requires(ToolCapabilities::server);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.SYSTEM).requires(ToolCapabilities::server);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -37,7 +37,7 @@ public class SystemPingTool extends Tool {
       .setDescription("Ping the SonarQube Server system to check if it's alive. Returns 'pong' as plain text.")
       .setReadOnlyHint()
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -25,7 +25,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 public class ChangeSecurityHotspotStatusTool extends Tool {
 
   public static final String TOOL_NAME = "change_security_hotspot_status";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.SECURITY_HOTSPOTS);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.SECURITY_HOTSPOTS);
   public static final String HOTSPOT_KEY_PROPERTY = "hotspotKey";
   public static final String STATUS_PROPERTY = "status";
   public static final String RESOLUTION_PROPERTY = "resolution";
@@ -53,7 +53,7 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
       .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "The resolution when status is REVIEWED. Required if status is REVIEWED")
       .addStringProperty(COMMENT_PROPERTY, "An optional comment explaining the review decision")
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

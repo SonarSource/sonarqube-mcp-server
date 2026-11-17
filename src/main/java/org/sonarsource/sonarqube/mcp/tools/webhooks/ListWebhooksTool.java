@@ -29,14 +29,14 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 public class ListWebhooksTool extends Tool {
 
   public static final String TOOL_NAME = "list_webhooks";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.WEBHOOKS);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.WEBHOOKS);
   public static final String PROJECT_PROPERTY = ToolParameters.PROJECT_KEY;
 
   private final ServerApiProvider serverApiProvider;
 
   public ListWebhooksTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

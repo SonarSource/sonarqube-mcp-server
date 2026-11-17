@@ -91,10 +91,10 @@ public final class ToolCatalog {
     register(new StartAgenticReadinessAssessmentTool(provider, projectKey));
     register(new GetAgenticReadinessAssessmentTool(provider));
     register(new ListAgenticReadinessAssessmentsTool(provider, projectKey));
-    register(RunAdvancedCodeAnalysisTool.POLICY,
+    register(RunAdvancedCodeAnalysisTool.REGISTRATION_POLICY,
       () -> new RunAdvancedCodeAnalysisTool(provider, projectKey, Objects.requireNonNull(configuration.getWorkspacePath()), cloud));
-    register(AnalyzeFileListTool.POLICY, () -> new AnalyzeFileListTool(Objects.requireNonNull(resolution.bridgeClient())));
-    register(ToggleAutomaticAnalysisTool.POLICY, () -> new ToggleAutomaticAnalysisTool(Objects.requireNonNull(resolution.bridgeClient())));
+    register(AnalyzeFileListTool.REGISTRATION_POLICY, () -> new AnalyzeFileListTool(Objects.requireNonNull(resolution.bridgeClient())));
+    register(ToggleAutomaticAnalysisTool.REGISTRATION_POLICY, () -> new ToggleAutomaticAnalysisTool(Objects.requireNonNull(resolution.bridgeClient())));
     register(new AnalyzeCodeSnippetTool(backendService, provider, initializationFuture, projectKey, configuration.getWorkspacePath(), cloud));
     enabledTools = filterEnabled(supportedTools);
 

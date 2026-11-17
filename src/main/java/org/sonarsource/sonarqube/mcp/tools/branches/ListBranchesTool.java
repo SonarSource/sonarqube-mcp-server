@@ -34,7 +34,7 @@ import static org.sonarsource.sonarqube.mcp.tools.branches.BranchTypes.parseQual
 public class ListBranchesTool extends Tool {
 
   public static final String TOOL_NAME = "list_branches";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.PROJECTS);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.PROJECTS);
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String BRANCH_TYPES_PROPERTY = "branchTypes";
 
@@ -54,7 +54,7 @@ public class ListBranchesTool extends Tool {
 
   public ListBranchesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
     super(buildToolDefinition(isSonarQubeCloud, configuredProjectKey),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
     this.isSonarQubeCloud = isSonarQubeCloud;
     this.configuredProjectKey = configuredProjectKey;

@@ -26,7 +26,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 public class SystemLogsTool extends Tool {
 
   public static final String TOOL_NAME = "get_system_logs";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.SYSTEM).requires(ToolCapabilities::server);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.SYSTEM).requires(ToolCapabilities::server);
   public static final String NAME_PROPERTY = "name";
   private static final String[] VALID_LOG_NAMES = {"access", "app", "ce", "deprecation", "es", "web"};
 
@@ -40,7 +40,7 @@ public class SystemLogsTool extends Tool {
       .addEnumProperty(NAME_PROPERTY, VALID_LOG_NAMES, "Name of the logs to get. Default: app")
       .setReadOnlyHint()
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

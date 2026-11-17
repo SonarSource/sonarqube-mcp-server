@@ -27,7 +27,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 public class CreateWebhookTool extends Tool {
 
   public static final String TOOL_NAME = "create_webhook";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.WEBHOOKS);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.WEBHOOKS);
   public static final String NAME_PROPERTY = "name";
   public static final String URL_PROPERTY = "url";
   public static final String PROJECT_PROPERTY = ToolParameters.PROJECT_KEY;
@@ -37,7 +37,7 @@ public class CreateWebhookTool extends Tool {
 
   public CreateWebhookTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

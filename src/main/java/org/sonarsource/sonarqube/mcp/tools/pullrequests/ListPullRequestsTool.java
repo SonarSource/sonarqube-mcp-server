@@ -27,7 +27,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 public class ListPullRequestsTool extends Tool {
 
   public static final String TOOL_NAME = "list_pull_requests";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.PROJECTS);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.PROJECTS);
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
 
   private final ServerApiProvider serverApiProvider;
@@ -45,7 +45,7 @@ public class ListPullRequestsTool extends Tool {
         .addProjectKeyProperty(PROJECT_KEY_PROPERTY, configuredProjectKey)
         .setReadOnlyHint()
         .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

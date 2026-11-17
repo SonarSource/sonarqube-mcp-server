@@ -26,7 +26,7 @@ import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 public class ToggleAutomaticAnalysisTool extends Tool {
 
   public static final String TOOL_NAME = "toggle_automatic_analysis";
-  public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.ANALYSIS, ToolCategory.IDE).stdioOnly().requires(ToolCapabilities::ideAnalysis);
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.ANALYSIS, ToolCategory.IDE).stdioOnly().requires(ToolCapabilities::ideAnalysis);
   public static final String ENABLED_PROPERTY = "enabled";
 
   private final SonarQubeIdeBridgeClient bridgeClient;
@@ -40,7 +40,7 @@ public class ToggleAutomaticAnalysisTool extends Tool {
         "When disabled, automatic analysis is turned off.")
       .addBooleanProperty(ENABLED_PROPERTY, "Enable or disable the automatic analysis")
       .build(),
-      POLICY);
+      REGISTRATION_POLICY);
     this.bridgeClient = bridgeClient;
   }
 
