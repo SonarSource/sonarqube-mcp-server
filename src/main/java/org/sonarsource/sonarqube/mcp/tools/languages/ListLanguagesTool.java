@@ -21,10 +21,12 @@ import org.sonarsource.sonarqube.mcp.serverapi.languages.response.ListResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 
 public class ListLanguagesTool extends Tool {
 
   public static final String TOOL_NAME = "list_languages";
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.LANGUAGES);
   public static final String QUERY_PROPERTY = "q";
 
   private final ServerApiProvider serverApiProvider;
@@ -37,7 +39,7 @@ public class ListLanguagesTool extends Tool {
       .addStringProperty(QUERY_PROPERTY, "Optional pattern to match language keys/names against")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.LANGUAGES);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

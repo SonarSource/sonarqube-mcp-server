@@ -20,10 +20,12 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 
 public class ChangeSecurityHotspotStatusTool extends Tool {
 
   public static final String TOOL_NAME = "change_security_hotspot_status";
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.SECURITY_HOTSPOTS);
   public static final String HOTSPOT_KEY_PROPERTY = "hotspotKey";
   public static final String STATUS_PROPERTY = "status";
   public static final String RESOLUTION_PROPERTY = "resolution";
@@ -51,7 +53,7 @@ public class ChangeSecurityHotspotStatusTool extends Tool {
       .addEnumProperty(RESOLUTION_PROPERTY, VALID_RESOLUTIONS, "The resolution when status is REVIEWED. Required if status is REVIEWED")
       .addStringProperty(COMMENT_PROPERTY, "An optional comment explaining the review decision")
       .build(),
-      ToolCategory.SECURITY_HOTSPOTS);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 

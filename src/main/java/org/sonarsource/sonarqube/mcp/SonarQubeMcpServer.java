@@ -29,7 +29,6 @@ import io.modelcontextprotocol.spec.McpServerTransportProvider;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -47,9 +46,7 @@ import org.sonarsource.sonarqube.mcp.analytics.ConnectionContext;
 import org.sonarsource.sonarqube.mcp.authentication.Auth0OAuthAuthenticationService;
 import org.sonarsource.sonarqube.mcp.authentication.AuthenticationFilter.OAuthSupport;
 import org.sonarsource.sonarqube.mcp.authentication.OAuthProtectedResourceMetadata;
-import org.sonarsource.sonarqube.mcp.bridge.SonarQubeIdeBridgeClient;
 import org.sonarsource.sonarqube.mcp.client.ProxiedToolsLoader;
-import org.sonarsource.sonarqube.mcp.client.TransportMode;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
@@ -58,57 +55,23 @@ import org.sonarsource.sonarqube.mcp.serverapi.EndpointParams;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
-import org.sonarsource.sonarqube.mcp.serverapi.features.Feature;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.OrganizationsApi;
 import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganization;
 import org.sonarsource.sonarqube.mcp.serverapi.plugins.SonarCloudCdnPluginsApi;
-import org.sonarsource.sonarqube.mcp.serverapi.system.Version;
 import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilitiesResolver;
+import org.sonarsource.sonarqube.mcp.tools.ToolCatalog;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolExecutor;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
-import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeCodeSnippetTool;
-import org.sonarsource.sonarqube.mcp.tools.analysis.AnalyzeFileListTool;
-import org.sonarsource.sonarqube.mcp.tools.analysis.RunAdvancedCodeAnalysisTool;
-import org.sonarsource.sonarqube.mcp.tools.analysis.ToggleAutomaticAnalysisTool;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
-import org.sonarsource.sonarqube.mcp.tools.dependencyrisks.SearchDependencyRisksTool;
-import org.sonarsource.sonarqube.mcp.tools.enterprises.ListEnterprisesTool;
-import org.sonarsource.sonarqube.mcp.tools.hotspots.ChangeSecurityHotspotStatusTool;
-import org.sonarsource.sonarqube.mcp.tools.hotspots.SearchSecurityHotspotsTool;
-import org.sonarsource.sonarqube.mcp.tools.hotspots.ShowSecurityHotspotTool;
-import org.sonarsource.sonarqube.mcp.tools.issues.ChangeIssueStatusTool;
-import org.sonarsource.sonarqube.mcp.tools.issues.SearchIssuesTool;
-import org.sonarsource.sonarqube.mcp.tools.languages.ListLanguagesTool;
-import org.sonarsource.sonarqube.mcp.tools.measures.GetComponentMeasuresTool;
-import org.sonarsource.sonarqube.mcp.tools.measures.SearchFilesByCoverageTool;
-import org.sonarsource.sonarqube.mcp.tools.metrics.SearchMetricsTool;
-import org.sonarsource.sonarqube.mcp.tools.portfolios.ListPortfoliosTool;
-import org.sonarsource.sonarqube.mcp.tools.organizations.ListOrganizationsTool;
-import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
-import org.sonarsource.sonarqube.mcp.tools.qualitygates.ListQualityGatesTool;
-import org.sonarsource.sonarqube.mcp.tools.qualitygates.ProjectStatusTool;
-import org.sonarsource.sonarqube.mcp.tools.rules.ShowRuleTool;
-import org.sonarsource.sonarqube.mcp.tools.duplications.GetDuplicationsTool;
-import org.sonarsource.sonarqube.mcp.tools.duplications.SearchDuplicatedFilesTool;
-import org.sonarsource.sonarqube.mcp.tools.sources.GetFileCoverageDetailsTool;
-import org.sonarsource.sonarqube.mcp.tools.sources.GetRawSourceTool;
-import org.sonarsource.sonarqube.mcp.tools.sources.GetScmInfoTool;
-import org.sonarsource.sonarqube.mcp.tools.system.SystemHealthTool;
-import org.sonarsource.sonarqube.mcp.tools.system.SystemInfoTool;
-import org.sonarsource.sonarqube.mcp.tools.system.SystemLogsTool;
-import org.sonarsource.sonarqube.mcp.tools.system.SystemPingTool;
-import org.sonarsource.sonarqube.mcp.tools.system.SystemStatusTool;
-import org.sonarsource.sonarqube.mcp.tools.branches.ListBranchesTool;
-import org.sonarsource.sonarqube.mcp.tools.pullrequests.ListPullRequestsTool;
-import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.GetAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.ListAgenticReadinessAssessmentsTool;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
-import org.sonarsource.sonarqube.mcp.tools.webhooks.CreateWebhookTool;
-import org.sonarsource.sonarqube.mcp.tools.webhooks.ListWebhooksTool;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
+import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
+import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
 import org.sonarsource.sonarqube.mcp.transport.StdioInitializeErrorReporter;
@@ -153,23 +116,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     "Note: Analyzers are being downloaded in the background and will be available shortly for code analysis.";
   private static final String BASE_INSTRUCTIONS_WITHOUT_ANALYSIS = "Transform your code quality workflow with SonarQube integration. " +
     "Monitor project health, investigate issues, and understand quality gates.";
-  private static final String AGENTIC_READINESS_INSTRUCTIONS = """
-
-    ## Agentic Readiness Assessment
-
-    Tools to assess how well a SonarQube Cloud project's codebase supports AI agents, scored per pillar \
-    (Documentation, Workflow, Dev Environment, Build, Testing, Code Quality, Security, Observability) from \
-    L1 (pre-agentic, implicit conventions) to L5 (agent-native, self-describing).
-
-    Workflow:
-    1. Call list_agentic_readiness_assessments (filtered by branch) and reuse a recent COMPLETED result if \
-    one exists — assessments take ~10 minutes.
-    2. Otherwise call start_agentic_readiness_assessment; it returns PENDING with an assessmentId. Do not poll immediately.
-    3. After a few minutes, poll get_agentic_readiness_assessment until status is COMPLETED, FAILED, or INTERRUPTED.
-    4. Present overallLevel and the per-pillar breakdown, including each pillar's recommended actions and the evidence behind them.
-
-    To measure the impact of changes, compare a baseline assessment of the default branch against a new \
-    assessment of your feature branch. Always filter the list by branch — unfiltered results mix branches.""";
   private static final String VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS =
     "\nNote: the `cag`/`analysis` toolset names for Vortex tools are deprecated; use `vortex` instead.";
 
@@ -177,7 +123,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private ToolExecutor toolExecutor;
   private final HttpServerTransportProvider httpServerManager;
   private final McpServerTransportProvider transportProvider;
-  private final List<Tool> supportedTools = new ArrayList<>();
   private final McpServerLaunchConfiguration mcpConfiguration;
   private final HttpClientProvider httpClientProvider;
   private String composedInstructions;
@@ -199,7 +144,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
    */
   @Nullable
   private ResolvedOrganization resolvedOrganization;
-  private SonarQubeVersionChecker sonarQubeVersionChecker;
   @Nullable
   private McpStatelessSyncServer statelessSyncServer;
   @Nullable
@@ -211,7 +155,8 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private volatile boolean isShutdown = false;
   private final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
   private final AtomicReference<Thread> backgroundInitializationThread = new AtomicReference<>();
-  private ProxiedToolsLoader proxiedToolsLoader;
+  private ToolCatalog toolCatalog;
+  private final ProxiedToolsLoader proxiedToolsLoader = new ProxiedToolsLoader();
 
   public static void main(String[] args) {
     try {
@@ -257,7 +202,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   public void start() {
     if (httpServerManager != null) {
       httpServerManager.startServer().join();
-      var enabledTools = filterForEnabledTools(supportedTools);
+      var enabledTools = toolCatalog.enabledTools();
       statelessSyncServer = McpServer.sync(httpServerManager.getFilteringTransport(enabledTools, analyticsService,
         context -> createServerApiWithTokenAndOrg((String) context.get(HttpServerTransportProvider.CONTEXT_TOKEN_KEY), null)))
         .serverInfo(McpSchema.Implementation.builder(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()).build())
@@ -270,7 +215,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         .serverInfo(McpSchema.Implementation.builder(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()).build())
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).logging().build())
-        .tools(filterForEnabledTools(supportedTools).stream().map(this::toStdioSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
+        .tools(toolCatalog.enabledTools().stream().map(this::toStdioSpec).toArray(McpServerFeatures.SyncToolSpecification[]::new))
         .build();
     }
 
@@ -314,55 +259,32 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     this.serverApi = initializeServerApi(mcpConfiguration);
     var organizations = resolveOrganizationAtStartup();
-    this.sonarQubeVersionChecker = new SonarQubeVersionChecker(serverApi);
-    var orgFeatureEntitlements = serverApi.orgFeatureEntitlements();
+    var versionChecker = new SonarQubeVersionChecker(serverApi);
     organizations.forEach(serverApi::cacheOrganizationUuid);
-    var serverVersion = sonarQubeVersionChecker.failIfSonarQubeServerVersionIsNotSupported();
-    var architectureSupported = mcpConfiguration.isSonarQubeCloud()
-      || (serverVersion != null && serverVersion.satisfiesMinRequirement(Version.create("2026.6")));
-    loadBackendIndependentTools(serverApi, architectureSupported);
+    var serverVersion = versionChecker.failIfSonarQubeServerVersionIsNotSupported();
 
-    // Initialize backend immediately with empty analyzers so we can check IDE bridge availability
+    // The bridge probe requires the backend initialized, but never waits for analyzer downloads.
     backendService.initialize(new BackendService.AnalyzersAndLanguagesEnabled(Set.of(), EnumSet.noneOf(Language.class)));
     backendService.notifyTransportModeUsed();
-
-    setBaseInstructions();
-    if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.ARCHITECTURE) && supportedTools.stream().anyMatch(ArchitectureGetTool.class::isInstance)) {
-      composedInstructions += ArchitectureTools.INSTRUCTIONS;
+    var resolver = new ToolCapabilitiesResolver(mcpConfiguration, serverApi, httpClientProvider, serverVersion);
+    var resolution = resolver.resolve(resolvedOrganization, organizations);
+    var capabilities = resolution.capabilities();
+    if (capabilities.ideAnalysis()) {
+      backendService.notifySonarQubeIdeIntegration();
     }
+    var proxiedTools = loadProxiedTools(capabilities);
+    toolCatalog = new ToolCatalog(mcpConfiguration, resolution, this, versionChecker, backendService, initializationFuture, proxiedTools);
+    setInstructions(capabilities);
+  }
 
-    // Vortex is one product (CAG + SQAA). Stdio only. Both hubs entitled → load all Vortex tools.
-    var vortexRelevantToolsetEnabled = mcpConfiguration.isToolCategoryEnabled(ToolCategory.CAG)
-      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)
-      || mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS);
-    var vortexEnabledForOrg = !mcpConfiguration.isHttpEnabled()
-      && vortexRelevantToolsetEnabled
-      && orgFeatureEntitlements.isVortexEnabledForOrg(resolvedOrganization);
-    var vortexAnalysisEnabled = isVortexAnalysisEnabled(organizations, vortexRelevantToolsetEnabled, vortexEnabledForOrg);
-
-    if ((vortexEnabledForOrg || vortexAnalysisEnabled) && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
-      LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
-      composedInstructions += VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS;
+  private List<Tool> loadProxiedTools(ToolCapabilities capabilities) {
+    var transport = mcpConfiguration.getTransportMode();
+    if (!ProxiedMcpTool.REGISTRATION_POLICY.isSupported(transport, capabilities)) {
+      return List.of();
     }
-
-    // Initialize proxied MCP servers and load their tools synchronously
-    if (mcpConfiguration.isHttpEnabled()) {
-      LOG.debug("HTTP mode detected - skipping Vortex proxied server initialization (not supported in HTTP transport)");
-    } else if (!vortexRelevantToolsetEnabled) {
-      LOG.debug("Vortex toolset is not enabled, skipping proxied server initialization");
-    } else if (vortexEnabledForOrg) {
-      LOG.info("Vortex is enabled");
-      loadProxiedServerTools();
-    } else {
-      LOG.debug("Vortex is not enabled, skipping proxied server initialization");
-    }
-
-    // Agentic readiness tools
-    loadSaraTools(organizations);
-
-    loadAnalysisTools(vortexAnalysisEnabled);
-
-    logToolsLoaded();
+    LOG.info("Vortex is enabled");
+    return proxiedToolsLoader.loadProxiedTools(transport, mcpConfiguration.getMcpServerId(),
+      resolvedOrganization != null ? resolvedOrganization.key() : null);
   }
 
   /**
@@ -379,7 +301,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         connectionContext.resolveFrom(serverApi);
       }
 
-      if (filterForEnabledTools(supportedTools).stream().noneMatch(AnalyzeCodeSnippetTool.class::isInstance)) {
+      if (!toolCatalog.needsLocalAnalyzers()) {
         LOG.info("Local analysis tool is not enabled - skipping analyzers download");
         initializationFuture.complete(null);
         return;
@@ -412,180 +334,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
   }
 
-  /**
-   * Loads tools that DON'T depend on the backend service.
-   * These can be loaded BEFORE plugin synchronization (which is slow).
-   * This makes most tools available to users within seconds instead of minutes.
-   */
-  private void loadBackendIndependentTools(ServerApi serverApi, boolean architectureSupported) {
-    if (mcpConfiguration.isSonarQubeCloud()) {
-      supportedTools.add(new ListEnterprisesTool(this));
-      supportedTools.add(new ListOrganizationsTool(this));
-    } else {
-      supportedTools.addAll(List.of(
-        new SystemHealthTool(this),
-        new SystemInfoTool(this),
-        new SystemLogsTool(this),
-        new SystemPingTool(this),
-        new SystemStatusTool(this)));
-    }
-
-    var configuredProjectKey = mcpConfiguration.getProjectKey();
-
-    supportedTools.addAll(List.of(
-      new ChangeIssueStatusTool(this),
-      new SearchMyProjectsTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new SearchIssuesTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new SearchSecurityHotspotsTool(this),
-      new ShowSecurityHotspotTool(this),
-      new ChangeSecurityHotspotStatusTool(this),
-      new ProjectStatusTool(this),
-      new ShowRuleTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new ListQualityGatesTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new ListLanguagesTool(this),
-      new GetComponentMeasuresTool(this, configuredProjectKey),
-      new SearchFilesByCoverageTool(this, configuredProjectKey),
-      new GetFileCoverageDetailsTool(this),
-      new SearchMetricsTool(this),
-      new GetScmInfoTool(this),
-      new GetRawSourceTool(this),
-      new CreateWebhookTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new ListWebhooksTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new GetDuplicationsTool(this),
-      new SearchDuplicatedFilesTool(this, configuredProjectKey),
-      new ListPortfoliosTool(this, mcpConfiguration.isSonarQubeCloud()),
-      new ListPullRequestsTool(this, configuredProjectKey),
-      new ListBranchesTool(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey)));
-    // Community Build uses short-year versions and does not include Architecture.
-    if (architectureSupported) {
-      supportedTools.addAll(ArchitectureTools.create(this, mcpConfiguration.isSonarQubeCloud(), configuredProjectKey));
-    }
-
-    if (mcpConfiguration.isToolCategoryEnabled(ToolCategory.DEPENDENCY_RISKS)
-      && (mcpConfiguration.isHttpEnabled() || serverApi.isSonarQubeCloud()
-        || serverApi.featuresApi().listFeatures().contains(Feature.SCA))) {
-      supportedTools.add(new SearchDependencyRisksTool(this, sonarQubeVersionChecker, configuredProjectKey, mcpConfiguration.isSonarQubeCloud()));
-    }
-
-  }
-
-  /**
-   * Loads tools that depend on the backend service or IDE bridge.
-   * This is called during startup after the backend is initialized (with empty analyzers).
-   * The IDE bridge availability check is done here so that analysis tools can be registered.
-   */
-  private void loadBackendDependentTools() {
-    boolean useIdeBridge = false;
-    if (!mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeIdePort() != null) {
-      var sonarqubeIdeBridgeClient = initializeBridgeClient(mcpConfiguration);
-      if (sonarqubeIdeBridgeClient.isAvailable()) {
-        LOG.info("SonarQube for IDE integration detected");
-        backendService.notifySonarQubeIdeIntegration();
-        supportedTools.add(new AnalyzeFileListTool(sonarqubeIdeBridgeClient));
-        supportedTools.add(new ToggleAutomaticAnalysisTool(sonarqubeIdeBridgeClient));
-        useIdeBridge = true;
-      }
-    }
-    if (!useIdeBridge) {
-      LOG.info("Standard analysis mode (no IDE bridge)");
-      loadLocalAnalysisTool();
-    }
-  }
-
-  private boolean isVortexAnalysisEnabled(List<ResolvedOrganization> organizations, boolean vortexRelevantToolsetEnabled, boolean vortexEnabledForOrg) {
-    if (!mcpConfiguration.isSonarQubeCloud()) {
-      return vortexEnabledForOrg;
-    }
-    return !mcpConfiguration.isHttpEnabled() && !mcpConfiguration.isForceLocalAnalysis() && mcpConfiguration.getWorkspacePath() != null
-      && vortexRelevantToolsetEnabled && (resolvedOrganization != null ? vortexEnabledForOrg
-        : serverApi.orgFeatureEntitlements().isVortexEnabledForAnyOrganization(organizations));
-  }
-
-  private void loadAnalysisTools(boolean vortexAnalysisEnabled) {
-    if (mcpConfiguration.isHttpEnabled() && mcpConfiguration.getSonarQubeToken() == null) {
-      LOG.debug("HTTP mode without a startup token - skipping analysis tool registration");
-      return;
-    }
-    if (vortexAnalysisEnabled) {
-      loadAdvancedAnalysisTool();
-    } else if (mcpConfiguration.isSonarQubeCloud() && mcpConfiguration.isForceLocalAnalysis()) {
-      loadLocalAnalysisTool();
-    } else if (!mcpConfiguration.isHttpEnabled() || mcpConfiguration.getSonarQubeToken() != null) {
-      loadBackendDependentTools();
-    }
-  }
-
-  private void loadAdvancedAnalysisTool() {
-    var workspaceMount = mcpConfiguration.getWorkspacePath();
-    if (workspaceMount != null) {
-      LOG.info("Advanced analysis tool registered");
-      supportedTools.add(new RunAdvancedCodeAnalysisTool(this, mcpConfiguration.getProjectKey(), workspaceMount, mcpConfiguration.isSonarQubeCloud()));
-    } else {
-      LOG.info("No workspace path configured; advanced analysis tool is not registered");
-    }
-  }
-
-  private void loadLocalAnalysisTool() {
-    supportedTools.add(new AnalyzeCodeSnippetTool(backendService, this, initializationFuture, mcpConfiguration.getProjectKey(),
-      mcpConfiguration.getWorkspacePath(), mcpConfiguration.isSonarQubeCloud()));
-  }
-
-  private void logToolsLoaded() {
-    var filterReason = mcpConfiguration.isReadOnlyMode() ? "category and read-only filtering" : "category filtering";
-    LOG.info("All tools loaded: " + this.supportedTools.size() + " tools after " + filterReason);
-  }
-
-  private void loadProxiedServerTools() {
-    proxiedToolsLoader = new ProxiedToolsLoader();
-    var currentTransportMode = mcpConfiguration.isHttpEnabled() ? TransportMode.HTTP : TransportMode.STDIO;
-    var proxiedTools = proxiedToolsLoader.loadProxiedTools(currentTransportMode, mcpConfiguration.getMcpServerId(),
-      resolvedOrganization != null ? resolvedOrganization.key() : null);
-    supportedTools.addAll(proxiedTools);
-
-    var proxiedInstructions = proxiedToolsLoader.getProxiedInstructions();
-    composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, proxiedInstructions);
-    LOG.debug("Forwarded instructions from " + proxiedInstructions.size() + " proxied server(s)");
-    proxiedInstructions.forEach(s -> LOG.debug("Proxied instructions: {}", s));
-  }
-
-  private void loadSaraTools(List<ResolvedOrganization> organizations) {
-    if (isEnabledAgenticReadiness(organizations)) {
-      var configuredProjectKey = mcpConfiguration.getProjectKey();
-      supportedTools.add(new StartAgenticReadinessAssessmentTool(this, configuredProjectKey));
-      supportedTools.add(new GetAgenticReadinessAssessmentTool(this));
-      supportedTools.add(new ListAgenticReadinessAssessmentsTool(this, configuredProjectKey));
-
-      composedInstructions += AGENTIC_READINESS_INSTRUCTIONS;
-    }
-  }
-
-  private boolean isEnabledAgenticReadiness(List<ResolvedOrganization> organizations) {
-    if (!mcpConfiguration.isToolCategoryEnabled(ToolCategory.AGENTIC_READINESS)) {
-      LOG.debug("Agentic readiness toolset is not enabled, skipping tools initialization");
-      return false;
-    }
-    if (!mcpConfiguration.isSonarQubeCloud()) {
-      LOG.debug("Agentic readiness is only available on SonarQube Cloud, skipping tools initialization");
-      return false;
-    }
-    // HTTP requires explicit toolset opt-in; the backend enforces entitlement per call.
-    if (mcpConfiguration.isHttpEnabled()) {
-      return mcpConfiguration.isToolCategoryExplicitlyEnabled(ToolCategory.AGENTIC_READINESS);
-    }
-    var relevantOrganizations = resolvedOrganization != null ? List.of(resolvedOrganization) : organizations;
-    for (var organization : relevantOrganizations) {
-      try {
-        if (serverApi.orgFeatureEntitlements().isSaraEnabledForOrg(organization)) {
-          return true;
-        }
-      } catch (Exception e) {
-        LOG.warn("Could not check agentic readiness feature flag for organization '" + organization.key() + "': " + e.getMessage());
-      }
-    }
-    return false;
-  }
-
-  private void setBaseInstructions() {
+  private void setInstructions(ToolCapabilities capabilities) {
     composedInstructions = mcpConfiguration.isToolCategoryEnabled(ToolCategory.ANALYSIS)
       ? BASE_INSTRUCTIONS_WITH_ANALYSIS
       : BASE_INSTRUCTIONS_WITHOUT_ANALYSIS;
@@ -599,14 +348,22 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     if (mcpConfiguration.getProjectKey() == null) {
       composedInstructions += "\n" + PROJECT_KEY_INSTRUCTIONS;
     }
+    if (toolCatalog.enabledTools().stream().anyMatch(ArchitectureGetTool.class::isInstance)) {
+      composedInstructions += ArchitectureTools.INSTRUCTIONS;
+    }
+    if ((capabilities.vortexProxy() || capabilities.vortexAnalysis()) && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
+      LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
+      composedInstructions += VORTEX_DEPRECATED_TOOLSET_INSTRUCTIONS;
+    }
+    composedInstructions = ProxiedToolsLoader.composeInstructions(composedInstructions, proxiedToolsLoader.getProxiedInstructions());
+    if (toolCatalog.enabledTools().stream().anyMatch(ListAgenticReadinessAssessmentsTool.class::isInstance)) {
+      composedInstructions += StartAgenticReadinessAssessmentTool.INSTRUCTIONS;
+    }
   }
 
   @VisibleForTesting
   List<Tool> filterForEnabledTools(List<Tool> toolsToFilter) {
-    return toolsToFilter.stream()
-      .filter(tool -> tool.getCategories().stream().anyMatch(mcpConfiguration::isToolCategoryEnabled))
-      .filter(tool -> !mcpConfiguration.isReadOnlyMode() || (tool.definition().annotations() != null && Boolean.TRUE.equals(tool.definition().annotations().readOnlyHint())))
-      .toList();
+    return toolCatalog.filterEnabled(toolsToFilter);
   }
 
   private McpStatelessServerFeatures.SyncToolSpecification toStatelessSpec(Tool tool) {
@@ -703,7 +460,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     LOG.debug("=== Debug Level Configuration Details ===");
     httpClientProvider.logConnectionSettings();
     LOG.debug("Enabled toolsets: " + mcpConfiguration.getEnabledToolsets());
-    LOG.debug("Advanced analysis tool registered: " + supportedTools.stream().anyMatch(RunAdvancedCodeAnalysisTool.class::isInstance));
+    LOG.debug("Advanced analysis tool registered: " + toolCatalog.advancedAnalysisRegistered());
     LOG.debug("Telemetry enabled: " + mcpConfiguration.isTelemetryEnabled());
     LOG.debug("App version: " + mcpConfiguration.getAppVersion());
     LOG.debug("Storage path: " + mcpConfiguration.getStoragePath());
@@ -802,17 +559,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     return new ServerApi(serverApiHelper, isSonarQubeCloud);
   }
 
-  private SonarQubeIdeBridgeClient initializeBridgeClient(McpServerLaunchConfiguration mcpConfiguration) {
-    LOG.info("Initializing SonarQube for IDE bridge client...");
-    var host = mcpConfiguration.getHostMachineAddress();
-    var port = mcpConfiguration.getSonarQubeIdePort();
-    var bridgeUrl = "http://" + host + ":" + port;
-    LOG.info("Bridge URL: " + bridgeUrl);
-    var httpClient = httpClientProvider.getHttpClientForBridge();
-    var bridgeHelper = new ServerApiHelper(new EndpointParams(bridgeUrl, null, null, false), httpClient);
-    return new SonarQubeIdeBridgeClient(bridgeHelper);
-  }
-
   public void shutdown() {
     if (isShutdown) {
       return;
@@ -820,7 +566,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     isShutdown = true;
 
     stopBackgroundInitialization();
-    shutdownProxiedServers();
+    proxiedToolsLoader.shutdown();
     shutdownHttpServer();
     shutdownHttpClient();
     shutdownMcpServer();
@@ -831,12 +577,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   private void shutdownAnalytics() {
     if (analyticsService != null) {
       analyticsService.shutdown();
-    }
-  }
-
-  private void shutdownProxiedServers() {
-    if (proxiedToolsLoader != null) {
-      proxiedToolsLoader.shutdown();
     }
   }
 
@@ -922,7 +662,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
   }
 
   public List<Tool> getSupportedTools() {
-    return List.copyOf(supportedTools);
+    return toolCatalog.supportedTools();
   }
 
   @VisibleForTesting
