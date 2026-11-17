@@ -40,8 +40,6 @@ public final class ToolCapabilitiesResolver {
   private final HttpClientProvider httpClientProvider;
   @Nullable
   private final Version serverVersion;
-  @Nullable
-  private SonarQubeIdeBridgeClient bridgeClient;
 
   public ToolCapabilitiesResolver(McpServerLaunchConfiguration configuration, ServerApi serverApi, HttpClientProvider httpClientProvider,
     @Nullable Version serverVersion) {
@@ -51,7 +49,7 @@ public final class ToolCapabilitiesResolver {
     this.serverVersion = serverVersion;
   }
 
-  public ToolCapabilities resolve(@Nullable ResolvedOrganization organization, List<ResolvedOrganization> organizations) {
+  public Resolution resolve(@Nullable ResolvedOrganization organization, List<ResolvedOrganization> organizations) {
     var cloud = configuration.isSonarQubeCloud();
     // Community Build uses short-year versions and does not include Architecture.
     var architecture = cloud || (serverVersion != null && serverVersion.satisfiesMinRequirement(Version.create("2026.6")));
@@ -63,7 +61,8 @@ public final class ToolCapabilitiesResolver {
     var vortexProxy = !configuration.isHttpEnabled() && vortexRelevant && serverApi.orgFeatureEntitlements().isVortexEnabledForOrg(organization);
     var vortexAnalysis = resolveVortexAnalysis(organization, organizations, vortexRelevant, vortexProxy);
     var agenticReadiness = resolveAgenticReadiness(organization, organizations);
-    return new ToolCapabilities(cloud, architecture, dependencyRisks, agenticReadiness, vortexProxy, resolveAnalysisMode(vortexAnalysis));
+    var analysis = resolveAnalysis(vortexAnalysis);
+    return new Resolution(new ToolCapabilities(cloud, architecture, dependencyRisks, agenticReadiness, vortexProxy, analysis.mode()), analysis.bridgeClient());
   }
 
   private boolean resolveVortexAnalysis(@Nullable ResolvedOrganization organization, List<ResolvedOrganization> organizations,
@@ -77,30 +76,30 @@ public final class ToolCapabilitiesResolver {
     return organization != null ? vortexProxy : serverApi.orgFeatureEntitlements().isVortexEnabledForAnyOrganization(organizations);
   }
 
-  private AnalysisMode resolveAnalysisMode(boolean vortexAnalysis) {
+  private AnalysisSelection resolveAnalysis(boolean vortexAnalysis) {
     if (configuration.isHttpEnabled() && configuration.getSonarQubeToken() == null) {
       LOG.debug("HTTP mode without a startup token - skipping analysis tool registration");
-      return AnalysisMode.NONE;
+      return new AnalysisSelection(AnalysisMode.NONE, null);
     }
     if (vortexAnalysis) {
       if (configuration.getWorkspacePath() != null) {
-        return AnalysisMode.VORTEX;
+        return new AnalysisSelection(AnalysisMode.VORTEX, null);
       }
       LOG.info("No workspace path configured; advanced analysis tool is not registered");
-      return AnalysisMode.NONE;
+      return new AnalysisSelection(AnalysisMode.NONE, null);
     }
     if (configuration.isSonarQubeCloud() && configuration.isForceLocalAnalysis()) {
-      return AnalysisMode.LOCAL;
+      return new AnalysisSelection(AnalysisMode.LOCAL, null);
     }
     if (!configuration.isHttpEnabled() && configuration.getSonarQubeIdePort() != null) {
-      bridgeClient = createBridgeClient();
+      var bridgeClient = createBridgeClient();
       if (bridgeClient.isAvailable()) {
         LOG.info("SonarQube for IDE integration detected");
-        return AnalysisMode.IDE;
+        return new AnalysisSelection(AnalysisMode.IDE, bridgeClient);
       }
     }
     LOG.info("Standard analysis mode (no IDE bridge)");
-    return AnalysisMode.LOCAL;
+    return new AnalysisSelection(AnalysisMode.LOCAL, null);
   }
 
   private boolean resolveAgenticReadiness(@Nullable ResolvedOrganization organization, List<ResolvedOrganization> organizations) {
@@ -112,9 +111,9 @@ public final class ToolCapabilitiesResolver {
       LOG.debug("Agentic readiness is only available on SonarQube Cloud, skipping tools initialization");
       return false;
     }
-    // HTTP requires explicit toolset opt-in; the backend enforces entitlement per call.
+    // HTTP toolset selection already enforces opt-in; entitlement is checked per call.
     if (configuration.isHttpEnabled()) {
-      return configuration.isToolCategoryExplicitlyEnabled(ToolCategory.AGENTIC_READINESS);
+      return true;
     }
     var relevantOrganizations = organization != null ? List.of(organization) : organizations;
     for (var candidate : relevantOrganizations) {
@@ -137,8 +136,9 @@ public final class ToolCapabilitiesResolver {
     return new SonarQubeIdeBridgeClient(bridgeHelper);
   }
 
-  @Nullable
-  public SonarQubeIdeBridgeClient bridgeClient() {
-    return bridgeClient;
+  public record Resolution(ToolCapabilities capabilities, @Nullable SonarQubeIdeBridgeClient bridgeClient) {
+  }
+
+  private record AnalysisSelection(AnalysisMode mode, @Nullable SonarQubeIdeBridgeClient bridgeClient) {
   }
 }

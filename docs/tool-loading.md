@@ -30,9 +30,10 @@ This approach makes all tools available immediately. The slow analyzer download 
 ## Registration responsibilities
 
 - Each `Tool` declares a `ToolPolicy`: categories, supported transports, and a predicate over startup capabilities. The predicate performs no network calls.
-- `ToolCapabilitiesResolver` resolves deployment, version, entitlement, feature-flag, and IDE availability decisions once during startup. The resulting `ToolCapabilities` snapshot distinguishes local, IDE, Vortex, and unavailable analysis. The resolver retains the probed bridge client for construction.
-- `ToolCatalog` constructs ordinary tools directly and checks their declared policies before registration. It defers construction when required dependencies may be absent, checking the policy before invoking the factory. It owns proxy discovery and shutdown and contributes feature and proxy instructions. Architecture read and write tools share the same read limiter.
-- `SonarQubeMcpServer` initializes services, resolves capabilities, loads the catalog, and wires enabled tools into the MCP transport. Background analyzer downloads use the catalog's `needsLocalAnalyzers()` result.
+- `ToolCategory` declares default selection per transport. Categories without default transports are opt-in; `projects` is always enabled. Agentic readiness is selected by default on stdio and requires explicit opt-in on HTTP. Explicit toolset selection replaces defaults, and a tool is selected when any of its categories matches.
+- `ToolCapabilitiesResolver` resolves deployment, version, entitlement, feature-flag, and IDE availability decisions once during startup. It returns the immutable `ToolCapabilities` snapshot together with the available bridge client. The snapshot distinguishes local, IDE, Vortex, and unavailable analysis; the resolver retains no mutable result state.
+- `ToolCatalog` constructs and selects tools in its constructor. It defers construction when required dependencies may be absent, checking the policy before invoking the factory. It also applies policies to the discovered proxy tools supplied by the server. Its supported and enabled lists are read-only. Architecture read and write tools share the same read limiter.
+- `SonarQubeMcpServer` owns service and proxy lifecycle, resolves capabilities, constructs the catalog, and wires enabled tools into the MCP transport. It composes base, feature, and proxy instructions; feature workflow text lives beside the feature. Background analyzer downloads depend on the catalog's enabled tools.
 
 The catalog retains two views: **supported tools**, admitted by transport and capability, and **enabled tools**, narrowed by startup category/read-only configuration. Some capabilities already depend on explicit toolset selection, preserving existing behavior. HTTP requests can only narrow enabled tools further; OAuth scopes and execution-time checks remain request-specific.
 
@@ -136,7 +137,7 @@ The test harness calls `server.waitForInitialization()` to ensure both phases co
 
 **Related Files:**
 - `src/main/java/org/sonarsource/sonarqube/mcp/SonarQubeMcpServer.java` - Service lifecycle and MCP wiring
-- `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolCatalog.java` - Tool construction, selection, instructions, and proxy lifecycle
+- `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolCatalog.java` - Tool construction and selection
 - `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolCapabilitiesResolver.java` - Shared startup capability checks
 - `src/main/java/org/sonarsource/sonarqube/mcp/slcore/BackendService.java` - Backend restart logic
 - `src/main/java/org/sonarsource/sonarqube/mcp/tools/ToolExecutor.java` - Waits for initialization

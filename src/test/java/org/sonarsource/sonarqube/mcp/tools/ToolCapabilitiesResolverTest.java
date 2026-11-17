@@ -21,12 +21,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
+import org.sonarsource.sonarqube.mcp.http.HttpClient;
 import org.sonarsource.sonarqube.mcp.http.HttpClientProvider;
 import org.sonarsource.sonarqube.mcp.serverapi.OrgFeatureEntitlements;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApi;
@@ -36,12 +38,14 @@ import org.sonarsource.sonarqube.mcp.serverapi.organizations.ResolvedOrganizatio
 import org.sonarsource.sonarqube.mcp.serverapi.system.Version;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.sonarsource.sonarqube.mcp.tools.ToolCapabilities.AnalysisMode.IDE;
 import static org.sonarsource.sonarqube.mcp.tools.ToolCapabilities.AnalysisMode.LOCAL;
 import static org.sonarsource.sonarqube.mcp.tools.ToolCapabilities.AnalysisMode.NONE;
 import static org.sonarsource.sonarqube.mcp.tools.ToolCapabilities.AnalysisMode.VORTEX;
@@ -59,7 +63,7 @@ class ToolCapabilitiesResolverTest {
   void it_should_apply_the_architecture_version_gate_without_feature_probes(String version, boolean supported) {
     var resolver = new ToolCapabilitiesResolver(configuration(Map.of("SONARQUBE_TOOLSETS", "issues")), api, http, Version.create(version));
 
-    var capabilities = resolver.resolve(null, List.of());
+    var capabilities = resolver.resolve(null, List.of()).capabilities();
 
     assertThat(capabilities.architecture()).isEqualTo(supported);
     assertThat(capabilities.analysisMode()).isEqualTo(LOCAL);
@@ -76,7 +80,7 @@ class ToolCapabilitiesResolverTest {
     }
     var resolver = new ToolCapabilitiesResolver(configuration(environment), api, http, null);
 
-    var capabilities = resolver.resolve(null, List.of());
+    var capabilities = resolver.resolve(null, List.of()).capabilities();
 
     assertThat(capabilities.architecture()).isTrue();
     assertThat(capabilities.dependencyRisks()).isTrue();
@@ -90,7 +94,7 @@ class ToolCapabilitiesResolverTest {
   void it_should_keep_http_agentic_readiness_opt_in() {
     var resolver = new ToolCapabilitiesResolver(configuration(Map.of("SONARQUBE_TRANSPORT", "http", "SONARQUBE_IS_CLOUD", "true")), api, http, null);
 
-    assertThat(resolver.resolve(null, List.of()).agenticReadiness()).isFalse();
+    assertThat(resolver.resolve(null, List.of()).capabilities().agenticReadiness()).isFalse();
     verifyNoInteractions(api, http);
   }
 
@@ -102,7 +106,7 @@ class ToolCapabilitiesResolverTest {
     when(features.listFeatures()).thenReturn(enabled ? Set.of(Feature.SCA) : Set.of());
     var resolver = new ToolCapabilitiesResolver(configuration(Map.of("SONARQUBE_TOOLSETS", "dependency-risks")), api, http, Version.create("2026.6"));
 
-    assertThat(resolver.resolve(null, List.of()).dependencyRisks()).isEqualTo(enabled);
+    assertThat(resolver.resolve(null, List.of()).capabilities().dependencyRisks()).isEqualTo(enabled);
     verify(features).listFeatures();
     verifyNoMoreInteractions(features);
   }
@@ -118,7 +122,7 @@ class ToolCapabilitiesResolverTest {
     when(configuration.getWorkspacePath()).thenReturn(workspace);
     var resolver = new ToolCapabilitiesResolver(configuration, api, http, null);
 
-    var capabilities = resolver.resolve(ORGANIZATION, List.of(ORGANIZATION));
+    var capabilities = resolver.resolve(ORGANIZATION, List.of(ORGANIZATION)).capabilities();
 
     assertThat(capabilities.vortexProxy()).isTrue();
     assertThat(capabilities.analysisMode()).isEqualTo(VORTEX);
@@ -133,7 +137,7 @@ class ToolCapabilitiesResolverTest {
     when(entitlements.isVortexEnabledForOrg(null)).thenReturn(true);
     var resolver = new ToolCapabilitiesResolver(configuration(Map.of("SONARQUBE_TOOLSETS", "vortex")), api, http, Version.create("2026.6"));
 
-    var capabilities = resolver.resolve(null, List.of());
+    var capabilities = resolver.resolve(null, List.of()).capabilities();
 
     assertThat(capabilities.vortexProxy()).isTrue();
     assertThat(capabilities.analysisMode()).isEqualTo(NONE);
@@ -150,10 +154,30 @@ class ToolCapabilitiesResolverTest {
     when(entitlements.isSaraEnabledForOrg(second)).thenReturn(true);
     var resolver = new ToolCapabilitiesResolver(configuration(Map.of("SONARQUBE_IS_CLOUD", "true", "SONARQUBE_TOOLSETS", "agentic-readiness")), api, http, null);
 
-    assertThat(resolver.resolve(null, List.of(ORGANIZATION, second)).agenticReadiness()).isTrue();
+    assertThat(resolver.resolve(null, List.of(ORGANIZATION, second)).capabilities().agenticReadiness()).isTrue();
     verify(entitlements).isSaraEnabledForOrg(ORGANIZATION);
     verify(entitlements).isSaraEnabledForOrg(second);
     verifyNoMoreInteractions(entitlements);
+  }
+
+  @Test
+  void it_should_return_the_available_bridge_with_its_capabilities() {
+    var client = mock(HttpClient.class);
+    var response = mock(HttpClient.Response.class);
+    when(http.getHttpClientForBridge()).thenReturn(client);
+    when(client.getAsync(anyString())).thenReturn(CompletableFuture.completedFuture(response));
+    when(response.isSuccessful()).thenReturn(true);
+    var resolver = new ToolCapabilitiesResolver(configuration(Map.of("SONARQUBE_TOOLSETS", "ide", "SONARQUBE_IDE_PORT", "64120")), api, http, null);
+
+    var available = resolver.resolve(null, List.of());
+    when(response.isSuccessful()).thenReturn(false);
+    var unavailable = resolver.resolve(null, List.of());
+
+    assertThat(available.capabilities().analysisMode()).isEqualTo(IDE);
+    assertThat(available.bridgeClient()).isNotNull();
+    assertThat(unavailable.capabilities().analysisMode()).isEqualTo(LOCAL);
+    assertThat(unavailable.bridgeClient()).isNull();
+    verifyNoInteractions(api);
   }
 
   private McpServerLaunchConfiguration configuration(Map<String, String> overrides) {

@@ -34,6 +34,23 @@ public class StartAgenticReadinessAssessmentTool extends Tool {
 
   public static final String TOOL_NAME = "start_agentic_readiness_assessment";
   public static final ToolPolicy POLICY = ToolPolicy.of(ToolCategory.AGENTIC_READINESS).requires(ToolCapabilities::agenticReadiness);
+  public static final String INSTRUCTIONS = """
+
+    ## Agentic Readiness Assessment
+
+    Tools to assess how well a SonarQube Cloud project's codebase supports AI agents, scored per pillar \
+    (Documentation, Workflow, Dev Environment, Build, Testing, Code Quality, Security, Observability) from \
+    L1 (pre-agentic, implicit conventions) to L5 (agent-native, self-describing).
+
+    Workflow:
+    1. Call list_agentic_readiness_assessments (filtered by branch) and reuse a recent COMPLETED result if \
+    one exists — assessments take ~10 minutes.
+    2. Otherwise call start_agentic_readiness_assessment; it returns PENDING with an assessmentId. Do not poll immediately.
+    3. After a few minutes, poll get_agentic_readiness_assessment until status is COMPLETED, FAILED, or INTERRUPTED.
+    4. Present overallLevel and the per-pillar breakdown, including each pillar's recommended actions and the evidence behind them.
+
+    To measure the impact of changes, compare a baseline assessment of the default branch against a new \
+    assessment of your feature branch. Always filter the list by branch — unfiltered results mix branches.""";
 
   public static final String PROJECT_KEY_PROPERTY = ToolParameters.PROJECT_KEY;
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
