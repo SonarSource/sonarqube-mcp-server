@@ -25,12 +25,15 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.IntendedArc
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolAccessMode;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
+import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ArchitectureSetTool extends Tool {
 
   public static final String TOOL_NAME = "architecture_set";
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.ARCHITECTURE).requires(ToolCapabilities::architecture);
   public static final String MODEL_PROPERTY = "model";
   public static final String DRY_RUN_PROPERTY = "dryRun";
   public static final String REVISION_PROPERTY = "revision";
@@ -62,7 +65,7 @@ public class ArchitectureSetTool extends Tool {
       .addStringProperty(REVISION_PROPERTY, "Revision from architecture_get intended; defaults to the model response revision. "
         + "Required to clear the whole model; a mismatch prevents writing.")
       .build(),
-      ToolCategory.ARCHITECTURE);
+      REGISTRATION_POLICY);
     this.currentReads = currentReads;
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;

@@ -24,11 +24,13 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolPolicy;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchIssuesTool extends Tool {
 
   public static final String TOOL_NAME = "search_sonar_issues_in_projects";
+  public static final ToolPolicy REGISTRATION_POLICY = ToolPolicy.of(ToolCategory.ISSUES);
 
   public static final String PROJECT_KEYS_PROPERTY = ToolParameters.PROJECT_KEYS;
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
@@ -51,7 +53,7 @@ public class SearchIssuesTool extends Tool {
 
   public SearchIssuesTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      ToolCategory.ISSUES);
+      REGISTRATION_POLICY);
     this.serverApiProvider = serverApiProvider;
   }
 
