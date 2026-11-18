@@ -30,34 +30,57 @@ import static org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureN
 
 public final class CoverageDeserializer implements JsonDeserializer<Coverage> {
   @Override
+  @Nullable
   public Coverage deserialize(JsonElement value, Type type, JsonDeserializationContext context) throws JsonParseException {
-    if (!value.isJsonObject()) throw new JsonParseException("Invalid architecture coverage.");
+    if (!value.isJsonObject()) {
+      throw new JsonParseException("Invalid architecture coverage.");
+    }
     var object = value.getAsJsonObject();
     var percentage = number(object, "coverage");
     var covered = count(object, "coveredArtifacts");
     var total = count(object, "totalArtifacts");
-    if (percentage != null && (percentage.doubleValue() < 0 || percentage.doubleValue() > 100)) throw new JsonParseException("Invalid architecture coverage.");
-    if (covered != null && total != null && covered > total) throw new JsonParseException("Invalid architecture coverage counts.");
+    if (percentage != null && (percentage.doubleValue() < 0 || percentage.doubleValue() > 100)) {
+      throw new JsonParseException("Invalid architecture coverage.");
+    }
+    if (covered != null && total != null && covered > total) {
+      throw new JsonParseException("Invalid architecture coverage counts.");
+    }
+    if (percentage == null && covered == null && total == null) {
+      return null;
+    }
     return new Coverage(percentage == null ? null : percentage.doubleValue(), covered, total);
   }
 
   @Nullable
   private static BigDecimal number(JsonObject object, String key) {
     var value = object.get(key);
-    if (value == null || value.isJsonNull()) return null;
-    if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) throw new JsonParseException("Invalid architecture coverage.");
-    try { return new BigDecimal(value.getAsString()); }
-    catch (NumberFormatException e) { throw new JsonParseException("Invalid architecture coverage.", e); }
+    if (value == null || value.isJsonNull()) {
+      return null;
+    }
+    if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+      throw new JsonParseException("Invalid architecture coverage.");
+    }
+    try {
+      return new BigDecimal(value.getAsString());
+    } catch (NumberFormatException e) {
+      throw new JsonParseException("Invalid architecture coverage.", e);
+    }
   }
 
   @Nullable
   private static Long count(JsonObject object, String key) {
     var value = number(object, key);
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     try {
       long result = value.longValueExact();
-      if (result < 0 || result > MAX_SAFE_INTEGER) throw new JsonParseException("Invalid architecture coverage counts.");
+      if (result < 0 || result > MAX_SAFE_INTEGER) {
+        throw new JsonParseException("Invalid architecture coverage counts.");
+      }
       return result;
-    } catch (ArithmeticException e) { throw new JsonParseException("Invalid architecture coverage counts.", e); }
+    } catch (ArithmeticException e) {
+      throw new JsonParseException("Invalid architecture coverage counts.", e);
+    }
   }
 }

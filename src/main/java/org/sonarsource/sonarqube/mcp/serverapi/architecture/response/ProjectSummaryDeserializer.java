@@ -45,6 +45,7 @@ public final class ProjectSummaryDeserializer implements JsonDeserializer<Projec
     return new ProjectSummary(value.language(), value.deviations(), value.flaws(), value.smells(), value.coverage());
   }
 
-  private record SummaryData(String language, DeviationCounts deviations, FlawCounts flaws, SmellCounts smells, @com.google.gson.annotations.JsonAdapter(CoverageDeserializer.class) ProjectSummary.Coverage coverage) {
+  private record SummaryData(String language, DeviationCounts deviations, FlawCounts flaws, SmellCounts smells,
+                             @com.google.gson.annotations.JsonAdapter(CoverageDeserializer.class) ProjectSummary.Coverage coverage) {
   }
 }
