@@ -278,6 +278,8 @@ public class ArchitectureGetTool extends Tool {
     for (var summary : summaries) {
       var coverage = summary.coverage();
       if (coverage == null || coverage.coveredArtifacts() == null || coverage.totalArtifacts() == null) return null;
+      if (coverage.totalArtifacts() > 0 && (coverage.coverage() == null
+        || Math.abs(coverage.coverage() - ((double) coverage.coveredArtifacts() / coverage.totalArtifacts()) * 100) > 1e-8)) return null;
       covered = Math.addExact(covered, coverage.coveredArtifacts());
       total = Math.addExact(total, coverage.totalArtifacts());
       if (covered > org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureNumbers.MAX_SAFE_INTEGER

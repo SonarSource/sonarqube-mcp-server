@@ -88,6 +88,18 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
+  void it_should_not_aggregate_a_weighted_score_as_a_mapped_artifact_ratio() {
+    stubMainBranch(harness);
+    var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":41,\"coveredArtifacts\":10,\"totalArtifacts\":10}}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + row + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(json.has("overallCoverage")).isFalse();
+    assertThat(json.getAsJsonArray("summaries").get(0).getAsJsonObject().getAsJsonObject("coverage").get("coverage").getAsDouble()).isEqualTo(41);
+  }
+
+  @Test
   void it_should_return_zero_artifacts_without_a_percentage() {
     stubMainBranch(harness);
     var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":null,\"coveredArtifacts\":0,\"totalArtifacts\":0}}");
