@@ -25,6 +25,8 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchDependencyRisksTool extends Tool {
@@ -35,6 +37,8 @@ public class SearchDependencyRisksTool extends Tool {
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
   public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.DEPENDENCY_RISKS).requires(ToolCapabilities::dependencyRisks);
 
   private final ServerApiProvider serverApiProvider;
   private final SonarQubeVersionChecker sonarQubeVersionChecker;
@@ -54,7 +58,7 @@ public class SearchDependencyRisksTool extends Tool {
       .addNumberProperty(PAGE_SIZE_PROPERTY, "An optional page size. Must be greater than 0 and less than or equal to 500. Defaults to 100.")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.DEPENDENCY_RISKS);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
     this.sonarQubeVersionChecker = sonarQubeVersionChecker;
     this.configuredProjectKey = configuredProjectKey;

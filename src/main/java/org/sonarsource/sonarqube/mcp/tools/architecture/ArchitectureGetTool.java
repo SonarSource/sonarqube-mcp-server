@@ -31,6 +31,8 @@ import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFind
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectSummary;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetIntendedToolResponse.Constraint;
@@ -52,6 +54,8 @@ public class ArchitectureGetTool extends Tool {
   public static final String DIRECTIVES = "directives";
   public static final String FINDINGS = "findings";
   public static final String SUMMARY = "summary";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.ARCHITECTURE).requires(ToolCapabilities::architecture);
   private static final String TYPE_PROPERTY = "type";
   private static final String CATEGORY_PROPERTY = "category";
 
@@ -72,7 +76,7 @@ public class ArchitectureGetTool extends Tool {
   }
 
   ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
-    super(definition(isSonarQubeCloud, configuredProjectKey), ToolCategory.ARCHITECTURE);
+    super(definition(isSonarQubeCloud, configuredProjectKey), REGISTRATION_AVAILABILITY);
     this.currentReads = currentReads;
     this.targets = targets(isSonarQubeCloud);
     this.serverApiProvider = serverApiProvider;

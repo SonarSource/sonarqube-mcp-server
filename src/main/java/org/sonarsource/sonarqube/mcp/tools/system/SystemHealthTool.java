@@ -22,10 +22,13 @@ import org.sonarsource.sonarqube.mcp.serverapi.system.response.HealthResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class SystemHealthTool extends Tool {
 
   public static final String TOOL_NAME = "get_system_health";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.SYSTEM).serverOnly();
 
   private final ServerApiProvider serverApiProvider;
 
@@ -36,7 +39,7 @@ public class SystemHealthTool extends Tool {
       .setDescription("Get the health status of SonarQube Server instance. Returns GREEN (fully operational), YELLOW (usable but needs attention), or RED (not operational).")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SYSTEM);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

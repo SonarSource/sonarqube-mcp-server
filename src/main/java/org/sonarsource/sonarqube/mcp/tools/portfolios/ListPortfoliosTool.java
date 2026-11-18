@@ -24,6 +24,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.views.response.SearchResponse;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class ListPortfoliosTool extends Tool {
@@ -36,11 +37,13 @@ public class ListPortfoliosTool extends Tool {
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
   public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
 
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.PORTFOLIOS);
+
   private final ServerApiProvider serverApiProvider;
   private final boolean isSonarQubeCloud;
 
   public ListPortfoliosTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
-    super(buildToolDefinition(isSonarQubeCloud), ToolCategory.PORTFOLIOS);
+    super(buildToolDefinition(isSonarQubeCloud), REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
     this.isSonarQubeCloud = isSonarQubeCloud;
   }

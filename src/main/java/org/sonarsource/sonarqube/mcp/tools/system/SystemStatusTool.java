@@ -20,10 +20,13 @@ import org.sonarsource.sonarqube.mcp.serverapi.ServerApiProvider;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class SystemStatusTool extends Tool {
 
   public static final String TOOL_NAME = "get_system_status";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.SYSTEM).serverOnly();
 
   private final ServerApiProvider serverApiProvider;
 
@@ -34,7 +37,7 @@ public class SystemStatusTool extends Tool {
       .setDescription("Get state information about SonarQube Server. Returns status (STARTING, UP, DOWN, RESTARTING, DB_MIGRATION_NEEDED, DB_MIGRATION_RUNNING), version, and id.")
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SYSTEM);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -21,6 +21,7 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class GetRawSourceTool extends Tool {
 
@@ -28,6 +29,8 @@ public class GetRawSourceTool extends Tool {
   public static final String KEY_PROPERTY = "key";
   public static final String BRANCH_PROPERTY = BranchPullRequestContext.BRANCH_PROPERTY;
   public static final String PULL_REQUEST_PROPERTY = BranchPullRequestContext.PULL_REQUEST_PROPERTY;
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.SOURCES);
 
   private final ServerApiProvider serverApiProvider;
 
@@ -40,7 +43,7 @@ public class GetRawSourceTool extends Tool {
       .addBranchAndPullRequestProperties()
       .setReadOnlyHint()
       .build(),
-      ToolCategory.SOURCES);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

@@ -22,6 +22,7 @@ import org.sonarsource.sonarqube.mcp.serverapi.components.response.SearchRespons
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchMyProjectsTool extends Tool {
@@ -32,11 +33,13 @@ public class SearchMyProjectsTool extends Tool {
   public static final String SEARCH_QUERY_PROPERTY = "q";
   public static final int MAX_PAGE_SIZE = 500;
 
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.PROJECTS);
+
   private final ServerApiProvider serverApiProvider;
 
   public SearchMyProjectsTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud) {
     super(buildToolDefinition(isSonarQubeCloud),
-      ToolCategory.PROJECTS);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
   }
 

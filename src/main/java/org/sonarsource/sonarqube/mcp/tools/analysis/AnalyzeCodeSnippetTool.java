@@ -40,6 +40,8 @@ import org.sonarsource.sonarqube.mcp.slcore.BackendService;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 import static java.util.stream.Collectors.toMap;
@@ -67,6 +69,8 @@ public class AnalyzeCodeSnippetTool extends Tool {
   public static final String SNIPPET_PROPERTY = "codeSnippet";
   public static final String LANGUAGE_PROPERTY = "language";
   public static final String SCOPE_PROPERTY = "scope";
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.ANALYSIS).requires(ToolCapabilities::localAnalysis);
   
   private static final String[] VALID_SCOPES = {"MAIN", "TEST"};
   private static final String[] VALID_LANGUAGES = getValidLanguageNames();
@@ -84,7 +88,7 @@ public class AnalyzeCodeSnippetTool extends Tool {
   public AnalyzeCodeSnippetTool(BackendService backendService, ServerApiProvider serverApiProvider,
     CompletableFuture<Void> initializationFuture, @Nullable String configuredProjectKey, @Nullable Path configuredWorkspacePath,
     boolean isSonarQubeCloud) {
-    super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud), ToolCategory.ANALYSIS);
+    super(buildToolDefinition(configuredProjectKey, configuredWorkspacePath, isSonarQubeCloud), REGISTRATION_AVAILABILITY);
     this.backendService = backendService;
     this.serverApiProvider = serverApiProvider;
     this.initializationFuture = initializationFuture;

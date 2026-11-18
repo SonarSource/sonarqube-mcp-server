@@ -28,6 +28,7 @@ import org.sonarsource.sonarqube.mcp.tools.BranchPullRequestContext;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 
 public class SearchFilesByCoverageTool extends Tool {
@@ -39,6 +40,8 @@ public class SearchFilesByCoverageTool extends Tool {
   public static final String MAX_COVERAGE_PROPERTY = "maxCoverage";
   public static final String PAGE_INDEX_PROPERTY = ToolParameters.PAGE_INDEX;
   public static final String PAGE_SIZE_PROPERTY = ToolParameters.PAGE_SIZE;
+
+  private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategory(ToolCategory.COVERAGE);
 
   // Metric keys
   private static final String METRIC_COVERAGE = "coverage";
@@ -62,7 +65,7 @@ public class SearchFilesByCoverageTool extends Tool {
         .addNumberProperty(PAGE_SIZE_PROPERTY, "Page size (default: 100, max: 500)")
         .setReadOnlyHint()
         .build(),
-      ToolCategory.COVERAGE);
+      REGISTRATION_AVAILABILITY);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
   }

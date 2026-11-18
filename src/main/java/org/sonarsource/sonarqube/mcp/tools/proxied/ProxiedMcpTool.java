@@ -22,8 +22,13 @@ import org.sonarsource.sonarqube.mcp.client.McpClientManager;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
+import org.sonarsource.sonarqube.mcp.tools.ToolCapabilities;
+import org.sonarsource.sonarqube.mcp.tools.ToolAvailability;
 
 public class ProxiedMcpTool extends Tool {
+
+  public static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailability.inCategories(ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX)
+    .stdioOnly().requires(ToolCapabilities::vortexProxy);
   
   private static final McpLogger LOG = McpLogger.getInstance();
   
@@ -33,7 +38,7 @@ public class ProxiedMcpTool extends Tool {
 
   public ProxiedMcpTool(String serverId, String originalToolName, McpSchema.Tool originalTool,
     McpClientManager clientManager) {
-    super(createProxyDefinition(originalToolName, originalTool), ToolCategory.ANALYSIS, ToolCategory.CAG, ToolCategory.VORTEX);
+    super(createProxyDefinition(originalToolName, originalTool), REGISTRATION_AVAILABILITY);
     this.serverId = serverId;
     this.originalToolName = originalToolName;
     this.clientManager = clientManager;
