@@ -275,11 +275,13 @@ public class ArchitectureGetTool extends Tool {
     if (summaries.isEmpty() || skipped != null) return null;
     long covered = 0;
     long total = 0;
+    int nonEmptyLanguages = 0;
     for (var summary : summaries) {
       var coverage = summary.coverage();
       if (coverage == null || coverage.coveredArtifacts() == null || coverage.totalArtifacts() == null) return null;
       if (coverage.totalArtifacts() > 0 && (coverage.coverage() == null
         || Math.abs(coverage.coverage() - ((double) coverage.coveredArtifacts() / coverage.totalArtifacts()) * 100) > 1e-8)) return null;
+      if (coverage.totalArtifacts() > 0) nonEmptyLanguages++;
       covered = Math.addExact(covered, coverage.coveredArtifacts());
       total = Math.addExact(total, coverage.totalArtifacts());
       if (covered > org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureNumbers.MAX_SAFE_INTEGER
@@ -287,7 +289,7 @@ public class ArchitectureGetTool extends Tool {
         throw new IllegalStateException("Aggregate architecture coverage exceeds the supported integer range.");
       }
     }
-    return new ProjectSummary.Coverage(total == 0 ? null : ((double) covered / total) * 100, covered, total);
+    return new ProjectSummary.Coverage(total == 0 || nonEmptyLanguages > 1 ? null : ((double) covered / total) * 100, covered, total);
   }
 
   private record SummaryView(String projectKey, List<ProjectSummary> summaries, @Nullable ProjectSummary.Coverage overallCoverage,

@@ -62,7 +62,7 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void it_should_return_weighted_coverage_for_multiple_languages() {
+  void it_should_return_combined_counts_without_inventing_a_cross_language_score() {
     stubMainBranch(harness);
     var javaRow = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":50,\"coveredArtifacts\":1,\"totalArtifacts\":2}}");
     var pyRow = SUMMARY.replace("\"java\"", "\"py\"").replaceFirst("\\}$", ",\"coverage\":{\"coverage\":90,\"coveredArtifacts\":9,\"totalArtifacts\":10}}");
@@ -71,7 +71,7 @@ class ArchitectureSummaryToolTests {
     assertThat(result.isError()).isFalse();
     var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
     var aggregate = json.getAsJsonObject("overallCoverage");
-    assertThat(aggregate.get("coverage").getAsDouble()).isEqualTo((10.0 / 12) * 100);
+    assertThat(!aggregate.has("coverage") || aggregate.get("coverage").isJsonNull()).isTrue();
     assertThat(aggregate.get("coveredArtifacts").getAsLong()).isEqualTo(10);
     assertThat(aggregate.get("totalArtifacts").getAsLong()).isEqualTo(12);
   }
