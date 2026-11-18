@@ -24,6 +24,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -82,6 +83,14 @@ public class ServerApiHelper {
 
   public HttpClient.Response post(String path, String contentType, String body) {
     var response = rawPost(buildEndpointUrl(path), contentType, body);
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
+  public HttpClient.Response post(String path, String contentType, String body, Map<String, String> headers) {
+    var response = awaitResponse(client.postAsync(buildEndpointUrl(path), contentType, body, headers));
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
@@ -150,6 +159,14 @@ public class ServerApiHelper {
    */
   public HttpClient.Response postApiSubdomain(String path, String contentType, String body) {
     var response = rawPostApiSubdomain(path, contentType, body);
+    if (!response.isSuccessful()) {
+      throw handleError(response);
+    }
+    return response;
+  }
+
+  public HttpClient.Response postApiSubdomain(String path, String contentType, String body, Map<String, String> headers) {
+    var response = awaitResponse(client.postAsync(buildApiSubdomainUrl(path), contentType, body, headers));
     if (!response.isSuccessful()) {
       throw handleError(response);
     }
