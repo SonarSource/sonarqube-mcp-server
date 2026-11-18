@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.a3s;
 
 import com.google.gson.Gson;
 import jakarta.annotation.Nullable;
+import java.util.Map;
 import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.serverapi.ServerApiHelper;
 import org.sonarsource.sonarqube.mcp.serverapi.a3s.request.AnalysisCreationRequest;
@@ -33,6 +34,7 @@ public class A3sAnalysisApi {
   @SuppressWarnings("java:S1075")
   public static final String A3S_ORG_ENTITLEMENT_PATH = "/a3s/org-entitlement/";
 
+  private static final String INVOCATION_ID_HEADER = "x-sonar-invocation-id";
   private static final String JSON_CONTENT_TYPE = "application/json";
   private static final Gson GSON = new Gson();
   private static final McpLogger LOG = McpLogger.getInstance();
@@ -44,13 +46,18 @@ public class A3sAnalysisApi {
   }
 
   public AnalysisResponse analyze(AnalysisCreationRequest request) {
+    return analyze(request, null);
+  }
+
+  public AnalysisResponse analyze(AnalysisCreationRequest request, @Nullable String invocationId) {
+    var headers = invocationId == null ? Map.<String, String>of() : Map.of(INVOCATION_ID_HEADER, invocationId);
     var requestBody = GSON.toJson(request);
     if (helper.isSonarQubeCloud()) {
-      try (var response = helper.postApiSubdomain(ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
+      try (var response = helper.postApiSubdomain(ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody, headers)) {
         return GSON.fromJson(response.bodyAsString(), AnalysisResponse.class);
       }
     }
-    try (var response = helper.post("/api/v2" + A3S_ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody)) {
+    try (var response = helper.post("/api/v2" + A3S_ANALYSES_PATH, JSON_CONTENT_TYPE, requestBody, headers)) {
       return GSON.fromJson(response.bodyAsString(), AnalysisResponse.class);
     }
   }

@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.http;
 
 import java.io.Closeable;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public interface HttpClient {
@@ -60,6 +61,8 @@ public interface HttpClient {
   CompletableFuture<Response> postAsync(String url, String contentType, String body);
 
   CompletableFuture<Response> postAsync(String url, String contentType, String body, Duration timeout);
+
+  CompletableFuture<Response> postAsync(String url, String contentType, String body, Map<String, String> headers);
 
   CompletableFuture<Response> patchAsync(String url, String contentType, String body);
 
