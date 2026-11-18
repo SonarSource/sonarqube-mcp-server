@@ -33,7 +33,6 @@ import reactor.core.publisher.Mono;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -303,71 +302,6 @@ class PerRequestToolFilteringHandlerTest {
   }
 
   @Test
-  void unsupported_method_returns_method_not_found_error() {
-    var delegate = mock(McpStatelessServerHandler.class);
-    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
-    var context = contextWithToken();
-    var resourcesListRequest = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_RESOURCES_LIST, REQUEST_ID, null);
-
-    var response = handler.handleRequest(context, resourcesListRequest).block();
-
-    assertThat(response).isNotNull();
-    assertThat(response.error()).isNotNull();
-    assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
-    assertThat(response.error().message()).isEqualTo("Method not found: resources/list");
-    assertThat(response.result()).isNull();
-    verify(delegate, never()).handleRequest(any(), any());
-  }
-
-  @Test
-  void unsupported_prompts_list_returns_method_not_found_error() {
-    var delegate = mock(McpStatelessServerHandler.class);
-    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
-    var context = contextWithToken();
-    var promptsListRequest = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_PROMPT_LIST, REQUEST_ID, null);
-
-    var response = handler.handleRequest(context, promptsListRequest).block();
-
-    assertThat(response).isNotNull();
-    assertThat(response.error()).isNotNull();
-    assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
-    assertThat(response.error().message()).isEqualTo("Method not found: prompts/list");
-    verify(delegate, never()).handleRequest(any(), any());
-  }
-
-  @Test
-  void unsupported_completion_returns_method_not_found_error() {
-    var delegate = mock(McpStatelessServerHandler.class);
-    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
-    var context = contextWithToken();
-    var completionRequest = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_COMPLETION_COMPLETE, REQUEST_ID, null);
-
-    var response = handler.handleRequest(context, completionRequest).block();
-
-    assertThat(response).isNotNull();
-    assertThat(response.error()).isNotNull();
-    assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
-    assertThat(response.error().message()).contains("completion/complete");
-    verify(delegate, never()).handleRequest(any(), any());
-  }
-
-  @Test
-  void completely_unknown_method_returns_method_not_found_error() {
-    var delegate = mock(McpStatelessServerHandler.class);
-    var handler = new PerRequestToolFilteringHandler(delegate, List.of());
-    var context = contextWithToken();
-    var unknownRequest = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, "totally/unknown", REQUEST_ID, null);
-
-    var response = handler.handleRequest(context, unknownRequest).block();
-
-    assertThat(response).isNotNull();
-    assertThat(response.error()).isNotNull();
-    assertThat(response.error().code()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
-    assertThat(response.error().message()).isEqualTo("Method not found: totally/unknown");
-    verify(delegate, never()).handleRequest(any(), any());
-  }
-
-  @Test
   void notifications_always_delegate_to_sdk_handler() {
     var delegate = mock(McpStatelessServerHandler.class);
     when(delegate.handleNotification(any(), any())).thenReturn(Mono.empty());
@@ -390,10 +324,11 @@ class PerRequestToolFilteringHandlerTest {
 
     var handler = new PerRequestToolFilteringHandler(delegate, List.of());
     var request = new McpSchema.JSONRPCRequest(McpSchema.JSONRPC_VERSION, McpSchema.METHOD_TOOLS_CALL, REQUEST_ID, params);
+    var context = contextWithToken();
 
-    handler.handleRequest(contextWithToken(), request).block();
+    handler.handleRequest(context, request).block();
 
-    verify(delegate).handleRequest(contextWithToken(), request);
+    verify(delegate).handleRequest(context, request);
   }
 
   private static Stream<Object> invalidToolCallParams() {

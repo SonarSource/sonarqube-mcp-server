@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import jakarta.annotation.Nullable;
-import org.sonarsource.sonarqube.mcp.log.McpLogger;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
@@ -45,10 +44,8 @@ import reactor.core.publisher.Mono;
  *       was launched with.</li>
  * </ul>
  *
- * <p>The SDK's built-in {@code toolsListRequestHandler} ignores the {@link McpTransportContext},
- * so it always returns all registered tools. When a per-request filter is active, this handler
- * short-circuits the delegate and directly returns only the subset the client is allowed to see,
- * without consulting the SDK handler at all.
+ * <p>Listings are assembled here to apply both visibility rules and organization-specific input
+ * schemas. The SDK's tool list filters only control visibility.
  *
  * <p>For {@code tools/call}, if a per-request filter is active and the requested tool is not in
  * the allowed set, a {@code METHOD_NOT_FOUND} error is returned immediately without delegating
@@ -58,22 +55,9 @@ import reactor.core.publisher.Mono;
  * <p>Each tool can further gate its own visibility per-request by overriding
  * {@link Tool#isEnabledFor(McpTransportContext)}.
  *
- * <p>Additionally, this handler works around
- * <a href="https://github.com/modelcontextprotocol/java-sdk/issues/784">java-sdk#784</a>:
- * when the SDK receives a request for an unregistered method (e.g. {@code resources/list}),
- * it returns {@code Mono.error(McpError)} instead of a proper JSON-RPC {@code -32601} response,
- * causing HTTP 500. This handler intercepts such methods and returns the correct error response.
+ * <p>Other requests are delegated to the SDK, including error responses for unregistered methods.
  */
 public class PerRequestToolFilteringHandler implements McpStatelessServerHandler {
-
-  private static final McpLogger LOG = McpLogger.getInstance();
-
-  private static final Set<String> SUPPORTED_REQUEST_METHODS = Set.of(
-    McpSchema.METHOD_INITIALIZE,
-    McpSchema.METHOD_PING,
-    McpSchema.METHOD_TOOLS_LIST,
-    McpSchema.METHOD_TOOLS_CALL
-  );
 
   private final McpStatelessServerHandler delegate;
   private final List<Tool> allTools;
@@ -92,12 +76,6 @@ public class PerRequestToolFilteringHandler implements McpStatelessServerHandler
     }
     if (McpSchema.METHOD_TOOLS_CALL.equals(request.method())) {
       return handleToolCall(transportContext, request);
-    }
-    // https://github.com/modelcontextprotocol/java-sdk/issues/784
-    if (!SUPPORTED_REQUEST_METHODS.contains(request.method())) {
-      LOG.debug("Rejecting unsupported method: " + request.method());
-      var error = new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.METHOD_NOT_FOUND, "Method not found: " + request.method(), null);
-      return Mono.just(new McpSchema.JSONRPCResponse(McpSchema.JSONRPC_VERSION, request.id(), null, error));
     }
     return delegate.handleRequest(transportContext, request);
   }
