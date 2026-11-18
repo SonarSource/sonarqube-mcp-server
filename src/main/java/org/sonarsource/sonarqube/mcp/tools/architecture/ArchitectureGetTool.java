@@ -95,7 +95,7 @@ public class ArchitectureGetTool extends Tool {
       .addRequiredEnumProperty(TARGET_PROPERTY, targets(isSonarQubeCloud),
         "current: dependencies; intended: model; directives: project directives (directiveId); "
           + "findings: deviations, flaws and smells (category, type, language)"
-          + (isSonarQubeCloud ? "; summary: deviation, flaw and smell counts per language (main branch)" : "")
+          + (isSonarQubeCloud ? "; summary: finding counts and available coverage per language (main branch)" : "")
           + "; pageIndex/pageSize apply to directives and findings or current from/to queries.")
       .addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
       .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
@@ -171,7 +171,7 @@ public class ArchitectureGetTool extends Tool {
       message = language == null ? "No architecture summaries are visible. Check project access and analysis."
         : ("No architecture summaries match language=" + language + ". Check project access and analysis.");
     }
-    return Result.success(new SummaryView(projectKey, result.summaries(), result.skippedSummaries(), message));
+    return Result.success(new SummaryView(projectKey, result.summaries(), overallCoverage(result.summaries(), result.skippedSummaries()), result.skippedSummaries(), message));
   }
 
   private static Result directives(ServerApi serverApi, String projectKey, Arguments arguments, @Nullable String component, @Nullable Integer depth,
@@ -270,7 +270,47 @@ public class ArchitectureGetTool extends Tool {
   private record DirectivesView(String projectKey, String view, List<DirectiveResponses.Summary> directives, ArchitectureApi.DirectivePageInfo page, @Nullable String message) {
   }
 
-  private record SummaryView(String projectKey, List<ProjectSummary> summaries, @Nullable Integer skippedSummaries, @Nullable String message) {
+  @Nullable
+  private static ProjectSummary.Coverage overallCoverage(List<ProjectSummary> summaries, @Nullable Integer skipped) {
+    if (summaries.isEmpty() || skipped != null) {
+      return null;
+    }
+    long covered = 0;
+    long total = 0;
+    int nonEmptyLanguages = 0;
+    Double singleCoverage = null;
+    for (var summary : summaries) {
+      var coverage = summary.coverage();
+      if (!hasComparableCoverage(coverage)) {
+        return null;
+      }
+      if (coverage.totalArtifacts() > 0) {
+        nonEmptyLanguages++;
+        singleCoverage = coverage.coverage();
+      }
+      covered = Math.addExact(covered, coverage.coveredArtifacts());
+      total = Math.addExact(total, coverage.totalArtifacts());
+      if (covered > org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureNumbers.MAX_SAFE_INTEGER
+        || total > org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureNumbers.MAX_SAFE_INTEGER) {
+        throw new IllegalStateException("Aggregate architecture coverage exceeds the supported integer range.");
+      }
+    }
+    return new ProjectSummary.Coverage((total == 0 || nonEmptyLanguages > 1) ? null : singleCoverage, covered, total);
+  }
+
+  private static boolean hasComparableCoverage(@Nullable ProjectSummary.Coverage coverage) {
+    if (coverage == null || coverage.coveredArtifacts() == null || coverage.totalArtifacts() == null) {
+      return false;
+    }
+    if (coverage.totalArtifacts() == 0) {
+      return true;
+    }
+    return coverage.coverage() != null
+      && Math.abs(coverage.coverage() - ((double) coverage.coveredArtifacts() / coverage.totalArtifacts()) * 100) <= 1e-8;
+  }
+
+  private record SummaryView(String projectKey, List<ProjectSummary> summaries, @Nullable ProjectSummary.Coverage overallCoverage,
+                             @Nullable Integer skippedSummaries, @Nullable String message) {
   }
 
   private record FindingsView(String projectKey, List<ProjectFinding> findings, ArchitectureApi.DirectivePageInfo page,

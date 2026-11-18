@@ -62,6 +62,88 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
+  void it_should_return_combined_counts_without_inventing_a_cross_language_score() {
+    stubMainBranch(harness);
+    var javaRow = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":50,\"coveredArtifacts\":1,\"totalArtifacts\":2}}");
+    var pyRow = SUMMARY.replace("\"java\"", "\"py\"").replaceFirst("\\}$", ",\"coverage\":{\"coverage\":90,\"coveredArtifacts\":9,\"totalArtifacts\":10}}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + javaRow + "," + pyRow + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    var aggregate = json.getAsJsonObject("overallCoverage");
+    assertThat(!aggregate.has("coverage") || aggregate.get("coverage").isJsonNull()).isTrue();
+    assertThat(aggregate.get("coveredArtifacts").getAsLong()).isEqualTo(10);
+    assertThat(aggregate.get("totalArtifacts").getAsLong()).isEqualTo(12);
+  }
+
+  @Test
+  void it_should_preserve_the_exact_single_language_score() {
+    stubMainBranch(harness);
+    var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":33.33333333,\"coveredArtifacts\":1,\"totalArtifacts\":3}}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + row + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var aggregate = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("overallCoverage");
+    assertThat(aggregate.get("coverage").getAsDouble()).isEqualTo(33.33333333);
+  }
+
+  @Test
+  void it_should_omit_empty_coverage() {
+    stubMainBranch(harness);
+    var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":null,\"coveredArtifacts\":null,\"totalArtifacts\":null}}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + row + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var summary = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("summaries").get(0).getAsJsonObject();
+    assertThat(!summary.has("coverage") || summary.get("coverage").isJsonNull()).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"{\"coverage\":101}", "{\"coverage\":\"50\"}", "{\"coveredArtifacts\":-1}", "{\"coveredArtifacts\":1.5}", "{\"coveredArtifacts\":2,\"totalArtifacts\":1}"})
+  void it_should_reject_malformed_coverage(String coverage) {
+    stubMainBranch(harness);
+    var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":" + coverage + "}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + row + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Invalid public architecture response");
+  }
+
+  @Test
+  void it_should_not_aggregate_a_weighted_score_as_a_mapped_artifact_ratio() {
+    stubMainBranch(harness);
+    var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":41,\"coveredArtifacts\":10,\"totalArtifacts\":10}}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + row + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var json = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    assertThat(json.has("overallCoverage")).isFalse();
+    assertThat(json.getAsJsonArray("summaries").get(0).getAsJsonObject().getAsJsonObject("coverage").get("coverage").getAsDouble()).isEqualTo(41);
+  }
+
+  @Test
+  void it_should_return_zero_artifacts_without_a_percentage() {
+    stubMainBranch(harness);
+    var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":null,\"coveredArtifacts\":0,\"totalArtifacts\":0}}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + row + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var aggregate = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonObject("overallCoverage");
+    assertThat(aggregate.get("totalArtifacts").getAsLong()).isZero();
+    assertThat(!aggregate.has("coverage") || aggregate.get("coverage").isJsonNull()).isTrue();
+  }
+
+  @Test
+  void it_should_not_aggregate_when_coverage_is_missing() {
+    stubMainBranch(harness);
+    var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":null,\"coveredArtifacts\":null,\"totalArtifacts\":null}}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + row + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    assertThat(JsonParser.parseString(textOf(result)).getAsJsonObject().has("overallCoverage")).isFalse();
+  }
+
+  @Test
   void it_should_preserves_largest_exact_count() {
     stubMainBranch(harness);
     var largeSummary = SUMMARY.replace("\"total\":3", "\"total\":9007199254740991")
