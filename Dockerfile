@@ -1,9 +1,30 @@
 FROM node:24.22.3-alpine3.24 AS node-runtime
 
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:21.0.13_9-jdk-alpine-3.24 AS builder
 
 RUN apk update &&  \
-    apk add binutils
+    apk add binutils curl
+
+ARG TARGETARCH
+# Install the x64 security update until it is available in the base image.
+RUN set -eu; \
+    case "$TARGETARCH" in \
+        amd64) \
+            curl --fail --location --proto '=https' --proto-redir '=https' \
+                --output /tmp/openjdk.tar.gz \
+                'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13.1%2B2/OpenJDK21U-jdk_x64_alpine-linux_hotspot_21.0.13.1_2.tar.gz'; \
+            printf '%s  %s\n' \
+                '87af8e1557222db2a29c9d055c34a317916b4ddbdb91474d04b35229d337193e' \
+                /tmp/openjdk.tar.gz | sha256sum --check --status; \
+            rm -rf "$JAVA_HOME"; \
+            mkdir -p "$JAVA_HOME"; \
+            tar -xzf /tmp/openjdk.tar.gz --strip-components=1 --no-same-owner -C "$JAVA_HOME"; \
+            rm /tmp/openjdk.tar.gz \
+            ;; \
+        arm64) ;; \
+        *) echo "Unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    java -version
 
 WORKDIR /app
 
@@ -31,8 +52,6 @@ ENV JAVA_HOME=/opt/jdk/jdk-21
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 COPY --from=builder /optimized-jdk-21 $JAVA_HOME
-COPY scripts/security/blocked.certs /tmp/blocked.certs
-RUN cat /tmp/blocked.certs >> "$JAVA_HOME/lib/security/blocked.certs" && rm /tmp/blocked.certs
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 
 RUN apk upgrade --no-cache && \
