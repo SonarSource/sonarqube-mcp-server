@@ -1,6 +1,6 @@
 FROM node:24.22.3-alpine3.24 AS node-runtime
 
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:21.0.13_9-jdk-alpine-3.24 AS builder
 
 RUN apk update &&  \
     apk add binutils
@@ -31,8 +31,6 @@ ENV JAVA_HOME=/opt/jdk/jdk-21
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 COPY --from=builder /optimized-jdk-21 $JAVA_HOME
-COPY scripts/security/blocked.certs /tmp/blocked.certs
-RUN cat /tmp/blocked.certs >> "$JAVA_HOME/lib/security/blocked.certs" && rm /tmp/blocked.certs
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 
 RUN apk upgrade --no-cache && \
