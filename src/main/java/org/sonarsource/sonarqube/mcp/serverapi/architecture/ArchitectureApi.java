@@ -401,7 +401,10 @@ public class ArchitectureApi {
     if (coverage.coverage() == null && coverage.coveredArtifacts() == null && coverage.totalArtifacts() == null) {
       return new ProjectSummary(summary.language(), summary.deviations(), summary.flaws(), summary.smells(), null);
     }
-    return summary;
+    var normalized = new ProjectSummary.Coverage(coverage.coverage(),
+      coverage.coveredArtifacts() == null ? null : BigDecimal.valueOf(coverage.coveredArtifacts().longValueExact()),
+      coverage.totalArtifacts() == null ? null : BigDecimal.valueOf(coverage.totalArtifacts().longValueExact()));
+    return new ProjectSummary(summary.language(), summary.deviations(), summary.flaws(), summary.smells(), normalized);
   }
 
   private static void validateCoverage(ProjectSummary.Coverage coverage) {

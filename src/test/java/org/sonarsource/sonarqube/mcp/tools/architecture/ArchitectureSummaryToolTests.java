@@ -123,6 +123,18 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
+  void it_should_return_artifact_counts_as_integers() {
+    stubMainBranch(harness);
+    var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coveredArtifacts\":2.0,\"totalArtifacts\":1e2}}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + row + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var coverage = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("summaries").get(0).getAsJsonObject().getAsJsonObject("coverage");
+    assertThat(coverage.get("coveredArtifacts").toString()).isEqualTo("2");
+    assertThat(coverage.get("totalArtifacts").toString()).isEqualTo("100");
+  }
+
+  @Test
   void it_should_not_aggregate_a_weighted_score_as_a_mapped_artifact_ratio() {
     stubMainBranch(harness);
     var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":41,\"coveredArtifacts\":10,\"totalArtifacts\":10}}");
