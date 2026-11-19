@@ -130,8 +130,8 @@ class ArchitectureSummaryToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
     assertThat(result.isError()).isFalse();
     var coverage = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("summaries").get(0).getAsJsonObject().getAsJsonObject("coverage");
-    assertThat(coverage.get("coveredArtifacts").toString()).isEqualTo("2");
-    assertThat(coverage.get("totalArtifacts").toString()).isEqualTo("100");
+    assertThat(coverage.get("coveredArtifacts")).hasToString("2");
+    assertThat(coverage.get("totalArtifacts")).hasToString("100");
   }
 
   @Test

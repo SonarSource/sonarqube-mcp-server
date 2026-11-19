@@ -62,6 +62,7 @@ public class ArchitectureApi {
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
   private static final String LANGUAGE_PARAM = "language";
+  private static final String INVALID_PUBLIC_RESPONSE = "Invalid public architecture response.";
   private static final String INVALID_FINDINGS_PAGE = "Invalid public findings page.";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
@@ -410,14 +411,14 @@ public class ArchitectureApi {
   private static void validateCoverage(ProjectSummary.Coverage coverage) {
     var score = coverage.coverage();
     if (score != null && (!Double.isFinite(score) || score < 0 || score > 100)) {
-      throw unexpectedResponse("Invalid public architecture response.");
+      throw unexpectedResponse(INVALID_PUBLIC_RESPONSE);
     }
     var covered = coverage.coveredArtifacts();
     var total = coverage.totalArtifacts();
     validateCoverageCount(covered);
     validateCoverageCount(total);
     if (covered != null && total != null && covered.compareTo(total) > 0) {
-      throw unexpectedResponse("Invalid public architecture response.");
+      throw unexpectedResponse(INVALID_PUBLIC_RESPONSE);
     }
   }
 
@@ -427,10 +428,10 @@ public class ArchitectureApi {
     }
     try {
       if (count.longValueExact() < 0 || count.compareTo(BigDecimal.valueOf(ArchitectureNumbers.MAX_SAFE_INTEGER)) > 0) {
-        throw unexpectedResponse("Invalid public architecture response.");
+        throw unexpectedResponse(INVALID_PUBLIC_RESPONSE);
       }
     } catch (ArithmeticException invalid) {
-      throw unexpectedResponse("Invalid public architecture response.");
+      throw unexpectedResponse(INVALID_PUBLIC_RESPONSE);
     }
   }
 
@@ -517,7 +518,7 @@ public class ArchitectureApi {
     try (var response = toBeClosed) {
       return Objects.requireNonNull(decoder.fromJson(response.bodyAsString(), type));
     } catch (RuntimeException invalid) {
-      throw new IllegalStateException("Invalid public architecture response. " + API_RESPONSE_ERROR, invalid);
+      throw new IllegalStateException(INVALID_PUBLIC_RESPONSE + " " + API_RESPONSE_ERROR, invalid);
     }
   }
 
