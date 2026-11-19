@@ -173,6 +173,22 @@ class OAuthScopeHttpTest {
       Arguments.of("both", Set.of("read_tool", "write_tool", TOOL_NAME)), Arguments.of("none", Set.of()));
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"resources/list", "prompts/list", "completion/complete", "totally/unknown"})
+  void it_should_return_sdk_method_not_found_errors_with_the_original_id(String method) throws Exception {
+    var response = send("none", method, Map.of(), Map.of());
+
+    assertThat(response.statusCode()).isEqualTo(200);
+    var document = JsonParser.parseString(response.body()).getAsJsonObject();
+    assertThat(document.get("jsonrpc").getAsString()).isEqualTo("2.0");
+    assertThat(document.get("id").getAsInt()).isEqualTo(1);
+    assertThat(document.getAsJsonObject("error").get("code").getAsInt()).isEqualTo(McpSchema.ErrorCodes.METHOD_NOT_FOUND);
+    assertThat(document.getAsJsonObject("error").get("message").getAsString()).isEqualTo("Method not found: " + method);
+    assertThat(response.headers().firstValue("WWW-Authenticate")).isEmpty();
+    assertThat(executions.get()).isZero();
+    assertThat(entitlementChecks.get()).isZero();
+  }
+
   @Test
   void it_should_preserve_unknown_tool_and_ordinary_filter_errors_without_scope_challenges() throws Exception {
     var unknown = send("none", "tools/call", Map.of("name", "unknown", "arguments", Map.of()), Map.of());
@@ -221,6 +237,18 @@ class OAuthScopeHttpTest {
     assertThat(response.statusCode()).isEqualTo(400);
     assertThat(response.headers().firstValue("WWW-Authenticate")).isEmpty();
     assertThat(executions.get()).isZero();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"text/plain", "text/html", "application/octet-stream"})
+  void it_should_reject_non_json_post_bodies_before_scope_checks(String contentType) throws Exception {
+    var response = send("none", "tools/call", Map.of("name", "read_tool", "arguments", Map.of()), Map.of("Content-Type", contentType));
+
+    assertThat(response.statusCode()).isEqualTo(415);
+    assertThat(response.body()).contains("Content-Type must be application/json");
+    assertThat(response.headers().firstValue("WWW-Authenticate")).isEmpty();
+    assertThat(executions.get()).isZero();
+    assertThat(entitlementChecks.get()).isZero();
   }
 
   @Test

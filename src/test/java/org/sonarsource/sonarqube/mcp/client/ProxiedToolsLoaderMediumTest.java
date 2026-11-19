@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
+import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -537,6 +538,24 @@ class ProxiedToolsLoaderMediumTest {
 
     assertThat(infoLog).isPresent();
     assertThat(infoLog.get().getFormattedMessage()).contains("Test notice message");
+  }
+
+  @Test
+  void it_should_deserialize_and_log_structured_proxy_notifications() throws IOException {
+    var notification = McpJsonMappers.DEFAULT.readValue("""
+      {
+        "level": "info",
+        "logger": "proxy",
+        "data": {"message": "Analysis completed", "count": 2}
+      }
+      """, McpSchema.LoggingMessageNotification.class);
+
+    McpClientManager.handleProxiedServerLog("test-server", notification);
+
+    assertThat(logAppender.list).anySatisfy(event -> {
+      assertThat(event.getLevel()).isEqualTo(Level.INFO);
+      assertThat(event.getFormattedMessage()).contains("[test-server] proxy:", "Analysis completed", "count=2");
+    });
   }
 
   @Test
