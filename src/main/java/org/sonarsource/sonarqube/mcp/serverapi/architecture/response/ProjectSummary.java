@@ -20,7 +20,7 @@ import com.google.gson.annotations.JsonAdapter;
 import jakarta.annotation.Nullable;
 
 public record ProjectSummary(String language, @Nullable DeviationCounts deviations, @Nullable FlawCounts flaws, @Nullable SmellCounts smells,
-                             @Nullable @JsonAdapter(CoverageDeserializer.class) Coverage coverage) {
+                             @Nullable Coverage coverage) {
   public record Coverage(@Nullable Double coverage, @Nullable Long coveredArtifacts, @Nullable Long totalArtifacts) { }
   public record DeviationCounts(@JsonAdapter(SummaryCountAdapter.class) Long total, @JsonAdapter(SummaryCountAdapter.class) Long structuralDeviation,
                                 @JsonAdapter(SummaryCountAdapter.class) Long relationshipDeviation) { }
