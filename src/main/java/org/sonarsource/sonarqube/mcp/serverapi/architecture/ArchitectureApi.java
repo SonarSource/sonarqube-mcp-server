@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import jakarta.annotation.Nullable;
+import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -386,9 +387,48 @@ public class ArchitectureApi {
       validateCounts(item.deviations().total(), item.deviations().structuralDeviation(), item.deviations().relationshipDeviation());
       validateCounts(item.flaws().total(), item.flaws().tangle(), item.flaws().oversizedComponent());
       validateCounts(item.smells().total(), item.smells().weakTangle(), item.smells().splitResponsibility());
-      summaries.add(item);
+      summaries.add(normalizeCoverage(item));
     }
     return new SummaryResult(List.copyOf(summaries), skipped == 0 ? null : skipped);
+  }
+
+  private static ProjectSummary normalizeCoverage(ProjectSummary summary) {
+    var coverage = summary.coverage();
+    if (coverage == null) {
+      return summary;
+    }
+    validateCoverage(coverage);
+    if (coverage.coverage() == null && coverage.coveredArtifacts() == null && coverage.totalArtifacts() == null) {
+      return new ProjectSummary(summary.language(), summary.deviations(), summary.flaws(), summary.smells(), null);
+    }
+    return summary;
+  }
+
+  private static void validateCoverage(ProjectSummary.Coverage coverage) {
+    var score = coverage.coverage();
+    if (score != null && (!Double.isFinite(score) || score < 0 || score > 100)) {
+      throw unexpectedResponse("Invalid public architecture response.");
+    }
+    var covered = coverage.coveredArtifacts();
+    var total = coverage.totalArtifacts();
+    validateCoverageCount(covered);
+    validateCoverageCount(total);
+    if (covered != null && total != null && covered.compareTo(total) > 0) {
+      throw unexpectedResponse("Invalid public architecture response.");
+    }
+  }
+
+  private static void validateCoverageCount(@Nullable BigDecimal count) {
+    if (count == null) {
+      return;
+    }
+    try {
+      if (count.longValueExact() < 0 || count.compareTo(BigDecimal.valueOf(ArchitectureNumbers.MAX_SAFE_INTEGER)) > 0) {
+        throw unexpectedResponse("Invalid public architecture response.");
+      }
+    } catch (ArithmeticException invalid) {
+      throw unexpectedResponse("Invalid public architecture response.");
+    }
   }
 
   private static void validateCounts(@Nullable Long total, @Nullable Long first, @Nullable Long second) {

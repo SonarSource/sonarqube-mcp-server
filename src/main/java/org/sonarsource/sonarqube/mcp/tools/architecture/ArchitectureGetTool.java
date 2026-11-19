@@ -18,6 +18,7 @@ package org.sonarsource.sonarqube.mcp.tools.architecture;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Nullable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -284,29 +285,30 @@ public class ArchitectureGetTool extends Tool {
       if (!hasComparableCoverage(coverage)) {
         return null;
       }
-      if (coverage.totalArtifacts() > 0) {
+      if (coverage.totalArtifacts().signum() > 0) {
         nonEmptyLanguages++;
         singleCoverage = coverage.coverage();
       }
-      covered = Math.addExact(covered, coverage.coveredArtifacts());
-      total = Math.addExact(total, coverage.totalArtifacts());
+      covered = Math.addExact(covered, coverage.coveredArtifacts().longValueExact());
+      total = Math.addExact(total, coverage.totalArtifacts().longValueExact());
       if (covered > org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureNumbers.MAX_SAFE_INTEGER
         || total > org.sonarsource.sonarqube.mcp.serverapi.architecture.ArchitectureNumbers.MAX_SAFE_INTEGER) {
         throw new IllegalStateException("Aggregate architecture coverage exceeds the supported integer range.");
       }
     }
-    return new ProjectSummary.Coverage((total == 0 || nonEmptyLanguages > 1) ? null : singleCoverage, covered, total);
+    return new ProjectSummary.Coverage((total == 0 || nonEmptyLanguages > 1) ? null : singleCoverage,
+      BigDecimal.valueOf(covered), BigDecimal.valueOf(total));
   }
 
   private static boolean hasComparableCoverage(@Nullable ProjectSummary.Coverage coverage) {
     if (coverage == null || coverage.coveredArtifacts() == null || coverage.totalArtifacts() == null) {
       return false;
     }
-    if (coverage.totalArtifacts() == 0) {
+    if (coverage.totalArtifacts().signum() == 0) {
       return true;
     }
     return coverage.coverage() != null
-      && Math.abs(coverage.coverage() - ((double) coverage.coveredArtifacts() / coverage.totalArtifacts()) * 100) <= 1e-8;
+      && Math.abs(coverage.coverage() - (coverage.coveredArtifacts().doubleValue() / coverage.totalArtifacts().doubleValue()) * 100) <= 1e-8;
   }
 
   private record SummaryView(String projectKey, List<ProjectSummary> summaries, @Nullable ProjectSummary.Coverage overallCoverage,

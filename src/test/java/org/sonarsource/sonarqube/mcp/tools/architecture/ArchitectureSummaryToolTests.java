@@ -99,7 +99,7 @@ class ArchitectureSummaryToolTests {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"{\"coverage\":101}", "{\"coverage\":\"50\"}", "{\"coveredArtifacts\":-1}", "{\"coveredArtifacts\":1.5}", "{\"coveredArtifacts\":2,\"totalArtifacts\":1}"})
+  @ValueSource(strings = {"{\"coverage\":101}", "{\"coveredArtifacts\":-1}", "{\"coveredArtifacts\":1.5}", "{\"coveredArtifacts\":2,\"totalArtifacts\":1}"})
   void it_should_reject_malformed_coverage(String coverage) {
     stubMainBranch(harness);
     var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":" + coverage + "}");
@@ -107,6 +107,19 @@ class ArchitectureSummaryToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
     assertThat(result.isError()).isTrue();
     assertThat(textOf(result)).contains("Invalid public architecture response");
+  }
+
+  @Test
+  void it_should_follow_gson_for_a_numeric_string() {
+    stubMainBranch(harness);
+    var row = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":\"50\",\"coveredArtifacts\":\"1\",\"totalArtifacts\":\"2\"}}");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + row + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var summary = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("summaries").get(0).getAsJsonObject();
+    assertThat(summary.getAsJsonObject("coverage").get("coverage").getAsDouble()).isEqualTo(50);
+    assertThat(summary.getAsJsonObject("coverage").get("coveredArtifacts").getAsLong()).isEqualTo(1);
+    assertThat(summary.getAsJsonObject("coverage").get("totalArtifacts").getAsLong()).isEqualTo(2);
   }
 
   @Test

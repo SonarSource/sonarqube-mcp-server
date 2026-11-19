@@ -18,10 +18,11 @@ package org.sonarsource.sonarqube.mcp.serverapi.architecture.response;
 
 import com.google.gson.annotations.JsonAdapter;
 import jakarta.annotation.Nullable;
+import java.math.BigDecimal;
 
 public record ProjectSummary(String language, @Nullable DeviationCounts deviations, @Nullable FlawCounts flaws, @Nullable SmellCounts smells,
                              @Nullable Coverage coverage) {
-  public record Coverage(@Nullable Double coverage, @Nullable Long coveredArtifacts, @Nullable Long totalArtifacts) { }
+  public record Coverage(@Nullable Double coverage, @Nullable BigDecimal coveredArtifacts, @Nullable BigDecimal totalArtifacts) { }
   public record DeviationCounts(@JsonAdapter(SummaryCountAdapter.class) Long total, @JsonAdapter(SummaryCountAdapter.class) Long structuralDeviation,
                                 @JsonAdapter(SummaryCountAdapter.class) Long relationshipDeviation) { }
   public record FlawCounts(@JsonAdapter(SummaryCountAdapter.class) Long total, @JsonAdapter(SummaryCountAdapter.class) Long tangle,
