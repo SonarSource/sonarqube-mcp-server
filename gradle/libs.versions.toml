@@ -1,5 +1,5 @@
 [versions]
-sonarlint-core = "12.3.0.87938"
+sonarlint-core = "12.4.0.88193"
 
 sonarqube = "7.5.0.8588"
 
