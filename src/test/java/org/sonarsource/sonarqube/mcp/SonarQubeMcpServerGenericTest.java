@@ -58,6 +58,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -482,7 +483,7 @@ class SonarQubeMcpServerGenericTest {
     var proxyTool = new ProxiedMcpTool("vortex", "proxy_tool", definition, mock(McpClientManager.class));
 
     try (var loaders = mockConstruction(ProxiedToolsLoader.class, (loader, context) -> {
-      when(loader.loadProxiedTools(eq(TransportMode.STDIO), anyString(), eq("org"))).thenReturn(List.of(proxyTool));
+      when(loader.loadProxiedTools(eq(TransportMode.STDIO), anyString(), eq("org"), any())).thenReturn(List.of(proxyTool));
       when(loader.getProxiedInstructions()).thenReturn(List.of("Proxy instructions"));
     })) {
       var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
@@ -492,7 +493,7 @@ class SonarQubeMcpServerGenericTest {
           + "\nNote: the `cag`/`analysis` toolset names for Vortex tools are deprecated; use `vortex` instead."
           + "\n\nProxy instructions" + StartAgenticReadinessAssessmentTool.INSTRUCTIONS);
         assertThat(loaders.constructed()).hasSize(1);
-        verify(loaders.constructed().getFirst()).loadProxiedTools(eq(TransportMode.STDIO), anyString(), eq("org"));
+        verify(loaders.constructed().getFirst()).loadProxiedTools(eq(TransportMode.STDIO), anyString(), eq("org"), any());
       } finally {
         server.shutdown();
       }

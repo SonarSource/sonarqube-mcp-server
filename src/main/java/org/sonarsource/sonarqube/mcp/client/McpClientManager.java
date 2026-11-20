@@ -22,6 +22,7 @@ import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +43,7 @@ import org.sonarsource.sonarqube.mcp.transport.McpJsonMappers;
 public final class McpClientManager {
   
   private static final McpLogger LOG = McpLogger.getInstance();
+  private static final String SONAR_WORKSPACE_DIR = "SONAR_WORKSPACE_DIR";
   private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(
     Integer.parseInt(System.getProperty("mcp.client.timeout.seconds", "600")));
   private static final Duration INITIALIZATION_TIMEOUT = Duration.ofSeconds(
@@ -49,6 +51,8 @@ public final class McpClientManager {
   
   private final List<ProxiedMcpServerConfig> serverConfigs;
   private final String mcpServerId;
+  @Nullable
+  private final Path workspacePath;
   private final Duration initializationTimeout;
   private final BiFunction<String, ServerParameters, ManagedStdioClientTransport> transportFactory;
   private final Map<String, McpSyncClient> clients = new ConcurrentHashMap<>();
@@ -57,16 +61,17 @@ public final class McpClientManager {
   private final Map<String, String> serverInstructions = new ConcurrentHashMap<>();
   private volatile boolean initialized = false;
 
-  public McpClientManager(List<ProxiedMcpServerConfig> serverConfigs, String mcpServerId) {
-    this(serverConfigs, mcpServerId, INITIALIZATION_TIMEOUT,
+  public McpClientManager(List<ProxiedMcpServerConfig> serverConfigs, String mcpServerId, @Nullable Path workspacePath) {
+    this(serverConfigs, mcpServerId, workspacePath, INITIALIZATION_TIMEOUT,
       (name, params) -> new ManagedStdioClientTransport(name, params, McpJsonMappers.DEFAULT));
   }
 
   @VisibleForTesting
-  McpClientManager(List<ProxiedMcpServerConfig> serverConfigs, String mcpServerId, Duration initializationTimeout,
-    BiFunction<String, ServerParameters, ManagedStdioClientTransport> transportFactory) {
+  McpClientManager(List<ProxiedMcpServerConfig> serverConfigs, String mcpServerId, @Nullable Path workspacePath,
+    Duration initializationTimeout, BiFunction<String, ServerParameters, ManagedStdioClientTransport> transportFactory) {
     this.serverConfigs = List.copyOf(serverConfigs);
     this.mcpServerId = mcpServerId;
+    this.workspacePath = workspacePath;
     this.initializationTimeout = initializationTimeout;
     this.transportFactory = transportFactory;
   }
@@ -116,7 +121,7 @@ public final class McpClientManager {
       }
       
       // Build environment variables: explicit values from config + inherited from parent
-      var filteredEnv = buildEnvironmentVariables(config, System.getenv());
+      var filteredEnv = buildEnvironmentVariables(config, System.getenv(), workspacePath);
       
       LOG.debug("Passing " + filteredEnv.size() + " environment variable(s) to '" + config.name() + "' (" + 
         config.env().size() + " explicit, " + config.inherits().size() + " inherited)");
@@ -264,9 +269,10 @@ public final class McpClientManager {
 
   /**
    * Builds the environment variables map for a proxied server by combining explicit values from config and inherited values from parent environment.
+   * A server that inherits {@code SONAR_WORKSPACE_DIR} gets the detected workspace mount when neither source sets it.
    */
   @VisibleForTesting
-  static Map<String, String> buildEnvironmentVariables(ProxiedMcpServerConfig config, Map<String, String> parentEnv) {
+  static Map<String, String> buildEnvironmentVariables(ProxiedMcpServerConfig config, Map<String, String> parentEnv, @Nullable Path workspacePath) {
     var filteredEnv = new HashMap<String, String>();
     
     // Add explicit values from config
@@ -285,7 +291,13 @@ public final class McpClientManager {
         }
       }
     }
-    
+
+    // Without it the engine falls back to its working directory, /app in the image, and never sees the mounted repository
+    if (workspacePath != null && config.inherits().contains(SONAR_WORKSPACE_DIR) && !filteredEnv.containsKey(SONAR_WORKSPACE_DIR)) {
+      LOG.debug("Passing workspace mount '" + workspacePath + "' to '" + config.name() + "' as " + SONAR_WORKSPACE_DIR);
+      filteredEnv.put(SONAR_WORKSPACE_DIR, workspacePath.toString());
+    }
+
     return filteredEnv;
   }
 

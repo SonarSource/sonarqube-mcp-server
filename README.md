@@ -576,6 +576,8 @@ By default, analysis tool `analyze_code_snippet` requires the agent to pass the 
 
 With a mount, analysis tools read files directly using `filePath`; `fileContent` is not needed.
 
+The mount is also passed to the Vortex engine as `SONAR_WORKSPACE_DIR`, unless you set that variable yourself, so the engine sees your repository. Mount the repository root so that `.git` is inside the mount.
+
 Over stdio, analysis is selected at startup (subject to enabled toolsets):
 
 - **SonarQube Cloud:** Vortex analysis (`run_advanced_code_analysis`) with a workspace mount and at least one entitled organization; local analysis otherwise. Vortex analysis only accepts entitled organizations.
