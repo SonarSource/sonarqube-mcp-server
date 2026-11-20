@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.serverapi.architecture;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import jakarta.annotation.Nullable;
+import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -61,6 +62,7 @@ public class ArchitectureApi {
   private static final String PAGE_INDEX_PARAM = "pageIndex";
   private static final String PAGE_SIZE_PARAM = "pageSize";
   private static final String LANGUAGE_PARAM = "language";
+  private static final String INVALID_PUBLIC_RESPONSE = "Invalid public architecture response.";
   private static final String INVALID_FINDINGS_PAGE = "Invalid public findings page.";
   /** SonarQube Server has no organizations; its architecture endpoints expect this fixed id. */
   public static final String SERVER_ORGANIZATION_ID = "00000000-0000-4000-0000-000000000000";
@@ -386,9 +388,51 @@ public class ArchitectureApi {
       validateCounts(item.deviations().total(), item.deviations().structuralDeviation(), item.deviations().relationshipDeviation());
       validateCounts(item.flaws().total(), item.flaws().tangle(), item.flaws().oversizedComponent());
       validateCounts(item.smells().total(), item.smells().weakTangle(), item.smells().splitResponsibility());
-      summaries.add(item);
+      summaries.add(normalizeCoverage(item));
     }
     return new SummaryResult(List.copyOf(summaries), skipped == 0 ? null : skipped);
+  }
+
+  private static ProjectSummary normalizeCoverage(ProjectSummary summary) {
+    var coverage = summary.coverage();
+    if (coverage == null) {
+      return summary;
+    }
+    validateCoverage(coverage);
+    if (coverage.coverage() == null && coverage.coveredArtifacts() == null && coverage.totalArtifacts() == null) {
+      return new ProjectSummary(summary.language(), summary.deviations(), summary.flaws(), summary.smells(), null);
+    }
+    var normalized = new ProjectSummary.Coverage(coverage.coverage(),
+      coverage.coveredArtifacts() == null ? null : BigDecimal.valueOf(coverage.coveredArtifacts().longValueExact()),
+      coverage.totalArtifacts() == null ? null : BigDecimal.valueOf(coverage.totalArtifacts().longValueExact()));
+    return new ProjectSummary(summary.language(), summary.deviations(), summary.flaws(), summary.smells(), normalized);
+  }
+
+  private static void validateCoverage(ProjectSummary.Coverage coverage) {
+    var score = coverage.coverage();
+    if (score != null && (!Double.isFinite(score) || score < 0 || score > 100)) {
+      throw unexpectedResponse(INVALID_PUBLIC_RESPONSE);
+    }
+    var covered = coverage.coveredArtifacts();
+    var total = coverage.totalArtifacts();
+    validateCoverageCount(covered);
+    validateCoverageCount(total);
+    if (covered != null && total != null && covered.compareTo(total) > 0) {
+      throw unexpectedResponse(INVALID_PUBLIC_RESPONSE);
+    }
+  }
+
+  private static void validateCoverageCount(@Nullable BigDecimal count) {
+    if (count == null) {
+      return;
+    }
+    try {
+      if (count.longValueExact() < 0 || count.compareTo(BigDecimal.valueOf(ArchitectureNumbers.MAX_SAFE_INTEGER)) > 0) {
+        throw unexpectedResponse(INVALID_PUBLIC_RESPONSE);
+      }
+    } catch (ArithmeticException invalid) {
+      throw unexpectedResponse(INVALID_PUBLIC_RESPONSE);
+    }
   }
 
   private static void validateCounts(@Nullable Long total, @Nullable Long first, @Nullable Long second) {
@@ -474,7 +518,7 @@ public class ArchitectureApi {
     try (var response = toBeClosed) {
       return Objects.requireNonNull(decoder.fromJson(response.bodyAsString(), type));
     } catch (RuntimeException invalid) {
-      throw new IllegalStateException("Invalid public architecture response. " + API_RESPONSE_ERROR, invalid);
+      throw new IllegalStateException(INVALID_PUBLIC_RESPONSE + " " + API_RESPONSE_ERROR, invalid);
     }
   }
 
