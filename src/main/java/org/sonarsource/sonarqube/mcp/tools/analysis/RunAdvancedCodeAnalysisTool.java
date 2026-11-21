@@ -99,7 +99,9 @@ public class RunAdvancedCodeAnalysisTool extends Tool {
 
     var scope = arguments.getEnumOrDefault(FILE_SCOPE_PROPERTY, VALID_FILE_SCOPES, "MAIN");
     var request = extractRequest(arguments, organizationKey, scope, fileContent);
-    var response = serverApi.a3sAnalysisApi().analyze(request);
+    var meta = arguments.getMeta();
+    var invocationId = meta != null && meta.get("invocation_id") instanceof String id ? id : null;
+    var response = serverApi.a3sAnalysisApi().analyze(request, invocationId);
     var toolResponse = buildStructuredContent(response);
     return Result.success(toolResponse);
   }

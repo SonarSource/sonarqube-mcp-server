@@ -19,6 +19,7 @@ package org.sonarsource.sonarqube.mcp.http;
 import java.net.URISyntaxException;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -81,6 +82,13 @@ class HttpClientAdapter implements HttpClient {
     // Long-running operations also need a response timeout beyond the client's default.
     request.setConfig(RequestConfig.copy(defaultRequestConfig).setResponseTimeout(Timeout.of(timeout)).build());
     return executeAsync(request, token, timeout);
+  }
+
+  @Override
+  public CompletableFuture<Response> postAsync(String url, String contentType, String body, Map<String, String> headers) {
+    var request = buildPostRequest(url, contentType, body);
+    headers.forEach(request::setHeader);
+    return executeAsync(request, token, operationTimeout);
   }
 
   private SimpleHttpRequest buildPostRequest(String url, String contentType, String body) {
