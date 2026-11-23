@@ -378,7 +378,7 @@ class SearchSecurityHotspotsToolTests {
 
     @SonarQubeMcpServerTest
     void it_should_return_an_error_if_the_request_fails_due_to_token_permission(SonarQubeMcpServerTestHarness harness) {
-      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project").willReturn(aResponse().withStatus(403)));
+      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?project=my-project").willReturn(aResponse().withStatus(403)));
       var mcpClient = harness.newClient();
 
       var result = mcpClient.callTool(SearchSecurityHotspotsTool.TOOL_NAME,
@@ -390,7 +390,7 @@ class SearchSecurityHotspotsToolTests {
     @SonarQubeMcpServerTest
     void it_should_fetch_hotspots_for_a_project(SonarQubeMcpServerTestHarness harness) {
       var hotspotKey = "AXJMFm6ERa2AinNL_0fP";
-      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?project=my-project&status=TO_REVIEW")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -403,11 +403,13 @@ class SearchSecurityHotspotsToolTests {
                 "components": []
               }
             """.formatted(generateHotspot(hotspotKey)).getBytes(StandardCharsets.UTF_8)))));
-      var mcpClient = harness.newClient();
+      var mcpClient = harness.newClient(Map.of("SONARQUBE_VERSION", "26.11.0.134175"));
 
       var result = mcpClient.callTool(
         SearchSecurityHotspotsTool.TOOL_NAME,
-        Map.of(SearchSecurityHotspotsTool.PROJECT_KEY_PROPERTY, "my-project"));
+        Map.of(
+          SearchSecurityHotspotsTool.PROJECT_KEY_PROPERTY, "my-project",
+          SearchSecurityHotspotsTool.STATUS_PROPERTY, "TO_REVIEW"));
 
       assertResultEquals(result, """
         {
@@ -445,7 +447,7 @@ class SearchSecurityHotspotsToolTests {
     @SonarQubeMcpServerTest
     void it_should_filter_by_pull_request(SonarQubeMcpServerTestHarness harness) {
       var hotspotKey = "AXJMFm6ERa2AinNL_0fP";
-      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project&pullRequest=123")
+      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?project=my-project&pullRequest=123")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
@@ -500,7 +502,7 @@ class SearchSecurityHotspotsToolTests {
     @SonarQubeMcpServerTest
     void it_should_ignore_blank_pull_request(SonarQubeMcpServerTestHarness harness) {
       var hotspotKey = "AXJMFm6ERa2AinNL_0fP";
-      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?projectKey=my-project")
+      harness.getMockSonarQubeServer().stubFor(get(HotspotsApi.SEARCH_PATH + "?project=my-project")
         .willReturn(aResponse().withResponseBody(
           Body.fromJsonBytes("""
             {
