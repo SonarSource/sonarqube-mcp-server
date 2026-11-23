@@ -74,6 +74,7 @@ import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
+import org.sonarsource.sonarqube.mcp.transport.PerRequestToolFilteringHandler;
 import org.sonarsource.sonarqube.mcp.transport.StdioInitializeErrorReporter;
 import org.sonarsource.sonarqube.mcp.transport.StdioServerTransportProvider;
 
@@ -208,6 +209,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
         .serverInfo(McpSchema.Implementation.builder(SONARQUBE_MCP_SERVER_NAME, mcpConfiguration.getAppVersion()).build())
         .instructions(composedInstructions)
         .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
+        .addToolFilter(PerRequestToolFilteringHandler.toolFilter(enabledTools))
         .tools(enabledTools.stream().map(this::toStatelessSpec).toArray(McpStatelessServerFeatures.SyncToolSpecification[]::new))
         .build();
     } else {

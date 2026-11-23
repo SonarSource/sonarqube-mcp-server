@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.eclipse.jetty.ee10.servlet.FilterHolder;
@@ -67,8 +68,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool.TOOL_NAME;
 
 class OAuthScopeHttpTest {
+  private static final String ENABLEMENT_FAILURE_DETAIL = "test-only enablement failure";
+
   private final AtomicInteger executions = new AtomicInteger();
   private final AtomicInteger entitlementChecks = new AtomicInteger();
+  private final AtomicBoolean failEnablementChecks = new AtomicBoolean();
   private final OAuthProtectedResourceMetadata metadata = new OAuthProtectedResourceMetadata("https://api.example.com/mcp", "https://tenant.auth0.com/");
   private final HttpClient client = HttpClient.newHttpClient();
   private Server server;
@@ -97,6 +101,7 @@ class OAuthScopeHttpTest {
       }
     };
     mcp = McpServer.sync(filtering).serverInfo("scope-tests", "1")
+      .addToolFilter(PerRequestToolFilteringHandler.toolFilter(tools))
       .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
       .tools(tools.stream().map(tool -> new McpStatelessServerFeatures.SyncToolSpecification.Builder().tool(tool.definition())
         .callHandler((context, request) -> tool.execute(new Tool.Arguments(request.arguments(), null)).toCallToolResult()).build())
@@ -205,6 +210,23 @@ class OAuthScopeHttpTest {
   }
 
   @Test
+  void it_should_return_an_opaque_discovery_failure_without_a_scope_challenge() throws Exception {
+    failEnablementChecks.set(true);
+
+    var response = send("read", "tools/list", Map.of(), Map.of());
+
+    assertThat(response.statusCode()).isEqualTo(200);
+    assertThat(response.headers().firstValue("WWW-Authenticate")).isEmpty();
+    assertThat(response.body()).doesNotContain(ENABLEMENT_FAILURE_DETAIL);
+    var rpcResponse = McpJsonMappers.DEFAULT.readValue(response.body(), McpSchema.JSONRPCResponse.class);
+    assertThat(rpcResponse.id()).isEqualTo(1);
+    assertThat(rpcResponse.result()).isNull();
+    assertThat(rpcResponse.error()).isEqualTo(new McpSchema.JSONRPCResponse.JSONRPCError(McpSchema.ErrorCodes.INTERNAL_ERROR, "Internal error", null));
+    assertThat(executions.get()).isZero();
+    assertThat(entitlementChecks.get()).isEqualTo(1);
+  }
+
+  @Test
   void it_should_apply_read_only_preference_independently_of_oauth_grants() throws Exception {
     var readOnly = send("both", "tools/list", Map.of(), Map.of("SONARQUBE_READ_ONLY", "true"));
     assertThat(readOnly.body()).contains("read_tool").doesNotContain("write_tool", TOOL_NAME);
@@ -284,6 +306,9 @@ class OAuthScopeHttpTest {
       @Override
       public boolean isEnabledFor(McpTransportContext context) {
         entitlementChecks.incrementAndGet();
+        if (failEnablementChecks.get()) {
+          throw new IllegalStateException(ENABLEMENT_FAILURE_DETAIL);
+        }
         return true;
       }
 
