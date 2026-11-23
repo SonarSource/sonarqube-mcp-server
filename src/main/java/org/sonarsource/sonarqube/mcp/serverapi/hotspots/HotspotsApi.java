@@ -83,9 +83,10 @@ public class HotspotsApi {
     }
   }
 
-  private static String buildSearchPath(SearchParams params) {
+  private String buildSearchPath(SearchParams params) {
+    var projectParamName = helper.isSonarQubeCloud() ? "projectKey" : "project";
     var builder = new UrlBuilder(SEARCH_PATH)
-      .addParam("projectKey", params.projectKey())
+      .addParam(projectParamName, params.projectKey())
       .addParam("branch", params.branch())
       .addParam("pullRequest", params.pullRequest())
       .addParam("files", params.files())
