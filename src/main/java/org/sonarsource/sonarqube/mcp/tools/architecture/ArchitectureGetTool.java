@@ -62,11 +62,9 @@ public class ArchitectureGetTool extends Tool {
 
   static final String[] LANGUAGES = ArchitectureApi.LANGUAGES.toArray(String[]::new);
   private static final String[] CATEGORIES = ArchitectureApi.FINDING_CATEGORIES.toArray(String[]::new);
-  private static final String[] CLOUD_TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS, SUMMARY};
-  private static final String[] SERVER_TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS};
+  private static final String[] TARGETS = {CURRENT, INTENDED, DIRECTIVES, FINDINGS, SUMMARY};
   private static final int MAX_DIRECTIVE_PAGE_SIZE = 50;
   private final CurrentGraphReads currentReads;
-  private final String[] targets;
 
   private final ServerApiProvider serverApiProvider;
   @Nullable
@@ -79,25 +77,20 @@ public class ArchitectureGetTool extends Tool {
   ArchitectureGetTool(ServerApiProvider serverApiProvider, boolean isSonarQubeCloud, @Nullable String configuredProjectKey, CurrentGraphReads currentReads) {
     super(definition(isSonarQubeCloud, configuredProjectKey), REGISTRATION_AVAILABILITY);
     this.currentReads = currentReads;
-    this.targets = targets(isSonarQubeCloud);
     this.serverApiProvider = serverApiProvider;
     this.configuredProjectKey = configuredProjectKey;
-  }
-
-  private static String[] targets(boolean cloud) {
-    return cloud ? CLOUD_TARGETS : SERVER_TARGETS;
   }
 
   private static McpSchema.Tool definition(boolean isSonarQubeCloud, @Nullable String configuredProjectKey) {
     var builder = (isSonarQubeCloud ? ToolDefinitionBuilder.cloudBuilder() : ToolDefinitionBuilder.builder())
       .setName(TOOL_NAME)
       .setTitle("Get Architecture")
-      .setDescription("Read current graphs, intended architecture, directives or findings" + (isSonarQubeCloud ? " and summary counts." : "."))
-      .addRequiredEnumProperty(TARGET_PROPERTY, targets(isSonarQubeCloud),
+      .setDescription("Read current graphs, intended architecture, directives or findings and summary counts.")
+      .addRequiredEnumProperty(TARGET_PROPERTY, TARGETS,
         "current: dependencies; intended: model; directives: project directives (directiveId); "
-          + "findings: deviations, flaws and smells (category, type, language)"
-          + (isSonarQubeCloud ? "; summary: finding counts and available coverage per language (main branch)" : "")
-          + "; pageIndex/pageSize apply to directives and findings or current from/to queries.")
+          + "findings: deviations, flaws and smells (category, type, language); "
+          + "summary: finding counts and available coverage per language (main branch); "
+          + "pageIndex/pageSize apply to directives and findings or current from/to queries.")
       .addStringProperty(FROM_PROPERTY, "Current only: source key including descendants; requires to, excludes component.")
       .addStringProperty(TO_PROPERTY, "Current only: destination key including descendants; requires from.")
       .addProjectKeyProperty(ToolParameters.PROJECT_KEY, configuredProjectKey)
@@ -118,7 +111,7 @@ public class ArchitectureGetTool extends Tool {
 
   @Override
   public Result execute(Arguments arguments) {
-    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, targets);
+    var target = arguments.getEnumOrThrow(TARGET_PROPERTY, TARGETS);
     var projectKey = arguments.getProjectKeyWithFallback(ToolParameters.PROJECT_KEY, configuredProjectKey);
     var component = arguments.getOptionalString(COMPONENT_PROPERTY);
     var depth = arguments.getOptionalInteger(DEPTH_PROPERTY);

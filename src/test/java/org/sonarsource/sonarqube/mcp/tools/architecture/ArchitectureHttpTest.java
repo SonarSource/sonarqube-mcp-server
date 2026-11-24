@@ -268,6 +268,16 @@ class ArchitectureHttpTest {
           .willReturn(okJson("{\"findings\":[],\"page\":{\"pageIndex\":1,\"pageSize\":50,\"total\":0}}")));
         assertThat(send(client, port, suffix, true, "tools/call", Map.of("name", "architecture_get", "arguments",
           Map.of("target", "findings", "projectKey", "my_project")))).contains("findings").doesNotContain("isError\":true");
+        var language = suffix.equals("a") ? "java" : "py";
+        var otherLanguage = suffix.equals("a") ? "py" : "java";
+        harness.getMockSonarQubeServer().stubFor(get("/api/v2/architecture/project-summaries?" + findingsScope)
+          .withHeader("Authorization", equalTo("Bearer token-" + suffix))
+          .willReturn(okJson("{\"projectSummaries\":[{\"language\":\"" + language + "\","
+            + "\"deviations\":{\"total\":0,\"structuralDeviation\":0,\"relationshipDeviation\":0},\"flaws\":{\"total\":0,\"tangle\":0,"
+            + "\"oversizedComponent\":0},\"smells\":{\"total\":0,\"weakTangle\":0,\"splitResponsibility\":0}}]}")));
+        assertThat(send(client, port, suffix, true, "tools/call", Map.of("name", "architecture_get", "arguments",
+          Map.of("target", "summary", "projectKey", "my_project"))))
+          .contains("\\\"" + language + "\\\"").doesNotContain("isError\":true", "\\\"" + otherLanguage + "\\\"");
       }
       assertThat(harness.getMockSonarQubeServer().getReceivedBodies("DELETE", "/api/v2/architecture/")).isEmpty();
       assertThat(response).contains("architecture_get", "architecture_set");
@@ -275,7 +285,7 @@ class ArchitectureHttpTest {
       var read = tools.asList().stream().map(com.google.gson.JsonElement::getAsJsonObject)
         .filter(tool -> tool.get("name").getAsString().equals("architecture_get")).findFirst().orElseThrow();
       assertThat(read.getAsJsonObject("inputSchema").getAsJsonObject("properties").getAsJsonObject("target").getAsJsonArray("enum"))
-        .hasToString("[\"current\",\"intended\",\"directives\",\"findings\"]");
+        .hasToString("[\"current\",\"intended\",\"directives\",\"findings\",\"summary\"]");
     } finally {
       server.shutdown();
     }
