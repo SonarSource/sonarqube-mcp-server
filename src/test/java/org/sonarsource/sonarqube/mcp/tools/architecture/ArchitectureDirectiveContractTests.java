@@ -108,7 +108,7 @@ class ArchitectureDirectiveContractTests {
     var serverRead = serverTools.stream().filter(tool -> tool.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     var serverProperties = (Map<String, Map<String, Object>>) serverRead.inputSchema().get("properties");
     assertThat(serverProperties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "pageIndex", "pageSize", "type", "category", "from", "to");
-    assertThat(serverProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
+    assertThat(serverProperties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings", "summary"));
     assertThat(serverRead.inputSchema()).containsEntry("required", List.of("target", "projectKey")).containsEntry("additionalProperties", false);
     assertThat(serverRead.annotations().readOnlyHint()).isTrue();
     assertThat(serverRead.annotations().openWorldHint()).isTrue();
