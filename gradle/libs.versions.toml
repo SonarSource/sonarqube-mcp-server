@@ -1,7 +1,7 @@
 [versions]
 sonarlint-core = "12.4.0.88193"
 
-sonarqube = "7.6.0.18749"
+sonarqube = "7.5.0.8588"
 
 spotless = "8.11.0"
 artifactory-plugin = "6.0.5"
