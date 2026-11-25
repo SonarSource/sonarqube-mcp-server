@@ -93,8 +93,7 @@ public sealed interface ProjectFinding {
     return switch (type) {
       case "structuralDeviation", "relationshipDeviation", "assertionDeviation" -> "deviation";
       case "tangle", "oversizedComponent" -> "flaw";
-      case "weakTangle", "splitResponsibility" -> "smell";
-      default -> throw new IllegalArgumentException("Unknown finding type " + type + ".");
+      default -> "smell";
     };
   }
 }
