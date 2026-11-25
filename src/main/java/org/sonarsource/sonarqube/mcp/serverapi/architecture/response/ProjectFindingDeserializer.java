@@ -24,6 +24,7 @@ import jakarta.annotation.Nullable;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Objects;
+import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding.AssertionDetails;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding.ComponentDetails;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding.Details;
 import org.sonarsource.sonarqube.mcp.serverapi.architecture.response.ProjectFinding.Finding;
@@ -43,6 +44,7 @@ public final class ProjectFindingDeserializer implements JsonDeserializer<Projec
     var detailsType = switch (type) {
       case "structuralDeviation" -> StructuralDetails.class;
       case "relationshipDeviation" -> RelationshipDetails.class;
+      case "assertionDeviation" -> AssertionDetails.class;
       case "tangle", "weakTangle" -> TangleDetails.class;
       case "oversizedComponent", "splitResponsibility" -> ComponentDetails.class;
       default -> null;
@@ -84,6 +86,8 @@ public final class ProjectFindingDeserializer implements JsonDeserializer<Projec
       case null -> false;
       case StructuralDetails value -> value.nodeKey() != null;
       case RelationshipDetails value -> value.fromNodeKey() != null && value.toNodeKey() != null;
+      case AssertionDetails(var assertionName, var fromNodeKey, var toNodeKey, var dependencyCount) -> assertionName != null && fromNodeKey != null
+        && toNodeKey != null && dependencyCount != null && dependencyCount.signum() > 0;
       case TangleDetails(var nodeKeys, var nodeCount) -> nodeCount != null && isCompleteList(nodeKeys);
       case ComponentDetails value -> value.nodeKey() != null;
     };

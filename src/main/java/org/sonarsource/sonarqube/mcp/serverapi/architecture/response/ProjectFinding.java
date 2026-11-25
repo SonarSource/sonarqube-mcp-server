@@ -51,6 +51,12 @@ public sealed interface ProjectFinding {
     }
   }
 
+  record AssertionDetails(String assertionName, String fromNodeKey, String toNodeKey, @Nullable BigDecimal dependencyCount) implements Details {
+    public AssertionDetails {
+      dependencyCount = integerCount(dependencyCount);
+    }
+  }
+
   record TangleDetails(List<String> nodeKeys, BigDecimal nodeCount) implements Details {
     public TangleDetails {
       nodeCount = integerCount(nodeCount);
@@ -85,7 +91,7 @@ public sealed interface ProjectFinding {
 
   static String categoryOf(String type) {
     return switch (type) {
-      case "structuralDeviation", "relationshipDeviation" -> "deviation";
+      case "structuralDeviation", "relationshipDeviation", "assertionDeviation" -> "deviation";
       case "tangle", "oversizedComponent" -> "flaw";
       default -> "smell";
     };
