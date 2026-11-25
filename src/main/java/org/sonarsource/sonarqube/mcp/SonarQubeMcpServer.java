@@ -69,8 +69,6 @@ import org.sonarsource.sonarqube.mcp.tools.ToolDefinitionBuilder;
 import org.sonarsource.sonarqube.mcp.tools.ToolParameters;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.ListAgenticReadinessAssessmentsTool;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
 import org.sonarsource.sonarqube.mcp.transport.HttpTransportSettings;
@@ -349,9 +347,6 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     if (mcpConfiguration.getProjectKey() == null) {
       composedInstructions += "\n" + PROJECT_KEY_INSTRUCTIONS;
-    }
-    if (toolCatalog.enabledTools().stream().anyMatch(ArchitectureGetTool.class::isInstance)) {
-      composedInstructions += ArchitectureTools.INSTRUCTIONS;
     }
     if ((capabilities.vortexProxy() || capabilities.vortexAnalysis()) && !mcpConfiguration.isToolCategoryEnabled(ToolCategory.VORTEX)) {
       LOG.warn("Vortex tools registered via the deprecated 'cag'/'analysis' toolset name(s) - consider adding 'vortex' to SONARQUBE_TOOLSETS instead.");
