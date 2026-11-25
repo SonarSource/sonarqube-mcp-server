@@ -46,6 +46,10 @@ import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtu
 import static org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureFixtures.textOf;
 
 class ArchitectureSetToolTests {
+  // Constraints cannot name children of an imported pattern, so the imported variants start without one.
+  private static final String IMPORTED_JAVA_MODEL_BASE = INTENDED_JAVA_MODEL.replace(
+    "\"constraints\": [ { \"from\": \"app/web\", \"to\": \"app/domain\" } ]", "\"constraints\": [ ]");
+
   private static final String COLLIDING_CONSTRAINT_MODEL = """
     [{"id":"11111111-1111-4111-8111-111111111111","type":"namespace","language":"java","groups":[{"label":"A -> B"},{"label":"C"},{"label":"A"},{"label":"B -> C"}],
     "constraints":[{"from":"A -> B","to":"C"}]}]""";
@@ -271,13 +275,13 @@ class ArchitectureSetToolTests {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_accept_group_patterns_in_a_whole_export_dry_run(SonarQubeMcpServerTestHarness harness) {
+  void it_should_reject_a_wildcard_endpoint_in_a_whole_export_dry_run(SonarQubeMcpServerTestHarness harness) {
+    stored(harness, INTENDED_JAVA_MODEL);
     var models = INTENDED_JAVA_MODEL.replace("\"from\": \"app/web\"", "\"from\": \"app/*\"");
-    stored(harness, models);
-    var exportedRevision = IntendedRevision.of(IntendedModels.parse(models));
+    var exportedRevision = IntendedRevision.of(IntendedModels.parse(INTENDED_JAVA_MODEL));
     var result = set(harness, "{\"revision\":\"" + exportedRevision + "\",\"models\":" + models + "}", true, null);
-    assertThat(result.isError()).isFalse();
-    assertThat(textOf(result)).contains("dry-run");
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("Constraint endpoint 'app/*' of java does not name a unique group.");
     assertWrites(harness, 0, 0);
   }
 
@@ -302,16 +306,30 @@ class ArchitectureSetToolTests {
   }
 
   @Test
-  void it_should_accept_public_constraint_strings_and_reject_duplicate_constraints() {
-    for (var endpoint : new String[] {"app/web", "app/*"}) {
-      var models = JsonParser.parseString(INTENDED_JAVA_MODEL).getAsJsonArray();
-      models.get(0).getAsJsonObject().getAsJsonArray("constraints").get(0).getAsJsonObject().addProperty("from", endpoint);
-      assertThat(IntendedModels.invalidReason(IntendedModels.parse(models.toString()))).isNull();
-    }
-    var models = JsonParser.parseString(INTENDED_JAVA_MODEL.replace("\"from\": \"app/web\"", "\"from\": \"app/*\"")).getAsJsonArray();
+  void it_should_accept_exact_sibling_endpoints_and_reject_duplicate_constraints() {
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(INTENDED_JAVA_MODEL))).isNull();
+    var models = JsonParser.parseString(INTENDED_JAVA_MODEL).getAsJsonArray();
     var constraints = models.get(0).getAsJsonObject().getAsJsonArray("constraints");
     constraints.add(constraints.get(0).deepCopy());
     assertThat(IntendedModels.invalidReason(IntendedModels.parse(models.toString()))).contains("appears more than once");
+  }
+
+  @Test
+  void it_should_accept_top_level_siblings_and_reject_constraints_across_levels() {
+    var twoTopLevel = "[{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{\"label\":\"app\",\"groups\":[{\"label\":\"web\"}]},"
+      + "{\"label\":\"lib\"}],\"constraints\":[%s]}]";
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(twoTopLevel.formatted("{\"from\":\"app\",\"to\":\"lib\"}")))).isNull();
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(twoTopLevel.formatted("{\"from\":\"app/web\",\"to\":\"lib\"}"))))
+      .contains("Constraint app/web -> lib of java must link sibling groups.");
+  }
+
+  @Test
+  void it_should_reject_endpoints_inside_an_imported_pattern() {
+    var model = "[{\"type\":\"namespace\",\"language\":\"java\",\"groups\":[{\"label\":\"shared\","
+      + "\"patternId\":\"11111111-1111-4111-8111-111111111111\",\"groups\":[{\"label\":\"a\"},{\"label\":\"b\"}]}],"
+      + "\"constraints\":[{\"from\":\"shared/a\",\"to\":\"shared/b\"}]}]";
+    assertThat(IntendedModels.invalidReason(IntendedModels.parse(model)))
+      .contains("Constraint endpoint 'shared/a' of java is inside the imported pattern of 'shared'; name 'shared' instead.");
   }
 
   @Test
@@ -444,7 +462,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_round_trip_an_unchanged_imported_expansion(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = IMPORTED_JAVA_MODEL_BASE.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     stored(harness, before);
     var read = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
     for (var dryRun : List.of(true, false)) {
@@ -457,7 +475,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_edit_a_sibling_while_preserving_an_imported_expansion(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"description\":\"Imported group\",\"label\": \"app\"");
+    var before = IMPORTED_JAVA_MODEL_BASE.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"description\":\"Imported group\",\"label\": \"app\"");
     stored(harness, before);
     var read = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
     var exported = JsonParser.parseString(textOf(read)).getAsJsonObject();
@@ -480,7 +498,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_report_stale_revisions_before_imported_content_edits(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = IMPORTED_JAVA_MODEL_BASE.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     stored(harness, before);
     var result = set(harness, before.replace("app:com.acme.domain.**", "ignored:**"), true, "stale");
     assertThat(result.isError()).isTrue();
@@ -490,7 +508,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_restore_writable_recovery_fields_after_an_imported_pattern_changes(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = IMPORTED_JAVA_MODEL_BASE.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     stored(harness, before);
     harness.getMockSonarQubeServer().stubFor(patch(MODEL_PATH).willReturn(aResponse().withStatus(500)));
     var failure = set(harness, withoutImportedChildren(before).replace("app:**", "proposed:**"), false, null);
@@ -538,7 +556,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_refuse_edits_to_an_imported_expansion_without_writing(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = IMPORTED_JAVA_MODEL_BASE.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     stored(harness, before);
     var next = before.replace("app:com.acme.domain.**", "ignored:**");
     for (var dryRun : List.of(true, false)) {
@@ -619,7 +637,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_verify_a_changed_import_link_using_its_writable_fields(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
+    var before = IMPORTED_JAVA_MODEL_BASE.replace("\"label\": \"app\"", "\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     var next = withoutImportedChildren(before).replace("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444");
     var resolved = before.replace("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444")
       .replace("app:com.acme.domain.**", "resolved:new.**");
@@ -633,7 +651,7 @@ class ArchitectureSetToolTests {
 
   @SonarQubeMcpServerTest
   void it_should_preserve_public_metadata_and_apply_metadata_only_changes(SonarQubeMcpServerTestHarness harness) {
-    var before = INTENDED_JAVA_MODEL.replace("\"type\": \"namespace\"", "\"label\":\"Perspective\",\"description\":\"Before\",\"type\": \"namespace\"")
+    var before = IMPORTED_JAVA_MODEL_BASE.replace("\"type\": \"namespace\"", "\"label\":\"Perspective\",\"description\":\"Before\",\"type\": \"namespace\"")
       .replace("\"label\": \"app\"", "\"description\":\"Group description\",\"patternId\":\"33333333-3333-4333-8333-333333333333\",\"label\": \"app\"");
     var next = withoutImportedChildren(before).replace("Before", "After");
     stored(harness, before);
