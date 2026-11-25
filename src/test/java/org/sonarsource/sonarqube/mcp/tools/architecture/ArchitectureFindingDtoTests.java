@@ -38,6 +38,8 @@ class ArchitectureFindingDtoTests {
       + ",\"details\":{\"reason\":\"misplacedComponent\",\"nodeKey\":\"app:web\",\"misplacedComponentCount\":2}}",
     "{\"type\":\"relationshipDeviation\",\"category\":\"deviation\",\"language\":\"java\""
       + ",\"details\":{\"reason\":\"disallowedDependency\",\"fromNodeKey\":\"app:web\",\"toNodeKey\":\"app:db\",\"dependencyCount\":3}}",
+    "{\"type\":\"assertionDeviation\",\"category\":\"deviation\",\"language\":\"java\""
+      + ",\"details\":{\"assertionName\":\"no-web-to-db\",\"fromNodeKey\":\"app:web\",\"toNodeKey\":\"app:db\",\"dependencyCount\":1}}",
     "{\"type\":\"tangle\",\"category\":\"flaw\",\"language\":\"java\",\"details\":{\"nodeKeys\":[\"a\",\"b\"],\"nodeCount\":2}}",
     "{\"type\":\"weakTangle\",\"category\":\"smell\",\"language\":\"ts\",\"details\":{\"nodeKeys\":[\"a\",\"b\"],\"nodeCount\":2}}",
     "{\"type\":\"oversizedComponent\",\"category\":\"flaw\",\"language\":\"java\",\"details\":{\"nodeKey\":\"app\",\"leafArtifactCount\":10}}",
@@ -48,7 +50,7 @@ class ArchitectureFindingDtoTests {
     expected.add("files", JsonParser.parseString("[\"src/App.java\"]"));
     var payload = expected.deepCopy();
     var details = payload.getAsJsonObject("details");
-    for (var field : new String[] {"reason", "nodeKey", "fromNodeKey", "toNodeKey", "nodeKeys", "nodeCount", "misplacedComponentCount",
+    for (var field : new String[] {"reason", "assertionName", "nodeKey", "fromNodeKey", "toNodeKey", "nodeKeys", "nodeCount", "misplacedComponentCount",
       "dependencyCount", "leafArtifactCount", "fragmentCount"}) {
       if (!details.has(field)) {
         details.add(field, JsonNull.INSTANCE);
@@ -80,6 +82,28 @@ class ArchitectureFindingDtoTests {
     assertThat(finding.supported()).isFalse();
     assertThat(finding).extracting(ProjectFinding::type, ProjectFinding::category, ProjectFinding::language)
       .containsExactly(type, "deviation", "java");
+  }
+
+  @ParameterizedTest
+  @CsvSource(delimiter = '|', value = {"dependencyCount|0", "dependencyCount|-1", "dependencyCount|1.5", "dependencyCount|null",
+    "assertionName|null", "fromNodeKey|null", "toNodeKey|null"})
+  void it_should_reject_invalid_assertion_details(String field, String value) {
+    var finding = JsonParser.parseString("""
+      {"type":"assertionDeviation","category":"deviation","language":"java",
+        "details":{"assertionName":"no-web-to-db","fromNodeKey":"app:web","toNodeKey":"app:db","dependencyCount":1},"files":[]}
+      """).getAsJsonObject();
+    finding.getAsJsonObject("details").add(field, JsonParser.parseString(value));
+    assertThatThrownBy(() -> gson.fromJson(finding, ProjectFinding.class)).isInstanceOf(RuntimeException.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"flaw", "smell"})
+  void it_should_reject_an_assertion_deviation_outside_the_deviation_category(String category) {
+    var json = """
+      {"type":"assertionDeviation","category":"%s","language":"java",
+        "details":{"assertionName":"a","fromNodeKey":"app:web","toNodeKey":"app:db","dependencyCount":1},"files":[]}
+      """.formatted(category);
+    assertThatThrownBy(() -> gson.fromJson(json, ProjectFinding.class)).hasRootCauseMessage("Invalid public finding category.");
   }
 
   @ParameterizedTest

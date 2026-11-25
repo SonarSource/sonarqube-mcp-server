@@ -62,6 +62,21 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
+  void it_should_read_assertion_deviations_and_omit_them_when_the_server_does_not_report_them() {
+    stubMainBranch(harness);
+    var withAssertions = SUMMARY.replace("\"total\":3", "\"total\":4")
+      .replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":2,\"assertionDeviation\":1");
+    var pythonWithout = SUMMARY.replace("\"java\"", "\"py\"");
+    harness.getMockSonarQubeServer().stubFor(get(PATH).willReturn(okJson("{\"projectSummaries\":[" + withAssertions + "," + pythonWithout + "]}")));
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    var summaries = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("summaries");
+    assertThat(summaries.get(0)).isEqualTo(JsonParser.parseString(withAssertions));
+    assertThat(summaries.get(1)).isEqualTo(JsonParser.parseString(pythonWithout));
+    assertThat(summaries.get(1).getAsJsonObject().getAsJsonObject("deviations").has("assertionDeviation")).isFalse();
+  }
+
+  @Test
   void it_should_return_combined_counts_without_inventing_a_cross_language_score() {
     stubMainBranch(harness);
     var javaRow = SUMMARY.replaceFirst("\\}$", ",\"coverage\":{\"coverage\":50,\"coveredArtifacts\":1,\"totalArtifacts\":2}}");
@@ -203,11 +218,15 @@ class ArchitectureSummaryToolTests {
         .replace("\"structuralDeviation\":1", "\"structuralDeviation\":9007199254740992")
         .replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":0") + "]}",
       "{\"projectSummaries\":[" + SUMMARY + "," + SUMMARY + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":2,\"assertionDeviation\":null") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":2,\"assertionDeviation\":-1") + "]}",
+      "{\"projectSummaries\":[" + SUMMARY.replace("\"relationshipDeviation\":2", "\"relationshipDeviation\":2,\"assertionDeviation\":\"1\"") + "]}",
       "{}", "{\"projectSummaries\":[null]}", "{\"projectSummaries\":[{\"language\":\"java\"}]}");
     var expected = List.of("Invalid public architecture response", "Invalid public architecture response",
       "Invalid or inconsistent project summary counts", "Invalid public architecture response",
       "Invalid or inconsistent project summary counts", "Invalid public architecture response",
-      "Invalid public architecture response", "Invalid project summary language", "Invalid project summaries",
+      "Invalid public architecture response", "Invalid project summary language", "Invalid public architecture response",
+      "Invalid public architecture response", "Invalid public architecture response", "Invalid project summaries",
       "Invalid project summary language", "Invalid project summary counts");
     return IntStream.range(0, responses.size()).mapToObj(i -> Arguments.of(responses.get(i), expected.get(i)));
   }
