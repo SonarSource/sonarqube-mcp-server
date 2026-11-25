@@ -38,7 +38,7 @@ private static final ToolAvailability REGISTRATION_AVAILABILITY = ToolAvailabili
 
 The catalog checks each instance's `availability().isAvailable(...)` for startup transport and capability requirements. Use the `register(REGISTRATION_AVAILABILITY, () -> new FooTool(...))` overload only when construction requires dependencies that may be absent; it checks availability before invoking the factory. Make the constant public only when another package needs to check it before construction or proxy startup. The catalog constructor produces the supported tools and the enabled subset after category and read-only filtering. A match on any category enables a tool; `projects` remains always enabled. Default transports are declared beside each `ToolCategory` key: omitted transports mean opt-in, and agentic readiness defaults to stdio only. These are selection defaults, not transport support restrictions. Keep existing aliases and defaults intact.
 
-Proxy startup and shutdown belong to `SonarQubeMcpServer`, which supplies discovered tools to the catalog and composes server instructions. Keep feature workflow text beside the feature, as in `ArchitectureTools.INSTRUCTIONS` and `StartAgenticReadinessAssessmentTool.INSTRUCTIONS`.
+Proxy startup and shutdown belong to `SonarQubeMcpServer`, which supplies discovered tools to the catalog and composes server instructions. Keep feature workflow text beside the feature, as in `StartAgenticReadinessAssessmentTool.INSTRUCTIONS`.
 
 Startup registration and caller authorization are separate. Retain HTTP request filtering, OAuth scope enforcement, and execution-time entitlement checks for the selected organization. A startup entitlement cannot authorize an HTTP caller.
 

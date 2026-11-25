@@ -595,6 +595,7 @@ class SonarQubeMcpServerGenericTest {
     var server = new SonarQubeMcpServer(environment);
     server.start();
 
+    assertThat(server.getSupportedTools()).anyMatch(ArchitectureGetTool.class::isInstance);
     assertThat(server.getComposedInstructions()).doesNotContain("## Architecture");
 
     server.shutdown();
