@@ -54,7 +54,8 @@ public class ArchitectureApi {
   public static final String PROJECT_SUMMARIES_PATH = "/architecture/project-summaries";
   public static final String PROJECT_FINDINGS_PATH = "/architecture/project-findings";
   public static final List<String> FINDING_CATEGORIES = List.of("deviation", "flaw", "smell");
-  public static final List<String> FINDING_TYPES = List.of("structuralDeviation", "relationshipDeviation", "assertionDeviation", "tangle", "oversizedComponent", "weakTangle", "splitResponsibility");
+  public static final List<String> FINDING_TYPES = List.of("structuralDeviation", "relationshipDeviation", "assertionDeviation", "tangle",
+    "oversizedComponent", "weakTangle", "splitResponsibility");
   public static final String SERVER_API_PREFIX = "/api/v2";
   private static final String PROJECT_ID_PARAM = "projectId";
   private static final String ORGANIZATION_ID_PARAM = "organizationId";

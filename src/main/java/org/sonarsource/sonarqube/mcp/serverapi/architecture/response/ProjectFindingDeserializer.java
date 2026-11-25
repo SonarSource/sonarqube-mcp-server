@@ -86,8 +86,8 @@ public final class ProjectFindingDeserializer implements JsonDeserializer<Projec
       case null -> false;
       case StructuralDetails value -> value.nodeKey() != null;
       case RelationshipDetails value -> value.fromNodeKey() != null && value.toNodeKey() != null;
-      case AssertionDetails value -> value.assertionName() != null && value.fromNodeKey() != null && value.toNodeKey() != null
-        && value.dependencyCount() != null && value.dependencyCount().signum() > 0;
+      case AssertionDetails(var assertionName, var fromNodeKey, var toNodeKey, var dependencyCount) -> assertionName != null && fromNodeKey != null
+        && toNodeKey != null && dependencyCount != null && dependencyCount.signum() > 0;
       case TangleDetails(var nodeKeys, var nodeCount) -> nodeCount != null && isCompleteList(nodeKeys);
       case ComponentDetails value -> value.nodeKey() != null;
     };
