@@ -315,23 +315,36 @@ final class IntendedModels {
 
   private static void checkConstraintEndpoints(String language, IntendedArchitecture.Constraint constraint, Map<String, Integer> endpointCounts,
     List<String> importedKeys, List<String> problems) {
+    var endpointProblems = new ArrayList<String>();
     for (var endpoint : List.of(constraint.from(), constraint.to())) {
-      if (!knownConstraintEnd(endpoint, endpointCounts, importedKeys)) {
-        problems.add("Constraint endpoint '" + endpoint + LANGUAGE_SEPARATOR + language + " does not name a unique group.");
+      var problem = endpointProblem(language, endpoint, endpointCounts, importedKeys);
+      if (problem != null) {
+        endpointProblems.add(problem);
       }
     }
-    if (constraint.from().equals(constraint.to()) && !constraint.from().contains("*") && !constraint.from().contains("?")) {
+    problems.addAll(endpointProblems);
+    if (endpointProblems.isEmpty() && !parentKey(constraint.from()).equals(parentKey(constraint.to()))) {
+      problems.add("Constraint " + describe(constraint) + " of " + language + " must link sibling groups.");
+    }
+    if (constraint.from().equals(constraint.to())) {
       problems.add("Constraint " + describe(constraint) + " of " + language + " refers to itself.");
     }
   }
 
-  private static boolean knownConstraintEnd(String endpoint, Map<String, Integer> keys, List<String> importedKeys) {
-    // Wildcard selectors and server-resolved imported descendants keep their public semantics.
-    if (keys.containsKey(endpoint)) {
-      return keys.get(endpoint) == 1;
+  // The public API resolves endpoints as exact group keys and rejects children of imported patterns.
+  @Nullable
+  private static String endpointProblem(String language, String endpoint, Map<String, Integer> keys, List<String> importedKeys) {
+    var imported = importedKeys.stream().filter(key -> endpoint.startsWith(key + "/")).findFirst();
+    if (imported.isPresent()) {
+      return "Constraint endpoint '" + endpoint + LANGUAGE_SEPARATOR + language + " is inside the imported pattern of '" + imported.get()
+        + "'; name '" + imported.get() + "' instead.";
     }
-    return endpoint.contains("*") || endpoint.contains("?")
-      || importedKeys.stream().anyMatch(key -> endpoint.startsWith(key + "/"));
+    return Integer.valueOf(1).equals(keys.get(endpoint)) ? null : ("Constraint endpoint '" + endpoint + LANGUAGE_SEPARATOR + language + " does not name a unique group.");
+  }
+
+  private static String parentKey(String key) {
+    var end = key.lastIndexOf('/');
+    return end < 0 ? "" : key.substring(0, end);
   }
 
   private static List<String> importedKeys(List<IntendedArchitecture.Group> groups, String prefix) {
