@@ -48,6 +48,8 @@ class ArchitectureFindingsToolTests {
   private static final String SCOPE = "?organizationId=" + CLOUD_ORGANIZATION_ID + "&branchId=" + MAIN_BRANCH_ID;
   private static final String DEVIATION = "{\"type\":\"structuralDeviation\",\"category\":\"deviation\",\"language\":\"java\","
       + "\"details\":{\"reason\":\"misplacedComponent\",\"nodeKey\":\"app:web\",\"misplacedComponentCount\":2},\"files\":[\"src/App.java\"]}";
+  private static final String ASSERTION = "{\"type\":\"assertionDeviation\",\"category\":\"deviation\",\"language\":\"java\",\"details\":"
+    + "{\"assertionName\":\"no-web-to-db\",\"fromNodeKey\":\"app:web\",\"toNodeKey\":\"app:db\",\"dependencyCount\":1},\"files\":[\"src/App.java\"]}";
 
   @RegisterExtension
   final SonarQubeMcpServerTestHarness harness = new SonarQubeMcpServerTestHarness();
@@ -62,6 +64,7 @@ class ArchitectureFindingsToolTests {
       + "\"fromNodeKey\":\"app:web\",\"toNodeKey\":\"app:db\",\"dependencyCount\":3},\"files\":[\"src/App.java\"]}",
     "{\"type\":\"relationshipDeviation\",\"category\":\"deviation\",\"language\":\"java\",\"details\":{\"reason\":\"interfaceViolation\","
       + "\"fromNodeKey\":\"app:web\",\"toNodeKey\":\"app:db\"},\"files\":[\"src/App.java\"]}",
+    ASSERTION,
     "{\"type\":\"tangle\",\"category\":\"flaw\",\"language\":\"java\",\"details\":{\"nodeKeys\":[\"a\",\"b\"],\"nodeCount\":2},\"files\":[\"src/App.java\"]}",
     "{\"type\":\"oversizedComponent\",\"category\":\"flaw\",\"language\":\"java\",\"details\":{\"nodeKey\":\"app\",\"leafArtifactCount\":10},\"files\":[\"src/App.java\"]}",
     "{\"type\":\"weakTangle\",\"category\":\"smell\",\"language\":\"java\",\"details\":{\"nodeKeys\":[\"a\",\"b\"],\"nodeCount\":2},\"files\":[\"src/App.java\"]}",
@@ -87,6 +90,39 @@ class ArchitectureFindingsToolTests {
     assertThat(result.isError()).isFalse();
     var output = JsonParser.parseString(textOf(result)).getAsJsonObject();
     assertThat(output.getAsJsonArray("findings")).hasSize(2);
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true,type=assertionDeviation", "false,type=assertionDeviation", "true,category=deviation", "false,category=deviation",
+    "true,category=deviation&type=assertionDeviation", "false,category=deviation&type=assertionDeviation"})
+  void it_should_return_assertion_deviations_for_their_type_and_category(boolean cloud, String query) {
+    stubMainBranch(harness);
+    var typeFilter = query.contains("type=");
+    var organization = cloud ? CLOUD_ORGANIZATION_ID : ArchitectureApi.SERVER_ORGANIZATION_ID;
+    var path = (cloud ? "" : ArchitectureApi.SERVER_API_PREFIX) + PATH + "?organizationId=" + organization
+      + "&branchId=" + MAIN_BRANCH_ID + "&" + query + "&pageIndex=1&pageSize=50";
+    var rows = typeFilter ? ASSERTION : (ASSERTION + "," + DEVIATION);
+    harness.getMockSonarQubeServer().stubFor(get(path).willReturn(okJson(page(rows, 1, 50, typeFilter ? 1 : 2))));
+    var arguments = new HashMap<String, Object>(Map.of("target", "findings", "projectKey", "my_project"));
+    for (var filter : query.split("&")) {
+      var parts = filter.split("=");
+      arguments.put(parts[0], parts[1]);
+    }
+    var result = harness.newClient(cloud ? CLOUD_ENV : Map.of()).callTool(ArchitectureGetTool.TOOL_NAME, arguments);
+    assertThat(result.isError()).as(textOf(result)).isFalse();
+    var findings = JsonParser.parseString(textOf(result)).getAsJsonObject().getAsJsonArray("findings");
+    assertThat(findings).hasSize(typeFilter ? 1 : 2);
+    assertThat(findings.get(0)).isEqualTo(JsonParser.parseString(ASSERTION));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"flaw", "smell"})
+  void it_should_reject_assertion_deviations_with_another_category_before_requests(String category) {
+    var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
+      Map.of("target", "findings", "projectKey", "my_project", "category", category, "type", "assertionDeviation"));
+    assertThat(result.isError()).isTrue();
+    assertThat(textOf(result)).contains("belongs to category deviation, not " + category);
+    assertThat(harness.getMockSonarQubeServer().getReceivedBodies("GET", PATH)).isEmpty();
   }
 
   @Test
@@ -200,7 +236,10 @@ class ArchitectureFindingsToolTests {
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":2.5"),
       DEVIATION.replace("\"misplacedComponentCount\":2", "\"misplacedComponentCount\":\"invalid\""),
       DEVIATION.replace("\"src/App.java\"", "{}"),
-      DEVIATION.replace("\"src/App.java\"", "null"));
+      DEVIATION.replace("\"src/App.java\"", "null"),
+      ASSERTION.replace("deviation\"", "smell\""),
+      ASSERTION.replace("\"dependencyCount\":1", "\"dependencyCount\":0"),
+      ASSERTION.replace("\"dependencyCount\":1", "\"dependencyCount\":1.5"));
   }
 
   @ParameterizedTest
@@ -228,7 +267,10 @@ class ArchitectureFindingsToolTests {
     "true,relationshipDeviation,toNodeKey", "false,relationshipDeviation,toNodeKey",
     "true,tangle,nodeKeys", "false,tangle,nodeKeys", "true,tangle,nodeCount", "false,tangle,nodeCount",
     "true,weakTangle,nodeKeys", "false,weakTangle,nodeKeys", "true,weakTangle,nodeCount", "false,weakTangle,nodeCount",
-    "true,oversizedComponent,nodeKey", "false,oversizedComponent,nodeKey", "true,splitResponsibility,nodeKey", "false,splitResponsibility,nodeKey"})
+    "true,oversizedComponent,nodeKey", "false,oversizedComponent,nodeKey", "true,splitResponsibility,nodeKey", "false,splitResponsibility,nodeKey",
+    "true,assertionDeviation,assertionName", "false,assertionDeviation,assertionName", "true,assertionDeviation,fromNodeKey",
+    "false,assertionDeviation,fromNodeKey", "true,assertionDeviation,toNodeKey", "false,assertionDeviation,toNodeKey",
+    "true,assertionDeviation,dependencyCount", "false,assertionDeviation,dependencyCount"})
   void it_should_reject_missing_or_null_required_details(boolean cloud, String type, String field) {
     stubMainBranch(harness);
     var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
@@ -251,7 +293,8 @@ class ArchitectureFindingsToolTests {
   @ParameterizedTest
   @CsvSource({"true,structuralDeviation", "false,structuralDeviation", "true,relationshipDeviation", "false,relationshipDeviation",
     "true,tangle", "false,tangle", "true,weakTangle", "false,weakTangle",
-    "true,oversizedComponent", "false,oversizedComponent", "true,splitResponsibility", "false,splitResponsibility"})
+    "true,oversizedComponent", "false,oversizedComponent", "true,splitResponsibility", "false,splitResponsibility",
+    "true,assertionDeviation", "false,assertionDeviation"})
   void it_should_reject_missing_or_null_details_and_files(boolean cloud, String type) {
     stubMainBranch(harness);
     var client = harness.newClient(cloud ? CLOUD_ENV : Map.of());
@@ -297,6 +340,10 @@ class ArchitectureFindingsToolTests {
       """));
     if (type.equals("relationshipDeviation")) {
       finding.getAsJsonObject("details").addProperty("reason", "disallowedDependency");
+    }
+    if (type.equals("assertionDeviation")) {
+      finding.getAsJsonObject("details").addProperty("assertionName", "no-web-to-db");
+      finding.getAsJsonObject("details").addProperty("dependencyCount", 1);
     }
     return finding;
   }

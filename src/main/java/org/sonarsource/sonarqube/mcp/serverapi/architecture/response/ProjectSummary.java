@@ -24,7 +24,9 @@ public record ProjectSummary(String language, @Nullable DeviationCounts deviatio
                              @Nullable Coverage coverage) {
   public record Coverage(@Nullable Double coverage, @Nullable BigDecimal coveredArtifacts, @Nullable BigDecimal totalArtifacts) { }
   public record DeviationCounts(@JsonAdapter(SummaryCountAdapter.class) Long total, @JsonAdapter(SummaryCountAdapter.class) Long structuralDeviation,
-                                @JsonAdapter(SummaryCountAdapter.class) Long relationshipDeviation) { }
+                                @JsonAdapter(SummaryCountAdapter.class) Long relationshipDeviation,
+                                // Older servers omit this count; an explicit null is still rejected by the adapter.
+                                @Nullable @JsonAdapter(value = SummaryCountAdapter.class, nullSafe = false) Long assertionDeviation) { }
   public record FlawCounts(@JsonAdapter(SummaryCountAdapter.class) Long total, @JsonAdapter(SummaryCountAdapter.class) Long tangle,
                            @JsonAdapter(SummaryCountAdapter.class) Long oversizedComponent) { }
   public record SmellCounts(@JsonAdapter(SummaryCountAdapter.class) Long total, @JsonAdapter(SummaryCountAdapter.class) Long weakTangle,
