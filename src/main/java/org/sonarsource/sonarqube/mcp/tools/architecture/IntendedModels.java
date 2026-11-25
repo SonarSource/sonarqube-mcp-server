@@ -315,15 +315,15 @@ final class IntendedModels {
 
   private static void checkConstraintEndpoints(String language, IntendedArchitecture.Constraint constraint, Map<String, Integer> endpointCounts,
     List<String> importedKeys, List<String> problems) {
-    var endpointProblems = new ArrayList<String>();
+    var endpointReasons = new ArrayList<String>();
     for (var endpoint : List.of(constraint.from(), constraint.to())) {
-      var problem = endpointProblem(language, endpoint, endpointCounts, importedKeys);
-      if (problem != null) {
-        endpointProblems.add(problem);
+      var reason = invalidEndpointReason(language, endpoint, endpointCounts, importedKeys);
+      if (reason != null) {
+        endpointReasons.add(reason);
       }
     }
-    problems.addAll(endpointProblems);
-    if (endpointProblems.isEmpty() && !parentKey(constraint.from()).equals(parentKey(constraint.to()))) {
+    problems.addAll(endpointReasons);
+    if (endpointReasons.isEmpty() && !parentKey(constraint.from()).equals(parentKey(constraint.to()))) {
       problems.add("Constraint " + describe(constraint) + " of " + language + " must link sibling groups.");
     }
     if (constraint.from().equals(constraint.to())) {
@@ -333,7 +333,7 @@ final class IntendedModels {
 
   // The public API resolves endpoints as exact group keys and rejects children of imported patterns.
   @Nullable
-  private static String endpointProblem(String language, String endpoint, Map<String, Integer> keys, List<String> importedKeys) {
+  private static String invalidEndpointReason(String language, String endpoint, Map<String, Integer> keys, List<String> importedKeys) {
     var imported = importedKeys.stream().filter(key -> endpoint.startsWith(key + "/")).findFirst();
     if (imported.isPresent()) {
       return "Constraint endpoint '" + endpoint + LANGUAGE_SEPARATOR + language + " is inside the imported pattern of '" + imported.get()
