@@ -43,7 +43,6 @@ import org.sonarsource.sonarqube.mcp.tools.Tool;
 import org.sonarsource.sonarqube.mcp.tools.ToolCategory;
 import org.sonarsource.sonarqube.mcp.tools.agenticreadiness.StartAgenticReadinessAssessmentTool;
 import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureGetTool;
-import org.sonarsource.sonarqube.mcp.tools.architecture.ArchitectureTools;
 import org.sonarsource.sonarqube.mcp.tools.projects.SearchMyProjectsTool;
 import org.sonarsource.sonarqube.mcp.tools.proxied.ProxiedMcpTool;
 import org.sonarsource.sonarqube.mcp.transport.HttpServerTransportProvider;
@@ -488,8 +487,8 @@ class SonarQubeMcpServerGenericTest {
       var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
       try {
         assertThat(server.getSupportedTools()).contains(proxyTool);
-        assertThat(server.getComposedInstructions()).endsWith(ArchitectureTools.INSTRUCTIONS
-          + "\nNote: the `cag`/`analysis` toolset names for Vortex tools are deprecated; use `vortex` instead."
+        assertThat(server.getComposedInstructions()).endsWith(
+          "\nNote: the `cag`/`analysis` toolset names for Vortex tools are deprecated; use `vortex` instead."
           + "\n\nProxy instructions" + StartAgenticReadinessAssessmentTool.INSTRUCTIONS);
         assertThat(loaders.constructed()).hasSize(1);
         verify(loaders.constructed().getFirst()).loadProxiedTools(eq(TransportMode.STDIO), anyString(), eq("org"));
@@ -571,7 +570,7 @@ class SonarQubeMcpServerGenericTest {
   }
 
   @SonarQubeMcpServerTest
-  void it_should_add_architecture_instructions_when_the_toolset_is_enabled(SonarQubeMcpServerTestHarness harness) {
+  void it_should_offer_architecture_tools_without_architecture_instructions(SonarQubeMcpServerTestHarness harness) {
     var environment = createStdioEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     environment.put("SONARQUBE_TOOLSETS", "architecture");
@@ -580,13 +579,14 @@ class SonarQubeMcpServerGenericTest {
     var server = new SonarQubeMcpServer(new StdioServerTransportProvider(null), null, environment);
     server.start();
 
-    assertThat(server.getComposedInstructions()).endsWith(ArchitectureTools.INSTRUCTIONS);
+    assertThat(server.getSupportedTools()).anyMatch(ArchitectureGetTool.class::isInstance);
+    assertThat(server.getComposedInstructions()).doesNotContain("## Architecture");
 
     server.shutdown();
   }
 
   @SonarQubeMcpServerTest
-  void it_should_add_architecture_instructions_over_http(SonarQubeMcpServerTestHarness harness) {
+  void it_should_offer_architecture_tools_without_architecture_instructions_over_http(SonarQubeMcpServerTestHarness harness) {
     var environment = createHttpEnvironment(harness.getMockSonarQubeServer().baseUrl());
     environment.put("SONARQUBE_ORG", "org");
     environment.put("SONARQUBE_TOOLSETS", "architecture");
@@ -595,7 +595,8 @@ class SonarQubeMcpServerGenericTest {
     var server = new SonarQubeMcpServer(environment);
     server.start();
 
-    assertThat(server.getComposedInstructions()).contains(ArchitectureTools.INSTRUCTIONS);
+    assertThat(server.getSupportedTools()).anyMatch(ArchitectureGetTool.class::isInstance);
+    assertThat(server.getComposedInstructions()).doesNotContain("## Architecture");
 
     server.shutdown();
   }
