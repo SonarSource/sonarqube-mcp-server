@@ -43,19 +43,17 @@ class ToolResponseUtilsTests {
     var json = ToolResponseUtils.toJsonString(output);
 
     assertThat(json)
-      .contains("\"name\" : \"John Doe\"")
-      .contains("\"age\" : 30")
-      .contains("\"active\" : true");
+      .contains("\"name\":\"John Doe\"")
+      .contains("\"age\":30")
+      .contains("\"active\":true");
   }
 
   @Test
-  void it_should_serialize_record_to_pretty_json() {
-    var output = new SimpleRecord("Test", 1, false);
+  void it_should_serialize_record_to_compact_json_and_preserve_string_whitespace() {
+    var output = new SimpleRecord("  John  Doe\t\n ", 1, false);
     var json = ToolResponseUtils.toJsonString(output);
 
-    assertThat(json)
-      .contains("\n")
-      .matches("(?s)\\{\\s+\"name\".*");
+    assertThat(json).isEqualTo("{\"name\":\"  John  Doe\\t\\n \",\"age\":1,\"active\":false}");
   }
 
   @Test
@@ -64,8 +62,8 @@ class ToolResponseUtilsTests {
     var json = ToolResponseUtils.toJsonString(output);
 
     assertThat(json)
-      .contains("\"requiredField\" : \"required\"")
-      .contains("\"requiredNumber\" : 42")
+      .contains("\"requiredField\":\"required\"")
+      .contains("\"requiredNumber\":42")
       .doesNotContain("optionalField")
       .doesNotContain("optionalNumber");
   }
@@ -77,11 +75,11 @@ class ToolResponseUtilsTests {
     var json = ToolResponseUtils.toJsonString(parent);
 
     assertThat(json)
-      .contains("\"parentName\" : \"Parent\"")
-      .contains("\"child\" : {")
-      .contains("\"name\" : \"Child\"")
-      .contains("\"age\" : 5")
-      .contains("\"active\" : true");
+      .contains("\"parentName\":\"Parent\"")
+      .contains("\"child\":{")
+      .contains("\"name\":\"Child\"")
+      .contains("\"age\":5")
+      .contains("\"active\":true");
   }
 
   @Test
@@ -96,9 +94,9 @@ class ToolResponseUtilsTests {
     assertThat(json)
       .contains("\"Alice\"")
       .contains("\"Bob\"")
-      .contains("\"name\" : \"Test\"")
-      .contains("\"age\" : 25")
-      .contains("\"active\" : true");
+      .contains("\"name\":\"Test\"")
+      .contains("\"age\":25")
+      .contains("\"active\":true");
   }
 
   @Test
@@ -107,9 +105,9 @@ class ToolResponseUtilsTests {
     var json = ToolResponseUtils.toJsonString(output);
 
     assertThat(json)
-      .contains("\"names\" : [ ]")
-      .contains("\"numbers\" : [ ]")
-      .contains("\"records\" : [ ]");
+      .contains("\"names\":[]")
+      .contains("\"numbers\":[]")
+      .contains("\"records\":[]");
   }
 
 }

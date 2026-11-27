@@ -672,11 +672,11 @@ class OAuthHttpTransportTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"Authorization", "SONARQUBE_TOKEN"})
-  void it_should_report_header_token_initialization_and_tools_without_oauth_attribution(String header) throws Exception {
+  @CsvSource({"Authorization, existing-token", "SONARQUBE_TOKEN, existing-token", "Authorization, sqmcp_api_test-credential"})
+  void it_should_report_header_token_initialization_and_tools_without_oauth_attribution(String header, String token) throws Exception {
     startWithProductionAuthentication(true);
     var params = Map.<String, Object>of("protocolVersion", "2025-06-18", "capabilities", Map.of(), "clientInfo", Map.of("name", "token-client", "version", "1"));
-    var credential = header.equals("Authorization") ? "Bearer existing-token" : "existing-token";
+    var credential = header.equals("Authorization") ? "Bearer " + token : token;
     cloud.stubFor(get(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)).willReturn(okJson("[]")));
     assertSuccess(send(request(null, "initialize", params).header(header, credential).build()), "serverInfo");
     assertSuccess(send(request(null, "tools/call", Map.of("name", "list_organizations", "arguments", Map.of())).header(header, credential).build()), "organizations");
@@ -695,23 +695,33 @@ class OAuthHttpTransportTest {
     cloud.verify(0, postRequestedFor(urlEqualTo("/oauth/token")));
   }
 
-  @Test
-  void it_should_enrich_server_initialization_without_organization_lookups() throws Exception {
+  @ParameterizedTest
+  @CsvSource({
+    "Authorization, sqmcp_api_test-credential, oauth",
+    "SONARQUBE_TOKEN, sqmcp_api_test-credential, oauth",
+    "Authorization, existing-token, token",
+    "SONARQUBE_TOKEN, existing-token, token",
+    "Authorization, sqmcp_access_test-credential, token",
+    "Authorization, not_sqmcp_api_test-credential, token"
+  })
+  void it_should_enrich_server_initialization_without_organization_lookups(String header, String token, String authenticationMethod) throws Exception {
     environment.keySet().removeIf(key -> key.startsWith("SONARQUBE_OAUTH_"));
     environment.remove("SONARQUBE_IS_CLOUD");
     environment.remove("SONARQUBE_CLOUD_API_URL");
     environment.put("TELEMETRY_DISABLED", "false");
     cloud.stubFor(get(SystemApi.STATUS_PATH).willReturn(okJson("{\"id\":\"installation\",\"version\":\"2026.1.0\",\"status\":\"UP\"}")));
-    cloud.stubFor(get("/api/users/current").withHeader("Authorization", equalTo("Bearer existing-token"))
+    cloud.stubFor(get("/api/users/current").withHeader("Authorization", equalTo("Bearer " + token))
       .willReturn(okJson("{\"id\":\"server-user\"}")));
     startProductionServer();
-    assertSuccess(send(request("existing-token", "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
-      "clientInfo", Map.of("name", "server-client", "version", "1"))).build()), "serverInfo");
+    var credential = header.equals("Authorization") ? "Bearer " + token : token;
+    assertSuccess(send(request(null, "initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
+      "clientInfo", Map.of("name", "server-client", "version", "1"))).header(header, credential).build()), "serverInfo");
     await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(analyticsEvents()).hasSize(1));
     var payload = analyticsEvents().getFirst().getAsJsonObject("event_payload");
     assertThat(payload.get("user_uuid").getAsString()).isEqualTo("server-user");
     assertThat(payload.get("sqs_installation_id").getAsString()).isEqualTo("installation");
-    assertThat(payload.get("authentication_method").getAsString()).isEqualTo("token");
+    assertThat(payload.get("authentication_method").getAsString()).isEqualTo(authenticationMethod);
+    assertThat(payload.toString()).doesNotContain(token);
     assertThat(payload.has("organization_uuid_v4")).isFalse();
     assertThat(payload.has("oauth_client_key")).isFalse();
     cloud.verify(0, getRequestedFor(urlPathEqualTo(OrganizationsApi.ORGANIZATIONS_PATH)));
