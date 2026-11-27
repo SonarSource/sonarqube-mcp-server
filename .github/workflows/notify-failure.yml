@@ -18,13 +18,13 @@ jobs:
     steps:
       - name: Vault Secrets
         id: secrets
-        uses: SonarSource/vault-action-wrapper@a7fa5fd4a4e4e0f2593f6137c0812cac196cf4ce # 3.7.0
+        uses: SonarSource/vault-action-wrapper@20728776e291b4027acb3618091a31fa15c61a30 # 3.9.0
         with:
           secrets: |
             development/kv/data/slack token | SLACK_BOT_TOKEN;
 
       - name: Slack Notification on Failure
-        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        uses: slackapi/slack-github-action@0bc3581177d9a0f8d555e07689384b376528e8fa # v4.1.0
         with:
           method: chat.postMessage
           token: ${{ fromJSON(steps.secrets.outputs.vault).SLACK_BOT_TOKEN }}

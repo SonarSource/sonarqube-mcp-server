@@ -16,12 +16,12 @@ jobs:
         github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - id: secrets
-        uses: SonarSource/vault-action-wrapper@a7fa5fd4a4e4e0f2593f6137c0812cac196cf4ce # 3.7.0
+        uses: SonarSource/vault-action-wrapper@20728776e291b4027acb3618091a31fa15c61a30 # 3.9.0
         with:
           secrets: |
             development/kv/data/jira user | JIRA_USER;
             development/kv/data/jira token | JIRA_TOKEN;
-      - uses: sonarsource/gh-action-lt-backlog/PullRequestClosed@a517c5e4f10b4c5c7d300ec4692ac502678e4a79 # v2
+      - uses: sonarsource/gh-action-lt-backlog/PullRequestClosed@874b4a6a2c138bfdf538a9a6a5772cda3bf484d0 # v2
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           jira-user:  ${{ fromJSON(steps.secrets.outputs.vault).JIRA_USER }}
