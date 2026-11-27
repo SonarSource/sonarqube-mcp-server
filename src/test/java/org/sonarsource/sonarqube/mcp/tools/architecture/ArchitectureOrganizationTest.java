@@ -53,7 +53,7 @@ class ArchitectureOrganizationTest {
       Map.of("target", "current", "projectKey", "my_project", "language", "java", "organization", "selected-org"));
 
     assertThat(result.isError()).isFalse();
-    assertThat(textOf(result)).contains("\"language\" : \"java\"");
+    assertThat(textOf(result)).contains("\"language\":\"java\"");
     var tool = client.listTools().stream().filter(t -> t.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Object>) tool.inputSchema().get("properties");
@@ -83,7 +83,7 @@ class ArchitectureOrganizationTest {
     var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "intended", "projectKey", "my_project"));
 
     assertThat(result.isError()).isFalse();
-    assertThat(textOf(result)).contains("\"label\" : \"app\"");
+    assertThat(textOf(result)).contains("\"label\":\"app\"");
   }
 
   @SonarQubeMcpServerTest
@@ -101,7 +101,7 @@ class ArchitectureOrganizationTest {
       var result = client.callTool(ArchitectureGetTool.TOOL_NAME,
         Map.of("target", "current", "projectKey", "my_project", "language", "java", "organization", organization + "-org"));
       assertThat(result.isError()).isFalse();
-      assertThat(textOf(result)).contains("\"key\" : \"" + organization + "\"");
+      assertThat(textOf(result)).contains("\"key\":\"" + organization + "\"");
     }
   }
 
