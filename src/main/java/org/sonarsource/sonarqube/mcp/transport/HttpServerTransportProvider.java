@@ -68,6 +68,7 @@ public class HttpServerTransportProvider {
 
   private static final McpLogger LOG = McpLogger.getInstance();
   private static final String MCP_ENDPOINT = "/mcp";
+  private static final String SERVER_DELEGATED_TOKEN_PREFIX = "sqmcp_api_";
   public static final String CONTEXT_TOKEN_KEY = "sonarqube-token";
   public static final String CONTEXT_ORG_KEY = "sonarqube-org";
   public static final String CONTEXT_TOOLSETS_KEY = "sonarqube-toolsets";
@@ -169,7 +170,9 @@ public class HttpServerTransportProvider {
     }
     var contextBuilder = new HashMap<String, Object>();
     contextBuilder.put(CONTEXT_TOKEN_KEY, token);
-    contextBuilder.put(HttpAnalyticsContext.CONTEXT_KEY, new HttpAnalyticsContext(scopes == null ? "token" : "oauth", clientKey));
+    // Server forwards delegated OAuth API credentials without Cloud OAuth scopes.
+    var isOAuth = scopes != null || (!isSonarQubeCloud && token.startsWith(SERVER_DELEGATED_TOKEN_PREFIX));
+    contextBuilder.put(HttpAnalyticsContext.CONTEXT_KEY, new HttpAnalyticsContext(isOAuth ? "oauth" : "token", clientKey));
     if (scopes != null) {
       contextBuilder.put(OAuthScopeContext.CONTEXT_KEY, scopes);
     }
