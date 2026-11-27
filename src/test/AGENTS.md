@@ -1,6 +1,6 @@
-# Unit tests and harness
+# Unit and in-process integration tests
 
-- Add regression tests for changed behavior, using the nearest existing tests as the pattern. Use pure unit tests for local transformations and the MCP harness for exposed tool behavior.
+- Add regression tests for changed behavior, using the nearest existing tests as the pattern. Use unit tests for local transformations and the in-process MCP integration harness for exposed tool behavior.
 - Tool tests use `@SonarQubeMcpServerTest`, `SonarQubeMcpServerTestHarness`, WireMock, and `assertResultEquals` for JSON text. Name tests `it_should_<behavior>`.
 - Exercise the advertised schema through the MCP client, not only direct `execute()` calls. Cover annotations, happy paths, relevant permission/backend errors, and empty results.
 - For availability changes, cover opt-in/default behavior, supported and unsupported versions/deployments, read-only mode, and HTTP/stdio. Check both listing and direct invocation where restrictions differ.

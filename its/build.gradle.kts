@@ -4,7 +4,7 @@ plugins {
     java
 }
 
-// This subproject contains only integration tests and should not contribute to the SBOM
+// This subproject contains only container tests and should not contribute to the SBOM
 tasks.named("cyclonedxDirectBom") { enabled = false }
 
 tasks.named("check") {
@@ -83,7 +83,7 @@ val cagArch = when (System.getProperty("os.arch")) {
 }
 
 val downloadCagBinary = tasks.register("downloadCagBinary") {
-    description = "Downloads the sonar-context-augmentation Alpine binary for integration tests"
+    description = "Downloads the sonar-context-augmentation Alpine binary for container tests"
     group = "verification"
 
     val outputDir = layout.buildDirectory.dir("cag-binary")
@@ -131,9 +131,9 @@ tasks.test {
 }
 
 tasks.register<Test>("integrationTest") {
-    description = "Runs integration tests for proxied MCP servers using Testcontainers"
+    description = "Runs container integration and staging E2E tests for the packaged MCP server"
     group = "verification"
-    doNotTrackState("Integration tests depend on live staging services")
+    doNotTrackState("The container suite includes tests that depend on live staging services")
 
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath

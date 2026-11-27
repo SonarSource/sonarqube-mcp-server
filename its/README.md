@@ -1,6 +1,9 @@
-# Integration Tests (ITS)
+# Container integration and E2E tests
 
-Integration tests for the SonarQube MCP Server.
+Testcontainers runs the built SonarQube MCP Server JAR.
+
+- `HttpTransportITest` includes HTTP integration checks and staging E2E workflows where an MCP client reads data from SonarQube Cloud.
+- `StdioTransportITest` and `ProxiedServerITest` are integration smoke tests for packaged startup and proxy setup.
 
 ## Running Tests
 
@@ -9,7 +12,7 @@ Integration tests for the SonarQube MCP Server.
 ./gradlew :its:integrationTest
 ```
 
-**Note**: Integration tests are NOT run by default in `./gradlew test` or `./gradlew build`.
+The root build runs unit and in-process integration tests. Use the command above to run the container suite.
 
 ## Prerequisites
 
@@ -69,5 +72,5 @@ OAuth discovery checks the container's unauthenticated Bearer challenge and loca
 endpoint, including the canonical Staging resource, issuer, scopes, and bearer method.
 The OAuth container uses placeholder exchange-client credentials because discovery and
 legacy requests do not use token exchange. These tests do not validate live OAuth login,
-JWT verification, or token exchange; those flows have separate mocked unit coverage.
+JWT verification, or token exchange; those flows have separate coverage against simulated services.
 All live Cloud requests in this class are reads against Staging.

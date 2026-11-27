@@ -1,6 +1,6 @@
 # Development
 
-Use JDK 21 and the Gradle wrapper. Docker is required for integration tests.
+Use JDK 21 and the Gradle wrapper. Docker is required for the container integration and E2E tests.
 Internal contributors follow the [contribution policy](../contributing.md) and [PR template](../PULL_REQUEST_TEMPLATE.md).
 
 ## Build and verify
@@ -14,7 +14,7 @@ Run commands from the repository root:
 ./gradlew :its:integrationTest --tests "org.sonarsource.sonarqube.mcp.its.StdioTransportITest"
 ```
 
-Use focused tests while iterating. Before handoff, run the affected suites; use the full build for changes to shared infrastructure, dependencies, or packaging. Root tests/build do not execute the Docker integration suite. Documentation-only changes need link/content checks and `git diff --check`, not a Java rebuild.
+Use focused tests while iterating. Before handoff, run the affected suites; use the full build for changes to shared infrastructure, dependencies, or packaging. The root build runs unit and in-process integration tests. Run the [container tests](../../its/README.md) separately. Documentation-only changes need link/content checks and `git diff --check`, not a Java rebuild.
 
 Spotless currently enforces license headers. It does not replace review against the [Java style guide](https://github.com/SonarSource/sonar-developer-toolset#code-style).
 Follow any installed Vortex analysis protocol; report actual checks and skipped prerequisites.
