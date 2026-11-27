@@ -24,6 +24,6 @@ Paths below are explicit routes: read the applicable files even when your agent 
 - Java and source conventions: [src/AGENTS.md](src/AGENTS.md). Production code, startup, configuration, auth, and transports: [src/main/AGENTS.md](src/main/AGENTS.md).
 - MCP tools and schemas: [tools/AGENTS.md](src/main/java/org/sonarsource/sonarqube/mcp/tools/AGENTS.md). Architecture operations: [architecture/AGENTS.md](src/main/java/org/sonarsource/sonarqube/mcp/tools/architecture/AGENTS.md).
 - SonarQube APIs and DTOs: [serverapi/AGENTS.md](src/main/java/org/sonarsource/sonarqube/mcp/serverapi/AGENTS.md).
-- Unit tests and harness: [src/test/AGENTS.md](src/test/AGENTS.md). Docker integration tests: [its/AGENTS.md](its/AGENTS.md). Read test guidance when adding tests for production changes.
+- Unit and in-process integration tests: [src/test/AGENTS.md](src/test/AGENTS.md). Container integration and E2E tests: [its/AGENTS.md](its/AGENTS.md). Read test guidance when adding tests for production changes.
 - Documentation: [docs/AGENTS.md](docs/AGENTS.md). Build and dependency changes: [development guide](docs/development/README.md).
 - Instruction changes: [instruction policy](docs/development/agent-instructions.md). Keep one canonical rule per concern; ordinary feature work does not require adding rules.
