@@ -179,7 +179,7 @@ class ArchitectureGetCurrentToolTests {
     @SuppressWarnings("unchecked")
     var properties = (Map<String, Map<String, Object>>) tool.inputSchema().get("properties");
     assertThat(properties).containsOnlyKeys("target", "projectKey", "component", "depth", "language", "directiveId", "type", "category", "from", "to", "pageIndex", "pageSize");
-    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings"));
+    assertThat(properties.get("target")).containsEntry("enum", List.of("current", "intended", "directives", "findings", "summary"));
     assertThat(properties.get("language")).containsEntry("enum", List.of("java", "cs", "js", "ts", "py"));
   }
 

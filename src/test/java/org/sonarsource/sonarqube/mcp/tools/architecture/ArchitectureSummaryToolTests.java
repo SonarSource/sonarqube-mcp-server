@@ -16,9 +16,10 @@
  */
 package org.sonarsource.sonarqube.mcp.tools.architecture;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonParser;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -254,13 +255,31 @@ class ArchitectureSummaryToolTests {
   }
 
   @Test
-  void it_should_does_not_advertise_or_dispatch_summary_on_server() {
-    var client = harness.newClient();
-    var tool = client.listTools().stream().filter(t -> t.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
-    assertThat(tool.inputSchema().toString()).doesNotContain("summary");
-    var result = client.callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
-    assertThat(result.isError()).isTrue();
-    assertThat(harness.getMockSonarQubeServer().hasReceivedRequestContaining("project-summaries")).isFalse();
+  void it_should_advertise_the_same_targets_on_cloud_and_server() {
+    for (var client : List.of(harness.newClient(), harness.newClient(CLOUD_ENV))) {
+      var tool = client.listTools().stream().filter(t -> t.name().equals(ArchitectureGetTool.TOOL_NAME)).findFirst().orElseThrow();
+      var schema = JsonParser.parseString(new Gson().toJson(tool.inputSchema())).getAsJsonObject();
+      assertThat(schema.getAsJsonObject("properties").getAsJsonObject("target").getAsJsonArray("enum"))
+        .hasToString("[\"current\",\"intended\",\"directives\",\"findings\",\"summary\"]");
+    }
+  }
+
+  @Test
+  void it_should_read_server_summary_without_inferring_coverage_from_the_legacy_text() {
+    stubMainBranch(harness);
+    var legacy = "{\"coverage\":{\"percentage\":\"100\",\"summary\":\"A coverage of 100% was achieved.\"},"
+      + "\"deviations\":{\"relationshipDeviation\":1,\"structuralDeviation\":1,\"total\":2},\"flaws\":{\"oversizedComponent\":1,\"tangle\":1,\"total\":2},"
+      + "\"language\":\"ts\",\"smells\":{\"splitResponsibility\":2,\"total\":3,\"weakTangle\":1}}";
+    harness.getMockSonarQubeServer().stubFor(get(ArchitectureApi.SERVER_API_PREFIX + ArchitectureApi.PROJECT_SUMMARIES_PATH + "?organizationId="
+      + ArchitectureApi.SERVER_ORGANIZATION_ID + "&branchId=" + MAIN_BRANCH_ID).willReturn(okJson("{\"projectSummaries\":[" + legacy + "]}")));
+    var result = harness.newClient().callTool(ArchitectureGetTool.TOOL_NAME, Map.of("target", "summary", "projectKey", "my_project"));
+    assertThat(result.isError()).isFalse();
+    var response = JsonParser.parseString(textOf(result)).getAsJsonObject();
+    var summary = response.getAsJsonArray("summaries").get(0).getAsJsonObject();
+    assertThat(summary.get("language").getAsString()).isEqualTo("ts");
+    assertThat(summary.getAsJsonObject("smells").get("splitResponsibility").getAsLong()).isEqualTo(2);
+    assertThat(summary.has("coverage")).isFalse();
+    assertThat(response.has("overallCoverage")).isFalse();
   }
 
   @Test
