@@ -96,7 +96,7 @@ class ArchitectureFindingsToolTests {
     var result = harness.newClient(CLOUD_ENV).callTool(ArchitectureGetTool.TOOL_NAME,
       Map.of("target", "findings", "projectKey", "my_project", "pageIndex", 2, "pageSize", 1));
     assertThat(result.isError()).isFalse();
-    assertThat(textOf(result)).contains("\"pageIndex\" : 2", "\"pageSize\" : 1", "\"total\" : 3");
+    assertThat(textOf(result)).contains("\"pageIndex\":2", "\"pageSize\":1", "\"total\":3");
   }
 
   @ParameterizedTest
