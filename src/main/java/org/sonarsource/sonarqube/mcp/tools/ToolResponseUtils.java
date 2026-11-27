@@ -35,7 +35,7 @@ public class ToolResponseUtils {
 
   public static String toJsonString(Record response) {
     try {
-      return OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(response);
+      return OBJECT_MAPPER.writeValueAsString(response);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to convert response to JSON string", e);
     }

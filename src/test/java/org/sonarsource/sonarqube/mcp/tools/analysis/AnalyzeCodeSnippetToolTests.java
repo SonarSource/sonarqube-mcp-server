@@ -406,12 +406,12 @@ class AnalyzeCodeSnippetToolTests {
 
       // Should only report the issue in the snippet (line 4), not the ones outside
       var resultStr = result.content().getFirst().toString();
-      assertThat(resultStr).contains("\"issueCount\" : 1");
-      assertThat(resultStr).contains("\"startLine\" : 4");
+      assertThat(resultStr).contains("\"issueCount\":1");
+      assertThat(resultStr).contains("\"startLine\":4");
       assertThat(resultStr).contains("Complete the task associated to this");
       // Should not contain issues from line 2 or line 8
-      assertThat(resultStr).doesNotContain("\"startLine\" : 2");
-      assertThat(resultStr).doesNotContain("\"startLine\" : 8");
+      assertThat(resultStr).doesNotContain("\"startLine\":2");
+      assertThat(resultStr).doesNotContain("\"startLine\":8");
     }
 
     @SonarQubeMcpServerTest
@@ -436,8 +436,8 @@ class AnalyzeCodeSnippetToolTests {
 
       assertThat(result.isError()).isFalse();
       var resultStr = result.content().getFirst().toString();
-      assertThat(resultStr).contains("\"issueCount\" : 1");
-      assertThat(resultStr).contains("\"startLine\" : 3");
+      assertThat(resultStr).contains("\"issueCount\":1");
+      assertThat(resultStr).contains("\"startLine\":3");
     }
 
     @SonarQubeMcpServerTest
@@ -476,8 +476,8 @@ class AnalyzeCodeSnippetToolTests {
 
       assertThat(result.isError()).isFalse();
       var resultStr = result.content().getFirst().toString();
-      assertThat(resultStr).contains("\"issueCount\" : 1");
-      assertThat(resultStr).contains("\"startLine\" : 4");
+      assertThat(resultStr).contains("\"issueCount\":1");
+      assertThat(resultStr).contains("\"startLine\":4");
     }
 
     @SonarQubeMcpServerTest
@@ -498,7 +498,7 @@ class AnalyzeCodeSnippetToolTests {
 
         assertThat(result.isError()).isFalse();
         var resultStr = result.content().getFirst().toString();
-        assertThat(resultStr).contains("\"issueCount\" : 1");
+        assertThat(resultStr).contains("\"issueCount\":1");
         assertThat(resultStr).contains("php:S1135");
       } finally {
         System.clearProperty(McpServerLaunchConfiguration.MCP_WORKSPACE_PATH_OVERRIDE_PROPERTY);
