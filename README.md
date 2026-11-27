@@ -59,6 +59,8 @@ SonarQube MCP Server is available in the Antigravity MCP Store. Follow these ins
 
 For **SonarQube Cloud US**, set the URL to `https://sonarqube.us`.
 
+For **SonarQube Cloud AU**, set the URL to `https://sonarqube.au`.
+
 Alternatively, you can manually configure the server via `mcp_config.json`:
 
 * To connect with SonarQube Cloud:
@@ -81,6 +83,8 @@ In the Agent Side Panel, click the three dots (**...**) -> **MCP Store** -> **Ma
 ```
 
 For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section and `"-e", "SONARQUBE_URL"` to the `args` array.
+
+For **SonarQube Cloud AU**, manually add `"SONARQUBE_URL": "https://sonarqube.au"` to the `env` section and `"-e", "SONARQUBE_URL"` to the `args` array.
 
 * To connect with SonarQube Server:
 
@@ -115,6 +119,8 @@ claude mcp add sonarqube \
 
 For **SonarQube Cloud US**, add `--env SONARQUBE_URL=https://sonarqube.us` to the command.
 
+For **SonarQube Cloud AU**, add `--env SONARQUBE_URL=https://sonarqube.au` to the command.
+
 * To connect with SonarQube Server:
 
 ```bash
@@ -142,6 +148,8 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_USER_TOKEN>", "SONARQUBE_ORG" = "<YOUR_ORG>" 
 
 For **SonarQube Cloud US**, add `"SONARQUBE_URL" = "https://sonarqube.us"` to the `env` section and `"-e", "SONARQUBE_URL"` to the `args` array.
 
+For **SonarQube Cloud AU**, add `"SONARQUBE_URL" = "https://sonarqube.au"` to the `env` section and `"-e", "SONARQUBE_URL"` to the `args` array.
+
 * To connect with SonarQube Server:
 
 ```toml
@@ -161,6 +169,8 @@ env = { "SONARQUBE_TOKEN" = "<YOUR_TOKEN>", "SONARQUBE_URL" = "<YOUR_SERVER_URL>
 [![Install for SonarQube Cloud](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=sonarqube&config=eyJlbnYiOnsiU09OQVJRVUJFX1RPS0VOIjoiWU9VUl9UT0tFTiIsIlNPTkFSUVVCRV9PUkciOiJZT1VSX1NPTkFSUVVCRV9PUkcifSwiY29tbWFuZCI6ImRvY2tlciBydW4gLS1pbml0IC0tcHVsbD1hbHdheXMgLWkgLS1ybSAtZSBTT05BUlFVQkVfVE9LRU4gLWUgU09OQVJRVUJFX09SRyBzb25hcnNvdXJjZS9zb25hcnF1YmUtbWNwIn0%3D)
 
 For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section in your MCP configuration after installation.
+
+For **SonarQube Cloud AU**, manually add `"SONARQUBE_URL": "https://sonarqube.au"` to the `env` section in your MCP configuration after installation.
 
 * To connect with SonarQube Server:
 
@@ -186,7 +196,7 @@ You will need to set the required environment variables before starting Gemini:
 * **For SonarQube Cloud:**
   - `SONARQUBE_TOKEN` - Your SonarQube Cloud token
   - `SONARQUBE_ORG` - Your organization key
-  - `SONARQUBE_URL` - (Optional) Set to `https://sonarqube.us` for SonarQube Cloud US
+  - `SONARQUBE_URL` - (Optional) Set to `https://sonarqube.us` for SonarQube Cloud US, or `https://sonarqube.au` for SonarQube Cloud AU
 
 * **For SonarQube Server:**
   - `SONARQUBE_TOKEN` - Your SonarQube Server USER token
@@ -219,6 +229,8 @@ Tools: *
 ```
 
 For **SonarQube Cloud US**, add `-e, SONARQUBE_URL` to Arguments and `SONARQUBE_URL=https://sonarqube.us` to Environment Variables.
+
+For **SonarQube Cloud AU**, add `-e, SONARQUBE_URL` to Arguments and `SONARQUBE_URL=https://sonarqube.au` to Environment Variables.
 
 * To connect with SonarQube Server:
 
@@ -275,6 +287,8 @@ In your GitHub repository, navigate under **Settings -> Copilot -> Coding agent*
 ```
 
 For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL"` to the `args` array and `"SONARQUBE_URL": "COPILOT_MCP_SONARQUBE_URL"` to the `env` section, then set the secret `COPILOT_MCP_SONARQUBE_URL=https://sonarqube.us`.
+
+For **SonarQube Cloud AU**, add `"-e", "SONARQUBE_URL"` to the `args` array and `"SONARQUBE_URL": "COPILOT_MCP_SONARQUBE_URL"` to the `env` section, then set the secret `COPILOT_MCP_SONARQUBE_URL=https://sonarqube.au`.
 
 * To connect with SonarQube Server:
 
@@ -345,6 +359,8 @@ Create a `.kiro/settings/mcp.json` file in your workspace directory (or edit if 
 
 For **SonarQube Cloud US**, add `"-e", "SONARQUBE_URL"` to the `args` array and `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section.
 
+For **SonarQube Cloud AU**, add `"-e", "SONARQUBE_URL"` to the `args` array and `"SONARQUBE_URL": "https://sonarqube.au"` to the `env` section.
+
 * To connect with SonarQube Server:
 
 ```
@@ -386,6 +402,8 @@ You can use the following buttons to simplify the installation process within VS
 
 For **SonarQube Cloud US**, manually add `"SONARQUBE_URL": "https://sonarqube.us"` to the `env` section in your MCP configuration after installation.
 
+For **SonarQube Cloud AU**, manually add `"SONARQUBE_URL": "https://sonarqube.au"` to the `env` section in your MCP configuration after installation.
+
 [![Install for SonarQube Server](https://img.shields.io/badge/VS_Code-Install_for_SonarQube_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=sonarqube&inputs=%5B%7B%22id%22%3A%22SONARQUBE_TOKEN%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20User%20Token%22%2C%22password%22%3Atrue%7D%2C%7B%22id%22%3A%22SONARQUBE_URL%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22SonarQube%20Server%20URL%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22--init%22%2C%22--pull%3Dalways%22%2C%22-i%22%2C%22--rm%22%2C%22-e%22%2C%22SONARQUBE_TOKEN%22%2C%22-e%22%2C%22SONARQUBE_URL%22%2C%22mcp%2Fsonarqube%22%5D%2C%22env%22%3A%7B%22SONARQUBE_TOKEN%22%3A%22%24%7Binput%3ASONARQUBE_TOKEN%7D%22%2C%22SONARQUBE_URL%22%3A%22%24%7Binput%3ASONARQUBE_URL%7D%22%7D%7D)
 
 </details>
@@ -400,6 +418,8 @@ SonarQube MCP Server is available as a Windsurf plugin. Follow these instruction
 4. Add the required SonarQube User token. Optionally add a default organization key for SonarQube Cloud, or add the SonarQube URL for SonarQube Server or Community Build.
 
 For **SonarQube Cloud US**, set the URL to `https://sonarqube.us`.
+
+For **SonarQube Cloud AU**, set the URL to `https://sonarqube.au`.
 
 </details>
 
@@ -420,6 +440,8 @@ When installing the extension, you will be prompted to provide the necessary env
 ```
 
 For **SonarQube Cloud US**, add `"sonarqube_url": "https://sonarqube.us"` to the configuration.
+
+For **SonarQube Cloud AU**, add `"sonarqube_url": "https://sonarqube.au"` to the configuration.
 
 * When using SonarQube Server:
 
@@ -660,12 +682,13 @@ For stdio, configure the following environment variables:
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `SONARQUBE_TOKEN`    | Your SonarQube Cloud [token](https://docs.sonarsource.com/sonarqube-cloud/managing-your-account/managing-tokens/)         | Yes      |
 | `SONARQUBE_ORG`      | Optional fixed SonarQube Cloud organization [key](https://sonarcloud.io/account/organizations)                            | No       |
-| `SONARQUBE_URL`      | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarQube Cloud US: `https://sonarqube.us` | No       |
+| `SONARQUBE_URL`      | Custom SonarQube Cloud URL (defaults to `https://sonarcloud.io`). Use this for SonarQube Cloud US: `https://sonarqube.us`, or for SonarQube Cloud AU: `https://sonarqube.au` | No       |
 
 **Examples:**
 
 - **SonarQube Cloud**: Only `SONARQUBE_TOKEN` is required. `SONARQUBE_ORG` fixes the organization when set.
 - **SonarQube Cloud US**: Set `SONARQUBE_TOKEN` and `SONARQUBE_URL=https://sonarqube.us`; `SONARQUBE_ORG` is optional.
+- **SonarQube Cloud AU**: Set `SONARQUBE_TOKEN` and `SONARQUBE_URL=https://sonarqube.au`; `SONARQUBE_ORG` is optional.
 
 #### SonarQube Server
 
