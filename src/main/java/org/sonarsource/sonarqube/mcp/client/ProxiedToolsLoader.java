@@ -17,6 +17,7 @@
 package org.sonarsource.sonarqube.mcp.client;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.HashMap;
 import org.sonarsource.sonarqube.mcp.configuration.McpServerLaunchConfiguration;
@@ -40,7 +41,8 @@ public class ProxiedToolsLoader {
    * 5. Discovers tools from connected servers
    * 6. Creates tool wrappers for integration
    */
-  public List<Tool> loadProxiedTools(TransportMode currentTransportMode, String mcpServerId, @Nullable String startupOrganization) {
+  public List<Tool> loadProxiedTools(TransportMode currentTransportMode, String mcpServerId, @Nullable String startupOrganization,
+    @Nullable Path workspacePath) {
     var parseResult = ProxiedServerConfigParser.parse();
     
     if (!parseResult.success()) {
@@ -90,7 +92,7 @@ public class ProxiedToolsLoader {
     LOG.info("Initializing " + reachableConfigs.size() + " proxied MCP server(s)...");
     
     try {
-      mcpClientManager = new McpClientManager(reachableConfigs, mcpServerId);
+      mcpClientManager = new McpClientManager(reachableConfigs, mcpServerId, workspacePath);
       mcpClientManager.initialize();
 
       var tools = mcpClientManager.getAllProxiedTools().values().stream()

@@ -37,7 +37,7 @@ class McpClientManagerTest {
 
   @Test
   void constructor_should_accept_empty_list() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
+    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString(), null);
 
     assertThat(manager.getTotalCount()).isZero();
     assertThat(manager.isInitialized()).isFalse();
@@ -46,7 +46,7 @@ class McpClientManagerTest {
 
   @Test
   void initialize_should_be_idempotent() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
+    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString(), null);
 
     manager.initialize();
     assertThat(manager.isInitialized()).isTrue();
@@ -62,7 +62,7 @@ class McpClientManagerTest {
       new ProxiedMcpServerConfig("server2", "uv", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO))
     );
 
-    var manager = new McpClientManager(configs, UUID.randomUUID().toString());
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString(), null);
 
     assertThat(manager.getTotalCount()).isEqualTo(2);
   }
@@ -71,7 +71,7 @@ class McpClientManagerTest {
   void getAllProxiedTools_should_return_empty_map_before_initialization() {
     var configs = List.of(new ProxiedMcpServerConfig("server1", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
 
-    var manager = new McpClientManager(configs, UUID.randomUUID().toString());
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString(), null);
 
     // Before initialization, no tools discovered
     assertThat(manager.getAllProxiedTools()).isEmpty();
@@ -79,7 +79,7 @@ class McpClientManagerTest {
 
   @Test
   void isServerConnected_should_return_false_for_unknown_server() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
+    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString(), null);
 
     manager.initialize();
 
@@ -88,7 +88,7 @@ class McpClientManagerTest {
 
   @Test
   void executeTool_should_throw_when_server_not_connected() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
+    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString(), null);
     var emptyMap = Map.<String, Object>of();
 
     manager.initialize();
@@ -100,7 +100,7 @@ class McpClientManagerTest {
 
   @Test
   void shutdown_should_clear_state() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
+    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString(), null);
     manager.initialize();
 
     manager.shutdown();
@@ -112,7 +112,7 @@ class McpClientManagerTest {
   @Test
   void executeTool_should_include_error_message_for_failed_server() {
     var configs = List.of(new ProxiedMcpServerConfig("failing-server", "/non/existent/command", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
-    var manager = new McpClientManager(configs, UUID.randomUUID().toString());
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString(), null);
     var emptyMap = Map.<String, Object>of();
 
     manager.initialize();
@@ -125,7 +125,7 @@ class McpClientManagerTest {
   @Test
   void initialize_should_close_live_child_after_handshake_timeout() throws URISyntaxException {
     var transports = new ArrayList<ManagedStdioClientTransport>();
-    var manager = new McpClientManager(List.of(testServer("timed-out", "initialize-timeout")), UUID.randomUUID().toString(),
+    var manager = new McpClientManager(List.of(testServer("timed-out", "initialize-timeout")), UUID.randomUUID().toString(), null,
       Duration.ofSeconds(1), (name, params) -> trackTransport(transports, name, params));
 
     manager.initialize();
@@ -143,7 +143,7 @@ class McpClientManagerTest {
   void initialize_should_close_live_child_after_tools_list_error_and_keep_sibling_usable() throws URISyntaxException {
     var transports = new ArrayList<ManagedStdioClientTransport>();
     var configs = List.of(testServer("failed", "tools-list-error"), testServer("working", null));
-    var manager = new McpClientManager(configs, UUID.randomUUID().toString(), Duration.ofSeconds(5),
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString(), null, Duration.ofSeconds(5),
       (name, params) -> trackTransport(transports, name, params));
 
     try {
@@ -169,7 +169,7 @@ class McpClientManagerTest {
     var transports = new ArrayList<ManagedStdioClientTransport>();
     var cleanupAttempted = new AtomicBoolean();
     var allowCleanup = new AtomicBoolean();
-    var manager = new McpClientManager(List.of(testServer("failed", "tools-list-error")), UUID.randomUUID().toString(),
+    var manager = new McpClientManager(List.of(testServer("failed", "tools-list-error")), UUID.randomUUID().toString(), null,
       Duration.ofSeconds(5), (name, params) -> {
         var transport = new ManagedStdioClientTransport(name, params, McpJsonMappers.DEFAULT) {
           @Override
@@ -226,7 +226,7 @@ class McpClientManagerTest {
       List.of(), Set.of(TransportMode.STDIO));
     var parentEnv = Map.of("PARENT_VAR", "parent_value");
 
-    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv);
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv, null);
 
     assertThat(result)
       .hasSize(2)
@@ -247,7 +247,7 @@ class McpClientManagerTest {
       "NOT_INHERITED", "should_not_appear"
     );
 
-    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv);
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv, null);
 
     assertThat(result)
       .hasSize(2)
@@ -264,7 +264,7 @@ class McpClientManagerTest {
       Set.of(TransportMode.STDIO));
     var parentEnv = Map.of("OVERRIDE_VAR", "parent_value");
 
-    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv);
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv, null);
 
     assertThat(result)
       .hasSize(1)
@@ -275,14 +275,14 @@ class McpClientManagerTest {
   void getProxiedInstructions_should_return_empty_before_initialization() {
     var configs = List.of(
       new ProxiedMcpServerConfig("server1", "npx", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
-    var manager = new McpClientManager(configs, UUID.randomUUID().toString());
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString(), null);
 
     assertThat(manager.getProxiedInstructions()).isEmpty();
   }
 
   @Test
   void getProxiedInstructions_should_return_empty_when_no_servers() {
-    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString());
+    var manager = new McpClientManager(List.of(), UUID.randomUUID().toString(), null);
     manager.initialize();
 
     assertThat(manager.getProxiedInstructions()).isEmpty();
@@ -292,7 +292,7 @@ class McpClientManagerTest {
   void getProxiedInstructions_should_return_empty_when_server_failed_to_connect() {
     var configs = List.of(
       new ProxiedMcpServerConfig("failing-server", "/non/existent/command", List.of(), Map.of(), List.of(), Set.of(TransportMode.STDIO)));
-    var manager = new McpClientManager(configs, UUID.randomUUID().toString());
+    var manager = new McpClientManager(configs, UUID.randomUUID().toString(), null);
     manager.initialize();
 
     assertThat(manager.getProxiedInstructions()).isEmpty();
@@ -306,12 +306,63 @@ class McpClientManagerTest {
       Set.of(TransportMode.STDIO));
     var parentEnv = Map.of("EXISTING_VAR", "existing_value");
 
-    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv);
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv, null);
 
     assertThat(result)
       .hasSize(1)
       .containsEntry("EXISTING_VAR", "existing_value")
       .doesNotContainKey("MISSING_VAR");
+  }
+
+  @Test
+  void buildEnvironmentVariables_should_pass_workspace_mount_as_workspace_dir() {
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), Map.of(),
+      List.of("SONAR_WORKSPACE_DIR", "INHERITED_VAR"), Set.of(TransportMode.STDIO));
+    var parentEnv = Map.of("INHERITED_VAR", "inherited_value");
+
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv, Path.of("/app/mcp-workspace"));
+
+    assertThat(result)
+      .hasSize(2)
+      .containsEntry("SONAR_WORKSPACE_DIR", "/app/mcp-workspace")
+      .containsEntry("INHERITED_VAR", "inherited_value");
+  }
+
+  @Test
+  void buildEnvironmentVariables_should_not_set_workspace_dir_without_mount() {
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), Map.of(),
+      List.of("SONAR_WORKSPACE_DIR", "INHERITED_VAR"), Set.of(TransportMode.STDIO));
+    var parentEnv = Map.of("INHERITED_VAR", "inherited_value");
+
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv, null);
+
+    assertThat(result)
+      .hasSize(1)
+      .containsEntry("INHERITED_VAR", "inherited_value")
+      .doesNotContainKey("SONAR_WORKSPACE_DIR");
+  }
+
+  @Test
+  void buildEnvironmentVariables_should_prefer_explicit_workspace_dir_over_mount() {
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), Map.of(),
+      List.of("SONAR_WORKSPACE_DIR"), Set.of(TransportMode.STDIO));
+    var parentEnv = Map.of("SONAR_WORKSPACE_DIR", "/app/mcp-workspace/module");
+
+    var result = McpClientManager.buildEnvironmentVariables(config, parentEnv, Path.of("/app/mcp-workspace"));
+
+    assertThat(result)
+      .hasSize(1)
+      .containsEntry("SONAR_WORKSPACE_DIR", "/app/mcp-workspace/module");
+  }
+
+  @Test
+  void buildEnvironmentVariables_should_not_pass_workspace_mount_to_server_that_does_not_inherit_it() {
+    var config = new ProxiedMcpServerConfig("server", "cmd", List.of(), Map.of(),
+      List.of("INHERITED_VAR"), Set.of(TransportMode.STDIO));
+
+    var result = McpClientManager.buildEnvironmentVariables(config, Map.of(), Path.of("/app/mcp-workspace"));
+
+    assertThat(result).isEmpty();
   }
 
 }

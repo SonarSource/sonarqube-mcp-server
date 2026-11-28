@@ -284,7 +284,7 @@ public class SonarQubeMcpServer implements ServerApiProvider {
     }
     LOG.info("Vortex is enabled");
     return proxiedToolsLoader.loadProxiedTools(transport, mcpConfiguration.getMcpServerId(),
-      resolvedOrganization != null ? resolvedOrganization.key() : null);
+      resolvedOrganization != null ? resolvedOrganization.key() : null, mcpConfiguration.getWorkspacePath());
   }
 
   /**
